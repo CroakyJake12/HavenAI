@@ -74,37 +74,46 @@ public sealed class ConversationVersioningService(
         ResponseRegenerationMode mode,
         CancellationToken cancellationToken)
     {
-        var message = (await conversations.GetMessagesAsync(conversationId, cancellationToken).ConfigureAwait(false))
-            .FirstOrDefault(item => item.Id == messageId)
-            ?? throw new InvalidOperationException("The message no longer exists in this conversation.");
+        var messages = await conversations.GetMessagesAsync(conversationId, cancellationToken).ConfigureAwait(false);
+        var index = messages.Select((message, position) => (message, position))
+            .FirstOrDefault(item => item.message.Id == messageId).position;
+        var message = messages.FirstOrDefault(item => item.Id == messageId)
+                      ?? throw new InvalidOperationException("The message no longer exists in this conversation.");
         if (message.Role != MessageRole.Assistant)
             throw new InvalidOperationException("Only assistant responses can be regenerated.");
         if (!isLatestAssistantMessage && mode == ResponseRegenerationMode.Here)
             throw new InvalidOperationException("An older response must be regenerated in a new branch.");
 
+        var precedingUser = messages.Take(index).LastOrDefault(item => item.Role == MessageRole.User)
+                            ?? throw new InvalidOperationException("The assistant response has no preceding user turn to regenerate.");
         var current = await EnsureCurrentBranchAsync(conversationId, cancellationToken).ConfigureAwait(false);
-        var target = current;
+        ConversationBranch target;
+
         if (mode == ResponseRegenerationMode.NewBranch || !isLatestAssistantMessage)
         {
             target = await production.CreateBranchAsync(
                 conversationId,
                 current.Id,
-                messageId,
+                precedingUser.Id,
                 $"Regeneration from {message.CreatedAt.LocalDateTime:g}",
                 ConversationBranchReason.RegeneratedResponse,
                 cancellationToken).ConfigureAwait(false);
         }
+        else
+        {
+            var existing = await production.GetCurrentVersionAsync(messageId, current.Id, cancellationToken).ConfigureAwait(false);
+            await production.AddVersionAsync(
+                messageId,
+                current.Id,
+                MessageVersionKind.RecoverySnapshot,
+                existing?.Content ?? message.Content,
+                existing?.MetadataJson ?? message.MetadataJson,
+                false,
+                cancellationToken).ConfigureAwait(false);
+            await production.RemoveBranchMessagesAfterAsync(current.Id, precedingUser.Id, cancellationToken).ConfigureAwait(false);
+            target = current;
+        }
 
-        var existing = await production.GetCurrentVersionAsync(messageId, target.Id, cancellationToken).ConfigureAwait(false);
-        await production.AddVersionAsync(
-            messageId,
-            target.Id,
-            MessageVersionKind.RecoverySnapshot,
-            existing?.Content ?? message.Content,
-            existing?.MetadataJson ?? message.MetadataJson,
-            false,
-            cancellationToken).ConfigureAwait(false);
-        await production.RemoveBranchMessagesAfterAsync(target.Id, messageId, cancellationToken).ConfigureAwait(false);
         await production.SetCurrentBranchAsync(conversationId, target.Id, cancellationToken).ConfigureAwait(false);
         return target;
     }
