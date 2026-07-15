@@ -9,7 +9,7 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "haven-code-intelligence-tests-" + Guid.NewGuid().ToString("N"));
     private readonly FakeConfigurationStore _configurations;
     private readonly FakeLanguageServerClientFactory _servers = new();
-    private readonly CodeIntelligenceService _service;
+    private readonly ProductionCodeIntelligenceService _service;
 
     public CodeIntelligenceServiceTests()
     {
@@ -25,7 +25,7 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
             10,
             "{}"));
         var workspaceTools = new WorkspaceToolService();
-        _service = new CodeIntelligenceService(
+        _service = new ProductionCodeIntelligenceService(
             workspaceTools,
             new WorkspaceTransactionService(workspaceTools),
             _configurations,
