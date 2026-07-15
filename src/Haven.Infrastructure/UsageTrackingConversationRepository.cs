@@ -37,9 +37,11 @@ public sealed class UsageTrackingConversationRepository(
 
         try
         {
-            var captured = usageCapture.ConsumeLastUsage();
-            var providerId = captured?.ProviderId ?? ResolveProviderId(message.ModelName);
-            var modelName = captured?.ModelName ?? ResolveModelName(message.ModelName);
+            var expectedProvider = ResolveProviderId(message.ModelName);
+            var expectedModel = ResolveModelName(message.ModelName);
+            var captured = usageCapture.Consume(expectedProvider, expectedModel);
+            var providerId = captured?.ProviderId ?? expectedProvider;
+            var modelName = captured?.ModelName ?? expectedModel;
             var history = captured is null
                 ? await inner.GetContextMessagesAsync(message.ConversationId, cancellationToken).ConfigureAwait(false)
                 : [];
@@ -84,7 +86,6 @@ public sealed class UsageTrackingConversationRepository(
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException)
         {
-            // Usage accounting must never make a completed response disappear.
             Debug.WriteLine("Usage recording failed: " + ex.Message);
         }
     }
