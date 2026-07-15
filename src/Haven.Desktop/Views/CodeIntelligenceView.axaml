@@ -41,7 +41,7 @@
                 <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="8" Padding="8" Margin="0,2">
                   <StackPanel Spacing="2">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                      <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource HavenOrangeBrush}" FontWeight="SemiBold" FontSize="9" />
+                      <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontWeight="SemiBold" FontSize="9" />
                       <TextBlock Grid.Column="1" Text="{Binding Location}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
                       <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted2" FontSize="9" />
                     </Grid>
