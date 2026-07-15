@@ -70,7 +70,7 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
         return new BrowserDownloadRecord(
             Guid.NewGuid(),
             action.Id,
-            finalAddress.ToString(),
+            finalAddress.GetLeftPart(UriPartial.Path),
             Path.GetFileName(destination),
             destination,
             size,
