@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ModelRoutingSettingsView">
+  <Border Classes="card">
+    <StackPanel Spacing="11">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="ROUTING AND PRICING" Classes="eyebrow" />
+          <TextBlock Text="Fallback policy and configured cost rates" Classes="sectionHeading" Margin="0,4,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
+      </Grid>
+      <TextBlock Text="Fallback is attempted only before streamed output or tool side effects. Costs are calculated only from the rates entered here; Haven does not guess current provider prices."
+                 Classes="muted" FontSize="11" />
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel ItemWidth="500" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Width="490" Margin="0,0,10,10" Classes="dashboardTile">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <StackPanel>
+                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="15" />
+                    <TextBlock Text="{Binding ProviderType}" Classes="muted2" FontSize="9" />
+                  </StackPanel>
+                  <ProgressBar Grid.Column="1" Width="56" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+                </Grid>
+                <CheckBox Content="Allow this provider to fall back from local models to cloud models"
+                          IsChecked="{Binding AllowCloudFallback}" />
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Ordered fallback model keys" Classes="muted" FontSize="10" />
+                  <TextBox Text="{Binding FallbackChain}"
+                           PlaceholderText="e.g. ollama:qwen3.6:latest, gemini:gemini-2.5-flash"
+                           TextWrapping="Wrap" />
+                  <TextBlock Text="Comma, semicolon, or newline separated. Only compatible, enabled models are tried." Classes="muted2" FontSize="9" />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="7">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="Input / 1M" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding InputPricePerMillion}" PlaceholderText="blank" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="Output / 1M" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding OutputPricePerMillion}" PlaceholderText="blank" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="Cached / 1M" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding CachedPricePerMillion}" PlaceholderText="blank" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="3" Spacing="3">
+                    <TextBlock Text="Reasoning / 1M" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding ReasoningPricePerMillion}" PlaceholderText="blank" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="7">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="Currency" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding PricingCurrency}" PlaceholderText="GBP" MaxLength="3" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding Status}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                  <Button Grid.Column="2" Content="Save policy"
+                          Classes="accent"
+                          Command="{Binding $parent[UserControl].DataContext.SaveCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+      <ProgressBar Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+    </StackPanel>
+  </Border>
+</UserControl>
