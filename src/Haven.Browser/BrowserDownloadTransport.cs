@@ -1,6 +1,4 @@
-using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using Haven.Application;
 using Haven.Core;
@@ -16,29 +14,17 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
     {
         ArgumentNullException.ThrowIfNull(action);
         if (action.Kind != BrowserActionKind.Download) throw new ArgumentException("The action is not a download.", nameof(action));
-        var current = new Uri(action.Target, UriKind.Absolute);
-
-        for (var redirect = 0; redirect <= 8; redirect++)
-        {
-            var assessment = await policy.AssessAsync(current, cancellationToken).ConfigureAwait(false);
-            if (!assessment.IsAllowed) throw new UnauthorizedAccessException("Download destination blocked: " + assessment.Reason);
-            var addresses = assessment.ResolvedAddresses.Select(IPAddress.Parse).ToArray();
-            if (addresses.Length == 0) throw new UnauthorizedAccessException("The approved download destination has no pinned addresses.");
-
-            using var handler = CreatePinnedHandler(current, addresses);
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(10) };
-            using var response = await client.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if ((int)response.StatusCode is >= 300 and <= 399 && response.Headers.Location is { } location)
-            {
-                current = location.IsAbsoluteUri ? location : new Uri(current, location);
-                continue;
-            }
-            response.EnsureSuccessStatusCode();
-            if (response.Content.Headers.ContentLength is > MaximumDownloadBytes)
-                throw new InvalidOperationException("The download exceeds Haven's 250 MB limit.");
-            return await SaveAsync(action, current, response, cancellationToken).ConfigureAwait(false);
-        }
-        throw new HttpRequestException("The download exceeded Haven's eight-redirect limit.");
+        await using var lease = await BrowserPinnedHttpTransport.SendAsync(
+            policy,
+            new Uri(action.Target, UriKind.Absolute),
+            maximumRedirects: 8,
+            timeout: TimeSpan.FromMinutes(10),
+            cancellationToken).ConfigureAwait(false);
+        var response = lease.Response;
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentLength is > MaximumDownloadBytes)
+            throw new InvalidOperationException("The download exceeds Haven's 250 MB limit.");
+        return await SaveAsync(action, lease.FinalAddress, response, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<BrowserDownloadRecord> SaveAsync(
@@ -91,34 +77,6 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
             Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant(),
             response.Content.Headers.ContentType?.MediaType,
             DateTimeOffset.UtcNow);
-    }
-
-    private static SocketsHttpHandler CreatePinnedHandler(Uri address, IReadOnlyList<IPAddress> addresses)
-    {
-        var expectedHost = address.DnsSafeHost;
-        return new SocketsHttpHandler
-        {
-            AllowAutoRedirect = false,
-            AutomaticDecompression = DecompressionMethods.All,
-            UseCookies = false,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            ConnectCallback = async (context, cancellationToken) =>
-            {
-                if (!context.DnsEndPoint.Host.Equals(expectedHost, StringComparison.OrdinalIgnoreCase))
-                    throw new UnauthorizedAccessException("The HTTP connection attempted to change the approved host.");
-                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                try
-                {
-                    await socket.ConnectAsync(addresses.ToArray(), context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
-                    return new NetworkStream(socket, ownsSocket: true);
-                }
-                catch
-                {
-                    socket.Dispose();
-                    throw;
-                }
-            }
-        };
     }
 
     private static string ResolveDownloadDirectory(IAppPaths paths)
