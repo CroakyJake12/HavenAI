@@ -243,15 +243,35 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
         {
             if (!SetProperty(ref _isConnected, value))
                 return;
+            RaiseActionProperties();
             RaisePropertyChanged(nameof(ConnectionLabel));
             RaisePropertyChanged(nameof(ConnectLabel));
             RaisePropertyChanged(nameof(ApiKeyHint));
         }
     }
-    public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
+    public bool IsBusy
+    {
+        get => _isBusy;
+        set
+        {
+            if (!SetProperty(ref _isBusy, value))
+                return;
+            RaiseActionProperties();
+        }
+    }
     public string Status { get => _status; set => SetProperty(ref _status, value); }
     public string ModelSummary { get => _modelSummary; set => SetProperty(ref _modelSummary, value); }
     public string ConnectionLabel => IsConnected ? "Connected" : "Not connected";
     public string ConnectLabel => IsConnected ? "Update connection" : "Connect";
     public string ApiKeyHint => IsConnected ? "Leave blank to keep the saved API key" : "API key";
+    public bool CanConnect => !IsBusy;
+    public bool CanTest => IsConnected && !IsBusy;
+    public bool CanDisconnect => IsConnected && !IsBusy;
+
+    private void RaiseActionProperties()
+    {
+        RaisePropertyChanged(nameof(CanConnect));
+        RaisePropertyChanged(nameof(CanTest));
+        RaisePropertyChanged(nameof(CanDisconnect));
+    }
 }
