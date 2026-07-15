@@ -11,23 +11,21 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     public string ResolveWorkspacePath(string workspaceRoot, string relativePath)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot)) throw new ArgumentException("A workspace root is required.", nameof(workspaceRoot));
-        var root = Path.GetFullPath(workspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        // If the model passes an absolute path that is already inside the workspace, strip the root prefix.
+        if (string.IsNullOrWhiteSpace(relativePath)) throw new ArgumentException("A workspace-relative path is required.", nameof(relativePath));
+
+        var root = Path.GetFullPath(workspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
         if (Path.IsPathRooted(relativePath))
         {
-            var absCandidate = Path.GetFullPath(relativePath);
-            if (absCandidate.StartsWith(root, cmp))
-            {
-                relativePath = absCandidate[root.Length..];
-            }
-            else
-            {
+            var absoluteCandidate = Path.GetFullPath(relativePath);
+            if (!IsWithinRoot(root, absoluteCandidate, comparison))
                 throw new UnauthorizedAccessException("The requested path is outside the selected workspace.");
-            }
+            return absoluteCandidate;
         }
+
         var candidate = Path.GetFullPath(Path.Combine(root, relativePath));
-        if (!candidate.StartsWith(root, cmp))
+        if (!IsWithinRoot(root, candidate, comparison))
             throw new UnauthorizedAccessException("The requested path is outside the selected workspace.");
         return candidate;
     }
@@ -43,8 +41,15 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
         var path = ResolveWorkspacePath(workspaceRoot, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + ".haven.tmp." + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(temporary, content, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
-        File.Move(temporary, path, true);
+        try
+        {
+            await File.WriteAllTextAsync(temporary, content, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            File.Move(temporary, path, true);
+        }
+        finally
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); } catch (IOException) { }
+        }
     }
 
     public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken)
@@ -114,6 +119,13 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
             TryKill(process);
             throw;
         }
+    }
+
+    private static bool IsWithinRoot(string root, string candidate, StringComparison comparison)
+    {
+        if (candidate.Equals(root, comparison)) return true;
+        var prefix = root + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(prefix, comparison);
     }
 
     private static async Task<string> ReadLimitedAsync(StreamReader reader, CancellationToken cancellationToken)
