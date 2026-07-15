@@ -64,6 +64,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
                     item.IsConnected = configuration.IsEnabled && hasSecret;
                 }
 
+                item.IsHealthy = false;
                 item.Status = item.IsConnected
                     ? "Configured. Use Test to verify the saved credentials and discover models."
                     : "Not connected.";
@@ -121,10 +122,12 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
             await _configurations.UpsertAsync(configuration, CancellationToken.None);
             item.Endpoint = configuration.Endpoint;
             item.IsConnected = true;
+            item.IsHealthy = false;
             await TestCoreAsync(item);
         }
         catch (Exception ex)
         {
+            item.IsHealthy = false;
             item.Status = $"Connection failed: {ex.Message}";
             Status = $"Could not connect {item.DisplayName}.";
         }
@@ -146,6 +149,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            item.IsHealthy = false;
             item.Status = $"Test failed: {ex.Message}";
             Status = $"{item.DisplayName} did not pass its connection test.";
         }
@@ -160,6 +164,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         var provider = _providers.GetRequired(item.Id);
         item.Status = "Testing connection…";
         var health = await provider.CheckHealthAsync(CancellationToken.None);
+        item.IsHealthy = health.IsHealthy;
         item.Status = health.Message;
 
         if (!health.IsHealthy)
@@ -190,6 +195,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
 
             item.ApiKey = string.Empty;
             item.IsConnected = false;
+            item.IsHealthy = false;
             item.ModelSummary = "Models not checked yet";
             item.Status = "Disconnected. The saved API key was removed from Windows Credential Manager.";
             Status = $"Disconnected {item.DisplayName}.";
@@ -211,6 +217,7 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
     private string _endpoint;
     private string _apiKey = string.Empty;
     private bool _isConnected;
+    private bool _isHealthy;
     private bool _isBusy;
     private string _status;
     private string _modelSummary = "Models not checked yet";
@@ -244,9 +251,17 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
             if (!SetProperty(ref _isConnected, value))
                 return;
             RaiseActionProperties();
+            RaiseConnectionProperties();
+        }
+    }
+    public bool IsHealthy
+    {
+        get => _isHealthy;
+        set
+        {
+            if (!SetProperty(ref _isHealthy, value))
+                return;
             RaisePropertyChanged(nameof(ConnectionLabel));
-            RaisePropertyChanged(nameof(ConnectLabel));
-            RaisePropertyChanged(nameof(ApiKeyHint));
         }
     }
     public bool IsBusy
@@ -261,7 +276,7 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
     }
     public string Status { get => _status; set => SetProperty(ref _status, value); }
     public string ModelSummary { get => _modelSummary; set => SetProperty(ref _modelSummary, value); }
-    public string ConnectionLabel => IsConnected ? "Connected" : "Not connected";
+    public string ConnectionLabel => !IsConnected ? "Not connected" : IsHealthy ? "Connected" : "Configured";
     public string ConnectLabel => IsConnected ? "Update connection" : "Connect";
     public string ApiKeyHint => IsConnected ? "Leave blank to keep the saved API key" : "API key";
     public bool CanConnect => !IsBusy;
@@ -273,5 +288,12 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
         RaisePropertyChanged(nameof(CanConnect));
         RaisePropertyChanged(nameof(CanTest));
         RaisePropertyChanged(nameof(CanDisconnect));
+    }
+
+    private void RaiseConnectionProperties()
+    {
+        RaisePropertyChanged(nameof(ConnectionLabel));
+        RaisePropertyChanged(nameof(ConnectLabel));
+        RaisePropertyChanged(nameof(ApiKeyHint));
     }
 }
