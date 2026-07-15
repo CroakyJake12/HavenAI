@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -13,6 +14,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     private readonly BrowserDownloadTransport _downloads;
     private readonly BrowserBackgroundPageLoader _backgroundPages;
     private readonly SemaphoreSlim _actionGate = new(1, 1);
+    private readonly ConcurrentDictionary<Guid, string> _ephemeralTargets = new();
     private BrowserPageSnapshot? _backgroundSnapshot;
 
     public BrowserAutomationService(
@@ -74,9 +76,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         {
             _backgroundSnapshot = await _backgroundPages.LoadAsync(uri, cancellationToken).ConfigureAwait(false);
             finalAddress = _backgroundSnapshot.Address ?? uri;
-            result = $"Loaded {finalAddress} in Haven's isolated background browser. Use browser_snapshot to inspect the bounded page text.";
+            result = $"Loaded {RedactedAddress(finalAddress)} in Haven's isolated background browser. Use browser_snapshot to inspect the bounded page text.";
         }
-        await AuditAsync(null, "navigate", Origin(finalAddress), $"Navigated to {finalAddress}.", true, cancellationToken).ConfigureAwait(false);
+        await AuditAsync(null, "navigate", Origin(finalAddress), $"Navigated to {RedactedAddress(finalAddress)}.", true, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
@@ -136,12 +138,23 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         var uri = NormalizeAddress(address);
         var assessment = await _policy.AssessAsync(uri, cancellationToken).ConfigureAwait(false);
         if (!assessment.IsAllowed) throw new UnauthorizedAccessException("Download blocked: " + assessment.Reason);
-        var action = NewAction(
+        var now = DateTimeOffset.UtcNow;
+        var id = Guid.NewGuid();
+        var containsSensitiveComponents = !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment);
+        var persistedTarget = containsSensitiveComponents ? "ephemeral:" + id.ToString("N") : uri.ToString();
+        if (containsSensitiveComponents) _ephemeralTargets[id] = uri.ToString();
+        var action = new BrowserPendingAction(
+            id,
             BrowserActionKind.Download,
             Origin(uri),
-            $"Download {uri}",
-            uri.ToString(),
-            string.IsNullOrWhiteSpace(suggestedFileName) ? null : suggestedFileName.Trim());
+            $"Download {RedactedAddress(uri)}",
+            persistedTarget,
+            string.IsNullOrWhiteSpace(suggestedFileName) ? null : suggestedFileName.Trim(),
+            BrowserActionState.Pending,
+            now,
+            now.AddMinutes(10),
+            now,
+            null);
         await _store.AddPendingAsync(action, cancellationToken).ConfigureAwait(false);
         await AuditAsync(action.Kind, "approval-requested", action.Origin, action.Summary, true, cancellationToken).ConfigureAwait(false);
         return action;
@@ -163,6 +176,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
                          ?? throw new KeyNotFoundException("The browser action no longer exists.");
             if (action.State != BrowserActionState.Pending)
                 return new BrowserActionExecutionResult(action.Id, action.State, $"The action is already {action.State.ToString().ToLowerInvariant()}.");
+            _ephemeralTargets.TryRemove(action.Id, out _);
             var rejected = action with { State = BrowserActionState.Rejected, UpdatedAt = DateTimeOffset.UtcNow, Failure = "Rejected by the user." };
             await _store.UpdateActionAsync(rejected, cancellationToken).ConfigureAwait(false);
             await AuditAsync(action.Kind, "rejected", action.Origin, action.Summary, true, cancellationToken).ConfigureAwait(false);
@@ -171,7 +185,15 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         finally { _actionGate.Release(); }
     }
 
-    public Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken) => _store.GetPendingAsync(cancellationToken);
+    public async Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken)
+    {
+        var pending = await _store.GetPendingAsync(cancellationToken).ConfigureAwait(false);
+        var activeIds = pending.Select(item => item.Id).ToHashSet();
+        foreach (var id in _ephemeralTargets.Keys)
+            if (!activeIds.Contains(id)) _ephemeralTargets.TryRemove(id, out _);
+        return pending;
+    }
+
     public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken) => _store.GetAuditAsync(limit, cancellationToken);
     public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => _store.GetDownloadsAsync(limit, cancellationToken);
 
@@ -183,6 +205,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
             return new BrowserActionExecutionResult(action.Id, action.State, $"The action is already {action.State.ToString().ToLowerInvariant()}.");
         if (action.ExpiresAt <= DateTimeOffset.UtcNow)
         {
+            _ephemeralTargets.TryRemove(action.Id, out _);
             var expired = action with { State = BrowserActionState.Expired, UpdatedAt = DateTimeOffset.UtcNow, Failure = "The approval expired." };
             await _store.UpdateActionAsync(expired, cancellationToken).ConfigureAwait(false);
             return new BrowserActionExecutionResult(expired.Id, expired.State, "The approval expired; request the action again.");
@@ -209,7 +232,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
                     message = click;
                     break;
                 case BrowserActionKind.Download:
-                    download = await _downloads.DownloadAsync(action, cancellationToken).ConfigureAwait(false);
+                    var target = ResolveDownloadTarget(action);
+                    download = await _downloads.DownloadAsync(action with { Target = target }, cancellationToken).ConfigureAwait(false);
+                    _ephemeralTargets.TryRemove(action.Id, out _);
                     await _store.AddDownloadAsync(download, cancellationToken).ConfigureAwait(false);
                     message = $"Downloaded {download.FileName} ({download.SizeBytes:N0} bytes) to Haven's Downloads folder.";
                     break;
@@ -224,6 +249,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
         catch (OperationCanceledException)
         {
+            _ephemeralTargets.TryRemove(action.Id, out _);
             var cancelled = action with { State = BrowserActionState.Failed, UpdatedAt = DateTimeOffset.UtcNow, Failure = "Execution was cancelled and will not resume automatically." };
             await _store.UpdateActionAsync(cancelled, CancellationToken.None).ConfigureAwait(false);
             await AuditAsync(action.Kind, "execution-cancelled", action.Origin, cancelled.Failure, false, CancellationToken.None).ConfigureAwait(false);
@@ -231,11 +257,20 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
         catch (Exception exception)
         {
+            _ephemeralTargets.TryRemove(action.Id, out _);
             var failed = action with { State = BrowserActionState.Failed, UpdatedAt = DateTimeOffset.UtcNow, Failure = Bounded(exception.Message, 1_000) };
             await _store.UpdateActionAsync(failed, cancellationToken).ConfigureAwait(false);
             await AuditAsync(action.Kind, "execution-failed", action.Origin, failed.Failure, false, cancellationToken).ConfigureAwait(false);
             return new BrowserActionExecutionResult(action.Id, failed.State, "Browser action failed: " + exception.Message);
         }
+    }
+
+    private string ResolveDownloadTarget(BrowserPendingAction action)
+    {
+        if (!action.Target.StartsWith("ephemeral:", StringComparison.Ordinal)) return action.Target;
+        return _ephemeralTargets.TryGetValue(action.Id, out var target)
+            ? target
+            : throw new InvalidOperationException("This signed download request cannot be resumed after restart. Request it again so the token remains session-only.");
     }
 
     private async Task<BrowserPageSnapshot> RequireInteractiveSnapshotAsync(CancellationToken cancellationToken)
@@ -284,9 +319,14 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     private static string Origin(Uri? address) => address is null ? string.Empty : address.GetLeftPart(UriPartial.Authority);
+    private static string RedactedAddress(Uri address) => address.GetLeftPart(UriPartial.Path);
     private static string Bounded(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
 
-    public void Dispose() => _actionGate.Dispose();
+    public void Dispose()
+    {
+        _ephemeralTargets.Clear();
+        _actionGate.Dispose();
+    }
 
     private sealed record SubmitActionTarget(
         string Reference,
