@@ -11,6 +11,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
+        services.AddSingleton<ITextEmbeddingService, LocalHashEmbeddingService>();
+        services.AddSingleton<RetrievalIndexService>();
+        services.AddSingleton<IRetrievalIndexService>(provider => provider.GetRequiredService<RetrievalIndexService>());
+        services.AddSingleton<IRetrievalSearchService>(provider => provider.GetRequiredService<RetrievalIndexService>());
         services.AddSingleton<ProviderUsageCaptureBuffer>();
         services.AddSingleton<IProviderPricingService, ProviderPricingService>();
         services.AddSingleton<IModelUsageRepository, ModelUsageRepository>();
