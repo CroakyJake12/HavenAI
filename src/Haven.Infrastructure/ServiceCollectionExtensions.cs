@@ -50,6 +50,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILegacyStateMigrator, LegacyStateMigrator>();
         services.AddSingleton<IWorkspaceToolService, WorkspaceToolService>();
         services.AddSingleton<IWorkspaceTransactionService, WorkspaceTransactionService>();
+        services.AddSingleton<ILanguageServerConfigurationStore, LanguageServerConfigurationStore>();
+        services.AddSingleton<ILanguageServerClientFactory, LanguageServerClientFactory>();
+        services.AddSingleton<ICodeIntelligenceService, CodeIntelligenceService>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
         services.AddHttpClient<IOllamaClient, OllamaClient>(client =>
         {
