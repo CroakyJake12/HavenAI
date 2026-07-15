@@ -5,8 +5,22 @@ using Haven.Core;
 
 namespace Haven.Application;
 
-public sealed class BrowserToolRuntime(IBrowserToolService browser, IBrowserAutomationService automation)
+public sealed class BrowserToolRuntime
 {
+    private readonly IBrowserToolService _browser;
+    private readonly IBrowserAutomationService _automation;
+
+    public BrowserToolRuntime(IBrowserToolService browser, IBrowserAutomationService automation)
+    {
+        _browser = browser;
+        _automation = automation;
+    }
+
+    public BrowserToolRuntime(IBrowserToolService browser)
+        : this(browser, BrowserAutomationRegistry.Resolve(browser))
+    {
+    }
+
     private static readonly IReadOnlyList<OllamaToolDefinition> BackgroundToolDefinitions =
     [
         Definition("browser_navigate", "Navigate Haven's isolated browser to a public HTTP or HTTPS URL or search query. Local and private network destinations are blocked.",
@@ -42,7 +56,7 @@ public sealed class BrowserToolRuntime(IBrowserToolService browser, IBrowserAuto
     public IReadOnlyList<OllamaToolDefinition> BackgroundDefinitions => BackgroundToolDefinitions;
     public IReadOnlyList<OllamaToolDefinition> InteractiveDefinitions => InteractiveToolDefinitions;
     public IReadOnlyList<OllamaToolDefinition> Definitions => [.. BackgroundToolDefinitions, .. InteractiveToolDefinitions];
-    public bool IsInteractiveAvailable => browser.IsInteractiveAvailable;
+    public bool IsInteractiveAvailable => _browser.IsInteractiveAvailable;
 
     public async Task<WorkspaceToolResult> ExecuteAsync(OllamaToolCall call, CancellationToken cancellationToken)
     {
@@ -51,16 +65,16 @@ public sealed class BrowserToolRuntime(IBrowserToolService browser, IBrowserAuto
         {
             var output = call.Name switch
             {
-                "browser_navigate" => await automation.NavigateAsync(RequiredText(call, "address"), cancellationToken).ConfigureAwait(false),
-                "browser_snapshot" or "browser_read_page" => FormatSnapshot(await automation.CapturePageAsync(cancellationToken).ConfigureAwait(false)),
-                "browser_click_ref" => await automation.ClickReferenceAsync(RequiredText(call, "reference"), cancellationToken).ConfigureAwait(false),
-                "browser_fill_ref" => await automation.FillReferenceAsync(RequiredText(call, "reference"), Text(call, "value"), cancellationToken).ConfigureAwait(false),
-                "browser_download" => FormatPending(await automation.RequestDownloadAsync(
+                "browser_navigate" => await _automation.NavigateAsync(RequiredText(call, "address"), cancellationToken).ConfigureAwait(false),
+                "browser_snapshot" or "browser_read_page" => FormatSnapshot(await _automation.CapturePageAsync(cancellationToken).ConfigureAwait(false)),
+                "browser_click_ref" => await _automation.ClickReferenceAsync(RequiredText(call, "reference"), cancellationToken).ConfigureAwait(false),
+                "browser_fill_ref" => await _automation.FillReferenceAsync(RequiredText(call, "reference"), Text(call, "value") ?? string.Empty, cancellationToken).ConfigureAwait(false),
+                "browser_download" => FormatPending(await _automation.RequestDownloadAsync(
                     RequiredText(call, "address"), Text(call, "file_name", null), cancellationToken).ConfigureAwait(false)),
-                "browser_back" => await browser.BackAsync(cancellationToken).ConfigureAwait(false),
-                "browser_forward" => await browser.ForwardAsync(cancellationToken).ConfigureAwait(false),
-                "browser_reload" => await browser.ReloadAsync(Boolean(call, "clear_cache"), cancellationToken).ConfigureAwait(false),
-                "browser_scroll" => await browser.ScrollAsync(
+                "browser_back" => await _browser.BackAsync(cancellationToken).ConfigureAwait(false),
+                "browser_forward" => await _browser.ForwardAsync(cancellationToken).ConfigureAwait(false),
+                "browser_reload" => await _browser.ReloadAsync(Boolean(call, "clear_cache"), cancellationToken).ConfigureAwait(false),
+                "browser_scroll" => await _browser.ScrollAsync(
                     Math.Clamp(Number(call, "x"), -10_000, 10_000),
                     Math.Clamp(Number(call, "y", 650), -10_000, 10_000),
                     cancellationToken).ConfigureAwait(false),
