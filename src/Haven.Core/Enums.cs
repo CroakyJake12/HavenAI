@@ -10,7 +10,23 @@ public enum EffortLevel { Low, Medium, High, Max }
 public enum PermissionMode { Ask, AutoSafe, FullAccess }
 public enum AutomationScheduleKind { Once, Hourly, Daily, Weekly, ConditionWatch }
 public enum AutomationRunStatus { Pending, Running, Succeeded, Failed, Cancelled, SkippedDuplicate }
-public enum ToolCapability { Text, Vision, Tools, Browser, ComputerUse, WebSearch, Embeddings }
+public enum ToolCapability
+{
+    Text = 0,
+    Vision = 1,
+    Tools = 2,
+    Browser = 3,
+    ComputerUse = 4,
+    WebSearch = 5,
+    Embeddings = 6,
+    Streaming = 7,
+    StructuredOutput = 8,
+    Reranking = 9,
+    PromptCaching = 10,
+    UsageReporting = 11,
+    AudioInput = 12,
+    AudioOutput = 13
+}
 public enum ContextEntryKind { Registered, CompactSummary, Decision, ErrorPattern, HandoffEvidence }
 public enum WorkspaceVersionKind { Edit, Undo, Redo, Rollback, Rollforward }
 public enum BrowserTabPrivacy { Standard, Private }
