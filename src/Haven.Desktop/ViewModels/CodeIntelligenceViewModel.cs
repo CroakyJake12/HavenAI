@@ -7,7 +7,6 @@ namespace Haven.Desktop.ViewModels;
 public sealed class CodeIntelligenceViewModel : ObservableObject
 {
     private readonly ICodeIntelligenceService _intelligence;
-    private ChatPageViewModel? _chat;
     private string _workspaceRoot = string.Empty;
     private string _relativePath = string.Empty;
     private string _symbolQuery = string.Empty;
@@ -89,7 +88,6 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
 
     public void SetChat(ChatPageViewModel? chat)
     {
-        _chat = chat;
         _workspaceRoot = chat?.Mode == HavenMode.Studio && chat.SelectedContainer?.Definition.RootPath is { Length: > 0 } root
             ? Path.GetFullPath(root)
             : string.Empty;
@@ -194,7 +192,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
             IsBusy = true;
             await operation();
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException or TimeoutException or System.ComponentModel.Win32Exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Status = "Code intelligence failed: " + exception.Message;
         }
