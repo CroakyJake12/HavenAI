@@ -50,7 +50,7 @@ public sealed class BrowserAutomationTests : IDisposable
         var host = new FakeBrowserHost();
         browser.Attach(host);
         var store = new MemoryAutomationStore();
-        using var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
+        var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
 
         host.Elements =
         [
@@ -78,12 +78,27 @@ public sealed class BrowserAutomationTests : IDisposable
     }
 
     [Fact]
+    public async Task StaleReferencesAreReportedAsFailuresRatherThanSuccessfulClicks()
+    {
+        var browser = new BrowserSessionService(_paths);
+        var host = new FakeBrowserHost { ClickResult = "stale-reference" };
+        browser.Attach(host);
+        var automation = new BrowserAutomationService(browser, new AllowPolicy(), new MemoryAutomationStore(), _paths);
+        host.Elements = [Element("haven-1", "button", "Old control", false, false)];
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            automation.ClickReferenceAsync("haven-1", CancellationToken.None));
+
+        Assert.Contains("page changed", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task DownloadsArePendingUntilExplicitlyRejectedOrApproved()
     {
         var browser = new BrowserSessionService(_paths);
         browser.Attach(new FakeBrowserHost());
         var store = new MemoryAutomationStore();
-        using var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
+        var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
 
         var action = await automation.RequestDownloadAsync("https://example.test/archive.zip", "archive.zip", CancellationToken.None);
         Assert.Equal(BrowserActionState.Pending, action.State);
@@ -122,6 +137,7 @@ public sealed class BrowserAutomationTests : IDisposable
     {
         public IReadOnlyList<BrowserPageElement> Elements { get; set; } = [];
         public int ClickCount { get; private set; }
+        public string ClickResult { get; set; } = "clicked";
         public event EventHandler<BrowserSnapshot>? StateChanged;
         public BrowserSnapshot State { get; private set; } = new(new Uri("https://example.test/page"), "Example", false, false, false, "Ready");
         public Task NavigateAsync(Uri address, CancellationToken cancellationToken) { State = State with { Address = address }; StateChanged?.Invoke(this, State); return Task.CompletedTask; }
@@ -159,7 +175,7 @@ public sealed class BrowserAutomationTests : IDisposable
             if (script.Contains("e.click()", StringComparison.Ordinal))
             {
                 ClickCount++;
-                return Task.FromResult<string?>(JsonSerializer.Serialize("clicked"));
+                return Task.FromResult<string?>(JsonSerializer.Serialize(ClickResult));
             }
             if (script.Contains("setter.call", StringComparison.Ordinal))
                 return Task.FromResult<string?>(JsonSerializer.Serialize("filled"));
