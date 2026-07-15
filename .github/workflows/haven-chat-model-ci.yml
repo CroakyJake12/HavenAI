@@ -1,12 +1,7 @@
 name: Haven Chat and Model Pass
 
 on:
-  push:
-    branches:
-      - codex/haven-chat-model-production-pass
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
