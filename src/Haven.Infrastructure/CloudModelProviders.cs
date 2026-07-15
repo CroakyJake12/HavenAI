@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -42,7 +42,7 @@ internal static class ProviderHttp
     {
         if (response.IsSuccessStatusCode) return;
         var detail = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (detail.Length > 16_000) detail = detail[..16_000] + "…";
+        if (detail.Length > 16_000) detail = detail[..16_000] + "â€¦";
         throw new HttpRequestException($"{providerName} returned {(int)response.StatusCode}: {detail}", null, response.StatusCode);
     }
 
@@ -109,7 +109,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
         {
             var name = item.TryGetProperty("id", out var id) ? id.GetString() : null;
             if (string.IsNullOrWhiteSpace(name)) continue;
-            var context = item.TryGetProperty("context_length", out var contextElement) && contextElement.TryGetInt32(out var value) ? value : null;
+            int? context = item.TryGetProperty("context_length", out var contextElement) && contextElement.TryGetInt32(out var value) ? value : null;
             var capabilities = InferCapabilities(name, item);
             result.Add(new ProviderModelDescriptor(Id, false,
                 new ModelDescriptor(name, 0, DisplayName, string.Empty, string.Empty, capabilities, DateTimeOffset.UtcNow),
@@ -306,3 +306,4 @@ public sealed class CustomOpenAiCompatibleModelProvider(IHttpClientFactory clien
     public override ModelProviderKind Kind => ModelProviderKind.OpenAICompatible;
     protected override string DefaultEndpoint => string.Empty;
 }
+
