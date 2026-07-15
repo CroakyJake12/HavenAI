@@ -49,16 +49,16 @@
                           Classes="accent"
                           Command="{Binding $parent[UserControl].DataContext.ConnectCommand}"
                           CommandParameter="{Binding}"
-                          IsEnabled="{Binding !IsBusy}" />
+                          IsEnabled="{Binding CanConnect}" />
                   <Button Grid.Column="1" Content="Test"
                           Command="{Binding $parent[UserControl].DataContext.TestCommand}"
                           CommandParameter="{Binding}"
-                          IsEnabled="{Binding IsConnected}" />
+                          IsEnabled="{Binding CanTest}" />
                   <Button Grid.Column="2" Content="Disconnect"
                           Classes="danger"
                           Command="{Binding $parent[UserControl].DataContext.DisconnectCommand}"
                           CommandParameter="{Binding}"
-                          IsEnabled="{Binding IsConnected}" />
+                          IsEnabled="{Binding CanDisconnect}" />
                   <TextBlock Grid.Column="3" Text="{Binding ModelSummary}" Classes="muted" FontSize="10"
                              HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
