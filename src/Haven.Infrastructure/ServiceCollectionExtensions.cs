@@ -39,6 +39,19 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(endpoint, UriKind.Absolute);
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
+
+        services.AddHttpClient("Haven.ModelProvider.openai");
+        services.AddHttpClient("Haven.ModelProvider.openrouter");
+        services.AddHttpClient("Haven.ModelProvider.openai-compatible");
+        services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
+        services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
+        services.AddSingleton<IModelProvider, OllamaModelProvider>();
+        services.AddSingleton<IModelProvider, OpenAiModelProvider>();
+        services.AddSingleton<IModelProvider, OpenRouterModelProvider>();
+        services.AddSingleton<IModelProvider, CustomOpenAiCompatibleModelProvider>();
+        services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
+        services.AddSingleton<IModelRouter, ModelRouter>();
+
         services.AddSingleton<IModeRegistry, ModeRegistry>();
         services.AddSingleton<IModeUsageRepository, ModeUsageRepository>();
         services.AddSingleton<IPinRepository, PinRepository>();
