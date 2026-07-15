@@ -43,12 +43,16 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Haven.ModelProvider.openai");
         services.AddHttpClient("Haven.ModelProvider.openrouter");
         services.AddHttpClient("Haven.ModelProvider.openai-compatible");
+        services.AddHttpClient("Haven.ModelProvider.anthropic");
+        services.AddHttpClient("Haven.ModelProvider.gemini");
         services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
         services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
         services.AddSingleton<IModelProvider, OllamaModelProvider>();
         services.AddSingleton<IModelProvider, OpenAiModelProvider>();
         services.AddSingleton<IModelProvider, OpenRouterModelProvider>();
         services.AddSingleton<IModelProvider, CustomOpenAiCompatibleModelProvider>();
+        services.AddSingleton<IModelProvider, AnthropicModelProvider>();
+        services.AddSingleton<IModelProvider, GeminiModelProvider>();
         services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
         services.AddSingleton<IModelRouter, ModelRouter>();
 
