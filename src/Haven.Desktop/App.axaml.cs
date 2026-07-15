@@ -54,6 +54,9 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<MainWindowViewModel>();
         _services = collection.BuildServiceProvider();
         Services = _services;
+        BrowserAutomationRegistry.Register(
+            _services.GetRequiredService<BrowserSessionService>(),
+            _services.GetRequiredService<IBrowserAutomationService>());
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
