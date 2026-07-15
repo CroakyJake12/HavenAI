@@ -1,6 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.ConversationProductionToolbarView">
   <Border Background="{DynamicResource HavenPanelBrush}"
           BorderBrush="{DynamicResource HavenLineBrush}"
@@ -30,14 +29,16 @@
             <StackPanel Grid.Column="1" Spacing="6">
               <TextBlock Text="CLOUD MODEL" Classes="eyebrow" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
-                <ComboBox x:Name="CloudModelSelector" ItemsSource="{Binding CloudModels}" SelectionChanged="OnCloudModelChanged" PlaceholderText="Choose a connected cloud model">
+                <ComboBox x:Name="CloudModelSelector" ItemsSource="{Binding CloudModels}" SelectionChanged="OnCloudModelChanged">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>
                       <StackPanel>
                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ProviderName, StringFormat='{}{0} · '}">
-                          <TextBlock.Inlines><Run Text="{Binding ProviderName}" /><Run Text=" · " /><Run Text="{Binding ContextLabel}" /></TextBlock.Inlines>
-                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                          <TextBlock Text="{Binding ProviderName}" Classes="muted" FontSize="9" />
+                          <TextBlock Text="·" Classes="muted2" FontSize="9" />
+                          <TextBlock Text="{Binding ContextLabel}" Classes="muted" FontSize="9" />
+                        </StackPanel>
                       </StackPanel>
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
@@ -85,7 +86,7 @@
                 <Button Content="Start share" Command="{Binding StartShareCommand}" />
                 <Button Grid.Column="1" Content="Stop" Classes="danger" Command="{Binding StopShareCommand}" />
               </Grid>
-              <TextBox Text="{Binding ShareAddress}" IsReadOnly="True" Watermark="No active share" />
+              <TextBox Text="{Binding ShareAddress}" IsReadOnly="True" PlaceholderText="No active share" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
                 <TextBlock Text="{Binding ShareExpiryLabel}" Classes="muted2" FontSize="9" VerticalAlignment="Center" />
                 <Button Grid.Column="1" Content="Copy link" Click="OnCopyShareClicked" IsEnabled="{Binding HasActiveShare}" />
