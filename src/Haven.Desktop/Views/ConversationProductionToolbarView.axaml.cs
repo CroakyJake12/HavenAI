@@ -11,10 +11,16 @@ namespace Haven.Desktop.Views;
 public sealed partial class ConversationProductionToolbarView : UserControl
 {
     private readonly ConversationProductionToolbarViewModel? _viewModel;
+    private readonly ConversationMessageToolsView _messageTools;
 
     public ConversationProductionToolbarView()
     {
         InitializeComponent();
+        _messageTools = new ConversationMessageToolsView();
+        _messageTools.BranchChanged += (_, _) => BranchChanged?.Invoke(this, EventArgs.Empty);
+        _messageTools.RegenerationRequested += prompt => RegenerationRequested?.Invoke(prompt);
+        ExpandedContent.Children.Add(_messageTools);
+
         if (App.Services is null) return;
         _viewModel = ActivatorUtilities.CreateInstance<ConversationProductionToolbarViewModel>(App.Services);
         _viewModel.BranchChanged += (_, _) => BranchChanged?.Invoke(this, EventArgs.Empty);
@@ -25,9 +31,13 @@ public sealed partial class ConversationProductionToolbarView : UserControl
 
     public event EventHandler? BranchChanged;
     public event Action<ModelDescriptor>? ModelSelected;
+    public event Action<string>? RegenerationRequested;
 
-    public Task LoadAsync(Guid conversationId, CancellationToken cancellationToken) =>
-        _viewModel?.LoadAsync(conversationId, cancellationToken) ?? Task.CompletedTask;
+    public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
+    {
+        if (_viewModel is not null) await _viewModel.LoadAsync(conversationId, cancellationToken);
+        await _messageTools.LoadAsync(conversationId, cancellationToken);
+    }
 
     private void OnCloudModelChanged(object? sender, SelectionChangedEventArgs e)
     {
