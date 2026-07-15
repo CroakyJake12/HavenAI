@@ -78,12 +78,46 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
 
     private async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(Guid conversationId, bool includeCompacted, CancellationToken cancellationToken)
     {
+        await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var branchId = await GetCurrentBranchIdAsync(connection, null, conversationId, cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
-        command.CommandText = includeCompacted
-            ? "SELECT * FROM messages WHERE conversation_id=$conversationId ORDER BY created_at;"
-            : "SELECT * FROM messages WHERE conversation_id=$conversationId AND is_compacted=0 ORDER BY created_at;";
-        command.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+        if (branchId is null)
+        {
+            command.CommandText = includeCompacted
+                ? "SELECT * FROM messages WHERE conversation_id=$conversationId ORDER BY created_at;"
+                : "SELECT * FROM messages WHERE conversation_id=$conversationId AND is_compacted=0 ORDER BY created_at;";
+            command.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+            return await ReadMessagesFromReaderAsync(command, cancellationToken).ConfigureAwait(false);
+        }
+
+        command.CommandText = $"""
+            WITH RECURSIVE ancestry(id, depth) AS (
+                SELECT $branchId, 0
+                UNION ALL
+                SELECT b.parent_branch_id, ancestry.depth + 1
+                  FROM conversation_branches b
+                  JOIN ancestry ON b.id=ancestry.id
+                 WHERE b.parent_branch_id IS NOT NULL
+            )
+            SELECT m.id,m.conversation_id,m.role,
+                   COALESCE((SELECT v.content FROM message_versions v JOIN ancestry a ON a.id=v.branch_id
+                              WHERE v.message_id=m.id AND v.is_current=1 ORDER BY a.depth LIMIT 1),m.content) AS content,
+                   m.agent_name,m.model_name,
+                   COALESCE((SELECT v.metadata_json FROM message_versions v JOIN ancestry a ON a.id=v.branch_id
+                              WHERE v.message_id=m.id AND v.is_current=1 AND v.metadata_json IS NOT NULL ORDER BY a.depth LIMIT 1),m.metadata_json) AS metadata_json,
+                   m.created_at,m.is_compacted
+              FROM conversation_branch_messages bm
+              JOIN messages m ON m.id=bm.message_id
+             WHERE bm.branch_id=$branchId {(includeCompacted ? string.Empty : "AND m.is_compacted=0")}
+             ORDER BY bm.sequence;
+            """;
+        command.Parameters.AddWithValue("$branchId", branchId.Value.ToString());
+        return await ReadMessagesFromReaderAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesFromReaderAsync(SqliteCommand command, CancellationToken cancellationToken)
+    {
         var result = new List<ChatMessage>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -126,22 +160,56 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
 
     public async Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
     {
+        await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT OR REPLACE INTO messages(id, conversation_id, role, content, agent_name, model_name, metadata_json, created_at,is_compacted)
-            VALUES($id,$conversationId,$role,$content,$agentName,$modelName,$metadataJson,$createdAt,$isCompacted);
-            """;
-        command.Parameters.AddWithValue("$id", message.Id.ToString());
-        command.Parameters.AddWithValue("$conversationId", message.ConversationId.ToString());
-        command.Parameters.AddWithValue("$role", (int)message.Role);
-        command.Parameters.AddWithValue("$content", message.Content);
-        command.Parameters.AddWithValue("$agentName", (object?)message.AgentName ?? DBNull.Value);
-        command.Parameters.AddWithValue("$modelName", (object?)message.ModelName ?? DBNull.Value);
-        command.Parameters.AddWithValue("$metadataJson", (object?)message.MetadataJson ?? DBNull.Value);
-        command.Parameters.AddWithValue("$createdAt", message.CreatedAt.ToString("O"));
-        command.Parameters.AddWithValue("$isCompacted", message.IsCompacted ? 1 : 0);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT OR REPLACE INTO messages(id, conversation_id, role, content, agent_name, model_name, metadata_json, created_at,is_compacted)
+                VALUES($id,$conversationId,$role,$content,$agentName,$modelName,$metadataJson,$createdAt,$isCompacted);
+                """;
+            command.Parameters.AddWithValue("$id", message.Id.ToString());
+            command.Parameters.AddWithValue("$conversationId", message.ConversationId.ToString());
+            command.Parameters.AddWithValue("$role", (int)message.Role);
+            command.Parameters.AddWithValue("$content", message.Content);
+            command.Parameters.AddWithValue("$agentName", (object?)message.AgentName ?? DBNull.Value);
+            command.Parameters.AddWithValue("$modelName", (object?)message.ModelName ?? DBNull.Value);
+            command.Parameters.AddWithValue("$metadataJson", (object?)message.MetadataJson ?? DBNull.Value);
+            command.Parameters.AddWithValue("$createdAt", message.CreatedAt.ToString("O"));
+            command.Parameters.AddWithValue("$isCompacted", message.IsCompacted ? 1 : 0);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var branchId = await EnsureCurrentBranchCoreAsync(connection, transaction, message.ConversationId, cancellationToken).ConfigureAwait(false);
+        var sequence = await GetNextMessageSequenceAsync(connection, transaction, branchId, cancellationToken).ConfigureAwait(false);
+        await using (var mapping = connection.CreateCommand())
+        {
+            mapping.Transaction = transaction;
+            mapping.CommandText = "INSERT OR IGNORE INTO conversation_branch_messages(branch_id,message_id,sequence) VALUES($branchId,$messageId,$sequence);";
+            mapping.Parameters.AddWithValue("$branchId", branchId.ToString());
+            mapping.Parameters.AddWithValue("$messageId", message.Id.ToString());
+            mapping.Parameters.AddWithValue("$sequence", sequence);
+            await mapping.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        await using (var version = connection.CreateCommand())
+        {
+            version.Transaction = transaction;
+            version.CommandText = """
+                INSERT OR IGNORE INTO message_versions(id,message_id,branch_id,version_number,kind,content,metadata_json,is_current,created_at)
+                VALUES($id,$messageId,$branchId,1,0,$content,$metadataJson,1,$createdAt);
+                """;
+            version.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            version.Parameters.AddWithValue("$messageId", message.Id.ToString());
+            version.Parameters.AddWithValue("$branchId", branchId.ToString());
+            version.Parameters.AddWithValue("$content", message.Content);
+            version.Parameters.AddWithValue("$metadataJson", (object?)message.MetadataJson ?? DBNull.Value);
+            version.Parameters.AddWithValue("$createdAt", message.CreatedAt.ToString("O"));
+            await version.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        await UpdateTurnsForMessageAsync(connection, transaction, branchId, message, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken)
@@ -200,6 +268,112 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         command.CommandText = "DELETE FROM conversations WHERE id=$id;";
         command.Parameters.AddWithValue("$id", id.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<Guid> EnsureCurrentBranchCoreAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid conversationId,
+        CancellationToken cancellationToken)
+    {
+        if (await GetCurrentBranchIdAsync(connection, transaction, conversationId, cancellationToken).ConfigureAwait(false) is { } existing)
+            return existing;
+
+        var branchId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        await using (var branch = connection.CreateCommand())
+        {
+            branch.Transaction = transaction;
+            branch.CommandText = """
+                INSERT INTO conversation_branches(id,conversation_id,parent_branch_id,forked_from_message_id,name,reason,is_current,created_at,updated_at)
+                VALUES($id,$conversationId,NULL,NULL,'Main',0,1,$now,$now);
+                """;
+            branch.Parameters.AddWithValue("$id", branchId.ToString());
+            branch.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+            branch.Parameters.AddWithValue("$now", now);
+            await branch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        await using (var mapExisting = connection.CreateCommand())
+        {
+            mapExisting.Transaction = transaction;
+            mapExisting.CommandText = """
+                INSERT OR IGNORE INTO conversation_branch_messages(branch_id,message_id,sequence)
+                SELECT $branchId,id,ROW_NUMBER() OVER(ORDER BY created_at,rowid)
+                  FROM messages WHERE conversation_id=$conversationId;
+                """;
+            mapExisting.Parameters.AddWithValue("$branchId", branchId.ToString());
+            mapExisting.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+            await mapExisting.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        return branchId;
+    }
+
+    private static async Task<Guid?> GetCurrentBranchIdAsync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        Guid conversationId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT id FROM conversation_branches WHERE conversation_id=$conversationId AND is_current=1 LIMIT 1;";
+        command.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+        var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return value is null or DBNull ? null : Guid.Parse((string)value);
+    }
+
+    private static async Task<int> GetNextMessageSequenceAsync(SqliteConnection connection, SqliteTransaction transaction, Guid branchId, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COALESCE(MAX(sequence),0)+1 FROM conversation_branch_messages WHERE branch_id=$branchId;";
+        command.Parameters.AddWithValue("$branchId", branchId.ToString());
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task UpdateTurnsForMessageAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid branchId,
+        ChatMessage message,
+        CancellationToken cancellationToken)
+    {
+        if (message.Role == MessageRole.User)
+        {
+            var next = 1;
+            await using (var sequence = connection.CreateCommand())
+            {
+                sequence.Transaction = transaction;
+                sequence.CommandText = "SELECT COALESCE(MAX(sequence),0)+1 FROM conversation_turns WHERE branch_id=$branchId;";
+                sequence.Parameters.AddWithValue("$branchId", branchId.ToString());
+                next = Convert.ToInt32(await sequence.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+            }
+            await using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO conversation_turns(id,conversation_id,branch_id,sequence,user_message_id,assistant_message_id,created_at)
+                VALUES($id,$conversationId,$branchId,$sequence,$messageId,NULL,$createdAt);
+                """;
+            insert.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            insert.Parameters.AddWithValue("$conversationId", message.ConversationId.ToString());
+            insert.Parameters.AddWithValue("$branchId", branchId.ToString());
+            insert.Parameters.AddWithValue("$sequence", next);
+            insert.Parameters.AddWithValue("$messageId", message.Id.ToString());
+            insert.Parameters.AddWithValue("$createdAt", message.CreatedAt.ToString("O"));
+            await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else if (message.Role == MessageRole.Assistant)
+        {
+            await using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = """
+                UPDATE conversation_turns SET assistant_message_id=$messageId
+                 WHERE id=(SELECT id FROM conversation_turns WHERE branch_id=$branchId AND assistant_message_id IS NULL ORDER BY sequence DESC LIMIT 1);
+                """;
+            update.Parameters.AddWithValue("$messageId", message.Id.ToString());
+            update.Parameters.AddWithValue("$branchId", branchId.ToString());
+            await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static async Task<IReadOnlyList<Conversation>> ReadConversationsAsync(SqliteCommand command, CancellationToken cancellationToken)
