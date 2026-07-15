@@ -1,0 +1,50 @@
+name: Haven Chat and Model Pass
+
+on:
+  push:
+    branches:
+      - codex/haven-chat-model-production-pass
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Haven.sln
+
+      - name: Build Debug
+        run: dotnet build Haven.sln -c Debug --no-restore
+
+      - name: Test Debug
+        run: dotnet test Haven.sln -c Debug --no-build
+
+      - name: Build automation worker
+        run: dotnet build src/Haven.AutomationWorker/Haven.AutomationWorker.csproj -c Debug --no-restore
+
+      - name: Upload source snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haven-source-snapshot
+          path: |
+            .
+            !**/bin/**
+            !**/obj/**
+            !.git/**
+          include-hidden-files: true
+          retention-days: 3
