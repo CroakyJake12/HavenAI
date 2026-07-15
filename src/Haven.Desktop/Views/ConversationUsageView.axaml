@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ConversationUsageView">
+  <Border Background="{DynamicResource HavenPanel2Brush}"
+          BorderBrush="{DynamicResource HavenLineBrush}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Padding="12">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+      <StackPanel Spacing="4">
+        <TextBlock Text="USAGE AND CONFIGURED COST" Classes="eyebrow" />
+        <TextBlock Text="{Binding TokenSummary}" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding MeasurementSummary}" Classes="muted" FontSize="10" />
+        <TextBlock Text="{Binding CostSummary}" Classes="muted" FontSize="10" />
+        <TextBlock Text="{Binding Status}" Classes="muted2" FontSize="9" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+        <Button Content="Refresh usage" Command="{Binding RefreshCommand}" />
+        <ProgressBar Width="70" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>
