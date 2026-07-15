@@ -14,6 +14,7 @@ namespace Haven.Desktop;
 public sealed partial class App : Avalonia.Application
 {
     private ServiceProvider? _services;
+    internal static IServiceProvider Services { get; private set; } = null!;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -36,8 +37,10 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
+        collection.AddTransient<ProviderConnectionsViewModel>();
         collection.AddSingleton<MainWindowViewModel>();
         _services = collection.BuildServiceProvider();
+        Services = _services;
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
