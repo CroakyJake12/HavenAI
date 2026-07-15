@@ -111,19 +111,19 @@ public sealed class DashboardRepositoryTests : IDisposable
     public async Task LatestMigrationCreatesScopedDashboardCallPlannerAndSyncStorage()
     {
         var database = new SqliteDatabase(_paths);
-        await database.InitializeAsync(CancellationToken.None);
+        await new ConversationProductionDatabase(database).InitializeAsync(CancellationToken.None);
         await using var connection = await database.OpenAsync(CancellationToken.None);
 
         await using var version = connection.CreateCommand();
         version.CommandText = "SELECT MAX(version) FROM schema_migrations;";
-        Assert.Equal(8L, (long)(await version.ExecuteScalarAsync(CancellationToken.None))!);
+        Assert.Equal(9L, (long)(await version.ExecuteScalarAsync(CancellationToken.None))!);
 
         await using var objects = connection.CreateCommand();
-        objects.CommandText = "SELECT name FROM sqlite_master WHERE name IN ('ix_conversations_scope_updated','container_resources','call_sessions','planner_tasks','planner_events','calendar_sync_state','calendar_outbox','calendar_conflicts') ORDER BY name;";
+        objects.CommandText = "SELECT name FROM sqlite_master WHERE name IN ('ix_conversations_scope_updated','container_resources','call_sessions','planner_tasks','planner_events','calendar_sync_state','calendar_outbox','calendar_conflicts','conversation_branches','message_versions','message_attachments','conversation_drafts','shared_sessions') ORDER BY name;";
         var names = new List<string>();
         await using var reader = await objects.ExecuteReaderAsync(CancellationToken.None);
         while (await reader.ReadAsync(CancellationToken.None)) names.Add(reader.GetString(0));
-        Assert.Equal(8, names.Count);
+        Assert.Equal(13, names.Count);
     }
 
     private static PlannerTask TaskAt(string title, DateTimeOffset dueAt, DateTimeOffset now) => new(
