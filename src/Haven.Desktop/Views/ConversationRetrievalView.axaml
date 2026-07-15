@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ConversationRetrievalView">
+  <Border Background="{DynamicResource HavenPanel2Brush}"
+          BorderBrush="{DynamicResource HavenLineBrush}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Padding="12">
+    <StackPanel Spacing="9">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="RETRIEVAL AND CITATIONS" Classes="eyebrow" />
+          <TextBlock Text="Hybrid local search across indexed messages and extracted attachments in this conversation." Classes="muted" FontSize="10" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Use composer query" Click="OnUseComposerQueryClicked" />
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="7">
+        <TextBox Text="{Binding Query}" PlaceholderText="What context should Haven retrieve?" />
+        <NumericUpDown Grid.Column="1" Value="{Binding TokenBudget}" Minimum="128" Maximum="16000" Increment="256" Width="110" />
+        <Button Grid.Column="2" Content="Search" Classes="accent" Command="{Binding SearchCommand}" />
+        <Button Grid.Column="3" Content="Clear" Command="{Binding ClearCommand}" />
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+        <ProgressBar Grid.Column="1" Width="70" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+      <TextBlock Text="{Binding Method}" Classes="muted2" FontSize="9" />
+      <ItemsControl ItemsSource="{Binding Citations}" MaxHeight="180">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="9" Padding="9" Margin="0,3,0,0">
+              <StackPanel Spacing="3">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                  <TextBlock Text="{Binding Number}" Foreground="{DynamicResource HavenBlueBrush}" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="2" Text="{Binding Score}" Classes="muted2" FontSize="9" />
+                </Grid>
+                <TextBlock Text="{Binding Excerpt}" FontSize="10" MaxLines="4" TextTrimming="CharacterEllipsis" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding Source}" Classes="muted2" FontSize="9" />
+                  <TextBlock Text="·" Classes="muted2" FontSize="9" />
+                  <TextBlock Text="{Binding Location}" Classes="muted2" FontSize="9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Content="Insert cited context into composer" Command="{Binding InsertCommand}" HorizontalAlignment="Left" />
+    </StackPanel>
+  </Border>
+</UserControl>
