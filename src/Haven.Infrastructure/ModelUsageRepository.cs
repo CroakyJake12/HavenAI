@@ -17,20 +17,50 @@ public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
 
     public ProviderUsageSnapshot? Consume(string providerId, string modelName)
     {
-        if (!_usage.TryGetValue(Key(providerId, modelName), out var queue) || !queue.TryDequeue(out var value)) return null;
-        if (queue.IsEmpty) _usage.TryRemove(Key(providerId, modelName), out _);
-        return value;
+        var key = Key(providerId, modelName);
+        if (!_usage.TryGetValue(key, out var queue)) return null;
+        var values = new List<ProviderUsageSnapshot>();
+        while (queue.TryDequeue(out var value)) values.Add(value);
+        _usage.TryRemove(key, out _);
+        return Aggregate(values);
     }
 
     public ProviderUsageSnapshot? ConsumeLastUsage()
     {
         foreach (var key in _usage.Keys.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
         {
-            if (!_usage.TryGetValue(key, out var queue) || !queue.TryDequeue(out var value)) continue;
-            if (queue.IsEmpty) _usage.TryRemove(key, out _);
-            return value;
+            if (!_usage.TryGetValue(key, out var queue)) continue;
+            var values = new List<ProviderUsageSnapshot>();
+            while (queue.TryDequeue(out var value)) values.Add(value);
+            _usage.TryRemove(key, out _);
+            if (Aggregate(values) is { } aggregate) return aggregate;
         }
         return null;
+    }
+
+    private static ProviderUsageSnapshot? Aggregate(IReadOnlyList<ProviderUsageSnapshot> values)
+    {
+        if (values.Count == 0) return null;
+        var first = values[0];
+        return new ProviderUsageSnapshot(
+            first.ProviderId,
+            first.ModelName,
+            SumNullable(values.Select(item => item.InputTokens)),
+            SumNullable(values.Select(item => item.OutputTokens)),
+            SumNullable(values.Select(item => item.CachedTokens)),
+            SumNullable(values.Select(item => item.ReasoningTokens)),
+            values.All(item => item.Measurement == UsageMeasurementKind.ProviderConfirmed)
+                ? UsageMeasurementKind.ProviderConfirmed
+                : values.All(item => item.Measurement == UsageMeasurementKind.LocallyCalculated)
+                    ? UsageMeasurementKind.LocallyCalculated
+                    : UsageMeasurementKind.Estimated,
+            values.Max(item => item.CapturedAt));
+    }
+
+    private static long? SumNullable(IEnumerable<long?> values)
+    {
+        var materialized = values.ToArray();
+        return materialized.Any(value => value is not null) ? materialized.Sum(value => value ?? 0) : null;
     }
 
     private static string Key(string providerId, string modelName) => providerId.Trim().ToLowerInvariant() + "\n" + modelName.Trim().ToLowerInvariant();
