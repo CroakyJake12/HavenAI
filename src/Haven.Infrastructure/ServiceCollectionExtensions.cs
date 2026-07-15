@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConversationProductionRepository>(provider => provider.GetRequiredService<SafeConversationProductionRepository>());
         services.AddSingleton<IConversationVersioningService, ConversationVersioningService>();
         services.AddSingleton<IConversationExportService, ConversationExportService>();
+        services.AddSingleton<ILocalMediaToolLocator, LocalMediaToolLocator>();
+        services.AddSingleton<IMessageAttachmentService, MessageAttachmentService>();
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
