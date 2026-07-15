@@ -19,7 +19,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConversationVersioningService, ConversationVersioningService>();
         services.AddSingleton<IConversationExportService, ConversationExportService>();
         services.AddSingleton<ILocalMediaToolLocator, LocalMediaToolLocator>();
-        services.AddSingleton<IMessageAttachmentService, MessageAttachmentService>();
+        services.AddSingleton<MessageAttachmentService>();
+        services.AddSingleton<SafeMessageAttachmentService>();
+        services.AddSingleton<IMessageAttachmentService>(provider => provider.GetRequiredService<SafeMessageAttachmentService>());
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
@@ -63,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelProvider, GeminiModelProvider>();
         services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
         services.AddSingleton<IModelRouter, ModelRouter>();
+        services.AddSingleton<ProviderRoutingModelClient>();
 
         services.AddSingleton<IModeRegistry, ModeRegistry>();
         services.AddSingleton<IModeUsageRepository, ModeUsageRepository>();
