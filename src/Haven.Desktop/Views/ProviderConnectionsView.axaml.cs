@@ -10,7 +10,7 @@ public sealed partial class ProviderConnectionsView : UserControl
     public ProviderConnectionsView()
     {
         InitializeComponent();
-        DataContext = App.Services.GetRequiredService<ProviderConnectionsViewModel>();
+        DataContext = App.Services?.GetService<ProviderConnectionsViewModel>();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
