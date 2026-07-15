@@ -12,14 +12,17 @@ namespace Haven.Desktop.Views;
 public sealed partial class ConversationProductionToolbarView : UserControl
 {
     private readonly ConversationProductionToolbarViewModel? _viewModel;
+    private readonly ConversationUsageView _usageView;
     private readonly ConversationMessageToolsView _messageTools;
 
     public ConversationProductionToolbarView()
     {
         InitializeComponent();
+        _usageView = new ConversationUsageView();
         _messageTools = new ConversationMessageToolsView();
         _messageTools.BranchChanged += (_, _) => BranchChanged?.Invoke(this, EventArgs.Empty);
         _messageTools.RegenerationRequested += OnRegenerationRequested;
+        ExpandedContent.Children.Add(_usageView);
         ExpandedContent.Children.Add(_messageTools);
 
         if (App.Services is null) return;
@@ -36,6 +39,7 @@ public sealed partial class ConversationProductionToolbarView : UserControl
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         if (_viewModel is not null) await _viewModel.LoadAsync(conversationId, cancellationToken);
+        await _usageView.LoadAsync(conversationId, cancellationToken);
         await _messageTools.LoadAsync(conversationId, cancellationToken);
     }
 
