@@ -18,13 +18,13 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         if (App.Services is null) return;
         _viewModel = ActivatorUtilities.CreateInstance<ConversationProductionToolbarViewModel>(App.Services);
         _viewModel.BranchChanged += (_, _) => BranchChanged?.Invoke(this, EventArgs.Empty);
-        _viewModel.ModelSelected += (_, model) => ModelSelected?.Invoke(this, model);
+        _viewModel.ModelSelected += model => ModelSelected?.Invoke(model);
         _viewModel.ExportRequested += OnExportRequested;
         DataContext = _viewModel;
     }
 
     public event EventHandler? BranchChanged;
-    public event EventHandler<ModelDescriptor>? ModelSelected;
+    public event Action<ModelDescriptor>? ModelSelected;
 
     public Task LoadAsync(Guid conversationId, CancellationToken cancellationToken) =>
         _viewModel?.LoadAsync(conversationId, cancellationToken) ?? Task.CompletedTask;
@@ -42,7 +42,7 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         if (clipboard is not null) await clipboard.SetTextAsync(_viewModel.ShareAddress);
     }
 
-    private async void OnExportRequested(object? sender, ConversationExportRequest request)
+    private async void OnExportRequested(ConversationExportRequest request)
     {
         var top = TopLevel.GetTopLevel(this);
         if (top?.StorageProvider is null) return;
@@ -63,7 +63,7 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         if (file is null) return;
         await using var stream = await file.OpenWriteAsync();
         stream.SetLength(0);
-        await using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: false);
+        await using var writer = new StreamWriter(stream, new UTF8Encoding(false), 1024, leaveOpen: false);
         await writer.WriteAsync(request.Content);
         await writer.FlushAsync();
     }
