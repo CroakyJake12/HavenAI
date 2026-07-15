@@ -9,7 +9,8 @@ namespace Haven.Infrastructure;
 public sealed class GeminiModelProvider(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
-    IProviderSecretStore secrets) : IModelProvider
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
     private const string DefaultEndpoint = "https://generativelanguage.googleapis.com/v1beta/";
 
@@ -59,27 +60,18 @@ public sealed class GeminiModelProvider(
         foreach (var item in models.EnumerateArray())
         {
             var resourceName = item.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null;
-            if (string.IsNullOrWhiteSpace(resourceName))
-                continue;
-
+            if (string.IsNullOrWhiteSpace(resourceName)) continue;
             var modelName = resourceName.StartsWith("models/", StringComparison.OrdinalIgnoreCase)
                 ? resourceName["models/".Length..]
                 : resourceName;
-
             var supportsGenerateContent = item.TryGetProperty("supportedGenerationMethods", out var methodsElement)
                 && methodsElement.ValueKind == JsonValueKind.Array
-                && methodsElement.EnumerateArray().Any(value =>
-                    string.Equals(value.GetString(), "generateContent", StringComparison.OrdinalIgnoreCase));
-
-            if (!supportsGenerateContent)
-                continue;
-
+                && methodsElement.EnumerateArray().Any(value => string.Equals(value.GetString(), "generateContent", StringComparison.OrdinalIgnoreCase));
+            if (!supportsGenerateContent) continue;
             var displayName = item.TryGetProperty("displayName", out var displayElement) ? displayElement.GetString() : modelName;
-            int? contextWindow = item.TryGetProperty("inputTokenLimit", out var contextElement)
-                                 && contextElement.TryGetInt32(out var contextValue)
+            int? contextWindow = item.TryGetProperty("inputTokenLimit", out var contextElement) && contextElement.TryGetInt32(out var contextValue)
                 ? contextValue
                 : null;
-
             result.Add(new ProviderModelDescriptor(
                 Id,
                 false,
@@ -87,7 +79,6 @@ public sealed class GeminiModelProvider(
                 contextWindow,
                 displayName));
         }
-
         return result;
     }
 
@@ -96,32 +87,27 @@ public sealed class GeminiModelProvider(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
-        using var httpRequest = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"{GetModelResource(request.Model)}:streamGenerateContent?alt=sse")
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{GetModelResource(request.Model)}:streamGenerateContent?alt=sse")
         {
             Content = JsonContent.Create(BuildChatPayload(request), options: ProviderHttp.Json)
         };
-
         using var response = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream);
+        ProviderUsageSnapshot? lastUsage = null;
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
-            if (!line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                continue;
-
+            if (!line.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) continue;
             var json = line[5..].Trim();
-            if (json.Length == 0 || json == "[DONE]")
-                continue;
-
+            if (json.Length == 0 || json == "[DONE]") continue;
             using var document = JsonDocument.Parse(json);
+            lastUsage = ReadUsage(document.RootElement, request.Model) ?? lastUsage;
             var text = ReadText(document.RootElement);
-            if (text.Length > 0)
-                yield return text;
+            if (text.Length > 0) yield return text;
         }
+        if (lastUsage is not null) usageCapture.Set(lastUsage);
     }
 
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
@@ -132,9 +118,9 @@ public sealed class GeminiModelProvider(
             BuildChatPayload(request),
             ProviderHttp.Json,
             cancellationToken).ConfigureAwait(false);
-
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        if (ReadUsage(document.RootElement, request.Model) is { } usage) usageCapture.Set(usage);
         return ReadText(document.RootElement);
     }
 
@@ -146,30 +132,21 @@ public sealed class GeminiModelProvider(
             BuildToolPayload(request),
             ProviderHttp.Json,
             cancellationToken).ConfigureAwait(false);
-
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        if (ReadUsage(document.RootElement, request.Model) is { } usage) usageCapture.Set(usage);
 
         var calls = new List<OllamaToolCall>();
         foreach (var part in EnumerateCandidateParts(document.RootElement))
         {
-            if (!part.TryGetProperty("functionCall", out var functionCall) || functionCall.ValueKind != JsonValueKind.Object)
-                continue;
-
+            if (!part.TryGetProperty("functionCall", out var functionCall) || functionCall.ValueKind != JsonValueKind.Object) continue;
             var name = functionCall.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null;
-            if (string.IsNullOrWhiteSpace(name))
-                continue;
-
+            if (string.IsNullOrWhiteSpace(name)) continue;
             var arguments = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
             if (functionCall.TryGetProperty("args", out var args) && args.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var property in args.EnumerateObject())
-                    arguments[property.Name] = property.Value.Clone();
-            }
-
+                foreach (var property in args.EnumerateObject()) arguments[property.Name] = property.Value.Clone();
             calls.Add(new OllamaToolCall(name, arguments));
         }
-
         return new OllamaToolResponse(ReadText(document.RootElement), calls);
     }
 
@@ -198,10 +175,8 @@ public sealed class GeminiModelProvider(
                 maxOutputTokens = Math.Clamp(request.Options?.ContextLimit / 4 ?? 4096, 256, 65536)
             }
         };
-
         if (!string.IsNullOrWhiteSpace(request.SystemPrompt))
             payload["systemInstruction"] = new { parts = new[] { new { text = request.SystemPrompt } } };
-
         return payload;
     }
 
@@ -228,10 +203,8 @@ public sealed class GeminiModelProvider(
                 }
             }
         };
-
         if (!string.IsNullOrWhiteSpace(request.SystemPrompt))
             payload["systemInstruction"] = new { parts = new[] { new { text = request.SystemPrompt } } };
-
         return payload;
     }
 
@@ -241,25 +214,13 @@ public sealed class GeminiModelProvider(
         foreach (var message in messages)
         {
             var role = MapRole(message.Role);
-            if (role is null)
-                continue;
-
+            if (role is null) continue;
             var parts = new List<object>();
-            if (!string.IsNullOrWhiteSpace(message.Content))
-                parts.Add(new { text = message.Content });
-
+            if (!string.IsNullOrWhiteSpace(message.Content)) parts.Add(new { text = message.Content });
             if (message.Images is { Count: > 0 })
-            {
-                parts.AddRange(message.Images.Select(image => (object)new
-                {
-                    inlineData = new { mimeType = "image/jpeg", data = image }
-                }));
-            }
-
-            if (parts.Count > 0)
-                result.Add(new { role, parts });
+                parts.AddRange(message.Images.Select(image => (object)new { inlineData = new { mimeType = "image/jpeg", data = image } }));
+            if (parts.Count > 0) result.Add(new { role, parts });
         }
-
         return result;
     }
 
@@ -273,49 +234,29 @@ public sealed class GeminiModelProvider(
                 result.Add(new
                 {
                     role = "model",
-                    parts = message.ToolCalls.Select(call => new
-                    {
-                        functionCall = new { name = call.Name, args = call.Arguments }
-                    })
+                    parts = message.ToolCalls.Select(call => new { functionCall = new { name = call.Name, args = call.Arguments } })
                 });
                 continue;
             }
-
             if (!string.IsNullOrWhiteSpace(message.ToolName))
             {
                 result.Add(new
                 {
                     role = "user",
-                    parts = new[]
-                    {
-                        new
-                        {
-                            functionResponse = new
-                            {
-                                name = message.ToolName,
-                                response = ParseToolResponse(message.Content)
-                            }
-                        }
-                    }
+                    parts = new[] { new { functionResponse = new { name = message.ToolName, response = ParseToolResponse(message.Content) } } }
                 });
                 continue;
             }
-
             var role = MapRole(message.Role);
-            if (role is null)
-                continue;
-
+            if (role is null) continue;
             result.Add(new { role, parts = new[] { new { text = message.Content } } });
         }
-
         return result;
     }
 
     private static object ParseToolResponse(string content)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            return new Dictionary<string, object?> { ["result"] = null };
-
+        if (string.IsNullOrWhiteSpace(content)) return new Dictionary<string, object?> { ["result"] = null };
         try
         {
             using var document = JsonDocument.Parse(content);
@@ -337,16 +278,11 @@ public sealed class GeminiModelProvider(
 
     private static string GetModelResource(string model)
     {
-        if (string.IsNullOrWhiteSpace(model))
-            throw new ArgumentException("A Gemini model name is required.", nameof(model));
-
+        if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("A Gemini model name is required.", nameof(model));
         var trimmed = model.Trim();
-        if (trimmed.StartsWith("models/", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed["models/".Length..];
-
+        if (trimmed.StartsWith("models/", StringComparison.OrdinalIgnoreCase)) trimmed = trimmed["models/".Length..];
         if (trimmed.Length == 0 || trimmed.Any(character => !(char.IsLetterOrDigit(character) || character is '-' or '_' or '.')))
             throw new ArgumentException("The Gemini model name contains unsupported characters.", nameof(model));
-
         return "models/" + trimmed;
     }
 
@@ -358,31 +294,40 @@ public sealed class GeminiModelProvider(
             ToolCapability.Streaming,
             ToolCapability.UsageReporting
         };
-
         if (modelName.Contains("gemini", StringComparison.OrdinalIgnoreCase))
         {
             capabilities.Add(ToolCapability.Vision);
             capabilities.Add(ToolCapability.Tools);
             capabilities.Add(ToolCapability.StructuredOutput);
         }
-
         return capabilities;
     }
 
+    private static ProviderUsageSnapshot? ReadUsage(JsonElement root, string model)
+    {
+        if (!root.TryGetProperty("usageMetadata", out var usage) || usage.ValueKind != JsonValueKind.Object) return null;
+        var input = ReadInt64(usage, "promptTokenCount");
+        var output = ReadInt64(usage, "candidatesTokenCount");
+        var cached = ReadInt64(usage, "cachedContentTokenCount");
+        var reasoning = ReadInt64(usage, "thoughtsTokenCount");
+        if (input is null && output is null && cached is null && reasoning is null) return null;
+        return new ProviderUsageSnapshot(
+            "gemini", model, input, output, cached, reasoning,
+            UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow);
+    }
+
+    private static long? ReadInt64(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
+
     private static IEnumerable<JsonElement> EnumerateCandidateParts(JsonElement root)
     {
-        if (!root.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array)
-            yield break;
-
+        if (!root.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array) yield break;
         foreach (var candidate in candidates.EnumerateArray())
         {
             if (!candidate.TryGetProperty("content", out var content)
                 || !content.TryGetProperty("parts", out var parts)
-                || parts.ValueKind != JsonValueKind.Array)
-                continue;
-
-            foreach (var part in parts.EnumerateArray())
-                yield return part;
+                || parts.ValueKind != JsonValueKind.Array) continue;
+            foreach (var part in parts.EnumerateArray()) yield return part;
         }
     }
 
