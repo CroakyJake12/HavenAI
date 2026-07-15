@@ -10,6 +10,19 @@ public sealed class WorkspaceToolServiceTests : IDisposable
     public WorkspaceToolServiceTests() => Directory.CreateDirectory(_root);
 
     [Fact]
+    public void ResolvesWorkspaceRootItself()
+    {
+        Assert.Equal(Path.GetFullPath(_root), _service.ResolveWorkspacePath(_root, "."));
+    }
+
+    [Fact]
+    public void AcceptsAbsolutePathsInsideWorkspace()
+    {
+        var child = Path.Combine(_root, "src", "inside.txt");
+        Assert.Equal(Path.GetFullPath(child), _service.ResolveWorkspacePath(_root, child));
+    }
+
+    [Fact]
     public void RejectsTraversalOutsideWorkspace()
     {
         Assert.Throws<UnauthorizedAccessException>(() => _service.ResolveWorkspacePath(_root, "../outside.txt"));
