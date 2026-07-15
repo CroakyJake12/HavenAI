@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.BrowserSafetyView"
+             Width="520"
+             MaxHeight="680">
+  <Border Background="{DynamicResource HavenElevatedBrush}"
+          BorderBrush="{DynamicResource HavenLineStrongBrush}"
+          BorderThickness="1"
+          CornerRadius="14"
+          Padding="14">
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="BROWSER SAFETY" Classes="eyebrow" />
+          <TextBlock Text="Review submissions, downloads, and the browser audit trail" FontWeight="SemiBold" FontSize="16" />
+          <TextBlock Text="Pending actions expire after ten minutes and are never resumed automatically after restart." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <ProgressBar Grid.Column="1" Width="72" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+
+      <TabControl Grid.Row="2">
+        <TabItem Header="Approvals">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+            <StackPanel Spacing="7" Margin="0,8,0,0">
+              <Border Classes="soft" Padding="12" IsVisible="{Binding HasNoPending}">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="No pending actions" FontWeight="SemiBold" />
+                  <TextBlock Text="Normal navigation, page reading, scrolling, and non-sensitive field filling do not appear here." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+              <ItemsControl ItemsSource="{Binding Pending}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="card" Margin="0,3" Padding="10">
+                      <StackPanel Spacing="5">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                          <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" />
+                          <TextBlock Grid.Column="1" Text="{Binding Expires}" Classes="muted2" FontSize="9" />
+                        </Grid>
+                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Origin}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                          <TextBlock Text="{Binding Id}" Classes="muted2" FontSize="9" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                          <Button Grid.Column="1" Content="Reject" Classes="danger"
+                                  Command="{Binding $parent[UserControl].DataContext.RejectCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Grid.Column="2" Content="Approve" Classes="accent"
+                                  Command="{Binding $parent[UserControl].DataContext.ApproveCommand}"
+                                  CommandParameter="{Binding}" />
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Audit">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+            <ItemsControl ItemsSource="{Binding Audit}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="card" Margin="0,3" Padding="9">
+                    <StackPanel Spacing="3">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                        <TextBlock Text="{Binding Result}" FontWeight="SemiBold" FontSize="9" />
+                        <TextBlock Grid.Column="1" Text="{Binding Operation}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" />
+                        <TextBlock Grid.Column="2" Text="{Binding Recorded}" Classes="muted2" FontSize="9" />
+                      </Grid>
+                      <TextBlock Text="{Binding Detail}" FontSize="10" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Origin}" Classes="muted2" FontSize="9" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Downloads">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+            <ItemsControl ItemsSource="{Binding Downloads}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="card" Margin="0,3" Padding="9">
+                    <StackPanel Spacing="3">
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="10" />
+                        <TextBlock Grid.Column="2" Text="{Binding Completed}" Classes="muted2" FontSize="9" />
+                      </Grid>
+                      <TextBlock Text="{Binding Path}" Classes="muted" FontSize="9" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Hash}" Classes="muted2" FontSize="8" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </Border>
+</UserControl>
