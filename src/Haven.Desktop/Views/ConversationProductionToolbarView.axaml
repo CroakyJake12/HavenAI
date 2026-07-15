@@ -13,7 +13,7 @@
       </Grid>
 
       <Border IsVisible="{Binding IsExpanded}" Classes="card" Padding="14">
-        <StackPanel Spacing="12">
+        <StackPanel x:Name="ExpandedContent" Spacing="12">
           <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
             <StackPanel Spacing="6">
               <TextBlock Text="BRANCHES" Classes="eyebrow" />
