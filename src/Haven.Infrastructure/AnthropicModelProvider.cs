@@ -9,7 +9,8 @@ namespace Haven.Infrastructure;
 public sealed class AnthropicModelProvider(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
-    IProviderSecretStore secrets) : IModelProvider
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
     private const string DefaultEndpoint = "https://api.anthropic.com/v1/";
     public string Id => "anthropic";
@@ -72,6 +73,9 @@ public sealed class AnthropicModelProvider(
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream);
+        long? inputTokens = null;
+        long? outputTokens = null;
+        long? cachedTokens = null;
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             if (!line.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) continue;
@@ -79,10 +83,22 @@ public sealed class AnthropicModelProvider(
             if (json.Length == 0) continue;
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-            if (root.TryGetProperty("type", out var type) && type.GetString() == "content_block_delta" &&
+            var type = root.TryGetProperty("type", out var typeElement) ? typeElement.GetString() : null;
+            if (type == "message_start" && root.TryGetProperty("message", out var startMessage) && startMessage.TryGetProperty("usage", out var startUsage))
+                ReadUsage(startUsage, ref inputTokens, ref outputTokens, ref cachedTokens);
+            else if (type == "message_delta" && root.TryGetProperty("usage", out var deltaUsage))
+                ReadUsage(deltaUsage, ref inputTokens, ref outputTokens, ref cachedTokens);
+            else if (type == "message_stop")
+            {
+                CaptureUsage(request.Model, inputTokens, outputTokens, cachedTokens);
+                yield break;
+            }
+
+            if (type == "content_block_delta" &&
                 root.TryGetProperty("delta", out var delta) && delta.TryGetProperty("text", out var text) && text.GetString() is { Length: > 0 } value)
                 yield return value;
         }
+        CaptureUsage(request.Model, inputTokens, outputTokens, cachedTokens);
     }
 
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
@@ -91,6 +107,7 @@ public sealed class AnthropicModelProvider(
         using var response = await client.PostAsJsonAsync("messages", BuildPayload(request, false), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        CaptureUsage(document.RootElement, request.Model);
         return ReadText(document.RootElement);
     }
 
@@ -100,6 +117,7 @@ public sealed class AnthropicModelProvider(
         using var response = await client.PostAsJsonAsync("messages", BuildToolPayload(request), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        CaptureUsage(document.RootElement, request.Model);
         var calls = new List<OllamaToolCall>();
         if (document.RootElement.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
         {
@@ -156,6 +174,36 @@ public sealed class AnthropicModelProvider(
         content.Add(new { type = "text", text = message.Content });
         return new { role = message.Role, content = (object)content };
     }
+
+    private void CaptureUsage(JsonElement root, string model)
+    {
+        if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object) return;
+        long? input = null;
+        long? output = null;
+        long? cached = null;
+        ReadUsage(usage, ref input, ref output, ref cached);
+        CaptureUsage(model, input, output, cached);
+    }
+
+    private void CaptureUsage(string model, long? input, long? output, long? cached)
+    {
+        if (input is null && output is null && cached is null) return;
+        usageCapture.Set(new ProviderUsageSnapshot(
+            Id, model, input, output, cached, null,
+            UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
+    }
+
+    private static void ReadUsage(JsonElement usage, ref long? input, ref long? output, ref long? cached)
+    {
+        input = ReadInt64(usage, "input_tokens") ?? input;
+        output = ReadInt64(usage, "output_tokens") ?? output;
+        var cacheRead = ReadInt64(usage, "cache_read_input_tokens");
+        var cacheCreation = ReadInt64(usage, "cache_creation_input_tokens");
+        if (cacheRead is not null || cacheCreation is not null) cached = (cacheRead ?? 0) + (cacheCreation ?? 0);
+    }
+
+    private static long? ReadInt64(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
     private static string ReadText(JsonElement root)
     {
