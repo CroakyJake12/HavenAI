@@ -7,7 +7,7 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
-public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
+public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuffer usageCapture) : IOllamaClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -52,14 +52,19 @@ public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
             if (line is null) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             using var document = JsonDocument.Parse(line);
-            if (document.RootElement.TryGetProperty("error", out var error))
+            var root = document.RootElement;
+            if (root.TryGetProperty("error", out var error))
                 throw new InvalidOperationException(error.GetString() ?? "Ollama streaming error.");
-            if (document.RootElement.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content))
+            if (root.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content))
             {
                 var chunk = content.GetString();
                 if (!string.IsNullOrEmpty(chunk)) yield return chunk;
             }
-            if (document.RootElement.TryGetProperty("done", out var done) && done.GetBoolean()) yield break;
+            if (root.TryGetProperty("done", out var done) && done.GetBoolean())
+            {
+                CaptureUsage(root, request.Model);
+                yield break;
+            }
         }
     }
 
@@ -72,6 +77,7 @@ public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
             throw new HttpRequestException($"Ollama returned {(int)response.StatusCode}: {detail}", null, response.StatusCode);
         }
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        CaptureUsage(document.RootElement, request.Model);
         return document.RootElement.GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
     }
 
@@ -87,6 +93,7 @@ public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
         if (document.RootElement.TryGetProperty("error", out var error))
             throw new InvalidOperationException(error.GetString() ?? "Ollama tool-call error.");
+        CaptureUsage(document.RootElement, request.Model);
         var message = document.RootElement.GetProperty("message");
         var content = message.TryGetProperty("content", out var contentElement) ? contentElement.GetString() ?? string.Empty : string.Empty;
         var calls = new List<OllamaToolCall>();
@@ -164,6 +171,19 @@ public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
             throw new HttpRequestException($"Ollama returned {(int)response.StatusCode}: {detail}", null, response.StatusCode);
         }
     }
+
+    private void CaptureUsage(JsonElement root, string model)
+    {
+        var input = ReadInt64(root, "prompt_eval_count");
+        var output = ReadInt64(root, "eval_count");
+        if (input is null && output is null) return;
+        usageCapture.Set(new ProviderUsageSnapshot(
+            "ollama", model, input, output, null, null,
+            UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
+    }
+
+    private static long? ReadInt64(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
     private static object BuildPayload(OllamaChatRequest request, bool stream)
     {
@@ -256,7 +276,6 @@ public sealed class OllamaClient(HttpClient httpClient) : IOllamaClient
         long Size,
         [property: JsonPropertyName("modified_at")] DateTimeOffset ModifiedAt,
         OllamaDetails? Details);
-
     private sealed record OllamaDetails(
         string? Family,
         [property: JsonPropertyName("parameter_size")] string? ParameterSize,
