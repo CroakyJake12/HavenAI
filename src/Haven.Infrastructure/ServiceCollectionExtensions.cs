@@ -14,7 +14,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ConversationRepository>();
         services.AddSingleton<IConversationRepository>(provider => provider.GetRequiredService<ConversationRepository>());
         services.AddSingleton<ConversationProductionRepository>();
-        services.AddSingleton<IConversationProductionRepository>(provider => provider.GetRequiredService<ConversationProductionRepository>());
+        services.AddSingleton<SafeConversationProductionRepository>();
+        services.AddSingleton<IConversationProductionRepository>(provider => provider.GetRequiredService<SafeConversationProductionRepository>());
         services.AddSingleton<IConversationVersioningService, ConversationVersioningService>();
         services.AddSingleton<IConversationExportService, ConversationExportService>();
         services.AddSingleton<IContainerRepository, ContainerRepository>();
