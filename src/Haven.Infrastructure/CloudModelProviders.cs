@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -42,7 +42,7 @@ internal static class ProviderHttp
     {
         if (response.IsSuccessStatusCode) return;
         var detail = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (detail.Length > 16_000) detail = detail[..16_000] + "â€¦";
+        if (detail.Length > 16_000) detail = detail[..16_000] + "…";
         throw new HttpRequestException($"{providerName} returned {(int)response.StatusCode}: {detail}", null, response.StatusCode);
     }
 
@@ -67,7 +67,8 @@ internal static class ProviderHttp
 public abstract class OpenAiCompatibleModelProviderBase(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
-    IProviderSecretStore secrets) : IModelProvider
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
     protected abstract string DefaultEndpoint { get; }
     protected virtual bool IsOpenRouter => false;
@@ -136,7 +137,8 @@ public abstract class OpenAiCompatibleModelProviderBase(
             if (payload == "[DONE]") yield break;
             if (payload.Length == 0) continue;
             using var document = JsonDocument.Parse(payload);
-            if (!document.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) continue;
+            CaptureUsage(document.RootElement, request.Model);
+            if (!document.RootElement.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0) continue;
             var delta = choices[0].GetProperty("delta");
             if (delta.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String && content.GetString() is { Length: > 0 } text)
                 yield return text;
@@ -149,6 +151,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
         using var response = await client.PostAsJsonAsync("chat/completions", BuildChatPayload(request, false), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        CaptureUsage(document.RootElement, request.Model);
         return ReadContent(document.RootElement.GetProperty("choices")[0].GetProperty("message"));
     }
 
@@ -158,6 +161,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
         using var response = await client.PostAsJsonAsync("chat/completions", BuildToolPayload(request), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        CaptureUsage(document.RootElement, request.Model);
         var message = document.RootElement.GetProperty("choices")[0].GetProperty("message");
         var calls = new List<OllamaToolCall>();
         if (message.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
@@ -205,13 +209,18 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return client;
     }
 
-    private static object BuildChatPayload(OllamaChatRequest request, bool stream) => new
+    private object BuildChatPayload(OllamaChatRequest request, bool stream)
     {
-        model = request.Model,
-        messages = BuildMessages(request.Messages, request.SystemPrompt),
-        stream,
-        temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
-    };
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = request.Model,
+            ["messages"] = BuildMessages(request.Messages, request.SystemPrompt),
+            ["stream"] = stream,
+            ["temperature"] = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
+        };
+        if (stream) payload["stream_options"] = new { include_usage = true };
+        return payload;
+    }
 
     private static object BuildToolPayload(OllamaToolRequest request) => new
     {
@@ -226,6 +235,24 @@ public abstract class OpenAiCompatibleModelProviderBase(
         stream = false,
         temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
     };
+
+    private void CaptureUsage(JsonElement root, string model)
+    {
+        if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object) return;
+        var input = ReadInt64(usage, "prompt_tokens") ?? ReadInt64(usage, "input_tokens");
+        var output = ReadInt64(usage, "completion_tokens") ?? ReadInt64(usage, "output_tokens");
+        long? cached = null;
+        long? reasoning = null;
+        if (usage.TryGetProperty("prompt_tokens_details", out var promptDetails) && promptDetails.ValueKind == JsonValueKind.Object)
+            cached = ReadInt64(promptDetails, "cached_tokens");
+        if (usage.TryGetProperty("completion_tokens_details", out var completionDetails) && completionDetails.ValueKind == JsonValueKind.Object)
+            reasoning = ReadInt64(completionDetails, "reasoning_tokens");
+        if (input is null && output is null && cached is null && reasoning is null) return;
+        usageCapture.Set(new ProviderUsageSnapshot(Id, model, input, output, cached, reasoning, UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
+    }
+
+    private static long? ReadInt64(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
     private static IReadOnlyList<object> BuildMessages(IReadOnlyList<OllamaMessage> messages, string? systemPrompt)
     {
@@ -279,8 +306,12 @@ public abstract class OpenAiCompatibleModelProviderBase(
     }
 }
 
-public sealed class OpenAiModelProvider(IHttpClientFactory clients, IProviderConfigurationStore configurations, IProviderSecretStore secrets)
-    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets)
+public sealed class OpenAiModelProvider(
+    IHttpClientFactory clients,
+    IProviderConfigurationStore configurations,
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture)
+    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
     public override string Id => "openai";
     public override string DisplayName => "OpenAI";
@@ -288,8 +319,12 @@ public sealed class OpenAiModelProvider(IHttpClientFactory clients, IProviderCon
     protected override string DefaultEndpoint => "https://api.openai.com/v1/";
 }
 
-public sealed class OpenRouterModelProvider(IHttpClientFactory clients, IProviderConfigurationStore configurations, IProviderSecretStore secrets)
-    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets)
+public sealed class OpenRouterModelProvider(
+    IHttpClientFactory clients,
+    IProviderConfigurationStore configurations,
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture)
+    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
     public override string Id => "openrouter";
     public override string DisplayName => "OpenRouter";
@@ -298,12 +333,15 @@ public sealed class OpenRouterModelProvider(IHttpClientFactory clients, IProvide
     protected override bool IsOpenRouter => true;
 }
 
-public sealed class CustomOpenAiCompatibleModelProvider(IHttpClientFactory clients, IProviderConfigurationStore configurations, IProviderSecretStore secrets)
-    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets)
+public sealed class CustomOpenAiCompatibleModelProvider(
+    IHttpClientFactory clients,
+    IProviderConfigurationStore configurations,
+    IProviderSecretStore secrets,
+    ProviderUsageCaptureBuffer usageCapture)
+    : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
     public override string Id => "openai-compatible";
     public override string DisplayName => "OpenAI-compatible";
     public override ModelProviderKind Kind => ModelProviderKind.OpenAICompatible;
     protected override string DefaultEndpoint => string.Empty;
 }
-
