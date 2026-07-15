@@ -38,7 +38,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     {
         try
         {
-            var configurations = await _configurations.GetAllAsync(CancellationToken.None).ConfigureAwait(false);
+            var configurations = await _configurations.GetAllAsync(CancellationToken.None);
             var existing = Items.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
             var refreshed = new List<ProviderConnectionItemViewModel>();
 
@@ -48,7 +48,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
                 if (configuration is null)
                     continue;
 
-                var hasSecret = !string.IsNullOrWhiteSpace(await _secrets.GetAsync(provider.Id, "api-key", CancellationToken.None).ConfigureAwait(false));
+                var hasSecret = !string.IsNullOrWhiteSpace(await _secrets.GetAsync(provider.Id, "api-key", CancellationToken.None));
                 if (!existing.TryGetValue(provider.Id, out var item))
                 {
                     item = new ProviderConnectionItemViewModel(
@@ -96,17 +96,17 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
             if (!Uri.TryCreate(item.Endpoint.Trim(), UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https"))
                 throw new InvalidOperationException("Enter an absolute HTTP or HTTPS endpoint.");
 
-            var storedSecret = await _secrets.GetAsync(item.Id, "api-key", CancellationToken.None).ConfigureAwait(false);
+            var storedSecret = await _secrets.GetAsync(item.Id, "api-key", CancellationToken.None);
             if (string.IsNullOrWhiteSpace(item.ApiKey) && string.IsNullOrWhiteSpace(storedSecret))
                 throw new InvalidOperationException("Enter an API key before connecting.");
 
             if (!string.IsNullOrWhiteSpace(item.ApiKey))
             {
-                await _secrets.SetAsync(item.Id, "api-key", item.ApiKey.Trim(), CancellationToken.None).ConfigureAwait(false);
+                await _secrets.SetAsync(item.Id, "api-key", item.ApiKey.Trim(), CancellationToken.None);
                 item.ApiKey = string.Empty;
             }
 
-            var current = await _configurations.GetAsync(item.Id, CancellationToken.None).ConfigureAwait(false);
+            var current = await _configurations.GetAsync(item.Id, CancellationToken.None);
             var configuration = new ProviderConfiguration(
                 item.Id,
                 item.Kind,
@@ -118,10 +118,10 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
                 current?.Metadata ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                 DateTimeOffset.UtcNow);
 
-            await _configurations.UpsertAsync(configuration, CancellationToken.None).ConfigureAwait(false);
+            await _configurations.UpsertAsync(configuration, CancellationToken.None);
             item.Endpoint = configuration.Endpoint;
             item.IsConnected = true;
-            await TestCoreAsync(item).ConfigureAwait(false);
+            await TestCoreAsync(item);
         }
         catch (Exception ex)
         {
@@ -142,7 +142,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         try
         {
             item.IsBusy = true;
-            await TestCoreAsync(item).ConfigureAwait(false);
+            await TestCoreAsync(item);
         }
         catch (Exception ex)
         {
@@ -159,7 +159,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     {
         var provider = _providers.GetRequired(item.Id);
         item.Status = "Testing connection…";
-        var health = await provider.CheckHealthAsync(CancellationToken.None).ConfigureAwait(false);
+        var health = await provider.CheckHealthAsync(CancellationToken.None);
         item.Status = health.Message;
 
         if (!health.IsHealthy)
@@ -169,7 +169,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
             return;
         }
 
-        var models = await provider.GetModelsAsync(CancellationToken.None).ConfigureAwait(false);
+        var models = await provider.GetModelsAsync(CancellationToken.None);
         item.ModelSummary = models.Count == 1 ? "1 model discovered" : $"{models.Count} models discovered";
         item.IsConnected = true;
         Status = $"{item.DisplayName} is connected.";
@@ -183,10 +183,10 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         try
         {
             item.IsBusy = true;
-            await _secrets.DeleteAsync(item.Id, "api-key", CancellationToken.None).ConfigureAwait(false);
-            var current = await _configurations.GetAsync(item.Id, CancellationToken.None).ConfigureAwait(false);
+            await _secrets.DeleteAsync(item.Id, "api-key", CancellationToken.None);
+            var current = await _configurations.GetAsync(item.Id, CancellationToken.None);
             if (current is not null)
-                await _configurations.UpsertAsync(current with { IsEnabled = false, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None).ConfigureAwait(false);
+                await _configurations.UpsertAsync(current with { IsEnabled = false, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
 
             item.ApiKey = string.Empty;
             item.IsConnected = false;
