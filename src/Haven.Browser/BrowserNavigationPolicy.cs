@@ -51,9 +51,10 @@ public sealed class BrowserNavigationPolicy : IBrowserNavigationPolicy
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
         {
             var bytes = address.GetAddressBytes();
+            var deprecatedSiteLocal = bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0xC0;
             return address.IsIPv6LinkLocal
                    || address.IsIPv6Multicast
-                   || address.IsIPv6SiteLocal
+                   || deprecatedSiteLocal
                    || (bytes[0] & 0xFE) == 0xFC;
         }
 
