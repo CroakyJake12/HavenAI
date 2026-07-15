@@ -1,21 +1,31 @@
+using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Browser;
 
-public sealed class BrowserAutomationService : IBrowserAutomationService
+public sealed class BrowserAutomationService : IBrowserAutomationService, IDisposable
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly BrowserSessionService _browser;
     private readonly IBrowserNavigationPolicy _policy;
     private readonly IBrowserAutomationStore _store;
     private readonly BrowserDownloadTransport _downloads;
+    private readonly BrowserBackgroundPageLoader _backgroundPages;
+    private readonly SemaphoreSlim _actionGate = new(1, 1);
+    private BrowserPageSnapshot? _backgroundSnapshot;
 
     public BrowserAutomationService(
         BrowserSessionService browser,
         IBrowserNavigationPolicy policy,
         IBrowserAutomationStore store,
         IAppPaths paths)
-        : this(browser, policy, store, new BrowserDownloadTransport(policy, paths))
+        : this(
+            browser,
+            policy,
+            store,
+            new BrowserDownloadTransport(policy, paths),
+            new BrowserBackgroundPageLoader(policy))
     {
     }
 
@@ -23,17 +33,21 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
         BrowserSessionService browser,
         IBrowserNavigationPolicy policy,
         IBrowserAutomationStore store,
-        BrowserDownloadTransport downloads)
+        BrowserDownloadTransport downloads,
+        BrowserBackgroundPageLoader backgroundPages)
     {
         _browser = browser;
         _policy = policy;
         _store = store;
         _downloads = downloads;
+        _backgroundPages = backgroundPages;
     }
 
     public async Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = _browser.IsInteractiveAvailable
+            ? await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false)
+            : _backgroundSnapshot ?? await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
         await AuditAsync(null, "capture", Origin(snapshot.Address), $"Captured {snapshot.Elements.Count} bounded page elements.", true, cancellationToken).ConfigureAwait(false);
         return snapshot;
     }
@@ -47,14 +61,28 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
             await AuditAsync(null, "navigate", Origin(uri), assessment.Reason, false, cancellationToken).ConfigureAwait(false);
             throw new UnauthorizedAccessException("Navigation blocked: " + assessment.Reason);
         }
-        var result = await _browser.NavigateAsync(uri.ToString(), cancellationToken).ConfigureAwait(false);
-        await AuditAsync(null, "navigate", Origin(uri), $"Navigated to {uri}.", true, cancellationToken).ConfigureAwait(false);
+
+        string result;
+        Uri finalAddress;
+        if (_browser.IsInteractiveAvailable)
+        {
+            result = await _browser.NavigateAsync(uri.ToString(), cancellationToken).ConfigureAwait(false);
+            finalAddress = uri;
+            _backgroundSnapshot = null;
+        }
+        else
+        {
+            _backgroundSnapshot = await _backgroundPages.LoadAsync(uri, cancellationToken).ConfigureAwait(false);
+            finalAddress = _backgroundSnapshot.Address ?? uri;
+            result = $"Loaded {finalAddress} in Haven's isolated background browser. Use browser_snapshot to inspect the bounded page text.";
+        }
+        await AuditAsync(null, "navigate", Origin(finalAddress), $"Navigated to {finalAddress}.", true, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
-        var snapshot = await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await RequireInteractiveSnapshotAsync(cancellationToken).ConfigureAwait(false);
         var element = FindElement(snapshot, reference);
         if (element.IsSensitive) throw new UnauthorizedAccessException("Sensitive page controls cannot be clicked by browser automation.");
         if (element.Address is { Length: > 0 } target && Uri.TryCreate(snapshot.Address, target, out var targetUri))
@@ -64,11 +92,18 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
         }
         if (element.SubmitsForm)
         {
+            var target = new SubmitActionTarget(
+                element.Reference,
+                element.Kind,
+                element.Text,
+                element.Address,
+                element.Name,
+                element.InputType);
             var action = NewAction(
                 BrowserActionKind.SubmitElement,
                 Origin(snapshot.Address),
                 $"Submit the form control '{Bounded(element.Text, 120)}'",
-                element.Reference,
+                JsonSerializer.Serialize(target, JsonOptions),
                 null);
             await _store.AddPendingAsync(action, cancellationToken).ConfigureAwait(false);
             await AuditAsync(action.Kind, "approval-requested", action.Origin, action.Summary, true, cancellationToken).ConfigureAwait(false);
@@ -83,7 +118,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
 
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
-        var snapshot = await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await RequireInteractiveSnapshotAsync(cancellationToken).ConfigureAwait(false);
         var element = FindElement(snapshot, reference);
         if (element.Kind != "input" && element.Kind != "textarea" && element.Kind != "select")
             throw new InvalidOperationException("The reference is not an editable field.");
@@ -114,6 +149,34 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
 
     public async Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken)
     {
+        await _actionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try { return await ApproveCoreAsync(actionId, cancellationToken).ConfigureAwait(false); }
+        finally { _actionGate.Release(); }
+    }
+
+    public async Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken)
+    {
+        await _actionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var action = await _store.GetActionAsync(actionId, cancellationToken).ConfigureAwait(false)
+                         ?? throw new KeyNotFoundException("The browser action no longer exists.");
+            if (action.State != BrowserActionState.Pending)
+                return new BrowserActionExecutionResult(action.Id, action.State, $"The action is already {action.State.ToString().ToLowerInvariant()}.");
+            var rejected = action with { State = BrowserActionState.Rejected, UpdatedAt = DateTimeOffset.UtcNow, Failure = "Rejected by the user." };
+            await _store.UpdateActionAsync(rejected, cancellationToken).ConfigureAwait(false);
+            await AuditAsync(action.Kind, "rejected", action.Origin, action.Summary, true, cancellationToken).ConfigureAwait(false);
+            return new BrowserActionExecutionResult(action.Id, rejected.State, "Browser action rejected.");
+        }
+        finally { _actionGate.Release(); }
+    }
+
+    public Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken) => _store.GetPendingAsync(cancellationToken);
+    public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken) => _store.GetAuditAsync(limit, cancellationToken);
+    public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => _store.GetDownloadsAsync(limit, cancellationToken);
+
+    private async Task<BrowserActionExecutionResult> ApproveCoreAsync(Guid actionId, CancellationToken cancellationToken)
+    {
         var action = await _store.GetActionAsync(actionId, cancellationToken).ConfigureAwait(false)
                      ?? throw new KeyNotFoundException("The browser action no longer exists.");
         if (action.State != BrowserActionState.Pending)
@@ -133,9 +196,15 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
             switch (action.Kind)
             {
                 case BrowserActionKind.SubmitElement:
-                    if (!Origin(_browser.State.Address).Equals(action.Origin, StringComparison.OrdinalIgnoreCase))
+                    var submitTarget = JsonSerializer.Deserialize<SubmitActionTarget>(action.Target, JsonOptions)
+                                       ?? throw new InvalidOperationException("The saved form-submission target is invalid.");
+                    var snapshot = await RequireInteractiveSnapshotAsync(cancellationToken).ConfigureAwait(false);
+                    if (!Origin(snapshot.Address).Equals(action.Origin, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("The active page origin changed after approval was requested.");
-                    var click = await _browser.ClickReferenceAsync(action.Target, cancellationToken).ConfigureAwait(false);
+                    var current = FindElement(snapshot, submitTarget.Reference);
+                    if (!Matches(current, submitTarget) || !current.SubmitsForm)
+                        throw new InvalidOperationException("The approved form control changed after the request. Capture a new page snapshot and request approval again.");
+                    var click = await _browser.ClickReferenceAsync(current.Reference, cancellationToken).ConfigureAwait(false);
                     EnsureBrowserResult(click, "clicked", "The page changed before the approved form control could be submitted.");
                     message = click;
                     break;
@@ -169,21 +238,12 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
         }
     }
 
-    public async Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken)
+    private async Task<BrowserPageSnapshot> RequireInteractiveSnapshotAsync(CancellationToken cancellationToken)
     {
-        var action = await _store.GetActionAsync(actionId, cancellationToken).ConfigureAwait(false)
-                     ?? throw new KeyNotFoundException("The browser action no longer exists.");
-        if (action.State != BrowserActionState.Pending)
-            return new BrowserActionExecutionResult(action.Id, action.State, $"The action is already {action.State.ToString().ToLowerInvariant()}.");
-        var rejected = action with { State = BrowserActionState.Rejected, UpdatedAt = DateTimeOffset.UtcNow, Failure = "Rejected by the user." };
-        await _store.UpdateActionAsync(rejected, cancellationToken).ConfigureAwait(false);
-        await AuditAsync(action.Kind, "rejected", action.Origin, action.Summary, true, cancellationToken).ConfigureAwait(false);
-        return new BrowserActionExecutionResult(action.Id, rejected.State, "Browser action rejected.");
+        if (!_browser.IsInteractiveAvailable)
+            throw new InvalidOperationException("Interactive page actions require Haven Browse to be open. Background browsing supports navigation, reading, and approval-gated downloads only.");
+        return await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
     }
-
-    public Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken) => _store.GetPendingAsync(cancellationToken);
-    public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken) => _store.GetAuditAsync(limit, cancellationToken);
-    public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => _store.GetDownloadsAsync(limit, cancellationToken);
 
     private static BrowserPageElement FindElement(BrowserPageSnapshot snapshot, string reference)
     {
@@ -191,6 +251,14 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
         return snapshot.Elements.FirstOrDefault(item => item.Reference.Equals(reference.Trim(), StringComparison.Ordinal))
                ?? throw new KeyNotFoundException("The element reference is stale or was not present in the latest page snapshot.");
     }
+
+    private static bool Matches(BrowserPageElement element, SubmitActionTarget target) =>
+        element.Reference.Equals(target.Reference, StringComparison.Ordinal)
+        && element.Kind.Equals(target.Kind, StringComparison.Ordinal)
+        && element.Text.Equals(target.Text, StringComparison.Ordinal)
+        && string.Equals(element.Address, target.Address, StringComparison.Ordinal)
+        && string.Equals(element.Name, target.Name, StringComparison.Ordinal)
+        && string.Equals(element.InputType, target.InputType, StringComparison.OrdinalIgnoreCase);
 
     private static void EnsureBrowserResult(string result, string expectedPrefix, string failure)
     {
@@ -217,4 +285,14 @@ public sealed class BrowserAutomationService : IBrowserAutomationService
 
     private static string Origin(Uri? address) => address is null ? string.Empty : address.GetLeftPart(UriPartial.Authority);
     private static string Bounded(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
+
+    public void Dispose() => _actionGate.Dispose();
+
+    private sealed record SubmitActionTarget(
+        string Reference,
+        string Kind,
+        string Text,
+        string? Address,
+        string? Name,
+        string? InputType);
 }
