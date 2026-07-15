@@ -143,25 +143,32 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     private bool RecoverActions(DateTimeOffset now)
     {
         var changed = false;
-        _data = _data with
+        var recoveryAudit = new List<BrowserAuditEntry>();
+        var actions = _data.Actions.Select(item =>
         {
-            Actions = _data.Actions.Select(item =>
+            if (item.State == BrowserActionState.Approved)
             {
-                if (item.State == BrowserActionState.Approved)
-                {
-                    changed = true;
-                    return item with
-                    {
-                        State = BrowserActionState.Failed,
-                        UpdatedAt = now,
-                        Failure = "Haven restarted or recovery ran after approval. The action was not resumed automatically."
-                    };
-                }
-                if (item.State != BrowserActionState.Pending || item.ExpiresAt > now) return item;
                 changed = true;
-                return item with { State = BrowserActionState.Expired, UpdatedAt = now, Failure = "The approval expired before execution." };
-            }).ToArray()
-        };
+                const string failure = "Haven restarted or recovery ran after approval. The action was not resumed automatically.";
+                recoveryAudit.Add(new BrowserAuditEntry(
+                    Guid.NewGuid(), item.Kind, "recovery-interrupted", item.Origin, failure, false, now));
+                return item with { State = BrowserActionState.Failed, UpdatedAt = now, Failure = failure };
+            }
+            if (item.State != BrowserActionState.Pending || item.ExpiresAt > now) return item;
+            changed = true;
+            const string expired = "The approval expired before execution.";
+            recoveryAudit.Add(new BrowserAuditEntry(
+                Guid.NewGuid(), item.Kind, "approval-expired", item.Origin, expired, false, now));
+            return item with { State = BrowserActionState.Expired, UpdatedAt = now, Failure = expired };
+        }).ToArray();
+        if (changed)
+        {
+            _data = _data with
+            {
+                Actions = actions,
+                Audit = _data.Audit.Concat(recoveryAudit).TakeLast(2_000).ToArray()
+            };
+        }
         return changed;
     }
 
