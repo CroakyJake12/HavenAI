@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Haven.Application;
 using Haven.Core;
@@ -6,16 +7,33 @@ namespace Haven.Infrastructure;
 
 public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
 {
-    private readonly AsyncLocal<ProviderUsageSnapshot?> _current = new();
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<ProviderUsageSnapshot>> _usage = new(StringComparer.OrdinalIgnoreCase);
 
-    public void Set(ProviderUsageSnapshot usage) => _current.Value = usage;
+    public void Set(ProviderUsageSnapshot usage)
+    {
+        ArgumentNullException.ThrowIfNull(usage);
+        _usage.GetOrAdd(Key(usage.ProviderId, usage.ModelName), static _ => new ConcurrentQueue<ProviderUsageSnapshot>()).Enqueue(usage);
+    }
+
+    public ProviderUsageSnapshot? Consume(string providerId, string modelName)
+    {
+        if (!_usage.TryGetValue(Key(providerId, modelName), out var queue) || !queue.TryDequeue(out var value)) return null;
+        if (queue.IsEmpty) _usage.TryRemove(Key(providerId, modelName), out _);
+        return value;
+    }
 
     public ProviderUsageSnapshot? ConsumeLastUsage()
     {
-        var value = _current.Value;
-        _current.Value = null;
-        return value;
+        foreach (var key in _usage.Keys.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!_usage.TryGetValue(key, out var queue) || !queue.TryDequeue(out var value)) continue;
+            if (queue.IsEmpty) _usage.TryRemove(key, out _);
+            return value;
+        }
+        return null;
     }
+
+    private static string Key(string providerId, string modelName) => providerId.Trim().ToLowerInvariant() + "\n" + modelName.Trim().ToLowerInvariant();
 }
 
 public sealed class ProviderPricingService : IProviderPricingService
