@@ -13,7 +13,7 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
     {
         var database = await CreateDatabaseAsync();
         var conversations = new ConversationRepository(database);
-        var production = new ConversationProductionRepository(database, conversations);
+        var production = CreateProduction(database, conversations);
         var versioning = new ConversationVersioningService(conversations, production);
         var now = DateTimeOffset.UtcNow;
         var conversation = ConversationAt(now);
@@ -46,7 +46,7 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
     {
         var database = await CreateDatabaseAsync();
         var conversations = new ConversationRepository(database);
-        var production = new ConversationProductionRepository(database, conversations);
+        var production = CreateProduction(database, conversations);
         var versioning = new ConversationVersioningService(conversations, production);
         var now = DateTimeOffset.UtcNow;
         var conversation = ConversationAt(now);
@@ -69,7 +69,7 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
     {
         var database = await CreateDatabaseAsync();
         var conversations = new ConversationRepository(database);
-        var production = new ConversationProductionRepository(database, conversations);
+        var production = CreateProduction(database, conversations);
         var exports = new ConversationExportService(production);
         var now = DateTimeOffset.UtcNow;
         var conversation = ConversationAt(now) with { Title = "Production conversation" };
@@ -123,6 +123,12 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
         var database = new SqliteDatabase(_paths);
         await new ConversationProductionDatabase(database).InitializeAsync(CancellationToken.None);
         return database;
+    }
+
+    private static IConversationProductionRepository CreateProduction(SqliteDatabase database, ConversationRepository conversations)
+    {
+        var inner = new ConversationProductionRepository(database, conversations);
+        return new SafeConversationProductionRepository(database, conversations, inner);
     }
 
     private static Conversation ConversationAt(DateTimeOffset now) => new(
