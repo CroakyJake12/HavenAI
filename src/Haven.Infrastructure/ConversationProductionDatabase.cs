@@ -15,19 +15,15 @@ public sealed class ConversationProductionDatabase(SqliteDatabase database) : IA
 internal static class ConversationProductionSchema
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private static bool _initialized;
 
     public static async Task EnsureAsync(ISqliteConnectionFactory factory, CancellationToken cancellationToken)
     {
-        if (_initialized)
-            return;
-
         await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_initialized)
-                return;
-
+            // The SQL is deliberately idempotent. Running it for every connection factory
+            // avoids a process-global cache causing a second development/test database to
+            // be treated as migrated when only the first database was initialized.
             await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
             await using var command = connection.CreateCommand();
@@ -42,7 +38,6 @@ internal static class ConversationProductionSchema
             await migration.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            _initialized = true;
         }
         finally
         {
@@ -142,9 +137,10 @@ internal static class ConversationProductionSchema
             branch_id TEXT NULL REFERENCES conversation_branches(id) ON DELETE CASCADE,
             content TEXT NOT NULL,
             attachment_ids_json TEXT NOT NULL DEFAULT '[]',
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY(conversation_id, branch_id)
+            updated_at TEXT NOT NULL
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_conversation_drafts_scope
+            ON conversation_drafts(conversation_id, COALESCE(branch_id, ''));
 
         CREATE TABLE IF NOT EXISTS message_bookmarks(
             id TEXT PRIMARY KEY,
