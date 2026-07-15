@@ -33,7 +33,14 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<CapabilityPreflightService>();
         collection.AddSingleton<WorkspaceToolRuntime>();
         collection.AddSingleton<ComputerToolRuntime>();
-        collection.AddSingleton<ChatSessionService>();
+        collection.AddSingleton<ChatSessionService>(provider => new ChatSessionService(
+            provider.GetRequiredService<IConversationRepository>(),
+            provider.GetRequiredService<ProviderRoutingModelClient>(),
+            provider.GetRequiredService<CapabilityPreflightService>(),
+            provider.GetRequiredService<WorkspaceToolRuntime>(),
+            provider.GetRequiredService<ComputerToolRuntime>(),
+            provider.GetRequiredService<BrowserToolRuntime>(),
+            provider.GetRequiredService<AutomationToolRuntime>()));
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
