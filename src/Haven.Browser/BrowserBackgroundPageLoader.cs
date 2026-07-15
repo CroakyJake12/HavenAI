@@ -69,7 +69,7 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
     {
         if (string.IsNullOrWhiteSpace(charset)) return Encoding.UTF8;
         try { return Encoding.GetEncoding(charset.Trim().Trim('"', '\'')); }
-        catch (ArgumentException) { return Encoding.UTF8; }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException) { return Encoding.UTF8; }
     }
 
     private static string ExtractTitle(string html)
@@ -82,6 +82,7 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
             html,
             "<h[1-6][^>]*>(?<value>[\\s\\S]*?)</h[1-6]>",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        .Cast<Match>()
         .Select(match => NormalizeText(WebUtility.HtmlDecode(StripTags(match.Groups["value"].Value))))
         .Where(value => !string.IsNullOrWhiteSpace(value))
         .Take(100)
