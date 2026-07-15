@@ -14,7 +14,7 @@ namespace Haven.Desktop;
 public sealed partial class App : Avalonia.Application
 {
     private ServiceProvider? _services;
-    internal static IServiceProvider Services { get; private set; } = null!;
+    internal static IServiceProvider? Services { get; private set; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
