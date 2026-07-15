@@ -66,23 +66,24 @@ public sealed class GeminiModelProvider(
                 ? resourceName["models/".Length..]
                 : resourceName;
 
-            var methods = item.TryGetProperty("supportedGenerationMethods", out var methodsElement) && methodsElement.ValueKind == JsonValueKind.Array
-                ? methodsElement.EnumerateArray().Select(value => value.GetString()).Where(value => !string.IsNullOrWhiteSpace(value)).ToHashSet(StringComparer.OrdinalIgnoreCase)
-                : [];
+            var supportsGenerateContent = item.TryGetProperty("supportedGenerationMethods", out var methodsElement)
+                && methodsElement.ValueKind == JsonValueKind.Array
+                && methodsElement.EnumerateArray().Any(value =>
+                    string.Equals(value.GetString(), "generateContent", StringComparison.OrdinalIgnoreCase));
 
-            if (!methods.Contains("generateContent"))
+            if (!supportsGenerateContent)
                 continue;
 
             var displayName = item.TryGetProperty("displayName", out var displayElement) ? displayElement.GetString() : modelName;
-            int? contextWindow = item.TryGetProperty("inputTokenLimit", out var contextElement) && contextElement.TryGetInt32(out var contextValue)
+            int? contextWindow = item.TryGetProperty("inputTokenLimit", out var contextElement)
+                                 && contextElement.TryGetInt32(out var contextValue)
                 ? contextValue
                 : null;
 
-            var capabilities = InferCapabilities(modelName);
             result.Add(new ProviderModelDescriptor(
                 Id,
                 false,
-                new ModelDescriptor(modelName, 0, "Google Gemini", string.Empty, string.Empty, capabilities, DateTimeOffset.UtcNow),
+                new ModelDescriptor(modelName, 0, "Google Gemini", string.Empty, string.Empty, InferCapabilities(modelName), DateTimeOffset.UtcNow),
                 contextWindow,
                 displayName));
         }
@@ -95,11 +96,13 @@ public sealed class GeminiModelProvider(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
-        var path = $"{GetModelResource(request.Model)}:streamGenerateContent?alt=sse";
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, path)
+        using var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{GetModelResource(request.Model)}:streamGenerateContent?alt=sse")
         {
             Content = JsonContent.Create(BuildChatPayload(request), options: ProviderHttp.Json)
         };
+
         using var response = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
 
@@ -124,8 +127,12 @@ public sealed class GeminiModelProvider(
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
-        var path = $"{GetModelResource(request.Model)}:generateContent";
-        using var response = await client.PostAsJsonAsync(path, BuildChatPayload(request), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(
+            $"{GetModelResource(request.Model)}:generateContent",
+            BuildChatPayload(request),
+            ProviderHttp.Json,
+            cancellationToken).ConfigureAwait(false);
+
         await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
         return ReadText(document.RootElement);
@@ -134,11 +141,15 @@ public sealed class GeminiModelProvider(
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
-        var path = $"{GetModelResource(request.Model)}:generateContent";
-        using var response = await client.PostAsJsonAsync(path, BuildToolPayload(request), ProviderHttp.Json, cancellationToken).ConfigureAwait(false);
-        await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(
+            $"{GetModelResource(request.Model)}:generateContent",
+            BuildToolPayload(request),
+            ProviderHttp.Json,
+            cancellationToken).ConfigureAwait(false);
 
+        await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+
         var calls = new List<OllamaToolCall>();
         foreach (var part in EnumerateCandidateParts(document.RootElement))
         {
@@ -181,7 +192,11 @@ public sealed class GeminiModelProvider(
         var payload = new Dictionary<string, object>
         {
             ["contents"] = BuildChatContents(request.Messages),
-            ["generationConfig"] = BuildGenerationConfig(request.Options)
+            ["generationConfig"] = new
+            {
+                temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2),
+                maxOutputTokens = Math.Clamp(request.Options?.ContextLimit / 4 ?? 4096, 256, 65536)
+            }
         };
 
         if (!string.IsNullOrWhiteSpace(request.SystemPrompt))
@@ -195,7 +210,11 @@ public sealed class GeminiModelProvider(
         var payload = new Dictionary<string, object>
         {
             ["contents"] = BuildToolContents(request.Messages),
-            ["generationConfig"] = BuildGenerationConfig(request.Options),
+            ["generationConfig"] = new
+            {
+                temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2),
+                maxOutputTokens = Math.Clamp(request.Options?.ContextLimit / 4 ?? 4096, 256, 65536)
+            },
             ["tools"] = new[]
             {
                 new
@@ -215,12 +234,6 @@ public sealed class GeminiModelProvider(
 
         return payload;
     }
-
-    private static object BuildGenerationConfig(OllamaOptions? options) => new
-    {
-        temperature = Math.Clamp(options?.Temperature ?? 0.7, 0, 2),
-        maxOutputTokens = Math.Clamp(options?.ContextLimit / 4 ?? 4096, 256, 65536)
-    };
 
     private static IReadOnlyList<object> BuildChatContents(IReadOnlyList<OllamaMessage> messages)
     {
@@ -363,9 +376,9 @@ public sealed class GeminiModelProvider(
 
         foreach (var candidate in candidates.EnumerateArray())
         {
-            if (!candidate.TryGetProperty("content", out var content) ||
-                !content.TryGetProperty("parts", out var parts) ||
-                parts.ValueKind != JsonValueKind.Array)
+            if (!candidate.TryGetProperty("content", out var content)
+                || !content.TryGetProperty("parts", out var parts)
+                || parts.ValueKind != JsonValueKind.Array)
                 continue;
 
             foreach (var part in parts.EnumerateArray())
