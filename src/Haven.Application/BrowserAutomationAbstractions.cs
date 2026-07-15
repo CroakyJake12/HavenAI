@@ -32,3 +32,8 @@ public interface IBrowserAutomationService
     Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken);
 }
+
+public interface IBrowserAutomationProvider
+{
+    IBrowserAutomationService Automation { get; }
+}
