@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Haven.Desktop.Views.AutomationsView">
+  <!-- Scheduled Actions — create and manage recurring or cron-triggered local actions -->
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="32,28">
+
+    <!-- ============================================================
+         ROW 0: HEADER
+         Page title + description, Register worker + Refresh buttons
+         ============================================================ -->
+    <Grid ColumnDefinitions="*,Auto,Auto">
+      <StackPanel>
+        <TextBlock Text="Scheduled Actions" Classes="heading" />
+        <TextBlock Text="Scheduled local actions with persistent history, leases, and duplicate-run protection." Classes="muted" Margin="0,4,0,0" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Register background worker" Command="{Binding RegisterWorkerCommand}" Margin="0,0,8,0" />
+      <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}" />
+    </Grid>
+
+    <!-- ============================================================
+         ROW 1: CREATE FORM
+         Input fields for new scheduled action:
+         Name, Instruction, Mode (Chat/Teach/Do/Studio), Schedule kind,
+         Schedule JSON, Create button
+         ============================================================ -->
+    <Border Grid.Row="1" Classes="card" Margin="0,18,0,14">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="1.2*,1.8*,Auto,Auto,2*,Auto" ColumnSpacing="8" RowSpacing="10">
+        <TextBlock Grid.ColumnSpan="6" Text="CREATE SCHEDULED ACTION" Classes="eyebrow" />
+        <TextBox Grid.Row="1" Text="{Binding NewName}" PlaceholderText="Name" />
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewInstruction}" PlaceholderText="Instruction" />
+        <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding Modes}" SelectedItem="{Binding NewMode}" MinWidth="100" />
+        <ComboBox Grid.Row="1" Grid.Column="3" ItemsSource="{Binding ScheduleKinds}" SelectedItem="{Binding NewScheduleKind}" MinWidth="130" />
+        <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding NewScheduleJson}" PlaceholderText="Schedule JSON" FontFamily="Cascadia Code, Consolas" />
+        <Button Grid.Row="1" Grid.Column="5" Content="Create" Command="{Binding CreateCommand}" Classes="primary" />
+      </Grid>
+    </Border>
+
+    <!-- Status message -->
+    <Border Grid.Row="2" Classes="card" Margin="0,0,0,14">
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+    </Border>
+
+    <!-- ============================================================
+         ROW 3: SCHEDULED ACTIONS LIST
+         Each item shows: name, state badge, mode, instruction, next run,
+         Run now / Toggle (pause/resume) / Delete buttons
+         ============================================================ -->
+    <ScrollViewer Grid.Row="3">
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="card" Margin="0,0,0,10">
+              <Grid ColumnDefinitions="170,90,*,150,Auto,Auto,Auto" ColumnSpacing="10">
+                <!-- Name + state badge -->
+                <StackPanel>
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding StateLabel}" Foreground="{DynamicResource HavenAccentBrush}" FontSize="10" />
+                </StackPanel>
+                <!-- Mode badge -->
+                <TextBlock Grid.Column="1" Text="{Binding Mode}" Foreground="{DynamicResource HavenBlueBrush}" VerticalAlignment="Center" />
+                <!-- Instruction text -->
+                <TextBlock Grid.Column="2" Text="{Binding Instruction}" Classes="muted" VerticalAlignment="Center" />
+                <!-- Next run timestamp -->
+                <TextBlock Grid.Column="3" Text="{Binding NextRun}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <!-- Action buttons: Run now, Toggle (pause/resume), Delete -->
+                <Button Grid.Column="4" Content="Run now" Command="{Binding $parent[UserControl].DataContext.RunNowCommand}" CommandParameter="{Binding}" />
+                <Button Grid.Column="5" Content="{Binding ToggleLabel}" Command="{Binding $parent[UserControl].DataContext.ToggleCommand}" CommandParameter="{Binding}" />
+                <Button Grid.Column="6" Content="Delete" Command="{Binding $parent[UserControl].DataContext.DeleteCommand}" CommandParameter="{Binding}" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

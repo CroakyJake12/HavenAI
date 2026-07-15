@@ -1,0 +1,4 @@
+XML files parsed: 18
+C# files checked: 42
+Solution projects: 9
+Errors: 0

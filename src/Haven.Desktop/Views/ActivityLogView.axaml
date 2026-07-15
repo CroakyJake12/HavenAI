@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Haven.Desktop.ViewModels"
+             x:Class="Haven.Desktop.Views.ActivityLogView"
+             x:DataType="vm:ActivityLogPageViewModel">
+
+  <UserControl.Styles>
+    <!-- Section headers: used above input fields and list groups -->
+    <Style Selector="TextBlock.section-header">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="0,0,0,6"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- Root padding wrapper -->
+  <Border Padding="20">
+    <!-- Main layout: 4 rows — Header, Search, Conversation List, Status Bar -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+      <!-- ============================================================
+           ROW 0: HEADER
+           Page title + Refresh button. Always visible.
+           ============================================================ -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+        <TextBlock Text="Activity Log" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+        <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                Background="{DynamicResource PrimaryBrush}" Foreground="White" Padding="12,5"/>
+      </StackPanel>
+
+      <!-- ============================================================
+           ROW 1: SEARCH BOX
+           Filters the conversation list below by title or last message content.
+           Typing triggers an immediate filter (partial match, case-insensitive).
+           ============================================================ -->
+      <TextBox Grid.Row="1" Text="{Binding SearchQuery}"
+               PlaceholderText="Search conversations…"
+               Margin="0,0,0,12"/>
+
+      <!-- ============================================================
+           ROW 2: CONVERSATION LIST
+           Scrollable list of all recent conversations (up to 50).
+           Each item is a clickable card showing:
+           - Title (bold, single line)
+           - Mode badge (Chat/Teach/Do/Studio) + message count
+           - Last message preview (up to 2 lines, truncated)
+           - Timestamp (relative to now)
+           Clicking an item opens that conversation in a new tab.
+           ============================================================ -->
+      <Border Grid.Row="2" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="8">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding FilteredItems}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ActivityLogItem">
+                <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Background="Transparent" BorderThickness="0" Padding="10,8" Margin="0,0,0,2"
+                        Command="{Binding $parent[UserControl].DataContext.OpenItemCommand}"
+                        CommandParameter="{Binding}">
+                  <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                    <!-- Row 0: Title (left) + Mode badge + message count (right) -->
+                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                               MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                      <Border Background="{DynamicResource StrokeBrush}" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="{Binding Mode}" FontSize="10" Opacity="0.7"/>
+                      </Border>
+                      <TextBlock Text="{Binding MessageCount, StringFormat='{}{0} msgs'}"
+                                 FontSize="10" Opacity="0.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <!-- Row 1: Last message preview — up to 2 lines, wraps and truncates -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding LastMessagePreview}"
+                               FontSize="11" Opacity="0.6" MaxLines="2" TextWrapping="Wrap"
+                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                    <!-- Row 2: Timestamp — "MMM dd, HH:mm" format -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                               Text="{Binding UpdatedAt, StringFormat='{}{0:MMM dd, HH:mm}'}"
+                               FontSize="10" Opacity="0.4" Margin="0,2,0,0"/>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+
+      <!-- ============================================================
+           ROW 3: STATUS BAR
+           Shows total conversation count or filtered count.
+           ============================================================ -->
+      <Border Grid.Row="3" Background="{DynamicResource SurfaceCardBrush}"
+              CornerRadius="8" Padding="12,8" Margin="0,8,0,0">
+        <TextBlock Text="{Binding StatusMessage}" Opacity="0.7"/>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

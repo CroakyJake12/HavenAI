@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.CatalogView">
+  <!-- Catalog View — browse and create agents, plugins, or prompt templates -->
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="30,25">
+
+    <!-- ============================================================
+         ROW 0: HEADER
+         Page title + subtitle, Refresh / Upload / Create buttons
+         ============================================================ -->
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+      <StackPanel>
+        <TextBlock Text="{Binding Title}" Classes="heading" />
+        <TextBlock Text="{Binding Subtitle}" Classes="muted" Margin="0,4,0,0" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="chrome" Margin="0,0,8,0" />
+      <Button Grid.Column="2" Content="Upload plugin" Click="OnUploadPluginClicked" IsVisible="{Binding CanUploadPlugin}" Margin="0,0,8,0" />
+      <Button Grid.Column="3" Content="{Binding CreateLabel}" Command="{Binding ToggleCreateCommand}" Classes="accent" IsVisible="{Binding CanCreateItems}" />
+    </Grid>
+
+    <!-- ============================================================
+         ROW 1: CREATE BUILDER PANEL (toggle-able)
+         AI-assisted builder prompt + name/description/instructions fields.
+         Agent-specific: preferred model selector.
+         Plugin-specific: "keep active between messages" checkbox.
+         ============================================================ -->
+    <Border Grid.Row="1" Classes="card" Margin="0,20,0,12" IsVisible="{Binding IsCreating}">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10" ColumnSpacing="10">
+        <!-- Builder header + close button -->
+        <Grid ColumnDefinitions="*,Auto" Grid.ColumnSpan="2">
+          <TextBlock Text="{Binding BuilderTitle}" Classes="eyebrow" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="icon" Command="{Binding ToggleCreateCommand}" ToolTip.Tip="Close creator">
+            <controls:HavenIcon IconKey="close" Width="14" Height="14" />
+          </Button>
+        </Grid>
+        <!-- AI builder prompt input + Build with AI button -->
+        <TextBox Grid.Row="1"
+                 Text="{Binding BuilderPrompt}"
+                 PlaceholderText="{Binding BuilderHint}"
+                 MinHeight="38" />
+        <Button Grid.Row="1" Grid.Column="1" Content="Build with AI" Command="{Binding BuildWithAiCommand}" />
+        <!-- Name + description inputs -->
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="1*,1.5*" ColumnSpacing="10">
+          <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
+          <TextBox Grid.Column="1" Text="{Binding NewDescription}" PlaceholderText="Short description" />
+        </Grid>
+        <!-- Instructions text area -->
+        <TextBox Grid.Row="3"
+                 Grid.ColumnSpan="2"
+                 Text="{Binding NewInstructions}"
+                 PlaceholderText="Instructions"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 MinHeight="105"
+                 MaxHeight="230" />
+        <!-- Agent-specific: preferred model | Plugin-specific: persist toggle | Create button -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsAgentCatalog}">
+          <TextBlock Text="Preferred model" Classes="muted" VerticalAlignment="Center" />
+          <TextBox Text="{Binding NewModel}" PlaceholderText="Use current model" Width="230" />
+        </StackPanel>
+        <CheckBox Grid.Row="4" Content="Keep active between messages" IsChecked="{Binding NewPersists}" IsVisible="{Binding IsPluginCatalog}" VerticalAlignment="Center" />
+        <Button Grid.Row="4" Grid.Column="1" Content="{Binding CreateLabel}" Command="{Binding CreateCommand}" Classes="accent" MinWidth="120" />
+      </Grid>
+    </Border>
+
+    <!-- Status message -->
+    <TextBlock Grid.Row="2" Text="{Binding Status}" Classes="muted" FontSize="11" Margin="2,2,0,12" />
+
+    <!-- ============================================================
+         ROW 3: ITEM CARDS GRID
+         Scrollable wrap panel of catalog items. Each card shows:
+         - Name + "LOCAL" badge
+         - Description
+         - Meta info (model, capabilities, etc.)
+         - Duplicate + Delete buttons
+         ============================================================ -->
+    <ScrollViewer Grid.Row="3">
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="340" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="card" Width="324" MinHeight="150" Margin="0,0,14,14">
+              <Grid RowDefinitions="Auto,*,Auto,Auto">
+                <!-- Name + LOCAL badge -->
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource HavenAccentSoftBrush}">
+                    <controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <Border Grid.Column="2" Background="{DynamicResource HavenAccentSoftBrush}" CornerRadius="999" Padding="8,3">
+                    <TextBlock Text="LOCAL" Foreground="{DynamicResource HavenAccentBrush}" FontSize="9" FontWeight="Bold" />
+                  </Border>
+                </Grid>
+                <!-- Description -->
+                <TextBlock Grid.Row="1" Text="{Binding Description}" Classes="muted" Margin="0,10" />
+                <!-- Meta info -->
+                <TextBlock Grid.Row="2" Text="{Binding Meta}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="11" />
+                <!-- Duplicate + Delete buttons -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,9,0,0">
+                  <Button Content="Duplicate agent" IsVisible="{Binding CanDuplicate}"
+                          Command="{Binding $parent[UserControl].DataContext.DuplicateCommand}" CommandParameter="{Binding}" />
+                  <Button Grid.Column="1" Content="Delete" Classes="danger" IsVisible="{Binding CanDelete}"
+                          Command="{Binding $parent[UserControl].DataContext.DeleteCommand}" CommandParameter="{Binding}" />
+                </Grid>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

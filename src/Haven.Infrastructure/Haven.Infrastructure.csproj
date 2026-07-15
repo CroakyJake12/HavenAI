@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- WebRtcVadSharp includes native x86/x64 binaries; Haven ships Windows x64. -->
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Haven.Core\Haven.Core.csproj" />
+    <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLitePCLRaw.provider.winsqlite3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="NAudio" VersionOverride="2.3.0" />
+    <PackageReference Include="Whisper.net" VersionOverride="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" VersionOverride="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.NoAvx" VersionOverride="1.9.1" />
+    <PackageReference Include="WebRtcVadSharp" VersionOverride="1.3.2" />
+    <PackageReference Include="System.Speech" VersionOverride="10.0.0" />
+  </ItemGroup>
+</Project>

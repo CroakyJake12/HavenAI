@@ -1,0 +1,185 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Haven.Desktop.ViewModels"
+             x:Class="Haven.Desktop.Views.StudioProjectView"
+             x:DataType="vm:StudioProjectPageViewModel">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="1180" Margin="32,28" Spacing="18">
+
+      <!-- HEADER -->
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="7">
+        <StackPanel>
+          <TextBlock Text="{Binding ProjectName}" Classes="heading" />
+          <TextBlock Text="{Binding RootPath}" Classes="muted" FontFamily="Cascadia Code, Consolas" FontSize="11" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="New chat" Classes="accent" Command="{Binding StartChatCommand}" />
+        <Button Grid.Column="2" Content="Editor" Command="{Binding OpenEditorCommand}" />
+        <Button Grid.Column="3" Content="Terminal" Command="{Binding OpenTerminalCommand}" />
+        <Button Grid.Column="4" Content="Local server" Command="{Binding StartServerCommand}" />
+        <Button Grid.Column="5" Content="Build" Command="{Binding BuildCommand}" />
+        <Button Grid.Column="6" Content="Test" Command="{Binding TestCommand}" />
+      </Grid>
+
+      <!-- CREATE / CONFIGURE TOGGLE -->
+      <Border CornerRadius="8" Background="{DynamicResource HavenPanelBrush}" Padding="4">
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <Border CornerRadius="6" Background="{DynamicResource HavenAccentSoftBrush}" Padding="0" IsVisible="{Binding IsInOverview}">
+            <Button Content="Overview" Command="{Binding SwitchToOverviewCommand}" Background="Transparent" BorderThickness="0"
+                    FontWeight="SemiBold" Padding="20,8" Foreground="{DynamicResource HavenAccentBrush}" />
+          </Border>
+          <Button Content="Overview" Command="{Binding SwitchToOverviewCommand}" Background="Transparent" BorderThickness="0"
+                  Padding="20,8" IsVisible="{Binding IsInOverview, Converter={x:Static BoolConverters.Not}}" />
+          <Border CornerRadius="6" Background="{DynamicResource HavenAccentSoftBrush}" Padding="0" IsVisible="{Binding IsInCreateMode}">
+            <Button Content="Create" Command="{Binding SwitchToCreateCommand}" Background="Transparent" BorderThickness="0"
+                    FontWeight="SemiBold" Padding="20,8" Foreground="{DynamicResource HavenAccentBrush}" />
+          </Border>
+          <Button Content="Create" Command="{Binding SwitchToCreateCommand}" Background="Transparent" BorderThickness="0"
+                  Padding="20,8" IsVisible="{Binding IsInCreateMode, Converter={x:Static BoolConverters.Not}}" />
+          <Border CornerRadius="6" Background="{DynamicResource HavenAccentSoftBrush}" Padding="0" IsVisible="{Binding IsInConfigureMode}">
+            <Button Content="Configure" Command="{Binding SwitchToConfigureCommand}" Background="Transparent" BorderThickness="0"
+                    FontWeight="SemiBold" Padding="20,8" Foreground="{DynamicResource HavenAccentBrush}" />
+          </Border>
+          <Button Content="Configure" Command="{Binding SwitchToConfigureCommand}" Background="Transparent" BorderThickness="0"
+                  Padding="20,8" IsVisible="{Binding IsInConfigureMode, Converter={x:Static BoolConverters.Not}}" />
+        </StackPanel>
+      </Border>
+
+      <!-- OVERVIEW MODE (existing content) -->
+      <StackPanel IsVisible="{Binding IsInOverview}" Spacing="18">
+
+        <!-- STATUS CARDS -->
+        <UniformGrid Columns="4">
+          <Border Classes="card" Margin="0,0,9,0"><StackPanel><TextBlock Text="BRANCH" Classes="eyebrow" /><TextBlock Text="{Binding Branch}" Margin="0,5,0,0" /><TextBlock Text="{Binding LastCommit}" Classes="muted" FontSize="10" Margin="0,4,0,0" /></StackPanel></Border>
+          <Border Classes="card" Margin="0,0,9,0"><StackPanel><TextBlock Text="WORKTREE" Classes="eyebrow" /><TextBlock Text="{Binding WorkState}" Margin="0,5,0,0" /><TextBlock Text="{Binding LastBuild}" Classes="muted" FontSize="10" Margin="0,4,0,0" /></StackPanel></Border>
+          <Border Classes="card" Margin="0,0,9,0"><StackPanel><TextBlock Text="LAST TASK" Classes="eyebrow" /><TextBlock Text="{Binding LastMeaningfulTask}" Margin="0,5,0,0" MaxLines="2" /></StackPanel></Border>
+          <Border Classes="card"><StackPanel><TextBlock Text="NEXT" Classes="eyebrow" /><TextBlock Text="{Binding RecommendedAction}" Margin="0,5,0,0" MaxLines="2" /></StackPanel></Border>
+        </UniformGrid>
+
+        <!-- PROJECT STATE -->
+        <Border Classes="card">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="5"><TextBlock Text="Project state" Classes="sectionHeading" /><TextBlock Text="{Binding AdaptiveHelp}" Classes="muted" /><TextBlock Text="{Binding LatestError}" Foreground="{DynamicResource HavenWarningBrush}" FontSize="11" /></StackPanel>
+            <Button Grid.Column="1" Content="Refresh state" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <!-- TWO-COLUMN: FILES + CHAT/GIT -->
+        <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16">
+          <Border Classes="card" MaxHeight="520">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+              <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Project files" Classes="sectionHeading" /><TextBlock Grid.Column="1" Text="Open in Haven to edit with version history" Classes="muted" FontSize="10" VerticalAlignment="Center" /></Grid>
+              <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Files}"><ItemsControl.ItemTemplate><DataTemplate><Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.OpenFileCommand}" CommandParameter="{Binding}"><Button.ContextMenu><ContextMenu><MenuItem Header="Ask AI about this file" Command="{Binding $parent[UserControl].DataContext.AskAiAboutFileCommand}" CommandParameter="{Binding}" /><MenuItem Header="Reveal in Explorer" Command="{Binding $parent[UserControl].DataContext.RevealInExplorerCommand}" CommandParameter="{Binding}" /></ContextMenu></Button.ContextMenu><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="{Binding Name}" FontFamily="Cascadia Code, Consolas" FontSize="11" /><TextBlock Text="{Binding Folder}" Classes="muted2" FontSize="9" /></StackPanel><TextBlock Grid.Column="1" Text="Open" Classes="muted" /></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+
+          <StackPanel Grid.Column="1" Spacing="16">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Project chat workflow" Classes="sectionHeading" />
+                <TextBlock Text="Project chats use the selected folder for real file reads and edits, Git-aware context, live tool activity, change counts, command output, builds, and tests." Classes="muted" FontSize="11" />
+                <Button Content="Start project chat" Classes="accent" Command="{Binding StartChatCommand}" HorizontalAlignment="Left" />
+              </StackPanel>
+            </Border>
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Git connection" Classes="sectionHeading" />
+                <TextBlock Text="Initialize this folder or connect its origin remote. Haven never commits or pushes from these buttons." Classes="muted" FontSize="11" />
+                <Button Content="Initialize Git" Command="{Binding InitializeGitCommand}" HorizontalAlignment="Left" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7"><TextBox Text="{Binding GitRemoteUrl}" PlaceholderText="https://github.com/owner/repository.git" /><Button Grid.Column="1" Content="Connect origin" Command="{Binding ConnectGitCommand}" /></Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+
+      <!-- CREATE MODE -->
+      <StackPanel IsVisible="{Binding IsInCreateMode}" Spacing="16">
+        <!-- If no creation kind selected, show picker -->
+        <StackPanel IsVisible="{Binding HasCreationKind, Converter={x:Static BoolConverters.Not}}" Spacing="12">
+          <TextBlock Text="What would you like to create?" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+          <TextBlock Text="Choose a type to get started. You can configure it after creation." Classes="muted" FontSize="12" />
+
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+            <!-- Mode -->
+            <Border Grid.Row="0" Grid.Column="0" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
+              <Button Command="{Binding StartModeCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Mode" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Define surfaces, tools, plugins, and system prompt for a new Haven mode." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Button>
+            </Border>
+            <!-- Plugin -->
+            <Border Grid.Row="0" Grid.Column="1" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
+              <Button Command="{Binding StartPluginCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Plugin" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Create a functional plugin with capabilities, constraints, and optional persistence." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Button>
+            </Border>
+            <!-- Agent -->
+            <Border Grid.Row="1" Grid.Column="0" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
+              <Button Command="{Binding StartAgentCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Agent" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Define a specialised assistant with instructions, model preferences, and detection rules." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Button>
+            </Border>
+            <!-- Prompt -->
+            <Border Grid.Row="1" Grid.Column="1" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
+              <Button Command="{Binding StartPromptCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Prompt" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Create a reusable instruction prompt invoked with >." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Button>
+            </Border>
+          </Grid>
+        </StackPanel>
+
+        <!-- Creation form (shown when a kind is selected) -->
+        <Border IsVisible="{Binding HasCreationKind}" CornerRadius="8" Background="{DynamicResource HavenPanelBrush}" Padding="20" MaxWidth="600">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding CreationTitle}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="x" Command="{Binding CancelCreationCommand}" Classes="ghost" Padding="6,2" FontSize="14" />
+            </Grid>
+            <TextBlock Text="{Binding CreationHint}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+            <TextBox Text="{Binding CreationName}" PlaceholderText="Name" />
+            <TextBox Text="{Binding CreationDescription}" PlaceholderText="Description" />
+            <TextBox Text="{Binding CreationInstructions}" PlaceholderText="System prompt suffix / instructions" AcceptsReturn="True" MaxHeight="100" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox Grid.Column="0" Text="{Binding CreationBuilderPrompt}" PlaceholderText="Describe the purpose for AI-assisted creation" Margin="0,0,8,0" />
+              <Button Grid.Column="1" Content="AI Draft" Command="{Binding BuildWithAiCommand}" Classes="ghost" />
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Create" Command="{Binding CreateItemCommand}" Classes="accent" />
+              <Button Content="Cancel" Command="{Binding CancelCreationCommand}" Classes="ghost" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- CONFIGURE MODE -->
+      <StackPanel IsVisible="{Binding IsInConfigureMode}" Spacing="16">
+        <TextBlock Text="Configure" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+        <TextBlock Text="Manage permissions, tools, and settings for items created in this project." Classes="muted" FontSize="12" />
+        <Border CornerRadius="8" Background="{DynamicResource HavenPanelBrush}" Padding="16">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Project settings are available in the project settings tab." Classes="muted" FontSize="12" />
+            <Button Content="Open project settings" Classes="ghost" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- FOOTER -->
+      <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" /><Button Grid.Column="1" Content="Archive project" Classes="danger" Command="{Binding ArchiveProjectCommand}" /></Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

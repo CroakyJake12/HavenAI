@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Haven.Core\Haven.Core.csproj" />
+    <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
+  </ItemGroup>
+</Project>

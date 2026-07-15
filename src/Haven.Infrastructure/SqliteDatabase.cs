@@ -1,0 +1,426 @@
+using Haven.Application;
+using Microsoft.Data.Sqlite;
+
+namespace Haven.Infrastructure;
+
+public interface ISqliteConnectionFactory
+{
+    Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken);
+}
+
+public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
+{
+    private readonly string _connectionString;
+
+    public SqliteDatabase(IAppPaths paths)
+    {
+        SqliteProviderBootstrap.EnsureInitialized();
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = paths.DatabasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Shared,
+            Pooling = true,
+            ForeignKeys = true
+        }.ToString();
+    }
+
+    public async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
+    {
+        var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var pragma = connection.CreateCommand();
+        pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+        await pragma.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return connection;
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction, "CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);", cancellationToken).ConfigureAwait(false);
+
+        var current = await GetCurrentVersionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+        foreach (var migration in Migrations.All.Where(x => x.Version > current).OrderBy(x => x.Version))
+        {
+            await ExecuteAsync(connection, transaction, migration.Sql, cancellationToken).ConfigureAwait(false);
+            await using var record = connection.CreateCommand();
+            record.Transaction = transaction;
+            record.CommandText = "INSERT INTO schema_migrations(version, applied_at) VALUES($version, $appliedAt);";
+            record.Parameters.AddWithValue("$version", migration.Version);
+            record.Parameters.AddWithValue("$appliedAt", DateTimeOffset.UtcNow.ToString("O"));
+            await record.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> GetCurrentVersionAsync(SqliteConnection connection, SqliteTransaction transaction, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COALESCE(MAX(version), 0) FROM schema_migrations;";
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task ExecuteAsync(SqliteConnection connection, SqliteTransaction transaction, string sql, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+
+internal sealed record Migration(int Version, string Sql);
+
+internal static class Migrations
+{
+    public static readonly IReadOnlyList<Migration> All =
+    [
+        new(1, """
+            CREATE TABLE conversations(
+                id TEXT PRIMARY KEY,
+                mode INTEGER NOT NULL,
+                kind INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                container_id TEXT NULL,
+                lesson_id TEXT NULL,
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                is_temporary INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_conversations_mode_updated ON conversations(mode, updated_at DESC);
+
+            CREATE TABLE messages(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                role INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                agent_name TEXT NULL,
+                model_name TEXT NULL,
+                metadata_json TEXT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_messages_conversation_created ON messages(conversation_id, created_at);
+
+            CREATE TABLE containers(
+                id TEXT PRIMARY KEY,
+                mode INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                root_path TEXT NULL,
+                context TEXT NOT NULL DEFAULT '',
+                instructions TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_containers_mode_name ON containers(mode, name);
+
+            CREATE TABLE lessons(
+                id TEXT PRIMARY KEY,
+                subject_id TEXT NOT NULL REFERENCES containers(id) ON DELETE CASCADE,
+                topic_group TEXT NOT NULL DEFAULT '',
+                name TEXT NOT NULL,
+                structure_json TEXT NOT NULL DEFAULT '{}',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_lessons_subject_sort ON lessons(subject_id, sort_order, name);
+        """),
+        new(2, """
+            CREATE TABLE agents(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                instructions TEXT NOT NULL,
+                icon_key TEXT NOT NULL,
+                preferred_model TEXT NOT NULL DEFAULT '',
+                fallback_model TEXT NULL,
+                detection_rules TEXT NOT NULL DEFAULT '',
+                permissions_json TEXT NOT NULL DEFAULT '{}',
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE plugins(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                icon_key TEXT NOT NULL,
+                instructions TEXT NOT NULL,
+                capabilities_json TEXT NOT NULL DEFAULT '[]',
+                conflicts_json TEXT NOT NULL DEFAULT '[]',
+                persists INTEGER NOT NULL DEFAULT 0,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+        """),
+        new(3, """
+            CREATE TABLE automations(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                mode INTEGER NOT NULL,
+                instruction TEXT NOT NULL,
+                schedule_kind INTEGER NOT NULL,
+                schedule_json TEXT NOT NULL,
+                next_run_at TEXT NULL,
+                container_id TEXT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                lease_token TEXT NULL,
+                lease_until TEXT NULL
+            );
+            CREATE INDEX ix_automations_due ON automations(is_enabled, next_run_at);
+
+            CREATE TABLE automation_runs(
+                id TEXT PRIMARY KEY,
+                automation_id TEXT NOT NULL REFERENCES automations(id) ON DELETE CASCADE,
+                status INTEGER NOT NULL,
+                scheduled_for TEXT NOT NULL,
+                started_at TEXT NULL,
+                completed_at TEXT NULL,
+                result TEXT NULL,
+                error TEXT NULL,
+                lease_token TEXT NULL
+            );
+            CREATE INDEX ix_automation_runs_recent ON automation_runs(automation_id, scheduled_for DESC);
+
+            CREATE TABLE settings(
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE migration_log(
+                key TEXT PRIMARY KEY,
+                completed_at TEXT NOT NULL,
+                note TEXT NULL
+            );
+        """),
+        new(4, """
+            ALTER TABLE conversations ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE conversations ADD COLUMN parent_conversation_id TEXT NULL;
+            ALTER TABLE conversations ADD COLUMN compacted_at TEXT NULL;
+            ALTER TABLE messages ADD COLUMN is_compacted INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE containers ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE plugins ADD COLUMN is_agentic INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE plugins ADD COLUMN allowed_modes_json TEXT NOT NULL DEFAULT '[]';
+
+            CREATE INDEX ix_conversations_archive_mode_updated ON conversations(is_archived, mode, updated_at DESC);
+            CREATE INDEX ix_messages_context ON messages(conversation_id, is_compacted, created_at);
+
+            CREATE TABLE prompts(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                icon_key TEXT NOT NULL,
+                instructions TEXT NOT NULL,
+                persists INTEGER NOT NULL DEFAULT 0,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL,
+                is_agentic INTEGER NOT NULL DEFAULT 0,
+                allowed_modes_json TEXT NOT NULL DEFAULT '[]'
+            );
+
+            CREATE TABLE conversation_context(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                kind INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                evidence TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_conversation_context_created ON conversation_context(conversation_id, created_at);
+
+            CREATE TABLE macros(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                instruction TEXT NOT NULL,
+                container_id TEXT NULL REFERENCES containers(id) ON DELETE SET NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_macros_container_name ON macros(container_id, name);
+
+            CREATE TABLE workspace_versions(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NULL REFERENCES conversations(id) ON DELETE SET NULL,
+                container_id TEXT NULL REFERENCES containers(id) ON DELETE SET NULL,
+                workspace_root TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                kind INTEGER NOT NULL,
+                before_content TEXT NOT NULL,
+                after_content TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                lines_added INTEGER NOT NULL DEFAULT 0,
+                lines_removed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_workspace_versions_file ON workspace_versions(container_id, relative_path, created_at DESC);
+
+            CREATE TABLE decisions(
+                id TEXT PRIMARY KEY,
+                container_id TEXT NOT NULL REFERENCES containers(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                decision_text TEXT NOT NULL,
+                alternatives TEXT NOT NULL,
+                reasoning TEXT NOT NULL,
+                evidence TEXT NOT NULL,
+                consequences TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_decisions_container_updated ON decisions(container_id, updated_at DESC);
+
+            UPDATE plugins
+               SET is_enabled=0
+             WHERE is_built_in=1
+               AND name NOT IN ('Agent','Goal','BrowserUse','ComputerUse','WebSearch','DuoMode','Automate','Test','Macro');
+        """),
+        new(6, """
+            CREATE TABLE training_runs(
+                id TEXT PRIMARY KEY,
+                task_prompt TEXT NOT NULL,
+                workspace_path TEXT NOT NULL,
+                snapshot_path TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                max_attempts INTEGER NOT NULL DEFAULT 5,
+                duration_minutes INTEGER NOT NULL DEFAULT 10,
+                file_permission INTEGER NOT NULL DEFAULT 0,
+                command_permission INTEGER NOT NULL DEFAULT 0,
+                browser_permission INTEGER NOT NULL DEFAULT 0,
+                allow_desktop_tools INTEGER NOT NULL DEFAULT 0,
+                allow_file_system_writes INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                completed_at TEXT NULL
+            );
+
+            CREATE TABLE training_attempts(
+                id TEXT PRIMARY KEY,
+                training_run_id TEXT NOT NULL REFERENCES training_runs(id) ON DELETE CASCADE,
+                attempt_number INTEGER NOT NULL,
+                report_markdown TEXT NOT NULL,
+                feedback TEXT NULL,
+                action_log TEXT NOT NULL,
+                succeeded INTEGER NOT NULL DEFAULT 0,
+                duration_ms INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_training_attempts_run ON training_attempts(training_run_id, attempt_number);
+        """),
+        new(7, PlannerMigration.Sql + FeatureMigration.Sql),
+        new(8, """
+            CREATE TABLE mode_definitions(
+                id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                icon_key TEXT NOT NULL DEFAULT '',
+                base_mode INTEGER NOT NULL DEFAULT 0,
+                surfaces_json TEXT NOT NULL DEFAULT '[]',
+                tool_allowlist_json TEXT NOT NULL DEFAULT '[]',
+                tool_denylist_json TEXT NOT NULL DEFAULT '[]',
+                plugins_json TEXT NOT NULL DEFAULT '[]',
+                system_prompt_suffix TEXT NOT NULL DEFAULT '',
+                source INTEGER NOT NULL DEFAULT 0,
+                install_state INTEGER NOT NULL DEFAULT 0,
+                author TEXT NOT NULL DEFAULT '',
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX ix_mode_definitions_key ON mode_definitions(key);
+            CREATE INDEX ix_mode_definitions_source ON mode_definitions(source);
+
+            CREATE TABLE mode_versions(
+                id TEXT PRIMARY KEY,
+                mode_id TEXT NOT NULL REFERENCES mode_definitions(id) ON DELETE CASCADE,
+                major INTEGER NOT NULL DEFAULT 1,
+                minor INTEGER NOT NULL DEFAULT 0,
+                patch INTEGER NOT NULL DEFAULT 0,
+                manifest_json TEXT NOT NULL DEFAULT '{}',
+                changelog TEXT NOT NULL DEFAULT '',
+                published_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_mode_versions_mode ON mode_versions(mode_id, major DESC, minor DESC, patch DESC);
+
+            CREATE TABLE mode_permission_grants(
+                id TEXT PRIMARY KEY,
+                mode_id TEXT NOT NULL REFERENCES mode_definitions(id) ON DELETE CASCADE,
+                file_permission INTEGER NOT NULL DEFAULT 0,
+                command_permission INTEGER NOT NULL DEFAULT 0,
+                browser_permission INTEGER NOT NULL DEFAULT 0,
+                allow_desktop_tools INTEGER NOT NULL DEFAULT 0,
+                allow_file_system_writes INTEGER NOT NULL DEFAULT 1,
+                granted_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_mode_grants_mode ON mode_permission_grants(mode_id);
+
+            CREATE TABLE mode_pins(
+                id TEXT PRIMARY KEY,
+                mode_id TEXT NOT NULL REFERENCES mode_definitions(id) ON DELETE CASCADE,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                pinned_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX ix_mode_pins_mode ON mode_pins(mode_id);
+
+            CREATE TABLE mode_usage(
+                id TEXT PRIMARY KEY,
+                mode_id TEXT NOT NULL REFERENCES mode_definitions(id) ON DELETE CASCADE,
+                date TEXT NOT NULL,
+                turn_count INTEGER NOT NULL DEFAULT 0,
+                completion_count INTEGER NOT NULL DEFAULT 0,
+                total_duration_ms INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE UNIQUE INDEX ix_mode_usage_mode_date ON mode_usage(mode_id, date);
+
+            CREATE TABLE surface_runs(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                surface INTEGER NOT NULL,
+                surface_key TEXT NOT NULL DEFAULT '',
+                target_mode_key TEXT NULL,
+                started_at TEXT NOT NULL,
+                completed_at TEXT NULL,
+                succeeded INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX ix_surface_runs_conversation ON surface_runs(conversation_id, started_at DESC);
+
+            CREATE TABLE activity_events(
+                id TEXT PRIMARY KEY,
+                kind INTEGER NOT NULL,
+                conversation_id TEXT NULL REFERENCES conversations(id) ON DELETE SET NULL,
+                mode_id TEXT NULL REFERENCES mode_definitions(id) ON DELETE SET NULL,
+                summary TEXT NOT NULL DEFAULT '',
+                detail_json TEXT NOT NULL DEFAULT '{}',
+                timestamp TEXT NOT NULL
+            );
+            CREATE INDEX ix_activity_events_timestamp ON activity_events(timestamp DESC);
+            CREATE INDEX ix_activity_events_kind ON activity_events(kind, timestamp DESC);
+
+            CREATE TABLE conversation_moves(
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                from_mode_id TEXT NULL REFERENCES mode_definitions(id) ON DELETE SET NULL,
+                to_mode_id TEXT NULL REFERENCES mode_definitions(id) ON DELETE SET NULL,
+                from_placement INTEGER NOT NULL DEFAULT 0,
+                to_placement INTEGER NOT NULL DEFAULT 0,
+                reason TEXT NOT NULL DEFAULT '',
+                moved_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_conversation_moves_conversation ON conversation_moves(conversation_id, moved_at DESC);
+        """)
+    ];
+}

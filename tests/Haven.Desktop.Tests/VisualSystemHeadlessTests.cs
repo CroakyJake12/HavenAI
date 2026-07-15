@@ -1,0 +1,110 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Media;
+using Avalonia.VisualTree;
+using Haven.Core;
+using Haven.Desktop.Controls;
+using Haven.Desktop.Converters;
+using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views;
+using Xunit;
+
+namespace Haven.Desktop.Tests;
+
+public sealed class VisualSystemHeadlessTests
+{
+    [AvaloniaFact]
+    public void GlobalButtonAndAcrylicThemesApplyFromTheApplication()
+    {
+        var button = new Button { Content = "Primary" };
+        button.Classes.Add("primary");
+        var acrylic = new AcrylicSurface { Content = button };
+        var window = new Window { Width = 320, Height = 180, Content = acrylic };
+
+        window.Show();
+        acrylic.ApplyTemplate();
+
+        Assert.Equal(36, button.MinHeight);
+        Assert.Equal(new CornerRadius(10), button.CornerRadius);
+        Assert.Equal(new CornerRadius(16), acrylic.CornerRadius);
+        Assert.NotEqual(0, acrylic.FallbackColor.A);
+
+        var backdrop = acrylic.GetVisualDescendants().OfType<ExperimentalAcrylicBorder>().Single();
+        Assert.NotNull(backdrop.Material);
+        Assert.Equal(AcrylicBackgroundSource.Digger, backdrop.Material.BackgroundSource);
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("home")]
+    [InlineData("teach")]
+    [InlineData("call")]
+    [InlineData("mic")]
+    [InlineData("mute")]
+    [InlineData("screen-share")]
+    [InlineData("hang-up")]
+    [InlineData("plan")]
+    public void ProductIconsResolveToClosedVisibleGeometry(string key)
+    {
+        var icon = new HavenIcon { IconKey = key };
+
+        Assert.True(HavenIcon.IsKnown(key));
+        Assert.NotNull(icon.Data);
+        Assert.True(icon.Data.Bounds.Width > 0);
+        Assert.True(icon.Data.Bounds.Height > 0);
+    }
+
+    [AvaloniaFact]
+    public void HavenIconUsesThePathIconThemeAndRendersAVisual()
+    {
+        var icon = new HavenIcon { IconKey = "plan", Width = 24, Height = 24 };
+        var window = new Window { Width = 100, Height = 100, Content = icon };
+
+        window.Show();
+        icon.ApplyTemplate();
+
+        Assert.NotEmpty(icon.GetVisualDescendants());
+        Assert.NotNull(icon.Foreground);
+        window.Close();
+    }
+
+    [Fact]
+    public void PlannerDateConverterRoundTripsTheLocalCalendarDay()
+    {
+        var converter = new DateTimeOffsetDateConverter();
+        var source = new DateTimeOffset(2026, 10, 25, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 25)));
+
+        var date = Assert.IsType<DateTime>(converter.Convert(source, typeof(DateTime?), null, System.Globalization.CultureInfo.InvariantCulture));
+        var restored = Assert.IsType<DateTimeOffset>(converter.ConvertBack(date, typeof(DateTimeOffset?), null, System.Globalization.CultureInfo.InvariantCulture));
+
+        Assert.Equal(source.Date, restored.Date);
+        Assert.Equal(TimeZoneInfo.Local.GetUtcOffset(date), restored.Offset);
+    }
+
+    [AvaloniaFact]
+    public void UnknownIconKeysUseAVisibleFallback()
+    {
+        var icon = new HavenIcon { IconKey = "not-a-real-persisted-key" };
+
+        Assert.NotNull(icon.Data);
+        Assert.True(icon.Data.Bounds.Width > 0);
+        Assert.True(icon.Data.Bounds.Height > 0);
+    }
+
+    [AvaloniaFact]
+    public void FirstClassSurfaceViewsConstructUnderHeadlessAvalonia()
+    {
+        Control[] pages = [new HomeView(), new CallView(), new PlanView(), new ChatGroupView()];
+        var window = new Window { Width = 1280, Height = 800, Content = new StackPanel { Children = { pages[0], pages[1], pages[2], pages[3] } } };
+
+        window.Show();
+
+        Assert.All(pages, page => Assert.NotNull(page));
+        var tab = new WorkspaceTabViewModel("home", "Home", pages[0], false, HavenSurface.Home);
+        Assert.Equal(HavenSurface.Home, tab.Surface);
+        tab.SetSurface(HavenSurface.Plan);
+        Assert.Equal(HavenSurface.Plan, tab.Surface);
+        window.Close();
+    }
+}

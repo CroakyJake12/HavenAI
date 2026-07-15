@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ChatGroupView">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="32" Spacing="20" MaxWidth="1100" HorizontalAlignment="Center">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="Chat Group" Classes="eyebrow" />
+          <TextBlock Text="{Binding Name}" FontSize="28" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Status}" Classes="muted" Margin="0,4,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh" Classes="secondary" Command="{Binding RefreshCommand}" />
+        <Button Grid.Column="2" Content="Settings" Classes="secondary" Command="{Binding SettingsCommand}" />
+        <Button Grid.Column="3" Content="New chat" Classes="primary" Command="{Binding NewChatCommand}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+        <Border Classes="card"><StackPanel><TextBlock Text="{Binding ChatCountLabel}" FontSize="20" FontWeight="SemiBold"/><TextBlock Text="Conversations" Classes="muted"/></StackPanel></Border>
+        <Border Grid.Column="1" Classes="card"><StackPanel><TextBlock Text="{Binding PinnedCountLabel}" FontSize="20" FontWeight="SemiBold"/><TextBlock Text="Saved for quick access" Classes="muted"/></StackPanel></Border>
+        <Border Grid.Column="2" Classes="card"><StackPanel><TextBlock Text="{Binding LastActivityLabel}" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="Activity" Classes="muted"/></StackPanel></Border>
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Shared instructions" Classes="eyebrow" />
+            <TextBlock Text="{Binding Instructions}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Shared context" Classes="eyebrow" />
+            <TextBlock Text="{Binding Context}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel><TextBlock Text="Reference files" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="Copied into Haven and available to every chat in this group." Classes="muted"/></StackPanel>
+            <Button Grid.Column="1" Content="Add references" Classes="secondary" Click="AddReferences_OnClick" />
+          </Grid>
+          <TextBlock Text="No reference files yet." Classes="muted" IsVisible="{Binding !HasResources}" />
+          <ItemsControl ItemsSource="{Binding Resources}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,5">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="{Binding TypeLabel}" Classes="muted"/><TextBlock Text="·" Classes="muted"/><TextBlock Text="{Binding SizeLabel}" Classes="muted"/></StackPanel>
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Remove" Classes="subtle" Command="{Binding $parent[UserControl].DataContext.RemoveResourceCommand}" CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Recent chats" FontSize="18" FontWeight="SemiBold" />
+          <TextBlock Text="No chats in this group yet." Classes="muted" IsVisible="{Binding !HasRecentChats}" />
+          <ItemsControl ItemsSource="{Binding RecentChats}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.OpenChatCommand}" CommandParameter="{Binding}">
+                  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Title}"/><TextBlock Grid.Column="1" Text="{Binding UpdatedLabel}" Classes="muted"/></Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Button Content="Archive Chat Group" Classes="secondary" HorizontalAlignment="Left" Command="{Binding ArchiveCommand}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

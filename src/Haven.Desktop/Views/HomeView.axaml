@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Haven.Desktop.ViewModels"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.HomeView"
+             x:DataType="vm:HomePageViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Grid Margin="34,28,34,48" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="24" MaxWidth="1260" HorizontalAlignment="Stretch">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+        <StackPanel Spacing="5">
+          <TextBlock Text="{Binding Greeting}" Classes="heading" />
+          <TextBlock Text="{Binding DateLabel}" Classes="soft" FontSize="15" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+            <Border Classes="statusPill"><TextBlock Text="{Binding ModelStatus}" FontSize="11" /></Border>
+            <Border Classes="statusPill"><TextBlock Text="{Binding LastUpdatedLabel}" Classes="muted" FontSize="11" /></Border>
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Button Classes="subtle" Command="{Binding ToggleCustomizeCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="7"><controls:HavenIcon IconKey="settings" Width="16" Height="16" /><TextBlock Text="Customise" /></StackPanel>
+          </Button>
+          <Button Classes="icon" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh dashboard">
+            <controls:HavenIcon IconKey="refresh" Width="18" Height="18" />
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <StackPanel Grid.Row="1" Spacing="12">
+        <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Quick access" Classes="sectionHeading" /><TextBlock Grid.Column="1" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" /></Grid>
+        <ItemsControl ItemsSource="{Binding Tiles}">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:DashboardTileViewModel">
+              <Border Classes="dashboardTile" Width="270" MinHeight="150" Margin="0,0,12,12" Tag="{Binding}"
+                      PointerPressed="Tile_PointerPressed" PointerEntered="Tile_PointerEntered" PointerReleased="Tile_PointerReleased"
+                      ToolTip.Tip="Turn on Customise, then drag to reorder">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Border Classes="iconPlate"><controls:HavenIcon IconKey="{Binding IconKey}" Width="20" Height="20" /></Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
+                    <Border Grid.Column="2" Classes="warningPill" IsVisible="{Binding HasBadge}"><TextBlock Text="{Binding Badge}" FontSize="10" /></Border>
+                  </Grid>
+                  <StackPanel Grid.Row="1" Spacing="3">
+                    <TextBlock Text="{Binding Primary}" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Secondary}" Classes="muted" />
+                    <TextBlock Text="{Binding Description}" Classes="muted2" FontSize="11" />
+                  </StackPanel>
+                  <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4">
+                    <Button Classes="subtle" Command="{Binding $parent[UserControl].DataContext.OpenTileCommand}" CommandParameter="{Binding}">Open</Button>
+                    <Button Grid.Column="1" Classes="icon compact" Command="{Binding $parent[UserControl].DataContext.MoveEarlierCommand}" CommandParameter="{Binding}" ToolTip.Tip="Move earlier"><controls:HavenIcon IconKey="chevron-left" Width="14" Height="14" /></Button>
+                    <Button Grid.Column="2" Classes="icon compact" Command="{Binding $parent[UserControl].DataContext.MoveLaterCommand}" CommandParameter="{Binding}" ToolTip.Tip="Move later"><controls:HavenIcon IconKey="chevron-left" RenderTransform="rotate(180deg)" Width="14" Height="14" /></Button>
+                    <Button Grid.Column="3" Classes="icon compact" Command="{Binding $parent[UserControl].DataContext.ToggleTileCommand}" CommandParameter="{Binding}" ToolTip.Tip="Hide tile"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button>
+                  </Grid>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Classes="card" IsVisible="{Binding IsCustomizing}" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Hidden tiles" FontWeight="SemiBold" />
+            <TextBlock Text="Choose a tile to return it to Home. Tile order is saved locally." Classes="muted" FontSize="11" />
+            <ItemsControl ItemsSource="{Binding HiddenTiles}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:DashboardTileViewModel"><Button Classes="chip" Margin="0,0,6,6" Command="{Binding $parent[UserControl].DataContext.ToggleTileCommand}" CommandParameter="{Binding}"><StackPanel Orientation="Horizontal" Spacing="6"><controls:HavenIcon IconKey="{Binding IconKey}" Width="14" Height="14" /><TextBlock Text="{Binding Title}" /></StackPanel></Button></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="No tiles are hidden." Classes="muted" IsVisible="{Binding !HasHiddenTiles}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="18">
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Today" Classes="sectionHeading" />
+            <ItemsControl ItemsSource="{Binding Agenda}">
+              <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:DashboardAgendaItemViewModel"><Button Classes="sidebar" Command="{Binding $parent[UserControl].DataContext.OpenAgendaItemCommand}" CommandParameter="{Binding}"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"><Border Classes="agendaDot" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding TimeLabel}" Classes="muted" /></Grid></Button></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Nothing scheduled. Your day is clear." Classes="muted" IsVisible="{Binding !HasAgenda}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="card" Padding="20">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Recent work" Classes="sectionHeading" />
+            <ItemsControl ItemsSource="{Binding RecentWork}">
+              <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:DashboardWorkItemViewModel"><Button Classes="sidebar" Command="{Binding $parent[UserControl].DataContext.OpenRecentItemCommand}" CommandParameter="{Binding}"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"><controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding UpdatedLabel}" Classes="muted2" FontSize="10" /></Grid></Button></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Your recent chats and projects will appear here." Classes="muted" IsVisible="{Binding !HasRecentWork}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

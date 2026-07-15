@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.SettingsView">
+  <!-- Settings Page — appearance, model management, features, permissions, and data safety -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="34,30" Spacing="17" MaxWidth="1080">
+      <!-- Page header -->
+      <TextBlock Text="Settings" Classes="heading" />
+      <TextBlock Text="Appearance, model management, feature discovery, context limits, and tool permissions." Classes="muted" />
+
+      <!-- ============================================================
+           APPEARANCE SECTION
+           Theme selector (visual preview cards) + custom theme creator
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="APPEARANCE" Classes="eyebrow" /><TextBlock Text="Themes" Classes="sectionHeading" Margin="0,4,0,0" /></StackPanel><TextBlock Grid.Column="1" Text="{Binding ActiveThemeId}" Foreground="{DynamicResource HavenAccentBrush}" /></Grid>
+          <!-- Theme cards — visual preview of each theme, click to apply -->
+          <ItemsControl ItemsSource="{Binding Themes}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate><DataTemplate><Button Width="180" MinHeight="108" Margin="0,0,9,9" Padding="10" Command="{Binding $parent[UserControl].DataContext.ApplyThemeCommand}" CommandParameter="{Binding}"><StackPanel Spacing="6"><Border Height="42" Background="{Binding Background}" CornerRadius="7" Padding="5"><Grid ColumnDefinitions="34,*" ColumnSpacing="5"><Border Background="{Binding Panel}" CornerRadius="4" /><Border Grid.Column="1" Background="{Binding Panel2}" CornerRadius="4"><Border Width="28" Height="5" Background="{Binding Accent}" CornerRadius="3" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border></Grid></Border><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><Border Grid.Column="1" Width="8" Height="8" CornerRadius="4" Background="{Binding NubColor}" VerticalAlignment="Center" /></Grid><TextBlock Text="{Binding Description}" Classes="muted" FontSize="9" MaxLines="2" /></StackPanel></Button></DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <!-- Custom theme creator (Studio mode only) -->
+          <StackPanel Spacing="7" IsVisible="{Binding CanCreateTheme}">
+            <TextBlock Text="Theme Creator" FontWeight="SemiBold" />
+            <!-- Row 1: Theme name + base colors -->
+            <Grid ColumnDefinitions="2*,*,*,*,*" ColumnSpacing="7"><TextBox Text="{Binding ThemeName}" PlaceholderText="Theme name" /><TextBox Grid.Column="1" Text="{Binding ThemeBackground}" PlaceholderText="# background" /><TextBox Grid.Column="2" Text="{Binding ThemePanel}" PlaceholderText="# panel" /><TextBox Grid.Column="3" Text="{Binding ThemePanel2}" PlaceholderText="# panel 2" /><TextBox Grid.Column="4" Text="{Binding ThemeText}" PlaceholderText="# text" /></Grid>
+            <!-- Row 2: Muted + accent + blue + nub color + light toggle + save -->
+            <Grid ColumnDefinitions="*,*,*,*,Auto,Auto" ColumnSpacing="7"><TextBox Text="{Binding ThemeMuted}" PlaceholderText="# muted" /><TextBox Grid.Column="1" Text="{Binding ThemeAccent}" PlaceholderText="# accent" /><TextBox Grid.Column="2" Text="{Binding ThemeBlue}" PlaceholderText="# blue" /><TextBox Grid.Column="3" Text="{Binding ThemeNubColor}" PlaceholderText="# nub color" /><CheckBox Grid.Column="4" Content="Light" IsChecked="{Binding ThemeIsLight}" VerticalAlignment="Center" /><Button Grid.Column="5" Content="Save custom theme" Command="{Binding SaveCustomThemeCommand}" /></Grid>
+            <!-- Row 3: Card border toggle -->
+            <CheckBox Content="Show card borders" IsChecked="{Binding ThemeCardBorder}" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           LOCAL MODELS SECTION
+           Search + browse installed Ollama models, set defaults, install/delete
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="11">
+          <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="LOCAL MODELS" Classes="eyebrow" /><TextBlock Text="Model manager" Classes="sectionHeading" Margin="0,4,0,0" /></StackPanel><Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshModelsCommand}" /></Grid>
+          <!-- Model search -->
+          <TextBox Text="{Binding ModelSearch}" PlaceholderText="Search installed models by name or family" />
+          <!-- Model cards — browse and select -->
+          <ItemsControl ItemsSource="{Binding FilteredModels}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="320" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate><DataTemplate><Button Width="310" Margin="0,0,9,9" Padding="12" HorizontalContentAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.SelectModelCommand}" CommandParameter="{Binding}"><StackPanel Spacing="4"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding Details}" Classes="muted" FontSize="10" /><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding DownloadSize}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" /><TextBlock Grid.Column="1" Text="{Binding EstimatedRam}" Foreground="{DynamicResource HavenWarningBrush}" FontSize="10" /></Grid><TextBlock Text="{Binding Capabilities}" Classes="muted2" FontSize="9" /></StackPanel></Button></DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <!-- Default model selector + delete -->
+          <Grid ColumnDefinitions="2*,*,Auto,Auto" ColumnSpacing="8"><ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox><ComboBox Grid.Column="1" ItemsSource="{Binding EffortLevels}" SelectedItem="{Binding SelectedEffort}" /><Button Grid.Column="2" Content="Save defaults" Classes="accent" Command="{Binding SaveModelDefaultsCommand}" /><Button Grid.Column="3" Content="Delete selected" Classes="danger" Command="{Binding RequestDeleteModelCommand}" /></Grid>
+          <!-- Delete confirmation banner -->
+          <Border Classes="permission" IsVisible="{Binding IsModelDeleteConfirming}"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="Permanently remove the selected model from Ollama?" VerticalAlignment="Center" /><Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDeleteModelCommand}" /><Button Grid.Column="2" Content="Delete model" Classes="danger" Command="{Binding DeleteModelCommand}" /></Grid></Border>
+          <!-- Install model input -->
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox Text="{Binding InstallModelName}" PlaceholderText="Install model, e.g. qwen3:8b" /><Button Grid.Column="1" Content="Install" Command="{Binding InstallModelCommand}" /></Grid>
+          <!-- Install progress bar -->
+          <ProgressBar Value="{Binding InstallProgress}" Minimum="0" Maximum="1" Height="6" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           TWO-COLUMN LAYOUT — Advanced Generation | Features
+           Left: temperature, context limit, action limit
+           Right: auto-switch, confidence, auto-compact, adaptive help, browser assistant
+           ============================================================ -->
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+        <!-- Advanced Generation settings -->
+        <Border Classes="card">
+          <StackPanel Spacing="9"><TextBlock Text="ADVANCED GENERATION" Classes="eyebrow" /><TextBlock Text="Temperature (0–2)" Classes="muted" /><NumericUpDown Value="{Binding Temperature}" Minimum="0" Maximum="2" Increment="0.1" FormatString="0.0" /><TextBlock Text="Context limit" Classes="muted" /><NumericUpDown Value="{Binding ContextLimit}" Minimum="2048" Maximum="262144" Increment="1024" /><TextBlock Text="Maximum tool actions per turn" Classes="muted" /><NumericUpDown Value="{Binding ActionLimit}" Minimum="1" Maximum="100" /><Button Content="Save advanced limits" Command="{Binding SaveAdvancedCommand}" /></StackPanel>
+        </Border>
+        <!-- Feature toggles -->
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="8"><TextBlock Text="FEATURES" Classes="eyebrow" /><CheckBox Content="Automatically switch to a compatible model" IsChecked="{Binding AutoSwitch}" /><CheckBox Content="Show agentic plugins in Haven Chat" IsChecked="{Binding ShowAgenticInChat}" /><TextBlock Text="Workspace tabs use the horizontal strip below the menu." Classes="muted" FontSize="10" /><CheckBox Content="Show confidence indicators" IsChecked="{Binding ConfidenceMeter}" /><CheckBox Content="Compact context automatically" IsChecked="{Binding AutoCompact}" /><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Compact when context reaches this percent" Classes="muted" VerticalAlignment="Center" /><NumericUpDown Grid.Column="1" Value="{Binding CompactAtPercent}" Minimum="50" Maximum="95" Width="90" /></Grid><CheckBox Content="Adaptive project help" IsChecked="{Binding AdaptiveHelp}" /><CheckBox Content="Browser side assistant" IsChecked="{Binding BrowserSideAssistant}" /><Button Content="Save feature settings" Command="{Binding SaveFeaturesCommand}" /></StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ============================================================
+           TOOL PERMISSIONS SECTION
+           Per-tool permission mode selectors (Ask, Auto Safe, Full Access)
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="10"><TextBlock Text="TOOL PERMISSIONS" Classes="eyebrow" /><TextBlock Text="Ask is the safest default. Auto Safe permits bounded low-risk actions; Full Access still respects workspace and platform safety boundaries." Classes="muted" FontSize="11" /><Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8"><StackPanel><TextBlock Text="Files" Classes="muted" /><ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding FilePermission}" /></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="Commands" Classes="muted" /><ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding CommandPermission}" /></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="Browser" Classes="muted" /><ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding BrowserPermission}" /></StackPanel><StackPanel Grid.Column="3"><TextBlock Text="Computer Use" Classes="muted" /><ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding ComputerPermission}" /></StackPanel></Grid><Button Content="Save permissions" Classes="accent" Command="{Binding SavePermissionsCommand}" HorizontalAlignment="Left" /></StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           DATA SAFETY SECTION — 3-column grid
+           Local Data, Isolated Browser, Workspace Safety statements
+           ============================================================ -->
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12"><Border Classes="card"><StackPanel Spacing="7"><TextBlock Text="LOCAL DATA" Classes="eyebrow" /><TextBlock Text="{Binding DataStatement}" FontSize="11" /></StackPanel></Border><Border Grid.Column="1" Classes="card"><StackPanel Spacing="7"><TextBlock Text="ISOLATED BROWSER" Classes="eyebrow" /><TextBlock Text="{Binding BrowserStatement}" FontSize="11" /></StackPanel></Border><Border Grid.Column="2" Classes="card"><StackPanel Spacing="7"><TextBlock Text="WORKSPACE SAFETY" Classes="eyebrow" /><TextBlock Text="{Binding SafetyStatement}" FontSize="11" /></StackPanel></Border></Grid>
+      <!-- Status message -->
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

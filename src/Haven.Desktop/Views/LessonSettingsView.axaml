@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.LessonSettingsView">
+  <!-- Lesson Settings — configure a teaching lesson's name, topic group, and JSON structure -->
+  <ScrollViewer>
+    <StackPanel Margin="32,28" Spacing="15" MaxWidth="880" HorizontalAlignment="Left">
+      <!-- Page header -->
+      <TextBlock Text="LESSON SETTINGS" Classes="eyebrow" />
+      <TextBlock Text="{Binding Name}" Classes="heading" />
+      <TextBlock Text="Organise the lesson and preserve its structured teaching outline." Classes="muted" />
+
+      <!-- ============================================================
+           LESSON NAME + TOPIC GROUP
+           Basic identification fields for the lesson
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="9">
+          <TextBlock Text="Lesson name" Classes="muted" FontSize="11" />
+          <TextBox Text="{Binding Name}" />
+          <TextBlock Text="Topic group" Classes="muted" FontSize="11" Margin="0,5,0,0" />
+          <TextBox Text="{Binding TopicGroup}" PlaceholderText="General" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           STRUCTURE — JSON outline editor
+           Monospace text box for editing the lesson's structured JSON.
+           Contains sections, objectives, and progress metadata.
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="9">
+          <TextBlock Text="STRUCTURE" Classes="eyebrow" />
+          <TextBlock Text="JSON outline used to preserve sections, objectives, and progress metadata." Classes="muted" FontSize="11" />
+          <TextBox Text="{Binding StructureJson}"
+                   AcceptsReturn="True"
+                   TextWrapping="NoWrap"
+                   FontFamily="Cascadia Code, Consolas"
+                   MinHeight="190" />
+        </StackPanel>
+      </Border>
+
+      <!-- Footer: status + Save button -->
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Save lesson" Classes="accent" Command="{Binding SaveCommand}" />
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Haven.AutomationWorker</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

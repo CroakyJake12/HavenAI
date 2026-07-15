@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.MacrosView">
+  <!-- Macros — click-to-run reusable actions (never scheduled, manual trigger only) -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="930" Margin="34,30" Spacing="18">
+      <!-- Header: title + description + Refresh -->
+      <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Macros" Classes="heading" /><TextBlock Text="Explicit, click-to-run reusable actions. Macros never run on a schedule." Classes="muted" /></StackPanel><Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" /></Grid>
+
+      <!-- ============================================================
+           CREATE MACRO FORM
+           Name, Description, Instruction (what to send to Haven), Create button
+           ============================================================ -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Create macro" Classes="sectionHeading" />
+          <TextBox Text="{Binding Name}" PlaceholderText="Name" />
+          <TextBox Text="{Binding Description}" PlaceholderText="Description" />
+          <TextBox Text="{Binding Instruction}" PlaceholderText="Exact action to send to Haven" AcceptsReturn="True" MinHeight="80" />
+          <Button Content="Create macro" Classes="accent" Command="{Binding CreateCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           MACROS LIST
+           Each macro card shows: name, description, instruction preview,
+           Run button (invokes the macro), Delete button
+           ============================================================ -->
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate><DataTemplate><Border Classes="card" Margin="0,0,0,9"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16" /><TextBlock Text="{Binding Description}" Classes="muted" /><TextBlock Text="{Binding Instruction}" Classes="muted2" FontSize="10" Margin="0,5,0,0" /></StackPanel><Button Grid.Column="1" Content="Run" Classes="accent" Command="{Binding $parent[UserControl].DataContext.InvokeCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" /><Button Grid.Column="2" Content="Delete" Classes="danger" Command="{Binding $parent[UserControl].DataContext.DeleteCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <!-- Status message -->
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

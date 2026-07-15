@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ArchiveView">
+  <!-- Archive View — lists archived conversations and projects, with restore/delete actions -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="900" Margin="34,30" Spacing="18">
+      <!-- Header: title + subtitle + Refresh button -->
+      <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="{Binding Title}" Classes="heading" /><TextBlock Text="Archived items stay local and can be restored." Classes="muted" /></StackPanel><Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" /></Grid>
+
+      <!-- ============================================================
+           ARCHIVED ITEMS LIST
+           Each item card shows:
+           - Title + Kind badge + last updated timestamp
+           - Restore button (puts it back in active list)
+           - Delete forever button (with confirmation)
+           ============================================================ -->
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="card" Margin="0,0,0,8">
+              <Grid>
+                <!-- Normal state: title + kind + date + Restore/Delete buttons -->
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsNormal}" ColumnSpacing="8">
+                  <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="{Binding Kind}" Classes="muted" /><TextBlock Text="·" Classes="muted" /><TextBlock Text="{Binding Updated}" Classes="muted" /></StackPanel></StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7"><Button Content="Restore" Classes="accent" Command="{Binding $parent[UserControl].DataContext.RestoreCommand}" CommandParameter="{Binding}" /><Button Content="Delete forever" Classes="danger" Command="{Binding BeginDeleteCommand}" /></StackPanel>
+                </Grid>
+                <!-- Delete confirmation state: warning + Cancel/Delete buttons -->
+                <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding IsDeleteConfirming}" ColumnSpacing="7">
+                  <TextBlock Text="Permanently delete this item? This cannot be undone." Foreground="{DynamicResource HavenDangerBrush}" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDeleteCommand}" />
+                  <Button Grid.Column="2" Content="Delete forever" Classes="danger" Command="{Binding $parent[UserControl].DataContext.DeleteForeverCommand}" CommandParameter="{Binding}" />
+                </Grid>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <!-- Status message -->
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
