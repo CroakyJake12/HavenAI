@@ -9,9 +9,14 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<IAppPaths, AppPaths>();
         services.AddSingleton<SqliteDatabase>();
-        services.AddSingleton<IAppDatabase>(provider => provider.GetRequiredService<SqliteDatabase>());
+        services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
-        services.AddSingleton<IConversationRepository, ConversationRepository>();
+        services.AddSingleton<ConversationRepository>();
+        services.AddSingleton<IConversationRepository>(provider => provider.GetRequiredService<ConversationRepository>());
+        services.AddSingleton<ConversationProductionRepository>();
+        services.AddSingleton<IConversationProductionRepository>(provider => provider.GetRequiredService<ConversationProductionRepository>());
+        services.AddSingleton<IConversationVersioningService, ConversationVersioningService>();
+        services.AddSingleton<IConversationExportService, ConversationExportService>();
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
