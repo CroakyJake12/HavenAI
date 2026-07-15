@@ -27,6 +27,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     private string _status = "Conversation tools ready.";
     private bool _isBusy;
     private bool _isExpanded;
+    private bool _hasActiveShare;
     private string _shareAddress = string.Empty;
     private DateTimeOffset? _shareExpiresAt;
     private bool _suppressBranchSelection;
@@ -57,8 +58,8 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     public event EventHandler? BranchChanged;
-    public event EventHandler<ModelDescriptor>? ModelSelected;
-    public event EventHandler<ConversationExportRequest>? ExportRequested;
+    public event Action<ModelDescriptor>? ModelSelected;
+    public event Action<ConversationExportRequest>? ExportRequested;
 
     public ObservableCollection<ConversationBranchItemViewModel> Branches { get; } = [];
     public ObservableCollection<ProviderModelChoiceViewModel> CloudModels { get; } = [];
@@ -90,9 +91,10 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         get => _selectedBranch;
         set
         {
-            if (!SetProperty(ref _selectedBranch, value) || _suppressBranchSelection || value is null) return;
-            _ = SwitchBranchAsync(value);
+            if (!SetProperty(ref _selectedBranch, value)) return;
             CreateBranchCommand.RaiseCanExecuteChanged();
+            if (_suppressBranchSelection || value is null) return;
+            _ = SwitchBranchAsync(value);
         }
     }
 
@@ -107,12 +109,20 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
-    public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set
+        {
+            if (!SetProperty(ref _isBusy, value)) return;
+            RaiseCommandStates();
+        }
+    }
     public bool IsExpanded { get => _isExpanded; set { if (SetProperty(ref _isExpanded, value)) RaisePropertyChanged(nameof(ExpandLabel)); } }
     public string ExpandLabel => IsExpanded ? "Hide conversation tools" : "Conversation tools";
-    public string ShareAddress { get => _shareAddress; private set { if (SetProperty(ref _shareAddress, value)) RaisePropertyChanged(nameof(HasActiveShare)); } }
+    public string ShareAddress { get => _shareAddress; private set => SetProperty(ref _shareAddress, value); }
     public DateTimeOffset? ShareExpiresAt { get => _shareExpiresAt; private set { if (SetProperty(ref _shareExpiresAt, value)) RaisePropertyChanged(nameof(ShareExpiryLabel)); } }
-    public bool HasActiveShare => !string.IsNullOrWhiteSpace(ShareAddress);
+    public bool HasActiveShare => _hasActiveShare;
     public string ShareExpiryLabel => ShareExpiresAt is null ? string.Empty : $"Expires {ShareExpiresAt.Value.LocalDateTime:g}";
     public bool HasSearchResults => SearchResults.Count > 0;
     public bool HasCloudModels => CloudModels.Count > 0;
@@ -121,7 +131,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     {
         ConversationId = conversationId;
         ClearSearch();
-        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+        await RefreshAsync(cancellationToken);
     }
 
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
@@ -132,7 +142,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            var branches = await _production.GetBranchesAsync(ConversationId, cancellationToken).ConfigureAwait(false);
+            var branches = await _production.GetBranchesAsync(ConversationId, cancellationToken);
             var current = branches.FirstOrDefault(item => item.IsCurrent);
             _suppressBranchSelection = true;
             try
@@ -141,32 +151,32 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
                 foreach (var branch in branches) Branches.Add(new ConversationBranchItemViewModel(branch));
                 SelectedBranch = current is null ? null : Branches.FirstOrDefault(item => item.Id == current.Id);
             }
-            finally { _suppressBranchSelection = false; }
+            finally
+            {
+                _suppressBranchSelection = false;
+            }
 
             CloudModels.Clear();
-            foreach (var model in (await _providers.GetModelsAsync(cancellationToken).ConfigureAwait(false)).Where(item => !item.IsLocal))
+            foreach (var model in (await _providers.GetModelsAsync(cancellationToken)).Where(item => !item.IsLocal))
                 CloudModels.Add(new ProviderModelChoiceViewModel(model, _routing.ToCompatibilityDescriptor(model)));
             RaisePropertyChanged(nameof(HasCloudModels));
 
-            if (await _sharing.GetActiveAsync(ConversationId, cancellationToken).ConfigureAwait(false) is { } share)
-            {
-                ShareAddress = string.Empty;
-                ShareExpiresAt = share.ExpiresAt;
-                Status = "A LAN share record is active. Start a new share to generate a fresh private link for this app session.";
-            }
-            else
-            {
-                ShareAddress = string.Empty;
-                ShareExpiresAt = null;
-                Status = Branches.Count == 0 ? "This conversation will gain a branch when its first saved message is created." : $"{Branches.Count} branch{(Branches.Count == 1 ? string.Empty : "es")} available.";
-            }
-            RaiseCommandStates();
+            var share = await _sharing.GetActiveAsync(ConversationId, cancellationToken);
+            SetShareState(share is not null, string.Empty, share?.ExpiresAt);
+            Status = share is not null
+                ? "A LAN share is active from this app profile. Stop it here, or start a fresh share after stopping it."
+                : Branches.Count == 0
+                    ? "This conversation will gain a branch when its first saved message is created."
+                    : $"{Branches.Count} branch{(Branches.Count == 1 ? string.Empty : "es")} available.";
         }
         catch (Exception ex)
         {
             Status = "Conversation tools could not refresh: " + ex.Message;
         }
-        finally { IsBusy = false; }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task CreateBranchAsync()
@@ -176,14 +186,28 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         {
             IsBusy = true;
             var branch = await _production.CreateBranchAsync(
-                ConversationId, SelectedBranch.Id, null, $"Branch {Branches.Count + 1}", ConversationBranchReason.Manual, CancellationToken.None).ConfigureAwait(false);
-            await RefreshAsync(CancellationToken.None).ConfigureAwait(false);
+                ConversationId,
+                SelectedBranch.Id,
+                null,
+                $"Branch {Branches.Count + 1}",
+                ConversationBranchReason.Manual,
+                CancellationToken.None);
+            await RefreshAsync(CancellationToken.None);
+            _suppressBranchSelection = true;
             SelectedBranch = Branches.FirstOrDefault(item => item.Id == branch.Id);
+            _suppressBranchSelection = false;
             Status = $"Created {branch.Name}.";
             BranchChanged?.Invoke(this, EventArgs.Empty);
         }
-        catch (Exception ex) { Status = "Could not create branch: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "Could not create branch: " + ex.Message;
+        }
+        finally
+        {
+            _suppressBranchSelection = false;
+            IsBusy = false;
+        }
     }
 
     private async Task SwitchBranchAsync(ConversationBranchItemViewModel branch)
@@ -191,13 +215,19 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            await _production.SetCurrentBranchAsync(ConversationId, branch.Id, CancellationToken.None).ConfigureAwait(false);
+            await _production.SetCurrentBranchAsync(ConversationId, branch.Id, CancellationToken.None);
             foreach (var item in Branches) item.IsCurrent = item.Id == branch.Id;
             Status = $"Switched to {branch.Name}.";
             BranchChanged?.Invoke(this, EventArgs.Empty);
         }
-        catch (Exception ex) { Status = "Could not switch branch: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "Could not switch branch: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task SearchAsync()
@@ -206,13 +236,21 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         {
             IsBusy = true;
             SearchResults.Clear();
-            foreach (var result in await _production.SearchAsync(SearchQuery, ConversationId, 50, CancellationToken.None).ConfigureAwait(false))
+            foreach (var result in await _production.SearchAsync(SearchQuery, ConversationId, 50, CancellationToken.None))
                 SearchResults.Add(new ConversationSearchResultViewModel(result));
             RaisePropertyChanged(nameof(HasSearchResults));
-            Status = SearchResults.Count == 0 ? "No matches in this conversation." : $"{SearchResults.Count} match{(SearchResults.Count == 1 ? string.Empty : "es")}.";
+            Status = SearchResults.Count == 0
+                ? "No matches in this conversation."
+                : $"{SearchResults.Count} match{(SearchResults.Count == 1 ? string.Empty : "es")}.";
         }
-        catch (Exception ex) { Status = "Search failed: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "Search failed: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private void ClearSearch()
@@ -229,16 +267,30 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
             IsBusy = true;
             var content = format switch
             {
-                ConversationExportFormat.Markdown => await _exports.ExportMarkdownAsync(ConversationId, CancellationToken.None).ConfigureAwait(false),
-                ConversationExportFormat.Json => await _exports.ExportJsonAsync(ConversationId, CancellationToken.None).ConfigureAwait(false),
-                _ => await _exports.ExportPlainTextAsync(ConversationId, CancellationToken.None).ConfigureAwait(false)
+                ConversationExportFormat.Markdown => await _exports.ExportMarkdownAsync(ConversationId, CancellationToken.None),
+                ConversationExportFormat.Json => await _exports.ExportJsonAsync(ConversationId, CancellationToken.None),
+                _ => await _exports.ExportPlainTextAsync(ConversationId, CancellationToken.None)
             };
-            var extension = format switch { ConversationExportFormat.Markdown => ".md", ConversationExportFormat.Json => ".json", _ => ".txt" };
-            ExportRequested?.Invoke(this, new ConversationExportRequest(format, content, "haven-conversation-" + ConversationId.ToString("N")[..8] + extension));
+            var extension = format switch
+            {
+                ConversationExportFormat.Markdown => ".md",
+                ConversationExportFormat.Json => ".json",
+                _ => ".txt"
+            };
+            ExportRequested?.Invoke(new ConversationExportRequest(
+                format,
+                content,
+                "haven-conversation-" + ConversationId.ToString("N")[..8] + extension));
             Status = $"{format} export prepared.";
         }
-        catch (Exception ex) { Status = "Export failed: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "Export failed: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task StartShareAsync()
@@ -246,14 +298,18 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            var handle = await _sharing.StartAsync(ConversationId, TimeSpan.FromHours(1), CancellationToken.None).ConfigureAwait(false);
-            ShareAddress = handle.Address.ToString();
-            ShareExpiresAt = handle.ExpiresAt;
+            var handle = await _sharing.StartAsync(ConversationId, TimeSpan.FromHours(1), CancellationToken.None);
+            SetShareState(true, handle.Address.ToString(), handle.ExpiresAt);
             Status = handle.Notice;
-            RaiseCommandStates();
         }
-        catch (Exception ex) { Status = "LAN share could not start: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "LAN share could not start: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task StopShareAsync()
@@ -261,24 +317,37 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            await _sharing.StopAsync(ConversationId, CancellationToken.None).ConfigureAwait(false);
-            ShareAddress = string.Empty;
-            ShareExpiresAt = null;
+            await _sharing.StopAsync(ConversationId, CancellationToken.None);
+            SetShareState(false, string.Empty, null);
             Status = "LAN share stopped.";
-            RaiseCommandStates();
         }
-        catch (Exception ex) { Status = "LAN share could not stop: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (Exception ex)
+        {
+            Status = "LAN share could not stop: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private void SetShareState(bool isActive, string address, DateTimeOffset? expiresAt)
+    {
+        _hasActiveShare = isActive;
+        ShareAddress = address;
+        ShareExpiresAt = expiresAt;
+        RaisePropertyChanged(nameof(HasActiveShare));
+        RaiseCommandStates();
     }
 
     private void SelectCloudModel(ProviderModelChoiceViewModel? item)
     {
         if (item is null) return;
-        ModelSelected?.Invoke(this, item.CompatibilityDescriptor);
+        ModelSelected?.Invoke(item.CompatibilityDescriptor);
         Status = $"Selected {item.DisplayName} from {item.ProviderName}.";
     }
 
-    private bool CanUseConversation() => ConversationId != Guid.Empty;
+    private bool CanUseConversation() => ConversationId != Guid.Empty && !IsBusy;
 
     private void RaiseCommandStates()
     {
