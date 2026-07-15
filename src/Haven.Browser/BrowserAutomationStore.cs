@@ -10,12 +10,13 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private BrowserAutomationData _data;
+    private bool _hasUnsavedRecovery;
 
     public BrowserAutomationStore(IAppPaths paths)
     {
         _path = Path.Combine(paths.DataDirectory, "browser-automation.json");
         _data = Load();
-        RecoverActions(DateTimeOffset.UtcNow);
+        _hasUnsavedRecovery = RecoverAfterStartup(DateTimeOffset.UtcNow);
     }
 
     public async Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken)
@@ -23,8 +24,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var changed = RecoverActions(DateTimeOffset.UtcNow);
-            if (changed) await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            await PersistRecoveryAndExpiryAsync(cancellationToken).ConfigureAwait(false);
             return _data.Actions.Where(item => item.State == BrowserActionState.Pending)
                 .OrderBy(item => item.CreatedAt).ToArray();
         }
@@ -36,8 +36,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var changed = RecoverActions(DateTimeOffset.UtcNow);
-            if (changed) await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            await PersistRecoveryAndExpiryAsync(cancellationToken).ConfigureAwait(false);
             return _data.Audit.OrderByDescending(item => item.RecordedAt).Take(Math.Clamp(limit, 1, 2_000)).ToArray();
         }
         finally { _gate.Release(); }
@@ -48,8 +47,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var changed = RecoverActions(DateTimeOffset.UtcNow);
-            if (changed) await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            await PersistRecoveryAndExpiryAsync(cancellationToken).ConfigureAwait(false);
             return _data.Downloads.OrderByDescending(item => item.CompletedAt).Take(Math.Clamp(limit, 1, 500)).ToArray();
         }
         finally { _gate.Release(); }
@@ -63,9 +61,11 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ExpirePending(DateTimeOffset.UtcNow);
             if (_data.Actions.Any(item => item.Id == action.Id)) throw new InvalidOperationException("The browser action already exists.");
             _data = _data with { Actions = _data.Actions.Append(action).TakeLast(1_000).ToArray() };
             await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            _hasUnsavedRecovery = false;
             return action;
         }
         finally { _gate.Release(); }
@@ -76,8 +76,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var changed = RecoverActions(DateTimeOffset.UtcNow);
-            if (changed) await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            await PersistRecoveryAndExpiryAsync(cancellationToken).ConfigureAwait(false);
             return _data.Actions.FirstOrDefault(item => item.Id == actionId);
         }
         finally { _gate.Release(); }
@@ -89,9 +88,11 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ExpirePending(DateTimeOffset.UtcNow);
             if (!_data.Actions.Any(item => item.Id == action.Id)) throw new KeyNotFoundException("The browser action no longer exists.");
             _data = _data with { Actions = _data.Actions.Select(item => item.Id == action.Id ? action : item).ToArray() };
             await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            _hasUnsavedRecovery = false;
             return action;
         }
         finally { _gate.Release(); }
@@ -103,8 +104,10 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ExpirePending(DateTimeOffset.UtcNow);
             _data = _data with { Audit = _data.Audit.Append(entry).TakeLast(2_000).ToArray() };
             await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            _hasUnsavedRecovery = false;
         }
         finally { _gate.Release(); }
     }
@@ -115,8 +118,10 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ExpirePending(DateTimeOffset.UtcNow);
             _data = _data with { Downloads = _data.Downloads.Append(download).TakeLast(500).ToArray() };
             await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            _hasUnsavedRecovery = false;
         }
         finally { _gate.Release(); }
     }
@@ -140,7 +145,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         }
     }
 
-    private bool RecoverActions(DateTimeOffset now)
+    private bool RecoverAfterStartup(DateTimeOffset now)
     {
         var changed = false;
         var recoveryAudit = new List<BrowserAuditEntry>();
@@ -149,10 +154,18 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
             if (item.State == BrowserActionState.Approved)
             {
                 changed = true;
-                const string failure = "Haven restarted or recovery ran after approval. The action was not resumed automatically.";
+                const string failure = "Haven restarted after approval. The action was not resumed automatically.";
                 recoveryAudit.Add(new BrowserAuditEntry(
                     Guid.NewGuid(), item.Kind, "recovery-interrupted", item.Origin, failure, false, now));
                 return item with { State = BrowserActionState.Failed, UpdatedAt = now, Failure = failure };
+            }
+            if (item.State == BrowserActionState.Pending && item.Target.StartsWith("ephemeral:", StringComparison.Ordinal))
+            {
+                changed = true;
+                const string unavailable = "The signed request target was session-only and cannot be resumed after restart.";
+                recoveryAudit.Add(new BrowserAuditEntry(
+                    Guid.NewGuid(), item.Kind, "recovery-session-target-lost", item.Origin, unavailable, false, now));
+                return item with { State = BrowserActionState.Failed, UpdatedAt = now, Failure = unavailable };
             }
             if (item.State != BrowserActionState.Pending || item.ExpiresAt > now) return item;
             changed = true;
@@ -170,6 +183,38 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
             };
         }
         return changed;
+    }
+
+    private bool ExpirePending(DateTimeOffset now)
+    {
+        var changed = false;
+        var expirationAudit = new List<BrowserAuditEntry>();
+        var actions = _data.Actions.Select(item =>
+        {
+            if (item.State != BrowserActionState.Pending || item.ExpiresAt > now) return item;
+            changed = true;
+            const string expired = "The approval expired before execution.";
+            expirationAudit.Add(new BrowserAuditEntry(
+                Guid.NewGuid(), item.Kind, "approval-expired", item.Origin, expired, false, now));
+            return item with { State = BrowserActionState.Expired, UpdatedAt = now, Failure = expired };
+        }).ToArray();
+        if (changed)
+        {
+            _data = _data with
+            {
+                Actions = actions,
+                Audit = _data.Audit.Concat(expirationAudit).TakeLast(2_000).ToArray()
+            };
+        }
+        return changed;
+    }
+
+    private async Task PersistRecoveryAndExpiryAsync(CancellationToken cancellationToken)
+    {
+        var changed = _hasUnsavedRecovery | ExpirePending(DateTimeOffset.UtcNow);
+        if (!changed) return;
+        await SaveUnsafeAsync(cancellationToken).ConfigureAwait(false);
+        _hasUnsavedRecovery = false;
     }
 
     private async Task SaveUnsafeAsync(CancellationToken cancellationToken)
