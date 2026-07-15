@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -54,14 +53,12 @@ internal static class BrowserSafetyBootstrap
                 Margin = new Thickness(0, 0, 470, 0),
                 Padding = new Thickness(9, 4),
                 FontSize = 10,
-                ToolTip = "Review model-requested form submissions and downloads"
+                Flyout = new Flyout { Content = new BrowserSafetyView() }
             };
+            ToolTip.SetTip(button, "Review model-requested form submissions and downloads");
             button.Classes.Add("ghost");
             Grid.SetRow(button, 3);
             Panel.SetZIndex(button, 20);
-            var flyout = new Flyout { Content = new BrowserSafetyView() };
-            FlyoutBase.SetAttachedFlyout(button, flyout);
-            button.Click += (_, _) => FlyoutBase.ShowAttachedFlyout(button);
             grid.Children.Add(button);
         }
     }
