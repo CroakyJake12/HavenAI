@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.LanguageServerSettingsView">
+  <Border Classes="card">
+    <StackPanel Spacing="11">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="LANGUAGE SERVERS" Classes="eyebrow" />
+          <TextBlock Text="Trusted external code-intelligence processes" Classes="sectionHeading" Margin="0,4,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Add custom" Command="{Binding AddCommand}" />
+        <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}" />
+      </Grid>
+      <TextBlock Text="Definitions are stored in Haven's app-data settings, not loaded from repositories. Built-in suggestions are disabled until you review and enable them. Commands run only for matching files inside the selected Studio project."
+                 Classes="muted" FontSize="10" TextWrapping="Wrap" />
+
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Background="{DynamicResource HavenPanel2Brush}"
+                    BorderBrush="{DynamicResource HavenLineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="12"
+                    Margin="0,0,0,8">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="2*,*,Auto" ColumnSpacing="7">
+                  <TextBox Text="{Binding DisplayName}" PlaceholderText="Display name" />
+                  <TextBox Grid.Column="1" Text="{Binding Id}" PlaceholderText="Stable identifier" />
+                  <CheckBox Grid.Column="2" Content="Enabled" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" />
+                </Grid>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="Command" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding Command}" PlaceholderText="Executable or absolute path" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="Arguments" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding Arguments}" PlaceholderText="e.g. --stdio" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="*,2*,Auto" ColumnSpacing="7">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="Language ID" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding LanguageId}" PlaceholderText="csharp" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="Extensions" Classes="muted" FontSize="9" />
+                    <TextBox Text="{Binding ExtensionsText}" PlaceholderText=".cs, .csx" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="Timeout (seconds)" Classes="muted" FontSize="9" />
+                    <NumericUpDown Value="{Binding RequestTimeoutSeconds}" Minimum="2" Maximum="120" Increment="1" Width="110" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Initialization options JSON" Classes="muted" FontSize="9" />
+                  <TextBox Text="{Binding InitializationOptionsJson}"
+                           AcceptsReturn="True"
+                           TextWrapping="NoWrap"
+                           FontFamily="Cascadia Mono, Consolas, monospace"
+                           MinHeight="52"
+                           MaxHeight="140"
+                           HorizontalScrollBarVisibility="Auto"
+                           VerticalScrollBarVisibility="Auto" />
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="7">
+                  <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  <ProgressBar Grid.Column="1" Width="52" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+                  <Button Grid.Column="2"
+                          Content="Delete"
+                          Classes="danger"
+                          Command="{Binding $parent[UserControl].DataContext.DeleteCommand}"
+                          CommandParameter="{Binding}" />
+                  <Button Grid.Column="3"
+                          Content="Save"
+                          Classes="accent"
+                          Command="{Binding $parent[UserControl].DataContext.SaveCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Status}" Classes="muted" />
+      <ProgressBar Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+    </StackPanel>
+  </Border>
+</UserControl>
