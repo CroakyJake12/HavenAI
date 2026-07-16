@@ -3,12 +3,21 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
-public sealed class ConversationProductionDatabase(SqliteDatabase database) : IAppDatabase
+public sealed class ConversationProductionDatabase(
+    SqliteDatabase database,
+    IDatabaseMaintenance maintenance) : IAppDatabase
 {
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        // Version 10 is the highest additive continuation schema currently used.
+        // Taking one verified backup here protects both the base migrations and the
+        // conversation/retrieval schemas that are applied during or shortly after startup.
+        await maintenance.PrepareForMigrationAsync(10, cancellationToken).ConfigureAwait(false);
         await database.InitializeAsync(cancellationToken).ConfigureAwait(false);
         await ConversationProductionSchema.EnsureAsync(database, cancellationToken).ConfigureAwait(false);
+        var health = await maintenance.VerifyIntegrityAsync(cancellationToken).ConfigureAwait(false);
+        if (!health.IsHealthy)
+            throw new InvalidDataException("The Haven database failed its post-migration integrity check. Startup was stopped to protect the data.");
     }
 }
 
