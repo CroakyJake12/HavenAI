@@ -1,7 +1,9 @@
 using System.Collections.Specialized;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
@@ -13,6 +15,7 @@ public partial class CallView : UserControl
 {
     private INotifyCollectionChanged? _observedTranscript;
     private Button? _voicePreviewButton;
+    private Button? _transcriptExportButton;
     private CancellationTokenSource? _voicePreviewCancellation;
 
     public CallView()
@@ -25,8 +28,10 @@ public partial class CallView : UserControl
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel) return;
+        App.Services?.GetService<CallCompletionController>();
         await viewModel.InitializeAsync();
         EnsureVoicePreview(viewModel);
+        EnsureTranscriptExport(viewModel);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -37,6 +42,7 @@ public partial class CallView : UserControl
         if (_observedTranscript is not null)
             _observedTranscript.CollectionChanged += OnTranscriptCollectionChanged;
         _voicePreviewButton = null;
+        _transcriptExportButton = null;
     }
 
     private void EnsureVoicePreview(CallPageViewModel viewModel)
@@ -57,6 +63,26 @@ public partial class CallView : UserControl
         var selectorIndex = voicePanel.Children.IndexOf(voiceSelector);
         voicePanel.Children.Insert(Math.Min(selectorIndex + 1, voicePanel.Children.Count), preview);
         _voicePreviewButton = preview;
+    }
+
+    private void EnsureTranscriptExport(CallPageViewModel viewModel)
+    {
+        if (_transcriptExportButton is not null) return;
+        var startButton = this.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => string.Equals(button.Content as string, "Start local call", StringComparison.Ordinal));
+        if (startButton?.Parent is not StackPanel setupPanel) return;
+        var export = new Button
+        {
+            Content = "Export transcript",
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            IsEnabled = viewModel.Transcript.Count > 0
+        };
+        export.Classes.Add("secondary");
+        export.Click += OnExportTranscriptClicked;
+        var startIndex = setupPanel.Children.IndexOf(startButton);
+        setupPanel.Children.Insert(Math.Min(startIndex + 1, setupPanel.Children.Count), export);
+        _transcriptExportButton = export;
     }
 
     private async void OnPreviewVoiceClicked(object? sender, RoutedEventArgs e)
@@ -105,6 +131,45 @@ public partial class CallView : UserControl
         }
     }
 
+    private async void OnExportTranscriptClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not CallPageViewModel viewModel || viewModel.Transcript.Count == 0) return;
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+        try
+        {
+            var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Haven Call transcript",
+                SuggestedFileName = $"haven-call-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Markdown") { Patterns = ["*.md"] },
+                    new FilePickerFileType("Text") { Patterns = ["*.txt"] }
+                ]
+            });
+            if (file is null) return;
+            await using var stream = await file.OpenWriteAsync();
+            stream.SetLength(0);
+            await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+            await writer.WriteAsync(CallTranscriptExportFormatter.ToMarkdown(viewModel.Transcript, DateTimeOffset.Now));
+            await writer.FlushAsync();
+            App.Services?.GetService<NotificationService>()?.Show(
+                "Transcript exported",
+                file.Name,
+                ToastKind.Info,
+                TimeSpan.FromSeconds(6));
+        }
+        catch (Exception ex)
+        {
+            App.Services?.GetService<NotificationService>()?.Show(
+                "Transcript export failed",
+                ex.Message,
+                ToastKind.Warning,
+                TimeSpan.FromSeconds(8));
+        }
+    }
+
     private async void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         var cancellation = _voicePreviewCancellation;
@@ -123,8 +188,12 @@ public partial class CallView : UserControl
         }
     }
 
-    private void OnTranscriptCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+    private void OnTranscriptCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
         TranscriptScroller.ScrollToEnd();
+        if (_transcriptExportButton is not null && DataContext is CallPageViewModel viewModel)
+            _transcriptExportButton.IsEnabled = viewModel.Transcript.Count > 0;
+    }
 
     private async void OnPushToTalkPressed(object? sender, PointerPressedEventArgs e)
     {
