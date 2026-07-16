@@ -32,6 +32,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private readonly TextBox _modeSearch = new() { PlaceholderText = "Search modes", MinWidth = 280 };
     private readonly TextBlock _overlayStatus = new() { Classes = { "muted" }, FontSize = 11 };
     private readonly Grid _overlay;
+    private readonly DispatcherTimer _modeRefreshTimer;
     private readonly IModeRegistry? _modeRegistry;
     private readonly IPinRepository? _pins;
     private MainWindowViewModel? _shell;
@@ -39,6 +40,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private IReadOnlyList<ModeDefinition> _modes = [];
     private List<ModePin> _orderedPins = [];
     private bool _isReorderMode;
+    private bool _isRefreshing;
     private bool _disposed;
 
     public ExperienceShellHost(Control existingShell)
@@ -47,12 +49,15 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         ColumnDefinitions = new ColumnDefinitions("76,*");
         Background = Brushes.Transparent;
 
+        _modeRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _modeRefreshTimer.Tick += OnModeRefreshTimerTick;
+
         var home = RailButton("⌂", "Home", "ExperienceHomeButton");
         home.Margin = new Thickness(0, 0, 0, 10);
         home.Click += (_, _) => _shell?.NavigateHomeCommand.Execute(null);
 
         var allModes = RailButton("▦", "All modes", "ExperienceAllModesButton");
-        allModes.Click += (_, _) => ShowModeLibrary();
+        allModes.Click += async (_, _) => await ShowModeLibraryAsync();
 
         var settings = RailButton("⚙", "Settings", "ExperienceSettingsButton");
         settings.Click += (_, _) => _shell?.NavigateSettingsCommand.Execute(null);
@@ -79,13 +84,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                         Content = new StackPanel
                         {
                             Spacing = 9,
-                            Children =
-                            {
-                                _experienceButtons,
-                                Divider(),
-                                _pinnedButtons,
-                                allModes
-                            }
+                            Children = { _experienceButtons, Divider(), _pinnedButtons, allModes }
                         }
                     }, 1),
                     WithRow(new StackPanel { Spacing = 5, Children = { settings } }, 2)
@@ -94,11 +93,44 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         };
 
         _modeSearch.TextChanged += (_, _) => RebuildModeCards();
-        var closeOverlay = new Button { Content = "Close" };
-        closeOverlay.Classes.Add("secondary");
-        closeOverlay.Click += (_, _) => HideModeLibrary();
+        _overlay = BuildModeOverlay();
+        Grid.SetColumnSpan(_overlay, 2);
 
-        _overlay = new Grid
+        Children.Add(rail);
+        Grid.SetColumn(existingShell, 1);
+        Children.Add(existingShell);
+        Children.Add(_overlay);
+
+        if (App.Services is not null)
+        {
+            _modeRegistry = App.Services.GetService<IModeRegistry>();
+            _pins = App.Services.GetService<IPinRepository>();
+        }
+
+        DataContextChanged += OnDataContextChanged;
+        AttachedToVisualTree += OnAttachedToVisualTree;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        DataContextChanged -= OnDataContextChanged;
+        AttachedToVisualTree -= OnAttachedToVisualTree;
+        _modeRefreshTimer.Stop();
+        _modeRefreshTimer.Tick -= OnModeRefreshTimerTick;
+        if (_shellNotifications is not null) _shellNotifications.PropertyChanged -= OnShellPropertyChanged;
+        _shellNotifications = null;
+        _shell = null;
+        GC.SuppressFinalize(this);
+    }
+
+    private Grid BuildModeOverlay()
+    {
+        var close = new Button { Content = "Close" };
+        close.Classes.Add("secondary");
+        close.Click += (_, _) => _overlay.IsVisible = false;
+        return new Grid
         {
             IsVisible = false,
             Background = new SolidColorBrush(Color.FromArgb(224, 8, 8, 10)),
@@ -139,7 +171,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                                             }
                                         }
                                     },
-                                    WithColumn(closeOverlay, 1)
+                                    WithColumn(close, 1)
                                 }
                             },
                             WithRow(new Grid
@@ -158,37 +190,29 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 }
             }
         };
-        Grid.SetColumnSpan(_overlay, 2);
-
-        Children.Add(rail);
-        Grid.SetColumn(existingShell, 1);
-        Children.Add(existingShell);
-        Children.Add(_overlay);
-
-        if (App.Services is not null)
-        {
-            _modeRegistry = App.Services.GetService<IModeRegistry>();
-            _pins = App.Services.GetService<IPinRepository>();
-        }
-
-        DataContextChanged += OnDataContextChanged;
-        AttachedToVisualTree += async (_, _) => await RefreshAsync();
     }
 
-    public void Dispose()
+    private async void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
-        if (_disposed) return;
-        _disposed = true;
-        DataContextChanged -= OnDataContextChanged;
-        if (_shellNotifications is not null) _shellNotifications.PropertyChanged -= OnShellPropertyChanged;
-        _shellNotifications = null;
-        _shell = null;
-        GC.SuppressFinalize(this);
+        await RefreshAsync();
+        if (_modes.Count == 0 && !_disposed) _modeRefreshTimer.Start();
+    }
+
+    private async void OnModeRefreshTimerTick(object? sender, EventArgs e)
+    {
+        if (_disposed)
+        {
+            _modeRefreshTimer.Stop();
+            return;
+        }
+        await RefreshAsync();
+        if (_modes.Count > 0) _modeRefreshTimer.Stop();
     }
 
     private async Task RefreshAsync()
     {
-        if (_disposed || _modeRegistry is null || _pins is null) return;
+        if (_disposed || _isRefreshing || _modeRegistry is null || _pins is null) return;
+        _isRefreshing = true;
         try
         {
             var modesTask = _modeRegistry.GetModesAsync(CancellationToken.None);
@@ -205,6 +229,10 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         catch (Exception ex)
         {
             await Dispatcher.UIThread.InvokeAsync(() => _overlayStatus.Text = "Mode navigation could not load: " + ex.Message);
+        }
+        finally
+        {
+            _isRefreshing = false;
         }
     }
 
@@ -226,11 +254,11 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             return Task.CompletedTask;
         }));
 
-        var pinnedModes = _orderedPins
-            .Select(pin => _modes.FirstOrDefault(mode => mode.Id == pin.ModeId))
-            .Where(mode => mode is not null && !FixedModeKeys.Contains(mode.Key))
-            .Cast<ModeDefinition>();
-        foreach (var mode in pinnedModes) _pinnedButtons.Children.Add(PinnedModeButton(mode));
+        foreach (var mode in _orderedPins
+                     .Select(pin => _modes.FirstOrDefault(item => item.Id == pin.ModeId))
+                     .Where(mode => mode is not null && !FixedModeKeys.Contains(mode.Key))
+                     .Cast<ModeDefinition>())
+            _pinnedButtons.Children.Add(PinnedModeButton(mode));
 
         if (_pinnedButtons.Children.Count == 0)
         {
@@ -270,6 +298,8 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         var panel = new StackPanel { Width = 310, Spacing = 4 };
         foreach (var mode in modes)
             panel.Children.Add(FlyoutEntry(mode.Name, mode.Description, mode.IconKey, () => OpenModeAsync(mode)));
+        if (modes.Count == 0)
+            panel.Children.Add(new TextBlock { Text = "Modes are still loading…", Classes = { "muted" }, Margin = new Thickness(10) });
         button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
@@ -323,15 +353,14 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
-    private void ShowModeLibrary()
+    private async Task ShowModeLibraryAsync()
     {
+        await RefreshAsync();
         _modeSearch.Text = string.Empty;
         RebuildModeCards();
         _overlay.IsVisible = true;
         _modeSearch.Focus();
     }
-
-    private void HideModeLibrary() => _overlay.IsVisible = false;
 
     private void RebuildModeCards()
     {
@@ -348,73 +377,76 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             .ToArray();
         _overlayStatus.Text = $"{visible.Length} mode{(visible.Length == 1 ? string.Empty : "s")} · {_orderedPins.Count}/{MaximumPinnedModes} pinned";
 
-        foreach (var mode in visible)
-        {
-            var isFixed = FixedModeKeys.Contains(mode.Key);
-            var isPinned = pinnedIds.Contains(mode.Id);
-            var open = new Button { Content = "Open" };
-            open.Classes.Add("accent");
-            open.Click += async (_, _) =>
-            {
-                HideModeLibrary();
-                await OpenModeAsync(mode);
-            };
-            var pin = new Button
-            {
-                Content = isFixed ? "Fixed on rail" : isPinned ? "Unpin" : "Pin",
-                IsEnabled = !isFixed
-            };
-            pin.Click += async (_, _) =>
-            {
-                if (isPinned) await UnpinAsync(mode.Id);
-                else await PinAsync(mode.Id);
-                RebuildModeCards();
-            };
+        foreach (var mode in visible) _modeCards.Children.Add(BuildModeCard(mode, pinnedIds.Contains(mode.Id)));
+        if (visible.Length == 0)
+            _modeCards.Children.Add(new TextBlock { Text = "No matching modes.", Classes = { "muted" }, Margin = new Thickness(0, 8) });
+    }
 
-            _modeCards.Children.Add(new Border
+    private Control BuildModeCard(ModeDefinition mode, bool isPinned)
+    {
+        var isFixed = FixedModeKeys.Contains(mode.Key);
+        var open = new Button { Content = "Open" };
+        open.Classes.Add("accent");
+        open.Click += async (_, _) =>
+        {
+            _overlay.IsVisible = false;
+            await OpenModeAsync(mode);
+        };
+        var pin = new Button
+        {
+            Content = isFixed ? "Fixed on rail" : isPinned ? "Unpin" : "Pin",
+            IsEnabled = !isFixed
+        };
+        pin.Click += async (_, _) =>
+        {
+            if (isPinned) await UnpinAsync(mode.Id);
+            else await PinAsync(mode.Id);
+            RebuildModeCards();
+        };
+
+        return new Border
+        {
+            Padding = new Thickness(14),
+            CornerRadius = new CornerRadius(14),
+            Background = ResourceBrush("HavenPanel2Brush", Color.FromArgb(215, 35, 35, 39)),
+            BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Child = new Grid
             {
-                Padding = new Thickness(14),
-                CornerRadius = new CornerRadius(14),
-                Background = ResourceBrush("HavenPanel2Brush", Color.FromArgb(215, 35, 35, 39)),
-                BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255)),
-                BorderThickness = new Thickness(1),
-                Child = new Grid
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+                ColumnSpacing = 12,
+                Children =
                 {
-                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
-                    ColumnSpacing = 12,
-                    Children =
+                    new Border
                     {
-                        new Border
+                        Width = 42,
+                        Height = 42,
+                        CornerRadius = new CornerRadius(13),
+                        Background = ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(55, 0, 120, 212)),
+                        Child = new TextBlock
                         {
-                            Width = 42,
-                            Height = 42,
-                            CornerRadius = new CornerRadius(13),
-                            Background = ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(55, 0, 120, 212)),
-                            Child = new TextBlock
-                            {
-                                Text = ModeGlyph(mode.IconKey),
-                                FontSize = 19,
-                                HorizontalAlignment = HorizontalAlignment.Center,
-                                VerticalAlignment = VerticalAlignment.Center
-                            }
-                        },
-                        WithColumn(new StackPanel
+                            Text = ModeGlyph(mode.IconKey),
+                            FontSize = 19,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    },
+                    WithColumn(new StackPanel
+                    {
+                        Spacing = 2,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children =
                         {
-                            Spacing = 2,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Children =
-                            {
-                                new TextBlock { Text = mode.Name, FontWeight = FontWeight.SemiBold, FontSize = 15 },
-                                new TextBlock { Text = mode.Description, Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap },
-                                new TextBlock { Text = mode.Source + " · " + mode.Version, Classes = { "muted2" }, FontSize = 9 }
-                            }
-                        }, 1),
-                        WithColumn(pin, 2),
-                        WithColumn(open, 3)
-                    }
+                            new TextBlock { Text = mode.Name, FontWeight = FontWeight.SemiBold, FontSize = 15 },
+                            new TextBlock { Text = mode.Description, Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap },
+                            new TextBlock { Text = mode.Source + " · " + mode.Version, Classes = { "muted2" }, FontSize = 9 }
+                        }
+                    }, 1),
+                    WithColumn(pin, 2),
+                    WithColumn(open, 3)
                 }
-            });
-        }
+            }
+        };
     }
 
     private async Task OpenModeAsync(ModeDefinition mode)
@@ -491,6 +523,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
 
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_modes.Count == 0 && !_modeRefreshTimer.IsEnabled) _modeRefreshTimer.Start();
         if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
             or nameof(MainWindowViewModel.CurrentChat)
             or nameof(MainWindowViewModel.ProductName))
@@ -510,8 +543,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 "ExperienceCallButton" => _shell.CurrentSurface == HavenSurface.Call,
                 "ExperiencePlanButton" => _shell.CurrentSurface == HavenSurface.Plan,
                 "ExperienceBrowseButton" => _shell.CurrentSurface == HavenSurface.Browse,
-                _ when button.Name?.StartsWith("PinnedMode_", StringComparison.Ordinal) == true
-                    => IsPinnedModeActive(button.Name[11..]),
+                _ when button.Name?.StartsWith("PinnedMode_", StringComparison.Ordinal) == true => IsPinnedModeActive(button.Name[11..]),
                 _ => false
             };
             if (button.Name?.StartsWith("Experience", StringComparison.Ordinal) == true
