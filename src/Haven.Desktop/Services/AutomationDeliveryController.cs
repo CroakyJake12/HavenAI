@@ -50,8 +50,8 @@ public sealed class AutomationDeliveryController(
         }
         catch (Exception)
         {
-            // Keep the durable outbox for a later drain. Notification delivery should
-            // never prevent the desktop from starting or remaining usable.
+            // Keep startup and the polling loop healthy. The outbox implementation writes
+            // atomically, so an undrained payload remains available for a later attempt.
         }
         finally
         {
@@ -71,12 +71,15 @@ public sealed class AutomationDeliveryController(
         {
             // Normal shutdown.
         }
+        catch (ObjectDisposedException) when (_disposed)
+        {
+            // The service provider can dispose between a timer tick and DrainAsync.
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        _disposed = true;
         var cancellation = _cancellation;
         _cancellation = null;
         cancellation?.Cancel();
@@ -84,7 +87,9 @@ public sealed class AutomationDeliveryController(
         {
             try { await _loop.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
+            catch (ObjectDisposedException) { }
         }
+        _disposed = true;
         cancellation?.Dispose();
         _gate.Dispose();
         GC.SuppressFinalize(this);
