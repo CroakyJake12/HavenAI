@@ -11,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// A Plan-owned automation builder backed by the production repository, schedule
-/// calculator and worker runner. It does not maintain a parallel in-memory model.
+/// Plan-owned automation builder backed directly by the production repository,
+/// schedule calculator, runner and Windows background-worker registration.
 /// </summary>
 public sealed class PlanAutomationControl : Button, IDisposable
 {
@@ -20,6 +20,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     private readonly ScheduleCalculator? _schedules;
     private readonly AutomationRunner? _runner;
     private readonly WindowsAutomationRegistrationService? _registration;
+
     private readonly TextBox _name = new() { PlaceholderText = "Automation name" };
     private readonly TextBox _instruction = new()
     {
@@ -31,15 +32,39 @@ public sealed class PlanAutomationControl : Button, IDisposable
     };
     private readonly ComboBox _mode = new() { ItemsSource = Enum.GetValues<HavenMode>() };
     private readonly ComboBox _kind = new() { ItemsSource = Enum.GetValues<AutomationScheduleKind>() };
-    private readonly CalendarDatePicker _onceDate = new() { PlaceholderText = "Run date" };
+    private readonly CalendarDatePicker _onceDate = new() { Watermark = "Run date" };
     private readonly TimePicker _time = new() { ClockIdentifier = "24HourClock" };
     private readonly ComboBox _day = new() { ItemsSource = Enum.GetValues<DayOfWeek>() };
-    private readonly NumericUpDown _intervalHours = new() { Minimum = 1, Maximum = 168, Increment = 1, Value = 1 };
-    private readonly NumericUpDown _conditionMinutes = new() { Minimum = 60, Maximum = 10_080, Increment = 60, Value = 60 };
+    private readonly NumericUpDown _intervalHours = new()
+    {
+        Minimum = 1,
+        Maximum = 168,
+        Increment = 1,
+        Value = 1
+    };
+    private readonly NumericUpDown _conditionMinutes = new()
+    {
+        Minimum = 60,
+        Maximum = 10_080,
+        Increment = 60,
+        Value = 60
+    };
     private readonly CheckBox _enabled = new() { Content = "Enabled", IsChecked = true };
-    private readonly TextBlock _scheduleHint = new() { Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _status = new() { Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _scheduleHint = new()
+    {
+        Classes = { "muted" },
+        FontSize = 10,
+        TextWrapping = TextWrapping.Wrap
+    };
+    private readonly TextBlock _status = new()
+    {
+        Classes = { "muted" },
+        FontSize = 10,
+        TextWrapping = TextWrapping.Wrap
+    };
     private readonly StackPanel _items = new() { Spacing = 7 };
+    private readonly Button _saveButton = new() { Content = "Create automation" };
+
     private Guid? _editingId;
     private DateTimeOffset? _editingCreatedAt;
     private bool _disposed;
@@ -60,11 +85,10 @@ public sealed class PlanAutomationControl : Button, IDisposable
             _registration = App.Services.GetService<WindowsAutomationRegistrationService>();
         }
 
-        var save = new Button { Content = "Create automation" };
-        save.Classes.Add("accent");
-        save.Click += async (_, _) => await SaveAsync(save);
+        _saveButton.Classes.Add("accent");
+        _saveButton.Click += async (_, _) => await SaveAsync();
         var reset = new Button { Content = "Clear" };
-        reset.Click += (_, _) => ResetEditor(save);
+        reset.Click += (_, _) => ResetEditor();
         var refresh = new Button { Content = "Refresh" };
         refresh.Click += async (_, _) => await RefreshAsync();
         var register = new Button { Content = "Enable background checks" };
@@ -75,92 +99,21 @@ public sealed class PlanAutomationControl : Button, IDisposable
         _kind.SelectedItem = AutomationScheduleKind.Daily;
         _mode.SelectedItem = HavenMode.Chat;
         _day.SelectedItem = DayOfWeek.Monday;
-        _onceDate.SelectedDate = DateTimeOffset.Now.AddDays(1);
+        _onceDate.SelectedDate = DateTime.Today.AddDays(1);
         _time.SelectedTime = new TimeSpan(8, 0, 0);
         _kind.SelectionChanged += (_, _) => UpdateScheduleVisibility();
-        foreach (var control in new Control[] { _onceDate, _time, _day, _intervalHours, _conditionMinutes })
+        foreach (var control in new AvaloniaObject[] { _onceDate, _time, _day, _intervalHours, _conditionMinutes })
             control.PropertyChanged += (_, _) => UpdateScheduleHint();
 
-        var panel = new Grid
+        Flyout = new Flyout
         {
-            Width = 620,
-            MaxHeight = 760,
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
-            RowSpacing = 12,
-            Children =
-            {
-                new StackPanel
-                {
-                    Spacing = 3,
-                    Children =
-                    {
-                        new TextBlock { Text = "PLAN AUTOMATIONS", Classes = { "eyebrow" } },
-                        new TextBlock { Text = "Schedule work and condition watches", FontSize = 20, FontWeight = FontWeight.SemiBold },
-                        new TextBlock
-                        {
-                            Text = "Definitions are stored locally and executed by Haven's background worker. Condition watches notify through their run record only when structured evidence says the condition is met.",
-                            Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap
-                        }
-                    }
-                },
-                WithRow(new StackPanel
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        _name,
-                        _instruction,
-                        new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("*,*"),
-                            ColumnSpacing = 8,
-                            Children =
-                            {
-                                Labelled("Experience", _mode),
-                                WithColumn(Labelled("Schedule", _kind), 1)
-                            }
-                        },
-                        new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-                            ColumnSpacing = 8,
-                            Children =
-                            {
-                                Labelled("Once date", _onceDate),
-                                WithColumn(Labelled("Time", _time), 1),
-                                WithColumn(Labelled("Weekly day", _day), 2)
-                            }
-                        },
-                        new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("*,*,Auto"),
-                            ColumnSpacing = 8,
-                            Children =
-                            {
-                                Labelled("Every N hours", _intervalHours),
-                                WithColumn(Labelled("Condition interval (minutes)", _conditionMinutes), 1),
-                                WithColumn(_enabled, 2)
-                            }
-                        },
-                        _scheduleHint,
-                        new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal,
-                            Spacing = 7,
-                            Children = { save, reset, refresh, register, unregister }
-                        },
-                        _status
-                    }
-                }, 1),
-                WithRow(new ScrollViewer
-                {
-                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-                    MaxHeight = 330,
-                    Content = _items
-                }, 2)
-            }
+            Placement = PlacementMode.Left,
+            Content = BuildEditor(
+                reset,
+                refresh,
+                register,
+                unregister)
         };
-        Flyout = new Flyout { Placement = PlacementMode.Left, Content = panel };
         AttachedToVisualTree += async (_, _) => await RefreshAsync();
         UpdateScheduleVisibility();
     }
@@ -173,11 +126,104 @@ public sealed class PlanAutomationControl : Button, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private Control BuildEditor(
+        Button reset,
+        Button refresh,
+        Button register,
+        Button unregister) => new Grid
+    {
+        Width = 620,
+        MaxHeight = 760,
+        RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+        RowSpacing = 12,
+        Children =
+        {
+            new StackPanel
+            {
+                Spacing = 3,
+                Children =
+                {
+                    new TextBlock { Text = "PLAN AUTOMATIONS", Classes = { "eyebrow" } },
+                    new TextBlock
+                    {
+                        Text = "Schedule work and condition watches",
+                        FontSize = 20,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    new TextBlock
+                    {
+                        Text = "Definitions and run history are stored locally. Condition watches record a structured met/not-met result and fail closed when the available evidence is missing or ambiguous.",
+                        Classes = { "muted" },
+                        FontSize = 10,
+                        TextWrapping = TextWrapping.Wrap
+                    }
+                }
+            },
+            WithRow(new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    _name,
+                    _instruction,
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,*"),
+                        ColumnSpacing = 8,
+                        Children =
+                        {
+                            Labelled("Experience", _mode),
+                            WithColumn(Labelled("Schedule", _kind), 1)
+                        }
+                    },
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+                        ColumnSpacing = 8,
+                        Children =
+                        {
+                            Labelled("Once date", _onceDate),
+                            WithColumn(Labelled("Time", _time), 1),
+                            WithColumn(Labelled("Weekly day", _day), 2)
+                        }
+                    },
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,*,Auto"),
+                        ColumnSpacing = 8,
+                        Children =
+                        {
+                            Labelled("Every N hours", _intervalHours),
+                            WithColumn(Labelled("Condition interval (minutes)", _conditionMinutes), 1),
+                            WithColumn(_enabled, 2)
+                        }
+                    },
+                    _scheduleHint,
+                    new WrapPanel
+                    {
+                        ItemSpacing = 7,
+                        LineSpacing = 7,
+                        Children = { _saveButton, reset, refresh, register, unregister }
+                    },
+                    _status
+                }
+            }, 1),
+            WithRow(new ScrollViewer
+            {
+                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                MaxHeight = 330,
+                Content = _items
+            }, 2)
+        }
+    };
+
     private void UpdateScheduleVisibility()
     {
         var kind = SelectedKind;
         _onceDate.IsVisible = kind == AutomationScheduleKind.Once;
-        _time.IsVisible = kind is AutomationScheduleKind.Once or AutomationScheduleKind.Daily or AutomationScheduleKind.Weekly;
+        _time.IsVisible = kind is AutomationScheduleKind.Once
+            or AutomationScheduleKind.Daily
+            or AutomationScheduleKind.Weekly;
         _day.IsVisible = kind == AutomationScheduleKind.Weekly;
         _intervalHours.IsVisible = kind == AutomationScheduleKind.Hourly;
         _conditionMinutes.IsVisible = kind == AutomationScheduleKind.ConditionWatch;
@@ -186,17 +232,24 @@ public sealed class PlanAutomationControl : Button, IDisposable
 
     private void UpdateScheduleHint()
     {
-        try { _scheduleHint.Text = AutomationScheduleComposer.Describe(SelectedKind, ReadDraft()); }
-        catch (Exception ex) { _scheduleHint.Text = ex.Message; }
+        try
+        {
+            _scheduleHint.Text = AutomationScheduleComposer.Describe(SelectedKind, ReadDraft());
+        }
+        catch (Exception ex)
+        {
+            _scheduleHint.Text = ex.Message;
+        }
     }
 
-    private async Task SaveAsync(Button saveButton)
+    private async Task SaveAsync()
     {
         if (_repository is null || _schedules is null)
         {
             _status.Text = "Automation services are unavailable in this process.";
             return;
         }
+
         var name = _name.Text?.Trim() ?? string.Empty;
         var instruction = _instruction.Text?.Trim() ?? string.Empty;
         if (name.Length == 0 || instruction.Length == 0)
@@ -204,22 +257,25 @@ public sealed class PlanAutomationControl : Button, IDisposable
             _status.Text = "Enter both a name and an instruction.";
             return;
         }
+
         try
         {
             var now = DateTimeOffset.UtcNow;
             var draft = ReadDraft();
             if (SelectedKind == AutomationScheduleKind.Once && draft.OnceAt <= DateTimeOffset.Now)
                 throw new InvalidOperationException("A one-time automation must be scheduled in the future.");
-            var json = AutomationScheduleComposer.Compose(SelectedKind, draft);
+
+            var scheduleJson = AutomationScheduleComposer.Compose(SelectedKind, draft);
             var enabled = _enabled.IsChecked == true;
+            var wasEditing = _editingId is not null;
             var definition = new AutomationDefinition(
                 _editingId ?? Guid.NewGuid(),
                 name,
                 SelectedMode,
                 instruction,
                 SelectedKind,
-                json,
-                enabled ? _schedules.GetInitialRun(SelectedKind, json, now) : null,
+                scheduleJson,
+                enabled ? _schedules.GetInitialRun(SelectedKind, scheduleJson, now) : null,
                 null,
                 enabled,
                 _editingCreatedAt ?? now,
@@ -227,14 +283,15 @@ public sealed class PlanAutomationControl : Button, IDisposable
             await _repository.UpsertAsync(definition, CancellationToken.None).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _status.Text = _editingId is null ? "Automation created." : "Automation updated.";
-                ResetEditor(saveButton);
+                ResetEditor();
+                _status.Text = wasEditing ? "Automation updated." : "Automation created.";
             });
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = "Could not save automation: " + ex.Message);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _status.Text = "Could not save automation: " + ex.Message);
         }
     }
 
@@ -248,7 +305,8 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = "Could not load automations: " + ex.Message);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _status.Text = "Could not load automations: " + ex.Message);
         }
     }
 
@@ -267,74 +325,92 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
 
         foreach (var definition in definitions)
-        {
-            var draft = AutomationScheduleComposer.Parse(definition.ScheduleKind, definition.ScheduleJson, DateTimeOffset.Now);
-            var edit = new Button { Content = "Edit" };
-            edit.Click += (_, _) => LoadForEdit(definition);
-            var toggle = new Button { Content = definition.IsEnabled ? "Disable" : "Enable" };
-            toggle.Click += async (_, _) => await ToggleAsync(definition);
-            var run = new Button { Content = "Run now" };
-            run.Classes.Add("accent");
-            run.Click += async (_, _) => await RunNowAsync(definition);
-            var history = new Button { Content = "History" };
-            history.Click += async (_, _) => await ShowHistoryAsync(definition);
-            var delete = new Button { Content = "Delete" };
-            var deleteArmed = false;
-            delete.Click += async (_, _) =>
-            {
-                if (!deleteArmed)
-                {
-                    deleteArmed = true;
-                    delete.Content = "Confirm delete";
-                    return;
-                }
-                await DeleteAsync(definition);
-            };
+            _items.Children.Add(BuildDefinitionCard(definition));
+    }
 
-            _items.Children.Add(new Border
+    private Control BuildDefinitionCard(AutomationDefinition definition)
+    {
+        var draft = AutomationScheduleComposer.Parse(
+            definition.ScheduleKind,
+            definition.ScheduleJson,
+            DateTimeOffset.Now);
+        var edit = new Button { Content = "Edit" };
+        edit.Click += (_, _) => LoadForEdit(definition);
+        var toggle = new Button { Content = definition.IsEnabled ? "Disable" : "Enable" };
+        toggle.Click += async (_, _) => await ToggleAsync(definition);
+        var run = new Button { Content = "Run now" };
+        run.Classes.Add("accent");
+        run.Click += async (_, _) => await RunNowAsync(definition);
+        var history = new Button { Content = "History" };
+        history.Click += async (_, _) => await ShowHistoryAsync(definition);
+        var delete = new Button { Content = "Delete" };
+        var deleteArmed = false;
+        delete.Click += async (_, _) =>
+        {
+            if (!deleteArmed)
             {
-                Padding = new Thickness(11),
-                CornerRadius = new CornerRadius(12),
-                Background = ResourceBrush("HavenPanel2Brush", Color.FromArgb(215, 35, 35, 39)),
-                BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255)),
-                BorderThickness = new Thickness(1),
-                Child = new StackPanel
+                deleteArmed = true;
+                delete.Content = "Confirm delete";
+                return;
+            }
+            await DeleteAsync(definition);
+        };
+
+        return new Border
+        {
+            Padding = new Thickness(11),
+            CornerRadius = new CornerRadius(12),
+            Background = ResourceBrush("HavenPanel2Brush", Color.FromArgb(215, 35, 35, 39)),
+            BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Child = new StackPanel
+            {
+                Spacing = 6,
+                Children =
                 {
-                    Spacing = 6,
-                    Children =
+                    new Grid
                     {
-                        new Grid
+                        ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                        Children =
                         {
-                            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                            Children =
+                            new TextBlock
                             {
-                                new TextBlock { Text = definition.Name, FontWeight = FontWeight.SemiBold, FontSize = 14 },
-                                WithColumn(new TextBlock
-                                {
-                                    Text = definition.IsEnabled ? "Enabled" : "Disabled",
-                                    Foreground = definition.IsEnabled
-                                        ? ResourceBrush("HavenAccentBrush", Colors.DeepSkyBlue)
-                                        : ResourceBrush("HavenMutedBrush", Colors.Gray),
-                                    FontSize = 10
-                                }, 1)
-                            }
-                        },
-                        new TextBlock { Text = definition.Instruction, Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap },
-                        new TextBlock
-                        {
-                            Text = $"{AutomationScheduleComposer.Describe(definition.ScheduleKind, draft)} · Next: {FormatNext(definition.NextRunAt)} · {definition.Mode}",
-                            Classes = { "muted2" }, FontSize = 9
-                        },
-                        new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal,
-                            Spacing = 5,
-                            Children = { edit, toggle, run, history, delete }
+                                Text = definition.Name,
+                                FontWeight = FontWeight.SemiBold,
+                                FontSize = 14
+                            },
+                            WithColumn(new TextBlock
+                            {
+                                Text = definition.IsEnabled ? "Enabled" : "Disabled",
+                                Foreground = definition.IsEnabled
+                                    ? ResourceBrush("HavenAccentBrush", Colors.DeepSkyBlue)
+                                    : ResourceBrush("HavenMutedBrush", Colors.Gray),
+                                FontSize = 10
+                            }, 1)
                         }
+                    },
+                    new TextBlock
+                    {
+                        Text = definition.Instruction,
+                        Classes = { "muted" },
+                        FontSize = 10,
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new TextBlock
+                    {
+                        Text = $"{AutomationScheduleComposer.Describe(definition.ScheduleKind, draft)} · Next: {FormatNext(definition.NextRunAt)} · {definition.Mode}",
+                        Classes = { "muted2" },
+                        FontSize = 9
+                    },
+                    new WrapPanel
+                    {
+                        ItemSpacing = 5,
+                        LineSpacing = 5,
+                        Children = { edit, toggle, run, history, delete }
                     }
                 }
-            });
-        }
+            }
+        };
     }
 
     private void LoadForEdit(AutomationDefinition definition)
@@ -346,25 +422,29 @@ public sealed class PlanAutomationControl : Button, IDisposable
         _mode.SelectedItem = definition.Mode;
         _kind.SelectedItem = definition.ScheduleKind;
         _enabled.IsChecked = definition.IsEnabled;
-        var draft = AutomationScheduleComposer.Parse(definition.ScheduleKind, definition.ScheduleJson, DateTimeOffset.Now);
-        _onceDate.SelectedDate = draft.OnceAt;
+
+        var draft = AutomationScheduleComposer.Parse(
+            definition.ScheduleKind,
+            definition.ScheduleJson,
+            DateTimeOffset.Now);
+        _onceDate.SelectedDate = draft.OnceAt.ToLocalTime().Date;
         _time.SelectedTime = draft.Time.ToTimeSpan();
         _day.SelectedItem = draft.DayOfWeek;
         _intervalHours.Value = draft.IntervalHours;
         _conditionMinutes.Value = draft.ConditionIntervalMinutes;
+        _saveButton.Content = "Update automation";
         UpdateScheduleVisibility();
         _status.Text = $"Editing {definition.Name}.";
     }
 
-    private void ResetEditor(Button saveButton)
+    private void ResetEditor()
     {
         _editingId = null;
         _editingCreatedAt = null;
         _name.Text = string.Empty;
         _instruction.Text = string.Empty;
         _enabled.IsChecked = true;
-        saveButton.Content = "Create automation";
-        _status.Text = "Editor cleared.";
+        _saveButton.Content = "Create automation";
     }
 
     private async Task ToggleAsync(AutomationDefinition definition)
@@ -372,45 +452,36 @@ public sealed class PlanAutomationControl : Button, IDisposable
         if (_repository is null || _schedules is null) return;
         var enabled = !definition.IsEnabled;
         var now = DateTimeOffset.UtcNow;
-        var updated = definition with
+        await _repository.UpsertAsync(definition with
         {
             IsEnabled = enabled,
-            NextRunAt = enabled ? _schedules.GetInitialRun(definition.ScheduleKind, definition.ScheduleJson, now) : null,
+            NextRunAt = enabled
+                ? _schedules.GetInitialRun(definition.ScheduleKind, definition.ScheduleJson, now)
+                : null,
             UpdatedAt = now
-        };
-        await _repository.UpsertAsync(updated, CancellationToken.None).ConfigureAwait(false);
+        }, CancellationToken.None).ConfigureAwait(false);
         await RefreshAsync().ConfigureAwait(false);
     }
 
     private async Task RunNowAsync(AutomationDefinition definition)
     {
-        if (_repository is null || _runner is null) return;
+        if (_runner is null) return;
         try
         {
-            var now = DateTimeOffset.UtcNow;
-            await _repository.UpsertAsync(definition with
-            {
-                IsEnabled = true,
-                NextRunAt = now,
-                UpdatedAt = now
-            }, CancellationToken.None).ConfigureAwait(false);
-            var result = await _runner.RunDueAsync(now.AddSeconds(1), CancellationToken.None).ConfigureAwait(false);
-            if (!definition.IsEnabled)
-            {
-                await _repository.UpsertAsync(definition with
-                {
-                    IsEnabled = false,
-                    NextRunAt = null,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                }, CancellationToken.None).ConfigureAwait(false);
-            }
+            var run = await _runner.RunOneAsync(
+                definition,
+                DateTimeOffset.UtcNow,
+                CancellationToken.None).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() =>
-                _status.Text = $"Run-now finished: {result.Succeeded} succeeded, {result.Failed} failed, {result.Skipped} skipped.");
+                _status.Text = run.Status == AutomationRunStatus.Succeeded
+                    ? $"{definition.Name} finished successfully. {SummariseRun(run)}"
+                    : $"{definition.Name} failed. {SummariseRun(run)}");
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = "Run-now failed: " + ex.Message);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _status.Text = "Run-now failed: " + ex.Message);
         }
     }
 
@@ -419,16 +490,21 @@ public sealed class PlanAutomationControl : Button, IDisposable
         if (_repository is null) return;
         try
         {
-            var runs = await _repository.GetRunsAsync(definition.Id, 5, CancellationToken.None).ConfigureAwait(false);
+            var runs = await _repository.GetRunsAsync(
+                definition.Id,
+                5,
+                CancellationToken.None).ConfigureAwait(false);
             var summary = runs.Count == 0
                 ? "No runs have been recorded yet."
                 : string.Join("\n", runs.Select(run =>
                     $"{run.ScheduledFor.ToLocalTime():g} · {run.Status} · {SummariseRun(run)}"));
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = definition.Name + " history:\n" + summary);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _status.Text = definition.Name + " history:\n" + summary);
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = "Could not read history: " + ex.Message);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _status.Text = "Could not read history: " + ex.Message);
         }
     }
 
@@ -436,15 +512,23 @@ public sealed class PlanAutomationControl : Button, IDisposable
     {
         if (_repository is null) return;
         await _repository.DeleteAsync(definition.Id, CancellationToken.None).ConfigureAwait(false);
-        await Dispatcher.UIThread.InvokeAsync(() => _status.Text = $"Deleted {definition.Name}.");
+        await Dispatcher.UIThread.InvokeAsync(() =>
+            _status.Text = $"Deleted {definition.Name}.");
         await RefreshAsync().ConfigureAwait(false);
     }
 
     private async Task RegisterWorkerAsync()
     {
         if (_registration is null) return;
-        var path = Path.Combine(AppContext.BaseDirectory, "Haven.AutomationWorker.exe");
-        var result = await _registration.RegisterAsync(path, CancellationToken.None).ConfigureAwait(false);
+        var executable = ResolveWorkerExecutable();
+        if (executable is null)
+        {
+            _status.Text = "Haven.AutomationWorker.exe was not found beside the app. Build or install the worker before enabling background checks.";
+            return;
+        }
+        var result = await _registration.RegisterAsync(
+            executable,
+            CancellationToken.None).ConfigureAwait(false);
         await Dispatcher.UIThread.InvokeAsync(() => _status.Text = result.Message);
     }
 
@@ -457,9 +541,11 @@ public sealed class PlanAutomationControl : Button, IDisposable
 
     private AutomationScheduleDraft ReadDraft()
     {
-        var selectedDate = _onceDate.SelectedDate ?? DateTimeOffset.Now.AddDays(1);
+        var selectedDate = _onceDate.SelectedDate ?? DateTime.Today.AddDays(1);
         var selectedTime = _time.SelectedTime ?? new TimeSpan(8, 0, 0);
-        var local = DateTime.SpecifyKind(selectedDate.Date.Add(selectedTime), DateTimeKind.Unspecified);
+        var local = DateTime.SpecifyKind(
+            selectedDate.Date.Add(selectedTime),
+            DateTimeKind.Unspecified);
         var once = new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
         return new AutomationScheduleDraft(
             once,
@@ -469,8 +555,20 @@ public sealed class PlanAutomationControl : Button, IDisposable
             (int)(_conditionMinutes.Value ?? 60));
     }
 
+    private static string? ResolveWorkerExecutable()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Haven.AutomationWorker.exe"),
+            Path.Combine(AppContext.BaseDirectory, "workers", "Haven.AutomationWorker.exe")
+        };
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
     private AutomationScheduleKind SelectedKind =>
-        _kind.SelectedItem is AutomationScheduleKind kind ? kind : AutomationScheduleKind.Daily;
+        _kind.SelectedItem is AutomationScheduleKind kind
+            ? kind
+            : AutomationScheduleKind.Daily;
 
     private HavenMode SelectedMode =>
         _mode.SelectedItem is HavenMode mode ? mode : HavenMode.Chat;
