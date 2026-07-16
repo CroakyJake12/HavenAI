@@ -117,6 +117,11 @@ public sealed class ToolAvailabilityPlanner
         {
             if (!modeAllowed) { reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Do or Haven Studio."; continue; }
             if (!context.HasExistingWorkspace) { reasons[definition.Name] = $"Tool '{definition.Name}' requires a selected workspace folder that exists locally."; continue; }
+            if (RuntimeSafetyState.IsSafeMode && !WorkspaceReadTools.Contains(definition.Name))
+            {
+                reasons[definition.Name] = SafeModeReason(definition.Name);
+                continue;
+            }
             var allowed = WorkspaceReadTools.Contains(definition.Name)
                 || WorkspaceMutationTools.Contains(definition.Name) && context.FilePermission is PermissionMode.AutoSafe or PermissionMode.FullAccess
                 || definition.Name == "run_tests" && context.CommandPermission is PermissionMode.AutoSafe or PermissionMode.FullAccess
@@ -143,11 +148,12 @@ public sealed class ToolAvailabilityPlanner
         var enabled = context.IsPluginActive("ComputerUse");
         foreach (var definition in source)
         {
-            if (!enabled) reasons[definition.Name] = $"Tool '{definition.Name}' requires explicit @ComputerUse approval for this pass.";
+            if (RuntimeSafetyState.IsSafeMode) reasons[definition.Name] = SafeModeReason(definition.Name);
+            else if (!enabled) reasons[definition.Name] = $"Tool '{definition.Name}' requires explicit @ComputerUse approval for this pass.";
             else if (!context.IsWindowsHost) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because Computer Use currently requires Windows.";
             else Add(definition, ToolRuntimeKind.Computer, definitions, routes);
         }
-        if (enabled && context.IsWindowsHost && source.Count > 0) plugins.Add("ComputerUse");
+        if (!RuntimeSafetyState.IsSafeMode && enabled && context.IsWindowsHost && source.Count > 0) plugins.Add("ComputerUse");
     }
 
     private static void PlanBrowser(ToolAvailabilityContext context,
@@ -155,6 +161,11 @@ public sealed class ToolAvailabilityPlanner
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
     {
+        if (RuntimeSafetyState.IsSafeMode)
+        {
+            foreach (var definition in background.Concat(interactive)) reasons[definition.Name] = SafeModeReason(definition.Name);
+            return;
+        }
         var browserUse = context.IsPluginActive("BrowserUse");
         var webSearch = context.IsPluginActive("WebSearch");
         var any = browserUse || webSearch;
@@ -182,6 +193,11 @@ public sealed class ToolAvailabilityPlanner
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
     {
+        if (RuntimeSafetyState.IsSafeMode)
+        {
+            foreach (var definition in automation.Concat(macros)) reasons[definition.Name] = SafeModeReason(definition.Name);
+            return;
+        }
         var modeAllowed = context.Mode is HavenMode.Do or HavenMode.Studio;
         PlanAutomationGroup("Automate", context.IsPluginActive("Automate"), modeAllowed, context.AutomationHostAvailable, automation, definitions, routes, reasons, plugins);
         PlanAutomationGroup("Macro", context.IsPluginActive("Macro"), modeAllowed, context.AutomationHostAvailable, macros, definitions, routes, reasons, plugins);
@@ -209,6 +225,9 @@ public sealed class ToolAvailabilityPlanner
             return $"Tool '{tool}' requires the native Browse view to be open when using @BrowserUse.";
         return $"Tool '{tool}' requires Auto Safe or Full Access browser permission, or approval for this message.";
     }
+
+    private static string SafeModeReason(string tool) =>
+        $"Tool '{tool}' is disabled because Haven is in crash-loop recovery safe mode. {RuntimeSafetyState.Reason}";
 
     private static void Add(OllamaToolDefinition definition, ToolRuntimeKind runtime,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
