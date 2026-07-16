@@ -51,7 +51,7 @@ public sealed class CallCompletionController : IAsyncDisposable
             if (messages.Any(IsSummaryMessage)) return;
 
             var transcriptMessages = messages
-                .Where(message => message.Role is MessageRole.User or MessageRole.Assistant && !IsSummaryMessage(message))
+                .Where(message => (message.Role is MessageRole.User or MessageRole.Assistant) && !IsSummaryMessage(message))
                 .ToArray();
             var summary = transcriptMessages.Length == 0
                 ? "The call ended without a completed spoken or typed turn."
