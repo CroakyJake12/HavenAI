@@ -5,10 +5,23 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
-public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IAppPaths paths)
+public sealed class BrowserDownloadTransport
 {
     private const long MaximumDownloadBytes = 250L * 1024 * 1024;
-    private readonly string _downloadDirectory = ResolveDownloadDirectory(paths);
+    private readonly IBrowserNavigationPolicy _policy;
+    private readonly string _downloadDirectory;
+
+    public BrowserDownloadTransport(IBrowserNavigationPolicy policy, IAppPaths paths)
+        : this(policy, ResolveDownloadDirectory(paths))
+    {
+    }
+
+    public BrowserDownloadTransport(IBrowserNavigationPolicy policy, string downloadDirectory)
+    {
+        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+        ArgumentException.ThrowIfNullOrWhiteSpace(downloadDirectory);
+        _downloadDirectory = Path.GetFullPath(downloadDirectory);
+    }
 
     public async Task<BrowserDownloadRecord> DownloadAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
@@ -19,7 +32,7 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
         BrowserDownloadFilePolicy.CleanupStalePartialFiles(_downloadDirectory, DateTimeOffset.UtcNow);
 
         await using var lease = await BrowserPinnedHttpTransport.SendAsync(
-            policy,
+            _policy,
             new Uri(action.Target, UriKind.Absolute),
             maximumRedirects: 8,
             timeout: TimeSpan.FromMinutes(10),
@@ -67,7 +80,9 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
         }
         finally
         {
-            try { if (File.Exists(temporary)) File.Delete(temporary); } catch (IOException) { }
+            try { if (File.Exists(temporary)) File.Delete(temporary); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
 
         return new BrowserDownloadRecord(
@@ -84,6 +99,7 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
 
     private static string ResolveDownloadDirectory(IAppPaths paths)
     {
+        ArgumentNullException.ThrowIfNull(paths);
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return string.IsNullOrWhiteSpace(profile)
             ? Path.Combine(paths.DataDirectory, "Downloads")
