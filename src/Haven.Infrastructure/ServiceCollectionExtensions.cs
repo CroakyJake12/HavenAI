@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StartupRecoveryCoordinator>();
         services.AddSingleton<CleanResetStartupRecoveryCoordinator>();
         services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<CleanResetStartupRecoveryCoordinator>());
+        services.AddSingleton<IRecoverySafetyProbe, RecoverySafetyProbe>();
         services.AddSingleton<IDiagnosticsBundleService, DiagnosticsBundleService>();
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
