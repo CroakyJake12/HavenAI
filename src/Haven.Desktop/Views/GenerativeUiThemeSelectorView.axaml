@@ -1,7 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:Haven.Desktop.Views"
+             xmlns:converters="using:Haven.Desktop.Converters"
              x:Class="Haven.Desktop.Views.GenerativeUiThemeSelectorView">
+  <UserControl.Resources>
+    <converters:NonEmptyStringToBoolConverter x:Key="NonEmptyString" />
+    <converters:PositiveCountToBoolConverter x:Key="PositiveCount" />
+  </UserControl.Resources>
+
   <StackPanel Spacing="14">
     <Border Classes="card">
       <StackPanel Spacing="12">
@@ -9,7 +15,7 @@
           <StackPanel>
             <TextBlock Text="GENERATIVE UI" Classes="eyebrow" />
             <TextBlock Text="Themes and layout" Classes="sectionHeading" Margin="0,4,0,0" />
-            <TextBlock Text="Every theme includes a complete light and dark variant. Layout changes use trusted control IDs and keep the original commands and bindings." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+            <TextBlock Text="Every theme contains complete light and dark variants. Layout changes use trusted item IDs, regions and existing commands." Classes="muted" FontSize="10" TextWrapping="Wrap" />
           </StackPanel>
           <Button Grid.Column="1" Content="Import theme" Command="{Binding ImportRequestedCommand}" />
           <Button Grid.Column="2" Content="Create with Studio" Classes="accent" Command="{Binding CreateWithStudioCommand}" />
@@ -18,7 +24,7 @@
         <Grid ColumnDefinitions="Auto,260,*" ColumnSpacing="10">
           <TextBlock Text="Global appearance" VerticalAlignment="Center" FontWeight="SemiBold" />
           <ComboBox Grid.Column="1" ItemsSource="{Binding Appearances}" SelectedItem="{Binding SelectedAppearance}" />
-          <TextBlock Grid.Column="2" Text="System follows the Windows preference; Light and Dark override it globally." Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Grid.Column="2" Text="System follows Windows; Light and Dark override it globally." Classes="muted" VerticalAlignment="Center" />
         </Grid>
 
         <ItemsControl ItemsSource="{Binding Themes}">
@@ -48,12 +54,8 @@
                     </Border>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Height="48">
-                    <Border Background="{Binding LightPreview}" CornerRadius="8" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1">
-                      <TextBlock Text="Light" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FF17191E" FontSize="9" />
-                    </Border>
-                    <Border Grid.Column="1" Background="{Binding DarkPreview}" CornerRadius="8" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1">
-                      <TextBlock Text="Dark" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFFFFFFF" FontSize="9" />
-                    </Border>
+                    <Border Background="{Binding LightPreview}" CornerRadius="8" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"><TextBlock Text="Light" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FF17191E" FontSize="9" /></Border>
+                    <Border Grid.Column="1" Background="{Binding DarkPreview}" CornerRadius="8" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"><TextBlock Text="Dark" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFFFFFFF" FontSize="9" /></Border>
                   </Grid>
                   <Border Height="4" Background="{Binding AccentPreview}" CornerRadius="2" />
                   <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" TextWrapping="Wrap" MaxLines="2" />
@@ -96,15 +98,14 @@
             <StackPanel Margin="10" Spacing="10">
               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Model" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}">
-                  <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                 <Button Grid.Column="2" Content="Refresh models" Command="{Binding RefreshCommand}" />
               </Grid>
               <TextBox Text="{Binding AiPrompt}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130"
-                       PlaceholderText="Describe the look, layout changes and any safe pages to create. Example: Make a dark-blue theme, move Context to the header, hide Effort and create a 25-minute focus timer page." />
+                       PlaceholderText="Describe the look, safe layout changes and optional pages. Example: move Context to the header and create a 25-minute focus timer page." />
               <Button Content="Generate validated preview" Classes="accent" Command="{Binding GenerateWithAiCommand}" HorizontalAlignment="Left" />
-              <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10" IsVisible="{Binding ProposalSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10"
+                      IsVisible="{Binding ProposalSummary, Converter={StaticResource NonEmptyString}}">
                 <StackPanel Spacing="6">
                   <TextBlock Text="{Binding ProposalSummary}" TextWrapping="Wrap" />
                   <ItemsControl ItemsSource="{Binding ProposalChanges}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding StringFormat='• {0}'}" Classes="muted" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
@@ -136,10 +137,7 @@
                   <StackPanel Grid.Column="2"><TextBlock Text="Surface radius" Classes="muted" /><NumericUpDown Value="{Binding DraftSurfaceRadius}" Minimum="0" Maximum="56" /></StackPanel>
                   <StackPanel Grid.Column="3"><TextBlock Text="Spacing scale" Classes="muted" /><NumericUpDown Value="{Binding DraftSpacingScale}" Minimum="0.7" Maximum="1.8" Increment="0.05" /></StackPanel>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="14">
-                  <CheckBox Content="Show card borders" IsChecked="{Binding DraftShowCardBorders}" />
-                  <CheckBox Content="Use acrylic surfaces" IsChecked="{Binding DraftUseAcrylic}" />
-                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="14"><CheckBox Content="Show card borders" IsChecked="{Binding DraftShowCardBorders}" /><CheckBox Content="Use acrylic surfaces" IsChecked="{Binding DraftUseAcrylic}" /></StackPanel>
 
                 <TextBlock Text="Light and dark palettes" Classes="eyebrow" />
                 <TabControl>
@@ -148,16 +146,13 @@
                 </TabControl>
 
                 <TextBlock Text="Movable controls" Classes="eyebrow" />
-                <TextBlock Text="Only approved controls and regions appear here. Send, Stop, approvals, navigation identity and attachment controls remain fixed." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                <TextBlock Text="Only approved controls and regions appear here. Send, Stop, approvals, navigation identity and attachments remain fixed." Classes="muted" FontSize="10" TextWrapping="Wrap" />
                 <ItemsControl ItemsSource="{Binding Placements}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
                       <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="9" Padding="9" Margin="0,0,0,6">
                         <Grid ColumnDefinitions="2*,*,90,100,Auto" ColumnSpacing="8">
-                          <StackPanel>
-                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding Description}" Classes="muted" FontSize="9" TextWrapping="Wrap" />
-                          </StackPanel>
+                          <StackPanel><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="9" TextWrapping="Wrap" /></StackPanel>
                           <ComboBox Grid.Column="1" ItemsSource="{Binding AllowedRegions}" SelectedItem="{Binding Region}" />
                           <NumericUpDown Grid.Column="2" Value="{Binding Order}" Minimum="0" Maximum="10000" />
                           <ComboBox Grid.Column="3" ItemsSource="{Binding $parent[UserControl].DataContext.Presentations}" SelectedItem="{Binding Presentation}" />
@@ -169,7 +164,7 @@
                 </ItemsControl>
 
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                  <StackPanel><TextBlock Text="Generated pages" Classes="eyebrow" /><TextBlock Text="Pages use only safe shortcuts, local timers, text and command buttons." Classes="muted" FontSize="10" /></StackPanel>
+                  <StackPanel><TextBlock Text="Generated pages" Classes="eyebrow" /><TextBlock Text="Pages use only safe shortcuts, local timers, text and approved command buttons." Classes="muted" FontSize="10" /></StackPanel>
                   <Button Grid.Column="1" Content="Add shortcut page" Command="{Binding AddShortcutPageCommand}" />
                   <Button Grid.Column="2" Content="Add timer page" Command="{Binding AddTimerPageCommand}" />
                 </Grid>
@@ -181,8 +176,7 @@
                           <StackPanel><TextBlock Text="Title" Classes="muted" /><TextBox Text="{Binding Title}" /></StackPanel>
                           <StackPanel Grid.Column="1"><TextBlock Text="Description" Classes="muted" /><TextBox Text="{Binding Description}" /></StackPanel>
                           <StackPanel Grid.Column="2"><TextBlock Text="Order" Classes="muted" /><NumericUpDown Value="{Binding Order}" Minimum="0" Maximum="10000" /></StackPanel>
-                          <Button Grid.Column="3" Content="Remove" Classes="danger" VerticalAlignment="End"
-                                  Command="{Binding $parent[UserControl].DataContext.RemovePageCommand}" CommandParameter="{Binding}" />
+                          <Button Grid.Column="3" Content="Remove" Classes="danger" VerticalAlignment="End" Command="{Binding $parent[UserControl].DataContext.RemovePageCommand}" CommandParameter="{Binding}" />
                           <TextBlock Grid.ColumnSpan="3" Margin="0,52,0,0" Text="{Binding WidgetSummary}" Classes="muted2" FontSize="9" />
                         </Grid>
                       </Border>
@@ -194,7 +188,8 @@
           </TabItem>
         </TabControl>
 
-        <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10" IsVisible="{Binding SafetyNotes.Count}">
+        <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10"
+                IsVisible="{Binding SafetyNotes.Count, Converter={StaticResource PositiveCount}}">
           <StackPanel Spacing="4"><TextBlock Text="Validation and safety" FontWeight="SemiBold" /><ItemsControl ItemsSource="{Binding SafetyNotes}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding StringFormat='• {0}'}" Classes="muted" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
         </Border>
 
