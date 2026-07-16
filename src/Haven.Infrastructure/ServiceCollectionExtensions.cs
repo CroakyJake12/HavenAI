@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
         services.AddSingleton<StartupRecoveryCoordinator>();
-        services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<StartupRecoveryCoordinator>());
+        services.AddSingleton<CleanResetStartupRecoveryCoordinator>();
+        services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<CleanResetStartupRecoveryCoordinator>());
         services.AddSingleton<IDiagnosticsBundleService, DiagnosticsBundleService>();
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
