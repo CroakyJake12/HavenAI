@@ -27,6 +27,9 @@ public sealed partial class App : Avalonia.Application
         collection.AddHavenInfrastructure();
         collection.AddHavenPlannerInfrastructure();
         collection.AddSingleton<IScreenShareService, WindowsGraphicsCaptureService>();
+        // The desktop host deliberately replaces legacy System.Speech with the modern
+        // Windows speech-synthesis voice bank. The application contract stays unchanged.
+        collection.AddSingleton<ISpeechOutputService, WindowsNaturalSpeechOutputService>();
         collection.AddHavenAutomations();
         collection.AddSingleton<BrowserSessionService>();
         collection.AddSingleton<BrowserDataService>();
