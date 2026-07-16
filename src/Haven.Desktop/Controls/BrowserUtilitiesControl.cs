@@ -22,10 +22,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     private readonly Button _policyButton;
     private readonly TextBlock _policySummary;
     private readonly TextBlock _policyDetail;
-    private readonly Slider _zoomSlider;
+    private Slider _zoomSlider = null!;
     private BrowserPageViewModel? _viewModel;
     private INotifyPropertyChanged? _notifications;
-    private int _zoomPercent = 100;
     private bool _disposed;
 
     public BrowserUtilitiesControl()
@@ -34,11 +33,13 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         Spacing = 4;
         VerticalAlignment = VerticalAlignment.Center;
 
-        var findButton = new Button { Content = "⌕", ToolTip = "Find on page" };
+        var findButton = new Button { Content = "⌕" };
+        ToolTip.SetTip(findButton, "Find on page");
         findButton.Classes.Add("icon");
         findButton.Flyout = new Flyout { Placement = PlacementMode.Bottom, Content = BuildFindPanel() };
 
-        _zoomButton = new Button { Content = "100%", ToolTip = "Page zoom", MinWidth = 56 };
+        _zoomButton = new Button { Content = "100%", MinWidth = 56 };
+        ToolTip.SetTip(_zoomButton, "Page zoom");
         _zoomButton.Classes.Add("ghost");
         _zoomButton.Flyout = new Flyout { Placement = PlacementMode.Bottom, Content = BuildZoomPanel() };
 
@@ -50,16 +51,18 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             FontSize = 10,
             TextWrapping = TextWrapping.Wrap
         };
-        _policyButton = new Button { Content = "○", ToolTip = "Site security and automation policy" };
+        _policyButton = new Button { Content = "○" };
+        ToolTip.SetTip(_policyButton, "Site security and automation policy");
         _policyButton.Classes.Add("icon");
         _policyButton.Flyout = new Flyout { Placement = PlacementMode.Bottom, Content = BuildPolicyPanel() };
         _policyButton.Click += async (_, _) => await RefreshPolicyAsync();
 
-        var safety = new Button { Content = "⚑", ToolTip = "Browser approvals, downloads and audit" };
+        var safety = new Button { Content = "⚑" };
+        ToolTip.SetTip(safety, "Browser approvals, downloads and audit");
         safety.Classes.Add("icon");
         safety.Flyout = new Flyout
         {
-            Placement = PlacementMode.BottomEdgeAlignedRight,
+            Placement = PlacementMode.Bottom,
             Content = new BrowserSafetyView()
         };
 
@@ -231,7 +234,6 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
 
     private async Task ApplyZoomAsync(int value, TextBlock status)
     {
-        _zoomPercent = value;
         _zoomButton.Content = value + "%";
         var vm = _viewModel;
         if (vm is null) return;
