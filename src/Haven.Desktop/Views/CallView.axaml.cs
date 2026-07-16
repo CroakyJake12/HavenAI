@@ -28,21 +28,23 @@ public partial class CallView : UserControl
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel) return;
+        ObserveTranscript(viewModel);
         App.Services?.GetService<CallCompletionController>();
         await viewModel.InitializeAsync();
         EnsureVoicePreview(viewModel);
         EnsureTranscriptExport(viewModel);
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e) =>
+        ObserveTranscript(DataContext as CallPageViewModel);
+
+    private void ObserveTranscript(CallPageViewModel? viewModel)
     {
         if (_observedTranscript is not null)
             _observedTranscript.CollectionChanged -= OnTranscriptCollectionChanged;
-        _observedTranscript = (DataContext as CallPageViewModel)?.Transcript;
+        _observedTranscript = viewModel?.Transcript;
         if (_observedTranscript is not null)
             _observedTranscript.CollectionChanged += OnTranscriptCollectionChanged;
-        _voicePreviewButton = null;
-        _transcriptExportButton = null;
     }
 
     private void EnsureVoicePreview(CallPageViewModel viewModel)
@@ -172,6 +174,7 @@ public partial class CallView : UserControl
 
     private async void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        ObserveTranscript(null);
         var cancellation = _voicePreviewCancellation;
         _voicePreviewCancellation = null;
         cancellation?.Cancel();
