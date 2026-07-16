@@ -15,11 +15,13 @@ public sealed class ProviderRoutingModelClient(
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
         if (await localOllama.IsAvailableAsync(cancellationToken).ConfigureAwait(false)) return true;
+        if (RuntimeSafetyState.IsSafeMode) return false;
         return (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false)).Count > 0;
     }
 
     public async Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
         (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false))
+        .Where(item => !RuntimeSafetyState.IsSafeMode || item.IsLocal)
         .Select(ToCompatibilityDescriptor)
         .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
         .Select(group => group.First())
@@ -83,6 +85,8 @@ public sealed class ProviderRoutingModelClient(
             var providerId = trimmed[..separator];
             if (providers.Find(providerId) is { } provider)
             {
+                if (RuntimeSafetyState.IsSafeMode && !provider.IsLocal)
+                    throw new InvalidOperationException("Cloud model providers are disabled while Haven is in crash-loop recovery safe mode. Select a local Ollama model or restart after resolving the startup problem.");
                 var actualModel = trimmed[(separator + 1)..];
                 if (string.IsNullOrWhiteSpace(actualModel)) throw new ArgumentException("The provider-qualified model key is incomplete.", nameof(model));
                 return new ResolvedProvider(provider, actualModel);
