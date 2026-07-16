@@ -48,8 +48,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
-    public async Task InitializeAsync(CancellationToken cancellationToken) =>
-        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+    public Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
     public async Task<string> CreateBundleAsync(string destinationDirectory, CancellationToken cancellationToken)
     {
@@ -57,9 +56,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         {
             IsBusy = true;
             Status = "Creating a redacted support bundle…";
-            var path = await _bundles.CreateBundleAsync(destinationDirectory, cancellationToken).ConfigureAwait(false);
+            var path = await _bundles.CreateBundleAsync(destinationDirectory, cancellationToken);
             Status = "Support bundle created: " + path;
-            await LoadEventsAsync(cancellationToken).ConfigureAwait(false);
+            await LoadEventsAsync(cancellationToken);
             return path;
         }
         catch (Exception ex)
@@ -81,7 +80,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         {
             IsBusy = true;
             Status = "Checking Haven reliability state…";
-            var health = await _database.VerifyIntegrityAsync(cancellationToken).ConfigureAwait(false);
+            var health = await _database.VerifyIntegrityAsync(cancellationToken);
             DatabaseStatus = health.IsHealthy
                 ? $"Healthy · schema {health.SchemaVersion} · SQLite integrity and foreign-key checks passed at {health.CheckedAt.LocalDateTime:g}."
                 : $"Attention required · schema {health.SchemaVersion} · {string.Join(" · ", health.IntegrityMessages.Concat(health.ForeignKeyViolations).Take(4))}";
@@ -94,7 +93,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
                     : $"Normal mode · {startup.RecentUncleanStarts} recent unclean start{(startup.RecentUncleanStarts == 1 ? string.Empty : "s")}.";
 
             LoadBackups();
-            await LoadEventsAsync(cancellationToken).ConfigureAwait(false);
+            await LoadEventsAsync(cancellationToken);
             Status = health.IsHealthy ? "Reliability checks completed." : "The database needs attention. Haven has recorded the failed integrity result.";
         }
         catch (Exception ex)
@@ -110,7 +109,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
 
     private async Task LoadEventsAsync(CancellationToken cancellationToken)
     {
-        var events = await _diagnostics.ReadRecentAsync(50, cancellationToken).ConfigureAwait(false);
+        var events = await _diagnostics.ReadRecentAsync(50, cancellationToken);
         Events.Clear();
         foreach (var item in events) Events.Add(new ReliabilityEventViewModel(item));
     }
@@ -133,7 +132,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
             Backups.Add(new DatabaseBackupViewModel(
                 info.Name,
                 info.Length,
-                info.CreationTimeUtc,
+                new DateTimeOffset(info.CreationTimeUtc, TimeSpan.Zero),
                 File.Exists(Path.ChangeExtension(path, ".json"))));
         }
         BackupStatus = Backups.Count == 0
