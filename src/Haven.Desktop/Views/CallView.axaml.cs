@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
-using Haven.Application;
+using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,12 +13,13 @@ public partial class CallView : UserControl
 {
     private INotifyCollectionChanged? _observedTranscript;
     private Button? _voicePreviewButton;
-    private bool _previewingVoice;
+    private CancellationTokenSource? _voicePreviewCancellation;
 
     public CallView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
@@ -60,38 +61,65 @@ public partial class CallView : UserControl
 
     private async void OnPreviewVoiceClicked(object? sender, RoutedEventArgs e)
     {
-        if (_previewingVoice
-            || DataContext is not CallPageViewModel viewModel
-            || viewModel.SelectedVoice is null
-            || App.Services?.GetService<ISpeechOutputService>() is not { } output)
-            return;
+        if (DataContext is not CallPageViewModel viewModel || _voicePreviewButton is null) return;
+        var services = App.Services;
+        if (services is null) return;
 
+        _voicePreviewCancellation?.Cancel();
+        _voicePreviewCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _voicePreviewCancellation = cancellation;
+        _voicePreviewButton.IsEnabled = false;
+        _voicePreviewButton.Content = "Playing preview…";
         try
         {
-            _previewingVoice = true;
-            if (_voicePreviewButton is not null)
-            {
-                _voicePreviewButton.IsEnabled = false;
-                _voicePreviewButton.Content = "Playing preview…";
-            }
-            await output.SpeakAsync(
-                $"Hello. This is {viewModel.SelectedVoice.Name}, ready for your Haven call.",
-                viewModel.SelectedVoice.Id,
+            await services.GetRequiredService<CallVoicePreviewController>().PreviewAsync(
+                viewModel.SelectedVoice,
                 viewModel.SelectedOutputDevice?.Id,
-                CancellationToken.None);
+                cancellation.Token);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // Starting another preview or leaving Call intentionally stops playback.
         }
         catch (Exception ex)
         {
-            ToolTip.SetTip(_voicePreviewButton, "Voice preview failed: " + ex.Message);
+            services.GetRequiredService<NotificationService>().Show(
+                "Voice preview unavailable",
+                ex.Message,
+                ToastKind.Warning,
+                TimeSpan.FromSeconds(8));
         }
         finally
         {
-            _previewingVoice = false;
-            if (_voicePreviewButton is not null)
+            if (ReferenceEquals(_voicePreviewCancellation, cancellation))
             {
-                _voicePreviewButton.IsEnabled = true;
-                _voicePreviewButton.Content = "Preview selected voice";
+                _voicePreviewCancellation = null;
+                if (_voicePreviewButton is not null)
+                {
+                    _voicePreviewButton.IsEnabled = true;
+                    _voicePreviewButton.Content = "Preview selected voice";
+                }
             }
+            cancellation.Dispose();
+        }
+    }
+
+    private async void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        var cancellation = _voicePreviewCancellation;
+        _voicePreviewCancellation = null;
+        cancellation?.Cancel();
+        cancellation?.Dispose();
+        var services = App.Services;
+        if (services is null) return;
+        try
+        {
+            await services.GetRequiredService<CallVoicePreviewController>().StopAsync(CancellationToken.None);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown may dispose the singleton before the visual tree detaches.
         }
     }
 
