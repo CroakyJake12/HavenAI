@@ -30,6 +30,7 @@ public sealed partial class App : Avalonia.Application
         // The desktop host deliberately replaces legacy System.Speech with the modern
         // Windows speech-synthesis voice bank. The application contract stays unchanged.
         collection.AddSingleton<ISpeechOutputService, WindowsNaturalSpeechOutputService>();
+        collection.AddSingleton<CallVoicePreviewController>();
         collection.AddHavenAutomations();
         collection.AddSingleton<BrowserSessionService>();
         collection.AddSingleton<BrowserDataService>();
