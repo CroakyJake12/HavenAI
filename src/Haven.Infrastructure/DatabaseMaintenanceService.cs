@@ -20,27 +20,39 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         try
         {
             if (targetVersion <= _highestPreparedTarget) return null;
-            _highestPreparedTarget = targetVersion;
-            if (!File.Exists(paths.DatabasePath) || new FileInfo(paths.DatabasePath).Length == 0) return null;
+            if (!File.Exists(paths.DatabasePath) || new FileInfo(paths.DatabasePath).Length == 0)
+            {
+                _highestPreparedTarget = targetVersion;
+                return null;
+            }
 
             await using var source = CreateConnection(paths.DatabasePath, SqliteOpenMode.ReadWrite);
             await source.OpenAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureConnectionAsync(source, cancellationToken).ConfigureAwait(false);
             var preflight = await RunCheckAsync(source, "PRAGMA quick_check;", cancellationToken).ConfigureAwait(false);
-            if (preflight.Count != 1 || !preflight[0].Equals("ok", StringComparison.OrdinalIgnoreCase))
+            var preflightForeignKeys = await RunForeignKeyCheckAsync(source, cancellationToken).ConfigureAwait(false);
+            if (preflight.Count != 1 || !preflight[0].Equals("ok", StringComparison.OrdinalIgnoreCase) || preflightForeignKeys.Count > 0)
             {
                 await diagnostics.WriteAsync(
                     ReliabilitySeverity.Critical,
                     "database",
                     "pre-migration-integrity-failed",
-                    "The Haven database failed SQLite quick_check. Migrations were not started.",
-                    new Dictionary<string, string> { ["results"] = string.Join(" | ", preflight.Take(20)) },
+                    "The Haven database failed SQLite quick_check or foreign-key validation. Migrations were not started.",
+                    new Dictionary<string, string>
+                    {
+                        ["integrityResults"] = string.Join(" | ", preflight.Take(20)),
+                        ["foreignKeyViolations"] = string.Join(" | ", preflightForeignKeys.Take(20))
+                    },
                     cancellationToken: cancellationToken).ConfigureAwait(false);
-                throw new InvalidDataException("The Haven database failed SQLite quick_check. Migrations were stopped to protect the existing data.");
+                throw new InvalidDataException("The Haven database failed its pre-migration integrity checks. Migrations were stopped to protect the existing data.");
             }
 
             var currentVersion = await ReadSchemaVersionAsync(source, cancellationToken).ConfigureAwait(false);
-            if (currentVersion >= targetVersion) return null;
+            if (currentVersion >= targetVersion)
+            {
+                _highestPreparedTarget = targetVersion;
+                return null;
+            }
 
             Directory.CreateDirectory(_backupDirectory);
             var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
@@ -81,6 +93,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
                 File.Move(temporaryDatabasePath, finalDatabasePath);
                 File.Move(temporaryManifestPath, finalManifestPath);
                 ApplyRetention();
+                _highestPreparedTarget = targetVersion;
 
                 var result = new DatabaseBackupInfo(
                     finalDatabasePath,
@@ -101,7 +114,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
                         ["toVersion"] = targetVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["sizeBytes"] = info.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["sha256"] = hash,
-                        ["path"] = finalDatabasePath
+                        ["fileName"] = Path.GetFileName(finalDatabasePath)
                     },
                     cancellationToken: cancellationToken).ConfigureAwait(false);
                 return result;
@@ -125,7 +138,22 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         {
             if (!File.Exists(paths.DatabasePath) || new FileInfo(paths.DatabasePath).Length == 0)
                 return new DatabaseHealthReport(true, 0, ["ok"], [], DateTimeOffset.UtcNow);
-            var result = await VerifyFileAsync(paths.DatabasePath, cancellationToken).ConfigureAwait(false);
+
+            DatabaseHealthReport result;
+            try
+            {
+                result = await VerifyFileAsync(paths.DatabasePath, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                result = new DatabaseHealthReport(
+                    false,
+                    0,
+                    ["Unable to complete SQLite integrity_check: " + ex.GetType().Name],
+                    [],
+                    DateTimeOffset.UtcNow);
+            }
+
             await diagnostics.WriteAsync(
                 result.IsHealthy ? ReliabilitySeverity.Information : ReliabilitySeverity.Critical,
                 "database",
