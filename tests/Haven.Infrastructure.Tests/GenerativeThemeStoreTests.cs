@@ -96,7 +96,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
 
         Assert.DoesNotContain(themes, theme => theme.Name.Contains("broken", StringComparison.OrdinalIgnoreCase));
         Assert.False(File.Exists(corruptPath));
-        Assert.Contains(Directory.EnumerateFiles(themesDirectory, "broken.haven-theme.json.corrupt-*"), File.Exists);
+        Assert.Contains(
+            Directory.EnumerateFiles(themesDirectory, "broken.haven-theme.json.corrupt-*"),
+            path => File.Exists(path));
         Assert.Contains(themes, theme => theme.IsBuiltIn);
         var events = await diagnostics.ReadRecentAsync(20, CancellationToken.None);
         Assert.Contains(events, item => item.EventName == "theme-quarantined");
@@ -115,7 +117,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         var themes = await store.GetThemesAsync(CancellationToken.None);
 
         Assert.Contains(themes, theme => theme.Id == recovered.ActiveThemeId && theme.IsBuiltIn);
-        Assert.Contains(Directory.EnumerateFiles(Path.GetDirectoryName(selectionPath)!, "selection.json.corrupt-*"), File.Exists);
+        Assert.Contains(
+            Directory.EnumerateFiles(Path.GetDirectoryName(selectionPath)!, "selection.json.corrupt-*"),
+            path => File.Exists(path));
         var events = await diagnostics.ReadRecentAsync(20, CancellationToken.None);
         Assert.Contains(events, item => item.EventName == "selection-quarantined");
     }
@@ -136,7 +140,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             path,
-            System.Text.Json.JsonSerializer.Serialize(unsafeTheme, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)),
+            System.Text.Json.JsonSerializer.Serialize(
+                unsafeTheme,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)),
             CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
@@ -145,9 +151,10 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         var themes = await store.GetThemesAsync(CancellationToken.None);
         Assert.DoesNotContain(themes, theme => theme.Name == "Unsafe");
         var storedDirectory = Path.Combine(_paths.DataDirectory, "GenerativeUi", "Themes");
-        Assert.Empty(Directory.Exists(storedDirectory)
+        var storedFiles = Directory.Exists(storedDirectory)
             ? Directory.EnumerateFiles(storedDirectory, "*.haven-theme.json")
-            : []);
+            : Enumerable.Empty<string>();
+        Assert.Empty(storedFiles);
     }
 
     public void Dispose() => _paths.Dispose();
@@ -168,47 +175,49 @@ public sealed class GenerativeThemeStoreTests : IDisposable
             false,
             now,
             now,
-            Palette("#FFF7FAFC", "#FF0B68A3"),
-            Palette("#FF101820", "#FF39A9DB"),
+            Palette(light: true, "#FFF7FAFC", "#FF0B68A3"),
+            Palette(light: false, "#FF101820", "#FF0B68A3"),
             new GenerativeThemeTypography("Segoe UI", 14, 1.35, 0),
             new GenerativeThemeShape(10, 14, 16, 1.1, true, true),
             GenerativeUiCatalog.DefaultLayout,
             []);
     }
 
-    private static GenerativeThemePalette Palette(string background, string accent) => new(
+    private static GenerativeThemePalette Palette(bool light, string background, string accent) => new(
         background,
-        "#FF20242A",
-        "#FF242A32",
-        "#FF2A313A",
-        "#FF303843",
-        "#FF37414D",
-        "#FFFFFFFF",
-        "#FFE0E6ED",
-        "#FFB2BBC7",
-        "#FF7C8795",
+        light ? "#FFF7F9FC" : "#FF182129",
+        light ? "#FFFFFFFF" : "#FF202A33",
+        light ? "#FFF1F4F8" : "#FF26323C",
+        light ? "#FFE8EDF3" : "#FF2C3A46",
+        light ? "#FFE1E7EE" : "#FF344552",
+        light ? "#FF16191E" : "#FFFFFFFF",
+        light ? "#FF343A44" : "#FFD9E2EA",
+        light ? "#FF5F6875" : "#FFA8B5C1",
+        light ? "#FF7D8795" : "#FF748391",
         accent,
         "#FFFFFFFF",
-        "#FF20384C",
-        "#FF60CDFF",
-        "#FF1E3A50",
+        light ? "#FFDCEEFF" : "#FF203A45",
+        light ? "#FF0067B8" : "#FF60CDFF",
+        light ? "#FFD8ECFA" : "#FF1E3A50",
         "#FFFF99A4",
         "#FFFCE4A6",
-        "#22FFFFFF",
-        "#44FFFFFF",
+        light ? "#24000000" : "#22FFFFFF",
+        light ? "#3D000000" : "#44FFFFFF",
         accent,
-        "#FF182234",
-        "#F2182234",
-        "#2EFFFFFF",
-        "#46FFFFFF",
-        "#20FFFFFF",
+        light ? "#FFF4F6F9" : "#FF182234",
+        light ? "#FFF4F6F9" : "#F2182234",
+        light ? "#E6FFFFFF" : "#2EFFFFFF",
+        light ? "#FFFFFFFF" : "#46FFFFFF",
+        light ? "#FFE7EBF0" : "#20FFFFFF",
         "#A060CDFF");
 
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
         {
-            DataDirectory = Path.Combine(Path.GetTempPath(), "haven-generative-theme-tests-" + Guid.NewGuid().ToString("N"));
+            DataDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "haven-generative-theme-tests-" + Guid.NewGuid().ToString("N"));
             DatabasePath = Path.Combine(DataDirectory, "haven.db");
             BrowserProfileDirectory = Path.Combine(DataDirectory, "browser");
             AttachmentsDirectory = Path.Combine(DataDirectory, "attachments");
@@ -227,8 +236,13 @@ public sealed class GenerativeThemeStoreTests : IDisposable
 
         public void Dispose()
         {
-            try { Directory.Delete(DataDirectory, recursive: true); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try
+            {
+                Directory.Delete(DataDirectory, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
         }
     }
 }
