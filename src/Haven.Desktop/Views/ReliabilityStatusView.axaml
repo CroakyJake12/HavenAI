@@ -31,17 +31,47 @@
         <StackPanel Spacing="7">
           <TextBlock Text="VERIFIED PRE-MIGRATION BACKUPS" Classes="eyebrow" />
           <TextBlock Text="{Binding BackupStatus}" Classes="muted" TextWrapping="Wrap" />
-          <ItemsControl ItemsSource="{Binding Backups}" MaxHeight="150">
+          <ItemsControl ItemsSource="{Binding Backups}" MaxHeight="190">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9" Margin="0,3">
-                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" />
-                  <TextBlock Grid.Column="2" Text="{Binding Verification}" Classes="muted2" />
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="9" Margin="0,3">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Schema}" Classes="muted2" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding Size}" Classes="muted" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="3" Text="{Binding Verification}" Classes="muted2" VerticalAlignment="Center" />
+                  <Button Grid.Column="4"
+                          Content="Restore next launch"
+                          IsEnabled="{Binding IsVerified}"
+                          Command="{Binding $parent[UserControl].DataContext.RequestRestoreCommand}"
+                          CommandParameter="{Binding}" />
                 </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+
+          <Border Classes="permission" IsVisible="{Binding IsRestoreConfirming}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Schedule this verified backup for restore?" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding RestoreCandidate.Name}" TextWrapping="Wrap" />
+              <TextBlock Text="Haven will not replace the live database. On the next launch it re-verifies this backup, creates an emergency copy of the current database, applies the restore before SQLite opens, verifies it again, then runs normal migrations."
+                         Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right">
+                <Button Content="Cancel" Command="{Binding CancelRestoreConfirmationCommand}" />
+                <Button Content="Schedule verified restore" Classes="danger" Command="{Binding ConfirmRestoreCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="permission" IsVisible="{Binding HasPendingRestore}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <StackPanel>
+                <TextBlock Text="RESTORE PENDING" Classes="eyebrow" />
+                <TextBlock Text="{Binding PendingRestoreStatus}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="Cancel pending restore" Command="{Binding CancelPendingRestoreCommand}" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+          <TextBlock Text="{Binding PendingRestoreStatus}" Classes="muted2" FontSize="9" IsVisible="{Binding HasPendingRestore}" />
         </StackPanel>
       </Border>
 
