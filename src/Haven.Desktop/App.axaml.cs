@@ -56,6 +56,7 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
+        collection.AddSingleton<AutomationDeliveryController>();
         collection.AddSingleton<GenerativeUiThemeRuntime>();
         collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
         collection.AddTransient<ProviderConnectionsViewModel>();
@@ -98,6 +99,7 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await vm.InitializeAsync(migration, CancellationToken.None);
+            await services.GetRequiredService<AutomationDeliveryController>().StartAsync(CancellationToken.None);
 
             if (recoveryState.IsSafeMode)
             {
