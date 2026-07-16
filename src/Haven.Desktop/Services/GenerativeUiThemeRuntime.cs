@@ -6,6 +6,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Services;
 
@@ -16,7 +17,6 @@ public sealed class GenerativeUiThemeRuntime(
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly List<IStyle> _generatedStyles = [];
     private GenerativeThemePack? _previewTheme;
-    private GenerativeThemeAppearance? _previewAppearance;
     private bool _initialized;
 
     public GenerativeThemePack ActiveTheme { get; private set; } = null!;
@@ -36,10 +36,16 @@ public sealed class GenerativeUiThemeRuntime(
             Appearance = selection.Appearance;
             _initialized = true;
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public async Task ApplyAsync(Guid themeId, GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
+    public async Task ApplyAsync(
+        Guid themeId,
+        GenerativeThemeAppearance appearance,
+        CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -47,7 +53,6 @@ public sealed class GenerativeUiThemeRuntime(
             await store.SelectAsync(themeId, appearance, cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
             _previewTheme = null;
-            _previewAppearance = null;
             ActiveTheme = theme;
             Appearance = appearance;
             await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
@@ -63,22 +68,30 @@ public sealed class GenerativeUiThemeRuntime(
                 },
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public async Task PreviewAsync(GenerativeThemePack theme, GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
+    public async Task PreviewAsync(
+        GenerativeThemePack theme,
+        GenerativeThemeAppearance appearance,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(theme);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _previewTheme = theme;
-            _previewAppearance = appearance;
             ActiveTheme = theme;
             Appearance = appearance;
             await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public async Task RevertPreviewAsync(CancellationToken cancellationToken)
@@ -86,16 +99,19 @@ public sealed class GenerativeUiThemeRuntime(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_previewTheme is null) return;
+            // Always reload the persisted selection. This also recovers correctly when
+            // the active custom theme was deleted while no transient preview existed.
             var selection = await store.GetSelectionAsync(cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
             _previewTheme = null;
-            _previewAppearance = null;
             ActiveTheme = theme;
             Appearance = selection.Appearance;
             await ApplyVisualsAsync(theme, selection.Appearance, cancellationToken).ConfigureAwait(false);
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public IReadOnlyList<GenerativeUiPlacement> GetPlacements(string region)
@@ -125,7 +141,8 @@ public sealed class GenerativeUiThemeRuntime(
         cancellationToken.ThrowIfCancellationRequested();
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var application = Application.Current ?? throw new InvalidOperationException("Avalonia application resources are unavailable.");
+            var application = Application.Current
+                              ?? throw new InvalidOperationException("Avalonia application resources are unavailable.");
             application.RequestedThemeVariant = appearance switch
             {
                 GenerativeThemeAppearance.Light => ThemeVariant.Light,
@@ -139,13 +156,16 @@ public sealed class GenerativeUiThemeRuntime(
                 _ when application.ActualThemeVariant == ThemeVariant.Light => theme.Light,
                 _ => theme.Dark
             };
-            ApplyPalette(application, effectivePalette, theme.Shape.ShowCardBorders);
-            ApplyGeneratedStyles(application, theme);
+            ApplyPalette(application, effectivePalette, theme.Shape);
+            ApplyGeneratedStyles(application, theme, effectivePalette);
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         }, DispatcherPriority.Send, cancellationToken);
     }
 
-    private static void ApplyPalette(Application application, GenerativeThemePalette palette, bool showCardBorders)
+    private static void ApplyPalette(
+        Application application,
+        GenerativeThemePalette palette,
+        GenerativeThemeShape shape)
     {
         SetBrush(application, "HavenBackgroundBrush", palette.Background);
         SetBrush(application, "HavenElevatedBrush", palette.Elevated);
@@ -164,22 +184,28 @@ public sealed class GenerativeUiThemeRuntime(
         SetBrush(application, "HavenBlueSoftBrush", palette.BlueSoft);
         SetBrush(application, "HavenDangerBrush", palette.Danger);
         SetBrush(application, "HavenWarningBrush", palette.Warning);
-        SetBrush(application, "HavenLineBrush", showCardBorders ? palette.Line : "#00000000");
-        SetBrush(application, "HavenLineStrongBrush", showCardBorders ? palette.LineStrong : "#00000000");
+        SetBrush(application, "HavenLineBrush", shape.ShowCardBorders ? palette.Line : "#00000000");
+        SetBrush(application, "HavenLineStrongBrush", shape.ShowCardBorders ? palette.LineStrong : "#00000000");
         SetBrush(application, "HavenNubBrush", palette.Nub);
         SetBrush(application, "HavenButtonBrush", palette.Button);
         SetBrush(application, "HavenButtonHoverBrush", palette.ButtonHover);
         SetBrush(application, "HavenButtonPressedBrush", palette.ButtonPressed);
         SetBrush(application, "HavenFocusBrush", palette.Focus);
         SetBrush(application, "PrimaryBrush", palette.Accent);
-        SetBrush(application, "StrokeBrush", showCardBorders ? palette.LineStrong : "#00000000");
+        SetBrush(application, "StrokeBrush", shape.ShowCardBorders ? palette.LineStrong : "#00000000");
         SetBrush(application, "SurfaceCardBrush", palette.Panel);
         SetBrush(application, "TextPrimaryBrush", palette.Text);
-        application.Resources["HavenAcrylicTintColor"] = Color.Parse(palette.AcrylicTint);
-        application.Resources["HavenAcrylicFallbackColor"] = Color.Parse(palette.AcrylicFallback);
+
+        var acrylicTint = shape.UseAcrylic ? palette.AcrylicTint : palette.Panel;
+        var acrylicFallback = shape.UseAcrylic ? palette.AcrylicFallback : palette.Panel;
+        application.Resources["HavenAcrylicTintColor"] = Color.Parse(acrylicTint);
+        application.Resources["HavenAcrylicFallbackColor"] = Color.Parse(acrylicFallback);
     }
 
-    private void ApplyGeneratedStyles(Application application, GenerativeThemePack theme)
+    private void ApplyGeneratedStyles(
+        Application application,
+        GenerativeThemePack theme,
+        GenerativeThemePalette palette)
     {
         foreach (var style in _generatedStyles) application.Styles.Remove(style);
         _generatedStyles.Clear();
@@ -200,6 +226,13 @@ public sealed class GenerativeUiThemeRuntime(
         var composerStyle = new Style(selector => selector.OfType<Border>().Class("composer"));
         composerStyle.Setters.Add(new Setter(Border.CornerRadiusProperty, new CornerRadius(theme.Shape.SurfaceRadius)));
         _generatedStyles.Add(composerStyle);
+
+        var acrylicStyle = new Style(selector => selector.OfType<AcrylicSurface>());
+        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.TintOpacityProperty, theme.Shape.UseAcrylic ? 0.78d : 1d));
+        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.MaterialOpacityProperty, theme.Shape.UseAcrylic ? 0.62d : 1d));
+        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.TintColorProperty, Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicTint : palette.Panel)));
+        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.FallbackColorProperty, Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicFallback : palette.Panel)));
+        _generatedStyles.Add(acrylicStyle);
 
         foreach (var style in _generatedStyles) application.Styles.Add(style);
     }
