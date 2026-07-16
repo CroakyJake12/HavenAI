@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ReliabilityStatusView">
+  <Border Classes="card">
+    <StackPanel Spacing="11">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="RELIABILITY AND RECOVERY" Classes="eyebrow" />
+          <TextBlock Text="Database health, crash recovery, verified backups and redacted diagnostics" Classes="sectionHeading" Margin="0,4,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh checks" Command="{Binding RefreshCommand}" />
+        <Button Grid.Column="2" Content="Create support bundle" Classes="accent" Click="OnCreateBundleClicked" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+          <StackPanel Spacing="4">
+            <TextBlock Text="DATABASE" Classes="eyebrow" />
+            <TextBlock Text="{Binding DatabaseStatus}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+          <StackPanel Spacing="4">
+            <TextBlock Text="STARTUP RECOVERY" Classes="eyebrow" />
+            <TextBlock Text="{Binding StartupStatus}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+        <StackPanel Spacing="7">
+          <TextBlock Text="VERIFIED PRE-MIGRATION BACKUPS" Classes="eyebrow" />
+          <TextBlock Text="{Binding BackupStatus}" Classes="muted" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Backups}" MaxHeight="150">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9" Margin="0,3">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" />
+                  <TextBlock Grid.Column="2" Text="{Binding Verification}" Classes="muted2" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="RECENT REDACTED EVENTS" Classes="eyebrow" />
+        <TextBlock Text="URLs omit query strings and fragments. Secret-shaped fields are removed before the event reaches disk or this view." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+        <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Events}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="9" Padding="9" Margin="0,0,0,5">
+                  <StackPanel Spacing="3">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+                      <TextBlock Text="{Binding Time}" Classes="muted2" FontSize="9" />
+                      <TextBlock Grid.Column="1" Text="{Binding Severity}" FontWeight="SemiBold" FontSize="9" />
+                      <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="3" Text="{Binding CorrelationId}" Classes="muted2" FontSize="9" />
+                    </Grid>
+                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="10" MaxLines="5" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <ProgressBar Grid.Column="1" Width="80" Height="5" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>
