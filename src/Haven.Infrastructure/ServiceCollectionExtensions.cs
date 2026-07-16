@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IGenerativeThemeValidator, GenerativeThemeValidator>();
         services.AddSingleton<GenerativeThemeStore>();
         services.AddSingleton<IGenerativeThemeStore>(provider => provider.GetRequiredService<GenerativeThemeStore>());
+        services.AddSingleton<IGenerativeThemeAiService, GenerativeThemeAiService>();
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
