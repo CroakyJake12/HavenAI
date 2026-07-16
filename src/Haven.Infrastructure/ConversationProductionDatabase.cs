@@ -7,10 +7,11 @@ public sealed class ConversationProductionDatabase : IAppDatabase
 {
     private readonly SqliteDatabase _database;
     private readonly IDatabaseMaintenance? _maintenance;
+    private readonly IDatabaseRestoreService? _restore;
 
     // Focused repository tests historically construct this wrapper around an isolated
-    // temporary database. Production DI selects the longer constructor below and applies
-    // the complete backup and integrity gate.
+    // temporary database. Production DI selects the longest constructor and applies the
+    // complete restore, backup and integrity gate.
     public ConversationProductionDatabase(SqliteDatabase database)
     {
         _database = database;
@@ -24,8 +25,24 @@ public sealed class ConversationProductionDatabase : IAppDatabase
         _maintenance = maintenance;
     }
 
+    public ConversationProductionDatabase(
+        SqliteDatabase database,
+        IDatabaseMaintenance maintenance,
+        IDatabaseRestoreService restore)
+    {
+        _database = database;
+        _maintenance = maintenance;
+        _restore = restore;
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        // A restore is intentionally applied before SqliteDatabase opens its first
+        // connection. The restore service re-verifies the backup, creates an emergency
+        // copy of the current data and performs an atomic swap or rollback.
+        if (_restore is not null)
+            await _restore.ApplyPendingRestoreAsync(cancellationToken).ConfigureAwait(false);
+
         if (_maintenance is not null)
         {
             // Version 10 is the highest additive continuation schema currently used.
