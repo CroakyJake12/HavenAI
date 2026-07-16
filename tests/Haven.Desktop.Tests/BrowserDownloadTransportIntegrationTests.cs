@@ -21,7 +21,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         var body = Encoding.UTF8.GetBytes("verified browser download");
-        var server = ServeFileAsync(listener, body, "../../CON\u202Ecod.exe.txt", CancellationToken.None);
+        var server = ServeFileAsync(listener, body, "filename*=UTF-8''..%2FCON%E2%80%AE.txt", CancellationToken.None);
         var target = new Uri($"http://127.0.0.1:{port}/payload");
         var action = CreateDownloadAction(target);
         var transport = new BrowserDownloadTransport(new LoopbackTestPolicy(), _directory);
@@ -29,7 +29,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         var record = await transport.DownloadAsync(action, CancellationToken.None);
         await server;
 
-        Assert.Equal("_CONcod.exe.txt", record.FileName);
+        Assert.Equal("_CON.txt", record.FileName);
         Assert.Equal(body.LongLength, record.SizeBytes);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant(), record.Sha256);
         Assert.Equal(body, await File.ReadAllBytesAsync(record.StoredPath));
@@ -50,7 +50,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         var body = Encoding.UTF8.GetBytes("replacement");
-        var server = ServeFileAsync(listener, body, "report.txt", CancellationToken.None);
+        var server = ServeFileAsync(listener, body, "filename=\"report.txt\"", CancellationToken.None);
         var target = new Uri($"http://127.0.0.1:{port}/report");
         var transport = new BrowserDownloadTransport(new LoopbackTestPolicy(), _directory);
 
@@ -72,7 +72,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
             now, now.AddMinutes(10), now, null);
     }
 
-    private static async Task ServeFileAsync(TcpListener listener, byte[] body, string fileName, CancellationToken cancellationToken)
+    private static async Task ServeFileAsync(TcpListener listener, byte[] body, string contentDispositionParameter, CancellationToken cancellationToken)
     {
         using var client = await listener.AcceptTcpClientAsync(cancellationToken);
         await using var stream = client.GetStream();
@@ -80,7 +80,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         var headers = Encoding.ASCII.GetBytes(
             "HTTP/1.1 200 OK\r\n" +
             "Content-Type: application/octet-stream\r\n" +
-            $"Content-Disposition: attachment; filename=\"{fileName}\"\r\n" +
+            $"Content-Disposition: attachment; {contentDispositionParameter}\r\n" +
             $"Content-Length: {body.Length}\r\n" +
             "Connection: close\r\n\r\n");
         await stream.WriteAsync(headers, cancellationToken);
