@@ -2,7 +2,6 @@ namespace Haven.Core;
 
 public enum GenerativeThemeAppearance
 {
-    System = 0,
     Light = 1,
     Dark = 2
 }
