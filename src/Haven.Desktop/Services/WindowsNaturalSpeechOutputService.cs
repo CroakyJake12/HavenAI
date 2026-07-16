@@ -8,15 +8,13 @@ namespace Haven.Desktop.Services;
 
 /// <summary>
 /// Desktop-only speech output using the modern Windows speech synthesis voice bank.
-/// It replaces legacy System.Speech at the outer host while preserving the existing
-/// Call coordinator contract and local-only media flow.
+/// Playback is process-local and interruptible without waiting behind the active utterance.
 /// </summary>
 public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IAsyncDisposable
 {
-    private readonly SemaphoreSlim _gate = new(1, 1);
-    private MediaPlayer? _player;
-    private SpeechSynthesizer? _synthesizer;
-    private CancellationTokenSource? _playbackCancellation;
+    private readonly SemaphoreSlim _utteranceGate = new(1, 1);
+    private readonly object _stateGate = new();
+    private PlaybackState? _current;
     private bool _disposed;
 
     public bool IsAvailable
@@ -73,11 +71,18 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsAvailable) throw new InvalidOperationException(UnavailableReason);
         if (string.IsNullOrWhiteSpace(text)) return;
+        if (!string.IsNullOrWhiteSpace(outputDeviceId)
+            && !string.Equals(outputDeviceId, "default", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("The modern Windows speech service currently supports only the default output device.", nameof(outputDeviceId));
+        }
 
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _utteranceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        PlaybackState? state = null;
         try
         {
-            await StopCoreAsync().ConfigureAwait(false);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            StopCurrent();
             cancellationToken.ThrowIfCancellationRequested();
 
             var synthesizer = new SpeechSynthesizer();
@@ -86,96 +91,152 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
                 || string.Equals(voice.DisplayName, voiceName, StringComparison.OrdinalIgnoreCase));
             if (selected is not null) synthesizer.Voice = selected;
 
-            var stream = await synthesizer.SynthesizeTextToStreamAsync(text);
-            cancellationToken.ThrowIfCancellationRequested();
-            var source = MediaSource.CreateFromStream(stream, stream.ContentType);
-            var player = new MediaPlayer
-            {
-                AutoPlay = false,
-                Source = source
-            };
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnEnded(MediaPlayer sender, object args) => completion.TrySetResult();
-            void OnFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args) =>
-                completion.TrySetException(new InvalidOperationException("Windows speech playback failed: " + args.ErrorMessage));
-            player.MediaEnded += OnEnded;
-            player.MediaFailed += OnFailed;
-
-            var playbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _synthesizer = synthesizer;
-            _player = player;
-            _playbackCancellation = playbackCancellation;
-            using var registration = playbackCancellation.Token.Register(() => completion.TrySetCanceled(playbackCancellation.Token));
+            SpeechSynthesisStream? stream = null;
+            MediaSource? source = null;
+            MediaPlayer? player = null;
             try
             {
+                stream = await synthesizer.SynthesizeTextToStreamAsync(text);
+                cancellationToken.ThrowIfCancellationRequested();
+                source = MediaSource.CreateFromStream(stream, stream.ContentType);
+                player = new MediaPlayer
+                {
+                    AutoPlay = false,
+                    Source = source
+                };
+
+                state = new PlaybackState(synthesizer, stream, source, player, cancellationToken);
+                lock (_stateGate)
+                {
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    _current = state;
+                }
+
                 player.Play();
-                await completion.Task.ConfigureAwait(false);
+                await state.Completion.Task.ConfigureAwait(false);
             }
-            finally
+            catch
             {
-                player.MediaEnded -= OnEnded;
-                player.MediaFailed -= OnFailed;
-                await StopCoreAsync().ConfigureAwait(false);
-                source.Dispose();
-                stream.Dispose();
+                if (state is null)
+                {
+                    player?.Dispose();
+                    source?.Dispose();
+                    stream?.Dispose();
+                    synthesizer.Dispose();
+                }
+                throw;
             }
         }
         finally
         {
-            _gate.Release();
+            if (state is not null)
+            {
+                lock (_stateGate)
+                {
+                    if (ReferenceEquals(_current, state)) _current = null;
+                }
+                state.Dispose();
+            }
+            _utteranceGate.Release();
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { await StopCoreAsync().ConfigureAwait(false); }
-        finally { _gate.Release(); }
+        cancellationToken.ThrowIfCancellationRequested();
+        StopCurrent();
+        return Task.CompletedTask;
     }
 
-    private Task StopCoreAsync()
+    private void StopCurrent()
     {
-        var cancellation = _playbackCancellation;
-        var player = _player;
-        var synthesizer = _synthesizer;
-        _playbackCancellation = null;
-        _player = null;
-        _synthesizer = null;
-        try { cancellation?.Cancel(); }
-        catch (ObjectDisposedException) { }
-        try
+        PlaybackState? state;
+        lock (_stateGate)
         {
-            if (player is not null)
-            {
-                player.Pause();
-                player.Source = null;
-                player.Dispose();
-            }
+            state = _current;
+            _current = null;
         }
-        finally
-        {
-            synthesizer?.Dispose();
-            cancellation?.Dispose();
-        }
-        return Task.CompletedTask;
+        state?.Cancel();
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        await _gate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (_disposed) return;
-            await StopCoreAsync().ConfigureAwait(false);
-            _disposed = true;
-        }
-        finally
-        {
-            _gate.Release();
-            _gate.Dispose();
-        }
+        _disposed = true;
+        StopCurrent();
+        await _utteranceGate.WaitAsync().ConfigureAwait(false);
+        _utteranceGate.Release();
+        _utteranceGate.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private sealed class PlaybackState : IDisposable
+    {
+        private readonly SpeechSynthesizer _synthesizer;
+        private readonly SpeechSynthesisStream _stream;
+        private readonly MediaSource _source;
+        private readonly MediaPlayer _player;
+        private readonly CancellationTokenSource _playbackCancellation;
+        private readonly CancellationTokenRegistration _registration;
+        private int _disposed;
+
+        public TaskCompletionSource Completion { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public PlaybackState(
+            SpeechSynthesizer synthesizer,
+            SpeechSynthesisStream stream,
+            MediaSource source,
+            MediaPlayer player,
+            CancellationToken cancellationToken)
+        {
+            _synthesizer = synthesizer;
+            _stream = stream;
+            _source = source;
+            _player = player;
+            _playbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _registration = _playbackCancellation.Token.Register(
+                () => Completion.TrySetCanceled(_playbackCancellation.Token));
+            _player.MediaEnded += OnEnded;
+            _player.MediaFailed += OnFailed;
+        }
+
+        public void Cancel()
+        {
+            try { _playbackCancellation.Cancel(); }
+            catch (ObjectDisposedException) { }
+            try
+            {
+                _player.Pause();
+                _player.Source = null;
+            }
+            catch (ObjectDisposedException) { }
+        }
+
+        private void OnEnded(MediaPlayer sender, object args) => Completion.TrySetResult();
+
+        private void OnFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args) =>
+            Completion.TrySetException(new InvalidOperationException(
+                "Windows speech playback failed: " + args.ErrorMessage));
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            _player.MediaEnded -= OnEnded;
+            _player.MediaFailed -= OnFailed;
+            _registration.Dispose();
+            try
+            {
+                _player.Pause();
+                _player.Source = null;
+            }
+            catch (ObjectDisposedException) { }
+            _player.Dispose();
+            _source.Dispose();
+            _stream.Dispose();
+            _synthesizer.Dispose();
+            _playbackCancellation.Dispose();
+        }
     }
 }
