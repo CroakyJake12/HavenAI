@@ -40,20 +40,9 @@ public static class BrowserDownloadFilePolicy
         var name = builder.ToString().Trim().TrimEnd('.', ' ');
         if (name is "" or "." or "..") return null;
 
-        var stem = Path.GetFileNameWithoutExtension(name);
-        var extension = Path.GetExtension(name);
-        if (ReservedWindowsNames.Contains(stem)) stem = "_" + stem;
-        name = stem + extension;
-
-        if (name.Length > MaximumFileNameLength)
-        {
-            var extensionLimit = Math.Min(extension.Length, 24);
-            extension = extensionLimit == 0 ? string.Empty : extension[^extensionLimit..];
-            var stemLimit = Math.Max(1, MaximumFileNameLength - extension.Length);
-            name = stem[..Math.Min(stem.Length, stemLimit)] + extension;
-        }
-
-        name = name.Trim().TrimEnd('.', ' ');
+        var firstSegment = name.Split('.', 2)[0];
+        if (ReservedWindowsNames.Contains(firstSegment)) name = "_" + name;
+        name = TruncatePreservingExtension(name, MaximumFileNameLength).Trim().TrimEnd('.', ' ');
         return name is "" or "." or ".." ? null : name;
     }
 
@@ -71,7 +60,10 @@ public static class BrowserDownloadFilePolicy
         var extension = Path.GetExtension(safeName);
         for (var index = 2; index < 10_000; index++)
         {
-            candidate = EnsureConfined(root, Path.Combine(root, $"{stem} ({index}){extension}"));
+            var suffix = $" ({index})";
+            var allowedStemLength = Math.Max(1, MaximumFileNameLength - extension.Length - suffix.Length);
+            var collisionName = TruncateRunes(stem, allowedStemLength) + suffix + extension;
+            candidate = EnsureConfined(root, Path.Combine(root, collisionName));
             if (!File.Exists(candidate) && !Directory.Exists(candidate)) return candidate;
         }
         throw new IOException("Could not allocate a unique download file name.");
@@ -100,6 +92,27 @@ public static class BrowserDownloadFilePolicy
             catch (UnauthorizedAccessException) { }
         }
         return removed;
+    }
+
+    private static string TruncatePreservingExtension(string name, int maximumLength)
+    {
+        if (name.Length <= maximumLength) return name;
+        var extension = Path.GetExtension(name);
+        if (extension.Length > 24) extension = extension[^24..];
+        var stem = Path.GetFileNameWithoutExtension(name);
+        return TruncateRunes(stem, Math.Max(1, maximumLength - extension.Length)) + extension;
+    }
+
+    private static string TruncateRunes(string value, int maximumUtf16Length)
+    {
+        if (value.Length <= maximumUtf16Length) return value;
+        var builder = new StringBuilder(maximumUtf16Length);
+        foreach (var rune in value.EnumerateRunes())
+        {
+            if (builder.Length + rune.Utf16SequenceLength > maximumUtf16Length) break;
+            builder.Append(rune.ToString());
+        }
+        return builder.ToString();
     }
 
     private static string EnsureConfined(string root, string candidate)
