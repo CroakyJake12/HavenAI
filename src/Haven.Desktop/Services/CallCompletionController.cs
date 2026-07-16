@@ -80,7 +80,9 @@ public sealed class CallCompletionController : IAsyncDisposable
                 session.ModelName,
                 metadata,
                 now), CancellationToken.None).ConfigureAwait(false);
-            await _conversations.UpsertConversationAsync(conversation with { UpdatedAt = now }, CancellationToken.None).ConfigureAwait(false);
+            await _conversations.UpsertConversationAsync(
+                conversation with { UpdatedAt = now },
+                CancellationToken.None).ConfigureAwait(false);
             await _diagnostics.WriteAsync(
                 ReliabilitySeverity.Information,
                 "call",
@@ -97,11 +99,12 @@ public sealed class CallCompletionController : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            _completed.TryRemove(session.Id, out _);
             await _diagnostics.WriteAsync(
                 ReliabilitySeverity.Warning,
                 "call",
                 "summary-failed",
-                "The Call ended cleanly, but its durable summary could not be created.",
+                "The Call ended cleanly, but its durable summary could not be created. A later completion signal may retry it.",
                 new Dictionary<string, string>
                 {
                     ["sessionId"] = session.Id.ToString("D"),
