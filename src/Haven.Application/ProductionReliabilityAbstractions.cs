@@ -34,6 +34,32 @@ public sealed record DatabaseBackupInfo(
     string Sha256,
     DateTimeOffset CreatedAt);
 
+public sealed record ManagedDatabaseBackup(
+    string FileName,
+    string DatabasePath,
+    string ManifestPath,
+    int FromVersion,
+    int ToVersion,
+    long SizeBytes,
+    string Sha256,
+    DateTimeOffset CreatedAt,
+    bool IsVerified,
+    string VerificationMessage);
+
+public sealed record PendingDatabaseRestore(
+    string BackupFileName,
+    string Sha256,
+    DateTimeOffset RequestedAt,
+    bool IsPending,
+    string Message);
+
+public sealed record DatabaseRestoreResult(
+    string BackupFileName,
+    string EmergencyBackupPath,
+    int RestoredSchemaVersion,
+    DateTimeOffset RestoredAt,
+    string Message);
+
 public sealed record StartupRecoveryState(
     bool IsSafeMode,
     int RecentUncleanStarts,
@@ -59,6 +85,15 @@ public interface IDatabaseMaintenance
 {
     Task<DatabaseBackupInfo?> PrepareForMigrationAsync(int targetVersion, CancellationToken cancellationToken);
     Task<DatabaseHealthReport> VerifyIntegrityAsync(CancellationToken cancellationToken);
+}
+
+public interface IDatabaseRestoreService
+{
+    Task<IReadOnlyList<ManagedDatabaseBackup>> GetBackupsAsync(CancellationToken cancellationToken);
+    Task<PendingDatabaseRestore?> GetPendingAsync(CancellationToken cancellationToken);
+    Task<PendingDatabaseRestore> RequestRestoreAsync(string backupFileName, CancellationToken cancellationToken);
+    Task CancelPendingAsync(CancellationToken cancellationToken);
+    Task<DatabaseRestoreResult?> ApplyPendingRestoreAsync(CancellationToken cancellationToken);
 }
 
 public interface IStartupRecoveryCoordinator
