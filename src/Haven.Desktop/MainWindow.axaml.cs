@@ -26,12 +26,22 @@ public sealed partial class MainWindow : Window
         InstallGenerativeUiHeaderSlot();
         InstallExperienceShell();
         DataContextChanged += (_, _) => AttachViewModel(DataContext as MainWindowViewModel);
-        Opened += (_, _) => RefineExperienceRail();
+        Opened += OnWindowOpened;
         Closed += (_, _) =>
         {
             AttachViewModel(null);
+            if (_studioExperienceButton is not null)
+                _studioExperienceButton.Click -= OnStudioExperienceClicked;
+            _studioExperienceButton = null;
             _experienceShell?.Dispose();
         };
+    }
+
+    private async void OnWindowOpened(object? sender, EventArgs e)
+    {
+        RefineExperienceRail();
+        await Task.Delay(1200);
+        if (IsVisible) RefineExperienceRail();
     }
 
     private void InstallGenerativeUiHeaderSlot()
@@ -78,9 +88,15 @@ public sealed partial class MainWindow : Window
     private void RefineExperienceRail()
     {
         if (_experienceShell is null) return;
-        _studioExperienceButton ??= _experienceShell.GetVisualDescendants()
+        var currentStudioButton = _experienceShell.GetVisualDescendants()
             .OfType<Button>()
             .FirstOrDefault(button => button.Name == "ExperienceStudioButton");
+        if (!ReferenceEquals(_studioExperienceButton, currentStudioButton))
+        {
+            if (_studioExperienceButton is not null)
+                _studioExperienceButton.Click -= OnStudioExperienceClicked;
+            _studioExperienceButton = currentStudioButton;
+        }
         if (_studioExperienceButton is not null && _studioExperienceButton.Flyout is not null)
         {
             _studioExperienceButton.Flyout = null;
@@ -119,7 +135,7 @@ public sealed partial class MainWindow : Window
         if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
             or nameof(MainWindowViewModel.CurrentChat)
             or nameof(MainWindowViewModel.ProductName))
-            Dispatcher.UIThread.Post(UpdateExperienceFamilyState);
+            Dispatcher.UIThread.Post(RefineExperienceRail);
     }
 
     private void UpdateExperienceFamilyState()
