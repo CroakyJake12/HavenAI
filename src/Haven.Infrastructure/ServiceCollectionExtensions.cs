@@ -8,6 +8,13 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHavenInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<ProductionDiagnostics>();
+        services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
+        services.AddSingleton<DatabaseMaintenanceService>();
+        services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
+        services.AddSingleton<StartupRecoveryCoordinator>();
+        services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<StartupRecoveryCoordinator>());
+        services.AddSingleton<IDiagnosticsBundleService, DiagnosticsBundleService>();
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
