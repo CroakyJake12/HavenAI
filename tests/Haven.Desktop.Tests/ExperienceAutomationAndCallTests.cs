@@ -87,6 +87,18 @@ public sealed class ExperienceAutomationAndCallTests
     }
 
     [Fact]
+    public void ConditionParserAcceptsStructuredEvidenceAndFailsClosedOnFreeText()
+    {
+        var met = AutomationConditionParser.Parse("{\"conditionMet\":true,\"report\":\"The release is available.\"}");
+        var malformed = AutomationConditionParser.Parse("It probably happened, but I am not sure.");
+
+        Assert.True(met.ConditionMet);
+        Assert.Contains("release", met.Report, StringComparison.OrdinalIgnoreCase);
+        Assert.False(malformed.ConditionMet);
+        Assert.Contains("treated as not met", malformed.Report, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void CallTranscriptExportMarksInterruptedAndPartialTurns()
     {
         var user = new CallTranscriptItemViewModel(
