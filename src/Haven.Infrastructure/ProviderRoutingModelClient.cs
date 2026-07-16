@@ -10,7 +10,7 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class ProviderRoutingModelClient(
     IOllamaClient localOllama,
-    IModelProviderRegistry providers) : IOllamaClient
+    IModelProviderRegistry providers) : IProviderModelClient
 {
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
