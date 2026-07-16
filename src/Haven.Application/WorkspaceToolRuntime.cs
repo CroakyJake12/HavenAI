@@ -11,6 +11,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
 {
     private const int MaxFileCharacters = 1_000_000;
     private const int MaxToolOutputCharacters = 120_000;
+    private readonly WorkspaceChangeSetService _changeSets = new(tools);
     private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".svn", ".hg", ".vs", ".idea", "node_modules", "bin", "obj", "dist", "build", "target", ".venv", "venv"
@@ -28,6 +29,10 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
             new() { ["path"] = StringProperty("Workspace-relative file path."), ["content"] = StringProperty("Complete new file contents.") }, "path", "content"),
         Definition("replace_in_file", "Replace exact text in a workspace file. Prefer this for focused edits.",
             new() { ["path"] = StringProperty("Workspace-relative file path."), ["old_text"] = StringProperty("Exact text to replace."), ["new_text"] = StringProperty("Replacement text."), ["replace_all"] = BooleanProperty("Replace every match when true.") }, "path", "old_text", "new_text"),
+        Definition("preview_change_set", "Preflight a transactional multi-file change set without writing files. Returns hashes and line impact for review.",
+            new() { ["changes_json"] = StringProperty("JSON array of objects with path, content, and optional expectedSha256.") }, "changes_json"),
+        Definition("apply_change_set", "Apply a preflightable multi-file change set transactionally. If any write fails, earlier writes are rolled back.",
+            new() { ["changes_json"] = StringProperty("JSON array of objects with path, content, and optional expectedSha256.") }, "changes_json"),
         Definition("run_command", "Run a PowerShell command in the selected workspace and return its exit code, output, and errors.",
             new() { ["command"] = StringProperty("PowerShell command."), ["timeout_seconds"] = IntegerProperty("Timeout from 1 to 900 seconds.") }, "command"),
         Definition("run_tests", "Detect and run this workspace's tests, or run a supplied test command.",
@@ -39,40 +44,55 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         var started = Stopwatch.GetTimestamp();
         try
         {
-            WorkspaceMutation? mutation = null;
+            IReadOnlyList<WorkspaceMutation> mutations = [];
             string output;
-            if (call.Name == "write_file")
+            switch (call.Name)
             {
-                mutation = await WriteFileAsync(workspaceRoot, RequiredText(call, "path"), Text(call, "content"), cancellationToken);
-                output = mutation.Output;
+                case "write_file":
+                    mutations = [await WriteFileAsync(workspaceRoot, RequiredText(call, "path"), Text(call, "content"), cancellationToken).ConfigureAwait(false)];
+                    output = mutations[0].Output;
+                    break;
+                case "replace_in_file":
+                    mutations = [await ReplaceInFileAsync(workspaceRoot, RequiredText(call, "path"), RequiredText(call, "old_text"), Text(call, "new_text"), Boolean(call, "replace_all"), cancellationToken).ConfigureAwait(false)];
+                    output = mutations[0].Output;
+                    break;
+                case "preview_change_set":
+                    output = await PreviewChangeSetAsync(workspaceRoot, RequiredText(call, "changes_json"), cancellationToken).ConfigureAwait(false);
+                    break;
+                case "apply_change_set":
+                    var applied = await _changeSets.ApplyAsync(workspaceRoot, RequiredText(call, "changes_json"), cancellationToken).ConfigureAwait(false);
+                    mutations = applied.Changes.Select(change => new WorkspaceMutation(change.Path, change.Before, change.After,
+                        $"Applied change-set entry {change.Path} (+{change.LinesAdded}/-{change.LinesRemoved} lines).", change.LinesAdded, change.LinesRemoved)).ToArray();
+                    output = applied.Summary;
+                    break;
+                default:
+                    output = call.Name switch
+                    {
+                        "list_files" => await ListFilesAsync(workspaceRoot, Text(call, "path", "."), Integer(call, "max_depth", 5), cancellationToken).ConfigureAwait(false),
+                        "read_file" => await ReadFileAsync(workspaceRoot, RequiredText(call, "path"), cancellationToken).ConfigureAwait(false),
+                        "search_files" => await SearchFilesAsync(workspaceRoot, Text(call, "path", "."), RequiredText(call, "query"), Integer(call, "max_results", 100), cancellationToken).ConfigureAwait(false),
+                        "run_command" => await RunCommandAsync(workspaceRoot, RequiredText(call, "command"), Integer(call, "timeout_seconds", 120), cancellationToken).ConfigureAwait(false),
+                        "run_tests" => await RunTestsAsync(workspaceRoot, Text(call, "command"), Integer(call, "timeout_seconds", 600), cancellationToken).ConfigureAwait(false),
+                        _ => throw new InvalidOperationException($"Unknown workspace tool '{call.Name}'.")
+                    };
+                    break;
             }
-            else if (call.Name == "replace_in_file")
+
+            if (history is not null)
             {
-                mutation = await ReplaceInFileAsync(workspaceRoot, RequiredText(call, "path"), RequiredText(call, "old_text"), Text(call, "new_text"), Boolean(call, "replace_all"), cancellationToken);
-                output = mutation.Output;
-            }
-            else
-            {
-                output = call.Name switch
+                foreach (var mutation in mutations)
                 {
-                    "list_files" => await ListFilesAsync(workspaceRoot, Text(call, "path", "."), Integer(call, "max_depth", 5), cancellationToken),
-                    "read_file" => await ReadFileAsync(workspaceRoot, RequiredText(call, "path"), cancellationToken),
-                    "search_files" => await SearchFilesAsync(workspaceRoot, Text(call, "path", "."), RequiredText(call, "query"), Integer(call, "max_results", 100), cancellationToken),
-                    "run_command" => await RunCommandAsync(workspaceRoot, RequiredText(call, "command"), Integer(call, "timeout_seconds", 120), cancellationToken),
-                    "run_tests" => await RunTestsAsync(workspaceRoot, Text(call, "command"), Integer(call, "timeout_seconds", 600), cancellationToken),
-                    _ => throw new InvalidOperationException($"Unknown workspace tool '{call.Name}'.")
-                };
+                    await history.AddVersionAsync(new WorkspaceVersion(Guid.NewGuid(), conversationId, containerId, Path.GetFullPath(workspaceRoot),
+                        mutation.Path, WorkspaceVersionKind.Edit, mutation.Before, mutation.After, mutation.Output,
+                        mutation.LinesAdded, mutation.LinesRemoved, DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
+                }
             }
-            if (mutation is not null && history is not null)
-            {
-                await history.AddVersionAsync(new WorkspaceVersion(Guid.NewGuid(), conversationId, containerId, Path.GetFullPath(workspaceRoot),
-                    mutation.Path, WorkspaceVersionKind.Edit, mutation.Before, mutation.After, mutation.Output,
-                    mutation.LinesAdded, mutation.LinesRemoved, DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
-            }
+
             output = Truncate(output, MaxToolOutputCharacters);
+            var added = mutations.Sum(item => item.LinesAdded);
+            var removed = mutations.Sum(item => item.LinesRemoved);
             return new WorkspaceToolResult(
-                new ToolActivity(Guid.NewGuid(), HumanLabel(call.Name), FirstLine(output), true, Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow,
-                    mutation?.LinesAdded ?? 0, mutation?.LinesRemoved ?? 0),
+                new ToolActivity(Guid.NewGuid(), HumanLabel(call.Name), FirstLine(output), true, Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow, added, removed),
                 output);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -82,6 +102,22 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
                 new ToolActivity(Guid.NewGuid(), HumanLabel(call.Name), ex.Message, false, Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow),
                 output);
         }
+    }
+
+    private async Task<string> PreviewChangeSetAsync(string root, string json, CancellationToken cancellationToken)
+    {
+        var preview = await _changeSets.PreviewAsync(root, json, cancellationToken).ConfigureAwait(false);
+        var builder = new StringBuilder();
+        builder.Append("Change set preview: ").Append(preview.Count).AppendLine(preview.Count == 1 ? " file" : " files");
+        foreach (var item in preview)
+        {
+            builder.Append("- ").Append(item.Path)
+                .Append(item.Existed ? " [modify]" : " [create]")
+                .Append(" +").Append(item.LinesAdded).Append("/-").Append(item.LinesRemoved)
+                .Append(" before=").Append(item.BeforeSha256)
+                .Append(" after=").Append(item.AfterSha256).AppendLine();
+        }
+        return builder.ToString().TrimEnd();
     }
 
     private async Task<string> ListFilesAsync(string root, string relativePath, int maxDepth, CancellationToken cancellationToken)
@@ -109,10 +145,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
                     results.Add(relative + "/");
                     if (depth + 1 < maxDepth) pending.Push(entry);
                 }
-                else
-                {
-                    results.Add($"{relative} ({new FileInfo(entry).Length} bytes)");
-                }
+                else results.Add($"{relative} ({new FileInfo(entry).Length} bytes)");
                 if (results.Count >= 2000) break;
             }
         }
@@ -126,7 +159,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         var info = new FileInfo(resolved);
         if (!info.Exists) throw new FileNotFoundException("Workspace file was not found.", path);
         if (info.Length > 4 * 1024 * 1024) throw new InvalidOperationException("File is larger than Haven's 4 MB text-read limit.");
-        var content = await tools.ReadTextAsync(root, path, cancellationToken);
+        var content = await tools.ReadTextAsync(root, path, cancellationToken).ConfigureAwait(false);
         if (content.IndexOf('\0') >= 0) throw new InvalidOperationException("File appears to be binary.");
         return Truncate(content, MaxFileCharacters);
     }
@@ -145,7 +178,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
             var info = new FileInfo(path);
             if (info.Length > 2 * 1024 * 1024) continue;
             string[] lines;
-            try { lines = await File.ReadAllLinesAsync(path, cancellationToken); }
+            try { lines = await File.ReadAllLinesAsync(path, cancellationToken).ConfigureAwait(false); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException) { continue; }
             for (var index = 0; index < lines.Length; index++)
             {
@@ -160,9 +193,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     private async Task<WorkspaceMutation> WriteFileAsync(string root, string path, string content, CancellationToken cancellationToken)
     {
         string before;
-        try { before = await tools.ReadTextAsync(root, path, cancellationToken); }
+        try { before = await tools.ReadTextAsync(root, path, cancellationToken).ConfigureAwait(false); }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { before = string.Empty; }
-        await tools.WriteTextAtomicAsync(root, path, content, cancellationToken);
+        await tools.WriteTextAtomicAsync(root, path, content, cancellationToken).ConfigureAwait(false);
         var (added, removed) = CountLineChanges(before, content);
         return new WorkspaceMutation(path, before, content, $"Wrote {path} ({content.Length} characters, +{added}/-{removed} lines).", added, removed);
     }
@@ -170,11 +203,11 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     private async Task<WorkspaceMutation> ReplaceInFileAsync(string root, string path, string oldText, string newText, bool replaceAll, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(oldText)) throw new ArgumentException("old_text is required.");
-        var content = await tools.ReadTextAsync(root, path, cancellationToken);
+        var content = await tools.ReadTextAsync(root, path, cancellationToken).ConfigureAwait(false);
         var first = content.IndexOf(oldText, StringComparison.Ordinal);
         if (first < 0) throw new InvalidOperationException("Exact old_text was not found in the file.");
-        string updated;
         int replacements;
+        string updated;
         if (replaceAll)
         {
             replacements = CountOccurrences(content, oldText);
@@ -185,10 +218,10 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
             replacements = 1;
             updated = string.Concat(content.AsSpan(0, first), newText, content.AsSpan(first + oldText.Length));
         }
-        await tools.WriteTextAtomicAsync(root, path, updated, cancellationToken);
+        await tools.WriteTextAtomicAsync(root, path, updated, cancellationToken).ConfigureAwait(false);
         var (added, removed) = CountLineChanges(content, updated);
         return new WorkspaceMutation(path, content, updated,
-            $"Updated {path} ({replacements} replacement{(replacements == 1 ? "" : "s")}, +{added}/-{removed} lines).", added, removed);
+            $"Updated {path} ({replacements} replacement{(replacements == 1 ? string.Empty : "s")}, +{added}/-{removed} lines).", added, removed);
     }
 
     private async Task<string> RunCommandAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
@@ -196,7 +229,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         timeoutSeconds = Math.Clamp(timeoutSeconds, 1, 900);
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
         var result = await tools.RunProcessAsync(new ProcessRequest(
-            "powershell.exe", $"-NoProfile -NonInteractive -EncodedCommand {encoded}", root, TimeSpan.FromSeconds(timeoutSeconds)), cancellationToken);
+            "powershell.exe", $"-NoProfile -NonInteractive -EncodedCommand {encoded}", root, TimeSpan.FromSeconds(timeoutSeconds)), cancellationToken).ConfigureAwait(false);
         return FormatProcess(result);
     }
 
@@ -209,7 +242,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
                 : File.Exists(Path.Combine(root, "go.mod")) ? "go test ./..."
                 : throw new InvalidOperationException("No supported test project was detected. Supply a test command.");
         }
-        return await RunCommandAsync(root, command, Math.Clamp(timeoutSeconds, 1, 1800), cancellationToken);
+        return await RunCommandAsync(root, command, Math.Clamp(timeoutSeconds, 1, 1800), cancellationToken).ConfigureAwait(false);
     }
 
     private static string FormatProcess(ProcessResult result)
@@ -222,9 +255,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return builder.ToString().TrimEnd();
     }
 
-    private static OllamaToolDefinition Definition(string name, string description, Dictionary<string, object> properties, params string[] required) =>
-        new(name, description, properties, required);
-
+    private static OllamaToolDefinition Definition(string name, string description, Dictionary<string, object> properties, params string[] required) => new(name, description, properties, required);
     private static Dictionary<string, object> StringProperty(string description) => new() { ["type"] = "string", ["description"] = description };
     private static Dictionary<string, object> IntegerProperty(string description) => new() { ["type"] = "integer", ["description"] = description };
     private static Dictionary<string, object> BooleanProperty(string description) => new() { ["type"] = "boolean", ["description"] = description };
@@ -236,13 +267,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     private static string Text(OllamaToolCall call, string key, string fallback = "") =>
-        call.Arguments.TryGetValue(key, out var value)
-            ? value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : value.ToString()
-            : fallback;
-
+        call.Arguments.TryGetValue(key, out var value) ? value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : value.ToString() : fallback;
     private static int Integer(OllamaToolCall call, string key, int fallback) =>
         call.Arguments.TryGetValue(key, out var value) && value.TryGetInt32(out var result) ? result : fallback;
-
     private static bool Boolean(OllamaToolCall call, string key) =>
         call.Arguments.TryGetValue(key, out var value) && (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var result) && result);
 
@@ -256,11 +283,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     {
         var count = 0;
         var offset = 0;
-        while ((offset = content.IndexOf(value, offset, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            offset += value.Length;
-        }
+        while ((offset = content.IndexOf(value, offset, StringComparison.Ordinal)) >= 0) { count++; offset += value.Length; }
         return count;
     }
 
@@ -271,8 +294,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         var prefix = 0;
         while (prefix < oldLines.Length && prefix < newLines.Length && oldLines[prefix] == newLines[prefix]) prefix++;
         var suffix = 0;
-        while (suffix < oldLines.Length - prefix && suffix < newLines.Length - prefix &&
-               oldLines[oldLines.Length - 1 - suffix] == newLines[newLines.Length - 1 - suffix]) suffix++;
+        while (suffix < oldLines.Length - prefix && suffix < newLines.Length - prefix && oldLines[oldLines.Length - 1 - suffix] == newLines[newLines.Length - 1 - suffix]) suffix++;
         return (Math.Max(0, newLines.Length - prefix - suffix), Math.Max(0, oldLines.Length - prefix - suffix));
     }
 
@@ -283,6 +305,8 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         "search_files" => "Searched project files",
         "write_file" => "Wrote a file",
         "replace_in_file" => "Edited a file",
+        "preview_change_set" => "Previewed a change set",
+        "apply_change_set" => "Applied a change set",
         "run_command" => "Ran a command",
         "run_tests" => "Ran tests",
         _ => name.Replace('_', ' ')
@@ -290,6 +314,5 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
 
     private static string FirstLine(string value) => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Completed";
     private static string Truncate(string value, int limit) => value.Length <= limit ? value : value[..limit] + "\n[truncated]";
-
     private sealed record WorkspaceMutation(string Path, string Before, string After, string Output, int LinesAdded, int LinesRemoved);
 }
