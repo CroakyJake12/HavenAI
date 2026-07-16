@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Haven.Application;
 using Haven.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,7 +15,12 @@ public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDispos
     {
         InitializeComponent();
         if (App.Services is null) return;
-        _viewModel = ActivatorUtilities.CreateInstance<GenerativeUiThemeStudioViewModel>(App.Services);
+        _viewModel = new GenerativeUiThemeStudioViewModel(
+            App.Services.GetRequiredService<IGenerativeThemeStore>(),
+            App.Services.GetRequiredService<IGenerativeUiRuntime>(),
+            App.Services.GetRequiredService<IGenerativeThemeAiService>(),
+            App.Services.GetRequiredService<IGenerativeThemeValidator>(),
+            App.Services.GetRequiredService<IProviderModelClient>());
         DataContext = _viewModel;
         _viewModel.ExportRequested += OnExportRequested;
         _viewModel.ImportRequested += OnImportRequested;
