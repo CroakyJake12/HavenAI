@@ -37,8 +37,11 @@ public sealed class CallCompletionController : IAsyncDisposable
     {
         var session = _coordinator.CurrentSession;
         if (_disposed || session is null || session.Status != CallSessionStatus.Completed || session.EndedAt is null) return;
-        _ = PersistSummarySafelyAsync(session, _coordinator.CurrentConversation);
+        _ = PersistCompletedSessionAsync(session, _coordinator.CurrentConversation);
     }
+
+    internal Task PersistCompletedSessionAsync(CallSession session, Conversation? conversation) =>
+        PersistSummarySafelyAsync(session, conversation);
 
     private async Task PersistSummarySafelyAsync(CallSession session, Conversation? conversation)
     {
