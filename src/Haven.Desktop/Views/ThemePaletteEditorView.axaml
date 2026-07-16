@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ThemePaletteEditorView">
+  <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+    <WrapPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Background" Classes="muted" /><TextBox Text="{Binding Background}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Elevated" Classes="muted" /><TextBox Text="{Binding Elevated}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel" Classes="muted" /><TextBox Text="{Binding Panel}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 2" Classes="muted" /><TextBox Text="{Binding Panel2}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 3" Classes="muted" /><TextBox Text="{Binding Panel3}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel hover" Classes="muted" /><TextBox Text="{Binding PanelHover}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Text" Classes="muted" /><TextBox Text="{Binding Text}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Soft text" Classes="muted" /><TextBox Text="{Binding TextSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted" Classes="muted" /><TextBox Text="{Binding Muted}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted 2" Classes="muted" /><TextBox Text="{Binding Muted2}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent" Classes="muted" /><TextBox Text="{Binding Accent}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent ink" Classes="muted" /><TextBox Text="{Binding AccentInk}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent soft" Classes="muted" /><TextBox Text="{Binding AccentSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue" Classes="muted" /><TextBox Text="{Binding Blue}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue soft" Classes="muted" /><TextBox Text="{Binding BlueSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Danger" Classes="muted" /><TextBox Text="{Binding Danger}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Warning" Classes="muted" /><TextBox Text="{Binding Warning}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Line" Classes="muted" /><TextBox Text="{Binding Line}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Strong line" Classes="muted" /><TextBox Text="{Binding LineStrong}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Active nub" Classes="muted" /><TextBox Text="{Binding Nub}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic tint" Classes="muted" /><TextBox Text="{Binding AcrylicTint}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic fallback" Classes="muted" /><TextBox Text="{Binding AcrylicFallback}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button" Classes="muted" /><TextBox Text="{Binding Button}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button hover" Classes="muted" /><TextBox Text="{Binding ButtonHover}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button pressed" Classes="muted" /><TextBox Text="{Binding ButtonPressed}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Focus" Classes="muted" /><TextBox Text="{Binding Focus}" /></StackPanel>
+    </WrapPanel>
+  </ScrollViewer>
+</UserControl>
