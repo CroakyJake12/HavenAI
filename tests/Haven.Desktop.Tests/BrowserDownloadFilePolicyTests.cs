@@ -12,6 +12,7 @@ public sealed class BrowserDownloadFilePolicyTests : IDisposable
     [InlineData("../../outside.exe", "outside.exe")]
     [InlineData("..\\..\\outside.exe", "outside.exe")]
     [InlineData("CON.txt", "_CON.txt")]
+    [InlineData("CON.data.json", "_CON.data.json")]
     [InlineData("nul", "_nul")]
     [InlineData("report\u202Ecod.exe.txt", "reportcod.exe.txt")]
     [InlineData("trailing. ", "trailing")]
@@ -21,15 +22,17 @@ public sealed class BrowserDownloadFilePolicyTests : IDisposable
     }
 
     [Fact]
-    public void SanitizeFileNamePreservesExtensionWhenTruncating()
+    public void SanitizeFileNamePreservesExtensionAndRuneBoundariesWhenTruncating()
     {
-        var input = new string('a', 240) + ".archive.json";
+        var input = string.Concat(Enumerable.Repeat("😀", 120)) + ".archive.json";
 
         var result = BrowserDownloadFilePolicy.SanitizeFileName(input);
 
         Assert.NotNull(result);
-        Assert.Equal(BrowserDownloadFilePolicy.MaximumFileNameLength, result.Length);
+        Assert.True(result.Length <= BrowserDownloadFilePolicy.MaximumFileNameLength);
         Assert.EndsWith(".json", result, StringComparison.Ordinal);
+        Assert.DoesNotContain('\uFFFD', result);
+        Assert.True(char.IsLowSurrogate(result[^6]) || !char.IsSurrogate(result[^6]));
     }
 
     [Fact]
@@ -42,6 +45,18 @@ public sealed class BrowserDownloadFilePolicyTests : IDisposable
 
         Assert.Equal(Path.Combine(_directory, "report (3).txt"), result);
         Assert.StartsWith(Path.GetFullPath(_directory) + Path.DirectorySeparatorChar, Path.GetFullPath(result), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AllocateUniquePathKeepsCollisionNameWithinPolicyLimit()
+    {
+        var original = BrowserDownloadFilePolicy.SanitizeFileName(new string('a', 300) + ".json")!;
+        File.WriteAllText(Path.Combine(_directory, original), "existing");
+
+        var result = BrowserDownloadFilePolicy.AllocateUniquePath(_directory, original);
+
+        Assert.True(Path.GetFileName(result).Length <= BrowserDownloadFilePolicy.MaximumFileNameLength);
+        Assert.EndsWith(" (2).json", result, StringComparison.Ordinal);
     }
 
     [Fact]
