@@ -57,12 +57,14 @@ public sealed class GenerativeUiSlot : StackPanel
         if (!_subscribed || _runtime is null) return;
         _runtime.ThemeChanged -= OnThemeChanged;
         _subscribed = false;
+        DisposeChildren();
     }
 
     private void OnThemeChanged(object? sender, EventArgs e) => Rebuild();
 
     private void Rebuild()
     {
+        DisposeChildren();
         Children.Clear();
         if (_runtime is null || string.IsNullOrWhiteSpace(Region)) return;
         Spacing = 6 * _runtime.ActiveTheme.Shape.SpacingScale;
@@ -76,11 +78,18 @@ public sealed class GenerativeUiSlot : StackPanel
             Children.Add(CreateGeneratedPagesLauncher());
     }
 
+    private void DisposeChildren()
+    {
+        foreach (var disposable in Children.OfType<IDisposable>().ToArray()) disposable.Dispose();
+    }
+
     private Control? CreateItem(string itemId, string presentation) => itemId switch
     {
         "chat.temporary" => CreateTemporary(presentation),
-        "chat.model" => CreateModel(presentation),
-        "chat.effort" => CreateEffort(presentation),
+        "chat.model" => new ModelConfigurationControl(presentation),
+        // Effort is intentionally rendered inside the unified model control. Existing
+        // theme manifests may retain this legacy placement without creating a duplicate.
+        "chat.effort" => null,
         "chat.context" => CreateContext(presentation),
         _ => null
     };
@@ -96,45 +105,6 @@ public sealed class GenerativeUiSlot : StackPanel
         button.Bind(Button.CommandProperty, BindingFor("ToggleTemporaryCommand"));
         ToolTip.SetTip(button, "Toggle temporary chat");
         return button;
-    }
-
-    private Button CreateModel(string presentation)
-    {
-        var text = new TextBlock
-        {
-            MaxWidth = presentation == "compact" ? 110 : 180,
-            TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        text.Bind(TextBlock.TextProperty, BindingFor("SelectedModel.Name"));
-        var panel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            Children = { text, new TextBlock { Text = "⌄", VerticalAlignment = VerticalAlignment.Center } }
-        };
-        var button = new Button
-        {
-            Content = panel,
-            Classes = { presentation == "compact" ? "chip" : "ghost" },
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        button.Bind(Button.CommandProperty, BindingFor("OpenModelPickerCommand"));
-        ToolTip.SetTip(button, "Choose model");
-        return button;
-    }
-
-    private ComboBox CreateEffort(string presentation)
-    {
-        var combo = new ComboBox
-        {
-            MinWidth = presentation == "compact" ? 74 : 88,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        combo.Bind(ItemsControl.ItemsSourceProperty, BindingFor("EffortLevels"));
-        combo.Bind(SelectingItemsControl.SelectedItemProperty, BindingFor("SelectedEffort", BindingMode.TwoWay));
-        ToolTip.SetTip(combo, "Reasoning effort");
-        return combo;
     }
 
     private Button CreateContext(string presentation)
