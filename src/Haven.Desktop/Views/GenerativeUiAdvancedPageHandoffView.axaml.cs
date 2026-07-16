@@ -5,15 +5,21 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
 
-public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl
+public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl, IDisposable
 {
+    private readonly CancellationTokenSource _lifetime = new();
     private bool _isOpening;
+    private bool _disposed;
 
-    public GenerativeUiAdvancedPageHandoffView() => InitializeComponent();
+    public GenerativeUiAdvancedPageHandoffView()
+    {
+        InitializeComponent();
+        DetachedFromVisualTree += (_, _) => CancelLifetime();
+    }
 
     private async void OnOpenStudioClicked(object? sender, RoutedEventArgs e)
     {
-        if (_isOpening) return;
+        if (_isOpening || _disposed) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainWindowViewModel shell)
         {
             StatusText.Text = "The Haven shell is not available, so the Studio handoff could not be opened.";
@@ -28,17 +34,36 @@ public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl
             await GenerativeModeStudioHandoff.OpenAsync(
                 shell,
                 RequestBox.Text ?? string.Empty,
-                CancellationToken.None);
-            StatusText.Text = "The specification is ready in Haven Studio. Review or edit it, then send it when you are satisfied.";
+                _lifetime.Token);
+            if (!_disposed)
+                StatusText.Text = "The specification is ready in Haven Studio. Review or edit it, then send it when you are satisfied.";
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The Settings view closed or navigated away. Avoid stale UI updates.
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Studio handoff failed: " + ex.Message;
+            if (!_disposed) StatusText.Text = "Studio handoff failed: " + ex.Message;
         }
         finally
         {
             _isOpening = false;
-            if (sender is Button button) button.IsEnabled = true;
+            if (!_disposed && sender is Button button) button.IsEnabled = true;
         }
+    }
+
+    private void CancelLifetime()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _lifetime.Cancel();
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed) CancelLifetime();
+        _lifetime.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
