@@ -7,14 +7,14 @@ namespace Haven.Desktop.Views;
 
 public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl, IDisposable
 {
-    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _operation;
     private bool _isOpening;
     private bool _disposed;
 
     public GenerativeUiAdvancedPageHandoffView()
     {
         InitializeComponent();
-        DetachedFromVisualTree += (_, _) => CancelLifetime();
+        DetachedFromVisualTree += (_, _) => CancelOperation();
     }
 
     private async void OnOpenStudioClicked(object? sender, RoutedEventArgs e)
@@ -26,19 +26,22 @@ public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl, I
             return;
         }
 
+        CancellationTokenSource? operation = null;
         try
         {
             _isOpening = true;
+            operation = new CancellationTokenSource();
+            _operation = operation;
             if (sender is Button button) button.IsEnabled = false;
             StatusText.Text = "Opening a fresh Haven Studio chat and preparing the reviewed specification…";
             await GenerativeModeStudioHandoff.OpenAsync(
                 shell,
                 RequestBox.Text ?? string.Empty,
-                _lifetime.Token);
-            if (!_disposed)
+                operation.Token);
+            if (!_disposed && !operation.IsCancellationRequested)
                 StatusText.Text = "The specification is ready in Haven Studio. Review or edit it, then send it when you are satisfied.";
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (operation?.IsCancellationRequested == true)
         {
             // The Settings view closed or navigated away. Avoid stale UI updates.
         }
@@ -48,22 +51,32 @@ public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl, I
         }
         finally
         {
+            if (ReferenceEquals(_operation, operation)) _operation = null;
+            operation?.Dispose();
             _isOpening = false;
             if (!_disposed && sender is Button button) button.IsEnabled = true;
         }
     }
 
-    private void CancelLifetime()
+    private void CancelOperation()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _lifetime.Cancel();
+        try
+        {
+            _operation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Completion won the race with view detachment.
+        }
     }
 
     public void Dispose()
     {
-        if (!_disposed) CancelLifetime();
-        _lifetime.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        CancelOperation();
+        _operation?.Dispose();
+        _operation = null;
         GC.SuppressFinalize(this);
     }
 }
