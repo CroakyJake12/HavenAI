@@ -6,7 +6,7 @@ using Haven.Core;
 namespace Haven.Infrastructure;
 
 public sealed class GenerativeThemeAiService(
-    IProviderModelClient models,
+    IOllamaClient models,
     IGenerativeThemeValidator validator,
     IProductionDiagnostics diagnostics) : IGenerativeThemeAiService
 {
