@@ -97,6 +97,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
         services.AddSingleton<IModelRouter, ModelRouter>();
         services.AddSingleton<ProviderRoutingModelClient>();
+        services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ProviderRoutingModelClient>());
 
         services.AddSingleton<IModeRegistry, ModeRegistry>();
         services.AddSingleton<IModeUsageRepository, ModeUsageRepository>();
