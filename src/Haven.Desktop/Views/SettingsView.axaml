@@ -8,8 +8,9 @@
       <TextBlock Text="Settings" Classes="heading" />
       <TextBlock Text="Generative UI, model management, context limits, permissions and production recovery." Classes="muted" />
 
-      <!-- The theme library and Studio are first-class editable AXAML content. -->
+      <!-- Safe utility pages stay declarative; richer pages enter Studio through a reviewed handoff. -->
       <views:GenerativeUiThemeSelectorView x:Name="GenerativeUiSelector" />
+      <views:GenerativeUiAdvancedPageHandoffView />
 
       <Border Classes="card">
         <StackPanel Spacing="11">
