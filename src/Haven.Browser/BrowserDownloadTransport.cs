@@ -14,6 +14,10 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
     {
         ArgumentNullException.ThrowIfNull(action);
         if (action.Kind != BrowserActionKind.Download) throw new ArgumentException("The action is not a download.", nameof(action));
+
+        Directory.CreateDirectory(_downloadDirectory);
+        BrowserDownloadFilePolicy.CleanupStalePartialFiles(_downloadDirectory, DateTimeOffset.UtcNow);
+
         await using var lease = await BrowserPinnedHttpTransport.SendAsync(
             policy,
             new Uri(action.Target, UriKind.Absolute),
@@ -33,13 +37,12 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_downloadDirectory);
-        var fileName = SafeFileName(action.SuggestedFileName)
-                       ?? SafeFileName(FileNameFromHeaders(response.Content.Headers.ContentDisposition))
-                       ?? SafeFileName(Path.GetFileName(finalAddress.LocalPath))
+        var fileName = BrowserDownloadFilePolicy.SanitizeFileName(action.SuggestedFileName)
+                       ?? BrowserDownloadFilePolicy.SanitizeFileName(FileNameFromHeaders(response.Content.Headers.ContentDisposition))
+                       ?? BrowserDownloadFilePolicy.SanitizeFileName(Path.GetFileName(finalAddress.LocalPath))
                        ?? "download.bin";
-        var destination = UniquePath(_downloadDirectory, fileName);
-        var temporary = destination + ".haven-download-" + Guid.NewGuid().ToString("N") + ".tmp";
+        var destination = BrowserDownloadFilePolicy.AllocateUniquePath(_downloadDirectory, fileName);
+        var temporary = BrowserDownloadFilePolicy.CreatePartialPath(destination);
         long size = 0;
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         try
@@ -91,29 +94,5 @@ public sealed class BrowserDownloadTransport(IBrowserNavigationPolicy policy, IA
     {
         var value = disposition?.FileNameStar ?? disposition?.FileName;
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('"');
-    }
-
-    private static string? SafeFileName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        var name = Path.GetFileName(value.Trim());
-        foreach (var invalid in Path.GetInvalidFileNameChars()) name = name.Replace(invalid, '_');
-        name = name.Trim().TrimEnd('.');
-        if (name is "" or "." or "..") return null;
-        return name.Length <= 180 ? name : name[..180];
-    }
-
-    private static string UniquePath(string directory, string fileName)
-    {
-        var path = Path.Combine(directory, fileName);
-        if (!File.Exists(path)) return path;
-        var stem = Path.GetFileNameWithoutExtension(fileName);
-        var extension = Path.GetExtension(fileName);
-        for (var index = 2; index < 10_000; index++)
-        {
-            path = Path.Combine(directory, $"{stem} ({index}){extension}");
-            if (!File.Exists(path)) return path;
-        }
-        throw new IOException("Could not allocate a unique download file name.");
     }
 }
