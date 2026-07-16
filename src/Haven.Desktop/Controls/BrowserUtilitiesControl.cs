@@ -12,10 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// Browser-native utility cluster backed by the mounted WebView session. It exposes
-/// cancellable find, bounded page zoom, visible connection/navigation policy, native
-/// print/developer tools, and the existing approval/audit surface without creating a
-/// second browser host.
+/// Utilities for the already-mounted browser session. No second WebView or competing
+/// navigation implementation is created here.
 /// </summary>
 public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
 {
@@ -28,7 +26,6 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     private BrowserPageViewModel? _viewModel;
     private INotifyPropertyChanged? _notifications;
     private CancellationTokenSource _lifetime = new();
-    private CancellationTokenSource? _operation;
     private int _policyVersion;
     private bool _disposed;
 
@@ -38,8 +35,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         Spacing = 4;
         VerticalAlignment = VerticalAlignment.Center;
 
-        var findButton = UtilityButton("⌕", "Find on page", BuildFindPanel());
-
+        var find = UtilityButton("⌕", "Find on page", BuildFindPanel());
         _zoomButton = UtilityButton("100%", "Page zoom", BuildZoomPanel());
         _zoomButton.MinWidth = 56;
         _zoomButton.Classes.Remove("icon");
@@ -51,14 +47,11 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _policyButton = UtilityButton("○", "Site security and automation policy", BuildPolicyPanel());
         _policyButton.Click += async (_, _) => await RefreshPolicyAsync();
 
-        var tools = UtilityButton("⋯", "Print and developer tools", BuildToolsPanel());
-        var safety = UtilityButton("⚑", "Browser approvals, downloads and audit", new BrowserSafetyView());
-
-        Children.Add(findButton);
+        Children.Add(find);
         Children.Add(_zoomButton);
         Children.Add(_policyButton);
-        Children.Add(tools);
-        Children.Add(safety);
+        Children.Add(UtilityButton("⋯", "Print and developer tools", BuildToolsPanel()));
+        Children.Add(UtilityButton("⚑", "Browser approvals, downloads and audit", new BrowserSafetyView()));
 
         DataContextChanged += OnDataContextChanged;
         AttachedToVisualTree += OnAttached;
@@ -73,7 +66,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         AttachedToVisualTree -= OnAttached;
         DetachedFromVisualTree -= OnDetached;
         DetachViewModel();
-        CancelOperations(recreateLifetime: false);
+        CancelLifetime(dispose: true);
         foreach (var button in Children.OfType<Button>()) button.Flyout?.Hide();
         GC.SuppressFinalize(this);
     }
@@ -105,7 +98,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
                 return;
             }
 
-            using var operation = BeginOperation();
+            using var operation = LinkedOperation();
             try
             {
                 var literal = JsonSerializer.Serialize(text);
@@ -126,13 +119,13 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             }
         }
 
-        previous.Click += async (_, _) => await FindAsync(backwards: true);
-        next.Click += async (_, _) => await FindAsync(backwards: false);
+        previous.Click += async (_, _) => await FindAsync(true);
+        next.Click += async (_, _) => await FindAsync(false);
         query.KeyDown += async (_, args) =>
         {
             if (args.Key != Avalonia.Input.Key.Enter) return;
             args.Handled = true;
-            await FindAsync(backwards: false);
+            await FindAsync(false);
         };
         clear.Click += async (_, _) =>
         {
@@ -143,8 +136,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
                 status.Text = "Find cleared.";
                 return;
             }
-
-            using var operation = BeginOperation();
+            using var operation = LinkedOperation();
             try
             {
                 await vm.Browser.ExecuteScriptAsync("window.getSelection()?.removeAllRanges()", operation.Token);
@@ -160,23 +152,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             }
         };
 
-        return new StackPanel
-        {
-            Width = 340,
-            Spacing = 8,
-            Children =
-            {
-                new TextBlock { Text = "FIND ON PAGE", FontWeight = FontWeight.SemiBold, FontSize = 11 },
-                query,
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 6,
-                    Children = { previous, next, clear }
-                },
-                status
-            }
-        };
+        return Panel("FIND ON PAGE", query,
+            new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { previous, next, clear } },
+            status, 340);
     }
 
     private Control BuildZoomPanel()
@@ -204,71 +182,41 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             _zoomSlider.Value = 100;
             await ApplyZoomAsync(100, status);
         };
-        return new StackPanel
+        var scale = new Grid
         {
-            Width = 310,
-            Spacing = 8,
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 8,
             Children =
             {
-                new TextBlock { Text = "PAGE ZOOM", FontWeight = FontWeight.SemiBold, FontSize = 11 },
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-                    ColumnSpacing = 8,
-                    Children =
-                    {
-                        new TextBlock { Text = "50%", VerticalAlignment = VerticalAlignment.Center, FontSize = 9 },
-                        WithColumn(_zoomSlider, 1),
-                        WithColumn(new TextBlock { Text = "200%", VerticalAlignment = VerticalAlignment.Center, FontSize = 9 }, 2)
-                    }
-                },
-                reset,
-                status
+                new TextBlock { Text = "50%", VerticalAlignment = VerticalAlignment.Center, FontSize = 9 },
+                WithColumn(_zoomSlider, 1),
+                WithColumn(new TextBlock { Text = "200%", VerticalAlignment = VerticalAlignment.Center, FontSize = 9 }, 2)
             }
         };
+        return Panel("PAGE ZOOM", scale, reset, status, 310);
     }
 
-    private Control BuildPolicyPanel() => new StackPanel
-    {
-        Width = 400,
-        Spacing = 7,
-        Children =
-        {
-            new TextBlock { Text = "SITE AND AUTOMATION POLICY", FontWeight = FontWeight.SemiBold, FontSize = 11 },
-            _policySummary,
-            _policyDetail,
-            new Separator(),
-            new TextBlock { Text = "LATEST BROWSER STATUS", FontWeight = FontWeight.SemiBold, FontSize = 10 },
-            _navigationStatus,
-            new Separator(),
-            Muted("User navigation and model-driven browsing are separate. Model navigation permits only HTTP/HTTPS public-network destinations, blocks embedded credentials and local/internal addresses, and rechecks DNS resolution before use.", 9, secondary: true)
-        }
-    };
+    private Control BuildPolicyPanel() => Panel("SITE AND AUTOMATION POLICY",
+        _policySummary,
+        _policyDetail,
+        new Separator(),
+        new TextBlock { Text = "LATEST BROWSER STATUS", FontWeight = FontWeight.SemiBold, FontSize = 10 },
+        _navigationStatus,
+        new Separator(),
+        Muted("User navigation and model-driven browsing are separate. Model navigation permits only HTTP/HTTPS public-network destinations, blocks embedded credentials and local/internal addresses, and rechecks DNS resolution before use.", 9, true),
+        400);
 
     private Control BuildToolsPanel()
     {
         var status = Muted("Actions apply to the mounted browser document.", 10);
         var print = new Button { Content = "Print current page" };
         var developerTools = new Button { Content = "Open developer tools" };
-
         print.Click += async (_, _) => await RunBrowserActionAsync(
             token => _viewModel!.Browser.PrintAsync(token), "Print dialog opened.", "Print", status);
         developerTools.Click += async (_, _) => await RunBrowserActionAsync(
             token => _viewModel!.Browser.OpenDeveloperToolsAsync(token), "Developer tools opened.", "Developer tools", status);
-
-        return new StackPanel
-        {
-            Width = 300,
-            Spacing = 8,
-            Children =
-            {
-                new TextBlock { Text = "PAGE TOOLS", FontWeight = FontWeight.SemiBold, FontSize = 11 },
-                print,
-                developerTools,
-                status,
-                Muted("Developer tools can inspect page content and storage. Use them only for sites you trust.", 9, secondary: true)
-            }
-        };
+        return Panel("PAGE TOOLS", print, developerTools, status,
+            Muted("Developer tools can inspect page content and storage. Use them only for sites you trust.", 9, true), 300);
     }
 
     private async Task RunBrowserActionAsync(Func<CancellationToken, Task> action, string success, string name, TextBlock status)
@@ -278,8 +226,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             status.Text = "No active browser document.";
             return;
         }
-
-        using var operation = BeginOperation();
+        using var operation = LinkedOperation();
         try
         {
             await action(operation.Token);
@@ -300,8 +247,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _zoomButton.Content = value + "%";
         var vm = _viewModel;
         if (vm is null) return;
-
-        using var operation = BeginOperation();
+        using var operation = LinkedOperation();
         try
         {
             await vm.Browser.ExecuteScriptAsync(
@@ -323,10 +269,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     {
         var version = Interlocked.Increment(ref _policyVersion);
         var vm = _viewModel;
-        _navigationStatus.Text = string.IsNullOrWhiteSpace(vm?.Status)
-            ? "No navigation status is available."
-            : vm.Status;
-
+        _navigationStatus.Text = string.IsNullOrWhiteSpace(vm?.Status) ? "No navigation status is available." : vm.Status;
         var raw = vm?.Browser.State.Address?.AbsoluteUri ?? vm?.Address;
         if (!Uri.TryCreate(raw, UriKind.Absolute, out var address))
         {
@@ -345,7 +288,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             return;
         }
 
-        using var operation = BeginOperation(cancelPrevious: false);
+        using var operation = LinkedOperation();
         try
         {
             var assessment = await policy.AssessAsync(address, operation.Token);
@@ -353,10 +296,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
                 ? "Model-driven navigation allowed after public-network DNS validation. " + assessment.Reason
                 : "Model-driven navigation blocked. " + assessment.Reason);
         }
-        catch (OperationCanceledException) when (operation.IsCancellationRequested)
-        {
-            // A detach, disposal or newer lifecycle invalidated this result.
-        }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested) { }
         catch (Exception ex)
         {
             SetPolicy(version, encrypted ? "●" : "!", summary, "Policy assessment failed closed: " + ex.Message);
@@ -371,19 +311,8 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _policyDetail.Text = detail;
     }
 
-    private CancellationTokenSource BeginOperation(bool cancelPrevious = true)
-    {
-        if (_disposed) return new CancellationTokenSource();
-        if (cancelPrevious)
-        {
-            var previous = Interlocked.Exchange(ref _operation, null);
-            previous?.Cancel();
-            previous?.Dispose();
-        }
-        var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        if (cancelPrevious) _operation = operation;
-        return operation;
-    }
+    private CancellationTokenSource LinkedOperation() =>
+        CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
 
     private void OnAttached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
@@ -393,16 +322,13 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _ = RefreshPolicyAsync();
     }
 
-    private void OnDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) => CancelOperations(recreateLifetime: true);
+    private void OnDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) => CancelLifetime(dispose: false);
 
-    private void CancelOperations(bool recreateLifetime)
+    private void CancelLifetime(bool dispose)
     {
         Interlocked.Increment(ref _policyVersion);
-        var operation = Interlocked.Exchange(ref _operation, null);
-        operation?.Cancel();
-        operation?.Dispose();
         _lifetime.Cancel();
-        if (!recreateLifetime) _lifetime.Dispose();
+        if (dispose) _lifetime.Dispose();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -423,17 +349,25 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(BrowserPageViewModel.Address)
+        if (e.PropertyName is not (nameof(BrowserPageViewModel.Address)
             or nameof(BrowserPageViewModel.SelectedTab)
-            or nameof(BrowserPageViewModel.Status))
+            or nameof(BrowserPageViewModel.Status))) return;
+
+        if (e.PropertyName is nameof(BrowserPageViewModel.Address) or nameof(BrowserPageViewModel.SelectedTab))
         {
-            if (e.PropertyName is nameof(BrowserPageViewModel.Address) or nameof(BrowserPageViewModel.SelectedTab))
-            {
-                _zoomButton.Content = "100%";
-                _zoomSlider.Value = 100;
-            }
-            _ = RefreshPolicyAsync();
+            _zoomButton.Content = "100%";
+            _zoomSlider.Value = 100;
         }
+        _ = RefreshPolicyAsync();
+    }
+
+    private static StackPanel Panel(string heading, params object[] items)
+    {
+        var width = items.LastOrDefault() is int value ? value : 320;
+        var panel = new StackPanel { Width = width, Spacing = 8 };
+        panel.Children.Add(new TextBlock { Text = heading, FontWeight = FontWeight.SemiBold, FontSize = 11 });
+        foreach (var item in items.Take(items.Length - 1).OfType<Control>()) panel.Children.Add(item);
+        return panel;
     }
 
     private static TextBlock Muted(string text, double size, bool secondary = false) => new()
