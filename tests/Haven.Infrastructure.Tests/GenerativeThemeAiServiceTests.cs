@@ -1,0 +1,253 @@
+using System.Text.Json;
+using Haven.Application;
+using Haven.Core;
+using Haven.Infrastructure;
+using Xunit;
+
+namespace Haven.Infrastructure.Tests;
+
+public sealed class GenerativeThemeAiServiceTests : IDisposable
+{
+    private readonly TestPaths _paths = new();
+
+    [Fact]
+    public async Task ValidModelProposalBecomesPreviewableButIsNotPersisted()
+    {
+        var proposed = ValidTheme() with
+        {
+            Id = Guid.Empty,
+            IsBuiltIn = true,
+            Origin = GenerativeThemeOrigin.BuiltIn,
+            Layout = new GenerativeLayoutManifest(
+            [
+                new("chat.temporary", GenerativeUiCatalog.ChatComposerCenter, 10),
+                new("chat.model", GenerativeUiCatalog.ChatComposerRight, 20),
+                new("chat.effort", GenerativeUiCatalog.ChatComposerRight, 30, false),
+                new("chat.context", GenerativeUiCatalog.ShellHeaderRight, 5)
+            ],
+            []),
+            Pages =
+            [
+                new GeneratedPageDefinition(
+                    "focus",
+                    "Focus",
+                    "A focus page.",
+                    "clock",
+                    1,
+                    [new GeneratedWidgetDefinition("timer", GeneratedWidgetKind.Timer, "Timer", null, null, 1500, [])])
+            ]
+        };
+        var response = JsonSerializer.Serialize(new
+        {
+            theme = proposed,
+            summary = "Moved context to the header and added a timer.",
+            changes = new[] { "Context moved to header", "Timer page added" },
+            safetyNotes = Array.Empty<string>()
+        }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var service = new GenerativeThemeAiService(
+            new FakeOllamaClient(response),
+            new GenerativeThemeValidator(),
+            diagnostics);
+
+        var proposal = await service.CreateAsync(
+            "Move context to the header and add a focus timer.",
+            "local-theme-model",
+            null,
+            CancellationToken.None);
+
+        Assert.NotEqual(Guid.Empty, proposal.Theme.Id);
+        Assert.False(proposal.Theme.IsBuiltIn);
+        Assert.Equal(GenerativeThemeOrigin.AiGenerated, proposal.Theme.Origin);
+        Assert.Equal(GenerativeUiCatalog.ShellHeaderRight,
+            proposal.Theme.Layout.Placements.Single(item => item.ItemId == "chat.context").Region);
+        Assert.Single(proposal.Theme.Pages);
+        Assert.Contains("timer", proposal.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(_paths.DataDirectory, "GenerativeUi", "Themes")));
+    }
+
+    [Fact]
+    public async Task ArbitraryModelControlIsRejectedAndAudited()
+    {
+        var unsafeTheme = ValidTheme() with
+        {
+            Layout = new GenerativeLayoutManifest(
+                [new("shell.execute-arbitrary-xaml", GenerativeUiCatalog.ShellHeaderRight, 1)],
+                [])
+        };
+        var response = JsonSerializer.Serialize(new
+        {
+            theme = unsafeTheme,
+            summary = "Unsafe",
+            changes = Array.Empty<string>(),
+            safetyNotes = Array.Empty<string>()
+        }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var service = new GenerativeThemeAiService(
+            new FakeOllamaClient(response),
+            new GenerativeThemeValidator(),
+            diagnostics);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.CreateAsync(
+            "Add arbitrary XAML.",
+            "local-theme-model",
+            null,
+            CancellationToken.None));
+
+        var events = await diagnostics.ReadRecentAsync(20, CancellationToken.None);
+        Assert.Contains(events, item => item.EventName == "ai-proposal-rejected");
+    }
+
+    [Fact]
+    public async Task MalformedModelJsonIsRejectedWithoutPersistence()
+    {
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var service = new GenerativeThemeAiService(
+            new FakeOllamaClient("Here is your theme: definitely-not-json"),
+            new GenerativeThemeValidator(),
+            diagnostics);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.CreateAsync(
+            "Create a theme.",
+            "local-theme-model",
+            null,
+            CancellationToken.None));
+
+        Assert.False(Directory.Exists(Path.Combine(_paths.DataDirectory, "GenerativeUi")));
+    }
+
+    [Fact]
+    public async Task SafeModeBlocksThemeModelBeforeCallingProvider()
+    {
+        var fake = new FakeOllamaClient("unused");
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var service = new GenerativeThemeAiService(fake, new GenerativeThemeValidator(), diagnostics);
+        RuntimeSafetyState.EnableSafeMode("test recovery");
+        try
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(
+                "Create a theme.",
+                "local-theme-model",
+                null,
+                CancellationToken.None));
+            Assert.Equal(0, fake.CompleteCalls);
+        }
+        finally
+        {
+            RuntimeSafetyState.DisableSafeMode();
+        }
+    }
+
+    public void Dispose()
+    {
+        RuntimeSafetyState.DisableSafeMode();
+        _paths.Dispose();
+    }
+
+    private static GenerativeThemePack ValidTheme()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new GenerativeThemePack(
+            1,
+            Guid.NewGuid(),
+            "AI theme",
+            "A complete model proposal.",
+            "Haven Studio",
+            GenerativeThemeOrigin.AiGenerated,
+            false,
+            now,
+            now,
+            Palette("#FFF8FAFD", "#FF087F8C"),
+            Palette("#FF0D161B", "#FF28A6A6"),
+            new GenerativeThemeTypography("Segoe UI", 14, 1.35, 0),
+            new GenerativeThemeShape(10, 14, 16, 1, true, true),
+            GenerativeUiCatalog.DefaultLayout,
+            []);
+    }
+
+    private static GenerativeThemePalette Palette(string background, string accent) => new(
+        background,
+        "#FF182129",
+        "#FF202A33",
+        "#FF26323C",
+        "#FF2C3A46",
+        "#FF344552",
+        "#FFFFFFFF",
+        "#FFD9E2EA",
+        "#FFA8B5C1",
+        "#FF748391",
+        accent,
+        "#FFFFFFFF",
+        "#FF203A45",
+        "#FF60CDFF",
+        "#FF1E3A50",
+        "#FFFF99A4",
+        "#FFFCE4A6",
+        "#22FFFFFF",
+        "#44FFFFFF",
+        accent,
+        "#FF182234",
+        "#F2182234",
+        "#2EFFFFFF",
+        "#46FFFFFF",
+        "#20FFFFFF",
+        "#A060CDFF");
+
+    private sealed class FakeOllamaClient(string response) : IOllamaClient
+    {
+        public int CompleteCalls { get; private set; }
+        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
+
+        public async IAsyncEnumerable<string> StreamChatAsync(
+            OllamaChatRequest request,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
+        {
+            CompleteCalls++;
+            return Task.FromResult(response);
+        }
+
+        public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new OllamaToolResponse(string.Empty, []));
+
+        public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class TestPaths : IAppPaths, IDisposable
+    {
+        public TestPaths()
+        {
+            DataDirectory = Path.Combine(Path.GetTempPath(), "haven-generative-ai-tests-" + Guid.NewGuid().ToString("N"));
+            DatabasePath = Path.Combine(DataDirectory, "haven.db");
+            BrowserProfileDirectory = Path.Combine(DataDirectory, "browser");
+            AttachmentsDirectory = Path.Combine(DataDirectory, "attachments");
+            LogsDirectory = Path.Combine(DataDirectory, "logs");
+            LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
+            Directory.CreateDirectory(DataDirectory);
+            Directory.CreateDirectory(LogsDirectory);
+        }
+
+        public string DataDirectory { get; }
+        public string DatabasePath { get; }
+        public string BrowserProfileDirectory { get; }
+        public string AttachmentsDirectory { get; }
+        public string LogsDirectory { get; }
+        public string LegacyStatePath { get; }
+
+        public void Dispose()
+        {
+            try { Directory.Delete(DataDirectory, recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+}
