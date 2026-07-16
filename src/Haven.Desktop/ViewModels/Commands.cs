@@ -24,12 +24,14 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
     public event EventHandler? CanExecuteChanged;
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 
-    public async void Execute(object? parameter)
+    public async void Execute(object? parameter) => await ExecuteAsync().ConfigureAwait(true);
+
+    public async Task ExecuteAsync()
     {
-        if (!CanExecute(parameter)) return;
+        if (!CanExecute(null)) return;
         _running = true;
         RaiseCanExecuteChanged();
-        try { await execute(); }
+        try { await execute().ConfigureAwait(true); }
         finally { _running = false; RaiseCanExecuteChanged(); }
     }
 
@@ -42,12 +44,14 @@ public sealed class AsyncRelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>?
     public event EventHandler? CanExecuteChanged;
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke((T?)parameter) ?? true);
 
-    public async void Execute(object? parameter)
+    public async void Execute(object? parameter) => await ExecuteAsync((T?)parameter).ConfigureAwait(true);
+
+    public async Task ExecuteAsync(T? parameter)
     {
         if (!CanExecute(parameter)) return;
         _running = true;
         RaiseCanExecuteChanged();
-        try { await execute((T?)parameter); }
+        try { await execute(parameter).ConfigureAwait(true); }
         finally { _running = false; RaiseCanExecuteChanged(); }
     }
 
