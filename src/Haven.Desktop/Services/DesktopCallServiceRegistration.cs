@@ -17,6 +17,7 @@ public static class DesktopCallServiceRegistration
         services.AddSingleton<ISpeechOutputService>(provider =>
             provider.GetRequiredService<WindowsNaturalSpeechOutputService>());
         services.AddSingleton<CallVoicePreviewController>();
+        services.AddSingleton<CallCompletionController>();
         return services;
     }
 }
