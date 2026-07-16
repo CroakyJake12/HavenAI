@@ -16,7 +16,6 @@ public sealed class GenerativeUiThemeRuntime(
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly List<IStyle> _generatedStyles = [];
-    private GenerativeThemePack? _previewTheme;
     private bool _initialized;
 
     public GenerativeThemePack ActiveTheme { get; private set; } = null!;
@@ -52,7 +51,6 @@ public sealed class GenerativeUiThemeRuntime(
         {
             await store.SelectAsync(themeId, appearance, cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
-            _previewTheme = null;
             ActiveTheme = theme;
             Appearance = appearance;
             await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
@@ -83,7 +81,6 @@ public sealed class GenerativeUiThemeRuntime(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _previewTheme = theme;
             ActiveTheme = theme;
             Appearance = appearance;
             await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
@@ -103,7 +100,6 @@ public sealed class GenerativeUiThemeRuntime(
             // the active custom theme was deleted while no transient preview existed.
             var selection = await store.GetSelectionAsync(cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
-            _previewTheme = null;
             ActiveTheme = theme;
             Appearance = selection.Appearance;
             await ApplyVisualsAsync(theme, selection.Appearance, cancellationToken).ConfigureAwait(false);
@@ -178,7 +174,7 @@ public sealed class GenerativeUiThemeRuntime(
         SetBrush(application, "HavenMutedBrush", palette.Muted);
         SetBrush(application, "HavenMuted2Brush", palette.Muted2);
         SetBrush(application, "HavenAccentBrush", palette.Accent);
-        SetBrush(application, "HavenAccentInkBrush", palette.AccentInk);
+        SetBrush(application, "HavenAccentInkBrush", ChooseReadableInk(palette.Accent, palette.AccentInk));
         SetBrush(application, "HavenAccentSoftBrush", palette.AccentSoft);
         SetBrush(application, "HavenBlueBrush", palette.Blue);
         SetBrush(application, "HavenBlueSoftBrush", palette.BlueSoft);
@@ -215,6 +211,20 @@ public sealed class GenerativeUiThemeRuntime(
         windowStyle.Setters.Add(new Setter(TemplatedControl.FontSizeProperty, theme.Typography.BaseFontSize));
         _generatedStyles.Add(windowStyle);
 
+        var textStyle = new Style(selector => selector.OfType<TextBlock>());
+        textStyle.Setters.Add(new Setter(TextBlock.LetterSpacingProperty, theme.Typography.LetterSpacing));
+        _generatedStyles.Add(textStyle);
+
+        var headingStyle = new Style(selector => selector.OfType<TextBlock>().Class("heading"));
+        headingStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty,
+            theme.Typography.BaseFontSize * theme.Typography.HeadingScale * 1.4d));
+        _generatedStyles.Add(headingStyle);
+
+        var sectionHeadingStyle = new Style(selector => selector.OfType<TextBlock>().Class("sectionHeading"));
+        sectionHeadingStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty,
+            theme.Typography.BaseFontSize * theme.Typography.HeadingScale));
+        _generatedStyles.Add(sectionHeadingStyle);
+
         var buttonStyle = new Style(selector => selector.OfType<Button>());
         buttonStyle.Setters.Add(new Setter(TemplatedControl.CornerRadiusProperty, new CornerRadius(theme.Shape.ControlRadius)));
         _generatedStyles.Add(buttonStyle);
@@ -230,11 +240,47 @@ public sealed class GenerativeUiThemeRuntime(
         var acrylicStyle = new Style(selector => selector.OfType<AcrylicSurface>());
         acrylicStyle.Setters.Add(new Setter(AcrylicSurface.TintOpacityProperty, theme.Shape.UseAcrylic ? 0.78d : 1d));
         acrylicStyle.Setters.Add(new Setter(AcrylicSurface.MaterialOpacityProperty, theme.Shape.UseAcrylic ? 0.62d : 1d));
-        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.TintColorProperty, Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicTint : palette.Panel)));
-        acrylicStyle.Setters.Add(new Setter(AcrylicSurface.FallbackColorProperty, Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicFallback : palette.Panel)));
+        acrylicStyle.Setters.Add(new Setter(
+            AcrylicSurface.TintColorProperty,
+            Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicTint : palette.Panel)));
+        acrylicStyle.Setters.Add(new Setter(
+            AcrylicSurface.FallbackColorProperty,
+            Color.Parse(theme.Shape.UseAcrylic ? palette.AcrylicFallback : palette.Panel)));
         _generatedStyles.Add(acrylicStyle);
 
         foreach (var style in _generatedStyles) application.Styles.Add(style);
+    }
+
+    private static string ChooseReadableInk(string background, string requested)
+    {
+        if (ContrastRatio(background, requested) >= 4.5d) return requested;
+        var black = "#FF000000";
+        var white = "#FFFFFFFF";
+        return ContrastRatio(background, black) >= ContrastRatio(background, white) ? black : white;
+    }
+
+    private static double ContrastRatio(string first, string second)
+    {
+        var firstLuminance = RelativeLuminance(Color.Parse(first));
+        var secondLuminance = RelativeLuminance(Color.Parse(second));
+        var lighter = Math.Max(firstLuminance, secondLuminance);
+        var darker = Math.Min(firstLuminance, secondLuminance);
+        return (lighter + 0.05d) / (darker + 0.05d);
+    }
+
+    private static double RelativeLuminance(Color colour)
+    {
+        static double Linear(byte channel)
+        {
+            var value = channel / 255d;
+            return value <= 0.04045d
+                ? value / 12.92d
+                : Math.Pow((value + 0.055d) / 1.055d, 2.4d);
+        }
+
+        return 0.2126d * Linear(colour.R)
+               + 0.7152d * Linear(colour.G)
+               + 0.0722d * Linear(colour.B);
     }
 
     private static void SetBrush(Application application, string key, string colour) =>
