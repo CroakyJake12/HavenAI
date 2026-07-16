@@ -18,7 +18,7 @@
     </ResourceDictionary>
   </UserControl.Resources>
 
-  <!-- Chat View — the main conversation interface with messages, composer, and pickers -->
+  <!-- Chat View — the main conversation interface with messages and one unified composer model switcher. -->
   <Grid>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <Grid HorizontalAlignment="Stretch" Margin="30,28,30,235">
@@ -114,9 +114,5 @@
         </Grid>
       </Border>
     </Grid>
-
-    <Border Background="#99000000" IsVisible="{Binding IsModelPickerOpen}">
-      <Grid><Button Background="Transparent" BorderThickness="0" Command="{Binding CloseModelPickerCommand}" /><Border Background="#E8181E2A" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="16" Width="650" MaxHeight="600" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20"><Grid RowDefinitions="Auto,Auto,*" RowSpacing="10"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><StackPanel><TextBlock Text="Choose local model" Classes="sectionHeading" /><TextBlock Text="Search installed Ollama models and inspect their capabilities." Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Content="Advanced options" Command="{Binding $parent[Window].DataContext.NavigateSettingsCommand}" /><Button Grid.Column="2" Classes="chrome" Command="{Binding CloseModelPickerCommand}" ToolTip.Tip="Close"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button></Grid><TextBox Grid.Row="1" Text="{Binding ModelSearch}" PlaceholderText="Search models" /><ScrollViewer Grid.Row="2"><ItemsControl ItemsSource="{Binding FilteredModels}"><ItemsControl.ItemTemplate><DataTemplate><Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.SelectModelCommand}" CommandParameter="{Binding}"><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding Family}" Classes="muted" FontSize="10" /><TextBlock Text="{Binding EstimatedRamLabel}" Foreground="{DynamicResource HavenWarningBrush}" FontSize="9" /></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{Binding ParameterSize}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" HorizontalAlignment="Right" /><TextBlock Text="{Binding Quantization}" Classes="muted2" FontSize="9" HorizontalAlignment="Right" /><TextBlock Text="{Binding SizeLabel}" Classes="muted2" FontSize="9" HorizontalAlignment="Right" /></StackPanel></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer></Grid></Border></Grid>
-    </Border>
   </Grid>
 </UserControl>
