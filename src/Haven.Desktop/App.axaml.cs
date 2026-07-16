@@ -85,8 +85,6 @@ public sealed partial class App : Avalonia.Application
             var recovery = _startupRecovery ?? services.GetRequiredService<IStartupRecoveryCoordinator>();
             var recoveryState = await recovery.BeginStartupAsync(CancellationToken.None);
 
-            // Both the main chat runtime and Browse side assistant receive the same
-            // safe-mode-aware automation boundary.
             BrowserAutomationRegistry.Register(
                 services.GetRequiredService<BrowserSessionService>(),
                 services.GetRequiredService<IBrowserAutomationService>());
@@ -143,8 +141,10 @@ public sealed partial class App : Avalonia.Application
                     cancellationToken: CancellationToken.None).AsTask().GetAwaiter().GetResult();
             }
 
-            services?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            recovery?.MarkCleanShutdownAsync(CancellationToken.None).GetAwaiter().GetResult();
+            if (services is not null)
+                services.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            if (recovery is not null)
+                recovery.MarkCleanShutdownAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
