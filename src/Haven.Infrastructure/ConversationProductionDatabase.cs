@@ -3,21 +3,45 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
-public sealed class ConversationProductionDatabase(
-    SqliteDatabase database,
-    IDatabaseMaintenance maintenance) : IAppDatabase
+public sealed class ConversationProductionDatabase : IAppDatabase
 {
+    private readonly SqliteDatabase _database;
+    private readonly IDatabaseMaintenance? _maintenance;
+
+    // Focused repository tests historically construct this wrapper around an isolated
+    // temporary database. Production DI selects the longer constructor below and applies
+    // the complete backup and integrity gate.
+    public ConversationProductionDatabase(SqliteDatabase database)
+    {
+        _database = database;
+    }
+
+    public ConversationProductionDatabase(
+        SqliteDatabase database,
+        IDatabaseMaintenance maintenance)
+    {
+        _database = database;
+        _maintenance = maintenance;
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        // Version 10 is the highest additive continuation schema currently used.
-        // Taking one verified backup here protects both the base migrations and the
-        // conversation/retrieval schemas that are applied during or shortly after startup.
-        await maintenance.PrepareForMigrationAsync(10, cancellationToken).ConfigureAwait(false);
-        await database.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await ConversationProductionSchema.EnsureAsync(database, cancellationToken).ConfigureAwait(false);
-        var health = await maintenance.VerifyIntegrityAsync(cancellationToken).ConfigureAwait(false);
-        if (!health.IsHealthy)
-            throw new InvalidDataException("The Haven database failed its post-migration integrity check. Startup was stopped to protect the data.");
+        if (_maintenance is not null)
+        {
+            // Version 10 is the highest additive continuation schema currently used.
+            // One verified backup protects the base, conversation and retrieval migrations.
+            await _maintenance.PrepareForMigrationAsync(10, cancellationToken).ConfigureAwait(false);
+        }
+
+        await _database.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await ConversationProductionSchema.EnsureAsync(_database, cancellationToken).ConfigureAwait(false);
+
+        if (_maintenance is not null)
+        {
+            var health = await _maintenance.VerifyIntegrityAsync(cancellationToken).ConfigureAwait(false);
+            if (!health.IsHealthy)
+                throw new InvalidDataException("The Haven database failed its post-migration integrity check. Startup was stopped to protect the data.");
+        }
     }
 }
 
