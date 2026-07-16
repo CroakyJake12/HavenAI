@@ -28,12 +28,12 @@ public static class AutomationScheduleComposer
             },
             AutomationScheduleKind.Daily => new Dictionary<string, object?>
             {
-                ["time"] = draft.Time.ToString("HH:mm", CultureInfo.InvariantCulture)
+                ["time"] = FormatTime(draft.Time)
             },
             AutomationScheduleKind.Weekly => new Dictionary<string, object?>
             {
                 ["dayOfWeek"] = draft.DayOfWeek.ToString(),
-                ["time"] = draft.Time.ToString("HH:mm", CultureInfo.InvariantCulture)
+                ["time"] = FormatTime(draft.Time)
             },
             AutomationScheduleKind.ConditionWatch => new Dictionary<string, object?>
             {
@@ -61,21 +61,31 @@ public static class AutomationScheduleComposer
             using var document = JsonDocument.Parse(scheduleJson);
             var root = document.RootElement;
             var once = root.TryGetProperty("at", out var at)
-                       && DateTimeOffset.TryParse(at.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedAt)
+                       && DateTimeOffset.TryParse(
+                           at.GetString(),
+                           CultureInfo.InvariantCulture,
+                           DateTimeStyles.RoundtripKind,
+                           out var parsedAt)
                 ? parsedAt.ToLocalTime()
                 : fallback.OnceAt;
             var time = root.TryGetProperty("time", out var timeValue)
-                       && TimeOnly.TryParse(timeValue.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedTime)
+                       && TimeOnly.TryParse(
+                           timeValue.GetString(),
+                           CultureInfo.InvariantCulture,
+                           DateTimeStyles.None,
+                           out var parsedTime)
                 ? parsedTime
                 : fallback.Time;
             var day = root.TryGetProperty("dayOfWeek", out var dayValue)
                       && Enum.TryParse<DayOfWeek>(dayValue.GetString(), true, out var parsedDay)
                 ? parsedDay
                 : fallback.DayOfWeek;
-            var hours = root.TryGetProperty("intervalHours", out var hourValue) && hourValue.TryGetInt32(out var parsedHours)
+            var hours = root.TryGetProperty("intervalHours", out var hourValue)
+                        && hourValue.TryGetInt32(out var parsedHours)
                 ? Math.Clamp(parsedHours, 1, 168)
                 : fallback.IntervalHours;
-            var minutes = root.TryGetProperty("intervalMinutes", out var minuteValue) && minuteValue.TryGetInt32(out var parsedMinutes)
+            var minutes = root.TryGetProperty("intervalMinutes", out var minuteValue)
+                          && minuteValue.TryGetInt32(out var parsedMinutes)
                 ? Math.Clamp(parsedMinutes, 60, 10_080)
                 : fallback.ConditionIntervalMinutes;
             return new AutomationScheduleDraft(once, time, day, hours, minutes);
@@ -89,12 +99,17 @@ public static class AutomationScheduleComposer
     public static string Describe(AutomationScheduleKind kind, AutomationScheduleDraft draft) => kind switch
     {
         AutomationScheduleKind.Once => $"Once at {draft.OnceAt.ToLocalTime():g}",
-        AutomationScheduleKind.Hourly => draft.IntervalHours == 1 ? "Every hour" : $"Every {draft.IntervalHours} hours",
-        AutomationScheduleKind.Daily => $"Daily at {draft.Time:HH\\:mm}",
-        AutomationScheduleKind.Weekly => $"Every {draft.DayOfWeek} at {draft.Time:HH\\:mm}",
+        AutomationScheduleKind.Hourly => draft.IntervalHours == 1
+            ? "Every hour"
+            : $"Every {draft.IntervalHours} hours",
+        AutomationScheduleKind.Daily => $"Daily at {FormatTime(draft.Time)}",
+        AutomationScheduleKind.Weekly => $"Every {draft.DayOfWeek} at {FormatTime(draft.Time)}",
         AutomationScheduleKind.ConditionWatch => draft.ConditionIntervalMinutes == 60
             ? "Check the condition hourly"
             : $"Check the condition every {draft.ConditionIntervalMinutes} minutes",
         _ => kind.ToString()
     };
+
+    private static string FormatTime(TimeOnly time) =>
+        time.ToString("HH:mm", CultureInfo.InvariantCulture);
 }
