@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,12 @@ public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDispos
     public GenerativeUiThemeSelectorView()
     {
         InitializeComponent();
+        var appearanceHint = this.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .FirstOrDefault(text => text.Text?.StartsWith("System follows Windows", StringComparison.Ordinal) == true);
+        if (appearanceHint is not null)
+            appearanceHint.Text = "Choose the theme's explicit Light or Dark variant for the whole Haven window.";
+
         if (App.Services is null) return;
         _viewModel = new GenerativeUiThemeStudioViewModel(
             App.Services.GetRequiredService<IGenerativeThemeStore>(),
