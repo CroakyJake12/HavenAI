@@ -13,26 +13,25 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// Wraps the existing Haven shell without replacing any page or sidebar. The left rail
-/// switches between experience families, while the overlay provides a full-window mode
-/// library with persisted pins. Home is intentionally outside the configurable pin list.
+/// Places one persistent experience rail beside the existing Haven shell. The existing
+/// page, tab and contextual-sidebar implementation remains authoritative.
 /// </summary>
 public sealed class ExperienceShellHost : Grid, IDisposable
 {
+    internal const int MaximumPinnedModes = 6;
+    internal const string ModeProfilePrefix = "Mode profile · ";
+
     private static readonly HashSet<string> FixedModeKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "chat", "teach", "do", "studio", "call", "plan", "browse"
     };
 
-    private readonly Control _existingShell;
-    private readonly Border _rail;
-    private readonly StackPanel _experienceButtons;
-    private readonly StackPanel _pinnedButtons;
-    private readonly Button _allModesButton;
+    private readonly StackPanel _experienceButtons = new() { Spacing = 5 };
+    private readonly StackPanel _pinnedButtons = new() { Spacing = 5 };
+    private readonly StackPanel _modeCards = new() { Spacing = 9 };
+    private readonly TextBox _modeSearch = new() { PlaceholderText = "Search modes", MinWidth = 280 };
+    private readonly TextBlock _overlayStatus = new() { Classes = { "muted" }, FontSize = 11 };
     private readonly Grid _overlay;
-    private readonly StackPanel _modeCards;
-    private readonly TextBox _modeSearch;
-    private readonly TextBlock _overlayStatus;
     private readonly IModeRegistry? _modeRegistry;
     private readonly IPinRepository? _pins;
     private MainWindowViewModel? _shell;
@@ -44,19 +43,21 @@ public sealed class ExperienceShellHost : Grid, IDisposable
 
     public ExperienceShellHost(Control existingShell)
     {
-        _existingShell = existingShell ?? throw new ArgumentNullException(nameof(existingShell));
+        ArgumentNullException.ThrowIfNull(existingShell);
         ColumnDefinitions = new ColumnDefinitions("76,*");
         Background = Brushes.Transparent;
 
-        _experienceButtons = new StackPanel { Spacing = 5 };
-        _pinnedButtons = new StackPanel { Spacing = 5 };
-        _allModesButton = RailButton("▦", "All modes");
-        _allModesButton.Click += (_, _) => ShowModeLibrary();
+        var home = RailButton("⌂", "Home", "ExperienceHomeButton");
+        home.Margin = new Thickness(0, 0, 0, 10);
+        home.Click += (_, _) => _shell?.NavigateHomeCommand.Execute(null);
 
-        var settings = RailButton("⚙", "Settings");
+        var allModes = RailButton("▦", "All modes", "ExperienceAllModesButton");
+        allModes.Click += (_, _) => ShowModeLibrary();
+
+        var settings = RailButton("⚙", "Settings", "ExperienceSettingsButton");
         settings.Click += (_, _) => _shell?.NavigateSettingsCommand.Execute(null);
 
-        _rail = new Border
+        var rail = new Border
         {
             Width = 66,
             Margin = new Thickness(7, 7, 3, 7),
@@ -70,7 +71,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 RowDefinitions = new RowDefinitions("Auto,*,Auto"),
                 Children =
                 {
-                    BuildHomeButton(),
+                    home,
                     WithRow(new ScrollViewer
                     {
                         VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
@@ -81,14 +82,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                             Children =
                             {
                                 _experienceButtons,
-                                new Border
-                                {
-                                    Height = 1,
-                                    Margin = new Thickness(8, 3),
-                                    Background = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255))
-                                },
+                                Divider(),
                                 _pinnedButtons,
-                                _allModesButton
+                                allModes
                             }
                         }
                     }, 1),
@@ -97,15 +93,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             }
         };
 
-        _modeSearch = new TextBox { PlaceholderText = "Search modes", MinWidth = 280 };
         _modeSearch.TextChanged += (_, _) => RebuildModeCards();
-        _modeCards = new StackPanel { Spacing = 9 };
-        _overlayStatus = new TextBlock
-        {
-            Classes = { "muted" },
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap
-        };
         var closeOverlay = new Button { Content = "Close" };
         closeOverlay.Classes.Add("secondary");
         closeOverlay.Click += (_, _) => HideModeLibrary();
@@ -144,7 +132,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                                             new TextBlock { Text = "Choose an experience or pin up to six modes", FontSize = 24, FontWeight = FontWeight.SemiBold },
                                             new TextBlock
                                             {
-                                                Text = "Chat, Teach and Do share the Chat experience menu because they use the same conversation workspace. Home always remains fixed at the top of the rail.",
+                                                Text = "Chat, Teach and Do share one Chat experience menu because they use the same conversation workspace. Home always remains fixed above every configurable item.",
                                                 Classes = { "muted" },
                                                 FontSize = 11,
                                                 TextWrapping = TextWrapping.Wrap
@@ -172,9 +160,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         };
         Grid.SetColumnSpan(_overlay, 2);
 
-        Children.Add(_rail);
-        Grid.SetColumn(_existingShell, 1);
-        Children.Add(_existingShell);
+        Children.Add(rail);
+        Grid.SetColumn(existingShell, 1);
+        Children.Add(existingShell);
         Children.Add(_overlay);
 
         if (App.Services is not null)
@@ -198,15 +186,6 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private Button BuildHomeButton()
-    {
-        var button = RailButton("⌂", "Home");
-        button.Margin = new Thickness(0, 0, 0, 10);
-        button.Click += (_, _) => _shell?.NavigateHomeCommand.Execute(null);
-        button.Name = "ExperienceHomeButton";
-        return button;
-    }
-
     private async Task RefreshAsync()
     {
         if (_disposed || _modeRegistry is null || _pins is null) return;
@@ -216,7 +195,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             var pinsTask = _pins.GetPinsAsync(CancellationToken.None);
             await Task.WhenAll(modesTask, pinsTask).ConfigureAwait(false);
             _modes = modesTask.Result.Where(mode => mode.IsEnabled).ToArray();
-            _orderedPins = pinsTask.Result.OrderBy(pin => pin.SortOrder).Take(6).ToList();
+            _orderedPins = pinsTask.Result.OrderBy(pin => pin.SortOrder).Take(MaximumPinnedModes).ToList();
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 RebuildRail();
@@ -234,26 +213,24 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _experienceButtons.Children.Clear();
         _pinnedButtons.Children.Clear();
 
+        _experienceButtons.Children.Add(GroupButton("▰", "Chat, Teach and Do", "ExperienceChatButton", BuiltIn("chat", "teach", "do")));
+        _experienceButtons.Children.Add(GroupButton("⌘", "Studio", "ExperienceStudioButton", BuiltIn("studio")));
+        _experienceButtons.Children.Add(DirectButton("☎", "Call", "ExperienceCallButton", async () =>
+        {
+            if (_shell is not null) await _shell.NavigateCallCommand.ExecuteAsync();
+        }));
+        _experienceButtons.Children.Add(PlanButton());
+        _experienceButtons.Children.Add(DirectButton("◉", "Browse", "ExperienceBrowseButton", () =>
+        {
+            _shell?.NavigateBrowserCommand.Execute(null);
+            return Task.CompletedTask;
+        }));
+
         var pinnedModes = _orderedPins
             .Select(pin => _modes.FirstOrDefault(mode => mode.Id == pin.ModeId))
-            .Where(mode => mode is not null)
-            .Cast<ModeDefinition>()
-            .ToArray();
-
-        _experienceButtons.Children.Add(GroupButton(
-            "▰",
-            "Chat, Teach and Do",
-            BuiltIn("chat", "teach", "do")));
-        _experienceButtons.Children.Add(GroupButton(
-            "⌘",
-            "Studio",
-            BuiltIn("studio")));
-        _experienceButtons.Children.Add(DirectButton("☎", "Call", () => _shell?.NavigateCallCommand.Execute(null)));
-        _experienceButtons.Children.Add(PlanButton());
-        _experienceButtons.Children.Add(DirectButton("◉", "Browse", () => _shell?.NavigateBrowserCommand.Execute(null)));
-
-        foreach (var mode in pinnedModes.Where(mode => !FixedModeKeys.Contains(mode.Key)))
-            _pinnedButtons.Children.Add(PinnedModeButton(mode));
+            .Where(mode => mode is not null && !FixedModeKeys.Contains(mode.Key))
+            .Cast<ModeDefinition>();
+        foreach (var mode in pinnedModes) _pinnedButtons.Children.Add(PinnedModeButton(mode));
 
         if (_pinnedButtons.Children.Count == 0)
         {
@@ -271,51 +248,45 @@ public sealed class ExperienceShellHost : Grid, IDisposable
 
     private Button PlanButton()
     {
-        var button = RailButton("▦", "Plan and automations");
-        var panel = new StackPanel { Width = 270, Spacing = 4 };
-        panel.Children.Add(FlyoutEntry("Plan", "Tasks, calendars and AI proposals", "plan", () => _shell?.NavigatePlanCommand.Execute(null)));
-        panel.Children.Add(FlyoutEntry("Automations", "Scheduled and condition-based work", "automation", () => _shell?.NavigateAutomationsCommand.Execute(null)));
-        button.Flyout = new Flyout { Placement = PlacementMode.RightEdgeAlignedTop, Content = panel };
-        button.Name = "ExperiencePlanButton";
+        var button = RailButton("▦", "Plan and automations", "ExperiencePlanButton");
+        var panel = new StackPanel { Width = 280, Spacing = 4 };
+        panel.Children.Add(FlyoutEntry("Plan", "Tasks, calendars and reviewed AI proposals", "plan", () =>
+        {
+            _shell?.NavigatePlanCommand.Execute(null);
+            return Task.CompletedTask;
+        }));
+        panel.Children.Add(FlyoutEntry("Automations", "Scheduled and condition-based work", "automation", () =>
+        {
+            _shell?.NavigateAutomationsCommand.Execute(null);
+            return Task.CompletedTask;
+        }));
+        button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
 
-    private Button GroupButton(string glyph, string tooltip, IReadOnlyList<ModeDefinition> modes)
+    private Button GroupButton(string glyph, string tooltip, string name, IReadOnlyList<ModeDefinition> modes)
     {
-        var button = RailButton(glyph, tooltip);
-        var panel = new StackPanel { Width = 300, Spacing = 4 };
+        var button = RailButton(glyph, tooltip, name);
+        var panel = new StackPanel { Width = 310, Spacing = 4 };
         foreach (var mode in modes)
-            panel.Children.Add(FlyoutEntry(mode.Name, mode.Description, mode.IconKey, () => _ = OpenModeAsync(mode)));
-        button.Flyout = new Flyout { Placement = PlacementMode.RightEdgeAlignedTop, Content = panel };
-        button.Name = modes.FirstOrDefault()?.Key switch
-        {
-            "chat" => "ExperienceChatButton",
-            "studio" => "ExperienceStudioButton",
-            _ => null
-        };
+            panel.Children.Add(FlyoutEntry(mode.Name, mode.Description, mode.IconKey, () => OpenModeAsync(mode)));
+        button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
 
-    private Button DirectButton(string glyph, string tooltip, Action action)
+    private Button DirectButton(string glyph, string tooltip, string name, Func<Task> action)
     {
-        var button = RailButton(glyph, tooltip);
-        button.Click += (_, _) => action();
-        button.Name = tooltip switch
-        {
-            "Call" => "ExperienceCallButton",
-            "Browse" => "ExperienceBrowseButton",
-            _ => null
-        };
+        var button = RailButton(glyph, tooltip, name);
+        button.Click += async (_, _) => await action();
         return button;
     }
 
     private Button PinnedModeButton(ModeDefinition mode)
     {
-        var button = RailButton(ModeGlyph(mode), mode.Name + (_isReorderMode ? " · drag to reorder" : string.Empty));
-        button.Name = "PinnedMode_" + mode.Id.ToString("N");
-        button.Click += (_, _) =>
+        var button = RailButton(ModeGlyph(mode.IconKey), mode.Name + (_isReorderMode ? " · drag to reorder" : string.Empty), "PinnedMode_" + mode.Id.ToString("N"));
+        button.Click += async (_, _) =>
         {
-            if (!_isReorderMode) _ = OpenModeAsync(mode);
+            if (!_isReorderMode) await OpenModeAsync(mode);
         };
         button.ContextMenu = new ContextMenu
         {
@@ -375,12 +346,12 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             .OrderBy(mode => mode.Source)
             .ThenBy(mode => mode.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        _overlayStatus.Text = $"{visible.Length} mode{(visible.Length == 1 ? string.Empty : "s")} · {_orderedPins.Count}/{MaximumPinnedModes} pinned";
 
-        _overlayStatus.Text = $"{visible.Length} mode{(visible.Length == 1 ? string.Empty : "s")} · {_orderedPins.Count}/6 pinned";
         foreach (var mode in visible)
         {
-            var fixedMode = FixedModeKeys.Contains(mode.Key);
-            var pinned = pinnedIds.Contains(mode.Id);
+            var isFixed = FixedModeKeys.Contains(mode.Key);
+            var isPinned = pinnedIds.Contains(mode.Id);
             var open = new Button { Content = "Open" };
             open.Classes.Add("accent");
             open.Click += async (_, _) =>
@@ -390,15 +361,16 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             };
             var pin = new Button
             {
-                Content = fixedMode ? "Fixed on rail" : pinned ? "Unpin" : "Pin",
-                IsEnabled = !fixedMode
+                Content = isFixed ? "Fixed on rail" : isPinned ? "Unpin" : "Pin",
+                IsEnabled = !isFixed
             };
             pin.Click += async (_, _) =>
             {
-                if (pinned) await UnpinAsync(mode.Id);
+                if (isPinned) await UnpinAsync(mode.Id);
                 else await PinAsync(mode.Id);
                 RebuildModeCards();
             };
+
             _modeCards.Children.Add(new Border
             {
                 Padding = new Thickness(14),
@@ -420,7 +392,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                             Background = ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(55, 0, 120, 212)),
                             Child = new TextBlock
                             {
-                                Text = ModeGlyph(mode),
+                                Text = ModeGlyph(mode.IconKey),
                                 FontSize = 19,
                                 HorizontalAlignment = HorizontalAlignment.Center,
                                 VerticalAlignment = VerticalAlignment.Center
@@ -455,7 +427,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private async Task PinAsync(Guid modeId)
     {
         if (_pins is null || _orderedPins.Any(pin => pin.ModeId == modeId)) return;
-        if (_orderedPins.Count >= 6)
+        if (_orderedPins.Count >= MaximumPinnedModes)
         {
             _overlayStatus.Text = "You can pin up to six modes. Unpin one before adding another.";
             return;
@@ -539,7 +511,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 "ExperiencePlanButton" => _shell.CurrentSurface == HavenSurface.Plan,
                 "ExperienceBrowseButton" => _shell.CurrentSurface == HavenSurface.Browse,
                 _ when button.Name?.StartsWith("PinnedMode_", StringComparison.Ordinal) == true
-                    => _shell.CurrentChat.ActiveModeDefinition?.Id.ToString("N") == button.Name[11..],
+                    => IsPinnedModeActive(button.Name[11..]),
                 _ => false
             };
             if (button.Name?.StartsWith("Experience", StringComparison.Ordinal) == true
@@ -549,6 +521,24 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                     : Brushes.Transparent;
         }
     }
+
+    private bool IsPinnedModeActive(string compactId)
+    {
+        if (_shell is null || !Guid.TryParseExact(compactId, "N", out var modeId)) return false;
+        var mode = _modes.FirstOrDefault(item => item.Id == modeId);
+        if (mode is null || SurfaceForMode(mode.BaseMode) != _shell.CurrentSurface) return false;
+        return _shell.CurrentChat.Prompts.Any(prompt =>
+            prompt.IsActive && prompt.Name.Equals(ModeProfilePrefix + mode.Name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static HavenSurface SurfaceForMode(HavenMode mode) => mode switch
+    {
+        HavenMode.Chat => HavenSurface.Chat,
+        HavenMode.Teach => HavenSurface.Teach,
+        HavenMode.Do => HavenSurface.Do,
+        HavenMode.Studio => HavenSurface.Studio,
+        _ => HavenSurface.Chat
+    };
 
     private static IEnumerable<Control> Descendants(Control root)
     {
@@ -572,10 +562,11 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
     }
 
-    private static Button RailButton(string glyph, string tooltip)
+    private static Button RailButton(string glyph, string tooltip, string name)
     {
         var button = new Button
         {
+            Name = name,
             Width = 50,
             Height = 48,
             Padding = new Thickness(0),
@@ -588,7 +579,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
-    private static Button FlyoutEntry(string title, string description, string iconKey, Action action)
+    private static Button FlyoutEntry(string title, string description, string iconKey, Func<Task> action)
     {
         var button = new Button
         {
@@ -614,7 +605,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             }
         };
         button.Classes.Add("sidebar");
-        button.Click += (_, _) => action();
+        button.Click += async (_, _) => await action();
         return button;
     }
 
@@ -625,7 +616,12 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return item;
     }
 
-    private static string ModeGlyph(ModeDefinition mode) => ModeGlyph(mode.IconKey);
+    private static Border Divider() => new()
+    {
+        Height = 1,
+        Margin = new Thickness(8, 3),
+        Background = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255))
+    };
 
     private static string ModeGlyph(string? key) => key?.ToLowerInvariant() switch
     {
