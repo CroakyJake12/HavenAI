@@ -63,28 +63,28 @@ public static class MainWindowModeNavigationExtensions
             chat.Plugins.Where(plugin => plugin.IsActive).Select(plugin => plugin.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)));
         chat.NewChatCommand.Execute(null);
 
-        if (!string.IsNullOrWhiteSpace(mode.SystemPromptSuffix))
+        var instruction = string.IsNullOrWhiteSpace(mode.SystemPromptSuffix)
+            ? $"The user selected the {mode.Name} mode. Follow the mode's enabled capabilities and the user's instructions without assuming permissions that were not granted."
+            : mode.SystemPromptSuffix.Trim();
+        var prompt = new PromptItemViewModel(
+            new PromptDefinition(
+                Guid.NewGuid(),
+                ModeProfilePrefix + mode.Name,
+                $"Runtime instructions supplied by the {mode.Name} mode.",
+                mode.IconKey,
+                instruction,
+                true,
+                false,
+                true,
+                DateTimeOffset.UtcNow,
+                false,
+                JsonSerializer.Serialize(new[] { mode.BaseMode.ToString() })),
+            mode.BaseMode,
+            true)
         {
-            var prompt = new PromptItemViewModel(
-                new PromptDefinition(
-                    Guid.NewGuid(),
-                    ModeProfilePrefix + mode.Name,
-                    $"Runtime instructions supplied by the {mode.Name} mode.",
-                    mode.IconKey,
-                    mode.SystemPromptSuffix.Trim(),
-                    true,
-                    false,
-                    true,
-                    DateTimeOffset.UtcNow,
-                    false,
-                    JsonSerializer.Serialize(new[] { mode.BaseMode.ToString() })),
-                mode.BaseMode,
-                true)
-            {
-                IsActive = true
-            };
-            chat.Prompts.Insert(0, prompt);
-        }
+            IsActive = true
+        };
+        chat.Prompts.Insert(0, prompt);
 
         var requestedPlugins = ParseNames(mode.PluginsJson);
         foreach (var plugin in chat.Plugins)
