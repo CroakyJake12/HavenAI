@@ -12,12 +12,15 @@ namespace Haven.Desktop;
 public sealed partial class MainWindow : Window
 {
     private MainWindowViewModel? _viewModel;
+    private ExperienceShellHost? _experienceShell;
 
     public MainWindow()
     {
         InitializeComponent();
         InstallGenerativeUiHeaderSlot();
+        InstallExperienceShell();
         DataContextChanged += (_, _) => AttachViewModel(DataContext as MainWindowViewModel);
+        Closed += (_, _) => _experienceShell?.Dispose();
     }
 
     private void InstallGenerativeUiHeaderSlot()
@@ -35,6 +38,30 @@ public sealed partial class MainWindow : Window
         {
             Region = GenerativeUiCatalog.ShellHeaderRight
         });
+    }
+
+    private void InstallExperienceShell()
+    {
+        if (Content is not Control existingShell || existingShell is ExperienceShellHost) return;
+        HideLegacyProductSwitcher(existingShell);
+        _experienceShell = new ExperienceShellHost(existingShell);
+        Content = _experienceShell;
+    }
+
+    private static void HideLegacyProductSwitcher(Control shell)
+    {
+        if (shell is not Grid root) return;
+        var headerBorder = root.Children
+            .OfType<Border>()
+            .FirstOrDefault(border => Grid.GetRow(border) == 1 && border.Child is Grid);
+        if (headerBorder?.Child is not Grid headerGrid) return;
+        var leftHeader = headerGrid.Children
+            .OfType<StackPanel>()
+            .FirstOrDefault(panel => Grid.GetColumn(panel) == 0);
+        var legacySwitcher = leftHeader?.Children
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Classes.Contains("product"));
+        if (legacySwitcher is not null) legacySwitcher.IsVisible = false;
     }
 
     private void AttachViewModel(MainWindowViewModel? viewModel)
