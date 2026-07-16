@@ -67,6 +67,13 @@ public sealed record StartupRecoveryState(
     string Reason,
     DateTimeOffset StartedAt);
 
+public sealed record RecoverySafetyAssessment(
+    bool IsSafeMode,
+    bool StateWasReadable,
+    int RecentUncleanStarts,
+    string Reason,
+    DateTimeOffset AssessedAt);
+
 public interface IProductionDiagnostics : IAsyncDisposable
 {
     ValueTask WriteAsync(
@@ -102,6 +109,11 @@ public interface IStartupRecoveryCoordinator
     Task<StartupRecoveryState> BeginStartupAsync(CancellationToken cancellationToken);
     Task MarkStartupCompletedAsync(CancellationToken cancellationToken);
     Task MarkCleanShutdownAsync(CancellationToken cancellationToken);
+}
+
+public interface IRecoverySafetyProbe
+{
+    Task<RecoverySafetyAssessment> AssessAsync(CancellationToken cancellationToken);
 }
 
 public interface IDiagnosticsBundleService
