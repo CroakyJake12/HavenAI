@@ -2,6 +2,14 @@ using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// The compatibility model client used by user-facing surfaces that must see both
+/// first-class local Ollama models and provider-qualified remote models.
+/// </summary>
+public interface IProviderModelClient : IOllamaClient
+{
+}
+
 public interface IModelProvider
 {
     string Id { get; }
