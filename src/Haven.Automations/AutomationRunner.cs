@@ -25,51 +25,125 @@ public sealed class AutomationRunner(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var leaseToken = Guid.NewGuid().ToString("N");
-            if (!await repository.TryAcquireLeaseAsync(automation.Id, leaseToken, now.AddMinutes(15), cancellationToken).ConfigureAwait(false))
+            if (!await repository.TryAcquireLeaseAsync(
+                    automation.Id,
+                    leaseToken,
+                    now.AddMinutes(15),
+                    cancellationToken).ConfigureAwait(false))
             {
                 skipped++;
                 continue;
             }
 
             started++;
-            var scheduledFor = automation.NextRunAt ?? now;
-            var startedAt = DateTimeOffset.UtcNow;
-            try
-            {
-                var result = await ExecuteWithRetryAsync(automation, cancellationToken).ConfigureAwait(false);
-                var next = schedules.GetNextRun(automation, DateTimeOffset.UtcNow);
-                var run = new AutomationRun(
-                    Guid.NewGuid(), automation.Id, AutomationRunStatus.Succeeded, scheduledFor,
-                    startedAt, DateTimeOffset.UtcNow, result, null, leaseToken);
-                await repository.CompleteRunAsync(run, next, cancellationToken).ConfigureAwait(false);
-                succeeded++;
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                var run = new AutomationRun(
-                    Guid.NewGuid(), automation.Id, AutomationRunStatus.Cancelled, scheduledFor,
-                    startedAt, DateTimeOffset.UtcNow, null, "Cancelled.", leaseToken);
-                await repository.CompleteRunAsync(
-                    run,
-                    schedules.GetNextRun(automation, DateTimeOffset.UtcNow),
-                    CancellationToken.None).ConfigureAwait(false);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                var run = new AutomationRun(
-                    Guid.NewGuid(), automation.Id, AutomationRunStatus.Failed, scheduledFor,
-                    startedAt, DateTimeOffset.UtcNow, null, ex.Message, leaseToken);
-                await repository.CompleteRunAsync(
-                    run,
-                    schedules.GetNextRun(automation, DateTimeOffset.UtcNow),
-                    cancellationToken).ConfigureAwait(false);
-                failed++;
-            }
+            var run = await CompleteLeasedRunAsync(
+                automation,
+                leaseToken,
+                automation.NextRunAt ?? now,
+                cancellationToken).ConfigureAwait(false);
+            if (run.Status == AutomationRunStatus.Succeeded) succeeded++;
+            else if (run.Status == AutomationRunStatus.Failed) failed++;
         }
 
         return new AutomationBatchResult(due.Count, started, succeeded, failed, skipped);
     }
+
+    /// <summary>
+    /// Runs exactly one selected definition. It uses the same persisted lease and run
+    /// history as scheduled work, but it does not require the definition to be due.
+    /// </summary>
+    public async Task<AutomationRun> RunOneAsync(
+        AutomationDefinition automation,
+        DateTimeOffset requestedAt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(automation);
+        var leaseToken = Guid.NewGuid().ToString("N");
+        if (!await repository.TryAcquireLeaseAsync(
+                automation.Id,
+                leaseToken,
+                requestedAt.AddMinutes(15),
+                cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("This automation is already running in another Haven process.");
+
+        return await CompleteLeasedRunAsync(
+            automation,
+            leaseToken,
+            requestedAt,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<AutomationRun> CompleteLeasedRunAsync(
+        AutomationDefinition automation,
+        string leaseToken,
+        DateTimeOffset scheduledFor,
+        CancellationToken cancellationToken)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        try
+        {
+            var result = await ExecuteWithRetryAsync(automation, cancellationToken).ConfigureAwait(false);
+            var completedAt = DateTimeOffset.UtcNow;
+            var run = new AutomationRun(
+                Guid.NewGuid(),
+                automation.Id,
+                AutomationRunStatus.Succeeded,
+                scheduledFor,
+                startedAt,
+                completedAt,
+                result,
+                null,
+                leaseToken);
+            await repository.CompleteRunAsync(
+                run,
+                NextRunAfterCompletion(automation, completedAt),
+                cancellationToken).ConfigureAwait(false);
+            return run;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            var completedAt = DateTimeOffset.UtcNow;
+            var run = new AutomationRun(
+                Guid.NewGuid(),
+                automation.Id,
+                AutomationRunStatus.Cancelled,
+                scheduledFor,
+                startedAt,
+                completedAt,
+                null,
+                "Cancelled.",
+                leaseToken);
+            await repository.CompleteRunAsync(
+                run,
+                NextRunAfterCompletion(automation, completedAt),
+                CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var completedAt = DateTimeOffset.UtcNow;
+            var run = new AutomationRun(
+                Guid.NewGuid(),
+                automation.Id,
+                AutomationRunStatus.Failed,
+                scheduledFor,
+                startedAt,
+                completedAt,
+                null,
+                ex.Message,
+                leaseToken);
+            await repository.CompleteRunAsync(
+                run,
+                NextRunAfterCompletion(automation, completedAt),
+                CancellationToken.None).ConfigureAwait(false);
+            return run;
+        }
+    }
+
+    private DateTimeOffset? NextRunAfterCompletion(
+        AutomationDefinition automation,
+        DateTimeOffset completedAt) =>
+        automation.IsEnabled ? schedules.GetNextRun(automation, completedAt) : null;
 
     private async Task<string> ExecuteWithRetryAsync(
         AutomationDefinition automation,
@@ -105,7 +179,7 @@ public sealed class AutomationRunner(
         CancellationToken cancellationToken)
     {
         var models = await ollama.GetModelsAsync(cancellationToken).ConfigureAwait(false);
-        var model = models.FirstOrDefault(model => model.Supports(ToolCapability.Text))
+        var model = models.FirstOrDefault(candidate => candidate.Supports(ToolCapability.Text))
             ?? throw new InvalidOperationException("No text-capable Ollama model is installed.");
 
         var conditionWatch = automation.ScheduleKind == AutomationScheduleKind.ConditionWatch;
