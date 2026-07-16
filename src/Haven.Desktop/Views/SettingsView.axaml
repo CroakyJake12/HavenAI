@@ -9,7 +9,7 @@
       <TextBlock Text="Generative UI, model management, context limits, permissions and production recovery." Classes="muted" />
 
       <!-- The theme library and Studio are first-class editable AXAML content. -->
-      <views:GenerativeUiThemeSelectorView />
+      <views:GenerativeUiThemeSelectorView x:Name="GenerativeUiSelector" />
 
       <Border Classes="card">
         <StackPanel Spacing="11">
