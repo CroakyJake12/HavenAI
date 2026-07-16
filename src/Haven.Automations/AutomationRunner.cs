@@ -9,7 +9,8 @@ public sealed record AutomationBatchResult(int Due, int Started, int Succeeded, 
 public sealed class AutomationRunner(
     IAutomationRepository repository,
     IOllamaClient ollama,
-    ScheduleCalculator schedules)
+    ScheduleCalculator schedules,
+    IAutomationDeliveryOutbox? deliveries = null)
 {
     private const int MaximumAttempts = 3;
 
@@ -98,6 +99,7 @@ public sealed class AutomationRunner(
                 run,
                 NextRunAfterCompletion(automation, completedAt),
                 cancellationToken).ConfigureAwait(false);
+            await TryPublishDeliveryAsync(automation, run).ConfigureAwait(false);
             return run;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -136,6 +138,7 @@ public sealed class AutomationRunner(
                 run,
                 NextRunAfterCompletion(automation, completedAt),
                 CancellationToken.None).ConfigureAwait(false);
+            await TryPublishDeliveryAsync(automation, run).ConfigureAwait(false);
             return run;
         }
     }
@@ -144,6 +147,50 @@ public sealed class AutomationRunner(
         AutomationDefinition automation,
         DateTimeOffset completedAt) =>
         automation.IsEnabled ? schedules.GetNextRun(automation, completedAt) : null;
+
+    private async Task TryPublishDeliveryAsync(
+        AutomationDefinition automation,
+        AutomationRun run)
+    {
+        if (deliveries is null) return;
+        AutomationDelivery? delivery = null;
+        if (run.Status == AutomationRunStatus.Failed)
+        {
+            delivery = new AutomationDelivery(
+                Guid.NewGuid(),
+                automation.Id,
+                automation.Name,
+                AutomationDeliveryKind.Failed,
+                "Automation failed: " + automation.Name,
+                Bound(run.Error ?? "The automation failed without an error report.", 900),
+                run.CompletedAt ?? DateTimeOffset.UtcNow);
+        }
+        else if (run.Status == AutomationRunStatus.Succeeded
+                 && automation.ScheduleKind == AutomationScheduleKind.ConditionWatch
+                 && TryReadNormalizedCondition(run.Result, out var condition)
+                 && condition.ConditionMet)
+        {
+            delivery = new AutomationDelivery(
+                Guid.NewGuid(),
+                automation.Id,
+                automation.Name,
+                AutomationDeliveryKind.ConditionMet,
+                "Condition met: " + automation.Name,
+                Bound(condition.Report, 900),
+                run.CompletedAt ?? DateTimeOffset.UtcNow);
+        }
+
+        if (delivery is null) return;
+        try
+        {
+            await deliveries.EnqueueAsync(delivery, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Delivery is secondary to the already-persisted run. The next run must not
+            // be duplicated or marked failed because the notification outbox is locked.
+        }
+    }
 
     private async Task<string> ExecuteWithRetryAsync(
         AutomationDefinition automation,
@@ -202,6 +249,33 @@ public sealed class AutomationRunner(
         });
     }
 
+    private static bool TryReadNormalizedCondition(
+        string? response,
+        out AutomationConditionResult result)
+    {
+        result = new AutomationConditionResult(false, "The condition was not met.");
+        if (string.IsNullOrWhiteSpace(response)) return false;
+        try
+        {
+            using var document = JsonDocument.Parse(response);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("conditionMet", out var met)
+                || met.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return false;
+            var report = root.TryGetProperty("report", out var reportValue)
+                ? reportValue.GetString()?.Trim()
+                : null;
+            result = new AutomationConditionResult(
+                met.GetBoolean(),
+                string.IsNullOrWhiteSpace(report) ? "The condition was met." : report);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     internal static AutomationConditionResult ParseConditionResult(string? response)
     {
         if (string.IsNullOrWhiteSpace(response))
@@ -229,6 +303,12 @@ public sealed class AutomationRunner(
             if (bounded.Length > 1000) bounded = bounded[..1000] + "…";
             return new(false, "The condition check returned an unstructured response and was treated as not met. Response: " + bounded);
         }
+    }
+
+    private static string Bound(string value, int maximum)
+    {
+        var normalized = value.ReplaceLineEndings(" ").Trim();
+        return normalized.Length <= maximum ? normalized : normalized[..maximum] + "…";
     }
 }
 
