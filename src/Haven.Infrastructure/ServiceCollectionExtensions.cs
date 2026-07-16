@@ -12,6 +12,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
+        services.AddSingleton<DatabaseRestoreService>();
+        services.AddSingleton<IDatabaseRestoreService>(provider => provider.GetRequiredService<DatabaseRestoreService>());
         services.AddSingleton<StartupRecoveryCoordinator>();
         services.AddSingleton<CleanResetStartupRecoveryCoordinator>();
         services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<CleanResetStartupRecoveryCoordinator>());
