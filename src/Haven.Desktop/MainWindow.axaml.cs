@@ -1,11 +1,16 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
-using System.Runtime.InteropServices;
 
 namespace Haven.Desktop;
 
@@ -13,6 +18,7 @@ public sealed partial class MainWindow : Window
 {
     private MainWindowViewModel? _viewModel;
     private ExperienceShellHost? _experienceShell;
+    private Button? _studioExperienceButton;
 
     public MainWindow()
     {
@@ -20,7 +26,12 @@ public sealed partial class MainWindow : Window
         InstallGenerativeUiHeaderSlot();
         InstallExperienceShell();
         DataContextChanged += (_, _) => AttachViewModel(DataContext as MainWindowViewModel);
-        Closed += (_, _) => _experienceShell?.Dispose();
+        Opened += (_, _) => RefineExperienceRail();
+        Closed += (_, _) =>
+        {
+            AttachViewModel(null);
+            _experienceShell?.Dispose();
+        };
     }
 
     private void InstallGenerativeUiHeaderSlot()
@@ -64,20 +75,69 @@ public sealed partial class MainWindow : Window
         if (legacySwitcher is not null) legacySwitcher.IsVisible = false;
     }
 
+    private void RefineExperienceRail()
+    {
+        if (_experienceShell is null) return;
+        _studioExperienceButton ??= _experienceShell.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Name == "ExperienceStudioButton");
+        if (_studioExperienceButton is not null && _studioExperienceButton.Flyout is not null)
+        {
+            _studioExperienceButton.Flyout = null;
+            _studioExperienceButton.Click += OnStudioExperienceClicked;
+            ToolTip.SetTip(_studioExperienceButton, "Studio");
+        }
+        UpdateExperienceFamilyState();
+    }
+
+    private async void OnStudioExperienceClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null)
+            await _viewModel.NavigateStudioCommand.ExecuteAsync();
+    }
+
     private void AttachViewModel(MainWindowViewModel? viewModel)
     {
         if (_viewModel is not null)
         {
             _viewModel.CopyRequested -= OnCopyRequested;
             _viewModel.DictateRequested -= OnDictateRequested;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         _viewModel = viewModel;
         if (_viewModel is not null)
         {
             _viewModel.CopyRequested += OnCopyRequested;
             _viewModel.DictateRequested += OnDictateRequested;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
+        Dispatcher.UIThread.Post(RefineExperienceRail);
     }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
+            or nameof(MainWindowViewModel.CurrentChat)
+            or nameof(MainWindowViewModel.ProductName))
+            Dispatcher.UIThread.Post(UpdateExperienceFamilyState);
+    }
+
+    private void UpdateExperienceFamilyState()
+    {
+        if (_experienceShell is null || _viewModel is null) return;
+        var plan = _experienceShell.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Name == "ExperiencePlanButton");
+        if (plan is null) return;
+        var active = _viewModel.CurrentSurface == HavenSurface.Plan
+                     || _viewModel.CurrentPage is AutomationsPageViewModel;
+        plan.Background = active
+            ? ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(72, 0, 120, 212))
+            : Brushes.Transparent;
+    }
+
+    private static IBrush ResourceBrush(string key, Color fallback) =>
+        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private async void OnCopyRequested(object? sender, string content)
     {
@@ -120,12 +180,12 @@ public sealed partial class MainWindow : Window
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new StackPanel
             {
-                Margin = new Avalonia.Thickness(24),
+                Margin = new Thickness(24),
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = "Haven", FontSize = 26, FontWeight = Avalonia.Media.FontWeight.SemiBold },
-                    new TextBlock { Text = "A local-first AI workspace for Chat, Teaching, Do, Studio and Browse.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                    new TextBlock { Text = "Haven", FontSize = 26, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = "A local-first AI workspace for Chat, Teaching, Do, Studio and Browse.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Native Avalonia workspace", Opacity = 0.65 }
                 }
             }
