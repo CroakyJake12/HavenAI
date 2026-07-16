@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Haven.Core;
 
@@ -6,6 +7,7 @@ namespace Haven.Desktop.ViewModels;
 public static class MainWindowModeNavigationExtensions
 {
     private const string ModeProfilePrefix = "Mode profile · ";
+    private static readonly ConditionalWeakTable<ChatPageViewModel, ModeActivationSnapshot> Snapshots = new();
 
     public static async Task OpenModeDefinitionAsync(this MainWindowViewModel shell, ModeDefinition mode)
     {
@@ -16,15 +18,19 @@ public static class MainWindowModeNavigationExtensions
         {
             case "chat":
                 await shell.NavigateChatCommand.ExecuteAsync();
+                ClearModeProfile(shell.CurrentChat);
                 return;
             case "teach":
                 await shell.NavigateTeachCommand.ExecuteAsync();
+                ClearModeProfile(shell.CurrentChat);
                 return;
             case "do":
                 await shell.NavigateDoCommand.ExecuteAsync();
+                ClearModeProfile(shell.CurrentChat);
                 return;
             case "studio":
                 await shell.NavigateStudioCommand.ExecuteAsync();
+                ClearModeProfile(shell.CurrentChat);
                 return;
             case "browse":
                 shell.NavigateBrowserCommand.Execute(null);
@@ -52,12 +58,10 @@ public static class MainWindowModeNavigationExtensions
         if (chat.Mode != mode.BaseMode)
             throw new InvalidOperationException($"Mode '{mode.Name}' requires the {mode.BaseMode} workspace, but {chat.Mode} is active.");
 
+        ClearModeProfile(chat);
+        Snapshots.Add(chat, new ModeActivationSnapshot(
+            chat.Plugins.Where(plugin => plugin.IsActive).Select(plugin => plugin.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)));
         chat.NewChatCommand.Execute(null);
-
-        foreach (var oldProfile in chat.Prompts
-                     .Where(prompt => prompt.Name.StartsWith(ModeProfilePrefix, StringComparison.OrdinalIgnoreCase))
-                     .ToArray())
-            chat.Prompts.Remove(oldProfile);
 
         if (!string.IsNullOrWhiteSpace(mode.SystemPromptSuffix))
         {
@@ -85,6 +89,19 @@ public static class MainWindowModeNavigationExtensions
         var requestedPlugins = ParseNames(mode.PluginsJson);
         foreach (var plugin in chat.Plugins)
             plugin.IsActive = requestedPlugins.Contains(plugin.Name) && plugin.IsAvailableInMode && plugin.IsRuntimeAvailable;
+    }
+
+    internal static void ClearModeProfile(ChatPageViewModel chat)
+    {
+        foreach (var oldProfile in chat.Prompts
+                     .Where(prompt => prompt.Name.StartsWith(ModeProfilePrefix, StringComparison.OrdinalIgnoreCase))
+                     .ToArray())
+            chat.Prompts.Remove(oldProfile);
+
+        if (!Snapshots.TryGetValue(chat, out var snapshot)) return;
+        foreach (var plugin in chat.Plugins)
+            plugin.IsActive = snapshot.ActivePlugins.Contains(plugin.Name) && plugin.IsAvailableInMode && plugin.IsRuntimeAvailable;
+        Snapshots.Remove(chat);
     }
 
     private static async Task NavigateToBaseWorkspaceAsync(MainWindowViewModel shell, HavenMode baseMode)
@@ -121,4 +138,6 @@ public static class MainWindowModeNavigationExtensions
             return [];
         }
     }
+
+    private sealed record ModeActivationSnapshot(HashSet<string> ActivePlugins);
 }
