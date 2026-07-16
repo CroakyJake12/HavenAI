@@ -1,13 +1,38 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Haven.Core;
+using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
 
 public sealed partial class PlanView : UserControl
 {
-    public PlanView() => InitializeComponent();
+    private PlanAutomationControl? _automationControl;
+
+    public PlanView()
+    {
+        InitializeComponent();
+        AttachedToVisualTree += (_, _) => InstallAutomationControl();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _automationControl?.Dispose();
+            _automationControl = null;
+        };
+    }
+
+    private void InstallAutomationControl()
+    {
+        if (_automationControl is not null || Content is not Grid root) return;
+        _automationControl = new PlanAutomationControl
+        {
+            Margin = new Thickness(0, 22, 22, 0)
+        };
+        Grid.SetColumn(_automationControl, 2);
+        Panel.SetZIndex(_automationControl, 20);
+        root.Children.Add(_automationControl);
+    }
 
     private async void TaskDrag_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
