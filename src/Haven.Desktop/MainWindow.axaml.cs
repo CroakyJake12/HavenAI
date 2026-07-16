@@ -2,6 +2,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Haven.Application;
+using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
 using System.Runtime.InteropServices;
 
@@ -14,7 +16,25 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InstallGenerativeUiHeaderSlot();
         DataContextChanged += (_, _) => AttachViewModel(DataContext as MainWindowViewModel);
+    }
+
+    private void InstallGenerativeUiHeaderSlot()
+    {
+        if (Content is not Grid root) return;
+        var headerBorder = root.Children
+            .OfType<Border>()
+            .FirstOrDefault(border => Grid.GetRow(border) == 1 && border.Child is Grid);
+        if (headerBorder?.Child is not Grid headerGrid) return;
+        var rightHeader = headerGrid.Children
+            .OfType<StackPanel>()
+            .FirstOrDefault(panel => Grid.GetColumn(panel) == 2);
+        if (rightHeader is null || rightHeader.Children.OfType<GenerativeUiSlot>().Any()) return;
+        rightHeader.Children.Insert(0, new GenerativeUiSlot
+        {
+            Region = GenerativeUiCatalog.ShellHeaderRight
+        });
     }
 
     private void AttachViewModel(MainWindowViewModel? viewModel)
