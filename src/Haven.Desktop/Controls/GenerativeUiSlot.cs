@@ -65,6 +65,7 @@ public sealed class GenerativeUiSlot : StackPanel
     {
         Children.Clear();
         if (_runtime is null || string.IsNullOrWhiteSpace(Region)) return;
+        Spacing = 6 * _runtime.ActiveTheme.Shape.SpacingScale;
         foreach (var placement in _runtime.GetPlacements(Region))
         {
             var control = CreateItem(placement.ItemId, placement.Presentation);
