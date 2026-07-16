@@ -34,7 +34,14 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
                     "A focus page.",
                     "clock",
                     1,
-                    [new GeneratedWidgetDefinition("timer", GeneratedWidgetKind.Timer, "Timer", null, null, 1500, [])])
+                    [new GeneratedWidgetDefinition(
+                        "timer",
+                        GeneratedWidgetKind.Timer,
+                        "Timer",
+                        null,
+                        null,
+                        1500,
+                        [])])
             ]
         };
         var response = JsonSerializer.Serialize(new
@@ -59,7 +66,8 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         Assert.NotEqual(Guid.Empty, proposal.Theme.Id);
         Assert.False(proposal.Theme.IsBuiltIn);
         Assert.Equal(GenerativeThemeOrigin.AiGenerated, proposal.Theme.Origin);
-        Assert.Equal(GenerativeUiCatalog.ShellHeaderRight,
+        Assert.Equal(
+            GenerativeUiCatalog.ShellHeaderRight,
             proposal.Theme.Layout.Placements.Single(item => item.ItemId == "chat.context").Region);
         Assert.Single(proposal.Theme.Pages);
         Assert.Contains("timer", proposal.Summary, StringComparison.OrdinalIgnoreCase);
@@ -157,46 +165,49 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             false,
             now,
             now,
-            Palette("#FFF8FAFD", "#FF087F8C"),
-            Palette("#FF0D161B", "#FF28A6A6"),
+            Palette(light: true, "#FFF8FAFD", "#FF087F8C"),
+            Palette(light: false, "#FF0D161B", "#FF087F8C"),
             new GenerativeThemeTypography("Segoe UI", 14, 1.35, 0),
             new GenerativeThemeShape(10, 14, 16, 1, true, true),
             GenerativeUiCatalog.DefaultLayout,
             []);
     }
 
-    private static GenerativeThemePalette Palette(string background, string accent) => new(
+    private static GenerativeThemePalette Palette(bool light, string background, string accent) => new(
         background,
-        "#FF182129",
-        "#FF202A33",
-        "#FF26323C",
-        "#FF2C3A46",
-        "#FF344552",
-        "#FFFFFFFF",
-        "#FFD9E2EA",
-        "#FFA8B5C1",
-        "#FF748391",
+        light ? "#FFF7F9FC" : "#FF182129",
+        light ? "#FFFFFFFF" : "#FF202A33",
+        light ? "#FFF1F4F8" : "#FF26323C",
+        light ? "#FFE8EDF3" : "#FF2C3A46",
+        light ? "#FFE1E7EE" : "#FF344552",
+        light ? "#FF16191E" : "#FFFFFFFF",
+        light ? "#FF343A44" : "#FFD9E2EA",
+        light ? "#FF5F6875" : "#FFA8B5C1",
+        light ? "#FF7D8795" : "#FF748391",
         accent,
         "#FFFFFFFF",
-        "#FF203A45",
-        "#FF60CDFF",
-        "#FF1E3A50",
+        light ? "#FFDCEEFF" : "#FF203A45",
+        light ? "#FF0067B8" : "#FF60CDFF",
+        light ? "#FFD8ECFA" : "#FF1E3A50",
         "#FFFF99A4",
         "#FFFCE4A6",
-        "#22FFFFFF",
-        "#44FFFFFF",
+        light ? "#24000000" : "#22FFFFFF",
+        light ? "#3D000000" : "#44FFFFFF",
         accent,
-        "#FF182234",
-        "#F2182234",
-        "#2EFFFFFF",
-        "#46FFFFFF",
-        "#20FFFFFF",
+        light ? "#FFF4F6F9" : "#FF182234",
+        light ? "#FFF4F6F9" : "#F2182234",
+        light ? "#E6FFFFFF" : "#2EFFFFFF",
+        light ? "#FFFFFFFF" : "#46FFFFFF",
+        light ? "#FFE7EBF0" : "#20FFFFFF",
         "#A060CDFF");
 
     private sealed class FakeOllamaClient(string response) : IOllamaClient
     {
         public int CompleteCalls { get; private set; }
-        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
 
@@ -208,26 +219,36 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             yield break;
         }
 
-        public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
+        public Task<string> CompleteAsync(
+            OllamaChatRequest request,
+            CancellationToken cancellationToken)
         {
             CompleteCalls++;
             return Task.FromResult(response);
         }
 
-        public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
+        public Task<OllamaToolResponse> ChatWithToolsAsync(
+            OllamaToolRequest request,
+            CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Empty, []));
 
-        public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
+        public Task PullModelAsync(
+            string model,
+            IProgress<double>? progress,
+            CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
-        public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeleteModelAsync(string model, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
         {
-            DataDirectory = Path.Combine(Path.GetTempPath(), "haven-generative-ai-tests-" + Guid.NewGuid().ToString("N"));
+            DataDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "haven-generative-ai-tests-" + Guid.NewGuid().ToString("N"));
             DatabasePath = Path.Combine(DataDirectory, "haven.db");
             BrowserProfileDirectory = Path.Combine(DataDirectory, "browser");
             AttachmentsDirectory = Path.Combine(DataDirectory, "attachments");
@@ -246,8 +267,13 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
 
         public void Dispose()
         {
-            try { Directory.Delete(DataDirectory, recursive: true); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try
+            {
+                Directory.Delete(DataDirectory, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
         }
     }
 }
