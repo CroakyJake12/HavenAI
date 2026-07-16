@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Browser;
+using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
@@ -13,6 +14,7 @@ public sealed partial class BrowserView : UserControl
 {
     private NativeWebViewHost? _host;
     private BrowserPageViewModel? _viewModel;
+    private BrowserUtilitiesControl? _utilities;
 
     public BrowserView()
     {
@@ -23,9 +25,15 @@ public sealed partial class BrowserView : UserControl
             if (_viewModel is not null) _viewModel.ImportExtensionRequested -= OnImportExtensionRequested;
             _viewModel = DataContext as BrowserPageViewModel;
             if (_viewModel is not null) _viewModel.ImportExtensionRequested += OnImportExtensionRequested;
+            if (_utilities is not null) _utilities.DataContext = DataContext;
+            EnsureUtilities();
             AttachBrowser();
         };
-        AttachedToVisualTree += (_, _) => AttachBrowser();
+        AttachedToVisualTree += (_, _) =>
+        {
+            EnsureUtilities();
+            AttachBrowser();
+        };
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -53,6 +61,30 @@ public sealed partial class BrowserView : UserControl
             if (!string.IsNullOrWhiteSpace(path)) await vm.ImportExtensionAsync(path, convertChrome);
         }
         catch (Exception ex) { vm.ReportBrowserError(ex); }
+    }
+
+    private void EnsureUtilities()
+    {
+        if (_utilities is not null) return;
+        var addressBox = this.GetVisualDescendants()
+            .OfType<TextBox>()
+            .FirstOrDefault(textBox => string.Equals(
+                textBox.PlaceholderText,
+                "Search or enter address",
+                StringComparison.Ordinal));
+        if (addressBox?.Parent is not Grid navigation) return;
+
+        // Insert between the address and Go controls while preserving every existing
+        // command and the single stable NativeWebView host.
+        navigation.ColumnDefinitions.Insert(5, new ColumnDefinition(GridLength.Auto));
+        foreach (var child in navigation.Children.ToArray())
+        {
+            var column = Grid.GetColumn(child);
+            if (column >= 5) Grid.SetColumn(child, column + 1);
+        }
+        _utilities = new BrowserUtilitiesControl { DataContext = DataContext };
+        Grid.SetColumn(_utilities, 5);
+        navigation.Children.Add(_utilities);
     }
 
     private void AttachBrowser()
