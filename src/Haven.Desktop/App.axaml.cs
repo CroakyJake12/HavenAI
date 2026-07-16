@@ -56,6 +56,8 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
+        collection.AddSingleton<GenerativeUiThemeRuntime>();
+        collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
         collection.AddTransient<ProviderConnectionsViewModel>();
         collection.AddSingleton<MainWindowViewModel>();
         _services = collection.BuildServiceProvider();
@@ -84,6 +86,7 @@ public sealed partial class App : Avalonia.Application
             var services = _services ?? throw new InvalidOperationException("Haven services have not been initialized.");
             var recovery = _startupRecovery ?? services.GetRequiredService<IStartupRecoveryCoordinator>();
             var recoveryState = await recovery.BeginStartupAsync(CancellationToken.None);
+            await services.GetRequiredService<GenerativeUiThemeRuntime>().InitializeAsync(CancellationToken.None);
 
             BrowserAutomationRegistry.Register(
                 services.GetRequiredService<BrowserSessionService>(),
@@ -148,8 +151,6 @@ public sealed partial class App : Avalonia.Application
         }
         catch (Exception ex)
         {
-            // Do not clear the startup marker after a disposal failure. The next launch
-            // must treat this exit as unclean and can enter recovery safe mode.
             System.Diagnostics.Debug.WriteLine("[Haven shutdown] " + ex);
         }
         finally
