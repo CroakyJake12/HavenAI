@@ -15,8 +15,8 @@ namespace Haven.Desktop.Controls;
 
 /// <summary>
 /// One compact prompt-bar control for model selection, effort, generation options and
-/// corrective recovery actions. It deliberately reuses ChatPageViewModel state and
-/// commands so moving the control through Generative UI never duplicates chat logic.
+/// corrective recovery actions. It reuses the live ChatPageViewModel so Generative UI
+/// can move the control without copying or bypassing chat behaviour.
 /// </summary>
 public sealed class ModelConfigurationControl : UserControl, IDisposable
 {
@@ -24,19 +24,21 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         "^(openai|openrouter|anthropic|gemini|openai-compatible):",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex QwenName = new(
-        "(?i)\\bqwen\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*[-_]?\\s*(?:vl|vision))?\\b",
+        "(?i)\\bqwen\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(?:vl|vision))?\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex ParameterSize = new(
         "(?i)(?:^|\\s)[0-9]+(?:\\.[0-9]+)?b(?:\\s|$)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex Quantisation = new(
+        "(?i)\\bq[2-8](?:\\s+[kms]){0,2}(?:\\s+[a-z0-9]+)?\\b",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex ModelFluff = new(
-        "(?i)\\b(latest|preview|instruct|instruction|chat|base|thinking|reasoning|fp16|fp32|q[2-8](?:_[kms])?(?:_[a-z0-9]+)?)\\b",
+        "(?i)\\b(latest|preview|instruct|instruction|chat|base|thinking|reasoning|fp16|fp32)\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex RepeatedWhitespace = new(
         "\\s+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private readonly string _presentation;
     private readonly Button _button;
     private readonly TextBlock _summary;
     private readonly StackPanel _capabilities;
@@ -53,7 +55,6 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
 
     public ModelConfigurationControl(string presentation = "default")
     {
-        _presentation = presentation;
         _summary = new TextBlock
         {
             Text = "Choose model",
@@ -116,16 +117,15 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _mainFlyout = new Flyout
         {
             Placement = PlacementMode.Top,
-            ShowMode = FlyoutShowMode.Standard,
             Content = BuildMainPanel()
         };
-        _mainFlyout.Opened += (_, _) => RefreshFromContext();
+        _mainFlyout.Opened += OnFlyoutOpened;
         _button.Flyout = _mainFlyout;
         Content = _button;
 
         DataContextChanged += OnDataContextChanged;
-        AttachedToVisualTree += (_, _) => AttachContext();
-        DetachedFromVisualTree += (_, _) => DetachContext();
+        AttachedToVisualTree += OnAttachedToVisualTree;
+        DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
     public void Dispose()
@@ -133,6 +133,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         DataContextChanged -= OnDataContextChanged;
+        AttachedToVisualTree -= OnAttachedToVisualTree;
+        DetachedFromVisualTree -= OnDetachedFromVisualTree;
+        _mainFlyout.Opened -= OnFlyoutOpened;
         _effortSlider.ValueChanged -= OnEffortValueChanged;
         DetachContext();
         _mainFlyout.Hide();
@@ -142,13 +145,16 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     internal static string SimplifyModelName(string? modelName)
     {
         if (string.IsNullOrWhiteSpace(modelName)) return "Choose model";
-        var value = ProviderPrefix.Replace(modelName.Trim(), string.Empty);
-        value = value.Replace(':', ' ').Replace('_', ' ').Replace('-', ' ');
+        var value = ProviderPrefix.Replace(modelName.Trim(), string.Empty)
+            .Replace(':', ' ')
+            .Replace('_', ' ')
+            .Replace('-', ' ');
         value = QwenName.Replace(value, "Qwen $1");
-        value = Regex.Replace(value, "(?i)\\b(llama)\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Llama $2");
-        value = Regex.Replace(value, "(?i)\\b(gemma)\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Gemma $2");
-        value = Regex.Replace(value, "(?i)\\b(mistral)\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Mistral $2");
+        value = Regex.Replace(value, "(?i)\\bllama\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Llama $1");
+        value = Regex.Replace(value, "(?i)\\bgemma\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Gemma $1");
+        value = Regex.Replace(value, "(?i)\\bmistral\\s*([0-9]+(?:\\.[0-9]+)?)\\b", "Mistral $1");
         value = ParameterSize.Replace(value, " ");
+        value = Quantisation.Replace(value, " ");
         value = ModelFluff.Replace(value, " ");
         value = RepeatedWhitespace.Replace(value, " ").Trim(' ', '.', '-', '_');
         return string.IsNullOrWhiteSpace(value) ? modelName.Trim() : value;
@@ -156,9 +162,21 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
 
     private Control BuildMainPanel()
     {
-        var advancedButton = CreateSubmenuButton("⚙", "Advanced configurations", BuildAdvancedPanel, "Temperature, context and action limits");
-        var resolveButton = CreateSubmenuButton("⚑", "Resolve errors", BuildRecoveryPanel, "Interrupt and correct problematic model behaviour");
-        var modelButton = CreateSubmenuButton("🤖", "Model", BuildModelPanel, "Choose from the full configured model catalogue");
+        var advanced = CreateSubmenuButton(
+            "⚙",
+            "Advanced configurations",
+            BuildAdvancedPanel,
+            "Temperature, context and action limits");
+        var recovery = CreateSubmenuButton(
+            "⚑",
+            "Resolve errors",
+            BuildRecoveryPanel,
+            "Interrupt and correct problematic model behaviour");
+        var models = CreateSubmenuButton(
+            "🤖",
+            "Model",
+            BuildModelPanel,
+            "Choose from the full configured model catalogue");
 
         return new StackPanel
         {
@@ -167,9 +185,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             Children =
             {
                 new TextBlock { Text = "MODEL AND EFFORT", FontWeight = FontWeight.SemiBold, FontSize = 11 },
-                advancedButton,
-                resolveButton,
-                modelButton,
+                advanced,
+                recovery,
+                models,
                 new Separator(),
                 new Grid
                 {
@@ -195,7 +213,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
     }
 
-    private Button CreateSubmenuButton(
+    private static Button CreateSubmenuButton(
         string glyph,
         string title,
         Func<Control> contentFactory,
@@ -215,12 +233,11 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                     WithColumn(new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center }, 1),
                     WithColumn(new TextBlock { Text = "›", FontSize = 18, VerticalAlignment = VerticalAlignment.Center }, 2)
                 }
-            }
+            },
+            Flyout = new Flyout { Placement = PlacementMode.Right, Content = contentFactory() }
         };
         button.Classes.Add("sidebar");
         ToolTip.SetTip(button, tooltip);
-        var flyout = new Flyout { Placement = PlacementMode.Right, Content = contentFactory() };
-        button.Flyout = flyout;
         return button;
     }
 
@@ -266,6 +283,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 (int)(actions.Value ?? 20));
             status.Text = "Advanced model configurations saved.";
         };
+
         return new StackPanel
         {
             Width = 310,
@@ -285,7 +303,12 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     private Control BuildRecoveryPanel()
     {
         var panel = new StackPanel { Width = 330, Spacing = 6 };
-        panel.Children.Add(new TextBlock { Text = "RESOLVE MODEL BEHAVIOUR", FontWeight = FontWeight.SemiBold, FontSize = 11 });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "RESOLVE MODEL BEHAVIOUR",
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 11
+        });
         panel.Children.Add(new TextBlock
         {
             Text = "These actions interrupt the current response, add a focused corrective message, and let the selected model reassess.",
@@ -337,11 +360,11 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     private Control BuildModelPanel()
     {
         var search = new TextBox { PlaceholderText = "Search configured models" };
-        var models = new StackPanel { Spacing = 4 };
+        var modelButtons = new StackPanel { Spacing = 4 };
 
         void Rebuild()
         {
-            models.Children.Clear();
+            modelButtons.Children.Clear();
             var chat = ResolveChat();
             if (chat is null) return;
             var query = search.Text?.Trim() ?? string.Empty;
@@ -351,7 +374,8 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                                          || model.Family.Contains(query, StringComparison.OrdinalIgnoreCase))
                          .OrderBy(model => model.Name, StringComparer.OrdinalIgnoreCase))
             {
-                var modelButton = new Button
+                var selected = ReferenceEquals(model, chat.SelectedModel);
+                var button = new Button
                 {
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -366,30 +390,39 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                                 Spacing = 2,
                                 Children =
                                 {
-                                    new TextBlock { Text = model.Name, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                                    new TextBlock
+                                    {
+                                        Text = model.Name,
+                                        FontWeight = FontWeight.SemiBold,
+                                        TextWrapping = TextWrapping.Wrap
+                                    },
                                     new TextBlock { Text = model.Family, Classes = { "muted" }, FontSize = 9 }
                                 }
                             },
                             WithColumn(new TextBlock
                             {
-                                Text = ReferenceEquals(model, chat.SelectedModel) ? "✓" : string.Empty,
-                                Foreground = Application.Current?.Resources["HavenAccentBrush"] as IBrush,
+                                Text = selected ? "✓" : string.Empty,
                                 VerticalAlignment = VerticalAlignment.Center
                             }, 1)
                         }
                     }
                 };
-                modelButton.Classes.Add("sidebar");
-                modelButton.Click += (_, _) =>
+                button.Classes.Add("sidebar");
+                button.Click += (_, _) =>
                 {
                     chat.SelectedModel = model;
                     RefreshSummary();
                     _mainFlyout.Hide();
                 };
-                models.Children.Add(modelButton);
+                modelButtons.Children.Add(button);
             }
-            if (models.Children.Count == 0)
-                models.Children.Add(new TextBlock { Text = "No matching configured models.", Classes = { "muted" } });
+
+            if (modelButtons.Children.Count == 0)
+                modelButtons.Children.Add(new TextBlock
+                {
+                    Text = "No matching configured models.",
+                    Classes = { "muted" }
+                });
         }
 
         search.TextChanged += (_, _) => Rebuild();
@@ -413,7 +446,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 {
                     MaxHeight = 430,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    Content = models
+                    Content = modelButtons
                 }
             }
         };
@@ -426,17 +459,20 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         if (chat.IsSending && chat.StopCommand.CanExecute(null))
         {
             chat.StopCommand.Execute(null);
-            await Task.Delay(175);
+            await Task.Delay(175).ConfigureAwait(false);
         }
-        chat.UsePrompt(instruction);
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            chat.UsePrompt(instruction);
             if (chat.SendCommand.CanExecute(null)) chat.SendCommand.Execute(null);
         });
         _mainFlyout.Hide();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e) => AttachContext();
+    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => AttachContext();
+    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => DetachContext();
+    private void OnFlyoutOpened(object? sender, EventArgs e) => RefreshFromContext();
 
     private void AttachContext()
     {
@@ -474,21 +510,20 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             AttachContext();
             return;
         }
-        if (e.PropertyName is nameof(ChatPageViewModel.SelectedModel) or nameof(ChatPageViewModel.SelectedEffort))
-        {
-            if (!_updatingEffort && e.PropertyName == nameof(ChatPageViewModel.SelectedEffort))
-                _effortPercent = PercentageForEffort(_chat?.SelectedEffort ?? EffortLevel.Medium);
-            RefreshSummary();
-        }
+        if (e.PropertyName is not (nameof(ChatPageViewModel.SelectedModel) or nameof(ChatPageViewModel.SelectedEffort)))
+            return;
+        if (!_updatingEffort && e.PropertyName == nameof(ChatPageViewModel.SelectedEffort))
+            _effortPercent = PercentageForEffort(_chat?.SelectedEffort ?? EffortLevel.Medium);
+        RefreshSummary();
     }
 
     private void OnModelsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshSummary();
 
     private void SubscribeToModels()
     {
-        if (_chat?.Models is not INotifyCollectionChanged changed) return;
-        _subscribedModels = changed;
-        changed.CollectionChanged += OnModelsChanged;
+        if (_subscribedModels is not null) _subscribedModels.CollectionChanged -= OnModelsChanged;
+        _subscribedModels = _chat?.Models as INotifyCollectionChanged;
+        if (_subscribedModels is not null) _subscribedModels.CollectionChanged += OnModelsChanged;
     }
 
     private ChatPageViewModel? ResolveChat()
@@ -520,7 +555,10 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         AddCapability(model.Supports(ToolCapability.Vision), "◉", "Vision");
         AddCapability(model.Supports(ToolCapability.Tools), "⌘", "Tools");
         AddCapability(model.Supports(ToolCapability.Browser), "◎", "Browser");
-        AddCapability(model.Supports(ToolCapability.AudioInput) || model.Supports(ToolCapability.AudioOutput), "◖", "Audio");
+        AddCapability(
+            model.Supports(ToolCapability.AudioInput) || model.Supports(ToolCapability.AudioOutput),
+            "◖",
+            "Audio");
     }
 
     private void AddCapability(bool supported, string glyph, string label)
@@ -530,7 +568,6 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         {
             Text = glyph,
             FontSize = 11,
-            Foreground = Application.Current?.Resources["HavenAccentBrush"] as IBrush,
             VerticalAlignment = VerticalAlignment.Center
         };
         ToolTip.SetTip(icon, label + " supported");
@@ -587,7 +624,13 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         {
             new TextBlock { Text = label, FontWeight = FontWeight.SemiBold, FontSize = 10 },
             control,
-            new TextBlock { Text = description, Classes = { "muted2" }, FontSize = 9, TextWrapping = TextWrapping.Wrap }
+            new TextBlock
+            {
+                Text = description,
+                Classes = { "muted2" },
+                FontSize = 9,
+                TextWrapping = TextWrapping.Wrap
+            }
         }
     };
 
