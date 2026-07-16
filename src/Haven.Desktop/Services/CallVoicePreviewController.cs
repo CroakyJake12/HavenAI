@@ -40,7 +40,7 @@ public sealed class CallVoicePreviewController(
                 "A local Call voice preview started.",
                 new Dictionary<string, string>
                 {
-                    ["voiceLanguage"] = voice.Language,
+                    ["voiceCulture"] = voice.Culture ?? "unknown",
                     ["usesDefaultOutput"] = string.Equals(outputDeviceId, "default", StringComparison.OrdinalIgnoreCase).ToString()
                 },
                 correlationId,
