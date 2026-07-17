@@ -57,6 +57,57 @@ public sealed class ProviderToolProtocolTests
     }
 
     [Fact]
+    public void AnthropicParallelResultsImmediatelyFollowToolUseInOneUserMessage()
+    {
+        var turns = new List<OllamaToolTurn>
+        {
+            new("user", "Read both files."),
+            new("assistant", "I will inspect both.",
+            [
+                new OllamaToolCall("read_file", Arguments("path", "one.txt")),
+                new OllamaToolCall("read_file", Arguments("path", "two.txt"))
+            ]),
+            new("tool", "first", ToolName: "read_file"),
+            new("tool", "second", ToolName: "read_file")
+        };
+
+        var payload = AnthropicModelProvider.BuildToolMessages(turns);
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(payload, ProviderHttp.Json));
+        var messages = document.RootElement;
+        var assistantContent = messages[1].GetProperty("content");
+        var resultContent = messages[2].GetProperty("content");
+        var firstCallId = assistantContent[1].GetProperty("id").GetString();
+        var secondCallId = assistantContent[2].GetProperty("id").GetString();
+
+        Assert.Equal("assistant", messages[1].GetProperty("role").GetString());
+        Assert.Equal("text", assistantContent[0].GetProperty("type").GetString());
+        Assert.Equal("tool_use", assistantContent[1].GetProperty("type").GetString());
+        Assert.Equal("tool_use", assistantContent[2].GetProperty("type").GetString());
+        Assert.Equal("user", messages[2].GetProperty("role").GetString());
+        Assert.Equal(2, resultContent.GetArrayLength());
+        Assert.Equal("tool_result", resultContent[0].GetProperty("type").GetString());
+        Assert.Equal(firstCallId, resultContent[0].GetProperty("tool_use_id").GetString());
+        Assert.Equal(secondCallId, resultContent[1].GetProperty("tool_use_id").GetString());
+    }
+
+    [Fact]
+    public void AnthropicToolHistoryPreservesVisionInput()
+    {
+        var turns = new List<OllamaToolTurn>
+        {
+            new("user", "Inspect this image.", Images: ["base64-image"])
+        };
+
+        var payload = AnthropicModelProvider.BuildToolMessages(turns);
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(payload, ProviderHttp.Json));
+        var content = document.RootElement[0].GetProperty("content");
+
+        Assert.Equal("image", content[0].GetProperty("type").GetString());
+        Assert.Equal("base64", content[0].GetProperty("source").GetProperty("type").GetString());
+        Assert.Equal("text", content[1].GetProperty("type").GetString());
+    }
+
+    [Fact]
     public void OrphanToolResultIsRejectedBeforeProviderRequest()
     {
         var turns = new List<OllamaToolTurn>
