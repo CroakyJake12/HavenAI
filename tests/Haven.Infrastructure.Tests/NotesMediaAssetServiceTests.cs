@@ -42,7 +42,12 @@ public sealed class NotesMediaAssetServiceTests : IDisposable
         await File.WriteAllBytesAsync(source, [1, 2, 3, 4, 5, 6]);
         var media = await attachments.ImportAsync(source, CancellationToken.None);
         var managed = await attachments.ResolvePathAsync(media.AttachmentId, CancellationToken.None);
-        await File.AppendAllBytesAsync(managed, [7, 8, 9]);
+        await using (var stream = new FileStream(managed, FileMode.Append, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+        {
+            await stream.WriteAsync(new byte[] { 7, 8, 9 });
+            await stream.FlushAsync();
+            stream.Flush(flushToDisk: true);
+        }
 
         var verification = await service.VerifyAsync(media, CancellationToken.None);
 
