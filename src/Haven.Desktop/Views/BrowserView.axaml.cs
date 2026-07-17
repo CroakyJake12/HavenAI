@@ -25,10 +25,10 @@ public sealed partial class BrowserView : UserControl
         DataContextChanged += (_, _) =>
         {
             if (_viewModel is not null) _viewModel.ImportExtensionRequested -= OnImportExtensionRequested;
+            DetachBrowser();
             _viewModel = DataContext as BrowserPageViewModel;
             if (_viewModel is not null) _viewModel.ImportExtensionRequested += OnImportExtensionRequested;
             if (_utilities is not null) _utilities.DataContext = DataContext;
-            DetachBrowser();
             EnsureUtilities();
             AttachBrowser();
         };
@@ -48,7 +48,7 @@ public sealed partial class BrowserView : UserControl
     private void DetachBrowser()
     {
         if (_host is null) return;
-        if (DataContext is BrowserPageViewModel vm) vm.Browser.Detach(_host);
+        _viewModel?.Browser.Detach(_host);
         _host.Dispose();
         _host = null;
     }
@@ -94,7 +94,7 @@ public sealed partial class BrowserView : UserControl
 
     private void AttachBrowser()
     {
-        if (_host is not null || !this.IsAttachedToVisualTree() || DataContext is not BrowserPageViewModel vm) return;
+        if (_host is not null || !this.IsAttachedToVisualTree() || _viewModel is not { } vm) return;
 
         try
         {
@@ -120,7 +120,7 @@ public sealed partial class BrowserView : UserControl
 
     private void ConfigureEnvironment(object arguments)
     {
-        if (DataContext is not BrowserPageViewModel vm) return;
+        if (_viewModel is not { } vm) return;
         Directory.CreateDirectory(vm.Browser.ProfileDirectory);
         SetPlatformOption(arguments, "UserDataFolder", vm.Browser.ProfileDirectory);
         SetPlatformOption(arguments, "ProfileName", "Haven");
@@ -139,11 +139,9 @@ public sealed partial class BrowserView : UserControl
 
 internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
 {
-    private static readonly TimeSpan RecoveryWindow = TimeSpan.FromMinutes(1);
-    private const int MaximumRecoveriesPerWindow = 2;
     private readonly NativeWebView _webView;
     private readonly BrowserSitePermissionStore _permissions;
-    private readonly Queue<DateTimeOffset> _recoveries = new();
+    private readonly BrowserRecoveryLimiter _recoveryLimiter = new(2, TimeSpan.FromMinutes(1));
     private BrowserSnapshot _state;
     private Uri? _lastCommittedAddress;
     private bool _adapterLost;
@@ -167,7 +165,8 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     public Task NavigateAsync(Uri address, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureSafeTopLevelAddress(address);
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(address);
+        if (!assessment.IsAllowed) throw new InvalidOperationException(assessment.Reason);
         Publish(_state with { Address = address, IsLoading = true, Status = "Loading…" });
         _webView.Navigate(address);
         return Task.CompletedTask;
@@ -227,26 +226,22 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     private void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs args)
     {
         if (_disposed) return;
-        try
-        {
-            EnsureSafeTopLevelAddress(args.Request);
-            Publish(_state with { Address = args.Request, IsLoading = true, Status = "Loading…" });
-        }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(args.Request);
+        if (!assessment.IsAllowed)
         {
             args.Cancel = true;
-            Publish(_state with
-            {
-                IsLoading = false,
-                Status = "Navigation blocked: " + exception.Message
-            });
+            Publish(_state with { IsLoading = false, Status = "Navigation blocked: " + assessment.Reason });
+            return;
         }
+        Publish(_state with { Address = args.Request, IsLoading = true, Status = "Loading…" });
     }
 
     private void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs args)
     {
         if (_disposed) return;
-        if (args.IsSuccess && IsSafeTopLevelAddress(args.Request)) _lastCommittedAddress = args.Request;
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(args.Request);
+        if (args.IsSuccess && assessment.IsAllowed && args.Request.Scheme is "http" or "https")
+            _lastCommittedAddress = args.Request;
         Publish(Snapshot(args.IsSuccess ? args.Request.Host : "Navigation failed"));
     }
 
@@ -254,35 +249,20 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     {
         args.Handled = true;
         if (_disposed) return;
-        try
+        var requester = _webView.Source;
+        var requesterAssessment = BrowserNativeRequestPolicy.AssessTopLevel(requester);
+        var decision = requesterAssessment.IsAllowed && requester?.Scheme is "http" or "https"
+            ? _permissions.GetDecision(requester, BrowserSitePermissionKind.WindowManagement)
+            : BrowserSitePermissionDecision.Ask;
+        var assessment = BrowserNativeRequestPolicy.AssessPopup(requester, args.Request, decision);
+        if (!assessment.IsAllowed)
         {
-            EnsureSafeTopLevelAddress(args.Request);
-            var requestingAddress = _webView.Source;
-            if (!IsSafeTopLevelAddress(requestingAddress))
-            {
-                Publish(_state with { Status = "Popup blocked because its requesting origin is unavailable." });
-                return;
-            }
-
-            var decision = _permissions.GetDecision(requestingAddress, BrowserSitePermissionKind.WindowManagement);
-            if (decision != BrowserSitePermissionDecision.Allow)
-            {
-                Publish(_state with
-                {
-                    Status = decision == BrowserSitePermissionDecision.Deny
-                        ? "Popup blocked by the saved WindowManagement decision for this origin."
-                        : "Popup blocked. Set WindowManagement to Allow in Browser Safety to open it in the current tab."
-                });
-                return;
-            }
-
-            Publish(_state with { Address = args.Request, IsLoading = true, Status = "Opening approved popup in the current tab…" });
-            _webView.Navigate(args.Request);
+            Publish(_state with { Status = assessment.Reason });
+            return;
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
-        {
-            Publish(_state with { Status = "Popup blocked: " + exception.Message });
-        }
+
+        Publish(_state with { Address = args.Request, IsLoading = true, Status = "Opening approved popup in the current tab…" });
+        _webView.Navigate(args.Request);
     }
 
     private void OnAdapterDestroyed(object? sender, WebViewAdapterEventArgs args)
@@ -302,15 +282,12 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         }
 
         _adapterLost = false;
-        var now = DateTimeOffset.UtcNow;
-        while (_recoveries.Count > 0 && now - _recoveries.Peek() > RecoveryWindow) _recoveries.Dequeue();
-        if (_recoveries.Count >= MaximumRecoveriesPerWindow)
+        if (!_recoveryLimiter.TryAcquire(DateTimeOffset.UtcNow))
         {
             Publish(_state with { IsLoading = false, Status = "Browser recovery paused after repeated adapter failures. Use Reload to try again." });
             return;
         }
 
-        _recoveries.Enqueue(now);
         var restore = _lastCommittedAddress;
         if (restore is null)
         {
@@ -323,31 +300,6 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         {
             if (!_disposed) _webView.Navigate(restore);
         });
-    }
-
-    private static void EnsureSafeTopLevelAddress(Uri address)
-    {
-        ArgumentNullException.ThrowIfNull(address);
-        if (address.IsAbsoluteUri && address.Scheme.Equals("about", StringComparison.OrdinalIgnoreCase)
-            && address.AbsoluteUri.Equals("about:blank", StringComparison.OrdinalIgnoreCase)) return;
-        if (!address.IsAbsoluteUri || address.Scheme is not ("http" or "https"))
-            throw new InvalidOperationException("Only HTTP and HTTPS top-level pages are supported.");
-        if (!string.IsNullOrEmpty(address.UserInfo))
-            throw new InvalidOperationException("Addresses containing embedded credentials are not allowed.");
-    }
-
-    private static bool IsSafeTopLevelAddress(Uri? address)
-    {
-        if (address is null) return false;
-        try
-        {
-            EnsureSafeTopLevelAddress(address);
-            return address.Scheme is "http" or "https";
-        }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
-        {
-            return false;
-        }
     }
 
     private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(
