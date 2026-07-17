@@ -161,16 +161,83 @@ public sealed class AnthropicModelProvider(
         model = request.Model,
         max_tokens = Math.Clamp(request.Options?.ContextLimit / 4 ?? 4096, 256, 32768),
         system = request.SystemPrompt,
-        messages = request.Messages.Where(message => message.Role is "user" or "assistant").Select(message => new { role = message.Role, content = message.Content }),
+        messages = BuildToolMessages(request.Messages),
         tools = request.Tools.Select(tool => new { name = tool.Name, description = tool.Description, input_schema = ProviderHttp.ConvertToolSchema(tool) }),
         temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 1)
     };
+
+    internal static IReadOnlyList<object> BuildToolMessages(IReadOnlyList<OllamaToolTurn> messages)
+    {
+        var correlated = ProviderToolTurnCorrelation.Correlate(messages, "toolu_haven");
+        var result = new List<object>(correlated.Count);
+
+        for (var index = 0; index < correlated.Count; index++)
+        {
+            var current = correlated[index];
+            var message = current.Turn;
+
+            if (current.Calls.Count > 0)
+            {
+                var content = new List<object>();
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                    content.Add(new { type = "text", text = message.Content });
+                content.AddRange(current.Calls.Select(value => (object)new
+                {
+                    type = "tool_use",
+                    id = value.Id,
+                    name = value.Call.Name,
+                    input = value.Call.Arguments
+                }));
+                result.Add(new { role = "assistant", content });
+                continue;
+            }
+
+            if (current.ResultCallId is not null)
+            {
+                var toolResults = new List<object>();
+                while (index < correlated.Count && correlated[index].ResultCallId is not null)
+                {
+                    var toolResult = correlated[index];
+                    toolResults.Add(new
+                    {
+                        type = "tool_result",
+                        tool_use_id = toolResult.ResultCallId,
+                        content = toolResult.Turn.Content
+                    });
+                    index++;
+                }
+                index--;
+                result.Add(new { role = "user", content = toolResults });
+                continue;
+            }
+
+            if (message.Role is "user" or "assistant")
+                result.Add(ToToolMessage(message));
+        }
+
+        return result;
+    }
 
     private static object ToMessage(OllamaMessage message)
     {
         if (message.Images is not { Count: > 0 }) return new { role = message.Role, content = (object)message.Content };
         var content = new List<object>();
         content.AddRange(message.Images.Select(image => (object)new { type = "image", source = new { type = "base64", media_type = "image/jpeg", data = image } }));
+        content.Add(new { type = "text", text = message.Content });
+        return new { role = message.Role, content = (object)content };
+    }
+
+    private static object ToToolMessage(OllamaToolTurn message)
+    {
+        if (message.Images is not { Count: > 0 })
+            return new { role = message.Role, content = (object)message.Content };
+
+        var content = new List<object>();
+        content.AddRange(message.Images.Select(image => (object)new
+        {
+            type = "image",
+            source = new { type = "base64", media_type = "image/jpeg", data = image }
+        }));
         content.Add(new { type = "text", text = message.Content });
         return new { role = message.Role, content = (object)content };
     }
