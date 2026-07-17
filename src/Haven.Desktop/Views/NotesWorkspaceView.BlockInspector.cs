@@ -3,8 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
@@ -41,19 +43,119 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap
         });
 
+        if (block.Kind is NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote)
+            BuildDictationInspector(block);
         if (block.Kind == NotesBlockKind.Code) BuildCodeInspector(block);
         if (block.Table is not null) BuildTableInspector(block);
         if (block.Media is not null) BuildMediaInspector(block);
-        if (block.Kind != NotesBlockKind.Code && block.Table is null && block.Media is null)
+        if (block.Kind is not (NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote or NotesBlockKind.Code)
+            && block.Table is null
+            && block.Media is null)
         {
             _blockPanel.Children.Add(new TextBlock
             {
-                Text = "This block is edited directly in the document surface. Code, table and managed-media blocks expose additional tools here.",
+                Text = "This block is edited directly in the document surface. Text, code, table and managed-media blocks expose additional tools here.",
                 Classes = { "muted" },
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 10
             });
         }
+    }
+
+    private void BuildDictationInspector(NotesBlock block)
+    {
+        var status = new TextBlock
+        {
+            Text = "Uses local Whisper. Raw microphone audio is discarded after transcription.",
+            Classes = { "muted" },
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 9
+        };
+        var actions = new WrapPanel();
+        actions.Children.Add(ActionButton("Dictate one passage", async () =>
+        {
+            var controller = App.Services?.GetService<NotesDictationController>();
+            if (controller is null)
+            {
+                status.Text = "Notes dictation is unavailable in this host.";
+                return;
+            }
+            EventHandler<NotesDictationStatus>? handler = null;
+            handler = (_, update) => Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed) return;
+                status.Text = update.Message;
+                status.Foreground = update.IsError
+                    ? ResourceBrush("HavenDangerBrush", Colors.IndianRed)
+                    : ResourceBrush("HavenTextSoftBrush", Colors.LightGray);
+                if (update.IsError || update.Message.StartsWith("Dictation inserted", StringComparison.Ordinal))
+                    controller.StatusChanged -= handler;
+            });
+            controller.StatusChanged += handler;
+            try
+            {
+                await controller.StartOneUtteranceAsync(async (text, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_disposed) return;
+                        var liveBlock = _viewModel.Document?.Sections
+                            .SelectMany(section => section.Pages)
+                            .SelectMany(page => page.Blocks)
+                            .FirstOrDefault(value => value.Id == block.Id);
+                        if (liveBlock is null) return;
+                        BeginEditing(liveBlock);
+                        var existing = liveBlock.Runs.Count > 0
+                            ? string.Concat(liveBlock.Runs.Select(run => run.Text))
+                            : liveBlock.PlainText;
+                        var separator = string.IsNullOrWhiteSpace(existing)
+                            || char.IsWhiteSpace(existing[^1])
+                                ? string.Empty
+                                : " ";
+                        if (liveBlock.Runs.Count == 0)
+                        {
+                            liveBlock.Runs.Add(new NotesTextRun
+                            {
+                                Text = separator + text,
+                                FontFamily = "Inter",
+                                FontSize = liveBlock.Kind == NotesBlockKind.Heading ? 24 : 14,
+                                Bold = liveBlock.Kind == NotesBlockKind.Heading,
+                                Italic = liveBlock.Kind == NotesBlockKind.Quote
+                            });
+                        }
+                        else
+                        {
+                            liveBlock.Runs[^1].Text += separator + text;
+                        }
+                        liveBlock.PlainText = string.Concat(liveBlock.Runs.Select(run => run.Text));
+                        EndEditing(liveBlock, "Inserted local speech transcript");
+                        RefreshAll();
+                    }, DispatcherPriority.Send);
+                }, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                controller.StatusChanged -= handler;
+                status.Text = "Dictation could not start: " + ex.Message;
+                status.Foreground = ResourceBrush("HavenDangerBrush", Colors.IndianRed);
+            }
+        }, "Capture one passage with local Whisper and append only its final transcript"));
+        actions.Children.Add(ActionButton("Stop dictation", async () =>
+        {
+            var controller = App.Services?.GetService<NotesDictationController>();
+            if (controller is null) return;
+            await controller.StopAsync(CancellationToken.None);
+            status.Text = "Dictation stopped. No raw microphone audio was retained.";
+        }, "Stop the active Notes microphone capture"));
+        _blockPanel.Children.Add(new TextBlock
+        {
+            Text = "LOCAL DICTATION",
+            Classes = { "eyebrow" },
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+        _blockPanel.Children.Add(actions);
+        _blockPanel.Children.Add(status);
     }
 
     private void BuildCodeInspector(NotesBlock block)
