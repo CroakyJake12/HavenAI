@@ -11,10 +11,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ProductionDiagnostics>();
         services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
         services.AddSingleton<INotesDocumentValidator, NotesDocumentValidator>();
+        services.AddSingleton<INotesDocumentMigrator, NotesDocumentMigrator>();
         services.AddSingleton<NotesRepository>();
         services.AddSingleton<VerifiedNotesRepository>();
-        services.AddSingleton<INotesRepository>(provider => provider.GetRequiredService<VerifiedNotesRepository>());
-        services.AddSingleton<INotesImportExportService, NotesImportExportService>();
+        services.AddSingleton<MigratingNotesRepository>();
+        services.AddSingleton<INotesRepository>(provider => provider.GetRequiredService<MigratingNotesRepository>());
+        services.AddSingleton<NotesImportExportService>();
+        services.AddSingleton<MigratingNotesImportExportService>();
+        services.AddSingleton<INotesImportExportService>(provider => provider.GetRequiredService<MigratingNotesImportExportService>());
         services.AddSingleton<NotesAttachmentStore>();
         services.AddSingleton<SecureNotesAttachmentStore>();
         services.AddSingleton<INotesAttachmentStore>(provider => provider.GetRequiredService<SecureNotesAttachmentStore>());
