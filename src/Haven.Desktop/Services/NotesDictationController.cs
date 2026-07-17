@@ -116,7 +116,7 @@ public sealed class NotesDictationController(
         }
         catch
         {
-            await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+            await StopCoreAsync(CancellationToken.None, publishStatus: false).ConfigureAwait(false);
             throw;
         }
         finally
@@ -130,7 +130,7 @@ public sealed class NotesDictationController(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await StopCoreAsync(cancellationToken).ConfigureAwait(false);
+            await StopCoreAsync(cancellationToken, publishStatus: true).ConfigureAwait(false);
         }
         finally
         {
@@ -138,12 +138,12 @@ public sealed class NotesDictationController(
         }
     }
 
-    private async Task StopCoreAsync(CancellationToken cancellationToken)
+    private async Task StopCoreAsync(CancellationToken cancellationToken, bool publishStatus)
     {
         var cancellation = Interlocked.Exchange(ref _activeCancellation, null);
+        var wasActive = Interlocked.Exchange(ref _active, 0) == 1;
         _timeoutRegistration.Dispose();
         _timeoutRegistration = default;
-        Volatile.Write(ref _active, 0);
         try
         {
             await speechInput.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -152,6 +152,8 @@ public sealed class NotesDictationController(
         {
             cancellation?.Cancel();
             cancellation?.Dispose();
+            if (publishStatus && wasActive)
+                RaiseStatus("Dictation stopped. No raw microphone audio was retained.");
         }
     }
 
