@@ -32,7 +32,7 @@ public sealed class NotesMediaAssetService(
         await diagnostics.WriteAsync(
             verification.SizeMatches && verification.HashMatches
                 ? ReliabilitySeverity.Information
-                : ReliabilitySeverity.Error,
+                : ReliabilitySeverity.Warning,
             "notes",
             verification.SizeMatches && verification.HashMatches
                 ? "media-verified"
