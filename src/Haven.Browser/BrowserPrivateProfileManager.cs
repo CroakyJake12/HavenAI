@@ -3,8 +3,10 @@ namespace Haven.Browser;
 public sealed class BrowserPrivateProfileManager
 {
     private const string PrivateDirectoryName = "private-profiles";
+    private const string DeletingPrefix = ".deleting-";
     private static readonly TimeSpan CleanupRetryDelay = TimeSpan.FromMilliseconds(125);
     private readonly string _root;
+    private readonly string _rootWithSeparator;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public BrowserPrivateProfileManager(string standardProfileDirectory)
@@ -13,7 +15,11 @@ public sealed class BrowserPrivateProfileManager
             throw new ArgumentException("A standard Browser profile directory is required.", nameof(standardProfileDirectory));
 
         var standard = Path.GetFullPath(standardProfileDirectory);
-        _root = Path.Combine(standard, PrivateDirectoryName);
+        RejectReparsePointIfPresent(standard, "The standard Browser profile directory cannot be a symbolic link or junction.");
+        _root = Path.GetFullPath(Path.Combine(standard, PrivateDirectoryName));
+        _rootWithSeparator = _root.EndsWith(Path.DirectorySeparatorChar)
+            ? _root
+            : _root + Path.DirectorySeparatorChar;
     }
 
     public string RootDirectory => _root;
@@ -21,7 +27,7 @@ public sealed class BrowserPrivateProfileManager
     public string GetProfileDirectory(Guid tabId)
     {
         if (tabId == Guid.Empty) throw new ArgumentException("A private tab ID is required.", nameof(tabId));
-        return Path.Combine(_root, tabId.ToString("N"));
+        return EnsureContained(Path.Combine(_root, tabId.ToString("N")));
     }
 
     public async Task<string> CreateAsync(Guid tabId, CancellationToken cancellationToken)
@@ -31,8 +37,11 @@ public sealed class BrowserPrivateProfileManager
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
             Directory.CreateDirectory(_root);
+            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
             Directory.CreateDirectory(path);
+            RejectReparsePointIfPresent(path, "A private Browser profile cannot be a symbolic link or junction.");
             return path;
         }
         finally
@@ -47,7 +56,9 @@ public sealed class BrowserPrivateProfileManager
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await DeleteDirectoryIfPresentAsync(path, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await QuarantineAndDeleteAsync(path, cancellationToken).ConfigureAwait(false);
+            await DeletePendingTombstonesAsync(cancellationToken).ConfigureAwait(false);
             DeleteRootIfEmpty();
         }
         finally
@@ -64,17 +75,27 @@ public sealed class BrowserPrivateProfileManager
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!Directory.Exists(_root)) return 0;
+            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
 
             var removed = 0;
-            foreach (var directory in Directory.EnumerateDirectories(_root))
+            foreach (var directory in Directory.EnumerateDirectories(_root, "*", SearchOption.TopDirectoryOnly))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var name = Path.GetFileName(directory);
+                var contained = EnsureContained(directory);
+                var name = Path.GetFileName(contained);
+                if (name.StartsWith(DeletingPrefix, StringComparison.Ordinal))
+                {
+                    await DeleteDirectoryIfPresentAsync(contained, cancellationToken).ConfigureAwait(false);
+                    removed++;
+                    continue;
+                }
+
                 if (Guid.TryParseExact(name, "N", out var id) && activeTabIds.Contains(id)) continue;
-                await DeleteDirectoryIfPresentAsync(directory, cancellationToken).ConfigureAwait(false);
+                await QuarantineAndDeleteAsync(contained, cancellationToken).ConfigureAwait(false);
                 removed++;
             }
 
+            await DeletePendingTombstonesAsync(cancellationToken).ConfigureAwait(false);
             DeleteRootIfEmpty();
             return removed;
         }
@@ -84,10 +105,56 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    private async Task QuarantineAndDeleteAsync(string path, CancellationToken cancellationToken)
+    {
+        path = EnsureContained(path);
+        if (!Directory.Exists(path)) return;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tombstone = EnsureContained(Path.Combine(
+            _root,
+            $"{DeletingPrefix}{Path.GetFileName(path)}-{Guid.NewGuid():N}"));
+        Directory.Move(path, tombstone);
+
+        try
+        {
+            await DeleteDirectoryIfPresentAsync(tombstone, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // The tombstone deliberately remains outside the active profile namespace.
+            // Startup/orphan cleanup retries it without making the old profile active again.
+            throw;
+        }
+        catch
+        {
+            // Preserve the quarantined directory for a later bounded cleanup attempt.
+            throw;
+        }
+    }
+
+    private async Task DeletePendingTombstonesAsync(CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(_root)) return;
+        foreach (var tombstone in Directory.EnumerateDirectories(_root, DeletingPrefix + "*", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await DeleteDirectoryIfPresentAsync(EnsureContained(tombstone), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private void DeleteRootIfEmpty()
     {
         if (Directory.Exists(_root) && !Directory.EnumerateFileSystemEntries(_root).Any())
             Directory.Delete(_root, false);
+    }
+
+    private string EnsureContained(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (!full.StartsWith(_rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("A private Browser profile path escaped the managed profile root.");
+        return full;
     }
 
     private static async Task DeleteDirectoryIfPresentAsync(string path, CancellationToken cancellationToken)
@@ -99,8 +166,22 @@ public sealed class BrowserPrivateProfileManager
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
                 {
+                    Directory.Delete(path, false);
+                    return;
+                }
+
+                var options = new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    IgnoreInaccessible = false,
+                    AttributesToSkip = FileAttributes.ReparsePoint
+                };
+                foreach (var file in Directory.EnumerateFiles(path, "*", options))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
                     try { File.SetAttributes(file, FileAttributes.Normal); }
                     catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
@@ -117,5 +198,12 @@ public sealed class BrowserPrivateProfileManager
             }
         }
         throw new IOException("The private Browser profile remained in use after the native host was released.", lastFailure);
+    }
+
+    private static void RejectReparsePointIfPresent(string path, string message)
+    {
+        if (!Directory.Exists(path)) return;
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException(message);
     }
 }
