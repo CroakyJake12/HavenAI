@@ -55,16 +55,16 @@ public sealed class NotesDictationViewTests : IDisposable
     [AvaloniaFact]
     public async Task CodeAndEquationBlocksDoNotOfferAmbiguousDictationInsertion()
     {
-        await using var diagnostics = new ProductionDiagnostics(_paths);
-        var viewModel = CreateViewModel(diagnostics);
-        await viewModel.InitializeAsync(CancellationToken.None);
-        var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
         foreach (var block in new[]
                  {
                      new NotesBlock { Kind = NotesBlockKind.Code, StyleId = "code", PlainText = "return 42;" },
                      NotesBlock.EquationBlock()
                  })
         {
+            await using var diagnostics = new ProductionDiagnostics(_paths);
+            var viewModel = CreateViewModel(diagnostics);
+            await viewModel.InitializeAsync(CancellationToken.None);
+            var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
             page.Blocks.Clear();
             page.Blocks.Add(block);
             viewModel.SelectedBlock = block;
