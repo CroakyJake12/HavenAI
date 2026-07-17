@@ -33,6 +33,10 @@ public sealed class NotesReadAloudController(
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (string.IsNullOrWhiteSpace(text))
             throw new ArgumentException("The selected Notes block has no readable text.", nameof(text));
+
+        CancellationTokenSource linked;
+        CallVoice? voice;
+        string? outputDeviceId;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -42,21 +46,32 @@ public sealed class NotesReadAloudController(
                 throw new InvalidOperationException("End the active Haven Call before starting Notes read aloud.");
             if (!speech.IsAvailable)
                 throw new InvalidOperationException(speech.UnavailableReason ?? "Local speech output is unavailable.");
-            await StopCoreAsync(CancellationToken.None, publishStatus: false).ConfigureAwait(false);
-            var voice = SelectVoice(speech.Voices, language);
+            if (IsActive)
+                throw new InvalidOperationException("Notes read aloud is already active. Stop it before starting another passage.");
+
+            voice = SelectVoice(speech.Voices, language);
             var output = speech.OutputDevices.FirstOrDefault(value => value.IsDefault)
                          ?? speech.OutputDevices.FirstOrDefault();
-            var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            outputDeviceId = output?.Id;
+            linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _activeCancellation = linked;
             Volatile.Write(ref _active, 1);
             RaiseStatus("Reading the selected block aloud locally…");
-            try
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        try
+        {
+            await speech.SpeakAsync(
+                text.Trim(),
+                voice,
+                outputDeviceId,
+                linked.Token).ConfigureAwait(false);
+            if (!linked.IsCancellationRequested)
             {
-                await speech.SpeakAsync(
-                    text.Trim(),
-                    voice,
-                    output?.Id,
-                    linked.Token).ConfigureAwait(false);
                 await diagnostics.WriteAsync(
                     ReliabilitySeverity.Information,
                     "notes",
@@ -71,17 +86,14 @@ public sealed class NotesReadAloudController(
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
                 RaiseStatus("Read aloud completed locally.");
             }
-            finally
-            {
-                var cancellation = Interlocked.Exchange(ref _activeCancellation, null);
-                cancellation?.Dispose();
-                Volatile.Write(ref _active, 0);
-                RaiseStatus("Read aloud is idle.");
-            }
+        }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested)
+        {
+            // StopAsync or the caller intentionally interrupted this local playback.
         }
         finally
         {
-            _gate.Release();
+            await CompleteReadAsync(linked).ConfigureAwait(false);
         }
     }
 
@@ -90,7 +102,18 @@ public sealed class NotesReadAloudController(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await StopCoreAsync(cancellationToken, publishStatus: true).ConfigureAwait(false);
+            var cancellation = Interlocked.Exchange(ref _activeCancellation, null);
+            var wasActive = Interlocked.Exchange(ref _active, 0) == 1;
+            cancellation?.Cancel();
+            try
+            {
+                await speech.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                cancellation?.Dispose();
+                if (wasActive) RaiseStatus("Read aloud stopped.");
+            }
         }
         finally
         {
@@ -98,19 +121,20 @@ public sealed class NotesReadAloudController(
         }
     }
 
-    private async Task StopCoreAsync(CancellationToken cancellationToken, bool publishStatus)
+    private async Task CompleteReadAsync(CancellationTokenSource owner)
     {
-        var cancellation = Interlocked.Exchange(ref _activeCancellation, null);
-        var wasActive = Interlocked.Exchange(ref _active, 0) == 1;
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            cancellation?.Cancel();
-            await speech.StopAsync(cancellationToken).ConfigureAwait(false);
+            if (!ReferenceEquals(_activeCancellation, owner)) return;
+            _activeCancellation = null;
+            Volatile.Write(ref _active, 0);
+            owner.Dispose();
+            RaiseStatus("Read aloud is idle.");
         }
         finally
         {
-            cancellation?.Dispose();
-            if (publishStatus && wasActive) RaiseStatus("Read aloud stopped.");
+            _gate.Release();
         }
     }
 
