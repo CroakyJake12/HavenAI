@@ -10,6 +10,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAppPaths, AppPaths>();
         services.AddSingleton<ProductionDiagnostics>();
         services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
+        services.AddSingleton<INotesDocumentValidator, NotesDocumentValidator>();
+        services.AddSingleton<INotesRepository, NotesRepository>();
+        services.AddSingleton<INotesImportExportService, NotesImportExportService>();
+        services.AddSingleton<INotesAttachmentStore, NotesAttachmentStore>();
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
         services.AddSingleton<DatabaseRestoreService>();
@@ -101,6 +105,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelRouter, ModelRouter>();
         services.AddSingleton<ProviderRoutingModelClient>();
         services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ProviderRoutingModelClient>());
+        services.AddSingleton<INotesAiService>(provider => new NotesAiService(
+            provider.GetRequiredService<IProviderModelClient>(),
+            provider.GetRequiredService<IProductionDiagnostics>()));
 
         services.AddSingleton<IModeRegistry, ModeRegistry>();
         services.AddSingleton<IModeUsageRepository, ModeUsageRepository>();
