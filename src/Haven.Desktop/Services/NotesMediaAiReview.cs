@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
@@ -14,6 +15,11 @@ public enum NotesMediaAiTarget
 public static class NotesMediaAiReview
 {
     private const string Prefix = "[haven-media-ai:";
+    private const string PendingKeyPrefix = "haven.notes.media-ai.pending.";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public static async Task<NotesAiChange> ProposeAsync(
         INotesAiService ai,
@@ -51,15 +57,13 @@ public static class NotesMediaAiReview
         cancellationToken.ThrowIfCancellationRequested();
 
         workspace.BeginBlockEdit(block);
-        foreach (var previous in document.AiChanges.Where(value =>
-                     value.BlockId == block.Id
-                     && value.Status == NotesAiChangeStatus.Proposed
-                     && TryGetTarget(value, out var previousTarget)
-                     && previousTarget == target))
+        var previous = ReadPending(block, target);
+        if (previous is not null)
         {
             previous.Status = NotesAiChangeStatus.Cancelled;
             previous.ReviewedAt = DateTimeOffset.UtcNow;
             previous.ReviewedBy = Environment.UserName;
+            document.AiChanges.Add(previous);
         }
         var change = new NotesAiChange
         {
@@ -76,7 +80,7 @@ public static class NotesMediaAiReview
             SentDocumentContext = workspace.AllowDocumentContext,
             CreatedAt = DateTimeOffset.UtcNow
         };
-        document.AiChanges.Add(change);
+        WritePending(block, target, change);
         workspace.CommitBlockEdit(block, "Created reviewed AI proposal for media " + DisplayName(target).ToLowerInvariant());
         return change;
     }
@@ -98,12 +102,17 @@ public static class NotesMediaAiReview
             throw new InvalidDataException("The media proposal target does not match the selected block.");
         if (string.IsNullOrWhiteSpace(change.ProposedContent))
             throw new InvalidDataException("The media proposal is empty.");
+        var persisted = ReadPending(block, target);
+        if (persisted?.Id != change.Id)
+            throw new InvalidDataException("The media proposal is stale or has already been replaced.");
 
         workspace.BeginBlockEdit(block);
         WriteTarget(block, target, change.ProposedContent.Trim());
+        RemovePending(block, target);
         change.Status = NotesAiChangeStatus.Applied;
         change.ReviewedAt = DateTimeOffset.UtcNow;
         change.ReviewedBy = Environment.UserName;
+        document.AiChanges.Add(change);
         document.Revisions.Add(new NotesRevision
         {
             Kind = NotesRevisionKind.AiApplied,
@@ -126,23 +135,32 @@ public static class NotesMediaAiReview
         ArgumentNullException.ThrowIfNull(block);
         ArgumentNullException.ThrowIfNull(change);
         if (change.Status != NotesAiChangeStatus.Proposed) return;
-        if (change.BlockId != block.Id || !TryGetTarget(change, out _))
+        if (change.BlockId != block.Id || !TryGetTarget(change, out var target))
             throw new InvalidDataException("The media proposal target does not match the selected block.");
+        var persisted = ReadPending(block, target);
+        if (persisted?.Id != change.Id)
+            throw new InvalidDataException("The media proposal is stale or has already been replaced.");
         workspace.BeginBlockEdit(block);
+        RemovePending(block, target);
         change.Status = NotesAiChangeStatus.Rejected;
         change.ReviewedAt = DateTimeOffset.UtcNow;
         change.ReviewedBy = Environment.UserName;
+        workspace.Document!.AiChanges.Add(change);
         workspace.CommitBlockEdit(block, "Rejected AI media accessibility proposal");
     }
 
     public static NotesAiChange? FindPending(
         NotesDocument document,
         Guid blockId,
-        NotesMediaAiTarget target) =>
-        document.AiChanges
-            .Where(value => value.BlockId == blockId && value.Status == NotesAiChangeStatus.Proposed)
-            .OrderByDescending(value => value.CreatedAt)
-            .FirstOrDefault(value => TryGetTarget(value, out var parsed) && parsed == target);
+        NotesMediaAiTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var block = document.Sections
+            .SelectMany(section => section.Pages)
+            .SelectMany(page => page.Blocks)
+            .FirstOrDefault(value => value.Id == blockId);
+        return block is null ? null : ReadPending(block, target);
+    }
 
     public static string DisplayName(NotesMediaAiTarget target) => target switch
     {
@@ -163,6 +181,35 @@ public static class NotesMediaAiReview
         return Enum.TryParse(instruction[Prefix.Length..closing], ignoreCase: true, out target)
                && Enum.IsDefined(target);
     }
+
+    private static string PendingKey(NotesMediaAiTarget target) =>
+        PendingKeyPrefix + target.ToString().ToLowerInvariant();
+
+    private static NotesAiChange? ReadPending(NotesBlock block, NotesMediaAiTarget target)
+    {
+        if (!block.Metadata.TryGetValue(PendingKey(target), out var json) || string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            var change = JsonSerializer.Deserialize<NotesAiChange>(json, JsonOptions);
+            return change is not null
+                   && change.Status == NotesAiChangeStatus.Proposed
+                   && change.BlockId == block.Id
+                   && TryGetTarget(change, out var parsed)
+                   && parsed == target
+                ? change
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static void WritePending(NotesBlock block, NotesMediaAiTarget target, NotesAiChange change) =>
+        block.Metadata[PendingKey(target)] = JsonSerializer.Serialize(change, JsonOptions);
+
+    private static void RemovePending(NotesBlock block, NotesMediaAiTarget target) =>
+        block.Metadata.Remove(PendingKey(target));
 
     private static string EncodeInstruction(NotesMediaAiTarget target, string instruction) =>
         Prefix + target + "] " + instruction.Trim();
