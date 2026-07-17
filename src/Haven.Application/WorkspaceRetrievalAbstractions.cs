@@ -12,5 +12,5 @@ public sealed record RetrievalIndexReport(
 public interface IWorkspaceRetrievalIndexer
 {
     Task<RetrievalIndexReport> IndexProjectAsync(Guid projectId, string rootPath, CancellationToken cancellationToken);
-    Task<RetrievalIndexReport> IndexSubjectAsync(ContainerDefinition subject, IReadOnlyList<LessonDefinition> lessons, CancellationToken cancellationToken);
+    Task<RetrievalIndexReport> IndexSubjectAsync(ContainerDefinition subject, IReadOnlyList<Lesson> lessons, CancellationToken cancellationToken);
 }
