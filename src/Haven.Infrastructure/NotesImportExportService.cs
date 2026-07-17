@@ -179,7 +179,7 @@ public sealed partial class NotesImportExportService(
         var page = document.Sections[0].Pages[0];
         page.Blocks.Clear();
         foreach (var paragraph in SplitParagraphs(text)) page.Blocks.Add(new NotesBlock { Kind = kind, PlainText = paragraph, Order = page.Blocks.Count });
-        if (page.Blocks.Count == 0) page.Blocks.Add(NotesBlock.Paragraph());
+        if (page.Blocks.Count == 0) page.Blocks.Add(NotesBlock.CreateParagraph());
         return document;
     }
 
@@ -219,7 +219,7 @@ public sealed partial class NotesImportExportService(
         }
         FlushList();
         if (inCode && code.Length > 0) blocks.Add(new NotesBlock { Kind = NotesBlockKind.Code, PlainText = code.ToString(), StyleId = "code", Order = blocks.Count });
-        if (blocks.Count == 0) blocks.Add(NotesBlock.Paragraph());
+        if (blocks.Count == 0) blocks.Add(NotesBlock.CreateParagraph());
         return document;
 
         void FlushList()
@@ -309,7 +309,7 @@ public sealed partial class NotesImportExportService(
                 if (table.Rows.Count > 0) blocks.Add(new NotesBlock { Kind = NotesBlockKind.Table, Table = table, Order = blocks.Count });
             }
         }
-        if (blocks.Count == 0) blocks.Add(NotesBlock.Paragraph());
+        if (blocks.Count == 0) blocks.Add(NotesBlock.CreateParagraph());
         return document;
     }
 
@@ -349,7 +349,7 @@ public sealed partial class NotesImportExportService(
                 });
             }
         }
-        if (blocks.Count == 0) blocks.Add(NotesBlock.Paragraph());
+        if (blocks.Count == 0) blocks.Add(NotesBlock.CreateParagraph());
         return document;
     }
 
