@@ -5,12 +5,16 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views;
 
 namespace Haven.Desktop;
 
@@ -19,6 +23,7 @@ public sealed partial class MainWindow : Window
     private MainWindowViewModel? _viewModel;
     private ExperienceShellHost? _experienceShell;
     private Button? _studioExperienceButton;
+    private Button? _notesExperienceButton;
 
     public MainWindow()
     {
@@ -33,6 +38,7 @@ public sealed partial class MainWindow : Window
             if (_studioExperienceButton is not null)
                 _studioExperienceButton.Click -= OnStudioExperienceClicked;
             _studioExperienceButton = null;
+            _notesExperienceButton = null;
             _experienceShell?.Dispose();
         };
     }
@@ -88,6 +94,7 @@ public sealed partial class MainWindow : Window
     private void RefineExperienceRail()
     {
         if (_experienceShell is null) return;
+        EnsureNotesExperienceButton();
         var currentStudioButton = _experienceShell.GetVisualDescendants()
             .OfType<Button>()
             .FirstOrDefault(button => button.Name == "ExperienceStudioButton");
@@ -104,6 +111,77 @@ public sealed partial class MainWindow : Window
             ToolTip.SetTip(_studioExperienceButton, "Studio");
         }
         UpdateExperienceFamilyState();
+    }
+
+    private void EnsureNotesExperienceButton()
+    {
+        if (_experienceShell is null) return;
+        var current = _experienceShell.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Name == "ExperienceNotesButton");
+        if (current is not null)
+        {
+            _notesExperienceButton = current;
+            return;
+        }
+        var chat = _experienceShell.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Name == "ExperienceChatButton");
+        if (chat?.Parent is not StackPanel experiencePanel) return;
+
+        var notes = new Button
+        {
+            Name = "ExperienceNotesButton",
+            Width = 50,
+            Height = 48,
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = new TextBlock { Text = "▤", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center }
+        };
+        notes.Classes.Add("icon");
+        ToolTip.SetTip(notes, "Notes, Present, Data, Tasks and Imagine");
+        var menu = new StackPanel { Width = 330, Spacing = 4 };
+        foreach (var kind in Enum.GetValues<NotesExperienceKind>())
+            menu.Children.Add(NotesEntry(kind));
+        notes.Flyout = new Flyout { Placement = PlacementMode.Right, Content = menu };
+        var index = experiencePanel.Children.IndexOf(chat);
+        experiencePanel.Children.Insert(Math.Min(index + 1, experiencePanel.Children.Count), notes);
+        _notesExperienceButton = notes;
+    }
+
+    private Button NotesEntry(NotesExperienceKind kind)
+    {
+        var button = new Button
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                ColumnSpacing = 10,
+                Children =
+                {
+                    new TextBlock { Text = kind == NotesExperienceKind.Notes ? "▤" : "◇", FontSize = 17, VerticalAlignment = VerticalAlignment.Center },
+                    WithColumn(new StackPanel
+                    {
+                        Spacing = 1,
+                        Children =
+                        {
+                            new TextBlock { Text = NotesExperienceNavigation.DisplayName(kind), FontWeight = FontWeight.SemiBold },
+                            new TextBlock { Text = NotesExperienceNavigation.Description(kind), Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap }
+                        }
+                    }, 1)
+                }
+            }
+        };
+        button.Classes.Add("sidebar");
+        button.Click += async (_, _) =>
+        {
+            if (_viewModel is not null) await NotesExperienceNavigation.OpenAsync(_viewModel, kind);
+            UpdateExperienceFamilyState();
+        };
+        return button;
     }
 
     private async void OnStudioExperienceClicked(object? sender, RoutedEventArgs e)
@@ -144,12 +222,21 @@ public sealed partial class MainWindow : Window
         var plan = _experienceShell.GetVisualDescendants()
             .OfType<Button>()
             .FirstOrDefault(button => button.Name == "ExperiencePlanButton");
-        if (plan is null) return;
-        var active = _viewModel.CurrentSurface == HavenSurface.Plan
-                     || _viewModel.CurrentPage is AutomationsPageViewModel;
-        plan.Background = active
-            ? ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(72, 0, 120, 212))
-            : Brushes.Transparent;
+        if (plan is not null)
+        {
+            var active = _viewModel.CurrentSurface == HavenSurface.Plan
+                         || _viewModel.CurrentPage is AutomationsPageViewModel;
+            plan.Background = active
+                ? ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(72, 0, 120, 212))
+                : Brushes.Transparent;
+        }
+        if (_notesExperienceButton is not null)
+        {
+            var active = _viewModel.CurrentPage is NotesWorkspaceView or BlankNotesExperienceView;
+            _notesExperienceButton.Background = active
+                ? ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(72, 0, 120, 212))
+                : Brushes.Transparent;
+        }
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
@@ -169,12 +256,22 @@ public sealed partial class MainWindow : Window
         keybd_event(0x5B, 0, 2, UIntPtr.Zero);
     }
 
-    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         if (control && e.Key == Key.K) { vm.OpenCommandPaletteCommand.Execute(null); e.Handled = true; }
+        else if (control && e.Key == Key.N && vm.CurrentPage is NotesWorkspaceView notes && notes.DataContext is NotesWorkspaceViewModel notesViewModel)
+        {
+            await notesViewModel.NewDocumentCommand.ExecuteAsync();
+            e.Handled = true;
+        }
         else if (control && e.Key == Key.N) { vm.NewChatCommand.Execute(null); e.Handled = true; }
+        else if (control && e.Key == Key.S && vm.CurrentPage is NotesWorkspaceView notes && notes.DataContext is NotesWorkspaceViewModel notesViewModel)
+        {
+            await notesViewModel.SaveCommand.ExecuteAsync();
+            e.Handled = true;
+        }
         else if (control && e.Key == Key.S) { vm.SaveCurrentCommand.Execute(null); e.Handled = true; }
         else if (control && e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key == Key.R && vm.CurrentPage is BrowserPageViewModel browser)
         {
@@ -201,7 +298,7 @@ public sealed partial class MainWindow : Window
                 Children =
                 {
                     new TextBlock { Text = "Haven", FontSize = 26, FontWeight = FontWeight.SemiBold },
-                    new TextBlock { Text = "A local-first AI workspace for Chat, Teaching, Do, Studio and Browse.", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = "A local-first AI workspace for Chat, Notes, Teaching, Do, Studio and Browse.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Native Avalonia workspace", Opacity = 0.65 }
                 }
             }
@@ -222,5 +319,11 @@ public sealed partial class MainWindow : Window
     {
         if (sender is Control control && control.DataContext is WorkspaceTabViewModel tab)
             tab.IsHovered = false;
+    }
+
+    private static T WithColumn<T>(T control, int column) where T : Control
+    {
+        Grid.SetColumn(control, column);
+        return control;
     }
 }
