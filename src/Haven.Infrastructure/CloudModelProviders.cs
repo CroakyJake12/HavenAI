@@ -89,6 +89,10 @@ public abstract class OpenAiCompatibleModelProviderBase(
             await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
             return new(Id, true, $"Connected to {DisplayName}.", System.Diagnostics.Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
         {
             return new(Id, false, ex.Message, System.Diagnostics.Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
@@ -168,24 +172,64 @@ public abstract class OpenAiCompatibleModelProviderBase(
         {
             foreach (var item in toolCalls.EnumerateArray())
             {
-                if (!item.TryGetProperty("function", out var function)) continue;
-                var name = function.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null;
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                var arguments = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-                if (function.TryGetProperty("arguments", out var args))
+                if (item.ValueKind != JsonValueKind.Object
+                    || !item.TryGetProperty("function", out var function)
+                    || function.ValueKind != JsonValueKind.Object)
                 {
-                    try
-                    {
-                        using var parsed = JsonDocument.Parse(args.ValueKind == JsonValueKind.String ? args.GetString() ?? "{}" : args.GetRawText());
-                        if (parsed.RootElement.ValueKind == JsonValueKind.Object)
-                            foreach (var property in parsed.RootElement.EnumerateObject()) arguments[property.Name] = property.Value.Clone();
-                    }
-                    catch (JsonException) { }
+                    throw new InvalidDataException($"{DisplayName} returned a malformed function tool call.");
                 }
-                calls.Add(new OllamaToolCall(name, arguments));
+
+                var name = function.TryGetProperty("name", out var nameElement)
+                    && nameElement.ValueKind == JsonValueKind.String
+                    ? nameElement.GetString()
+                    : null;
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new InvalidDataException($"{DisplayName} returned a function tool call without a name.");
+
+                calls.Add(new OllamaToolCall(name, ParseToolArguments(function, name)));
             }
         }
         return new(ReadContent(message), calls);
+    }
+
+    private IReadOnlyDictionary<string, JsonElement> ParseToolArguments(JsonElement function, string toolName)
+    {
+        if (!function.TryGetProperty("arguments", out var argumentsElement))
+            return new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var raw = argumentsElement.ValueKind switch
+            {
+                JsonValueKind.String => argumentsElement.GetString(),
+                JsonValueKind.Object => argumentsElement.GetRawText(),
+                _ => throw new InvalidDataException(
+                    $"{DisplayName} returned non-object arguments for tool '{toolName}'.")
+            };
+            if (string.IsNullOrWhiteSpace(raw))
+                throw new InvalidDataException(
+                    $"{DisplayName} returned empty arguments for tool '{toolName}'.");
+
+            using var parsed = JsonDocument.Parse(raw);
+            if (parsed.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException(
+                    $"{DisplayName} returned non-object arguments for tool '{toolName}'.");
+
+            var arguments = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in parsed.RootElement.EnumerateObject())
+            {
+                if (!arguments.TryAdd(property.Name, property.Value.Clone()))
+                    throw new InvalidDataException(
+                        $"{DisplayName} returned duplicate argument '{property.Name}' for tool '{toolName}'.");
+            }
+            return arguments;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(
+                $"{DisplayName} returned malformed JSON arguments for tool '{toolName}'.",
+                ex);
+        }
     }
 
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken) =>
