@@ -37,6 +37,7 @@ public sealed class NotesDictationController(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsActive) throw new InvalidOperationException("Notes dictation is already listening.");
             if (RuntimeSafetyState.IsSafeMode)
                 throw new InvalidOperationException("Notes dictation is disabled while Haven recovery safe mode is active.");
@@ -51,12 +52,19 @@ public sealed class NotesDictationController(
             if (model is null)
                 throw new InvalidOperationException("Download a local Whisper speech model in Call settings before using Notes dictation.");
 
+            // The model lookup can take time. Re-check the shared Call boundary before
+            // claiming the process-wide microphone service for Notes.
+            if (calls.IsActive)
+                throw new InvalidOperationException("End the active Haven Call before starting Notes dictation.");
+
             var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(TimeSpan.FromSeconds(60));
             _activeCancellation = linked;
             _timeoutRegistration = linked.Token.Register(() =>
             {
-                if (IsActive)
+                // Caller cancellation is not a timeout. Manual StopAsync clears
+                // IsActive before cancelling this token, so it is also excluded.
+                if (IsActive && !cancellationToken.IsCancellationRequested)
                 {
                     RaiseStatus("Notes dictation stopped after one minute without a final passage.", isError: true);
                     _ = StopAsync(CancellationToken.None);
@@ -144,6 +152,15 @@ public sealed class NotesDictationController(
         var wasActive = Interlocked.Exchange(ref _active, 0) == 1;
         _timeoutRegistration.Dispose();
         _timeoutRegistration = default;
+
+        if (!wasActive)
+        {
+            // ISpeechInputService is shared with Call. A rejected, inactive or
+            // disposed Notes controller must not stop capture owned elsewhere.
+            cancellation?.Dispose();
+            return;
+        }
+
         try
         {
             await speechInput.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -152,7 +169,7 @@ public sealed class NotesDictationController(
         {
             cancellation?.Cancel();
             cancellation?.Dispose();
-            if (publishStatus && wasActive)
+            if (publishStatus)
                 RaiseStatus("Dictation stopped. No raw microphone audio was retained.");
         }
     }
