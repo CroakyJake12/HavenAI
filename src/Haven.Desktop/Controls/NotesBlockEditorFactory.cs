@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Core;
@@ -24,12 +25,13 @@ public static class NotesBlockEditorFactory
         var body = block.Kind switch
         {
             NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote or NotesBlockKind.Code =>
-                BuildRichText(viewModel, block, beginEdit, endEdit, refresh),
+                BuildRichText(block, beginEdit, endEdit, refresh),
             NotesBlockKind.List => BuildList(block, beginEdit, endEdit, refresh),
             NotesBlockKind.Table => BuildTable(viewModel, block, beginEdit, endEdit, refresh),
-            NotesBlockKind.Image or NotesBlockKind.Audio or NotesBlockKind.Video => BuildMedia(block, beginEdit, endEdit, importMedia),
-            NotesBlockKind.Equation => BuildEquation(viewModel, block, refresh),
-            NotesBlockKind.HtmlWidget => BuildHtml(viewModel, block, refresh),
+            NotesBlockKind.Image or NotesBlockKind.Audio or NotesBlockKind.Video =>
+                BuildMedia(block, beginEdit, endEdit, importMedia),
+            NotesBlockKind.Equation => BuildEquation(viewModel, block),
+            NotesBlockKind.HtmlWidget => BuildHtml(viewModel, block),
             NotesBlockKind.Canvas => BuildCanvas(viewModel, block, refresh),
             NotesBlockKind.Flashcard => BuildFlashcard(block, beginEdit, endEdit, refresh),
             NotesBlockKind.Divider => new Border
@@ -42,27 +44,24 @@ public static class NotesBlockEditorFactory
         };
 
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"), ColumnSpacing = 6 };
-        var kind = new Border
+        header.Children.Add(new Border
         {
             Padding = new Thickness(7, 3),
             CornerRadius = new CornerRadius(8),
             Background = ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(54, 47, 128, 237)),
             Child = new TextBlock { Text = block.Kind.ToString(), FontWeight = FontWeight.SemiBold, FontSize = 10 }
-        };
-        header.Children.Add(kind);
-        var selected = new TextBlock
+        });
+        header.Children.Add(WithColumn(new TextBlock
         {
             Text = ReferenceEquals(viewModel.SelectedBlock, block) ? "Selected" : string.Empty,
             Classes = { "muted2" },
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(5, 0)
-        };
-        header.Children.Add(WithColumn(selected, 1));
+        }, 1));
         header.Children.Add(WithColumn(SmallButton("↑", () => { viewModel.MoveBlockUpCommand.Execute(block); refresh(); }, "Move block up"), 2));
         header.Children.Add(WithColumn(SmallButton("↓", () => { viewModel.MoveBlockDownCommand.Execute(block); refresh(); }, "Move block down"), 3));
-        header.Children.Add(WithColumn(SmallButton("Delete", () => { viewModel.DeleteBlockCommand.Execute(block); refresh(); }, "Delete block", danger: true), 4));
+        header.Children.Add(WithColumn(SmallButton("Delete", () => { viewModel.DeleteBlockCommand.Execute(block); refresh(); }, "Delete block", true), 4));
 
-        var panel = new StackPanel { Spacing = 9, Children = { header, body } };
         var card = new Border
         {
             Padding = new Thickness(12),
@@ -72,7 +71,7 @@ public static class NotesBlockEditorFactory
                 ? ResourceBrush("HavenAccentBrush", Color.FromRgb(47, 128, 237))
                 : ResourceBrush("HavenLineBrush", Color.FromArgb(50, 255, 255, 255)),
             BorderThickness = new Thickness(ReferenceEquals(viewModel.SelectedBlock, block) ? 2 : 1),
-            Child = panel
+            Child = new StackPanel { Spacing = 9, Children = { header, body } }
         };
         card.PointerPressed += (_, _) => viewModel.SelectedBlock = block;
         AutomationProperties.SetName(card, block.Kind + " Notes block");
@@ -80,7 +79,6 @@ public static class NotesBlockEditorFactory
     }
 
     private static Control BuildRichText(
-        NotesWorkspaceViewModel viewModel,
         NotesBlock block,
         Action<NotesBlock> beginEdit,
         Action<NotesBlock, string> endEdit,
@@ -99,17 +97,15 @@ public static class NotesBlockEditorFactory
         }
 
         var root = new StackPanel { Spacing = 8 };
-        var controls = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto"), ColumnSpacing = 7 };
         var style = new ComboBox
         {
             ItemsSource = new[] { "normal", "heading-1", "heading-2", "quote", "code" },
             SelectedItem = block.StyleId,
-            MinWidth = 140
+            MinWidth = 145
         };
         style.SelectionChanged += (_, _) =>
         {
-            var selected = style.SelectedItem as string;
-            if (string.IsNullOrWhiteSpace(selected) || selected == block.StyleId) return;
+            if (style.SelectedItem is not string selected || selected == block.StyleId) return;
             beginEdit(block);
             block.StyleId = selected;
             block.Kind = selected switch
@@ -122,24 +118,34 @@ public static class NotesBlockEditorFactory
             endEdit(block, "Applied style " + selected);
             refresh();
         };
-        controls.Children.Add(style);
-        controls.Children.Add(WithColumn(AlignmentButton("Left", NotesTextAlignment.Left), 1));
-        controls.Children.Add(WithColumn(AlignmentButton("Centre", NotesTextAlignment.Center), 2));
-        controls.Children.Add(WithColumn(AlignmentButton("Right", NotesTextAlignment.Right), 3));
-        controls.Children.Add(WithColumn(AlignmentButton("Justify", NotesTextAlignment.Justify), 4));
-        root.Children.Add(controls);
+        var alignment = new ComboBox
+        {
+            ItemsSource = Enum.GetValues<NotesTextAlignment>(),
+            SelectedItem = block.Paragraph.Alignment,
+            MinWidth = 120
+        };
+        alignment.SelectionChanged += (_, _) =>
+        {
+            if (alignment.SelectedItem is not NotesTextAlignment value || value == block.Paragraph.Alignment) return;
+            beginEdit(block);
+            block.Paragraph.Alignment = value;
+            endEdit(block, "Changed paragraph alignment");
+        };
+        var lineSpacing = new NumericUpDown
+        {
+            Minimum = 0.5m,
+            Maximum = 10m,
+            Increment = 0.25m,
+            Value = (decimal)block.Paragraph.LineSpacing,
+            Width = 90
+        };
+        lineSpacing.GotFocus += (_, _) => beginEdit(block);
+        lineSpacing.ValueChanged += (_, _) => block.Paragraph.LineSpacing = (double)(lineSpacing.Value ?? 1.25m);
+        lineSpacing.LostFocus += (_, _) => endEdit(block, "Changed line spacing");
+        root.Children.Add(new WrapPanel { Children = { Labeled("Style", style), Labeled("Alignment", alignment), Labeled("Line spacing", lineSpacing) } });
 
-        var paragraphGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*"), ColumnSpacing = 7 };
-        paragraphGrid.Children.Add(NumberEditor("Line spacing", block.Paragraph.LineSpacing, 0.5, 10, value => block.Paragraph.LineSpacing = value));
-        paragraphGrid.Children.Add(WithColumn(NumberEditor("Left indent", block.Paragraph.IndentLeft, 0, 1000, value => block.Paragraph.IndentLeft = value), 1));
-        paragraphGrid.Children.Add(WithColumn(NumberEditor("First line", block.Paragraph.FirstLineIndent, -1000, 1000, value => block.Paragraph.FirstLineIndent = value), 2));
-        paragraphGrid.Children.Add(WithColumn(NumberEditor("After", block.Paragraph.SpaceAfter, 0, 1000, value => block.Paragraph.SpaceAfter = value), 3));
-        root.Children.Add(paragraphGrid);
-
-        var runs = new StackPanel { Spacing = 7 };
         for (var index = 0; index < block.Runs.Count; index++)
-            runs.Children.Add(BuildRunEditor(block, block.Runs[index], index, beginEdit, endEdit, refresh));
-        root.Children.Add(runs);
+            root.Children.Add(BuildRunEditor(block, block.Runs[index], index, beginEdit, endEdit, refresh));
         root.Children.Add(SmallButton("+ Formatted run", () =>
         {
             beginEdit(block);
@@ -149,29 +155,6 @@ public static class NotesBlockEditorFactory
             refresh();
         }, "Add independently formatted text"));
         return root;
-
-        Button AlignmentButton(string label, NotesTextAlignment alignment)
-        {
-            var button = SmallButton(label, () =>
-            {
-                if (block.Paragraph.Alignment == alignment) return;
-                beginEdit(block);
-                block.Paragraph.Alignment = alignment;
-                endEdit(block, "Changed paragraph alignment");
-                refresh();
-            }, "Align paragraph " + label.ToLowerInvariant());
-            if (block.Paragraph.Alignment == alignment) button.Classes.Add("accent");
-            return button;
-        }
-
-        Control NumberEditor(string label, double current, double minimum, double maximum, Action<double> set)
-        {
-            var input = new NumericUpDown { Minimum = (decimal)minimum, Maximum = (decimal)maximum, Value = (decimal)current, Increment = 0.25m };
-            input.GotFocus += (_, _) => beginEdit(block);
-            input.ValueChanged += (_, _) => set((double)(input.Value ?? (decimal)current));
-            input.LostFocus += (_, _) => endEdit(block, "Changed paragraph formatting");
-            return Labeled(label, input);
-        }
     }
 
     private static Control BuildRunEditor(
@@ -197,15 +180,23 @@ public static class NotesBlockEditorFactory
         text.TextChanged += (_, _) => { run.Text = text.Text ?? string.Empty; SyncPlainText(block); };
         text.LostFocus += (_, _) => endEdit(block, "Edited rich text");
 
-        var bold = Toggle("B", run.Bold, value => run.Bold = value, FontWeight.Bold);
-        var italic = Toggle("I", run.Italic, value => run.Italic = value, fontStyle: FontStyle.Italic);
-        var underline = Toggle("U", run.Underline, value => run.Underline = value);
-        var strike = Toggle("S", run.StrikeThrough, value => run.StrikeThrough = value);
-        var font = new TextBox { Text = run.FontFamily, MinWidth = 110, PlaceholderText = "Font" };
+        var bold = FormatToggle("B", run.Bold, value => run.Bold = value, beginEdit, endEdit, block, FontWeight.Bold);
+        var italic = FormatToggle("I", run.Italic, value => run.Italic = value, beginEdit, endEdit, block, fontStyle: FontStyle.Italic);
+        var underline = FormatToggle("U", run.Underline, value => run.Underline = value, beginEdit, endEdit, block);
+        var strike = FormatToggle("S", run.StrikeThrough, value => run.StrikeThrough = value, beginEdit, endEdit, block);
+        var font = new TextBox { Text = run.FontFamily, MinWidth = 110, Watermark = "Font" };
         var size = new NumericUpDown { Minimum = 4, Maximum = 300, Value = (decimal)run.FontSize, Width = 76 };
-        var foreground = new TextBox { Text = run.Foreground, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
-        var background = new TextBox { Text = run.Background, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
-        var link = new TextBox { Text = run.Link ?? string.Empty, MinWidth = 150, PlaceholderText = "Optional link" };
+        var foreground = new TextBox { Text = run.Foreground, MinWidth = 105, Watermark = "#AARRGGBB" };
+        var background = new TextBox { Text = run.Background, MinWidth = 105, Watermark = "#AARRGGBB" };
+        var link = new TextBox { Text = run.Link ?? string.Empty, MinWidth = 150, Watermark = "Optional link" };
+        foreach (var input in new[] { font, foreground, background, link }) input.GotFocus += (_, _) => beginEdit(block);
+        font.LostFocus += (_, _) => { run.FontFamily = string.IsNullOrWhiteSpace(font.Text) ? "Inter" : font.Text.Trim(); endEdit(block, "Changed font"); };
+        foreground.LostFocus += (_, _) => { run.Foreground = foreground.Text?.Trim() ?? run.Foreground; endEdit(block, "Changed text colour"); };
+        background.LostFocus += (_, _) => { run.Background = background.Text?.Trim() ?? run.Background; endEdit(block, "Changed highlight"); };
+        link.LostFocus += (_, _) => { run.Link = string.IsNullOrWhiteSpace(link.Text) ? null : link.Text.Trim(); endEdit(block, "Changed link"); };
+        size.GotFocus += (_, _) => beginEdit(block);
+        size.ValueChanged += (_, _) => run.FontSize = (double)(size.Value ?? 14m);
+        size.LostFocus += (_, _) => endEdit(block, "Changed font size");
         var remove = SmallButton("×", () =>
         {
             if (block.Runs.Count <= 1) return;
@@ -214,18 +205,8 @@ public static class NotesBlockEditorFactory
             SyncPlainText(block);
             endEdit(block, "Removed formatted text run");
             refresh();
-        }, "Remove formatted run", danger: true);
+        }, "Remove formatted run", true);
 
-        foreach (var input in new[] { font, foreground, background, link }) input.GotFocus += (_, _) => beginEdit(block);
-        font.LostFocus += (_, _) => { run.FontFamily = string.IsNullOrWhiteSpace(font.Text) ? "Inter" : font.Text.Trim(); endEdit(block, "Changed text font"); };
-        foreground.LostFocus += (_, _) => { run.Foreground = foreground.Text?.Trim() ?? run.Foreground; endEdit(block, "Changed text colour"); };
-        background.LostFocus += (_, _) => { run.Background = background.Text?.Trim() ?? run.Background; endEdit(block, "Changed text highlight"); };
-        link.LostFocus += (_, _) => { run.Link = string.IsNullOrWhiteSpace(link.Text) ? null : link.Text.Trim(); endEdit(block, "Changed text link"); };
-        size.GotFocus += (_, _) => beginEdit(block);
-        size.ValueChanged += (_, _) => run.FontSize = (double)(size.Value ?? 14);
-        size.LostFocus += (_, _) => endEdit(block, "Changed text size");
-
-        var toolbar = new WrapPanel { Children = { bold, italic, underline, strike, font, size, foreground, background, link, remove } };
         return new Border
         {
             Padding = new Thickness(8),
@@ -237,23 +218,38 @@ public static class NotesBlockEditorFactory
                 Children =
                 {
                     new TextBlock { Text = "Run " + (index + 1), Classes = { "muted2" }, FontSize = 9 },
-                    toolbar,
+                    new WrapPanel { Children = { bold, italic, underline, strike, font, size, foreground, background, link, remove } },
                     text
                 }
             }
         };
+    }
 
-        ToggleButton Toggle(string label, bool initial, Action<bool> set, FontWeight? fontWeight = null, FontStyle? fontStyle = null)
+    private static ToggleButton FormatToggle(
+        string label,
+        bool value,
+        Action<bool> apply,
+        Action<NotesBlock> beginEdit,
+        Action<NotesBlock, string> endEdit,
+        NotesBlock block,
+        FontWeight? fontWeight = null,
+        FontStyle? fontStyle = null)
+    {
+        var toggle = new ToggleButton
         {
-            var button = new ToggleButton { Content = label, IsChecked = initial, Width = 34, FontWeight = fontWeight ?? FontWeight.Normal, FontStyle = fontStyle ?? FontStyle.Normal };
-            button.IsCheckedChanged += (_, _) =>
-            {
-                beginEdit(block);
-                set(button.IsChecked == true);
-                endEdit(block, "Changed character formatting");
-            };
-            return button;
-        }
+            Content = label,
+            IsChecked = value,
+            Width = 34,
+            FontWeight = fontWeight ?? FontWeight.Normal,
+            FontStyle = fontStyle ?? FontStyle.Normal
+        };
+        toggle.IsCheckedChanged += (_, _) =>
+        {
+            beginEdit(block);
+            apply(toggle.IsChecked == true);
+            endEdit(block, "Changed character formatting");
+        };
+        return toggle;
     }
 
     private static Control BuildList(
@@ -285,7 +281,7 @@ public static class NotesBlockEditorFactory
             text.LostFocus += (_, _) => endEdit(block, "Edited list item");
             var level = new NumericUpDown { Minimum = 0, Maximum = 8, Value = item.Level, Width = 60 };
             level.GotFocus += (_, _) => beginEdit(block);
-            level.ValueChanged += (_, _) => item.Level = (int)(level.Value ?? 0);
+            level.ValueChanged += (_, _) => item.Level = (int)(level.Value ?? 0m);
             level.LostFocus += (_, _) => endEdit(block, "Changed list nesting");
             var remove = SmallButton("×", () =>
             {
@@ -294,7 +290,7 @@ public static class NotesBlockEditorFactory
                 block.List.Items.Remove(item);
                 endEdit(block, "Removed list item");
                 refresh();
-            }, "Remove list item", danger: true);
+            }, "Remove list item", true);
             row.Children.Add(check);
             row.Children.Add(WithColumn(text, 1));
             row.Children.Add(WithColumn(level, 2));
@@ -320,7 +316,7 @@ public static class NotesBlockEditorFactory
     {
         block.Table ??= NotesTableData.Create(3, 3);
         var root = new StackPanel { Spacing = 7 };
-        var actions = new WrapPanel
+        root.Children.Add(new WrapPanel
         {
             Children =
             {
@@ -329,8 +325,7 @@ public static class NotesBlockEditorFactory
                 SmallButton("+ Column", () => { viewModel.AddTableColumn(block); refresh(); }, "Add table column"),
                 SmallButton("− Column", () => { viewModel.RemoveTableColumn(block); refresh(); }, "Remove last table column")
             }
-        };
-        root.Children.Add(actions);
+        });
         var tableGrid = new Grid { RowSpacing = 3, ColumnSpacing = 3 };
         var rows = block.Table.Rows.Count;
         var columns = block.Table.Rows.Max(row => row.Cells.Count);
@@ -340,7 +335,15 @@ public static class NotesBlockEditorFactory
         for (var columnIndex = 0; columnIndex < columns; columnIndex++)
         {
             var cell = block.Table.Rows[rowIndex].Cells[columnIndex];
-            var editor = new TextBox { Text = cell.Text, MinWidth = 80, MinHeight = 36, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontWeight = rowIndex == 0 && block.Table.HeaderRow ? FontWeight.SemiBold : FontWeight.Normal };
+            var editor = new TextBox
+            {
+                Text = cell.Text,
+                MinWidth = 80,
+                MinHeight = 36,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                FontWeight = rowIndex == 0 && block.Table.HeaderRow ? FontWeight.SemiBold : FontWeight.Normal
+            };
             editor.GotFocus += (_, _) => beginEdit(block);
             editor.TextChanged += (_, _) => cell.Text = editor.Text ?? string.Empty;
             editor.LostFocus += (_, _) => endEdit(block, "Edited table cell");
@@ -348,7 +351,11 @@ public static class NotesBlockEditorFactory
             Grid.SetColumn(editor, columnIndex);
             tableGrid.Children.Add(editor);
         }
-        root.Children.Add(new ScrollViewer { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = tableGrid });
+        root.Children.Add(new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = tableGrid
+        });
         return root;
     }
 
@@ -360,9 +367,13 @@ public static class NotesBlockEditorFactory
     {
         if (block.Media is null) return new TextBlock { Text = "Media metadata is missing.", Classes = { "muted" } };
         var media = block.Media;
-        var alt = new TextBox { Text = media.AltText, PlaceholderText = "Accessible alternative text" };
-        var caption = new TextBox { Text = media.Caption, PlaceholderText = "Caption", AcceptsReturn = true };
-        var wrapping = new ComboBox { ItemsSource = new[] { "Inline", "Square", "Tight", "Behind text", "In front of text" }, SelectedItem = media.Wrapping };
+        var alt = new TextBox { Text = media.AltText, Watermark = "Accessible alternative text" };
+        var caption = new TextBox { Text = media.Caption, Watermark = "Caption", AcceptsReturn = true };
+        var wrapping = new ComboBox
+        {
+            ItemsSource = new[] { "Inline", "Square", "Tight", "Behind text", "In front of text" },
+            SelectedItem = media.Wrapping
+        };
         var width = new NumericUpDown { Minimum = 1, Maximum = 10000, Value = (decimal)media.Width };
         var height = new NumericUpDown { Minimum = 1, Maximum = 10000, Value = (decimal)media.Height };
         foreach (var input in new[] { alt, caption }) input.GotFocus += (_, _) => beginEdit(block);
@@ -370,11 +381,14 @@ public static class NotesBlockEditorFactory
         caption.LostFocus += (_, _) => { media.Caption = caption.Text ?? string.Empty; endEdit(block, "Edited media caption"); };
         wrapping.SelectionChanged += (_, _) => { beginEdit(block); media.Wrapping = wrapping.SelectedItem as string ?? "Inline"; endEdit(block, "Changed media wrapping"); };
         width.GotFocus += (_, _) => beginEdit(block);
-        width.ValueChanged += (_, _) => media.Width = (double)(width.Value ?? 400);
+        width.ValueChanged += (_, _) => media.Width = (double)(width.Value ?? 400m);
         width.LostFocus += (_, _) => endEdit(block, "Changed media size");
         height.GotFocus += (_, _) => beginEdit(block);
-        height.ValueChanged += (_, _) => media.Height = (double)(height.Value ?? 300);
+        height.ValueChanged += (_, _) => media.Height = (double)(height.Value ?? 300m);
         height.LostFocus += (_, _) => endEdit(block, "Changed media size");
+        var dimensions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 7 };
+        dimensions.Children.Add(Labeled("Width", width));
+        dimensions.Children.Add(WithColumn(Labeled("Height", height), 1));
         return new StackPanel
         {
             Spacing = 7,
@@ -385,45 +399,68 @@ public static class NotesBlockEditorFactory
                 Labeled("Alternative text", alt),
                 Labeled("Caption", caption),
                 Labeled("Wrapping", wrapping),
-                new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 7, Children = { Labeled("Width", width), WithColumn(Labeled("Height", height), 1) } },
+                dimensions,
                 SmallButton("Insert another media block", () => _ = importMedia(), "Import media")
             }
         };
     }
 
-    private static Control BuildEquation(NotesWorkspaceViewModel viewModel, NotesBlock block, Action refresh)
+    private static Control BuildEquation(NotesWorkspaceViewModel viewModel, NotesBlock block)
     {
         block.Equation ??= new NotesEquationData();
         var equation = block.Equation;
         var mode = new ComboBox { ItemsSource = Enum.GetValues<NotesEquationViewMode>(), SelectedItem = equation.ViewMode, Width = 120 };
-        var source = new TextBox { Text = equation.Source, AcceptsReturn = true, MinHeight = 100, FontFamily = new FontFamily("Cascadia Mono"), TextWrapping = TextWrapping.Wrap };
-        var alternative = new TextBox { Text = equation.AccessibleAlternative, PlaceholderText = "Accessible spoken or textual alternative", AcceptsReturn = true, MinHeight = 55 };
+        var source = new TextBox
+        {
+            Text = equation.Source,
+            AcceptsReturn = true,
+            MinHeight = 100,
+            FontFamily = new FontFamily("Cascadia Mono"),
+            TextWrapping = TextWrapping.Wrap
+        };
+        var alternative = new TextBox
+        {
+            Text = equation.AccessibleAlternative,
+            Watermark = "Accessible spoken or textual alternative",
+            AcceptsReturn = true,
+            MinHeight = 55
+        };
         var rendered = new TextBlock { Text = equation.RenderedText, FontSize = 24, TextWrapping = TextWrapping.Wrap };
         var error = new TextBlock { Text = equation.Error, Foreground = ResourceBrush("HavenDangerBrush", Colors.IndianRed), TextWrapping = TextWrapping.Wrap };
         var numbered = new CheckBox { Content = "Number equation", IsChecked = equation.Numbered };
-        var label = new TextBox { Text = equation.Label, PlaceholderText = "Equation label" };
+        var label = new TextBox { Text = equation.Label, Watermark = "Equation label" };
+        var ready = false;
         void Apply()
         {
+            if (!ready) return;
             equation.Numbered = numbered.IsChecked == true;
             if (equation.Numbered && equation.Number is null) equation.Number = 1;
             equation.Label = label.Text ?? string.Empty;
-            viewModel.UpdateEquation(block, source.Text ?? string.Empty, mode.SelectedItem is NotesEquationViewMode selected ? selected : NotesEquationViewMode.Split, alternative.Text ?? string.Empty);
+            viewModel.UpdateEquation(
+                block,
+                source.Text ?? string.Empty,
+                mode.SelectedItem is NotesEquationViewMode selected ? selected : NotesEquationViewMode.Split,
+                alternative.Text ?? string.Empty);
             rendered.Text = equation.RenderedText;
             error.Text = equation.Error;
-            refresh();
         }
         source.LostFocus += (_, _) => Apply();
         alternative.LostFocus += (_, _) => Apply();
         mode.SelectionChanged += (_, _) => Apply();
         numbered.IsCheckedChanged += (_, _) => Apply();
         label.LostFocus += (_, _) => Apply();
+        ready = true;
         var split = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 9 };
         split.Children.Add(new StackPanel { Spacing = 5, Children = { new TextBlock { Text = "LaTeX source", Classes = { "eyebrow" } }, source, error } });
         split.Children.Add(WithColumn(new StackPanel { Spacing = 5, Children = { new TextBlock { Text = "Visual result", Classes = { "eyebrow" } }, rendered, alternative } }, 1));
-        return new StackPanel { Spacing = 7, Children = { new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), Children = { mode, WithColumn(numbered, 1), WithColumn(label, 2) } }, split } };
+        var options = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 7 };
+        options.Children.Add(mode);
+        options.Children.Add(WithColumn(numbered, 1));
+        options.Children.Add(WithColumn(label, 2));
+        return new StackPanel { Spacing = 7, Children = { options, split } };
     }
 
-    private static Control BuildHtml(NotesWorkspaceViewModel viewModel, NotesBlock block, Action refresh)
+    private static Control BuildHtml(NotesWorkspaceViewModel viewModel, NotesBlock block)
     {
         block.Html ??= new NotesHtmlData();
         var data = block.Html;
@@ -437,8 +474,10 @@ public static class NotesBlockEditorFactory
         var preview = new NotesHtmlPreviewControl();
         preview.UpdatePreview(data);
         var error = new TextBlock { Text = data.LastSecurityError, Foreground = ResourceBrush("HavenDangerBrush", Colors.IndianRed), TextWrapping = TextWrapping.Wrap };
+        var ready = false;
         void Apply()
         {
+            if (!ready) return;
             viewModel.UpdateHtml(
                 block,
                 html.Text ?? string.Empty,
@@ -450,13 +489,13 @@ public static class NotesBlockEditorFactory
                 mode.SelectedItem is NotesHtmlViewMode selected ? selected : NotesHtmlViewMode.Split);
             error.Text = data.LastSecurityError;
             preview.UpdatePreview(data);
-            refresh();
         }
         foreach (var source in new[] { html, css, javascript }) source.LostFocus += (_, _) => Apply();
         mode.SelectionChanged += (_, _) => Apply();
         scripts.IsCheckedChanged += (_, _) => Apply();
         network.IsCheckedChanged += (_, _) => Apply();
         forms.IsCheckedChanged += (_, _) => Apply();
+        ready = true;
         var sources = new TabControl
         {
             ItemsSource = new object[]
@@ -466,14 +505,22 @@ public static class NotesBlockEditorFactory
                 new TabItem { Header = "JavaScript", Content = javascript }
             }
         };
-        var split = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 9, Children = { sources, WithColumn(preview, 1) } };
+        var split = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 9 };
+        split.Children.Add(sources);
+        split.Children.Add(WithColumn(preview, 1));
         return new StackPanel
         {
             Spacing = 7,
             Children =
             {
                 new WrapPanel { Children = { mode, scripts, network, forms } },
-                new TextBlock { Text = "Popups, object embeds, external frames and top-level navigation are always blocked. Source and permission changes must agree before preview runs.", Classes = { "muted2" }, TextWrapping = TextWrapping.Wrap, FontSize = 9 },
+                new TextBlock
+                {
+                    Text = "Popups, object embeds, external frames and top-level navigation are always blocked. Source and permission changes must agree before preview runs.",
+                    Classes = { "muted2" },
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 9
+                },
                 error,
                 split
             }
@@ -489,8 +536,13 @@ public static class NotesBlockEditorFactory
         var colour = new TextBox { Text = "#FF2F80ED", Width = 120 };
         var width = new Slider { Minimum = 0.5, Maximum = 40, Value = 2.5, Width = 150 };
         var infinite = new CheckBox { Content = "Infinite canvas", IsChecked = canvas.Infinite };
-        var layers = new ComboBox { ItemsSource = canvas.GhostLayers, Width = 160 };
-        layers.ItemTemplate = new FuncDataTemplate<NotesGhostLayer>((layer, _) => new TextBlock { Text = layer?.Name ?? "Ghost layer" });
+        var layers = new ComboBox
+        {
+            ItemsSource = canvas.GhostLayers,
+            Width = 170,
+            ItemTemplate = new FuncDataTemplate<NotesGhostLayer>((layer, _) =>
+                new TextBlock { Text = layer?.Name ?? "Ghost layer" })
+        };
         void SyncTool()
         {
             ink.Tool = tool.SelectedItem as string ?? "pen";
@@ -501,37 +553,50 @@ public static class NotesBlockEditorFactory
         tool.SelectionChanged += (_, _) => SyncTool();
         colour.LostFocus += (_, _) => SyncTool();
         width.ValueChanged += (_, _) => SyncTool();
-        infinite.IsCheckedChanged += (_, _) => { canvas.Infinite = infinite.IsChecked == true; ink.InvalidateVisual(); };
+        infinite.IsCheckedChanged += (_, _) =>
+        {
+            viewModel.BeginBlockEdit(block);
+            canvas.Infinite = infinite.IsChecked == true;
+            viewModel.CommitBlockEdit(block, "Changed canvas extent");
+            ink.InvalidateVisual();
+        };
         layers.SelectionChanged += (_, _) => SyncTool();
         ink.StrokeCompleted += (_, stroke) =>
         {
             viewModel.AddInkStroke(block, stroke);
-            if (stroke.GhostLayerId is { } layerId && canvas.GhostLayers.FirstOrDefault(item => item.Id == layerId) is { } layer)
+            if (stroke.GhostLayerId is { } layerId
+                && canvas.GhostLayers.FirstOrDefault(item => item.Id == layerId) is { } layer)
                 viewModel.AssignStrokeToGhostLayer(block, stroke, layer);
-            layers.ItemsSource = null;
-            layers.ItemsSource = canvas.GhostLayers;
+            RefreshLayerItems();
             ink.InvalidateVisual();
         };
         ink.StrokeErased += (_, id) => { viewModel.RemoveInkStroke(block, id); ink.InvalidateVisual(); };
-        ink.ViewChanged += (_, _) => refresh();
 
         var addLayer = SmallButton("+ Ghost layer", () =>
         {
             var layer = viewModel.AddGhostLayer(block, "Answer " + (canvas.GhostLayers.Count + 1), NotesGhostRevealMode.Tap);
-            layers.ItemsSource = null;
-            layers.ItemsSource = canvas.GhostLayers;
+            RefreshLayerItems();
             layers.SelectedItem = layer;
             SyncTool();
             refresh();
         }, "Add revealable Ghost Pen layer");
         var reveal = SmallButton("Reveal / hide", () =>
         {
-            if (layers.SelectedItem is NotesGhostLayer layer) { viewModel.ToggleGhostLayer(block, layer); ink.InvalidateVisual(); refresh(); }
+            if (layers.SelectedItem is not NotesGhostLayer layer) return;
+            viewModel.ToggleGhostLayer(block, layer);
+            ink.InvalidateVisual();
+            refresh();
         }, "Reveal or hide selected Ghost layer");
         var addObject = SmallButton("+ Text object", () =>
         {
             viewModel.BeginBlockEdit(block);
-            canvas.Objects.Add(new NotesCanvasObject { Kind = NotesCanvasObjectKind.Text, Text = "Canvas note", X = 80 + canvas.Objects.Count * 20, Y = 80 + canvas.Objects.Count * 20 });
+            canvas.Objects.Add(new NotesCanvasObject
+            {
+                Kind = NotesCanvasObjectKind.Text,
+                Text = "Canvas note",
+                X = 80 + canvas.Objects.Count * 20,
+                Y = 80 + canvas.Objects.Count * 20
+            });
             viewModel.CommitBlockEdit(block, "Added canvas object");
             ink.InvalidateVisual();
             refresh();
@@ -539,7 +604,16 @@ public static class NotesBlockEditorFactory
         var frame = SmallButton("+ Frame", () =>
         {
             viewModel.BeginBlockEdit(block);
-            canvas.Objects.Add(new NotesCanvasObject { Kind = NotesCanvasObjectKind.Frame, Text = "Frame", X = 40, Y = 40, Width = 500, Height = 320, ZIndex = -1 });
+            canvas.Objects.Add(new NotesCanvasObject
+            {
+                Kind = NotesCanvasObjectKind.Frame,
+                Text = "Frame",
+                X = 40,
+                Y = 40,
+                Width = 500,
+                Height = 320,
+                ZIndex = -1
+            });
             viewModel.CommitBlockEdit(block, "Added canvas frame");
             ink.InvalidateVisual();
             refresh();
@@ -550,26 +624,64 @@ public static class NotesBlockEditorFactory
             Children =
             {
                 new WrapPanel { Children = { tool, colour, width, infinite, layers, addLayer, reveal, addObject, frame } },
-                new TextBlock { Text = "Pen pressure and tilt are stored per point. Mouse/touch input uses a safe fallback pressure. Use the wheel to zoom.", Classes = { "muted2" }, TextWrapping = TextWrapping.Wrap, FontSize = 9 },
-                new Border { CornerRadius = new CornerRadius(9), BorderBrush = ResourceBrush("HavenLineStrongBrush", Color.FromArgb(80, 255, 255, 255)), BorderThickness = new Thickness(1), Child = ink },
+                new TextBlock
+                {
+                    Text = "Pen pressure and tilt are stored per point. Mouse and touch use a safe fallback pressure. Use the wheel to zoom.",
+                    Classes = { "muted2" },
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 9
+                },
+                new Border
+                {
+                    CornerRadius = new CornerRadius(9),
+                    BorderBrush = ResourceBrush("HavenLineStrongBrush", Color.FromArgb(80, 255, 255, 255)),
+                    BorderThickness = new Thickness(1),
+                    Child = ink
+                },
                 BuildCanvasObjectList(viewModel, block, ink, refresh)
             }
         };
+
+        void RefreshLayerItems()
+        {
+            layers.ItemsSource = null;
+            layers.ItemsSource = canvas.GhostLayers;
+        }
     }
 
-    private static Control BuildCanvasObjectList(NotesWorkspaceViewModel viewModel, NotesBlock block, NotesInkCanvasControl ink, Action refresh)
+    private static Control BuildCanvasObjectList(
+        NotesWorkspaceViewModel viewModel,
+        NotesBlock block,
+        NotesInkCanvasControl ink,
+        Action refresh)
     {
         var panel = new StackPanel { Spacing = 4 };
-        foreach (var canvasObject in block.Canvas!.Objects.OrderBy(item => item.ZIndex))
+        foreach (var canvasObject in block.Canvas!.Objects.OrderBy(item => item.ZIndex).ToArray())
         {
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 6 };
-            row.Children.Add(new TextBlock { Text = canvasObject.Kind.ToString(), VerticalAlignment = VerticalAlignment.Center, Classes = { "muted2" }, FontSize = 9 });
+            row.Children.Add(new TextBlock
+            {
+                Text = canvasObject.Kind.ToString(),
+                VerticalAlignment = VerticalAlignment.Center,
+                Classes = { "muted2" },
+                FontSize = 9
+            });
             var text = new TextBox { Text = canvasObject.Text };
             text.GotFocus += (_, _) => viewModel.BeginBlockEdit(block);
             text.TextChanged += (_, _) => canvasObject.Text = text.Text ?? string.Empty;
-            text.LostFocus += (_, _) => { viewModel.CommitBlockEdit(block, "Edited canvas object"); ink.InvalidateVisual(); };
+            text.LostFocus += (_, _) =>
+            {
+                viewModel.CommitBlockEdit(block, "Edited canvas object");
+                ink.InvalidateVisual();
+            };
             var locked = new CheckBox { Content = "Lock", IsChecked = canvasObject.Locked };
-            locked.IsCheckedChanged += (_, _) => { viewModel.BeginBlockEdit(block); canvasObject.Locked = locked.IsChecked == true; viewModel.CommitBlockEdit(block, "Changed canvas object lock"); ink.InvalidateVisual(); };
+            locked.IsCheckedChanged += (_, _) =>
+            {
+                viewModel.BeginBlockEdit(block);
+                canvasObject.Locked = locked.IsChecked == true;
+                viewModel.CommitBlockEdit(block, "Changed canvas object lock");
+                ink.InvalidateVisual();
+            };
             var remove = SmallButton("×", () =>
             {
                 viewModel.BeginBlockEdit(block);
@@ -577,7 +689,7 @@ public static class NotesBlockEditorFactory
                 viewModel.CommitBlockEdit(block, "Removed canvas object");
                 ink.InvalidateVisual();
                 refresh();
-            }, "Remove canvas object", danger: true);
+            }, "Remove canvas object", true);
             row.Children.Add(WithColumn(text, 1));
             row.Children.Add(WithColumn(locked, 2));
             row.Children.Add(WithColumn(remove, 3));
@@ -596,7 +708,7 @@ public static class NotesBlockEditorFactory
         var card = block.Flashcard;
         var front = new TextBox { Text = card.Front, AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
         var back = new TextBox { Text = card.Back, AcceptsReturn = true, MinHeight = 90, TextWrapping = TextWrapping.Wrap };
-        var hint = new TextBox { Text = card.Hint, PlaceholderText = "Optional hint" };
+        var hint = new TextBox { Text = card.Hint, Watermark = "Optional hint" };
         foreach (var input in new[] { front, back, hint }) input.GotFocus += (_, _) => beginEdit(block);
         front.TextChanged += (_, _) => card.Front = front.Text ?? string.Empty;
         back.TextChanged += (_, _) => card.Back = back.Text ?? string.Empty;
@@ -606,14 +718,28 @@ public static class NotesBlockEditorFactory
         hint.LostFocus += (_, _) => endEdit(block, "Edited flashcard hint");
         var masks = new StackPanel { Spacing = 4 };
         foreach (var mask in card.OcclusionMasks)
-            masks.Children.Add(new TextBlock { Text = $"Occlusion {mask.X:0},{mask.Y:0} · {mask.Width:0}×{mask.Height:0} · {mask.Answer}", Classes = { "muted" }, FontSize = 9 });
+        {
+            masks.Children.Add(new TextBlock
+            {
+                Text = $"Occlusion {mask.X:0},{mask.Y:0} · {mask.Width:0}×{mask.Height:0} · {mask.Answer}",
+                Classes = { "muted" },
+                FontSize = 9
+            });
+        }
         var addMask = SmallButton("+ Image occlusion", () =>
         {
             beginEdit(block);
-            card.OcclusionMasks.Add(new NotesOcclusionMask { X = 20 + card.OcclusionMasks.Count * 10, Y = 20 + card.OcclusionMasks.Count * 10, Width = 140, Height = 70, Answer = "Hidden answer" });
+            card.OcclusionMasks.Add(new NotesOcclusionMask
+            {
+                X = 20 + card.OcclusionMasks.Count * 10,
+                Y = 20 + card.OcclusionMasks.Count * 10,
+                Width = 140,
+                Height = 70,
+                Answer = "Hidden answer"
+            });
             endEdit(block, "Added flashcard image occlusion");
             refresh();
-        }, "Add editable image/diagram occlusion mask");
+        }, "Add editable image or diagram occlusion mask");
         return new StackPanel
         {
             Spacing = 7,
@@ -622,7 +748,12 @@ public static class NotesBlockEditorFactory
                 Labeled("Front", front),
                 Labeled("Back", back),
                 Labeled("Hint", hint),
-                new TextBlock { Text = $"Due {card.Schedule.DueAt.LocalDateTime:g} · interval {card.Schedule.IntervalDays} days · repetitions {card.Schedule.Repetitions} · lapses {card.Schedule.Lapses}", Classes = { "muted2" }, FontSize = 9 },
+                new TextBlock
+                {
+                    Text = $"Due {card.Schedule.DueAt.LocalDateTime:g} · interval {card.Schedule.IntervalDays} days · repetitions {card.Schedule.Repetitions} · lapses {card.Schedule.Lapses}",
+                    Classes = { "muted2" },
+                    FontSize = 9
+                },
                 addMask,
                 masks
             }
@@ -637,10 +768,11 @@ public static class NotesBlockEditorFactory
         FontFamily = new FontFamily("Cascadia Mono"),
         FontSize = 12,
         TextWrapping = TextWrapping.NoWrap,
-        PlaceholderText = name + " source"
+        Watermark = name + " source"
     };
 
-    private static void SyncPlainText(NotesBlock block) => block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
+    private static void SyncPlainText(NotesBlock block) =>
+        block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
 
     private static Button SmallButton(string label, Action action, string tooltip, bool danger = false)
     {
@@ -665,5 +797,9 @@ public static class NotesBlockEditorFactory
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
-    private static T WithColumn<T>(T control, int column) where T : Control { Grid.SetColumn(control, column); return control; }
+    private static T WithColumn<T>(T control, int column) where T : Control
+    {
+        Grid.SetColumn(control, column);
+        return control;
+    }
 }
