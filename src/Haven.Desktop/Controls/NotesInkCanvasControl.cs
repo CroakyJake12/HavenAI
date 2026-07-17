@@ -28,7 +28,7 @@ public sealed class NotesInkCanvasControl : Control
     public NotesCanvasData? CanvasData { get; set; }
     public string Tool { get; set; } = "pen";
     public string Colour { get; set; } = "#FF2F80ED";
-    public double Width { get; set; } = 2.5;
+    public double StrokeWidth { get; set; } = 2.5;
     public double Opacity { get; set; } = 1;
     public Guid? ActiveGhostLayerId { get; set; }
     public event EventHandler<NotesInkStroke>? StrokeCompleted;
@@ -53,7 +53,7 @@ public sealed class NotesInkCanvasControl : Control
                 var preview = new NotesInkStroke
                 {
                     Colour = Colour,
-                    BaseWidth = Width,
+                    BaseWidth = StrokeWidth,
                     Opacity = Opacity,
                     GhostLayerId = ActiveGhostLayerId,
                     IsGhost = ActiveGhostLayerId is not null,
@@ -130,7 +130,7 @@ public sealed class NotesInkCanvasControl : Control
             {
                 Tool = Tool,
                 Colour = Colour,
-                BaseWidth = Width,
+                BaseWidth = StrokeWidth,
                 Opacity = Opacity,
                 IsGhost = ActiveGhostLayerId is not null,
                 GhostLayerId = ActiveGhostLayerId,
