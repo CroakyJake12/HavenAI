@@ -21,6 +21,7 @@ public sealed class NotesDictationController(
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private CancellationTokenSource? _activeCancellation;
+    private CancellationTokenRegistration _timeoutRegistration;
     private int _active;
     private bool _disposed;
 
@@ -53,6 +54,14 @@ public sealed class NotesDictationController(
             var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(TimeSpan.FromSeconds(60));
             _activeCancellation = linked;
+            _timeoutRegistration = linked.Token.Register(() =>
+            {
+                if (IsActive)
+                {
+                    RaiseStatus("Notes dictation stopped after one minute without a final passage.", isError: true);
+                    _ = StopAsync(CancellationToken.None);
+                }
+            });
             Volatile.Write(ref _active, 1);
             RaiseStatus("Listening locally for one passage…");
             await speechInput.StartAsync(
@@ -132,6 +141,8 @@ public sealed class NotesDictationController(
     private async Task StopCoreAsync(CancellationToken cancellationToken)
     {
         var cancellation = Interlocked.Exchange(ref _activeCancellation, null);
+        _timeoutRegistration.Dispose();
+        _timeoutRegistration = default;
         Volatile.Write(ref _active, 0);
         try
         {
