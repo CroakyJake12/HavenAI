@@ -7,7 +7,7 @@ namespace Haven.Desktop.Controls;
 public sealed class NotesHtmlPreviewControl : UserControl, IDisposable
 {
     private readonly NativeWebView _webView = new();
-    private readonly TextBlock _error = new
+    private readonly TextBlock _error = new()
     {
         TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Margin = new Avalonia.Thickness(10),
