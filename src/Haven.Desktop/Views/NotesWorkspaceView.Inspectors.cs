@@ -30,8 +30,7 @@ public sealed partial class NotesWorkspaceView
         var model = new ComboBox
         {
             ItemsSource = _viewModel.Models,
-            SelectedItem = _viewModel.SelectedModelName,
-            PlaceholderText = "Choose model"
+            SelectedItem = _viewModel.SelectedModelName
         };
         model.SelectionChanged += (_, _) => _viewModel.SelectedModelName = model.SelectedItem as string ?? string.Empty;
         _aiPanel.Children.Add(model);
@@ -325,6 +324,7 @@ public sealed partial class NotesWorkspaceView
         };
         _informationPanel.Children.Add(Labeled("Layout", layout));
         _informationPanel.Children.Add(BuildPageSetup(document));
+        BuildProductivityInspector();
         _informationPanel.Children.Add(new TextBlock
         {
             Text = "RECOVERY",
