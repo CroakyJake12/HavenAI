@@ -7,13 +7,14 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
 
-public sealed class NotesWorkspaceView : UserControl, IDisposable
+public sealed partial class NotesWorkspaceView : UserControl, IDisposable
 {
     private readonly NotesWorkspaceViewModel _viewModel;
     private readonly StackPanel _documentsPanel = new() { Spacing = 5 };
@@ -28,8 +29,8 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
     private readonly TextBox _documentTitle = new() { FontSize = 24, FontWeight = FontWeight.SemiBold, MinWidth = 280 };
     private readonly TextBlock _status = new() { Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 10 };
     private readonly TextBlock _saveState = new() { Classes = { "muted2" }, FontSize = 10 };
-    private readonly TextBlock _statistics = new() { Classes = { "muted" }, FontSize = 10 };
-    private readonly TextBox _searchBox = new() { PlaceholderText = "Search every Notes document" };
+    private readonly TextBlock _statistics = new() { Classes = { "muted" }, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBox _searchBox = new() { Watermark = "Search every Notes document" };
     private readonly Grid _deleteConfirmation = new() { IsVisible = false, ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 7 };
     private bool _initialized;
     private bool _refreshQueued;
@@ -96,8 +97,7 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
                 _saveState
             }
         };
-        Grid.SetColumn(identity, 6);
-        panel.Children.Add(identity);
+        panel.Children.Add(WithColumn(identity, 6));
         panel.Children.Add(WithColumn(ActionButton("Print", async () => await _viewModel.PrintAsync(CancellationToken.None), "Create a print-ready PDF and open the Windows print handler"), 7));
         panel.Children.Add(WithColumn(ActionButton("Delete", () => { _viewModel.RequestDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Move this document to recoverable Notes trash", danger: true), 8));
         panel.Children.Add(WithColumn(new TextBlock { Text = "Autosave · versions · local recovery", Classes = { "muted2" }, VerticalAlignment = VerticalAlignment.Center, FontSize = 9 }, 9));
@@ -106,13 +106,14 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
 
     private Control BuildLibraryPane()
     {
-        var searchButton = ActionButton("Search", async () =>
+        var searchButton = ActionButton("Search", SearchFromBoxAsync, "Search all local Notes documents");
+        var clearSearch = ActionButton("Clear", () =>
         {
-            _viewModel.SearchQuery = _searchBox.Text ?? string.Empty;
-            await _viewModel.SearchCommand.ExecuteAsync();
+            _viewModel.ClearSearchCommand.Execute(null);
+            _searchBox.Text = string.Empty;
             RefreshSearchResults();
-        }, "Search all local Notes documents");
-        var clearSearch = ActionButton("Clear", () => { _viewModel.ClearSearchCommand.Execute(null); _searchBox.Text = string.Empty; RefreshSearchResults(); return Task.CompletedTask; }, "Clear Notes search");
+            return Task.CompletedTask;
+        }, "Clear Notes search");
         var searchGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
         searchGrid.Children.Add(_searchBox);
         searchGrid.Children.Add(WithColumn(searchButton, 1));
@@ -121,21 +122,27 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         {
             if (args.Key != Key.Enter) return;
             args.Handled = true;
-            _viewModel.SearchQuery = _searchBox.Text ?? string.Empty;
-            await _viewModel.SearchCommand.ExecuteAsync();
-            RefreshSearchResults();
+            await SearchFromBoxAsync();
         };
 
-        return Card(new Grid
+        var structureHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
+        structureHeader.Children.Add(new TextBlock { Text = "STRUCTURE", Classes = { "eyebrow" }, VerticalAlignment = VerticalAlignment.Center });
+        structureHeader.Children.Add(WithColumn(ActionButton("+ Section", () => { _viewModel.AddSectionCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add document section"), 1));
+        structureHeader.Children.Add(WithColumn(ActionButton("+ Page", () => { _viewModel.AddPageCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add page to selected section"), 2));
+
+        var structure = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 6 };
+        structure.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _sectionsPanel });
+        structure.Children.Add(WithColumn(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _pagesPanel }, 1));
+
+        var content = new StackPanel
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,180,Auto,*,Auto,150"),
-            RowSpacing = 8,
+            Spacing = 8,
             Children =
             {
                 new TextBlock { Text = "LIBRARY", Classes = { "eyebrow" } },
-                WithRow(searchGrid, 1),
-                WithRow(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _searchPanel }, 2),
-                WithRow(new Grid
+                searchGrid,
+                new Border { Height = 145, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _searchPanel } },
+                new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                     Children =
@@ -143,30 +150,13 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
                         new TextBlock { Text = "DOCUMENTS", Classes = { "eyebrow" }, VerticalAlignment = VerticalAlignment.Center },
                         WithColumn(ActionButton("+", async () => await _viewModel.NewDocumentCommand.ExecuteAsync(), "New document"), 1)
                     }
-                }, 3),
-                WithRow(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _documentsPanel }, 4),
-                WithRow(new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
-                    Children =
-                    {
-                        new TextBlock { Text = "STRUCTURE", Classes = { "eyebrow" }, VerticalAlignment = VerticalAlignment.Center },
-                        WithColumn(ActionButton("+ Section", () => { _viewModel.AddSectionCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add document section"), 1),
-                        WithColumn(ActionButton("+ Page", () => { _viewModel.AddPageCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add page to selected section"), 2)
-                    }
-                }, 5),
-                WithRow(new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 6,
-                    Children =
-                    {
-                        new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _sectionsPanel },
-                        WithColumn(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _pagesPanel }, 1)
-                    }
-                }, 6)
+                },
+                new Border { MinHeight = 180, MaxHeight = 320, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _documentsPanel } },
+                structureHeader,
+                new Border { MinHeight = 150, Child = structure }
             }
-        });
+        };
+        return Card(content);
     }
 
     private Control BuildEditorPane()
@@ -194,21 +184,12 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         addBar.Children.Add(AddBlockButton("Flashcard", _viewModel.AddFlashcardCommand));
         addBar.Children.Add(ActionButton("Media", ImportMediaAsync, "Import image, audio, video or document media"));
 
-        var header = Card(new StackPanel
-        {
-            Spacing = 9,
-            Children =
-            {
-                titleBar,
-                addBar,
-                _deleteConfirmation
-            }
-        });
         _deleteConfirmation.Children.Add(new TextBlock { Text = "Move this document to recoverable trash?", VerticalAlignment = VerticalAlignment.Center });
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Cancel", () => { _viewModel.CancelDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Cancel delete"), 1));
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Move to trash", async () => { await _viewModel.DeleteDocumentCommand.ExecuteAsync(); RefreshDeleteConfirmation(); }, "Confirm recoverable delete", danger: true), 2));
 
-        var grid = new Grid
+        var header = Card(new StackPanel { Spacing = 9, Children = { titleBar, addBar, _deleteConfirmation } });
+        return new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto"),
             RowSpacing = 10,
@@ -224,14 +205,13 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
                 WithRow(Card(_status), 2)
             }
         };
-        return grid;
     }
 
     private Control BuildInspectorPane()
     {
         var tabs = new TabControl
         {
-            Items = new object[]
+            ItemsSource = new object[]
             {
                 new TabItem { Header = "AI", Content = InspectorScroll(_aiPanel) },
                 new TabItem { Header = "Review", Content = InspectorScroll(_reviewPanel) },
@@ -248,7 +228,7 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         Content = content
     };
 
-    private async void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         if (_initialized) return;
         _initialized = true;
@@ -263,10 +243,10 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         }
     }
 
-    private void OnDetachedFromVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        if (_activeEditBlockId is { } id && _viewModel.SelectedBlock?.Id == id)
-            _viewModel.CommitBlockEdit(_viewModel.SelectedBlock, "Edited Notes content");
+        if (_activeEditBlockId is { } id && _viewModel.Blocks.FirstOrDefault(block => block.Id == id) is { } block)
+            _viewModel.CommitBlockEdit(block, "Edited Notes content");
         _activeEditBlockId = null;
     }
 
@@ -398,6 +378,7 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
 
     private void RefreshBlocks()
     {
+        foreach (var preview in _blocksPanel.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
         _blocksPanel.Children.Clear();
         foreach (var block in _viewModel.Blocks)
             _blocksPanel.Children.Add(NotesBlockEditorFactory.Build(_viewModel, block, BeginEditing, EndEditing, QueueRefresh, ImportMediaAsync));
@@ -405,241 +386,18 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
             _blocksPanel.Children.Add(new TextBlock { Text = "Use the block toolbar to add content.", Classes = { "muted" }, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20) });
     }
 
-    private void RefreshInspector()
+    private async Task SearchFromBoxAsync()
     {
-        BuildAiInspector();
-        BuildReviewInspector();
-        BuildVersionsInspector();
-        BuildInformationInspector();
-    }
-
-    private void BuildAiInspector()
-    {
-        _aiPanel.Children.Clear();
-        _aiPanel.Children.Add(new TextBlock { Text = "REVIEWED AI", Classes = { "eyebrow" } });
-        _aiPanel.Children.Add(new TextBlock { Text = "AI can propose changes, but cannot alter the document until you approve the exact result.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 10 });
-        var model = new ComboBox { ItemsSource = _viewModel.Models, SelectedItem = _viewModel.SelectedModelName, PlaceholderText = "Choose model" };
-        model.SelectionChanged += (_, _) => _viewModel.SelectedModelName = model.SelectedItem as string ?? string.Empty;
-        _aiPanel.Children.Add(model);
-        var instruction = new TextBox { Text = _viewModel.AiInstruction, PlaceholderText = "Explain, rewrite, plan, check consistency, create revision cards…", AcceptsReturn = true, MinHeight = 90, TextWrapping = TextWrapping.Wrap };
-        instruction.TextChanged += (_, _) => _viewModel.AiInstruction = instruction.Text ?? string.Empty;
-        _aiPanel.Children.Add(instruction);
-        var context = new CheckBox { Content = "Allow the model to receive this document's text context", IsChecked = _viewModel.AllowDocumentContext };
-        context.IsCheckedChanged += (_, _) => _viewModel.AllowDocumentContext = context.IsChecked == true;
-        _aiPanel.Children.Add(context);
-        _aiPanel.Children.Add(new TextBlock { Text = "Without this permission, AI receives only the selected block. Citations are restricted to sources already stored in this note.", Classes = { "muted2" }, TextWrapping = TextWrapping.Wrap, FontSize = 9 });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
-        buttons.Children.Add(ActionButton("Create proposal", async () => { await _viewModel.ProposeAiCommand.ExecuteAsync(); RefreshInspector(); }, "Generate a review-only proposal"));
-        buttons.Children.Add(ActionButton("Cancel", () => { _viewModel.CancelAiCommand.Execute(null); return Task.CompletedTask; }, "Cancel the active AI request"));
-        _aiPanel.Children.Add(buttons);
-
-        if (_viewModel.PendingAiChange is { } change)
-        {
-            _aiPanel.Children.Add(Card(new StackPanel
-            {
-                Spacing = 7,
-                Children =
-                {
-                    new TextBlock { Text = "PROPOSAL", Classes = { "eyebrow" } },
-                    new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
-                    new TextBlock { Text = "Original", FontWeight = FontWeight.SemiBold },
-                    new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 130, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "Proposed", FontWeight = FontWeight.SemiBold },
-                    new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 180, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")}", Classes = { "muted2" }, FontSize = 9 },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 7,
-                        Children =
-                        {
-                            ActionButton("Approve and apply", async () => { await _viewModel.ApproveAiCommand.ExecuteAsync(); RefreshAll(); }, "Apply this exact proposal and create a version"),
-                            ActionButton("Reject", () => { _viewModel.RejectAiCommand.Execute(null); RefreshAll(); return Task.CompletedTask; }, "Reject without changing document content", danger: true)
-                        }
-                    }
-                }
-            }));
-        }
-
-        _aiPanel.Children.Add(new TextBlock { Text = "PROVENANCE HISTORY", Classes = { "eyebrow" }, Margin = new Thickness(0, 8, 0, 0) });
-        foreach (var history in _viewModel.AiHistory.OrderByDescending(item => item.CreatedAt).Take(20))
-            _aiPanel.Children.Add(new TextBlock { Text = $"{history.CreatedAt.LocalDateTime:g} · {history.Status} · {history.ModelName}\n{history.Instruction}", TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9 });
-    }
-
-    private void BuildReviewInspector()
-    {
-        _reviewPanel.Children.Clear();
-        _reviewPanel.Children.Add(new TextBlock { Text = "COMMENTS", Classes = { "eyebrow" } });
-        var commentBox = new TextBox { PlaceholderText = "Comment on the selected block", AcceptsReturn = true, MinHeight = 60 };
-        _reviewPanel.Children.Add(commentBox);
-        _reviewPanel.Children.Add(ActionButton("Add comment", () => { _viewModel.AddCommentCommand.Execute(commentBox.Text); commentBox.Text = string.Empty; RefreshInspector(); return Task.CompletedTask; }, "Add a review comment to the selected block"));
-        foreach (var comment in _viewModel.Comments.OrderByDescending(item => item.CreatedAt))
-        {
-            var row = new StackPanel { Spacing = 3 };
-            row.Children.Add(new TextBlock { Text = $"{comment.Author} · {comment.CreatedAt.LocalDateTime:g} · {comment.State}", Classes = { "muted2" }, FontSize = 9 });
-            row.Children.Add(new TextBlock { Text = comment.Text, TextWrapping = TextWrapping.Wrap });
-            if (comment.State != NotesCommentState.Resolved)
-                row.Children.Add(ActionButton("Resolve", () => { _viewModel.ResolveCommentCommand.Execute(comment); RefreshInspector(); return Task.CompletedTask; }, "Resolve comment"));
-            _reviewPanel.Children.Add(Card(row));
-        }
-
-        _reviewPanel.Children.Add(new TextBlock { Text = "SOURCES AND CITATIONS", Classes = { "eyebrow" }, Margin = new Thickness(0, 8, 0, 0) });
-        _reviewPanel.Children.Add(ActionButton("Add source", () => { _viewModel.AddCitationCommand.Execute(null); RefreshInspector(); return Task.CompletedTask; }, "Add a bibliography source"));
-        foreach (var citation in _viewModel.Citations)
-            _reviewPanel.Children.Add(BuildCitationEditor(citation));
-
-        if (_viewModel.SelectedBlock?.Flashcard is { } card)
-        {
-            _reviewPanel.Children.Add(new TextBlock { Text = "STUDY REVIEW", Classes = { "eyebrow" }, Margin = new Thickness(0, 8, 0, 0) });
-            _reviewPanel.Children.Add(new TextBlock { Text = card.Front, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
-            _reviewPanel.Children.Add(new TextBlock { Text = card.Back, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } });
-            _reviewPanel.Children.Add(new TextBlock { Text = $"Due {card.Schedule.DueAt.LocalDateTime:g} · interval {card.Schedule.IntervalDays} days · ease {card.Schedule.EaseFactor:0.00}", Classes = { "muted2" }, FontSize = 9 });
-            var ratings = new WrapPanel();
-            ratings.Children.Add(CommandButton("Again", _viewModel.ReviewAgainCommand));
-            ratings.Children.Add(CommandButton("Hard", _viewModel.ReviewHardCommand));
-            ratings.Children.Add(CommandButton("Good", _viewModel.ReviewGoodCommand));
-            ratings.Children.Add(CommandButton("Easy", _viewModel.ReviewEasyCommand));
-            _reviewPanel.Children.Add(ratings);
-        }
-    }
-
-    private Control BuildCitationEditor(NotesCitation citation)
-    {
-        var title = new TextBox { Text = citation.Title, Watermark = "Source title" };
-        var authors = new TextBox { Text = citation.Authors, Watermark = "Authors" };
-        var url = new TextBox { Text = citation.Url, Watermark = "https://…" };
-        var evidence = new TextBox { Text = citation.EvidenceExcerpt, Watermark = "Evidence excerpt", AcceptsReturn = true, MinHeight = 55 };
-        void Begin() => BeginDocumentMetadataEdit();
-        void Commit()
-        {
-            citation.Title = title.Text ?? string.Empty;
-            citation.Authors = authors.Text ?? string.Empty;
-            citation.Url = url.Text ?? string.Empty;
-            citation.EvidenceExcerpt = evidence.Text ?? string.Empty;
-            CommitMetadataEdit("Edited citation " + citation.Key);
-        }
-        foreach (var box in new[] { title, authors, url, evidence }) { box.GotFocus += (_, _) => Begin(); box.LostFocus += (_, _) => Commit(); }
-        return Card(new StackPanel
-        {
-            Spacing = 5,
-            Children =
-            {
-                new TextBlock { Text = "[" + citation.Key + "]", FontWeight = FontWeight.SemiBold },
-                title,
-                authors,
-                url,
-                evidence
-            }
-        });
-    }
-
-    private void BuildVersionsInspector()
-    {
-        _versionsPanel.Children.Clear();
-        _versionsPanel.Children.Add(new TextBlock { Text = "VERSION HISTORY", Classes = { "eyebrow" } });
-        _versionsPanel.Children.Add(new TextBlock { Text = "Every completed atomic save is retained. Restoring creates a new version rather than destroying later history.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 10 });
-        foreach (var version in _viewModel.Versions)
-        {
-            var button = new Button
-            {
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = new StackPanel
-                {
-                    Spacing = 2,
-                    Children =
-                    {
-                        new TextBlock { Text = $"Version {version.Version} · {version.CreatedAt.LocalDateTime:g}", FontWeight = FontWeight.SemiBold },
-                        new TextBlock { Text = version.Reason + $" · {version.SizeBytes / 1024d:0.0} KB", Classes = { "muted2" }, FontSize = 9 }
-                    }
-                }
-            };
-            button.Classes.Add(ReferenceEquals(version, _viewModel.SelectedVersion) ? "accent" : "sidebar");
-            button.Click += (_, _) => { _viewModel.SelectedVersion = version; BuildVersionsInspector(); };
-            _versionsPanel.Children.Add(button);
-        }
-        _versionsPanel.Children.Add(ActionButton("Restore selected version", async () => { await _viewModel.RestoreVersionCommand.ExecuteAsync(); RefreshAll(); }, "Restore as a new current version"));
-    }
-
-    private void BuildInformationInspector()
-    {
-        _informationPanel.Children.Clear();
-        _informationPanel.Children.Add(new TextBlock { Text = "DOCUMENT INFORMATION", Classes = { "eyebrow" } });
-        _informationPanel.Children.Add(new TextBlock { Text = _viewModel.StatisticsLabel, FontWeight = FontWeight.SemiBold });
-        if (_viewModel.Document is not { } document) return;
-        _informationPanel.Children.Add(new TextBlock { Text = $"Created {document.CreatedAt.LocalDateTime:g}\nUpdated {document.UpdatedAt.LocalDateTime:g}\nNative schema {document.SchemaVersion}\nDocument version {document.Version}", Classes = { "muted" }, FontSize = 10 });
-        var language = new TextBox { Text = document.Language, Watermark = "Language, e.g. en-GB" };
-        language.GotFocus += (_, _) => BeginDocumentMetadataEdit();
-        language.LostFocus += (_, _) => { document.Language = language.Text?.Trim() ?? "en-GB"; CommitMetadataEdit("Changed document language"); };
-        _informationPanel.Children.Add(Labeled("Language", language));
-        var layout = new ComboBox { ItemsSource = Enum.GetValues<NotesLayoutMode>(), SelectedItem = document.LayoutMode };
-        layout.SelectionChanged += (_, _) =>
-        {
-            if (layout.SelectedItem is not NotesLayoutMode mode || mode == document.LayoutMode) return;
-            BeginDocumentMetadataEdit();
-            document.LayoutMode = mode;
-            CommitMetadataEdit("Changed document layout to " + mode);
-        };
-        _informationPanel.Children.Add(Labeled("Layout", layout));
-        _informationPanel.Children.Add(BuildPageSetup(document));
-        _informationPanel.Children.Add(new TextBlock { Text = "RECOVERY", Classes = { "eyebrow" }, Margin = new Thickness(0, 8, 0, 0) });
-        _informationPanel.Children.Add(new TextBlock
-        {
-            Text = document.Recovery.HasUnsavedRecovery
-                ? "Recovery review required: " + document.Recovery.RecoveryReason
-                : $"Last autosave {document.Recovery.LastAutosaveAt?.LocalDateTime:g}\nLast validated SHA-256 {ShortHash(document.Recovery.LastValidSha256)}",
-            TextWrapping = TextWrapping.Wrap,
-            Classes = { "muted" },
-            FontSize = 9
-        });
-        _informationPanel.Children.Add(new TextBlock { Text = "COLLABORATION METADATA", Classes = { "eyebrow" }, Margin = new Thickness(0, 8, 0, 0) });
-        _informationPanel.Children.Add(new TextBlock { Text = $"Owner: {document.Collaboration.OwnerId}\nConflict state: {document.Collaboration.ConflictState}\nCollaborators: {document.Collaboration.Collaborators.Count}\nOpen conflicts: {document.Collaboration.Conflicts.Count(conflict => conflict.ResolvedAt is null)}", Classes = { "muted" }, FontSize = 9 });
-    }
-
-    private Control BuildPageSetup(NotesDocument document)
-    {
-        var width = new NumericUpDown { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.WidthPoints };
-        var height = new NumericUpDown { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.HeightPoints };
-        var margins = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)document.PageSetup.MarginTopPoints };
-        var orientation = new ComboBox { ItemsSource = new[] { "Portrait", "Landscape" }, SelectedItem = document.PageSetup.Orientation };
-        var pageNumbers = new CheckBox { Content = "Show page numbers", IsChecked = document.PageSetup.ShowPageNumbers };
-        void Commit()
-        {
-            BeginDocumentMetadataEdit();
-            document.PageSetup.WidthPoints = (double)(width.Value ?? 595);
-            document.PageSetup.HeightPoints = (double)(height.Value ?? 842);
-            document.PageSetup.MarginTopPoints = document.PageSetup.MarginRightPoints = document.PageSetup.MarginBottomPoints = document.PageSetup.MarginLeftPoints = (double)(margins.Value ?? 72);
-            document.PageSetup.Orientation = orientation.SelectedItem as string ?? "Portrait";
-            document.PageSetup.ShowPageNumbers = pageNumbers.IsChecked == true;
-            CommitMetadataEdit("Changed page setup");
-        }
-        width.ValueChanged += (_, _) => Commit();
-        height.ValueChanged += (_, _) => Commit();
-        margins.ValueChanged += (_, _) => Commit();
-        orientation.SelectionChanged += (_, _) => Commit();
-        pageNumbers.IsCheckedChanged += (_, _) => Commit();
-        return Card(new StackPanel
-        {
-            Spacing = 5,
-            Children =
-            {
-                new TextBlock { Text = "PAGE SETUP", Classes = { "eyebrow" } },
-                Labeled("Width (pt)", width),
-                Labeled("Height (pt)", height),
-                Labeled("Margins (pt)", margins),
-                Labeled("Orientation", orientation),
-                pageNumbers
-            }
-        });
+        _viewModel.SearchQuery = _searchBox.Text ?? string.Empty;
+        await _viewModel.SearchCommand.ExecuteAsync();
+        RefreshSearchResults();
     }
 
     private void BeginEditing(NotesBlock block)
     {
         if (_activeEditBlockId == block.Id) return;
-        if (_activeEditBlockId is { } previousId)
-        {
-            var previous = _viewModel.Blocks.FirstOrDefault(item => item.Id == previousId);
-            if (previous is not null) _viewModel.CommitBlockEdit(previous, "Edited " + previous.Kind);
-        }
+        if (_activeEditBlockId is { } previousId && _viewModel.Blocks.FirstOrDefault(item => item.Id == previousId) is { } previous)
+            _viewModel.CommitBlockEdit(previous, "Edited " + previous.Kind);
         _activeEditBlockId = block.Id;
         _viewModel.SelectedBlock = block;
         _viewModel.BeginBlockEdit(block);
@@ -655,13 +413,14 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
     private void BeginDocumentMetadataEdit()
     {
         var anchor = _viewModel.SelectedBlock ?? _viewModel.Blocks.FirstOrDefault();
-        if (anchor is null || _activeEditBlockId == anchor.Id) return;
-        BeginEditing(anchor);
+        if (anchor is not null) BeginEditing(anchor);
     }
 
     private void CommitMetadataEdit(string summary)
     {
-        var anchor = _activeEditBlockId is { } id ? _viewModel.Blocks.FirstOrDefault(item => item.Id == id) : _viewModel.SelectedBlock;
+        var anchor = _activeEditBlockId is { } id
+            ? _viewModel.Blocks.FirstOrDefault(item => item.Id == id)
+            : _viewModel.SelectedBlock;
         if (anchor is not null) EndEditing(anchor, summary);
     }
 
@@ -669,7 +428,12 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
     {
         if (_viewModel.Document is null) return;
         var value = _documentTitle.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(value)) { _documentTitle.Text = _viewModel.Document.Title; CommitMetadataEdit("Kept document title"); return; }
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            _documentTitle.Text = _viewModel.Document.Title;
+            CommitMetadataEdit("Kept document title");
+            return;
+        }
         _viewModel.Document.Title = value;
         CommitMetadataEdit("Renamed document");
     }
@@ -684,7 +448,10 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("Notes and documents") { Patterns = ["*.haven-notes.json", "*.json", "*.txt", "*.md", "*.markdown", "*.html", "*.htm", "*.csv", "*.rtf", "*.docx", "*.odt"] }
+                new FilePickerFileType("Notes and documents")
+                {
+                    Patterns = ["*.haven-notes.json", "*.json", "*.txt", "*.md", "*.markdown", "*.html", "*.htm", "*.csv", "*.rtf", "*.docx", "*.odt"]
+                }
             ]
         });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
@@ -729,7 +496,13 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         {
             Title = "Insert media into Haven Notes",
             AllowMultiple = false,
-            FileTypeFilter = [new FilePickerFileType("Media") { Patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.svg", "*.mp3", "*.wav", "*.m4a", "*.mp4", "*.webm", "*.pdf"] }]
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Media")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.svg", "*.mp3", "*.wav", "*.m4a", "*.mp4", "*.webm", "*.pdf"]
+                }
+            ]
         });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) return;
@@ -747,7 +520,12 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         return button;
     }
 
-    private static Button CommandButton(string label, System.Windows.Input.ICommand command) => new() { Content = label, Command = command, Margin = new Thickness(2) };
+    private static Button CommandButton(string label, System.Windows.Input.ICommand command) => new()
+    {
+        Content = label,
+        Command = command,
+        Margin = new Thickness(2)
+    };
 
     private static Button ActionButton(string label, Func<Task> action, string tooltip, bool danger = false)
     {
@@ -790,15 +568,27 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
-    private static T WithColumn<T>(T control, int column) where T : Control { Grid.SetColumn(control, column); return control; }
-    private static T WithRow<T>(T control, int row) where T : Control { Grid.SetRow(control, row); return control; }
+    private static T WithColumn<T>(T control, int column) where T : Control
+    {
+        Grid.SetColumn(control, column);
+        return control;
+    }
+
+    private static T WithRow<T>(T control, int row) where T : Control
+    {
+        Grid.SetRow(control, row);
+        return control;
+    }
+
     private static string SafeFileName(string value)
     {
         var invalid = Path.GetInvalidFileNameChars().ToHashSet();
         var normalized = new string(value.Where(character => !invalid.Contains(character)).ToArray()).Trim();
         return string.IsNullOrWhiteSpace(normalized) ? "Haven Note" : normalized;
     }
-    private static string ShortHash(string value) => string.IsNullOrWhiteSpace(value) ? "not saved yet" : value[..Math.Min(16, value.Length)] + "…";
+
+    private static string ShortHash(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "not saved yet" : value[..Math.Min(16, value.Length)] + "…";
 
     public void Dispose()
     {
@@ -809,31 +599,9 @@ public sealed class NotesWorkspaceView : UserControl, IDisposable
         _viewModel.DocumentChanged -= OnDocumentChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel.SearchNavigationRequested -= OnSearchNavigationRequested;
-        foreach (var preview in Descendants(this).OfType<NotesHtmlPreviewControl>()) preview.Dispose();
+        foreach (var preview in this.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
         _viewModel.Dispose();
         Content = null;
         GC.SuppressFinalize(this);
-    }
-
-    private static IEnumerable<Control> Descendants(Control root)
-    {
-        if (root is Panel panel)
-        {
-            foreach (var child in panel.Children)
-            {
-                yield return child;
-                foreach (var nested in Descendants(child)) yield return nested;
-            }
-        }
-        else if (root is ContentControl { Content: Control content })
-        {
-            yield return content;
-            foreach (var nested in Descendants(content)) yield return nested;
-        }
-        else if (root is Decorator { Child: Control child })
-        {
-            yield return child;
-            foreach (var nested in Descendants(child)) yield return nested;
-        }
     }
 }
