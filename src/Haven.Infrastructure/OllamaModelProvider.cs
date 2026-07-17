@@ -25,6 +25,10 @@ public sealed class OllamaModelProvider(IOllamaClient client, IProviderConfigura
             return new(Id, available, available ? $"Connected to Ollama at {endpoint}." : $"Ollama did not respond at {endpoint}.",
                 Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
         {
             return new(Id, false, ex.Message, Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
