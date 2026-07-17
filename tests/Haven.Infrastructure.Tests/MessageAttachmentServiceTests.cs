@@ -98,7 +98,7 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         var innerProduction = new ConversationProductionRepository(database, conversations);
         var production = new SafeConversationProductionRepository(database, conversations, innerProduction);
         var innerAttachments = new MessageAttachmentService(_paths, production, new NoTools());
-        var service = new SafeMessageAttachmentService(innerAttachments, _paths);
+        var service = new SafeMessageAttachmentService(innerAttachments);
         return (conversations, production, service);
     }
 
