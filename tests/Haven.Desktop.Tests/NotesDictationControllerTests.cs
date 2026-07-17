@@ -110,6 +110,25 @@ public sealed class NotesDictationControllerTests
         }
     }
 
+    [Fact]
+    public async Task RejectedInactiveAndDisposedControllerDoesNotStopSharedCallMicrophone()
+    {
+        var speech = new FakeSpeechInputService();
+        var controller = new NotesDictationController(
+            speech,
+            new FakeSpeechModelManager(installed: true),
+            new FakeCallCoordinator { Active = true },
+            new RecordingDiagnostics());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controller.StartOneUtteranceAsync((_, _) => Task.CompletedTask, CancellationToken.None));
+        await controller.StopAsync(CancellationToken.None);
+        await controller.DisposeAsync();
+
+        Assert.Equal(0, speech.StartCalls);
+        Assert.Equal(0, speech.StopCalls);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         for (var attempt = 0; attempt < 100 && !condition(); attempt++)
