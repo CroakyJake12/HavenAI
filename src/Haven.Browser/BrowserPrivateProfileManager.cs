@@ -3,6 +3,7 @@ namespace Haven.Browser;
 public sealed class BrowserPrivateProfileManager
 {
     private const string PrivateDirectoryName = "private-profiles";
+    private static readonly TimeSpan CleanupRetryDelay = TimeSpan.FromMilliseconds(125);
     private readonly string _root;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -46,8 +47,7 @@ public sealed class BrowserPrivateProfileManager
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            DeleteDirectoryIfPresent(path);
+            await DeleteDirectoryIfPresentAsync(path, cancellationToken).ConfigureAwait(false);
             DeleteRootIfEmpty();
         }
         finally
@@ -71,7 +71,7 @@ public sealed class BrowserPrivateProfileManager
                 cancellationToken.ThrowIfCancellationRequested();
                 var name = Path.GetFileName(directory);
                 if (Guid.TryParseExact(name, "N", out var id) && activeTabIds.Contains(id)) continue;
-                DeleteDirectoryIfPresent(directory);
+                await DeleteDirectoryIfPresentAsync(directory, cancellationToken).ConfigureAwait(false);
                 removed++;
             }
 
@@ -90,15 +90,32 @@ public sealed class BrowserPrivateProfileManager
             Directory.Delete(_root, false);
     }
 
-    private static void DeleteDirectoryIfPresent(string path)
+    private static async Task DeleteDirectoryIfPresentAsync(string path, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(path)) return;
-        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        IOException? lastFailure = null;
+        for (var attempt = 0; attempt < 4; attempt++)
         {
-            try { File.SetAttributes(file, FileAttributes.Normal); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                {
+                    try { File.SetAttributes(file, FileAttributes.Normal); }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
+                Directory.Delete(path, true);
+                return;
+            }
+            catch (DirectoryNotFoundException) { return; }
+            catch (IOException ex)
+            {
+                lastFailure = ex;
+                if (attempt == 3) break;
+                await Task.Delay(CleanupRetryDelay, cancellationToken).ConfigureAwait(false);
+            }
         }
-        Directory.Delete(path, true);
+        throw new IOException("The private Browser profile remained in use after the native host was released.", lastFailure);
     }
 }
