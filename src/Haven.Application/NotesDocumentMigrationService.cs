@@ -184,7 +184,7 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
                 page.CanvasHeight = ClampFinite(page.CanvasHeight, 900, 100, 1_000_000);
                 page.Blocks ??= [];
                 page.CanvasObjects ??= [];
-                if (page.Blocks.Count == 0) page.Blocks.Add(NotesBlock.Paragraph());
+                if (page.Blocks.Count == 0) page.Blocks.Add(NotesBlock.CreateParagraph());
                 for (var blockIndex = 0; blockIndex < page.Blocks.Count; blockIndex++)
                 {
                     var block = page.Blocks[blockIndex];
