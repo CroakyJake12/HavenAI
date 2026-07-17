@@ -12,7 +12,7 @@
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="BROWSER SAFETY" Classes="eyebrow" />
-          <TextBlock Text="Review submissions, downloads, and the browser audit trail" FontWeight="SemiBold" FontSize="16" />
+          <TextBlock Text="Review permissions, submissions, downloads, and the browser audit trail" FontWeight="SemiBold" FontSize="16" />
           <TextBlock Text="Pending actions expire after ten minutes and are never resumed automatically after restart." Classes="muted" FontSize="10" TextWrapping="Wrap" />
         </StackPanel>
         <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
@@ -24,6 +24,58 @@
       </Grid>
 
       <TabControl Grid.Row="2">
+        <TabItem Header="Permissions">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+            <StackPanel Spacing="9" Margin="0,8,0,0">
+              <Border Classes="soft" Padding="12">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="CURRENT ORIGIN" Classes="eyebrow" />
+                  <TextBlock Text="{Binding CurrentOrigin}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding PermissionStatus}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="Permission" Classes="muted2" FontSize="9" />
+                      <ComboBox ItemsSource="{Binding PermissionKinds}" SelectedItem="{Binding SelectedPermissionKind}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="3">
+                      <TextBlock Text="Decision" Classes="muted2" FontSize="9" />
+                      <ComboBox ItemsSource="{Binding PermissionDecisions}" SelectedItem="{Binding SelectedPermissionDecision}" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Button Content="Save decision" Classes="accent" Command="{Binding SavePermissionCommand}" />
+                    <Button Grid.Column="1" Content="Reset origin to Ask" Classes="danger" Command="{Binding RevokeOriginCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="soft" Padding="12" IsVisible="{Binding HasNoPermissions}">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="No saved site decisions" FontWeight="SemiBold" />
+                  <TextBlock Text="Sites remain on Ask until you explicitly save Allow or Deny." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <ItemsControl ItemsSource="{Binding Permissions}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="card" Margin="0,3" Padding="9">
+                      <StackPanel Spacing="3">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                          <TextBlock Text="{Binding Origin}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Grid.Column="1" Text="{Binding Kind}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" />
+                          <TextBlock Grid.Column="2" Text="{Binding Decision}" FontWeight="SemiBold" FontSize="10" />
+                        </Grid>
+                        <TextBlock Text="{Binding Updated}" Classes="muted2" FontSize="9" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
         <TabItem Header="Approvals">
           <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
             <StackPanel Spacing="7" Margin="0,8,0,0">
