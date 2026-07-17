@@ -203,7 +203,7 @@ public sealed class NotesMediaAiReviewTests : IDisposable
     {
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ModelDescriptor>>([new("ollama:qwen-test", 0, 0, DateTimeOffset.UtcNow, [])]);
+            Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
