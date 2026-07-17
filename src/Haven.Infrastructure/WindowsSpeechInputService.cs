@@ -22,6 +22,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     private const int SilenceFramesToFinish = 20;
     private const int MinimumUtteranceBytes = SampleRateHz * BytesPerSample / 4;
     private const int MaximumUtteranceBytes = SampleRateHz * BytesPerSample * 30;
+    private static readonly TimeSpan AudioLevelInterval = TimeSpan.FromMilliseconds(100);
 
     private readonly object _sync = new();
     private readonly AsyncLocal<bool> _insideWorker = new();
@@ -30,27 +31,30 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     private Channel<SpeechWorkItem>? _work;
     private Task? _worker;
     private CancellationTokenSource? _captureCts;
-    private Func<SpeechInputEvent, CancellationToken, Task>? _callback;
     private SpeechInputOptions? _options;
     private readonly List<byte> _pendingFrames = [];
     private MemoryStream _utterance = new();
     private bool _inSpeech;
     private bool _pushToTalkHeld;
     private bool _stopping;
+    private bool _disposed;
     private int _silenceFrames;
+    private long _lastAudioLevelTimestamp;
 
-    public bool IsAvailable => OperatingSystem.IsWindows() && TryGetDeviceCount() > 0;
+    public bool IsAvailable => !_disposed && OperatingSystem.IsWindows() && TryGetDeviceCount() > 0;
     public string? UnavailableReason => IsAvailable
         ? null
-        : OperatingSystem.IsWindows()
-            ? "No Windows recording device was found."
-            : "NAudio microphone capture currently requires Windows.";
+        : _disposed
+            ? "The Windows speech input service has been disposed."
+            : OperatingSystem.IsWindows()
+                ? "No Windows recording device was found."
+                : "NAudio microphone capture currently requires Windows.";
 
     public IReadOnlyList<CallAudioDevice> Devices
     {
         get
         {
-            if (!OperatingSystem.IsWindows()) return [];
+            if (_disposed || !OperatingSystem.IsWindows()) return [];
             try
             {
                 return Enumerable.Range(0, WaveInEvent.DeviceCount)
@@ -72,12 +76,16 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         Func<SpeechInputEvent, CancellationToken, Task> onEvent,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(onEvent);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException(UnavailableReason);
         if (options.Model is null || !options.Model.IsInstalled || !File.Exists(options.Model.LocalPath))
             throw new InvalidOperationException("Download and select a local Whisper speech model first.");
         if (!IsAvailable) throw new InvalidOperationException(UnavailableReason);
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
 
         var deviceNumber = 0;
@@ -108,19 +116,31 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
             NumberOfBuffers = 3
         };
 
+        var registered = false;
         lock (_sync)
         {
-            _options = options;
-            _callback = onEvent;
-            _captureCts = captureCts;
-            _work = channel;
-            _vad = vad;
-            _capture = capture;
-            _stopping = false;
-            ResetAudioStateLocked();
-            _worker = Task.Run(
-                () => ProcessWorkAsync(channel.Reader, onEvent, captureCts.Token),
-                CancellationToken.None);
+            if (!_disposed)
+            {
+                _options = options;
+                _captureCts = captureCts;
+                _work = channel;
+                _vad = vad;
+                _capture = capture;
+                _stopping = false;
+                ResetAudioStateLocked();
+                _worker = Task.Run(
+                    () => ProcessWorkAsync(channel.Reader, onEvent, captureCts.Token),
+                    CancellationToken.None);
+                registered = true;
+            }
+        }
+
+        if (!registered)
+        {
+            capture.Dispose();
+            vad.Dispose();
+            captureCts.Dispose();
+            throw new ObjectDisposedException(nameof(WindowsSpeechInputService));
         }
 
         capture.DataAvailable += OnDataAvailable;
@@ -138,6 +158,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
 
     public Task BeginPushToTalkAsync(CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
         lock (_sync)
         {
@@ -155,6 +176,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
 
     public Task EndPushToTalkAsync(CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
         lock (_sync)
         {
@@ -186,28 +208,39 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
             _work = null;
             _worker = null;
             _captureCts = null;
-            _callback = null;
             _options = null;
             ResetAudioStateLocked();
         }
 
-        if (capture is not null)
+        try
         {
-            capture.DataAvailable -= OnDataAvailable;
-            capture.RecordingStopped -= OnRecordingStopped;
-            try { capture.StopRecording(); }
-            catch (Exception) { }
-            capture.Dispose();
+            if (capture is not null)
+            {
+                capture.DataAvailable -= OnDataAvailable;
+                capture.RecordingStopped -= OnRecordingStopped;
+                try { capture.StopRecording(); }
+                catch (Exception) { }
+                capture.Dispose();
+            }
+            work?.Writer.TryComplete();
+            captureCts?.Cancel();
+            if (worker is not null && !_insideWorker.Value)
+            {
+                try
+                {
+                    await worker.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // The capture token was cancelled as part of this normal stop.
+                }
+            }
         }
-        work?.Writer.TryComplete();
-        captureCts?.Cancel();
-        if (worker is not null && !_insideWorker.Value)
+        finally
         {
-            try { await worker.WaitAsync(cancellationToken).ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
+            vad?.Dispose();
+            captureCts?.Dispose();
         }
-        vad?.Dispose();
-        captureCts?.Dispose();
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
@@ -227,9 +260,15 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
 
     private void ProcessFrameLocked(byte[] frame)
     {
-        QueueEventLocked(new SpeechInputEvent(
-            SpeechInputEventKind.AudioLevel,
-            AudioLevel: CalculateLevel(frame)));
+        var now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_lastAudioLevelTimestamp == 0
+            || System.Diagnostics.Stopwatch.GetElapsedTime(_lastAudioLevelTimestamp, now) >= AudioLevelInterval)
+        {
+            _lastAudioLevelTimestamp = now;
+            QueueEventLocked(new SpeechInputEvent(
+                SpeechInputEventKind.AudioLevel,
+                AudioLevel: CalculateLevel(frame)));
+        }
 
         if (_options?.InputMode == CallInputMode.PushToTalk)
         {
@@ -314,6 +353,15 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
         finally
         {
+            try
+            {
+                // If the worker exits because transcription or a callback failed,
+                // detach native capture immediately instead of leaving a producer
+                // writing into a channel with no reader. The AsyncLocal guard keeps
+                // StopAsync from waiting on this worker from inside itself.
+                await StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception) { }
             _insideWorker.Value = false;
         }
     }
@@ -395,6 +443,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         _inSpeech = false;
         _pushToTalkHeld = false;
         _silenceFrames = 0;
+        _lastAudioLevelTimestamp = 0;
     }
 
     private static MemoryStream CreateWaveStream(byte[] pcm)
@@ -441,8 +490,18 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
 
     public async ValueTask DisposeAsync()
     {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
+
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _utterance.Dispose();
+        lock (_sync)
+        {
+            _utterance.Dispose();
+        }
+        GC.SuppressFinalize(this);
     }
 
     private sealed record SpeechWorkItem(SpeechInputEvent? Event = null, byte[]? Audio = null);
