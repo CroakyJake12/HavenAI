@@ -81,7 +81,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
             var auditTask = _automation.GetAuditAsync(100, operation.Token);
             var downloadsTask = _automation.GetDownloadsAsync(50, operation.Token);
             await Task.WhenAll(pendingTask, auditTask, downloadsTask);
-            Replace(Pending, await pendingTask);
+            Replace(Pending, (await pendingTask).Select(item => new BrowserPendingActionViewModel(item)));
             Replace(Audit, (await auditTask).Select(item => new BrowserAuditEntryViewModel(item)));
             Replace(Downloads, (await downloadsTask).Select(item => new BrowserDownloadViewModel(item)));
             RefreshPermissions();
