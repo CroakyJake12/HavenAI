@@ -260,25 +260,40 @@ public sealed partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel vm) return;
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
-        if (control && e.Key == Key.K) { vm.OpenCommandPaletteCommand.Execute(null); e.Handled = true; }
-        else if (control && e.Key == Key.N && vm.CurrentPage is NotesWorkspaceView notes && notes.DataContext is NotesWorkspaceViewModel notesViewModel)
+        if (control && e.Key == Key.K)
         {
-            await notesViewModel.NewDocumentCommand.ExecuteAsync();
+            vm.OpenCommandPaletteCommand.Execute(null);
             e.Handled = true;
         }
-        else if (control && e.Key == Key.N) { vm.NewChatCommand.Execute(null); e.Handled = true; }
-        else if (control && e.Key == Key.S && vm.CurrentPage is NotesWorkspaceView notes && notes.DataContext is NotesWorkspaceViewModel notesViewModel)
+        else if (control && e.Key == Key.N && CurrentNotesViewModel(vm) is { } notesForNew)
         {
-            await notesViewModel.SaveCommand.ExecuteAsync();
+            await notesForNew.NewDocumentCommand.ExecuteAsync();
             e.Handled = true;
         }
-        else if (control && e.Key == Key.S) { vm.SaveCurrentCommand.Execute(null); e.Handled = true; }
+        else if (control && e.Key == Key.N)
+        {
+            vm.NewChatCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (control && e.Key == Key.S && CurrentNotesViewModel(vm) is { } notesForSave)
+        {
+            await notesForSave.SaveCommand.ExecuteAsync();
+            e.Handled = true;
+        }
+        else if (control && e.Key == Key.S)
+        {
+            vm.SaveCurrentCommand.Execute(null);
+            e.Handled = true;
+        }
         else if (control && e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key == Key.R && vm.CurrentPage is BrowserPageViewModel browser)
         {
             browser.HardReloadCommand.Execute(null);
             e.Handled = true;
         }
     }
+
+    private static NotesWorkspaceViewModel? CurrentNotesViewModel(MainWindowViewModel shell) =>
+        shell.CurrentPage is NotesWorkspaceView { DataContext: NotesWorkspaceViewModel notes } ? notes : null;
 
     private void OnExitClicked(object? sender, RoutedEventArgs e) => Close();
 
