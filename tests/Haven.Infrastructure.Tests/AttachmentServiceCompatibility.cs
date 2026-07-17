@@ -4,12 +4,11 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
-// Existing attachment extraction tests intentionally exercise the processor in
-// isolation. This test-only adapter preserves that focused constructor while the
-// production SafeMessageAttachmentService additionally owns retrieval cleanup.
+// Focused extraction tests exercise the processor in isolation. This adapter
+// deliberately exposes the stable IMessageAttachmentService contract without
+// pulling retrieval cleanup into those tests.
 internal sealed class SafeMessageAttachmentService(
-    MessageAttachmentService inner,
-    IAppPaths paths) : IMessageAttachmentService
+    MessageAttachmentService inner) : IMessageAttachmentService
 {
     public Task<MessageAttachment> ImportAsync(
         Guid conversationId,
