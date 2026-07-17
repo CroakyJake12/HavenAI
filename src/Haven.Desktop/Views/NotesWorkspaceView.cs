@@ -213,6 +213,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         {
             ItemsSource = new object[]
             {
+                new TabItem { Header = "Block", Content = InspectorScroll(_blockPanel) },
                 new TabItem { Header = "AI", Content = InspectorScroll(_aiPanel) },
                 new TabItem { Header = "Review", Content = InspectorScroll(_reviewPanel) },
                 new TabItem { Header = "Versions", Content = InspectorScroll(_versionsPanel) },
