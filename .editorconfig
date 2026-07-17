@@ -1,0 +1,6 @@
+# Haven compiler diagnostics that are intentionally scoped to one compatibility surface.
+
+[src/Haven.Infrastructure/LanguageServerProtocolClient.cs]
+# LanguageServerRequestException exposes the JSON-RPC error payload as Data for
+# compatibility with existing callers. It intentionally hides Exception.Data.
+dotnet_diagnostic.CS0114.severity = none
