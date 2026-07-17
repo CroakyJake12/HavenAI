@@ -123,7 +123,7 @@ public static class NotesTemplateCatalog
 
     private static NotesBlock Paragraph(string text, int order)
     {
-        var block = NotesBlock.Paragraph(text);
+        var block = NotesBlock.CreateParagraph(text);
         block.Order = order;
         block.Runs = [new NotesTextRun { Text = text }];
         return block;
@@ -259,7 +259,7 @@ public static class NotesFindReplace
             document.Revisions.Add(new NotesRevision
             {
                 Kind = NotesRevisionKind.Edited,
-                Summary = $"Replaced {replacements} occurrence{(replacements == 1 ? string.Empty : "s")} of “{find}”.",
+                Summary = $"Replaced {replacements} occurrence{(replacements == 1 ? string.Empty : "s")} of “{find}”.,",
                 Author = Environment.UserName
             });
         }
