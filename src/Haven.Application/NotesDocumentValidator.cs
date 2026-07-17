@@ -36,21 +36,23 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
             if (section.Pages.Count is 0 or > MaximumPagesPerSection)
                 Error($"sections[{section.Id}].pages", $"Sections require 1–{MaximumPagesPerSection} pages.");
 
-            var expectedPageOrder = 0;
-            foreach (var page in section.Pages.OrderBy(page => page.Order))
+            var pageOrders = new HashSet<int>();
+            foreach (var page in section.Pages)
             {
                 AddId(page.Id, $"pages[{page.Title}].id");
-                if (page.Order < expectedPageOrder)
-                    Error($"pages[{page.Id}].order", "Page ordering must be monotonic and non-negative.");
-                expectedPageOrder = page.Order;
+                if (page.Order < 0 || !pageOrders.Add(page.Order))
+                    Error($"pages[{page.Id}].order", "Page order must be unique and non-negative within its section.");
                 if (page.CanvasWidth is < 100 or > 1_000_000 || page.CanvasHeight is < 100 or > 1_000_000)
                     Error($"pages[{page.Id}].canvas", "Canvas dimensions must be between 100 and 1,000,000 units.");
                 if (page.Blocks.Count > MaximumBlocksPerPage)
                     Error($"pages[{page.Id}].blocks", $"Pages support at most {MaximumBlocksPerPage} blocks.");
 
+                var blockOrders = new HashSet<int>();
                 foreach (var block in page.Blocks)
                 {
                     AddId(block.Id, $"blocks[{block.Id}].id");
+                    if (!blockOrders.Add(block.Order))
+                        Error($"blocks[{block.Id}].order", "Block order must be unique within its page.");
                     ValidateBlock(block, page.Id);
                 }
 
@@ -66,10 +68,13 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
         {
             AddId(citation.Id, $"citations[{citation.Key}].id");
             if (string.IsNullOrWhiteSpace(citation.Key)) Error($"citations[{citation.Id}].key", "Citation keys are required.");
-            if (!string.IsNullOrWhiteSpace(citation.Url) && !Uri.TryCreate(citation.Url, UriKind.Absolute, out var citationUri))
-                Error($"citations[{citation.Id}].url", "Citation URLs must be absolute.");
-            else if (citationUri is not null && citationUri.Scheme is not "http" and not "https")
-                Error($"citations[{citation.Id}].url", "Citation URLs must use HTTP or HTTPS.");
+            if (!string.IsNullOrWhiteSpace(citation.Url))
+            {
+                if (!Uri.TryCreate(citation.Url, UriKind.Absolute, out var citationUri))
+                    Error($"citations[{citation.Id}].url", "Citation URLs must be absolute.");
+                else if (citationUri.Scheme is not "http" and not "https")
+                    Error($"citations[{citation.Id}].url", "Citation URLs must use HTTP or HTTPS.");
+            }
         }
 
         foreach (var comment in document.Comments)
@@ -112,7 +117,6 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
         }
 
         void Error(string path, string message) => issues.Add(new NotesValidationIssue(path, message, true));
-        void Warning(string path, string message) => issues.Add(new NotesValidationIssue(path, message, false));
 
         void ValidatePageSetup(NotesPageSetup setup)
         {
@@ -124,7 +128,7 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                 Error("pageSetup.margins", "Horizontal margins leave no writable page width.");
             if (setup.MarginTopPoints + setup.MarginBottomPoints >= setup.HeightPoints)
                 Error("pageSetup.margins", "Vertical margins leave no writable page height.");
-            if (setup.Background is not null && !ColourPattern().IsMatch(setup.Background))
+            if (!ColourPattern().IsMatch(setup.Background))
                 Error("pageSetup.background", "Page background must use #RRGGBB or #AARRGGBB.");
         }
 
@@ -140,11 +144,10 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                 if (run.FontSize is < 4 or > 300) Error($"blocks[{block.Id}].runs[{run.Id}].fontSize", "Font size must be between 4 and 300.");
                 if (!ColourPattern().IsMatch(run.Foreground) || !ColourPattern().IsMatch(run.Background))
                     Error($"blocks[{block.Id}].runs[{run.Id}].colour", "Text colours must use #RRGGBB or #AARRGGBB.");
-                if (!string.IsNullOrWhiteSpace(run.Link))
-                {
-                    if (!Uri.TryCreate(run.Link, UriKind.Absolute, out var link) || link.Scheme is not "http" and not "https" and not "mailto")
-                        Error($"blocks[{block.Id}].runs[{run.Id}].link", "Links must use HTTP, HTTPS or mailto.");
-                }
+                if (!string.IsNullOrWhiteSpace(run.Link)
+                    && (!Uri.TryCreate(run.Link, UriKind.Absolute, out var link)
+                        || link.Scheme is not "http" and not "https" and not "mailto"))
+                    Error($"blocks[{block.Id}].runs[{run.Id}].link", "Links must use HTTP, HTTPS or mailto.");
             }
 
             switch (block.Kind)
@@ -224,6 +227,8 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                 Error($"blocks[{block.Id}].html.allowNetwork", "Network references require explicit network permission.");
             if (!block.Html.AllowForms && FormPattern().IsMatch(block.Html.HtmlSource))
                 Error($"blocks[{block.Id}].html.allowForms", "Forms require explicit form permission.");
+            if (block.Html.AllowPopups)
+                Error($"blocks[{block.Id}].html.allowPopups", "Popups are not supported by the Notes sandbox.");
             if (block.Html.Width is < 64 or > 10_000 || block.Html.Height is < 64 or > 10_000)
                 Error($"blocks[{block.Id}].html.dimensions", "Widget dimensions must be between 64 and 10,000 pixels.");
         }
@@ -236,7 +241,11 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
             if (block.Canvas.Zoom is < 0.05 or > 100) Error($"blocks[{block.Id}].canvas.zoom", "Canvas zoom must be between 5% and 10,000%.");
             if (block.Canvas.Strokes.Count > MaximumStrokesPerCanvas)
                 Error($"blocks[{block.Id}].canvas.strokes", $"Canvas supports at most {MaximumStrokesPerCanvas} strokes.");
-            foreach (var canvasObject in block.Canvas.Objects) { AddId(canvasObject.Id, $"blocks[{block.Id}].canvas.objects[{canvasObject.Id}]"); ValidateCanvasObject(canvasObject, pageId); }
+            foreach (var canvasObject in block.Canvas.Objects)
+            {
+                AddId(canvasObject.Id, $"blocks[{block.Id}].canvas.objects[{canvasObject.Id}]");
+                ValidateCanvasObject(canvasObject, pageId);
+            }
             foreach (var stroke in block.Canvas.Strokes) ValidateStroke(stroke, $"blocks[{block.Id}].canvas.strokes");
             foreach (var layer in block.Canvas.GhostLayers)
             {
