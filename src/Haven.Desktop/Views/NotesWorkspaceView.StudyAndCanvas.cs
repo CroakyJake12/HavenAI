@@ -3,8 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views;
 
@@ -19,6 +21,7 @@ public sealed partial class NotesWorkspaceView
 
     private void BuildStudyAndCanvasProductivity(NotesDocument document)
     {
+        ApplyDocumentLayoutSurface(document);
         _informationPanel.Children.Add(BuildCrossReferenceTools(document));
         _informationPanel.Children.Add(BuildEquationProductivity(document));
         _informationPanel.Children.Add(BuildCanvasProductivity(document));
@@ -26,14 +29,51 @@ public sealed partial class NotesWorkspaceView
         _informationPanel.Children.Add(BuildCollaborationTools(document));
     }
 
+    private void ApplyDocumentLayoutSurface(NotesDocument document)
+    {
+        if (_viewModel.CurrentPage is null || _viewModel.CurrentSection is null) return;
+        _blocksPanel.Width = double.NaN;
+        _blocksPanel.MaxWidth = double.PositiveInfinity;
+        _blocksPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _blocksPanel.Background = Brushes.Transparent;
+        if (document.LayoutMode == NotesLayoutMode.Continuous) return;
+
+        foreach (var preview in _blocksPanel.GetVisualDescendants().OfType<NotesHtmlPreviewControl>())
+            preview.Dispose();
+        _blocksPanel.Children.Clear();
+        var advanced = LoadAdvancedState(document);
+        var surface = document.LayoutMode switch
+        {
+            NotesLayoutMode.Paginated => NotesDocumentLayoutSurface.BuildPaginated(
+                _viewModel,
+                advanced,
+                BeginEditing,
+                EndEditing,
+                QueueRefresh,
+                ImportMediaAsync),
+            NotesLayoutMode.Freeform => NotesDocumentLayoutSurface.BuildFreeform(
+                _viewModel,
+                infinite: false,
+                BeginEditing,
+                EndEditing,
+                QueueRefresh,
+                ImportMediaAsync),
+            NotesLayoutMode.InfiniteCanvas => NotesDocumentLayoutSurface.BuildFreeform(
+                _viewModel,
+                infinite: true,
+                BeginEditing,
+                EndEditing,
+                QueueRefresh,
+                ImportMediaAsync),
+            _ => throw new ArgumentOutOfRangeException(nameof(document.LayoutMode))
+        };
+        _blocksPanel.Children.Add(surface);
+    }
+
     private Control BuildCrossReferenceTools(NotesDocument document)
     {
-        var blocks = document.Sections
-            .SelectMany(section => section.Pages)
-            .SelectMany(page => page.Blocks)
-            .ToArray();
-        var labels = blocks.Select(BlockLabel).ToArray();
-        var target = new ComboBox { ItemsSource = labels, SelectedIndex = labels.Length > 1 ? 1 : 0 };
+        var blocks = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).ToArray();
+        var target = new ComboBox { ItemsSource = blocks.Select(BlockLabel).ToArray(), SelectedIndex = blocks.Length > 1 ? 1 : 0 };
         var kind = new ComboBox
         {
             ItemsSource = new[] { "Reference", "Equation", "Table", "Figure", "Heading", "Bookmark" },
@@ -42,7 +82,9 @@ public sealed partial class NotesWorkspaceView
         var label = new TextBox { Watermark = "Displayed label" };
         var add = ActionButton("Add cross-reference", () =>
         {
-            if (_viewModel.SelectedBlock is not { } source || target.SelectedIndex < 0 || target.SelectedIndex >= blocks.Length)
+            if (_viewModel.SelectedBlock is not { } source
+                || target.SelectedIndex < 0
+                || target.SelectedIndex >= blocks.Length)
                 return Task.CompletedTask;
             var destination = blocks[target.SelectedIndex];
             if (source.Id == destination.Id)
@@ -64,21 +106,14 @@ public sealed partial class NotesWorkspaceView
         return ToolCard("Cross-references", new StackPanel
         {
             Spacing = 6,
-            Children =
-            {
-                Labeled("Target", target),
-                Labeled("Kind", kind),
-                label,
-                add,
-                _crossReferencesPanel
-            }
+            Children = { Labeled("Target", target), Labeled("Kind", kind), label, add, _crossReferencesPanel }
         });
     }
 
     private Control BuildEquationProductivity(NotesDocument document)
     {
-        var block = _viewModel.SelectedBlock;
-        var equation = block?.Equation;
+        var selectedBlock = _viewModel.SelectedBlock;
+        var equation = selectedBlock?.Equation;
         var templates = NotesEquationTools.Templates.ToArray();
         var template = new ComboBox
         {
@@ -88,74 +123,84 @@ public sealed partial class NotesWorkspaceView
         };
         var symbolSearch = new TextBox { Text = _equationSymbolQuery, Watermark = "Search symbols or LaTeX commands" };
         var symbols = new WrapPanel();
-        void RefreshSymbols()
+        void RebuildSymbols()
         {
             symbols.Children.Clear();
             foreach (var symbol in NotesEquationTools.SearchSymbols(_equationSymbolQuery).Take(40))
             {
-                symbols.Children.Add(ActionButton(symbol.Glyph + " " + symbol.Command, () =>
+                var value = symbol;
+                symbols.Children.Add(ActionButton(value.Glyph + " " + value.Command, () =>
                 {
-                    if (block?.Equation is null) return Task.CompletedTask;
-                    var source = block.Equation.Source + symbol.Command;
-                    _viewModel.UpdateEquation(block, source, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+                    if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
+                    _viewModel.UpdateEquation(
+                        selectedBlock,
+                        selectedEquation.Source + value.Command,
+                        selectedEquation.ViewMode,
+                        selectedEquation.AccessibleAlternative);
                     RefreshAll();
                     return Task.CompletedTask;
-                }, symbol.Name + " · " + symbol.Category));
+                }, value.Name + " · " + value.Category));
             }
         }
         symbolSearch.TextChanged += (_, _) =>
         {
             _equationSymbolQuery = symbolSearch.Text ?? string.Empty;
-            RefreshSymbols();
+            RebuildSymbols();
         };
-        RefreshSymbols();
+        RebuildSymbols();
 
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Insert template", () =>
         {
-            if (block?.Equation is null || template.SelectedIndex < 0 || template.SelectedIndex >= templates.Length)
+            if (selectedBlock?.Equation is not { } selectedEquation
+                || template.SelectedIndex < 0
+                || template.SelectedIndex >= templates.Length)
                 return Task.CompletedTask;
             var selected = templates[template.SelectedIndex];
-            var source = string.IsNullOrWhiteSpace(block.Equation.Source)
+            var source = string.IsNullOrWhiteSpace(selectedEquation.Source)
                 ? selected.Latex
-                : block.Equation.Source + " " + selected.Latex;
-            _viewModel.UpdateEquation(block, source, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+                : selectedEquation.Source + " " + selected.Latex;
+            _viewModel.UpdateEquation(selectedBlock, source, selectedEquation.ViewMode, selectedEquation.AccessibleAlternative);
             RefreshAll();
             return Task.CompletedTask;
-        }, "Insert a source-preserving visual equation template"));
+        }, "Insert a source-preserving equation template"));
         actions.Children.Add(ActionButton("Expand input", () =>
         {
-            if (block?.Equation is null) return Task.CompletedTask;
-            var expanded = NotesEquationTools.ExpandIntelligentInput(block.Equation.Source);
-            _viewModel.UpdateEquation(block, expanded, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+            if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
+            _viewModel.UpdateEquation(
+                selectedBlock,
+                NotesEquationTools.ExpandIntelligentInput(selectedEquation.Source),
+                selectedEquation.ViewMode,
+                selectedEquation.AccessibleAlternative);
             RefreshAll();
             return Task.CompletedTask;
         }, "Expand exact intelligent-input shortcuts such as sqrt, sum, int and alpha"));
         actions.Children.Add(ActionButton("Save to library", () =>
         {
-            if (block?.Equation is null) return Task.CompletedTask;
+            if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
             MutateAdvancedState(document, state => state.EquationLibrary.Add(new NotesEquationLibraryEntry
             {
-                Name = string.IsNullOrWhiteSpace(block.Equation.Label)
+                Name = string.IsNullOrWhiteSpace(selectedEquation.Label)
                     ? "Equation " + (state.EquationLibrary.Count + 1)
-                    : block.Equation.Label,
-                Description = block.Equation.AccessibleAlternative,
-                Latex = block.Equation.Source,
+                    : selectedEquation.Label,
+                Description = selectedEquation.AccessibleAlternative,
+                Latex = selectedEquation.Source,
                 Category = "Document"
-            }), "Saved equation to personal document library");
+            }), "Saved equation to document library");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Save the selected editable equation in this document's native library"));
-        actions.Children.Add(ActionButton("Export equation", () => ExportSelectedEquationAsync(), "Export selected equation as LaTeX, MathML or accessible SVG"));
+        }, "Save the selected editable equation in this document's library"));
+        actions.Children.Add(ActionButton("Export equation", ExportSelectedEquationAsync, "Export selected equation as LaTeX, MathML, SVG or text"));
 
         var macroName = new TextBox { Watermark = @"Macro name, e.g. \R", IsEnabled = equation is not null };
         var macroValue = new TextBox { Watermark = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
         var addMacro = ActionButton("Add macro", () =>
         {
-            if (block?.Equation is null) return Task.CompletedTask;
-            var candidate = new Dictionary<string, string>(block.Equation.Macros, StringComparer.Ordinal)
+            if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
+            var name = macroName.Text?.Trim() ?? string.Empty;
+            var candidate = new Dictionary<string, string>(selectedEquation.Macros, StringComparer.Ordinal)
             {
-                [macroName.Text?.Trim() ?? string.Empty] = macroValue.Text ?? string.Empty
+                [name] = macroValue.Text ?? string.Empty
             };
             var errors = NotesEquationTools.ValidateMacros(candidate);
             if (errors.Count > 0)
@@ -163,14 +208,13 @@ public sealed partial class NotesWorkspaceView
                 _status.Text = string.Join(" ", errors);
                 return Task.CompletedTask;
             }
-            _viewModel.BeginBlockEdit(block);
-            block.Equation.Macros = candidate;
-            _viewModel.CommitBlockEdit(block, "Added equation macro " + macroName.Text?.Trim());
+            _viewModel.BeginBlockEdit(selectedBlock);
+            selectedEquation.Macros = candidate;
+            _viewModel.CommitBlockEdit(selectedBlock, "Added equation macro " + name);
             RefreshAll();
             return Task.CompletedTask;
-        }, "Add a validated document-level equation macro");
+        }, "Add a validated equation macro");
         addMacro.IsEnabled = equation is not null;
-
         RefreshEquationLibrary(document);
         return ToolCard("Equation tools", new StackPanel
         {
@@ -180,8 +224,8 @@ public sealed partial class NotesWorkspaceView
                 new TextBlock
                 {
                     Text = equation is null
-                        ? "Select an equation block to insert templates, symbols, macros or exports."
-                        : "Source remains authoritative. Visual helpers insert reviewable LaTeX and never replace valid source silently.",
+                        ? "Select an equation block to use templates, symbols, macros or exports."
+                        : "Source remains authoritative. Visual helpers insert reviewable LaTeX and never silently replace valid source.",
                     Classes = { "muted2" },
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 9
@@ -204,8 +248,8 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildCanvasProductivity(NotesDocument document)
     {
-        var block = _viewModel.SelectedBlock;
-        var canvas = block?.Canvas;
+        var selectedBlock = _viewModel.SelectedBlock;
+        var canvas = selectedBlock?.Canvas;
         if (canvas is null)
         {
             return ToolCard("Canvas geometry", new TextBlock
@@ -218,8 +262,8 @@ public sealed partial class NotesWorkspaceView
         }
 
         var objects = canvas.Objects.ToArray();
-        var objectNames = objects.Select(ObjectLabel).ToArray();
-        var selected = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 0 ? 0 : -1 };
+        var names = objects.Select(ObjectLabel).ToArray();
+        var selected = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
         var x = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
         var y = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
         var width = new NumericUpDown { Minimum = 8, Maximum = 1_000_000 };
@@ -245,47 +289,45 @@ public sealed partial class NotesWorkspaceView
         }
         selected.SelectionChanged += (_, _) => LoadSelection();
         LoadSelection();
-
         var apply = ActionButton("Apply geometry", () =>
         {
-            if (!ready || selected.SelectedIndex < 0 || selected.SelectedIndex >= objects.Length) return Task.CompletedTask;
+            if (!ready || selected.SelectedIndex < 0 || selected.SelectedIndex >= objects.Length || selectedBlock is null)
+                return Task.CompletedTask;
             var value = objects[selected.SelectedIndex];
-            _viewModel.BeginBlockEdit(block!);
-            value.Locked = locked.IsChecked == true;
-            if (!value.Locked)
-            {
-                NotesCanvasOperations.Move(value, (double)(x.Value ?? 0), (double)(y.Value ?? 0), (double)(grid.Value ?? 0));
-                NotesCanvasOperations.Resize(value, (double)(width.Value ?? 160), (double)(height.Value ?? 100), (double)(grid.Value ?? 0));
-                NotesCanvasOperations.Rotate(value, (double)(rotation.Value ?? 0));
-            }
-            _viewModel.CommitBlockEdit(block!, "Changed canvas object geometry");
+            _viewModel.BeginBlockEdit(selectedBlock);
+            var wasLocked = value.Locked;
+            value.Locked = false;
+            NotesCanvasOperations.Move(value, (double)(x.Value ?? 0), (double)(y.Value ?? 0), (double)(grid.Value ?? 0));
+            NotesCanvasOperations.Resize(value, (double)(width.Value ?? 160), (double)(height.Value ?? 100), (double)(grid.Value ?? 0));
+            NotesCanvasOperations.Rotate(value, (double)(rotation.Value ?? 0));
+            value.Locked = locked.IsChecked == true || wasLocked && locked.IsChecked != false;
+            _viewModel.CommitBlockEdit(selectedBlock, "Changed canvas object geometry");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Apply snapped position, size, rotation and lock state to the selected canvas object");
+        }, "Apply snapped position, size, rotation and lock state"));
 
-        var from = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 0 ? 0 : -1 };
-        var to = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 1 ? 1 : -1 };
+        var from = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
+        var to = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
         var connectorLabel = new TextBox { Watermark = "Connector label" };
         var connect = ActionButton("Connect objects", () =>
         {
-            if (from.SelectedIndex < 0 || to.SelectedIndex < 0
+            if (selectedBlock is null
+                || from.SelectedIndex < 0 || to.SelectedIndex < 0
                 || from.SelectedIndex >= objects.Length || to.SelectedIndex >= objects.Length)
                 return Task.CompletedTask;
-            try
+            var first = objects[from.SelectedIndex];
+            var second = objects[to.SelectedIndex];
+            if (first.Id == second.Id)
             {
-                _viewModel.BeginBlockEdit(block!);
-                var connector = NotesCanvasOperations.Connect(objects[from.SelectedIndex], objects[to.SelectedIndex], connectorLabel.Text ?? string.Empty);
-                connector.ZIndex = canvas.Objects.Count == 0 ? 0 : canvas.Objects.Max(value => value.ZIndex) + 1;
-                canvas.Objects.Add(connector);
-                _viewModel.CommitBlockEdit(block!, "Connected canvas objects");
-                RefreshAll();
+                _status.Text = "A canvas object cannot connect to itself.";
+                return Task.CompletedTask;
             }
-            catch (InvalidOperationException ex)
-            {
-                _status.Text = ex.Message;
-            }
+            _viewModel.BeginBlockEdit(selectedBlock);
+            canvas.Objects.Add(CreateSafeConnector(first, second, connectorLabel.Text ?? string.Empty, canvas.Objects.Count));
+            _viewModel.CommitBlockEdit(selectedBlock, "Connected canvas objects");
+            RefreshAll();
             return Task.CompletedTask;
-        }, "Create an editable connector between two canvas objects");
+        }, "Create a validator-safe editable connector"));
 
         var bookmarkName = new TextBox { Watermark = "Spatial bookmark name" };
         var addBookmark = ActionButton("Add canvas bookmark", () =>
@@ -302,26 +344,26 @@ public sealed partial class NotesWorkspaceView
             }), "Added canvas spatial bookmark");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Save the current pan and zoom position inside the native document");
-
+        }, "Save current pan and zoom in the native document"));
         var grouping = new WrapPanel();
         grouping.Children.Add(ActionButton("Group unlocked", () =>
         {
-            _viewModel.BeginBlockEdit(block!);
+            if (selectedBlock is null) return Task.CompletedTask;
+            _viewModel.BeginBlockEdit(selectedBlock);
             NotesCanvasOperations.Group(canvas.Objects.Where(value => !value.Locked));
-            _viewModel.CommitBlockEdit(block!, "Grouped canvas objects");
+            _viewModel.CommitBlockEdit(selectedBlock, "Grouped canvas objects");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Group all currently unlocked canvas objects"));
+        }, "Group unlocked canvas objects"));
         grouping.Children.Add(ActionButton("Ungroup all", () =>
         {
-            _viewModel.BeginBlockEdit(block!);
+            if (selectedBlock is null) return Task.CompletedTask;
+            _viewModel.BeginBlockEdit(selectedBlock);
             NotesCanvasOperations.Ungroup(canvas.Objects);
-            _viewModel.CommitBlockEdit(block!, "Ungrouped canvas objects");
+            _viewModel.CommitBlockEdit(selectedBlock, "Ungrouped canvas objects");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Remove group IDs from all unlocked canvas objects"));
-
+        }, "Remove group IDs from unlocked objects"));
         var bounds = NotesCanvasOperations.Bounds(canvas.Objects);
         RefreshCanvasBookmarks(document, canvas);
         return ToolCard("Canvas geometry", new StackPanel
@@ -331,34 +373,19 @@ public sealed partial class NotesWorkspaceView
             {
                 new TextBlock
                 {
-                    Text = $"{canvas.Objects.Count} objects · {canvas.Strokes.Count} editable strokes · bounds {bounds.Width:0}×{bounds.Height:0}",
+                    Text = $"{canvas.Objects.Count} objects · {canvas.Strokes.Count} strokes · bounds {bounds.Width:0}×{bounds.Height:0}",
                     Classes = { "muted" },
                     FontSize = 9
                 },
                 Labeled("Object", selected),
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 5,
-                    Children = { Labeled("X", x), WithColumn(Labeled("Y", y), 1) }
-                },
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 5,
-                    Children = { Labeled("Width", width), WithColumn(Labeled("Height", height), 1) }
-                },
+                new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 5, Children = { Labeled("X", x), WithColumn(Labeled("Y", y), 1) } },
+                new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 5, Children = { Labeled("Width", width), WithColumn(Labeled("Height", height), 1) } },
                 Labeled("Rotation", rotation),
-                Labeled("Snap grid (0 disables)", grid),
+                Labeled("Snap grid", grid),
                 locked,
                 apply,
                 grouping,
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 5,
-                    Children = { Labeled("From", from), WithColumn(Labeled("To", to), 1) }
-                },
+                new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 5, Children = { Labeled("From", from), WithColumn(Labeled("To", to), 1) } },
                 connectorLabel,
                 connect,
                 bookmarkName,
@@ -370,8 +397,8 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildStudyProductivity(NotesDocument document)
     {
-        var block = _viewModel.SelectedBlock;
-        var card = block?.Flashcard;
+        var selectedBlock = _viewModel.SelectedBlock;
+        var card = selectedBlock?.Flashcard;
         var state = LoadAdvancedState(document);
         var dailyTarget = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.DailyTarget };
         var newLimit = new NumericUpDown { Minimum = 0, Maximum = 10_000, Value = state.Study.NewCardLimit };
@@ -391,7 +418,7 @@ public sealed partial class NotesWorkspaceView
                 value.Study.Shuffle = shuffle.IsChecked == true;
                 value.Study.ReviewMistakesOnly = mistakes.IsChecked == true;
                 value.Study.CramMode = cram.IsChecked == true;
-            }, "Changed flashcard study preferences");
+            }, "Changed study preferences");
         }
         dailyTarget.ValueChanged += (_, _) => CommitPreferences();
         newLimit.ValueChanged += (_, _) => CommitPreferences();
@@ -400,7 +427,6 @@ public sealed partial class NotesWorkspaceView
         mistakes.IsCheckedChanged += (_, _) => CommitPreferences();
         cram.IsCheckedChanged += (_, _) => CommitPreferences();
         ready = true;
-
         var panel = new StackPanel
         {
             Spacing = 5,
@@ -422,8 +448,7 @@ public sealed partial class NotesWorkspaceView
                 cram
             }
         };
-
-        if (card is not null)
+        if (card is not null && selectedBlock is not null)
         {
             panel.Children.Insert(0, new TextBlock
             {
@@ -432,37 +457,36 @@ public sealed partial class NotesWorkspaceView
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 9
             });
-            var answer = new TextBox { Watermark = "Write or type your answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
+            var answer = new TextBox { Watermark = "Answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
             var confidence = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, TickFrequency = 0.1 };
             var hints = new NumericUpDown { Minimum = 0, Maximum = 100, Value = 0 };
             var mark = new ComboBox { ItemsSource = new[] { "Correct", "Partly correct", "Incorrect" }, SelectedIndex = 0 };
-            var record = ActionButton("Record self-marked attempt", () =>
+            panel.Children.Add(new TextBlock { Text = "SELF-MARKING", Classes = { "eyebrow" }, Margin = new Thickness(0, 6, 0, 0) });
+            panel.Children.Add(answer);
+            panel.Children.Add(Labeled("Confidence", confidence));
+            panel.Children.Add(Labeled("Hints used", hints));
+            panel.Children.Add(Labeled("Mark after reveal", mark));
+            panel.Children.Add(ActionButton("Record attempt", () =>
             {
                 MutateAdvancedState(document, value =>
                 {
-                    var attempt = NotesStudyTools.BeginAttempt(value, card, block!.Id, confidence.Value);
+                    var attempt = NotesStudyTools.BeginAttempt(value, card, selectedBlock.Id, confidence.Value);
                     NotesStudyTools.CompleteAttempt(
                         attempt,
                         answer.Text ?? string.Empty,
                         mark.SelectedItem as string ?? "Unmarked",
                         (int)(hints.Value ?? 0),
                         DateTimeOffset.UtcNow);
-                }, "Recorded flashcard self-marking attempt");
+                }, "Recorded self-marked study attempt");
                 RefreshAll();
                 return Task.CompletedTask;
-            }, "Store the learner answer, confidence, hints, correctness and response time in the native document");
-            panel.Children.Add(new TextBlock { Text = "SELF-MARKING", Classes = { "eyebrow" }, Margin = new Thickness(0, 6, 0, 0) });
-            panel.Children.Add(answer);
-            panel.Children.Add(Labeled("Confidence", confidence));
-            panel.Children.Add(Labeled("Hints used", hints));
-            panel.Children.Add(Labeled("Mark after revealing", mark));
-            panel.Children.Add(record);
+            }, "Store answer, confidence, hints, correctness and response time"));
         }
         else
         {
             panel.Children.Insert(0, new TextBlock
             {
-                Text = "Select a flashcard block to record an answer and self-mark it.",
+                Text = "Select a flashcard block to record and self-mark an answer.",
                 Classes = { "muted2" },
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 9
@@ -483,7 +507,7 @@ public sealed partial class NotesWorkspaceView
             {
                 new TextBlock
                 {
-                    Text = "Conflict metadata is local-first and reviewable. No remote value is applied until a resolution is selected.",
+                    Text = "Conflict metadata is local-first and reviewable. No remote value is applied before a resolution is chosen.",
                     Classes = { "muted2" },
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 9
@@ -497,10 +521,10 @@ public sealed partial class NotesWorkspaceView
     {
         _crossReferencesPanel.Children.Clear();
         var state = LoadAdvancedState(document);
-        var existingIds = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).Select(block => block.Id).ToHashSet();
+        var blockIds = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).Select(block => block.Id).ToHashSet();
         foreach (var reference in state.CrossReferences)
         {
-            reference.IsBroken = !existingIds.Contains(reference.SourceBlockId) || !existingIds.Contains(reference.TargetBlockId);
+            reference.IsBroken = !blockIds.Contains(reference.SourceBlockId) || !blockIds.Contains(reference.TargetBlockId);
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
             row.Children.Add(new TextBlock
             {
@@ -520,7 +544,7 @@ public sealed partial class NotesWorkspaceView
                 {
                     var target = value.CrossReferences.FirstOrDefault(item => item.Id == reference.Id);
                     if (target is not null) value.CrossReferences.Remove(target);
-                }, "Removed document cross-reference");
+                }, "Removed cross-reference");
                 RefreshAll();
                 return Task.CompletedTask;
             }, "Remove cross-reference", danger: true), 2));
@@ -546,11 +570,12 @@ public sealed partial class NotesWorkspaceView
             });
             row.Children.Add(WithColumn(ActionButton("Insert", () =>
             {
-                if (_viewModel.SelectedBlock is not { Equation: { } equation } block) return Task.CompletedTask;
+                var block = _viewModel.SelectedBlock;
+                if (block?.Equation is not { } equation) return Task.CompletedTask;
                 _viewModel.UpdateEquation(block, entry.Latex, equation.ViewMode, equation.AccessibleAlternative);
                 RefreshAll();
                 return Task.CompletedTask;
-            }, "Insert this saved editable equation"), 1));
+            }, "Insert this saved equation"), 1));
             row.Children.Add(WithColumn(ActionButton("×", () =>
             {
                 MutateAdvancedState(document, value =>
@@ -560,7 +585,7 @@ public sealed partial class NotesWorkspaceView
                 }, "Removed equation library entry");
                 RefreshAll();
                 return Task.CompletedTask;
-            }, "Remove equation from document library", danger: true), 2));
+            }, "Remove equation from library", danger: true), 2));
             _equationLibraryPanel.Children.Add(row);
         }
         if (state.EquationLibrary.Count == 0)
@@ -578,11 +603,13 @@ public sealed partial class NotesWorkspaceView
             row.Children.Add(new TextBlock { Text = bookmark.Name + $" · {bookmark.Zoom:P0}", Classes = { "muted" }, FontSize = 9 });
             row.Children.Add(WithColumn(ActionButton("Open", () =>
             {
-                _viewModel.BeginBlockEdit(_viewModel.SelectedBlock!);
+                var block = _viewModel.SelectedBlock;
+                if (block?.Canvas is null) return Task.CompletedTask;
+                _viewModel.BeginBlockEdit(block);
                 canvas.OffsetX = bookmark.X;
                 canvas.OffsetY = bookmark.Y;
                 canvas.Zoom = bookmark.Zoom;
-                _viewModel.CommitBlockEdit(_viewModel.SelectedBlock!, "Opened canvas spatial bookmark");
+                _viewModel.CommitBlockEdit(block, "Opened canvas bookmark");
                 RefreshAll();
                 return Task.CompletedTask;
             }, "Restore this pan and zoom position"), 1));
@@ -592,7 +619,7 @@ public sealed partial class NotesWorkspaceView
                 {
                     var target = value.CanvasBookmarks.FirstOrDefault(item => item.Id == bookmark.Id);
                     if (target is not null) value.CanvasBookmarks.Remove(target);
-                }, "Removed canvas spatial bookmark");
+                }, "Removed canvas bookmark");
                 RefreshAll();
                 return Task.CompletedTask;
             }, "Remove canvas bookmark", danger: true), 2));
@@ -631,18 +658,14 @@ public sealed partial class NotesWorkspaceView
         foreach (var conflict in document.Collaboration.Conflicts.OrderByDescending(value => value.DetectedAt))
         {
             var panel = new StackPanel { Spacing = 4 };
-            panel.Children.Add(new TextBlock
-            {
-                Text = conflict.ResolvedAt is null ? "Open conflict" : "Resolved conflict",
-                FontWeight = FontWeight.SemiBold
-            });
+            panel.Children.Add(new TextBlock { Text = conflict.ResolvedAt is null ? "Open conflict" : "Resolved conflict", FontWeight = FontWeight.SemiBold });
             panel.Children.Add(new TextBlock { Text = "Local: " + conflict.LocalValue, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9 });
             panel.Children.Add(new TextBlock { Text = "Remote: " + conflict.RemoteValue, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9 });
             if (conflict.ResolvedAt is null)
             {
                 var actions = new WrapPanel();
-                actions.Children.Add(ActionButton("Keep local", () => ResolveConflict(document, conflict, "local"), "Resolve this conflict with the local value"));
-                actions.Children.Add(ActionButton("Keep remote", () => ResolveConflict(document, conflict, "remote"), "Resolve this conflict with the remote value"));
+                actions.Children.Add(ActionButton("Keep local", () => ResolveConflict(document, conflict, "local"), "Use the local value"));
+                actions.Children.Add(ActionButton("Keep remote", () => ResolveConflict(document, conflict, "remote"), "Use the remote value"));
                 panel.Children.Add(actions);
             }
             else
@@ -695,7 +718,31 @@ public sealed partial class NotesWorkspaceView
             _ => equation.Source
         };
         await File.WriteAllTextAsync(path, content);
-        _status.Text = "Exported editable equation content.";
+        _status.Text = "Exported equation content.";
+    }
+
+    private static NotesCanvasObject CreateSafeConnector(
+        NotesCanvasObject from,
+        NotesCanvasObject to,
+        string label,
+        int zIndex)
+    {
+        var fromX = from.X + from.Width / 2;
+        var fromY = from.Y + from.Height / 2;
+        var toX = to.X + to.Width / 2;
+        var toY = to.Y + to.Height / 2;
+        return new NotesCanvasObject
+        {
+            Kind = NotesCanvasObjectKind.Connector,
+            FromObjectId = from.Id,
+            ToObjectId = to.Id,
+            Text = label,
+            X = Math.Min(fromX, toX),
+            Y = Math.Min(fromY, toY),
+            Width = Math.Max(8, Math.Abs(toX - fromX)),
+            Height = Math.Max(8, Math.Abs(toY - fromY)),
+            ZIndex = zIndex
+        };
     }
 
     private static string BlockLabel(NotesBlock block)
