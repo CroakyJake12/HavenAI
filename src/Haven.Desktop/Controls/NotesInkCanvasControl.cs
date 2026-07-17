@@ -17,7 +17,6 @@ public sealed class NotesInkCanvasControl : Control
         Focusable = true;
         ClipToBounds = true;
         MinHeight = 320;
-        Background = Brushes.Transparent;
         PointerPressed += OnPointerPressed;
         PointerMoved += OnPointerMoved;
         PointerReleased += OnPointerReleased;
@@ -145,8 +144,7 @@ public sealed class NotesInkCanvasControl : Control
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (CanvasData is null) return;
-        var previous = CanvasData.Zoom;
-        CanvasData.Zoom = Math.Clamp(previous * (e.Delta.Y > 0 ? 1.1 : 0.9), 0.05, 100);
+        CanvasData.Zoom = Math.Clamp(CanvasData.Zoom * (e.Delta.Y > 0 ? 1.1 : 0.9), 0.05, 100);
         ViewChanged?.Invoke(this, EventArgs.Empty);
         InvalidateVisual();
         e.Handled = true;
