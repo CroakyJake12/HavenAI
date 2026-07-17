@@ -20,10 +20,29 @@ public sealed class AutomationDeliveryController(
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (Interlocked.Exchange(ref _started, 1) != 0) return;
-        _cancellation = new CancellationTokenSource();
-        await DrainAsync(cancellationToken).ConfigureAwait(false);
-        _loop = Task.Run(() => RunLoopAsync(_cancellation.Token), CancellationToken.None);
+        if (Interlocked.CompareExchange(ref _started, 1, 0) != 0) return;
+
+        var lifetime = new CancellationTokenSource();
+        _cancellation = lifetime;
+        try
+        {
+            using var startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                lifetime.Token);
+            await DrainAsync(startupCancellation.Token).ConfigureAwait(false);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _loop = Task.Run(() => RunLoopAsync(lifetime.Token), CancellationToken.None);
+        }
+        catch
+        {
+            if (ReferenceEquals(_cancellation, lifetime))
+                _cancellation = null;
+            lifetime.Cancel();
+            lifetime.Dispose();
+            _loop = null;
+            Interlocked.Exchange(ref _started, 0);
+            throw;
+        }
     }
 
     public async Task DrainAsync(CancellationToken cancellationToken)
@@ -33,15 +52,25 @@ public sealed class AutomationDeliveryController(
         try
         {
             var deliveries = await outbox.DrainAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var delivery in deliveries)
+            for (var index = 0; index < deliveries.Count; index++)
             {
-                notifications.Show(
-                    delivery.Title,
-                    delivery.Message,
-                    delivery.Kind == AutomationDeliveryKind.ConditionMet
-                        ? ToastKind.Success
-                        : ToastKind.Error,
-                    TimeSpan.FromSeconds(delivery.Kind == AutomationDeliveryKind.ConditionMet ? 18 : 24));
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var delivery = deliveries[index];
+                    notifications.Show(
+                        delivery.Title,
+                        delivery.Message,
+                        delivery.Kind == AutomationDeliveryKind.ConditionMet
+                            ? ToastKind.Success
+                            : ToastKind.Error,
+                        TimeSpan.FromSeconds(delivery.Kind == AutomationDeliveryKind.ConditionMet ? 18 : 24));
+                }
+                catch
+                {
+                    await RequeueAsync(deliveries, index).ConfigureAwait(false);
+                    throw;
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -50,13 +79,34 @@ public sealed class AutomationDeliveryController(
         }
         catch (Exception)
         {
-            // Keep startup and the polling loop healthy. The outbox implementation writes
-            // atomically, so an undrained payload remains available for a later attempt.
+            // The current and remaining deliveries are re-enqueued when UI delivery
+            // fails. Storage-level failures remain eligible for the next polling pass.
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private async Task RequeueAsync(
+        IReadOnlyList<AutomationDelivery> deliveries,
+        int startIndex)
+    {
+        Exception? firstFailure = null;
+        for (var index = startIndex; index < deliveries.Count; index++)
+        {
+            try
+            {
+                await outbox.EnqueueAsync(deliveries[index], CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                firstFailure ??= ex;
+            }
+        }
+
+        if (firstFailure is not null)
+            throw new IOException("One or more automation deliveries could not be returned to the durable outbox.", firstFailure);
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
@@ -80,16 +130,20 @@ public sealed class AutomationDeliveryController(
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        var cancellation = _cancellation;
-        _cancellation = null;
+        _disposed = true;
+        var cancellation = Interlocked.Exchange(ref _cancellation, null);
         cancellation?.Cancel();
-        if (_loop is not null)
+        var loop = _loop;
+        _loop = null;
+        if (loop is not null)
         {
-            try { await _loop.ConfigureAwait(false); }
+            try { await loop.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
             catch (ObjectDisposedException) { }
         }
-        _disposed = true;
+
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        _gate.Release();
         cancellation?.Dispose();
         _gate.Dispose();
         GC.SuppressFinalize(this);
