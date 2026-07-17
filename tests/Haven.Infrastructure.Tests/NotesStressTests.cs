@@ -80,7 +80,7 @@ public sealed class NotesStressTests : IDisposable
                 for (var blockIndex = 0; blockIndex < 100; blockIndex++)
                 {
                     var marker = globalIndex == 9876 ? " stress-target-9876" : string.Empty;
-                    var block = NotesBlock.Paragraph($"Paragraph {globalIndex} contains deterministic stress content for validation and search.{marker}");
+                    var block = NotesBlock.CreateParagraph($"Paragraph {globalIndex} contains deterministic stress content for validation and search.{marker}");
                     block.Order = blockIndex;
                     page.Blocks.Add(block);
                     globalIndex++;
