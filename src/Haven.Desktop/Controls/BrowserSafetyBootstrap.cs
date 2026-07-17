@@ -97,5 +97,7 @@ internal static class BrowserSafetyBootstrap
         }
     }
 
-    private sealed class AttachmentMarker;
+    private sealed class AttachmentMarker
+    {
+    }
 }
