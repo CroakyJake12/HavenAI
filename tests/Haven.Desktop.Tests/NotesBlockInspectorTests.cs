@@ -20,19 +20,21 @@ public sealed class NotesBlockInspectorTests : IDisposable
         await using var diagnostics = new ProductionDiagnostics(_paths);
         var viewModel = CreateViewModel(diagnostics);
         await viewModel.InitializeAsync(CancellationToken.None);
+        var table = NotesTableData.Create(3, 2);
+        table.Rows[0].Cells[0].Text = "Name";
+        table.Rows[0].Cells[1].Text = "Score";
+        table.Rows[1].Cells[0].Text = "B";
+        table.Rows[1].Cells[1].Text = "2";
+        table.Rows[2].Cells[0].Text = "A";
+        table.Rows[2].Cells[1].Text = "3";
         var tableBlock = new NotesBlock
         {
             Kind = NotesBlockKind.Table,
-            Table = NotesTableData.Create(3, 2)
+            Table = table
         };
-        tableBlock.Table.Rows[0].Cells[0].Text = "Name";
-        tableBlock.Table.Rows[0].Cells[1].Text = "Score";
-        tableBlock.Table.Rows[1].Cells[0].Text = "B";
-        tableBlock.Table.Rows[1].Cells[1].Text = "2";
-        tableBlock.Table.Rows[2].Cells[0].Text = "A";
-        tableBlock.Table.Rows[2].Cells[1].Text = "3";
-        viewModel.CurrentPage!.Blocks.Clear();
-        viewModel.CurrentPage.Blocks.Add(tableBlock);
+        var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
+        page.Blocks.Clear();
+        page.Blocks.Add(tableBlock);
         viewModel.SelectedBlock = tableBlock;
 
         var view = new NotesWorkspaceView(viewModel);
@@ -88,8 +90,9 @@ public sealed class NotesBlockInspectorTests : IDisposable
                 SizeBytes = 128
             }
         };
-        viewModel.CurrentPage!.Blocks.Clear();
-        viewModel.CurrentPage.Blocks.Add(mediaBlock);
+        var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
+        page.Blocks.Clear();
+        page.Blocks.Add(mediaBlock);
         viewModel.SelectedBlock = mediaBlock;
 
         var view = new NotesWorkspaceView(viewModel);
