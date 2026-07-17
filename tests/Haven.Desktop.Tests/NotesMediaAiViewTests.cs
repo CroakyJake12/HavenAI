@@ -58,6 +58,11 @@ public sealed class NotesMediaAiViewTests : IDisposable
         {
             window.Show();
             await Task.Delay(30);
+            var inspectorTabs = view.GetVisualDescendants()
+                .OfType<TabControl>()
+                .First(control => control.ItemCount == 5);
+            inspectorTabs.SelectedIndex = 1;
+            await Task.Delay(20);
             var labels = view.GetVisualDescendants()
                 .OfType<TextBlock>()
                 .Select(value => value.Text ?? string.Empty)
