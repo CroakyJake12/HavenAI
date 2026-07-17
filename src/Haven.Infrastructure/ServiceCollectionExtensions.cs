@@ -88,7 +88,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ProductionCodeIntelligenceService>();
         services.AddSingleton<ICodeIntelligenceService, SafeModeCodeIntelligenceService>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
-        services.AddHttpClient<IOllamaClient, OllamaClient>(client =>
+        services.AddHttpClient<OllamaClient>(client =>
         {
             var endpoint = Environment.GetEnvironmentVariable("OLLAMA_HOST")?.Trim();
             if (string.IsNullOrWhiteSpace(endpoint)) endpoint = "http://127.0.0.1:11434/";
@@ -96,6 +96,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(endpoint, UriKind.Absolute);
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
+        services.AddSingleton<ILocalOllamaClient, LocalOllamaClientAdapter>();
 
         services.AddHttpClient("Haven.ModelProvider.openai");
         services.AddHttpClient("Haven.ModelProvider.openrouter");
@@ -104,7 +105,9 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Haven.ModelProvider.gemini");
         services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
         services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
-        services.AddSingleton<IModelProvider, OllamaModelProvider>();
+        services.AddSingleton<IModelProvider>(provider => new OllamaModelProvider(
+            provider.GetRequiredService<ILocalOllamaClient>(),
+            provider.GetRequiredService<IProviderConfigurationStore>()));
         services.AddSingleton<IModelProvider, OpenAiModelProvider>();
         services.AddSingleton<IModelProvider, OpenRouterModelProvider>();
         services.AddSingleton<IModelProvider, CustomOpenAiCompatibleModelProvider>();
@@ -112,7 +115,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelProvider, GeminiModelProvider>();
         services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
         services.AddSingleton<IModelRouter, ModelRouter>();
-        services.AddSingleton<ProviderRoutingModelClient>();
+        services.AddSingleton<ProviderRoutingModelClient>(provider => new ProviderRoutingModelClient(
+            provider.GetRequiredService<ILocalOllamaClient>(),
+            provider.GetRequiredService<IModelProviderRegistry>()));
         services.AddSingleton<ResilientProviderRoutingModelClient>();
         services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ResilientProviderRoutingModelClient>());
         services.AddSingleton<INotesAiService>(provider => new NotesAiService(
@@ -144,7 +149,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DiagnosticsService>();
         services.AddSingleton<IConversationPlacementService, ConversationPlacementService>();
         services.AddSingleton<IModePackageValidator, ModePackageValidator>();
-        services.AddSingleton<IModePackageInstaller, ModePackageInstaller>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();
         services.AddSingleton<ISingleInstanceService, SingleInstanceService>();
