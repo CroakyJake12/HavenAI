@@ -22,6 +22,7 @@ public sealed class OpenAiProviderErrorPathTests
                         "content": "",
                         "tool_calls": [
                           {
+                            "id": "call-malformed-arguments",
                             "type": "function",
                             "function": {
                               "name": "read_file",
