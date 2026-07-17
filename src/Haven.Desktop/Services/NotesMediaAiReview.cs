@@ -1,0 +1,241 @@
+using Haven.Application;
+using Haven.Core;
+using Haven.Desktop.ViewModels;
+
+namespace Haven.Desktop.Services;
+
+public enum NotesMediaAiTarget
+{
+    AltText = 0,
+    Caption = 1,
+    Transcript = 2
+}
+
+public static class NotesMediaAiReview
+{
+    private const string Prefix = "[haven-media-ai:";
+
+    public static async Task<NotesAiChange> ProposeAsync(
+        INotesAiService ai,
+        NotesWorkspaceViewModel workspace,
+        NotesBlock block,
+        NotesMediaAiTarget target,
+        string instruction,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ai);
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(block);
+        var document = workspace.Document ?? throw new InvalidOperationException("Open a Notes document before requesting a media proposal.");
+        var media = block.Media ?? throw new InvalidOperationException("Select an image, audio or video block first.");
+        if (string.IsNullOrWhiteSpace(workspace.SelectedModelName))
+            throw new InvalidOperationException("Choose a model in the Notes AI inspector first.");
+        var userInstruction = string.IsNullOrWhiteSpace(instruction)
+            ? DefaultInstruction(target, block.Kind)
+            : instruction.Trim();
+        var original = ReadTarget(block, target);
+        var selectedEvidence = BuildSelectedEvidence(document, block, target, original);
+        var documentContext = workspace.AllowDocumentContext
+            ? string.Join("\n", NotesTextStatistics.EnumerateText(document))
+            : string.Empty;
+        var result = await ai.ProposeAsync(new NotesAiProposalRequest(
+            document.Id,
+            block.Id,
+            BuildModelInstruction(target, userInstruction),
+            selectedEvidence,
+            documentContext,
+            workspace.SelectedModelName,
+            workspace.AllowDocumentContext,
+            document.Citations), cancellationToken).ConfigureAwait(false);
+
+        workspace.BeginBlockEdit(block);
+        foreach (var previous in document.AiChanges.Where(value =>
+                     value.BlockId == block.Id
+                     && value.Status == NotesAiChangeStatus.Proposed
+                     && TryGetTarget(value, out var previousTarget)
+                     && previousTarget == target))
+        {
+            previous.Status = NotesAiChangeStatus.Cancelled;
+            previous.ReviewedAt = DateTimeOffset.UtcNow;
+            previous.ReviewedBy = Environment.UserName;
+        }
+        var change = new NotesAiChange
+        {
+            BlockId = block.Id,
+            Instruction = EncodeInstruction(target, userInstruction),
+            OriginalContent = original,
+            ProposedContent = result.ProposedContent.Trim(),
+            Explanation = result.Explanation.Trim(),
+            CitationIds = result.CitationIds.ToList(),
+            ProviderId = result.ProviderId,
+            ModelName = result.ModelName,
+            Status = NotesAiChangeStatus.Proposed,
+            UserConsentRecorded = true,
+            SentDocumentContext = workspace.AllowDocumentContext,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        document.AiChanges.Add(change);
+        workspace.CommitBlockEdit(block, "Created reviewed AI proposal for media " + DisplayName(target).ToLowerInvariant());
+        return change;
+    }
+
+    public static async Task ApplyAsync(
+        NotesWorkspaceViewModel workspace,
+        NotesBlock block,
+        NotesAiChange change,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(block);
+        ArgumentNullException.ThrowIfNull(change);
+        var document = workspace.Document ?? throw new InvalidOperationException("The Notes document is no longer open.");
+        if (change.Status != NotesAiChangeStatus.Proposed)
+            throw new InvalidOperationException("Only an unreviewed media proposal can be applied.");
+        if (change.BlockId != block.Id || !TryGetTarget(change, out var target))
+            throw new InvalidDataException("The media proposal target does not match the selected block.");
+        if (string.IsNullOrWhiteSpace(change.ProposedContent))
+            throw new InvalidDataException("The media proposal is empty.");
+
+        workspace.BeginBlockEdit(block);
+        WriteTarget(block, target, change.ProposedContent.Trim());
+        change.Status = NotesAiChangeStatus.Applied;
+        change.ReviewedAt = DateTimeOffset.UtcNow;
+        change.ReviewedBy = Environment.UserName;
+        document.Revisions.Add(new NotesRevision
+        {
+            Kind = NotesRevisionKind.AiApplied,
+            BlockId = block.Id,
+            Author = Environment.UserName,
+            Summary = "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant(),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        workspace.CommitBlockEdit(block, "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant());
+        if (workspace.SaveCommand.CanExecute(null)) await workspace.SaveCommand.ExecuteAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    public static void Reject(
+        NotesWorkspaceViewModel workspace,
+        NotesBlock block,
+        NotesAiChange change)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(block);
+        ArgumentNullException.ThrowIfNull(change);
+        if (change.Status != NotesAiChangeStatus.Proposed) return;
+        if (change.BlockId != block.Id || !TryGetTarget(change, out _))
+            throw new InvalidDataException("The media proposal target does not match the selected block.");
+        workspace.BeginBlockEdit(block);
+        change.Status = NotesAiChangeStatus.Rejected;
+        change.ReviewedAt = DateTimeOffset.UtcNow;
+        change.ReviewedBy = Environment.UserName;
+        workspace.CommitBlockEdit(block, "Rejected AI media accessibility proposal");
+    }
+
+    public static NotesAiChange? FindPending(
+        NotesDocument document,
+        Guid blockId,
+        NotesMediaAiTarget target) =>
+        document.AiChanges
+            .Where(value => value.BlockId == blockId && value.Status == NotesAiChangeStatus.Proposed)
+            .OrderByDescending(value => value.CreatedAt)
+            .FirstOrDefault(value => TryGetTarget(value, out var parsed) && parsed == target);
+
+    public static string DisplayName(NotesMediaAiTarget target) => target switch
+    {
+        NotesMediaAiTarget.AltText => "Alt text",
+        NotesMediaAiTarget.Caption => "Caption",
+        NotesMediaAiTarget.Transcript => "Transcript",
+        _ => throw new ArgumentOutOfRangeException(nameof(target))
+    };
+
+    public static bool TryGetTarget(NotesAiChange change, out NotesMediaAiTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        target = default;
+        var instruction = change.Instruction ?? string.Empty;
+        if (!instruction.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)) return false;
+        var closing = instruction.IndexOf(']');
+        if (closing <= Prefix.Length) return false;
+        return Enum.TryParse(instruction[Prefix.Length..closing], ignoreCase: true, out target)
+               && Enum.IsDefined(target);
+    }
+
+    private static string EncodeInstruction(NotesMediaAiTarget target, string instruction) =>
+        Prefix + target + "] " + instruction.Trim();
+
+    private static string BuildModelInstruction(NotesMediaAiTarget target, string instruction) =>
+        $"Create only the proposed {DisplayName(target).ToLowerInvariant()} for this media block. "
+        + "Do not claim to have seen or heard content that is not explicitly present in the supplied evidence. "
+        + "Do not include labels, markdown, quotation marks or an explanation in proposedContent. "
+        + instruction;
+
+    private static string DefaultInstruction(NotesMediaAiTarget target, NotesBlockKind kind) => target switch
+    {
+        NotesMediaAiTarget.AltText => kind == NotesBlockKind.Image
+            ? "Write concise, useful accessibility text based only on the supplied evidence. State when visual details are unknown."
+            : "Write concise accessibility text describing the media purpose from the supplied evidence.",
+        NotesMediaAiTarget.Caption => "Write a concise caption grounded only in the supplied evidence.",
+        NotesMediaAiTarget.Transcript => "Clean and structure the supplied transcript evidence without adding unsupplied speech or facts.",
+        _ => throw new ArgumentOutOfRangeException(nameof(target))
+    };
+
+    private static string BuildSelectedEvidence(
+        NotesDocument document,
+        NotesBlock block,
+        NotesMediaAiTarget target,
+        string original)
+    {
+        var media = block.Media!;
+        var transform = NotesMediaTransformStore.Load(block);
+        var nearby = document.Sections
+            .SelectMany(section => section.Pages)
+            .Where(page => page.Blocks.Any(value => value.Id == block.Id))
+            .SelectMany(page => page.Blocks.OrderBy(value => value.Order))
+            .Where(value => value.Id != block.Id)
+            .Select(value => value.PlainText)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Take(8);
+        return string.Join("\n", new[]
+        {
+            "Requested target: " + DisplayName(target),
+            "Media kind: " + block.Kind,
+            "File name: " + media.OriginalName,
+            "Media type: " + media.MediaType,
+            "Current alt text: " + media.AltText,
+            "Current caption: " + media.Caption,
+            "Current transcript: " + transform.Transcript,
+            "Current target value: " + original,
+            "Nearby note text: " + string.Join(" | ", nearby)
+        });
+    }
+
+    private static string ReadTarget(NotesBlock block, NotesMediaAiTarget target) => target switch
+    {
+        NotesMediaAiTarget.AltText => block.Media?.AltText ?? string.Empty,
+        NotesMediaAiTarget.Caption => block.Media?.Caption ?? string.Empty,
+        NotesMediaAiTarget.Transcript => NotesMediaTransformStore.Load(block).Transcript,
+        _ => throw new ArgumentOutOfRangeException(nameof(target))
+    };
+
+    private static void WriteTarget(NotesBlock block, NotesMediaAiTarget target, string value)
+    {
+        var media = block.Media ?? throw new InvalidOperationException("The media block no longer contains media metadata.");
+        switch (target)
+        {
+            case NotesMediaAiTarget.AltText:
+                media.AltText = value;
+                break;
+            case NotesMediaAiTarget.Caption:
+                media.Caption = value;
+                break;
+            case NotesMediaAiTarget.Transcript:
+                var transform = NotesMediaTransformStore.Load(block);
+                transform.Transcript = value;
+                NotesMediaTransformStore.Save(block, transform);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(target));
+        }
+    }
+}
