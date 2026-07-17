@@ -3,14 +3,15 @@ using Haven.Application;
 namespace Haven.Infrastructure;
 
 /// <summary>
-/// Adds deterministic request-local identifiers to Haven's provider-neutral tool
-/// turns. Ollama correlates results by tool name, while OpenAI-compatible,
-/// Anthropic and current Gemini protocols require an identifier that is repeated
-/// by the corresponding result. Haven stores the ordered calls and results, so
-/// the exact relationship can be reconstructed without changing persisted data.
+/// Correlates Haven's ordered assistant tool calls and tool results. Cloud
+/// providers require the exact model-issued call identifier to be repeated by
+/// the corresponding result; local Ollama and legacy turns can fall back to a
+/// deterministic request-local identifier when no provider ID exists.
 /// </summary>
 internal static class ProviderToolTurnCorrelation
 {
+    private const int MaximumCallIdLength = 512;
+
     internal sealed record CorrelatedCall(OllamaToolCall Call, string Id);
 
     internal sealed record CorrelatedTurn(
@@ -28,6 +29,7 @@ internal static class ProviderToolTurnCorrelation
 
         var result = new List<CorrelatedTurn>(turns.Count);
         var pending = new List<CorrelatedCall>();
+        var knownIds = new HashSet<string>(StringComparer.Ordinal);
 
         for (var turnIndex = 0; turnIndex < turns.Count; turnIndex++)
         {
@@ -46,9 +48,17 @@ internal static class ProviderToolTurnCorrelation
                         throw new InvalidDataException(
                             $"Tool call {callIndex} in turn {turnIndex} has no name.");
 
-                    var correlated = new CorrelatedCall(
-                        call,
-                        $"{idPrefix}_{turnIndex:D4}_{callIndex:D4}");
+                    var id = string.IsNullOrWhiteSpace(call.Id)
+                        ? $"{idPrefix}_{turnIndex:D4}_{callIndex:D4}"
+                        : call.Id.Trim();
+                    if (id.Length > MaximumCallIdLength)
+                        throw new InvalidDataException(
+                            $"Tool call {callIndex} in turn {turnIndex} has an identifier longer than {MaximumCallIdLength} characters.");
+                    if (!knownIds.Add(id))
+                        throw new InvalidDataException(
+                            $"Tool call identifier '{id}' appears more than once in the request history.");
+
+                    var correlated = new CorrelatedCall(call, id);
                     calls.Add(correlated);
                     pending.Add(correlated);
                 }
