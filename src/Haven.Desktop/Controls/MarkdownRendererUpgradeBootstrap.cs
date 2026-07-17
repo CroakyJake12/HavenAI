@@ -1,9 +1,7 @@
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
@@ -12,44 +10,16 @@ namespace Haven.Desktop.Controls;
 
 internal static class MarkdownRendererUpgradeBootstrap
 {
-    private static readonly HashSet<Control> Upgraded = new(ReferenceEqualityComparer.Instance);
-    private static Window? _window;
-    private static bool _scheduled;
+    private static readonly ConditionalWeakTable<MarkdownView, Marker> Upgraded = new();
 
     [ModuleInitializer]
-    internal static void Initialize() => ScheduleInstall();
-
-    private static void ScheduleInstall()
-    {
-        if (_scheduled) return;
-        _scheduled = true;
-        Dispatcher.UIThread.Post(async () =>
-        {
-            for (var attempt = 0; attempt < 120 && _window is null; attempt++)
-            {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } main })
-                {
-                    Install(main);
-                    return;
-                }
-                await Task.Delay(100);
-            }
-        }, DispatcherPriority.Background);
-    }
-
-    private static void Install(Window window)
-    {
-        if (ReferenceEquals(_window, window)) return;
-        _window = window;
-        window.LayoutUpdated += (_, _) => UpgradeVisibleRenderers(window);
-        UpgradeVisibleRenderers(window);
-    }
+    internal static void Initialize() => VisualBootstrapHost.Register(UpgradeVisibleRenderers);
 
     private static void UpgradeVisibleRenderers(Visual root)
     {
         foreach (var legacy in root.GetVisualDescendants().OfType<MarkdownView>().ToArray())
         {
-            if (!Upgraded.Add(legacy)) continue;
+            if (Upgraded.TryGetValue(legacy, out _)) continue;
             var replacement = new ProductionMarkdownView
             {
                 DataContext = legacy.DataContext,
@@ -61,11 +31,8 @@ internal static class MarkdownRendererUpgradeBootstrap
             };
             replacement.Bind(ProductionMarkdownView.TextProperty, new Binding("Content"));
             replacement.CodeActionRequested += request => HandleCodeAction(replacement, request);
-            if (!Replace(legacy, replacement))
-            {
-                Upgraded.Remove(legacy);
-                continue;
-            }
+            if (!Replace(legacy, replacement)) continue;
+            Upgraded.Add(legacy, new Marker());
         }
     }
 
@@ -100,13 +67,12 @@ internal static class MarkdownRendererUpgradeBootstrap
         var instruction = request.Action == MarkdownCodeAction.AskToRun
             ? $"Run this {language} code using the appropriate permission-gated Haven tool. Explain the command before execution and report the real exit code and output:\n\n```{request.Language}\n{request.Code}\n```"
             : $"Apply this {language} code to the currently selected project only after checking the target file and asking for approval where required. Show the exact proposed edit first:\n\n```{request.Language}\n{request.Code}\n```";
-        chat.Composer = string.IsNullOrWhiteSpace(chat.Composer) ? instruction : chat.Composer.TrimEnd() + "\n\n" + instruction;
+        chat.Composer = string.IsNullOrWhiteSpace(chat.Composer)
+            ? instruction
+            : chat.Composer.TrimEnd() + "\n\n" + instruction;
     }
 
-    private sealed class ReferenceEqualityComparer : IEqualityComparer<Control>
+    private sealed class Marker
     {
-        public static ReferenceEqualityComparer Instance { get; } = new();
-        public bool Equals(Control? x, Control? y) => ReferenceEquals(x, y);
-        public int GetHashCode(Control obj) => RuntimeHelpers.GetHashCode(obj);
     }
 }
