@@ -39,6 +39,8 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.False(Directory.Exists(closed));
         Assert.True(Directory.Exists(active));
         Assert.True(File.Exists(Path.Combine(active, "cookie.db")));
+        Assert.DoesNotContain(Directory.EnumerateDirectories(manager.RootDirectory),
+            path => Path.GetFileName(path).StartsWith(".deleting-", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -62,7 +64,24 @@ public sealed class BrowserPrivateProfileManagerTests
     }
 
     [Fact]
-    public async Task CancelledCleanupDoesNotDeleteProfiles()
+    public async Task StartupCleanupCompletesInterruptedTombstoneDeletion()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new BrowserPrivateProfileManager(Path.Combine(temp.Path, "standard"));
+        Directory.CreateDirectory(manager.RootDirectory);
+        var tombstone = Path.Combine(manager.RootDirectory, $".deleting-{Guid.NewGuid():N}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tombstone);
+        await File.WriteAllTextAsync(Path.Combine(tombstone, "Cookies"), "private state");
+
+        var removed = await manager.CleanupOrphansAsync(new HashSet<Guid>(), CancellationToken.None);
+
+        Assert.Equal(1, removed);
+        Assert.False(Directory.Exists(tombstone));
+        Assert.False(Directory.Exists(manager.RootDirectory));
+    }
+
+    [Fact]
+    public async Task CancelledCleanupDoesNotMoveOrDeleteActiveProfile()
     {
         using var temp = new TemporaryDirectory();
         var manager = new BrowserPrivateProfileManager(Path.Combine(temp.Path, "standard"));
@@ -72,7 +91,38 @@ public sealed class BrowserPrivateProfileManagerTests
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => manager.CleanupAsync(id, cancellation.Token));
+
         Assert.True(Directory.Exists(profile));
+        Assert.DoesNotContain(Directory.EnumerateDirectories(manager.RootDirectory),
+            path => Path.GetFileName(path).StartsWith(".deleting-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ReparsePointProfileIsRemovedWithoutDeletingItsTarget()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new BrowserPrivateProfileManager(Path.Combine(temp.Path, "standard"));
+        Directory.CreateDirectory(manager.RootDirectory);
+        var outside = Path.Combine(temp.Path, "outside");
+        Directory.CreateDirectory(outside);
+        var marker = Path.Combine(outside, "must-remain.txt");
+        await File.WriteAllTextAsync(marker, "safe");
+        var link = Path.Combine(manager.RootDirectory, "not-a-profile");
+
+        try
+        {
+            Directory.CreateSymbolicLink(link, outside);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        var removed = await manager.CleanupOrphansAsync(new HashSet<Guid>(), CancellationToken.None);
+
+        Assert.Equal(1, removed);
+        Assert.False(Directory.Exists(link));
+        Assert.True(File.Exists(marker));
     }
 
     [Fact]
