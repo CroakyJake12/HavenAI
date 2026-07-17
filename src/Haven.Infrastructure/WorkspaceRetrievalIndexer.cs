@@ -75,7 +75,7 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
 
     public async Task<RetrievalIndexReport> IndexSubjectAsync(
         ContainerDefinition subject,
-        IReadOnlyList<LessonDefinition> lessons,
+        IReadOnlyList<Lesson> lessons,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(subject);
