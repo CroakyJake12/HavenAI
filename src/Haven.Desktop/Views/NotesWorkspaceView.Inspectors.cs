@@ -2,7 +2,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
@@ -72,46 +75,9 @@ public sealed partial class NotesWorkspaceView
         _aiPanel.Children.Add(buttons);
 
         if (_viewModel.PendingAiChange is { } change)
-        {
-            _aiPanel.Children.Add(Card(new StackPanel
-            {
-                Spacing = 7,
-                Children =
-                {
-                    new TextBlock { Text = "PROPOSAL", Classes = { "eyebrow" } },
-                    new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
-                    new TextBlock { Text = "Original", FontWeight = FontWeight.SemiBold },
-                    new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 130, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "Proposed", FontWeight = FontWeight.SemiBold },
-                    new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 180, TextWrapping = TextWrapping.Wrap },
-                    new TextBlock
-                    {
-                        Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")}",
-                        Classes = { "muted2" },
-                        FontSize = 9
-                    },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 7,
-                        Children =
-                        {
-                            ActionButton("Approve and apply", async () =>
-                            {
-                                await _viewModel.ApproveAiCommand.ExecuteAsync();
-                                RefreshAll();
-                            }, "Apply this exact proposal and create a version"),
-                            ActionButton("Reject", () =>
-                            {
-                                _viewModel.RejectAiCommand.Execute(null);
-                                RefreshAll();
-                                return Task.CompletedTask;
-                            }, "Reject without changing document content", danger: true)
-                        }
-                    }
-                }
-            }));
-        }
+            _aiPanel.Children.Add(BuildStandardAiProposal(change));
+
+        BuildMediaAiInspector();
 
         _aiPanel.Children.Add(new TextBlock
         {
@@ -121,15 +87,170 @@ public sealed partial class NotesWorkspaceView
         });
         foreach (var history in _viewModel.AiHistory.OrderByDescending(item => item.CreatedAt).Take(20))
         {
+            var target = NotesMediaAiReview.TryGetTarget(history, out var mediaTarget)
+                ? " · media " + NotesMediaAiReview.DisplayName(mediaTarget).ToLowerInvariant()
+                : string.Empty;
             _aiPanel.Children.Add(new TextBlock
             {
-                Text = $"{history.CreatedAt.LocalDateTime:g} · {history.Status} · {history.ModelName}\n{history.Instruction}",
+                Text = $"{history.CreatedAt.LocalDateTime:g} · {history.Status} · {history.ModelName}{target}\n{history.Instruction}",
                 TextWrapping = TextWrapping.Wrap,
                 Classes = { "muted" },
                 FontSize = 9
             });
         }
     }
+
+    private Control BuildStandardAiProposal(NotesAiChange change) => Card(new StackPanel
+    {
+        Spacing = 7,
+        Children =
+        {
+            new TextBlock { Text = "PROPOSAL", Classes = { "eyebrow" } },
+            new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
+            new TextBlock { Text = "Original", FontWeight = FontWeight.SemiBold },
+            new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 130, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = "Proposed", FontWeight = FontWeight.SemiBold },
+            new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 180, TextWrapping = TextWrapping.Wrap },
+            new TextBlock
+            {
+                Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")}",
+                Classes = { "muted2" },
+                FontSize = 9
+            },
+            new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 7,
+                Children =
+                {
+                    ActionButton("Approve and apply", async () =>
+                    {
+                        await _viewModel.ApproveAiCommand.ExecuteAsync();
+                        RefreshAll();
+                    }, "Apply this exact proposal and create a version"),
+                    ActionButton("Reject", () =>
+                    {
+                        _viewModel.RejectAiCommand.Execute(null);
+                        RefreshAll();
+                        return Task.CompletedTask;
+                    }, "Reject without changing document content", danger: true)
+                }
+            }
+        }
+    });
+
+    private void BuildMediaAiInspector()
+    {
+        if (_viewModel.Document is not { } document || _viewModel.SelectedBlock is not { Media: not null } block) return;
+        _aiPanel.Children.Add(new TextBlock
+        {
+            Text = "MEDIA ACCESSIBILITY AI",
+            Classes = { "eyebrow" },
+            Margin = new Thickness(0, 10, 0, 0)
+        });
+        _aiPanel.Children.Add(new TextBlock
+        {
+            Text = "The model receives verified media metadata, existing accessibility text, nearby note text, and only the document context you explicitly allow. It is told not to claim it saw or heard anything absent from that evidence.",
+            Classes = { "muted" },
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 9
+        });
+        var target = new ComboBox
+        {
+            ItemsSource = Enum.GetValues<NotesMediaAiTarget>(),
+            SelectedItem = block.Kind is NotesBlockKind.Audio or NotesBlockKind.Video
+                ? NotesMediaAiTarget.Transcript
+                : NotesMediaAiTarget.AltText
+        };
+        var mediaInstruction = new TextBox
+        {
+            Watermark = "Optional extra instruction for this media field",
+            AcceptsReturn = true,
+            MinHeight = 65,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var mediaStatus = new TextBlock { Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 9 };
+        _aiPanel.Children.Add(Labeled("Target field", target));
+        _aiPanel.Children.Add(mediaInstruction);
+        _aiPanel.Children.Add(ActionButton("Create media proposal", async () =>
+        {
+            if (target.SelectedItem is not NotesMediaAiTarget selectedTarget) return;
+            var service = App.Services?.GetService<INotesAiService>();
+            if (service is null)
+            {
+                mediaStatus.Text = "Notes AI is unavailable in this host.";
+                return;
+            }
+            try
+            {
+                mediaStatus.Text = "Creating a review-only media proposal…";
+                await NotesMediaAiReview.ProposeAsync(
+                    service,
+                    _viewModel,
+                    block,
+                    selectedTarget,
+                    mediaInstruction.Text ?? string.Empty,
+                    CancellationToken.None);
+                mediaStatus.Text = "Proposal ready. The media field is unchanged until approval.";
+                RefreshInspector();
+            }
+            catch (Exception ex)
+            {
+                mediaStatus.Text = "Media proposal failed: " + ex.Message;
+            }
+        }, "Create an evidence-bound proposal for the selected media field"));
+        _aiPanel.Children.Add(mediaStatus);
+
+        foreach (var selectedTarget in Enum.GetValues<NotesMediaAiTarget>())
+        {
+            var pending = NotesMediaAiReview.FindPending(document, block.Id, selectedTarget);
+            if (pending is null) continue;
+            _aiPanel.Children.Add(BuildMediaAiProposal(block, selectedTarget, pending));
+        }
+    }
+
+    private Control BuildMediaAiProposal(
+        NotesBlock block,
+        NotesMediaAiTarget target,
+        NotesAiChange change) => Card(new StackPanel
+    {
+        Spacing = 7,
+        Children =
+        {
+            new TextBlock { Text = "PROPOSED " + NotesMediaAiReview.DisplayName(target).ToUpperInvariant(), Classes = { "eyebrow" } },
+            new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
+            new TextBlock { Text = "Current value", FontWeight = FontWeight.SemiBold },
+            new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 110, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = "Proposed value", FontWeight = FontWeight.SemiBold },
+            new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 160, TextWrapping = TextWrapping.Wrap },
+            new TextBlock
+            {
+                Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")} · full document context {(change.SentDocumentContext ? "allowed" : "not sent")}",
+                Classes = { "muted2" },
+                FontSize = 9,
+                TextWrapping = TextWrapping.Wrap
+            },
+            new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 7,
+                Children =
+                {
+                    ActionButton("Approve media proposal", async () =>
+                    {
+                        await NotesMediaAiReview.ApplyAsync(_viewModel, block, change, CancellationToken.None);
+                        RefreshAll();
+                    }, "Apply exactly this proposed media accessibility value and save a version"),
+                    ActionButton("Reject media proposal", () =>
+                    {
+                        NotesMediaAiReview.Reject(_viewModel, block, change);
+                        RefreshAll();
+                        return Task.CompletedTask;
+                    }, "Reject without changing media accessibility content", danger: true)
+                }
+            }
+        }
+    });
 
     private void BuildReviewInspector()
     {
