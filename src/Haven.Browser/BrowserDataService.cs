@@ -20,14 +20,18 @@ public sealed record BrowserSettings(string HomePage, string SearchTemplate, boo
 
 public sealed class BrowserDataService : IDisposable
 {
+    private const int CurrentSchemaVersion = 1;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly string _path;
+    private readonly string _backupPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private BrowserData _data;
+    private bool _disposed;
 
     public BrowserDataService(IAppPaths paths)
     {
         _path = Path.Combine(paths.DataDirectory, "browser-data.json");
+        _backupPath = _path + ".bak";
         _data = Load();
     }
 
@@ -38,48 +42,56 @@ public sealed class BrowserDataService : IDisposable
     public IReadOnlyList<BrowserExtensionDefinition> Extensions => _data.Extensions.OrderBy(item => item.Name).ToArray();
     public BrowserSettings Settings => _data.Settings;
 
-    public async Task AddBookmarkAsync(string title, string address, string group, CancellationToken cancellationToken)
+    public Task AddBookmarkAsync(string title, string address, string group, CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) throw new ArgumentException("Bookmark address must be an HTTP or HTTPS URL.");
-        var existing = _data.Bookmarks.FirstOrDefault(item => item.Address.Equals(uri.ToString(), StringComparison.OrdinalIgnoreCase));
-        var bookmark = new BrowserBookmark(existing?.Id ?? Guid.NewGuid(), string.IsNullOrWhiteSpace(title) ? uri.Host : title.Trim(), uri.ToString(),
-            string.IsNullOrWhiteSpace(group) ? "Bookmarks" : group.Trim(), existing?.CreatedAt ?? DateTimeOffset.UtcNow);
-        _data = _data with { Bookmarks = _data.Bookmarks.Where(item => item.Id != bookmark.Id).Append(bookmark).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            throw new ArgumentException("Bookmark address must be an HTTP or HTTPS URL.", nameof(address));
+
+        return MutateAndSaveAsync(data =>
+        {
+            var existing = data.Bookmarks.FirstOrDefault(item => item.Address.Equals(uri.ToString(), StringComparison.OrdinalIgnoreCase));
+            var bookmark = new BrowserBookmark(existing?.Id ?? Guid.NewGuid(), string.IsNullOrWhiteSpace(title) ? uri.Host : title.Trim(), uri.ToString(),
+                string.IsNullOrWhiteSpace(group) ? "Bookmarks" : group.Trim(), existing?.CreatedAt ?? DateTimeOffset.UtcNow);
+            return data with { Bookmarks = data.Bookmarks.Where(item => item.Id != bookmark.Id).Append(bookmark).ToArray() };
+        }, cancellationToken);
     }
 
-    public async Task RemoveBookmarkAsync(Guid id, CancellationToken cancellationToken)
+    public Task RemoveBookmarkAsync(Guid id, CancellationToken cancellationToken) =>
+        MutateAndSaveAsync(data => data with { Bookmarks = data.Bookmarks.Where(item => item.Id != id).ToArray() }, cancellationToken);
+
+    public Task RecordVisitAsync(string title, string address, bool isPrivate, CancellationToken cancellationToken)
     {
-        _data = _data with { Bookmarks = _data.Bookmarks.Where(item => item.Id != id).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        if (isPrivate || !_data.Settings.SaveHistory || !Uri.TryCreate(address, UriKind.Absolute, out _)) return Task.CompletedTask;
+        return MutateAndSaveAsync(data => data with
+        {
+            History = data.History.Prepend(new BrowserHistoryEntry(Guid.NewGuid(), string.IsNullOrWhiteSpace(title) ? address : title.Trim(), address,
+                DateTimeOffset.UtcNow)).Take(2000).ToArray()
+        }, cancellationToken);
     }
 
-    public async Task RecordVisitAsync(string title, string address, bool isPrivate, CancellationToken cancellationToken)
+    public Task ClearHistoryAsync(CancellationToken cancellationToken) =>
+        MutateAndSaveAsync(data => data with { History = [] }, cancellationToken);
+
+    public Task SaveTabsAsync(IEnumerable<BrowserTabState> tabs, CancellationToken cancellationToken)
     {
-        if (isPrivate || !_data.Settings.SaveHistory || !Uri.TryCreate(address, UriKind.Absolute, out _)) return;
-        var history = _data.History.Prepend(new BrowserHistoryEntry(Guid.NewGuid(), string.IsNullOrWhiteSpace(title) ? address : title.Trim(), address, DateTimeOffset.UtcNow)).Take(2000).ToArray();
-        _data = _data with { History = history };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(tabs);
+        var safeTabs = tabs.Where(item => item.Privacy != BrowserTabPrivacy.Private)
+            .Where(item => Uri.TryCreate(item.Address, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+            .GroupBy(item => item.Id)
+            .Select(group => group.OrderByDescending(item => item.UpdatedAt).First())
+            .OrderByDescending(item => item.UpdatedAt)
+            .Take(60)
+            .ToArray();
+        return MutateAndSaveAsync(data => data with { Tabs = safeTabs }, cancellationToken);
     }
 
-    public async Task ClearHistoryAsync(CancellationToken cancellationToken)
+    public Task SaveSettingsAsync(BrowserSettings settings, CancellationToken cancellationToken)
     {
-        _data = _data with { History = [] };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task SaveTabsAsync(IEnumerable<BrowserTabState> tabs, CancellationToken cancellationToken)
-    {
-        _data = _data with { Tabs = tabs.Where(item => item.Privacy != BrowserTabPrivacy.Private).Take(60).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task SaveSettingsAsync(BrowserSettings settings, CancellationToken cancellationToken)
-    {
-        if (!Uri.TryCreate(settings.HomePage, UriKind.Absolute, out var home) || home.Scheme is not ("http" or "https")) throw new ArgumentException("Home page must be an HTTP or HTTPS URL.");
-        if (!settings.SearchTemplate.Contains("{query}", StringComparison.Ordinal)) throw new ArgumentException("Search template must contain {query}.");
-        _data = _data with { Settings = settings };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        if (!Uri.TryCreate(settings.HomePage, UriKind.Absolute, out var home) || home.Scheme is not ("http" or "https"))
+            throw new ArgumentException("Home page must be an HTTP or HTTPS URL.", nameof(settings));
+        if (!settings.SearchTemplate.Contains("{query}", StringComparison.Ordinal))
+            throw new ArgumentException("Search template must contain {query}.", nameof(settings));
+        return MutateAndSaveAsync(data => data with { Settings = settings }, cancellationToken);
     }
 
     public async Task SaveLoginAsync(string origin, string username, string password, CancellationToken cancellationToken)
@@ -87,21 +99,42 @@ public sealed class BrowserDataService : IDisposable
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Secure browser login storage currently requires Windows Credential Manager.");
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) throw new ArgumentException("Login origin is invalid.");
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password)) throw new ArgumentException("Username and password are required.");
+
         var canonicalOrigin = uri.GetLeftPart(UriPartial.Authority);
         var existing = _data.Logins.FirstOrDefault(item => item.Origin.Equals(canonicalOrigin, StringComparison.OrdinalIgnoreCase) && item.Username.Equals(username, StringComparison.Ordinal));
         var login = new SavedLogin(existing?.Id ?? Guid.NewGuid(), canonicalOrigin, username.Trim(), DateTimeOffset.UtcNow);
-        WindowsCredentialVault.Write(Target(login), login.Username, password);
-        _data = _data with { Logins = _data.Logins.Where(item => item.Id != login.Id).Append(login).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        var target = Target(login);
+        WindowsCredentialVault.Write(target, login.Username, password);
+        try
+        {
+            await MutateAndSaveAsync(data => data with { Logins = data.Logins.Where(item => item.Id != login.Id).Append(login).ToArray() }, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            WindowsCredentialVault.Delete(target);
+            throw;
+        }
     }
 
     public string? ReadPassword(SavedLogin login) => OperatingSystem.IsWindows() ? WindowsCredentialVault.Read(Target(login)) : null;
 
     public async Task DeleteLoginAsync(SavedLogin login, CancellationToken cancellationToken)
     {
-        if (OperatingSystem.IsWindows()) WindowsCredentialVault.Delete(Target(login));
-        _data = _data with { Logins = _data.Logins.Where(item => item.Id != login.Id).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(login);
+        var password = OperatingSystem.IsWindows() ? WindowsCredentialVault.Read(Target(login)) : null;
+        await MutateAndSaveAsync(data => data with { Logins = data.Logins.Where(item => item.Id != login.Id).ToArray() }, cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            if (OperatingSystem.IsWindows()) WindowsCredentialVault.Delete(Target(login));
+        }
+        catch
+        {
+            if (password is not null)
+                await MutateAndSaveAsync(data => data with { Logins = data.Logins.Append(login).ToArray() }, CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
     }
 
     public async Task<BrowserExtensionDefinition> ImportHavenExtensionAsync(string manifestPath, CancellationToken cancellationToken)
@@ -151,17 +184,14 @@ public sealed class BrowserDataService : IDisposable
             scripts.ToString(), false, true, DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task SetExtensionEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken)
-    {
-        _data = _data with { Extensions = _data.Extensions.Select(item => item.Id == id ? item with { IsEnabled = enabled, UpdatedAt = DateTimeOffset.UtcNow } : item).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task SetExtensionEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) =>
+        MutateAndSaveAsync(data => data with
+        {
+            Extensions = data.Extensions.Select(item => item.Id == id ? item with { IsEnabled = enabled, UpdatedAt = DateTimeOffset.UtcNow } : item).ToArray()
+        }, cancellationToken);
 
-    public async Task DeleteExtensionAsync(Guid id, CancellationToken cancellationToken)
-    {
-        _data = _data with { Extensions = _data.Extensions.Where(item => item.Id != id).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task DeleteExtensionAsync(Guid id, CancellationToken cancellationToken) =>
+        MutateAndSaveAsync(data => data with { Extensions = data.Extensions.Where(item => item.Id != id).ToArray() }, cancellationToken);
 
     public IReadOnlyList<BrowserExtensionDefinition> GetScriptsFor(Uri address)
     {
@@ -171,31 +201,113 @@ public sealed class BrowserDataService : IDisposable
 
     private async Task<BrowserExtensionDefinition> SaveExtensionAsync(BrowserExtensionDefinition extension, CancellationToken cancellationToken)
     {
-        _data = _data with { Extensions = _data.Extensions.Where(item => item.Id != extension.Id).Append(extension).ToArray() };
-        await SaveAsync(cancellationToken).ConfigureAwait(false);
+        await MutateAndSaveAsync(data => data with
+        {
+            Extensions = data.Extensions.Where(item => item.Id != extension.Id).Append(extension).ToArray()
+        }, cancellationToken).ConfigureAwait(false);
         return extension;
     }
 
     private BrowserData Load()
     {
-        try
-        {
-            return File.Exists(_path) ? JsonSerializer.Deserialize<BrowserData>(File.ReadAllText(_path), JsonOptions) ?? BrowserData.Empty : BrowserData.Empty;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { return BrowserData.Empty; }
+        if (TryLoad(_path, out var primary)) return primary;
+
+        QuarantineInvalidPrimary();
+        if (TryLoad(_backupPath, out var backup)) return backup;
+        return BrowserData.Empty;
     }
 
-    private async Task SaveAsync(CancellationToken cancellationToken)
+    private static BrowserData Normalize(BrowserData data)
     {
+        if (data.SchemaVersion > CurrentSchemaVersion)
+            throw new JsonException($"Browser data schema {data.SchemaVersion} is newer than supported schema {CurrentSchemaVersion}.");
+
+        return data with
+        {
+            SchemaVersion = CurrentSchemaVersion,
+            Bookmarks = data.Bookmarks ?? [],
+            History = (data.History ?? []).Take(2000).ToArray(),
+            Tabs = (data.Tabs ?? []).Where(item => item.Privacy != BrowserTabPrivacy.Private).Take(60).ToArray(),
+            Logins = data.Logins ?? [],
+            Extensions = data.Extensions ?? [],
+            Settings = data.Settings ?? BrowserSettings.Default
+        };
+    }
+
+    private static bool TryDeserialize(string path, out BrowserData data)
+    {
+        data = BrowserData.Empty;
+        if (!File.Exists(path)) return false;
+        var parsed = JsonSerializer.Deserialize<BrowserData>(File.ReadAllText(path), JsonOptions);
+        if (parsed is null) return false;
+        data = Normalize(parsed);
+        return true;
+    }
+
+    private static bool IsRecoverableLoadFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or JsonException or NotSupportedException;
+
+    private bool TryLoad(string path, out BrowserData data)
+    {
+        try { return TryDeserialize(path, out data); }
+        catch (Exception ex) when (IsRecoverableLoadFailure(ex))
+        {
+            data = BrowserData.Empty;
+            return false;
+        }
+    }
+
+    private void QuarantineInvalidPrimary()
+    {
+        if (!File.Exists(_path)) return;
+        try
+        {
+            var quarantine = _path + ".corrupt-" + DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+            File.Move(_path, quarantine, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private async Task MutateAndSaveAsync(Func<BrowserData, BrowserData> mutation, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            var temporary = _path + ".tmp";
-            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(_data, JsonOptions), cancellationToken).ConfigureAwait(false);
-            File.Move(temporary, _path, true);
+            var original = _data;
+            var candidate = Normalize(mutation(original));
+            try
+            {
+                await SaveCoreAsync(candidate, cancellationToken).ConfigureAwait(false);
+                _data = candidate;
+            }
+            catch
+            {
+                _data = original;
+                throw;
+            }
         }
         finally { _gate.Release(); }
+    }
+
+    private async Task SaveCoreAsync(BrowserData candidate, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        var temporary = _path + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(candidate, JsonOptions), cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (File.Exists(_path))
+                File.Replace(temporary, _path, _backupPath, true);
+            else
+                File.Move(temporary, _path, false);
+        }
+        finally
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private static IReadOnlyList<string> ReadStringArray(JsonElement root, string name)
@@ -224,13 +336,18 @@ public sealed class BrowserDataService : IDisposable
 
     private static string Target(SavedLogin login) => $"Haven.Browser|{login.Origin}|{login.Id:N}";
 
-    public void Dispose() => _gate.Dispose();
-
-    private sealed record BrowserData(IReadOnlyList<BrowserBookmark> Bookmarks, IReadOnlyList<BrowserHistoryEntry> History,
-        IReadOnlyList<BrowserTabState> Tabs, IReadOnlyList<SavedLogin> Logins, IReadOnlyList<BrowserExtensionDefinition> Extensions,
-        BrowserSettings Settings)
+    public void Dispose()
     {
-        public static BrowserData Empty { get; } = new([], [], [], [], [], BrowserSettings.Default);
+        if (_disposed) return;
+        _disposed = true;
+        _gate.Dispose();
+    }
+
+    private sealed record BrowserData(IReadOnlyList<BrowserBookmark>? Bookmarks, IReadOnlyList<BrowserHistoryEntry>? History,
+        IReadOnlyList<BrowserTabState>? Tabs, IReadOnlyList<SavedLogin>? Logins, IReadOnlyList<BrowserExtensionDefinition>? Extensions,
+        BrowserSettings? Settings, int SchemaVersion = CurrentSchemaVersion)
+    {
+        public static BrowserData Empty { get; } = new([], [], [], [], [], BrowserSettings.Default, CurrentSchemaVersion);
     }
 }
 
