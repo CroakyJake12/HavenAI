@@ -16,6 +16,7 @@ Equivalent commands:
 dotnet restore Haven.sln
 dotnet build Haven.sln -c Debug --no-restore
 dotnet test Haven.sln -c Debug --no-build
+dotnet build src\Haven.AutomationWorker\Haven.AutomationWorker.csproj -c Debug --no-restore
 dotnet build Haven.sln -c Release --no-restore
 dotnet test Haven.sln -c Release --no-build
 dotnet build src\Haven.AutomationWorker\Haven.AutomationWorker.csproj -c Release --no-restore
@@ -86,7 +87,10 @@ Verify:
 - a recoverable failure before output may use the configured compatible fallback;
 - after one streamed chunk, fallback does not replay the turn;
 - after any tool call/result, fallback does not replay side effects;
-- local-to-cloud fallback does not occur unless explicitly enabled.
+- local-to-cloud fallback does not occur unless explicitly enabled;
+- OpenAI/OpenRouter tool results reuse the exact returned `tool_calls[].id`;
+- Anthropic tool results reuse the exact returned `tool_use.id` in the immediately following user message;
+- Gemini function responses reuse the returned `functionCall.id` when the model supplies one.
 
 ### 6. Retrieval and citations
 
@@ -132,6 +136,8 @@ Also verify:
 6. Temporary chats do not persist conversation/draft records.
 7. Provider keys do not appear in `model-providers.json`, logs, exports, or LAN pages.
 8. The application closes cleanly after a LAN share, active stream, and attachment extraction.
+9. Notes dictation, Notes read aloud, Call voice preview, and an active Call do not interrupt one another unless the owning controller explicitly stops its own capture/playback.
+10. A browser action whose page or download side effect completed but whose final record failed is shown as uncertain and is never silently replayed.
 
 ## Merge rule
 
@@ -139,6 +145,6 @@ Do not merge solely because the source compiles. Merge only after:
 
 - Debug and Release builds have zero warnings and zero errors;
 - all Core, Infrastructure, and Desktop tests pass;
-- the automation worker builds;
+- the Automation Worker builds in Debug and Release;
 - the Windows smoke run above passes;
 - any optional tool reported as unavailable was genuinely absent rather than silently ignored.
