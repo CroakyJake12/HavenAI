@@ -34,22 +34,27 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             NotesMediaAiTarget.AltText,
             "Keep it concise.",
             CancellationToken.None);
+        var persistedPending = NotesMediaAiReview.FindPending(workspace.Document!, media.Id, NotesMediaAiTarget.AltText);
 
         Assert.Equal(string.Empty, media.Media!.AltText);
         Assert.Equal(NotesAiChangeStatus.Proposed, change.Status);
-        Assert.Same(change, NotesMediaAiReview.FindPending(workspace.Document!, media.Id, NotesMediaAiTarget.AltText));
+        Assert.NotNull(persistedPending);
+        Assert.Equal(change.Id, persistedPending!.Id);
+        Assert.Empty(workspace.Document!.AiChanges);
         Assert.NotNull(ai.LastRequest);
         Assert.Contains("diagram.png", ai.LastRequest!.SelectedText, StringComparison.Ordinal);
         Assert.Contains("energy moving", ai.LastRequest.SelectedText, StringComparison.Ordinal);
         Assert.DoesNotContain("raw bytes", ai.LastRequest.SelectedText, StringComparison.OrdinalIgnoreCase);
         Assert.False(ai.LastRequest.AllowDocumentContext);
 
-        await NotesMediaAiReview.ApplyAsync(workspace, media, change, CancellationToken.None);
+        await NotesMediaAiReview.ApplyAsync(workspace, media, persistedPending, CancellationToken.None);
 
         Assert.Equal("A labelled energy-flow diagram.", media.Media.AltText);
-        Assert.Equal(NotesAiChangeStatus.Applied, change.Status);
-        Assert.NotNull(change.ReviewedAt);
-        Assert.Contains(workspace.Document!.Revisions, revision =>
+        Assert.Equal(NotesAiChangeStatus.Applied, persistedPending.Status);
+        Assert.NotNull(persistedPending.ReviewedAt);
+        Assert.Null(NotesMediaAiReview.FindPending(workspace.Document, media.Id, NotesMediaAiTarget.AltText));
+        Assert.Contains(workspace.Document.AiChanges, value => value.Id == change.Id && value.Status == NotesAiChangeStatus.Applied);
+        Assert.Contains(workspace.Document.Revisions, revision =>
             revision.Kind == NotesRevisionKind.AiApplied
             && revision.BlockId == media.Id
             && revision.Summary.Contains("alt text", StringComparison.OrdinalIgnoreCase));
@@ -75,24 +80,28 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         page.Blocks.Add(block);
         workspace.SelectedBlock = block;
 
-        var change = await NotesMediaAiReview.ProposeAsync(
+        await NotesMediaAiReview.ProposeAsync(
             ai,
             workspace,
             block,
             NotesMediaAiTarget.Transcript,
             "Clean punctuation only.",
             CancellationToken.None);
-        NotesMediaAiReview.Reject(workspace, block, change);
+        var persisted = Assert.IsType<NotesAiChange>(
+            NotesMediaAiReview.FindPending(workspace.Document!, block.Id, NotesMediaAiTarget.Transcript));
+        NotesMediaAiReview.Reject(workspace, block, persisted);
 
         Assert.Equal("Original rough transcript.", NotesMediaTransformStore.Load(block).Transcript);
-        Assert.Equal(NotesAiChangeStatus.Rejected, change.Status);
-        Assert.NotNull(change.ReviewedAt);
+        Assert.Equal(NotesAiChangeStatus.Rejected, persisted.Status);
+        Assert.NotNull(persisted.ReviewedAt);
+        Assert.Null(NotesMediaAiReview.FindPending(workspace.Document!, block.Id, NotesMediaAiTarget.Transcript));
+        Assert.Contains(workspace.Document!.AiChanges, value => value.Id == persisted.Id && value.Status == NotesAiChangeStatus.Rejected);
         Assert.True(workspace.IsDirty);
         workspace.Dispose();
     }
 
     [Fact]
-    public async Task NewProposalCancelsOlderUnreviewedProposalForSameMediaTarget()
+    public async Task NewProposalArchivesOlderUnreviewedProposalForSameMediaTarget()
     {
         await using var diagnostics = new ProductionDiagnostics(_paths);
         var model = new FakeModelClient();
@@ -121,10 +130,15 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             NotesMediaAiTarget.Caption,
             "Replacement caption.",
             CancellationToken.None);
+        var pending = NotesMediaAiReview.FindPending(workspace.Document!, block.Id, NotesMediaAiTarget.Caption);
 
-        Assert.Equal(NotesAiChangeStatus.Cancelled, first.Status);
+        Assert.Contains(workspace.Document!.AiChanges, value =>
+            value.Id == first.Id
+            && value.Status == NotesAiChangeStatus.Cancelled
+            && value.ReviewedAt is not null);
         Assert.Equal(NotesAiChangeStatus.Proposed, second.Status);
-        Assert.Same(second, NotesMediaAiReview.FindPending(workspace.Document!, block.Id, NotesMediaAiTarget.Caption));
+        Assert.NotNull(pending);
+        Assert.Equal(second.Id, pending!.Id);
         workspace.Dispose();
     }
 
