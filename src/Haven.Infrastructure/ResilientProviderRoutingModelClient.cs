@@ -7,7 +7,7 @@ namespace Haven.Infrastructure;
 public sealed class ResilientProviderRoutingModelClient(
     ProviderRoutingModelClient primary,
     IModelProviderRegistry providers,
-    IProviderConfigurationStore configurations) : IOllamaClient
+    IProviderConfigurationStore configurations) : IProviderModelClient
 {
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => primary.IsAvailableAsync(cancellationToken);
     public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => primary.GetModelsAsync(cancellationToken);
