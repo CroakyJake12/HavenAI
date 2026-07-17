@@ -343,9 +343,9 @@ public sealed class BrowserDataService : IDisposable
         _gate.Dispose();
     }
 
-    private sealed record BrowserData(IReadOnlyList<BrowserBookmark>? Bookmarks, IReadOnlyList<BrowserHistoryEntry>? History,
-        IReadOnlyList<BrowserTabState>? Tabs, IReadOnlyList<SavedLogin>? Logins, IReadOnlyList<BrowserExtensionDefinition>? Extensions,
-        BrowserSettings? Settings, int SchemaVersion = CurrentSchemaVersion)
+    private sealed record BrowserData(IReadOnlyList<BrowserBookmark> Bookmarks, IReadOnlyList<BrowserHistoryEntry> History,
+        IReadOnlyList<BrowserTabState> Tabs, IReadOnlyList<SavedLogin> Logins, IReadOnlyList<BrowserExtensionDefinition> Extensions,
+        BrowserSettings Settings, int SchemaVersion = CurrentSchemaVersion)
     {
         public static BrowserData Empty { get; } = new([], [], [], [], [], BrowserSettings.Default, CurrentSchemaVersion);
     }
