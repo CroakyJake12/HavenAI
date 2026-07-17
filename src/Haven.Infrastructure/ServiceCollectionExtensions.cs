@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NotesAttachmentStore>();
         services.AddSingleton<SecureNotesAttachmentStore>();
         services.AddSingleton<INotesAttachmentStore>(provider => provider.GetRequiredService<SecureNotesAttachmentStore>());
+        services.AddSingleton<INotesMediaAssetService, NotesMediaAssetService>();
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
         services.AddSingleton<DatabaseRestoreService>();
