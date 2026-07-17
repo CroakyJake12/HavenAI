@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using Haven.Desktop.Views;
 
 namespace Haven.Desktop.Tests;
@@ -15,7 +16,7 @@ public sealed class BrowserSafetyViewTests
         {
             window.Show();
             var tabs = FindDescendants<TabItem>(view).ToArray();
-            Assert.Equal(["Permissions", "Approvals", "Audit", "Downloads"], tabs.Select(tab => tab.Header?.ToString()).ToArray());
+            Assert.Equal(new[] { "Permissions", "Approvals", "Audit", "Downloads" }, tabs.Select(tab => tab.Header?.ToString()).ToArray());
             Assert.Contains(FindDescendants<Button>(view), button => button.Content?.ToString() == "Save decision");
             Assert.Contains(FindDescendants<Button>(view), button => button.Content?.ToString() == "Reset origin to Ask");
             Assert.True(FindDescendants<ComboBox>(view).Count() >= 2);
