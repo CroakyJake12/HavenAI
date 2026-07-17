@@ -83,12 +83,16 @@ public sealed partial class NotesWorkspaceView
             EventHandler<NotesDictationStatus>? handler = null;
             handler = (_, update) => Dispatcher.UIThread.Post(() =>
             {
-                if (_disposed) return;
+                if (_disposed)
+                {
+                    controller.StatusChanged -= handler;
+                    return;
+                }
                 status.Text = update.Message;
                 status.Foreground = update.IsError
                     ? ResourceBrush("HavenDangerBrush", Colors.IndianRed)
                     : ResourceBrush("HavenTextSoftBrush", Colors.LightGray);
-                if (update.IsError || update.Message.StartsWith("Dictation inserted", StringComparison.Ordinal))
+                if (!update.IsActive || update.IsError || update.Message.StartsWith("Dictation inserted", StringComparison.Ordinal))
                     controller.StatusChanged -= handler;
             });
             controller.StatusChanged += handler;
