@@ -40,6 +40,7 @@ public sealed class NotesReadAloudController(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (RuntimeSafetyState.IsSafeMode)
                 throw new InvalidOperationException("Notes read aloud is disabled while Haven recovery safe mode is active.");
             if (calls.IsActive)
@@ -107,7 +108,10 @@ public sealed class NotesReadAloudController(
             cancellation?.Cancel();
             try
             {
-                await speech.StopAsync(cancellationToken).ConfigureAwait(false);
+                // ISpeechOutputService is shared with Call. Never interrupt it unless
+                // this controller actually owns an active Notes utterance.
+                if (wasActive)
+                    await speech.StopAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
