@@ -26,8 +26,9 @@ public static class NotesMediaAiReview
         ArgumentNullException.ThrowIfNull(ai);
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(block);
+        cancellationToken.ThrowIfCancellationRequested();
         var document = workspace.Document ?? throw new InvalidOperationException("Open a Notes document before requesting a media proposal.");
-        var media = block.Media ?? throw new InvalidOperationException("Select an image, audio or video block first.");
+        _ = block.Media ?? throw new InvalidOperationException("Select an image, audio or video block first.");
         if (string.IsNullOrWhiteSpace(workspace.SelectedModelName))
             throw new InvalidOperationException("Choose a model in the Notes AI inspector first.");
         var userInstruction = string.IsNullOrWhiteSpace(instruction)
@@ -47,6 +48,7 @@ public static class NotesMediaAiReview
             workspace.SelectedModelName,
             workspace.AllowDocumentContext,
             document.Citations), cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
 
         workspace.BeginBlockEdit(block);
         foreach (var previous in document.AiChanges.Where(value =>
@@ -88,6 +90,7 @@ public static class NotesMediaAiReview
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(block);
         ArgumentNullException.ThrowIfNull(change);
+        cancellationToken.ThrowIfCancellationRequested();
         var document = workspace.Document ?? throw new InvalidOperationException("The Notes document is no longer open.");
         if (change.Status != NotesAiChangeStatus.Proposed)
             throw new InvalidOperationException("Only an unreviewed media proposal can be applied.");
@@ -110,8 +113,8 @@ public static class NotesMediaAiReview
             CreatedAt = DateTimeOffset.UtcNow
         });
         workspace.CommitBlockEdit(block, "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant());
-        if (workspace.SaveCommand.CanExecute(null)) await workspace.SaveCommand.ExecuteAsync().ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
+        if (workspace.SaveCommand.CanExecute(null))
+            await workspace.SaveCommand.ExecuteAsync().ConfigureAwait(false);
     }
 
     public static void Reject(
