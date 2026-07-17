@@ -687,7 +687,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
             NotesBlockKind.HtmlWidget => NotesBlock.HtmlBlock(),
             NotesBlockKind.Canvas => NotesBlock.CanvasBlock(),
             NotesBlockKind.Flashcard => NotesBlock.FlashcardBlock(),
-            _ => NotesBlock.Paragraph()
+            _ => NotesBlock.CreateParagraph()
         };
         block.Order = CurrentPage.Blocks.Count;
         CurrentPage.Blocks.Add(block);
@@ -701,7 +701,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
         PushUndo(SnapshotRequired());
         CurrentPage.Blocks.Remove(block);
         NormalizeBlockOrder();
-        if (CurrentPage.Blocks.Count == 0) CurrentPage.Blocks.Add(NotesBlock.Paragraph());
+        if (CurrentPage.Blocks.Count == 0) CurrentPage.Blocks.Add(NotesBlock.CreateParagraph());
         SelectedBlock = CurrentPage.Blocks.OrderBy(item => item.Order).FirstOrDefault();
         MarkDirty();
     }
@@ -852,7 +852,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
             : null;
         if (block is null)
         {
-            block = NotesBlock.Paragraph(PendingAiChange.ProposedContent);
+            block = NotesBlock.CreateParagraph(PendingAiChange.ProposedContent);
             block.Order = CurrentPage?.Blocks.Count ?? 0;
             CurrentPage?.Blocks.Add(block);
         }
