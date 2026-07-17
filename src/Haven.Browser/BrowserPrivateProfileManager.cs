@@ -15,7 +15,9 @@ public sealed class BrowserPrivateProfileManager
             throw new ArgumentException("A standard Browser profile directory is required.", nameof(standardProfileDirectory));
 
         var standard = Path.GetFullPath(standardProfileDirectory);
-        RejectReparsePointIfPresent(standard, "The standard Browser profile directory cannot be a symbolic link or junction.");
+        RejectReparsePointsInExistingPath(
+            standard,
+            "The standard Browser profile path cannot contain a symbolic link or junction.");
         _root = Path.GetFullPath(Path.Combine(standard, PrivateDirectoryName));
         _rootWithSeparator = _root.EndsWith(Path.DirectorySeparatorChar)
             ? _root
@@ -37,9 +39,13 @@ public sealed class BrowserPrivateProfileManager
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
+            RejectReparsePointsInExistingPath(
+                _root,
+                "The private Browser profile root path cannot contain a symbolic link or junction.");
             Directory.CreateDirectory(_root);
-            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
+            RejectReparsePointsInExistingPath(
+                _root,
+                "The private Browser profile root path cannot contain a symbolic link or junction.");
             Directory.CreateDirectory(path);
             RejectReparsePointIfPresent(path, "A private Browser profile cannot be a symbolic link or junction.");
             return path;
@@ -58,7 +64,9 @@ public sealed class BrowserPrivateProfileManager
         {
             cancellationToken.ThrowIfCancellationRequested();
             await QuarantineAndDeleteAsync(path, cancellationToken).ConfigureAwait(false);
-            await DeletePendingTombstonesAsync(cancellationToken).ConfigureAwait(false);
+            await DeletePendingTombstonesAsync(
+                cancellationToken,
+                bestEffort: true).ConfigureAwait(false);
             DeleteRootIfEmpty();
         }
         finally
@@ -75,7 +83,9 @@ public sealed class BrowserPrivateProfileManager
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!Directory.Exists(_root)) return 0;
-            RejectReparsePointIfPresent(_root, "The private Browser profile root cannot be a symbolic link or junction.");
+            RejectReparsePointsInExistingPath(
+                _root,
+                "The private Browser profile root path cannot contain a symbolic link or junction.");
 
             var removed = 0;
             foreach (var directory in Directory.EnumerateDirectories(_root, "*", SearchOption.TopDirectoryOnly))
@@ -95,7 +105,9 @@ public sealed class BrowserPrivateProfileManager
                 removed++;
             }
 
-            await DeletePendingTombstonesAsync(cancellationToken).ConfigureAwait(false);
+            await DeletePendingTombstonesAsync(
+                cancellationToken,
+                bestEffort: false).ConfigureAwait(false);
             DeleteRootIfEmpty();
             return removed;
         }
@@ -133,20 +145,43 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
-    private async Task DeletePendingTombstonesAsync(CancellationToken cancellationToken)
+    private async Task DeletePendingTombstonesAsync(
+        CancellationToken cancellationToken,
+        bool bestEffort)
     {
         if (!Directory.Exists(_root)) return;
-        foreach (var tombstone in Directory.EnumerateDirectories(_root, DeletingPrefix + "*", SearchOption.TopDirectoryOnly))
+        foreach (var tombstone in Directory.EnumerateDirectories(
+                     _root,
+                     DeletingPrefix + "*",
+                     SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await DeleteDirectoryIfPresentAsync(EnsureContained(tombstone), cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await DeleteDirectoryIfPresentAsync(
+                    EnsureContained(tombstone),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException ex) when (bestEffort)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "Deferred private Browser tombstone cleanup: " + ex.Message);
+            }
         }
     }
 
     private void DeleteRootIfEmpty()
     {
-        if (Directory.Exists(_root) && !Directory.EnumerateFileSystemEntries(_root).Any())
-            Directory.Delete(_root, false);
+        try
+        {
+            if (Directory.Exists(_root) && !Directory.EnumerateFileSystemEntries(_root).Any())
+                Directory.Delete(_root, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A native host or concurrent cleanup may still hold the now-empty root.
+            // Future orphan cleanup will retry it.
+        }
     }
 
     private string EnsureContained(string path)
@@ -160,7 +195,7 @@ public sealed class BrowserPrivateProfileManager
     private static async Task DeleteDirectoryIfPresentAsync(string path, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(path)) return;
-        IOException? lastFailure = null;
+        Exception? lastFailure = null;
         for (var attempt = 0; attempt < 4; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -190,14 +225,29 @@ public sealed class BrowserPrivateProfileManager
                 return;
             }
             catch (DirectoryNotFoundException) { return; }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 lastFailure = ex;
                 if (attempt == 3) break;
                 await Task.Delay(CleanupRetryDelay, cancellationToken).ConfigureAwait(false);
             }
         }
-        throw new IOException("The private Browser profile remained in use after the native host was released.", lastFailure);
+        throw new IOException(
+            "The private Browser profile remained in use after the native host was released.",
+            lastFailure);
+    }
+
+    private static void RejectReparsePointsInExistingPath(string path, string message)
+    {
+        var current = Path.GetFullPath(path);
+        while (!string.IsNullOrWhiteSpace(current))
+        {
+            RejectReparsePointIfPresent(current, message);
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrWhiteSpace(parent)
+                || parent.Equals(current, StringComparison.OrdinalIgnoreCase)) break;
+            current = parent;
+        }
     }
 
     private static void RejectReparsePointIfPresent(string path, string message)
