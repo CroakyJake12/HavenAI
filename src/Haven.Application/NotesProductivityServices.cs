@@ -25,11 +25,11 @@ public static class NotesTemplateCatalog
     public static NotesDocument Create(string templateId, string? title = null)
     {
         var normalized = templateId?.Trim().ToLowerInvariant() ?? string.Empty;
-        var document = NotesDocument.Create(string.IsNullOrWhiteSpace(title)
-            ? Templates.FirstOrDefault(item => item.Id == normalized)?.Name ?? "Untitled note"
-            : title.Trim());
+        var descriptor = Templates.FirstOrDefault(item => item.Id == normalized) ?? Templates[0];
+        var document = NotesDocument.Create(string.IsNullOrWhiteSpace(title) ? descriptor.Name : title.Trim());
         var page = document.Sections[0].Pages[0];
         page.Blocks.Clear();
+
         switch (normalized)
         {
             case "cornell":
@@ -44,7 +44,7 @@ public static class NotesTemplateCatalog
                 page.Blocks.Add(List(2, "Add the essential facts", "Connect each fact to an example"));
                 page.Blocks.Add(Heading("Worked example", 3, 2));
                 page.Blocks.Add(Paragraph("Show each step and explain why it is valid.", 4));
-                page.Blocks.Add(NotesBlock.FlashcardBlock("Question", "Answer") withOrder 5);
+                page.Blocks.Add(WithOrder(NotesBlock.FlashcardBlock(), 5));
                 break;
             case "report":
                 AddSections(page,
@@ -69,18 +69,15 @@ public static class NotesTemplateCatalog
                     ("Interpret patterns, uncertainty and anomalies.", NotesBlockKind.Paragraph),
                     ("Conclusion", NotesBlockKind.Heading),
                     ("Answer the aim using the collected evidence.", NotesBlockKind.Paragraph));
-                Normalize(page);
                 break;
             case "meeting":
                 AddSections(page,
                     ("Meeting notes", NotesBlockKind.Heading),
                     ("Agenda", NotesBlockKind.Heading));
                 page.Blocks.Add(List(page.Blocks.Count, "Agenda item"));
-                AddSections(page,
-                    ("Decisions", NotesBlockKind.Heading));
+                AddSections(page, ("Decisions", NotesBlockKind.Heading));
                 page.Blocks.Add(List(page.Blocks.Count, "Decision and owner"));
-                AddSections(page,
-                    ("Actions", NotesBlockKind.Heading));
+                AddSections(page, ("Actions", NotesBlockKind.Heading));
                 page.Blocks.Add(new NotesBlock
                 {
                     Kind = NotesBlockKind.List,
@@ -96,11 +93,12 @@ public static class NotesTemplateCatalog
                 page.Blocks.Add(Paragraph(string.Empty, 0));
                 break;
         }
+
         Normalize(page);
         document.Revisions.Add(new NotesRevision
         {
             Kind = NotesRevisionKind.Created,
-            Summary = "Created from template " + (Templates.FirstOrDefault(item => item.Id == normalized)?.Name ?? "Blank document"),
+            Summary = "Created from template " + descriptor.Name,
             Author = Environment.UserName
         });
         return document;
@@ -111,7 +109,15 @@ public static class NotesTemplateCatalog
         var block = NotesBlock.Heading(text);
         block.Order = order;
         block.StyleId = "heading-" + Math.Clamp(level, 1, 6);
-        if (block.Runs.FirstOrDefault() is { } run) run.FontSize = level == 1 ? 28 : 20;
+        block.Runs =
+        [
+            new NotesTextRun
+            {
+                Text = text,
+                FontSize = level == 1 ? 28 : 20,
+                Bold = true
+            }
+        ];
         return block;
     }
 
@@ -119,6 +125,7 @@ public static class NotesTemplateCatalog
     {
         var block = NotesBlock.Paragraph(text);
         block.Order = order;
+        block.Runs = [new NotesTextRun { Text = text }];
         return block;
     }
 
@@ -157,7 +164,7 @@ public static class NotesTemplateCatalog
         for (var index = 0; index < page.Blocks.Count; index++) page.Blocks[index].Order = index;
     }
 
-    private static NotesBlock withOrder(this NotesBlock block, int order)
+    private static NotesBlock WithOrder(NotesBlock block, int order)
     {
         block.Order = order;
         return block;
@@ -180,13 +187,17 @@ public static class NotesFindReplace
     {
         ArgumentNullException.ThrowIfNull(document);
         if (string.IsNullOrWhiteSpace(find)) throw new ArgumentException("Find text is required.", nameof(find));
-        var options = matchCase ? RegexOptions.CultureInvariant : RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+
+        var options = matchCase
+            ? RegexOptions.CultureInvariant
+            : RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
         var pattern = wholeWord
             ? $@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(find)}(?![\p{{L}}\p{{N}}_])"
             : Regex.Escape(find);
         var regex = new Regex(pattern, options, TimeSpan.FromSeconds(2));
         var blocksChanged = 0;
         var replacements = 0;
+
         foreach (var block in document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks))
         {
             var changed = false;
@@ -198,7 +209,11 @@ public static class NotesFindReplace
                 replacements += count;
                 changed = true;
             }
-            if (block.Runs.Count > 0) block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
+
+            if (block.Runs.Count > 0)
+            {
+                block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
+            }
             else
             {
                 var count = regex.Matches(block.PlainText).Count;
@@ -209,29 +224,35 @@ public static class NotesFindReplace
                     changed = true;
                 }
             }
-            if (block.Equation is not null)
+
+            if (block.List is not null)
             {
-                var count = regex.Matches(block.Equation.Source).Count;
-                if (count > 0)
-                {
-                    block.Equation.Source = regex.Replace(block.Equation.Source, replacement ?? string.Empty);
-                    replacements += count;
-                    changed = true;
-                }
+                foreach (var item in block.List.Items)
+                    replacements += ReplaceString(regex, item.Text, replacement, value => item.Text = value, ref changed);
             }
+
+            if (block.Table is not null)
+            {
+                foreach (var cell in block.Table.Rows.SelectMany(row => row.Cells))
+                    replacements += ReplaceString(regex, cell.Text, replacement, value => cell.Text = value, ref changed);
+            }
+
+            if (block.Equation is not null)
+                replacements += ReplaceString(regex, block.Equation.Source, replacement, value => block.Equation.Source = value, ref changed);
+
+            if (block.Html is not null)
+                replacements += ReplaceString(regex, block.Html.FallbackText, replacement, value => block.Html.FallbackText = value, ref changed);
+
             if (block.Flashcard is not null)
             {
-                replacements += ReplaceString(regex, block.Flashcard.Front, replacement, out var front);
-                replacements += ReplaceString(regex, block.Flashcard.Back, replacement, out var back);
-                if (front != block.Flashcard.Front || back != block.Flashcard.Back)
-                {
-                    block.Flashcard.Front = front;
-                    block.Flashcard.Back = back;
-                    changed = true;
-                }
+                replacements += ReplaceString(regex, block.Flashcard.Front, replacement, value => block.Flashcard.Front = value, ref changed);
+                replacements += ReplaceString(regex, block.Flashcard.Back, replacement, value => block.Flashcard.Back = value, ref changed);
+                replacements += ReplaceString(regex, block.Flashcard.Hint, replacement, value => block.Flashcard.Hint = value, ref changed);
             }
+
             if (changed) blocksChanged++;
         }
+
         if (replacements > 0)
         {
             document.UpdatedAt = DateTimeOffset.UtcNow;
@@ -242,13 +263,21 @@ public static class NotesFindReplace
                 Author = Environment.UserName
             });
         }
+
         return new NotesReplaceResult(replacements > 0 ? 1 : 0, blocksChanged, replacements);
     }
 
-    private static int ReplaceString(Regex regex, string value, string replacement, out string result)
+    private static int ReplaceString(
+        Regex regex,
+        string value,
+        string replacement,
+        Action<string> assign,
+        ref bool changed)
     {
         var count = regex.Matches(value).Count;
-        result = count == 0 ? value : regex.Replace(value, replacement ?? string.Empty);
+        if (count == 0) return 0;
+        assign(regex.Replace(value, replacement ?? string.Empty));
+        changed = true;
         return count;
     }
 }
@@ -280,9 +309,10 @@ public static class NotesLanguageChecks
     {
         ArgumentNullException.ThrowIfNull(document);
         var issues = new List<NotesLanguageIssue>();
+
         foreach (var block in document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks))
         {
-            var text = NotesTextStatistics.EnumerateText(block).FirstOrDefault() ?? block.PlainText;
+            var text = NotesProductivityText.Enumerate(block).FirstOrDefault() ?? block.PlainText;
             foreach (Match match in RepeatedWord.Matches(text))
             {
                 issues.Add(new NotesLanguageIssue(
@@ -293,6 +323,7 @@ public static class NotesLanguageChecks
                     "The same word appears twice in succession.",
                     [match.Groups["word"].Value]));
             }
+
             foreach (Match match in SpacingBeforePunctuation.Matches(text))
             {
                 issues.Add(new NotesLanguageIssue(
@@ -303,6 +334,7 @@ public static class NotesLanguageChecks
                     "Remove the space before punctuation.",
                     [match.Groups[1].Value]));
             }
+
             foreach (Match match in SentenceStart.Matches(text))
             {
                 var letter = match.Groups["letter"];
@@ -315,24 +347,28 @@ public static class NotesLanguageChecks
                     [letter.Value.ToUpper(CultureInfo.CurrentCulture)]));
             }
         }
+
         return issues.Take(1_000).ToArray();
     }
 }
 
-internal static class NotesTextStatisticsExtensions
+internal static class NotesProductivityText
 {
-    public static IEnumerable<string> EnumerateText(NotesBlock block)
+    public static IEnumerable<string> Enumerate(NotesBlock block)
     {
         if (!string.IsNullOrWhiteSpace(block.PlainText)) yield return block.PlainText;
         if (block.Runs.Count > 0) yield return string.Concat(block.Runs.Select(run => run.Text));
-        if (block.List is not null) foreach (var item in block.List.Items) yield return item.Text;
+        if (block.List is not null)
+            foreach (var item in block.List.Items) yield return item.Text;
         if (block.Table is not null)
-        foreach (var cell in block.Table.Rows.SelectMany(row => row.Cells)) yield return cell.Text;
+            foreach (var cell in block.Table.Rows.SelectMany(row => row.Cells)) yield return cell.Text;
         if (block.Equation is not null) yield return block.Equation.Source;
+        if (block.Html is not null) yield return block.Html.FallbackText;
         if (block.Flashcard is not null)
         {
             yield return block.Flashcard.Front;
             yield return block.Flashcard.Back;
+            yield return block.Flashcard.Hint;
         }
     }
 }
