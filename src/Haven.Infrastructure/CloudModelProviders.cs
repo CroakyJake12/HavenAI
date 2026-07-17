@@ -268,18 +268,60 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return result;
     }
 
-    private static IReadOnlyList<object> BuildToolMessages(IReadOnlyList<OllamaToolTurn> messages, string? systemPrompt)
+    internal static IReadOnlyList<object> BuildToolMessages(IReadOnlyList<OllamaToolTurn> messages, string? systemPrompt)
     {
         var result = new List<object>();
         if (!string.IsNullOrWhiteSpace(systemPrompt)) result.Add(new { role = "system", content = systemPrompt });
-        foreach (var message in messages)
+
+        foreach (var correlated in ProviderToolTurnCorrelation.Correlate(messages, "call_haven"))
         {
-            if (message.ToolCalls is { Count: > 0 })
-                result.Add(new { role = message.Role, content = message.Content, tool_calls = message.ToolCalls.Select((call, index) => new { id = $"haven_call_{index}", type = "function", function = new { name = call.Name, arguments = JsonSerializer.Serialize(call.Arguments) } }) });
-            else if (!string.IsNullOrWhiteSpace(message.ToolName))
-                result.Add(new { role = "tool", tool_call_id = message.ToolName, content = message.Content });
-            else result.Add(new { role = message.Role, content = message.Content });
+            var message = correlated.Turn;
+            if (correlated.Calls.Count > 0)
+            {
+                result.Add(new
+                {
+                    role = message.Role,
+                    content = message.Content,
+                    tool_calls = correlated.Calls.Select(value => new
+                    {
+                        id = value.Id,
+                        type = "function",
+                        function = new
+                        {
+                            name = value.Call.Name,
+                            arguments = JsonSerializer.Serialize(value.Call.Arguments)
+                        }
+                    })
+                });
+                continue;
+            }
+
+            if (correlated.ResultCallId is not null)
+            {
+                result.Add(new
+                {
+                    role = "tool",
+                    tool_call_id = correlated.ResultCallId,
+                    content = message.Content
+                });
+                continue;
+            }
+
+            if (message.Images is not { Count: > 0 })
+            {
+                result.Add(new { role = message.Role, content = message.Content });
+                continue;
+            }
+
+            var content = new List<object> { new { type = "text", text = message.Content } };
+            content.AddRange(message.Images.Select(image => (object)new
+            {
+                type = "image_url",
+                image_url = new { url = "data:image/jpeg;base64," + image }
+            }));
+            result.Add(new { role = message.Role, content });
         }
+
         return result;
     }
 
