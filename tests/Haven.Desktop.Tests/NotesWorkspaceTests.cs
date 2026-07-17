@@ -20,12 +20,12 @@ public sealed class NotesWorkspaceTests : IDisposable
     {
         await using var diagnostics = new ProductionDiagnostics(_paths);
         var viewModel = CreateViewModel(diagnostics, ProposalResponse());
+        await viewModel.InitializeAsync(CancellationToken.None);
         var view = new NotesWorkspaceView(viewModel);
         var window = new Window { Width = 1500, Height = 900, Content = view };
         try
         {
             window.Show();
-            await viewModel.InitializeAsync(CancellationToken.None);
             await Task.Delay(25);
 
             Assert.NotNull(viewModel.Document);
@@ -41,7 +41,10 @@ public sealed class NotesWorkspaceTests : IDisposable
             Assert.Contains("REVIEWED AI", labels);
             Assert.Contains("VERSION HISTORY", labels);
             Assert.Contains("DOCUMENT INFORMATION", labels);
-            var buttons = view.GetVisualDescendants().OfType<Button>().Select(button => button.Content as string).ToArray();
+            var buttons = view.GetVisualDescendants()
+                .OfType<Button>()
+                .Select(button => button.Content as string)
+                .ToArray();
             Assert.Contains("Import", buttons);
             Assert.Contains("Export", buttons);
             Assert.Contains("Print", buttons);
@@ -69,7 +72,12 @@ public sealed class NotesWorkspaceTests : IDisposable
             Order = 1,
             List = new NotesListData { Items = [new NotesListItem { Text = "Item" }] }
         });
-        page.Blocks.Add(new NotesBlock { Kind = NotesBlockKind.Table, Order = 2, Table = NotesTableData.Create(2, 2) });
+        page.Blocks.Add(new NotesBlock
+        {
+            Kind = NotesBlockKind.Table,
+            Order = 2,
+            Table = NotesTableData.Create(2, 2)
+        });
         page.Blocks.Add(new NotesBlock
         {
             Kind = NotesBlockKind.Image,
@@ -84,12 +92,18 @@ public sealed class NotesWorkspaceTests : IDisposable
                 SizeBytes = 10
             }
         });
-        page.Blocks.Add(NotesBlock.EquationBlock("x^2"));
-        page.Blocks[^1].Order = 4;
-        page.Blocks.Add(NotesBlock.CanvasBlock());
-        page.Blocks[^1].Order = 5;
-        page.Blocks.Add(NotesBlock.FlashcardBlock("Question", "Answer"));
-        page.Blocks[^1].Order = 6;
+        var equation = NotesBlock.EquationBlock();
+        equation.Order = 4;
+        equation.Equation!.Source = "x^2";
+        page.Blocks.Add(equation);
+        var canvas = NotesBlock.CanvasBlock();
+        canvas.Order = 5;
+        page.Blocks.Add(canvas);
+        var flashcard = NotesBlock.FlashcardBlock();
+        flashcard.Order = 6;
+        flashcard.Flashcard!.Front = "Question";
+        flashcard.Flashcard.Back = "Answer";
+        page.Blocks.Add(flashcard);
 
         foreach (var block in page.Blocks)
         {
@@ -219,7 +233,7 @@ public sealed class NotesWorkspaceTests : IDisposable
         try
         {
             window.Show();
-            Assert.Equal(2, canvas.CanvasData.Strokes[0].Points.Count);
+            Assert.Equal(2, canvas.CanvasData!.Strokes[0].Points.Count);
             Assert.Equal(0.8, canvas.CanvasData.Strokes[0].Points[1].Pressure);
         }
         finally
@@ -264,8 +278,7 @@ public sealed class NotesWorkspaceTests : IDisposable
     {
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ModelDescriptor>>(
-                [new ModelDescriptor("ollama:test", 1, DateTimeOffset.UtcNow, "test", ToolCapability.None)]);
+            Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
