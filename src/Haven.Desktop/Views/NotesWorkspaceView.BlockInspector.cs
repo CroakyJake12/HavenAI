@@ -11,6 +11,10 @@ namespace Haven.Desktop.Views;
 
 public sealed partial class NotesWorkspaceView
 {
+    private const string CodeLanguageKey = "haven.notes.code.language";
+    private const string CodeWrapKey = "haven.notes.code.wrap";
+    private const string CodeLineNumbersKey = "haven.notes.code.line-numbers";
+    private const string CodeTabSizeKey = "haven.notes.code.tab-size";
     private readonly StackPanel _blockPanel = new() { Spacing = 9 };
 
     private void BuildSelectedBlockInspector()
@@ -37,18 +41,141 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap
         });
 
+        if (block.Kind == NotesBlockKind.Code) BuildCodeInspector(block);
         if (block.Table is not null) BuildTableInspector(block);
         if (block.Media is not null) BuildMediaInspector(block);
-        if (block.Table is null && block.Media is null)
+        if (block.Kind != NotesBlockKind.Code && block.Table is null && block.Media is null)
         {
             _blockPanel.Children.Add(new TextBlock
             {
-                Text = "This block is edited directly in the document surface. Table and managed-media blocks expose additional verified tools here.",
+                Text = "This block is edited directly in the document surface. Code, table and managed-media blocks expose additional tools here.",
                 Classes = { "muted" },
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 10
             });
         }
+    }
+
+    private void BuildCodeInspector(NotesBlock block)
+    {
+        block.Metadata.TryGetValue(CodeLanguageKey, out var savedLanguage);
+        block.Metadata.TryGetValue(CodeWrapKey, out var savedWrap);
+        block.Metadata.TryGetValue(CodeLineNumbersKey, out var savedLineNumbers);
+        block.Metadata.TryGetValue(CodeTabSizeKey, out var savedTabSize);
+        var language = new ComboBox
+        {
+            ItemsSource = new[]
+            {
+                "Plain text", "C#", "C", "C++", "CSS", "HTML", "Java", "JavaScript", "JSON",
+                "Kotlin", "Markdown", "PowerShell", "Python", "Rust", "SQL", "TypeScript", "XML", "YAML"
+            },
+            SelectedItem = string.IsNullOrWhiteSpace(savedLanguage) ? "Plain text" : savedLanguage,
+            MinWidth = 160
+        };
+        if (language.SelectedIndex < 0) language.SelectedIndex = 0;
+        var wrap = new CheckBox
+        {
+            Content = "Wrap long lines",
+            IsChecked = !bool.TryParse(savedWrap, out var wrapValue) || wrapValue
+        };
+        var lineNumbers = new CheckBox
+        {
+            Content = "Show line numbers in preview",
+            IsChecked = !bool.TryParse(savedLineNumbers, out var lineNumberValue) || lineNumberValue
+        };
+        var tabSize = new NumericUpDown
+        {
+            Minimum = 1,
+            Maximum = 16,
+            Increment = 1,
+            Value = int.TryParse(savedTabSize, out var parsedTabSize) ? Math.Clamp(parsedTabSize, 1, 16) : 4
+        };
+        var preview = new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            MinHeight = 140,
+            FontFamily = new FontFamily("Cascadia Mono"),
+            TextWrapping = wrap.IsChecked == true ? TextWrapping.Wrap : TextWrapping.NoWrap,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        };
+        var statistics = new TextBlock { Classes = { "muted" }, FontSize = 9 };
+        void RebuildPreview()
+        {
+            var source = block.Runs.Count > 0
+                ? string.Concat(block.Runs.Select(run => run.Text))
+                : block.PlainText;
+            var normalized = source.ReplaceLineEndings("\n");
+            var lines = normalized.Split('\n');
+            preview.Text = lineNumbers.IsChecked == true
+                ? string.Join(Environment.NewLine, lines.Select((line, index) => $"{index + 1,4}  {line}"))
+                : normalized.Replace("\n", Environment.NewLine, StringComparison.Ordinal);
+            preview.TextWrapping = wrap.IsChecked == true ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            statistics.Text = $"{lines.Length:N0} line{(lines.Length == 1 ? string.Empty : "s")} · {source.Length:N0} characters · {language.SelectedItem}";
+        }
+        RebuildPreview();
+
+        var ready = false;
+        void SavePreferences()
+        {
+            if (!ready) return;
+            BeginEditing(block);
+            block.Metadata[CodeLanguageKey] = language.SelectedItem as string ?? "Plain text";
+            block.Metadata[CodeWrapKey] = (wrap.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            block.Metadata[CodeLineNumbersKey] = (lineNumbers.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            block.Metadata[CodeTabSizeKey] = Decimal.ToInt32(tabSize.Value ?? 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            EndEditing(block, "Changed code block settings");
+            RebuildPreview();
+        }
+        language.SelectionChanged += (_, _) => SavePreferences();
+        wrap.IsCheckedChanged += (_, _) => SavePreferences();
+        lineNumbers.IsCheckedChanged += (_, _) => SavePreferences();
+        tabSize.ValueChanged += (_, _) => SavePreferences();
+        ready = true;
+
+        var actions = new WrapPanel();
+        actions.Children.Add(ActionButton("Normalize indentation", () =>
+        {
+            var spaces = new string(' ', Decimal.ToInt32(tabSize.Value ?? 4));
+            BeginEditing(block);
+            if (block.Runs.Count == 0)
+            {
+                block.PlainText = block.PlainText.Replace("\t", spaces, StringComparison.Ordinal);
+            }
+            else
+            {
+                foreach (var run in block.Runs)
+                    run.Text = run.Text.Replace("\t", spaces, StringComparison.Ordinal);
+                block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
+            }
+            EndEditing(block, "Normalized code indentation");
+            RebuildPreview();
+            return Task.CompletedTask;
+        }, "Replace tab characters with the selected number of spaces as one undoable edit"));
+        actions.Children.Add(ActionButton("Copy code", async () =>
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard is null) return;
+            var source = block.Runs.Count > 0
+                ? string.Concat(block.Runs.Select(run => run.Text))
+                : block.PlainText;
+            await clipboard.SetTextAsync(source);
+            _status.Text = "Code copied to the clipboard.";
+        }, "Copy the exact code source without line-number decoration"));
+
+        _blockPanel.Children.Add(new TextBlock
+        {
+            Text = "CODE TOOLS",
+            Classes = { "eyebrow" },
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+        _blockPanel.Children.Add(Labeled("Language", language));
+        _blockPanel.Children.Add(Labeled("Tab width", tabSize));
+        _blockPanel.Children.Add(new WrapPanel { Children = { wrap, lineNumbers } });
+        _blockPanel.Children.Add(actions);
+        _blockPanel.Children.Add(statistics);
+        _blockPanel.Children.Add(preview);
     }
 
     private void BuildTableInspector(NotesBlock block)
