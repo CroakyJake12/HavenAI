@@ -290,6 +290,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         RefreshSearchResults();
         RefreshStructure();
         RefreshBlocks();
+        BuildSelectedBlockInspector();
         RefreshInspector();
         RefreshDeleteConfirmation();
     }
