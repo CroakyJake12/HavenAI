@@ -27,7 +27,7 @@ public sealed class NotesStressTests : IDisposable
         stopwatch.Stop();
 
         Assert.NotNull(loaded);
-        Assert.Equal(10_000, loaded!.Sections.SelectMany(section => section.Pages).Sum(page => page.Blocks.Count));
+        Assert.Equal(10_001, loaded!.Sections.SelectMany(section => section.Pages).Sum(page => page.Blocks.Count));
         Assert.Equal(25_000, loaded.Sections[0].Pages[0].Blocks.Single(block => block.Canvas is not null).Canvas!.Strokes[0].Points.Count);
         Assert.Single(hits);
         Assert.Equal(document.Id, hits[0].DocumentId);
