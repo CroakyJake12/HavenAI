@@ -49,22 +49,66 @@ public sealed class GenerativeUiThemeRuntime(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            var previousSelection = await store.GetSelectionAsync(cancellationToken).ConfigureAwait(false);
+            var previousTheme = _initialized
+                ? ActiveTheme
+                : await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
+            var previousAppearance = _initialized ? Appearance : previousSelection.Appearance;
+
             await store.SelectAsync(themeId, appearance, cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception applyFailure)
+            {
+                try
+                {
+                    await store.SelectAsync(
+                        previousSelection.ActiveThemeId,
+                        previousSelection.Appearance,
+                        CancellationToken.None).ConfigureAwait(false);
+                    await ApplyVisualsAsync(
+                        previousTheme,
+                        previousAppearance,
+                        CancellationToken.None).ConfigureAwait(false);
+                    ActiveTheme = previousTheme;
+                    Appearance = previousAppearance;
+                }
+                catch (Exception rollbackFailure)
+                {
+                    await TryWriteDiagnosticAsync(
+                        ReliabilitySeverity.Critical,
+                        "theme-rollback-failed",
+                        "A Generative UI theme failed to apply and the previous visual state could not be fully restored.",
+                        new Dictionary<string, string>
+                        {
+                            ["requestedThemeId"] = themeId.ToString("D"),
+                            ["previousThemeId"] = previousSelection.ActiveThemeId.ToString("D"),
+                            ["applyExceptionType"] = applyFailure.GetType().FullName ?? applyFailure.GetType().Name,
+                            ["rollbackExceptionType"] = rollbackFailure.GetType().FullName ?? rollbackFailure.GetType().Name
+                        }).ConfigureAwait(false);
+                    throw new AggregateException(
+                        "The Generative UI theme could not be applied and rollback also failed.",
+                        applyFailure,
+                        rollbackFailure);
+                }
+
+                throw;
+            }
+
             ActiveTheme = theme;
             Appearance = appearance;
-            await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
-            await diagnostics.WriteAsync(
+            await TryWriteDiagnosticAsync(
                 ReliabilitySeverity.Information,
-                "generative-ui",
                 "theme-applied",
                 "A validated Generative UI theme was applied.",
                 new Dictionary<string, string>
                 {
                     ["themeId"] = theme.Id.ToString("D"),
                     ["appearance"] = appearance.ToString()
-                },
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+                }).ConfigureAwait(false);
         }
         finally
         {
@@ -81,9 +125,27 @@ public sealed class GenerativeUiThemeRuntime(
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            ActiveTheme = theme;
-            Appearance = appearance;
-            await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
+            var previousTheme = ActiveTheme;
+            var previousAppearance = Appearance;
+            try
+            {
+                await ApplyVisualsAsync(theme, appearance, cancellationToken).ConfigureAwait(false);
+                ActiveTheme = theme;
+                Appearance = appearance;
+            }
+            catch
+            {
+                if (_initialized && previousTheme is not null)
+                {
+                    await ApplyVisualsAsync(
+                        previousTheme,
+                        previousAppearance,
+                        CancellationToken.None).ConfigureAwait(false);
+                    ActiveTheme = previousTheme;
+                    Appearance = previousAppearance;
+                }
+                throw;
+            }
         }
         finally
         {
@@ -100,9 +162,9 @@ public sealed class GenerativeUiThemeRuntime(
             // the active custom theme was deleted while no transient preview existed.
             var selection = await store.GetSelectionAsync(cancellationToken).ConfigureAwait(false);
             var theme = await store.GetActiveThemeAsync(cancellationToken).ConfigureAwait(false);
+            await ApplyVisualsAsync(theme, selection.Appearance, cancellationToken).ConfigureAwait(false);
             ActiveTheme = theme;
             Appearance = selection.Appearance;
-            await ApplyVisualsAsync(theme, selection.Appearance, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -135,6 +197,7 @@ public sealed class GenerativeUiThemeRuntime(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var handlerFailures = new List<Exception>();
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             var application = Application.Current
@@ -154,8 +217,50 @@ public sealed class GenerativeUiThemeRuntime(
             };
             ApplyPalette(application, effectivePalette, theme.Shape);
             ApplyGeneratedStyles(application, theme, effectivePalette);
-            ThemeChanged?.Invoke(this, EventArgs.Empty);
+
+            if (ThemeChanged is null) return;
+            foreach (EventHandler handler in ThemeChanged.GetInvocationList())
+            {
+                try { handler(this, EventArgs.Empty); }
+                catch (Exception ex) { handlerFailures.Add(ex); }
+            }
         }, DispatcherPriority.Send, cancellationToken);
+
+        if (handlerFailures.Count > 0)
+        {
+            await TryWriteDiagnosticAsync(
+                ReliabilitySeverity.Warning,
+                "theme-change-handler-failed",
+                "One or more UI listeners failed after a Generative UI theme change.",
+                new Dictionary<string, string>
+                {
+                    ["failureCount"] = handlerFailures.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["firstExceptionType"] = handlerFailures[0].GetType().FullName ?? handlerFailures[0].GetType().Name
+                }).ConfigureAwait(false);
+        }
+    }
+
+    private async ValueTask TryWriteDiagnosticAsync(
+        ReliabilitySeverity severity,
+        string eventName,
+        string message,
+        IReadOnlyDictionary<string, string>? data = null)
+    {
+        try
+        {
+            await diagnostics.WriteAsync(
+                severity,
+                "generative-ui",
+                eventName,
+                message,
+                data,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Diagnostics must never turn a successfully applied or restored theme
+            // into a user-visible failure.
+        }
     }
 
     private static void ApplyPalette(
