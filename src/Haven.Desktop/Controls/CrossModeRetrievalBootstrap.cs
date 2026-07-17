@@ -1,8 +1,6 @@
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Desktop.Views;
 
@@ -10,53 +8,26 @@ namespace Haven.Desktop.Controls;
 
 internal static class CrossModeRetrievalBootstrap
 {
-    private static readonly HashSet<ConversationRetrievalView> Attached = new(ReferenceComparer.Instance);
-    private static bool _scheduled;
+    private static readonly ConditionalWeakTable<ConversationRetrievalView, Marker> Attached = new();
 
     [ModuleInitializer]
-    internal static void Initialize()
-    {
-        if (_scheduled) return;
-        _scheduled = true;
-        Dispatcher.UIThread.Post(async () =>
-        {
-            for (var attempt = 0; attempt < 120; attempt++)
-            {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } window })
-                {
-                    window.LayoutUpdated += (_, _) => AttachVisible(window);
-                    AttachVisible(window);
-                    return;
-                }
-                await Task.Delay(100);
-            }
-        }, DispatcherPriority.Background);
-    }
+    internal static void Initialize() => VisualBootstrapHost.Register(AttachVisible);
 
     private static void AttachVisible(Visual root)
     {
         foreach (var retrievalView in root.GetVisualDescendants().OfType<ConversationRetrievalView>().ToArray())
         {
-            if (!Attached.Add(retrievalView)) continue;
-            if (retrievalView.Parent is not StackPanel stack)
-            {
-                Attached.Remove(retrievalView);
-                continue;
-            }
+            if (Attached.TryGetValue(retrievalView, out _)) continue;
+            if (retrievalView.Parent is not StackPanel stack) continue;
             var index = stack.Children.IndexOf(retrievalView);
-            if (index < 0)
-            {
-                Attached.Remove(retrievalView);
-                continue;
-            }
+            if (index < 0) continue;
+
             stack.Children.Insert(index + 1, new CrossModeRetrievalView());
+            Attached.Add(retrievalView, new Marker());
         }
     }
 
-    private sealed class ReferenceComparer : IEqualityComparer<ConversationRetrievalView>
+    private sealed class Marker
     {
-        public static ReferenceComparer Instance { get; } = new();
-        public bool Equals(ConversationRetrievalView? x, ConversationRetrievalView? y) => ReferenceEquals(x, y);
-        public int GetHashCode(ConversationRetrievalView obj) => RuntimeHelpers.GetHashCode(obj);
     }
 }
