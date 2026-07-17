@@ -179,6 +179,13 @@ public abstract class OpenAiCompatibleModelProviderBase(
                     throw new InvalidDataException($"{DisplayName} returned a malformed function tool call.");
                 }
 
+                var callId = item.TryGetProperty("id", out var idElement)
+                    && idElement.ValueKind == JsonValueKind.String
+                    ? idElement.GetString()
+                    : null;
+                if (string.IsNullOrWhiteSpace(callId))
+                    throw new InvalidDataException($"{DisplayName} returned a function tool call without an identifier.");
+
                 var name = function.TryGetProperty("name", out var nameElement)
                     && nameElement.ValueKind == JsonValueKind.String
                     ? nameElement.GetString()
@@ -186,7 +193,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
                 if (string.IsNullOrWhiteSpace(name))
                     throw new InvalidDataException($"{DisplayName} returned a function tool call without a name.");
 
-                calls.Add(new OllamaToolCall(name, ParseToolArguments(function, name)));
+                calls.Add(new OllamaToolCall(name, ParseToolArguments(function, name), callId));
             }
         }
         return new(ReadContent(message), calls);
