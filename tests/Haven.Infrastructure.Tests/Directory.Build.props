@@ -1,9 +1,3 @@
 <Project>
   <Import Project="../../Directory.Build.props" />
-  <PropertyGroup>
-    <!-- The test-only attachment adapter preserves the old focused constructor
-         while production wiring adds retrieval dependencies. Its compatibility
-         parameter is intentionally present for existing tests. -->
-    <NoWarn>$(NoWarn);CS9113</NoWarn>
-  </PropertyGroup>
 </Project>
