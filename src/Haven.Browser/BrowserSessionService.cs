@@ -200,15 +200,15 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
         ValidateReference(reference);
-        var script = $"""
-            (() => {{
-              const wanted = {JavaScriptString(reference)};
+        var script = $$"""
+            (() => {
+              const wanted = {{JavaScriptString(reference)}};
               const e = [...document.querySelectorAll('[data-haven-ref]')].find(x => x.getAttribute('data-haven-ref') === wanted);
               if (!e) return 'stale-reference';
-              e.scrollIntoView({{ block: 'center', inline: 'nearest' }});
+              e.scrollIntoView({ block: 'center', inline: 'nearest' });
               e.click();
               return 'clicked ' + wanted;
-            }})()
+            })()
             """;
         return UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync(script, cancellationToken)).ConfigureAwait(false));
     }
@@ -216,10 +216,10 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
         ValidateReference(reference);
-        var script = $"""
-            (() => {{
-              const wanted = {JavaScriptString(reference)};
-              const value = {JavaScriptString(value)};
+        var script = $$"""
+            (() => {
+              const wanted = {{JavaScriptString(reference)}};
+              const value = {{JavaScriptString(value)}};
               const e = [...document.querySelectorAll('[data-haven-ref]')].find(x => x.getAttribute('data-haven-ref') === wanted);
               if (!e) return 'stale-reference';
               const type = (e.getAttribute('type') || '').toLowerCase();
@@ -228,15 +228,15 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
               if (!(e instanceof HTMLInputElement || e instanceof HTMLTextAreaElement || e instanceof HTMLSelectElement)) return 'not-editable';
               e.focus();
               if (e instanceof HTMLSelectElement) e.value = value;
-              else {{
+              else {
                 const proto = e instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
                 const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
                 if (setter) setter.call(e, value); else e.value = value;
-              }}
-              e.dispatchEvent(new Event('input', {{ bubbles: true }}));
-              e.dispatchEvent(new Event('change', {{ bubbles: true }}));
+              }
+              e.dispatchEvent(new Event('input', { bubbles: true }));
+              e.dispatchEvent(new Event('change', { bubbles: true }));
               return 'filled ' + wanted;
-            }})()
+            })()
             """;
         return UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync(script, cancellationToken)).ConfigureAwait(false));
     }
