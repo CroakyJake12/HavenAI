@@ -49,9 +49,9 @@ public sealed class MigratingNotesRepository(
         {
             return await inner.LoadVersionAsync(documentId, versionId, cancellationToken).ConfigureAwait(false);
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
         {
-            var path = Path.Combine(_root, documentId.ToString("D"), "versions", versionId + ".haven-notes.json");
+            var path = Path.Combine(_root, documentId.ToString("D"), "Versions", versionId + ".haven-notes.json");
             if (!File.Exists(path)) return null;
             var result = await migrator.ReadAndMigrateAsync(path, cancellationToken).ConfigureAwait(false);
             EnsureValid(result.Document);
@@ -65,9 +65,9 @@ public sealed class MigratingNotesRepository(
         {
             return await inner.RecoverLatestAsync(documentId, cancellationToken).ConfigureAwait(false);
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
         {
-            var directory = Path.Combine(_root, documentId.ToString("D"), "versions");
+            var directory = Path.Combine(_root, documentId.ToString("D"), "Versions");
             if (!Directory.Exists(directory)) return null;
             foreach (var path in Directory.EnumerateFiles(directory, "*.haven-notes.json", SearchOption.TopDirectoryOnly)
                          .OrderByDescending(File.GetLastWriteTimeUtc))
@@ -82,7 +82,7 @@ public sealed class MigratingNotesRepository(
                     result.Document.Recovery.RecoveryReason = "Recovered and migrated from a previous native Notes version.";
                     return result.Document;
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+                catch (Exception candidateException) when (candidateException is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
                 {
                 }
             }
@@ -109,8 +109,25 @@ public sealed class MigratingNotesRepository(
         foreach (var directory in Directory.EnumerateDirectories(_root))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (Guid.TryParse(Path.GetFileName(directory), out var id))
+            if (!Guid.TryParse(Path.GetFileName(directory), out var id)) continue;
+            try
+            {
                 await EnsureCurrentDocumentMigratedAsync(id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+            {
+                await diagnostics.WriteAsync(
+                    ReliabilitySeverity.Warning,
+                    "notes",
+                    "document-migration-deferred",
+                    "A Notes document could not be migrated during library enumeration. Other documents remain available and the normal recovery path will inspect this file.",
+                    new Dictionary<string, string>
+                    {
+                        ["documentId"] = id.ToString("D"),
+                        ["exceptionType"] = ex.GetType().Name
+                    },
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -162,10 +179,17 @@ public sealed class MigratingNotesRepository(
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var document = await JsonDocument.ParseAsync(
             stream,
-            new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 64 },
+            new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip,
+                MaxDepth = 64
+            },
             cancellationToken).ConfigureAwait(false);
-        if (!document.RootElement.TryGetProperty("schemaVersion", out var value)) return 0;
-        return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var version)
+        var property = document.RootElement.EnumerateObject()
+            .FirstOrDefault(candidate => candidate.Name.Equals("schemaVersion", StringComparison.OrdinalIgnoreCase));
+        if (property.Name is null) return 0;
+        return property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var version)
             ? version
             : throw new InvalidDataException("The native Notes schemaVersion must be an integer.");
     }
