@@ -65,7 +65,7 @@ public sealed class NotesWorkspaceTests : IDisposable
         await viewModel.InitializeAsync(CancellationToken.None);
         var page = viewModel.CurrentPage!;
         page.Blocks.Clear();
-        page.Blocks.Add(NotesBlock.Paragraph("Text"));
+        page.Blocks.Add(NotesBlock.CreateParagraph("Text"));
         page.Blocks.Add(new NotesBlock
         {
             Kind = NotesBlockKind.List,
