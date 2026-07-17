@@ -9,7 +9,8 @@ namespace Haven.Desktop.Services;
 /// </summary>
 public sealed class CallVoicePreviewController(
     ISpeechOutputService speechOutput,
-    IProductionDiagnostics diagnostics) : IAsyncDisposable
+    IProductionDiagnostics diagnostics,
+    ICallCoordinator? calls = null) : IAsyncDisposable
 {
     private const string PreviewText = "Hello, this is Haven. This voice will be used for local calls.";
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -19,6 +20,8 @@ public sealed class CallVoicePreviewController(
     public async Task PreviewAsync(CallVoice? voice, string? outputDeviceId, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (calls?.IsActive == true)
+            throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
         if (!speechOutput.IsAvailable)
             throw new InvalidOperationException(speechOutput.UnavailableReason ?? "Speech output is unavailable.");
         if (voice is null) throw new InvalidOperationException("Choose a voice before previewing it.");
@@ -29,7 +32,9 @@ public sealed class CallVoicePreviewController(
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            await StopCoreAsync().ConfigureAwait(false);
+            if (calls?.IsActive == true)
+                throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
+
             previewCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _previewCancellation = previewCancellation;
 
@@ -45,6 +50,9 @@ public sealed class CallVoicePreviewController(
                 },
                 correlationId,
                 cancellationToken).ConfigureAwait(false);
+
+            if (calls?.IsActive == true)
+                throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
 
             await speechOutput.SpeakAsync(
                 PreviewText,
@@ -89,7 +97,8 @@ public sealed class CallVoicePreviewController(
         }
         finally
         {
-            if (ReferenceEquals(_previewCancellation, previewCancellation)) _previewCancellation = null;
+            if (ReferenceEquals(_previewCancellation, previewCancellation))
+                _previewCancellation = null;
             previewCancellation?.Dispose();
             _gate.Release();
         }
@@ -99,27 +108,28 @@ public sealed class CallVoicePreviewController(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        _previewCancellation?.Cancel();
-        await speechOutput.StopAsync(cancellationToken).ConfigureAwait(false);
-    }
+        var active = Interlocked.Exchange(ref _previewCancellation, null);
+        if (active is null) return;
 
-    private async Task StopCoreAsync()
-    {
-        _previewCancellation?.Cancel();
-        await speechOutput.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        active.Cancel();
+        await speechOutput.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-        _previewCancellation?.Cancel();
-        try { await speechOutput.StopAsync(CancellationToken.None).ConfigureAwait(false); }
-        catch (ObjectDisposedException) { }
+        var active = Interlocked.Exchange(ref _previewCancellation, null);
+        if (active is not null)
+        {
+            active.Cancel();
+            try { await speechOutput.StopAsync(CancellationToken.None).ConfigureAwait(false); }
+            catch (ObjectDisposedException) { }
+        }
+
         await _gate.WaitAsync().ConfigureAwait(false);
         _gate.Release();
-        _previewCancellation?.Dispose();
-        _previewCancellation = null;
+        active?.Dispose();
         _gate.Dispose();
         GC.SuppressFinalize(this);
     }
