@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
@@ -28,7 +29,9 @@ public static class NotesExperienceNavigation
         if (kind == NotesExperienceKind.Notes)
         {
             var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
-            var viewModel = ActivatorUtilities.CreateInstance<NotesWorkspaceViewModel>(services);
+            var viewModel = ActivatorUtilities.CreateInstance<NotesWorkspaceViewModel>(
+                services,
+                services.GetRequiredService<IProviderModelClient>());
             page = new NotesWorkspaceView(viewModel);
         }
         else
