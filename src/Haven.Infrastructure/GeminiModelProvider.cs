@@ -30,6 +30,10 @@ public sealed class GeminiModelProvider(
             await ProviderHttp.EnsureSuccessAsync(response, DisplayName, cancellationToken).ConfigureAwait(false);
             return new(Id, true, "Connected to Google Gemini.", System.Diagnostics.Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
         {
             return new(Id, false, ex.Message, System.Diagnostics.Stopwatch.GetElapsedTime(started), DateTimeOffset.UtcNow);
@@ -140,12 +144,35 @@ public sealed class GeminiModelProvider(
         foreach (var part in EnumerateCandidateParts(document.RootElement))
         {
             if (!part.TryGetProperty("functionCall", out var functionCall) || functionCall.ValueKind != JsonValueKind.Object) continue;
-            var name = functionCall.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null;
-            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            string? callId = null;
+            if (functionCall.TryGetProperty("id", out var idElement))
+            {
+                if (idElement.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(idElement.GetString()))
+                    throw new InvalidDataException("Gemini returned a functionCall with an invalid identifier.");
+                callId = idElement.GetString();
+            }
+
+            var name = functionCall.TryGetProperty("name", out var nameElement)
+                && nameElement.ValueKind == JsonValueKind.String
+                ? nameElement.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidDataException("Gemini returned a functionCall without a name.");
+
             var arguments = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-            if (functionCall.TryGetProperty("args", out var args) && args.ValueKind == JsonValueKind.Object)
-                foreach (var property in args.EnumerateObject()) arguments[property.Name] = property.Value.Clone();
-            calls.Add(new OllamaToolCall(name, arguments));
+            if (functionCall.TryGetProperty("args", out var args))
+            {
+                if (args.ValueKind != JsonValueKind.Object)
+                    throw new InvalidDataException($"Gemini returned non-object args for function '{name}'.");
+                foreach (var property in args.EnumerateObject())
+                {
+                    if (!arguments.TryAdd(property.Name, property.Value.Clone()))
+                        throw new InvalidDataException(
+                            $"Gemini returned duplicate arg '{property.Name}' for function '{name}'.");
+                }
+            }
+            calls.Add(new OllamaToolCall(name, arguments, callId));
         }
         return new OllamaToolResponse(ReadText(document.RootElement), calls);
     }
