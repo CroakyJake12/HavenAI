@@ -56,6 +56,21 @@ try {
     $env:DOTNET_NOLOGO = '1'
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $branch = (& git branch --show-current).Trim()
+        $head = (& git rev-parse HEAD).Trim()
+        Write-Host "== Haven continuation: branch $branch at $head ==" -ForegroundColor Cyan
+        if ($branch -ne 'haven-continuation') {
+            throw "Validation must run from haven-continuation, not '$branch'."
+        }
+        if ((& git status --porcelain).Count -gt 0) {
+            Write-Host 'Warning: the working tree contains uncommitted changes; results are not tied solely to the printed commit.' -ForegroundColor Yellow
+        }
+    }
+
+    Write-Host '== Haven continuation: stop cached build servers ==' -ForegroundColor Cyan
+    Invoke-DotNet -Arguments @('build-server', 'shutdown')
+
     Write-Host '== Haven continuation: remove stale bin/obj outputs ==' -ForegroundColor Cyan
     Clear-HavenBuildOutputs -RepositoryRoot $root
 
@@ -63,23 +78,23 @@ try {
     Invoke-DotNet -Arguments @('restore', '.\Haven.sln', '--force-evaluate')
 
     Write-Host '== Haven continuation: Debug build ==' -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @('build', '.\Haven.sln', '-c', 'Debug', '--no-restore')
+    Invoke-DotNet -Arguments @('build', '.\Haven.sln', '-c', 'Debug', '--no-restore', '--no-incremental', '-p:UseSharedCompilation=false')
 
     Write-Host '== Haven continuation: Debug tests ==' -ForegroundColor Cyan
     Invoke-DotNet -Arguments @('test', '.\Haven.sln', '-c', 'Debug', '--no-build')
 
     Write-Host '== Haven continuation: Debug automation worker build ==' -ForegroundColor Cyan
-    Invoke-DotNet -Arguments @('build', '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj', '-c', 'Debug', '--no-restore')
+    Invoke-DotNet -Arguments @('build', '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj', '-c', 'Debug', '--no-restore', '--no-incremental', '-p:UseSharedCompilation=false')
 
     if (-not $SkipRelease) {
         Write-Host '== Haven continuation: Release build ==' -ForegroundColor Cyan
-        Invoke-DotNet -Arguments @('build', '.\Haven.sln', '-c', 'Release', '--no-restore')
+        Invoke-DotNet -Arguments @('build', '.\Haven.sln', '-c', 'Release', '--no-restore', '--no-incremental', '-p:UseSharedCompilation=false')
 
         Write-Host '== Haven continuation: Release tests ==' -ForegroundColor Cyan
         Invoke-DotNet -Arguments @('test', '.\Haven.sln', '-c', 'Release', '--no-build')
 
         Write-Host '== Haven continuation: Release automation worker build ==' -ForegroundColor Cyan
-        Invoke-DotNet -Arguments @('build', '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj', '-c', 'Release', '--no-restore')
+        Invoke-DotNet -Arguments @('build', '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj', '-c', 'Release', '--no-restore', '--no-incremental', '-p:UseSharedCompilation=false')
     }
 
     Write-Host 'Validation commands completed successfully.' -ForegroundColor Green
