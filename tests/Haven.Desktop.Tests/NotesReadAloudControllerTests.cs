@@ -131,6 +131,21 @@ public sealed class NotesReadAloudControllerTests
         }
     }
 
+    [Fact]
+    public async Task InactiveStopAndDisposeDoNotInterruptSharedCallSpeech()
+    {
+        var speech = new FakeSpeechOutputService();
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator { Active = true },
+            new RecordingDiagnostics());
+
+        await controller.StopAsync(CancellationToken.None);
+        await controller.DisposeAsync();
+
+        Assert.Equal(0, speech.StopCalls);
+    }
+
     private sealed class FakeSpeechOutputService : ISpeechOutputService
     {
         public bool HoldPlayback { get; init; }
