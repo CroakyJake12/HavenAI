@@ -25,7 +25,7 @@ public interface IConversationRepository
 public interface IContainerRepository
 {
     Task<IReadOnlyList<ContainerDefinition>> GetByModeAsync(HavenMode mode, CancellationToken cancellationToken);
-    Task<IReadOnlyList<ContainerDefinition>> GetArchivedByModeAsync(HavenMode mode, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ContainerDefinition>>([]);
+    Task<IReadOnlyList<ContainerDefinition>> GetArchivedByModeAsync(HavenMode mode, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ContainerDefinition>>([]);
     Task UpsertAsync(ContainerDefinition item, CancellationToken cancellationToken);
     Task<Lesson> CreateSubjectAsync(ContainerDefinition subject, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
@@ -140,7 +140,10 @@ public sealed record OllamaToolDefinition(
     IReadOnlyDictionary<string, object> Properties,
     IReadOnlyList<string> Required);
 
-public sealed record OllamaToolCall(string Name, IReadOnlyDictionary<string, System.Text.Json.JsonElement> Arguments);
+public sealed record OllamaToolCall(
+    string Name,
+    IReadOnlyDictionary<string, System.Text.Json.JsonElement> Arguments,
+    string? Id = null);
 
 public sealed record OllamaToolTurn(
     string Role,
