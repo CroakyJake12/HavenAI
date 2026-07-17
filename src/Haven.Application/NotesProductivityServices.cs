@@ -259,7 +259,7 @@ public static class NotesFindReplace
             document.Revisions.Add(new NotesRevision
             {
                 Kind = NotesRevisionKind.Edited,
-                Summary = $"Replaced {replacements} occurrence{(replacements == 1 ? string.Empty : "s")} of “{find}”.,",
+                Summary = $"Replaced {replacements} occurrence{(replacements == 1 ? string.Empty : "s")} of “{find}”.",
                 Author = Environment.UserName
             });
         }
