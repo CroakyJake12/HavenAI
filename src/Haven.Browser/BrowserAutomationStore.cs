@@ -215,18 +215,19 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         DateTimeOffset now,
         out bool changed)
     {
-        changed = false;
+        var didChange = false;
         var expirationAudit = new List<BrowserAuditEntry>();
         var actions = data.Actions.Select(item =>
         {
             if (item.State != BrowserActionState.Pending || item.ExpiresAt > now) return item;
-            changed = true;
+            didChange = true;
             const string expired = "The approval expired before execution.";
             expirationAudit.Add(new BrowserAuditEntry(
                 Guid.NewGuid(), item.Kind, "approval-expired", item.Origin, expired, false, now));
             return item with { State = BrowserActionState.Expired, UpdatedAt = now, Failure = expired };
         }).ToArray();
-        if (!changed) return data;
+        changed = didChange;
+        if (!didChange) return data;
         return data with
         {
             Actions = actions,
@@ -263,7 +264,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally
         {
             try { if (File.Exists(temporary)) File.Delete(temporary); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException) { }
         }
     }
 
