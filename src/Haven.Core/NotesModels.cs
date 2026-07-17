@@ -103,7 +103,7 @@ public sealed class NotesPage
     public int Order { get; set; }
     public double CanvasWidth { get; set; } = 1200;
     public double CanvasHeight { get; set; } = 900;
-    public List<NotesBlock> Blocks { get; set; } = [NotesBlock.Paragraph()];
+    public List<NotesBlock> Blocks { get; set; } = [NotesBlock.CreateParagraph()];
     public List<NotesCanvasObject> CanvasObjects { get; set; } = [];
 
     public static NotesPage CreateDefault() => new();
@@ -127,7 +127,7 @@ public sealed class NotesBlock
     public NotesFlashcardData? Flashcard { get; set; }
     public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public static NotesBlock Paragraph(string text = "") => new() { PlainText = text };
+    public static NotesBlock CreateParagraph(string text = "") => new() { PlainText = text };
     public static NotesBlock Heading(string text = "Heading") => new() { Kind = NotesBlockKind.Heading, PlainText = text, StyleId = "heading-1" };
     public static NotesBlock EquationBlock() => new()
     {
