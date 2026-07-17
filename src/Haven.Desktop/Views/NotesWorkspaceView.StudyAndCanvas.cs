@@ -1,0 +1,716 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Haven.Application;
+using Haven.Core;
+
+namespace Haven.Desktop.Views;
+
+public sealed partial class NotesWorkspaceView
+{
+    private readonly StackPanel _equationLibraryPanel = new() { Spacing = 4 };
+    private readonly StackPanel _canvasBookmarksPanel = new() { Spacing = 4 };
+    private readonly StackPanel _studyAttemptsPanel = new() { Spacing = 4 };
+    private readonly StackPanel _crossReferencesPanel = new() { Spacing = 4 };
+    private readonly StackPanel _conflictsPanel = new() { Spacing = 5 };
+    private string _equationSymbolQuery = string.Empty;
+
+    private void BuildStudyAndCanvasProductivity(NotesDocument document)
+    {
+        _informationPanel.Children.Add(BuildCrossReferenceTools(document));
+        _informationPanel.Children.Add(BuildEquationProductivity(document));
+        _informationPanel.Children.Add(BuildCanvasProductivity(document));
+        _informationPanel.Children.Add(BuildStudyProductivity(document));
+        _informationPanel.Children.Add(BuildCollaborationTools(document));
+    }
+
+    private Control BuildCrossReferenceTools(NotesDocument document)
+    {
+        var blocks = document.Sections
+            .SelectMany(section => section.Pages)
+            .SelectMany(page => page.Blocks)
+            .ToArray();
+        var labels = blocks.Select(BlockLabel).ToArray();
+        var target = new ComboBox { ItemsSource = labels, SelectedIndex = labels.Length > 1 ? 1 : 0 };
+        var kind = new ComboBox
+        {
+            ItemsSource = new[] { "Reference", "Equation", "Table", "Figure", "Heading", "Bookmark" },
+            SelectedIndex = 0
+        };
+        var label = new TextBox { Watermark = "Displayed label" };
+        var add = ActionButton("Add cross-reference", () =>
+        {
+            if (_viewModel.SelectedBlock is not { } source || target.SelectedIndex < 0 || target.SelectedIndex >= blocks.Length)
+                return Task.CompletedTask;
+            var destination = blocks[target.SelectedIndex];
+            if (source.Id == destination.Id)
+            {
+                _status.Text = "Choose a different target block.";
+                return Task.CompletedTask;
+            }
+            MutateAdvancedState(document, state => state.CrossReferences.Add(new NotesCrossReference
+            {
+                SourceBlockId = source.Id,
+                TargetBlockId = destination.Id,
+                Kind = kind.SelectedItem as string ?? "Reference",
+                Label = string.IsNullOrWhiteSpace(label.Text) ? BlockLabel(destination) : label.Text.Trim()
+            }), "Added document cross-reference");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Create a durable reference from the selected block to another block");
+        RefreshCrossReferences(document);
+        return ToolCard("Cross-references", new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                Labeled("Target", target),
+                Labeled("Kind", kind),
+                label,
+                add,
+                _crossReferencesPanel
+            }
+        });
+    }
+
+    private Control BuildEquationProductivity(NotesDocument document)
+    {
+        var block = _viewModel.SelectedBlock;
+        var equation = block?.Equation;
+        var templates = NotesEquationTools.Templates.ToArray();
+        var template = new ComboBox
+        {
+            ItemsSource = templates.Select(item => item.Name + " · " + item.Category).ToArray(),
+            SelectedIndex = 0,
+            IsEnabled = equation is not null
+        };
+        var symbolSearch = new TextBox { Text = _equationSymbolQuery, Watermark = "Search symbols or LaTeX commands" };
+        var symbols = new WrapPanel();
+        void RefreshSymbols()
+        {
+            symbols.Children.Clear();
+            foreach (var symbol in NotesEquationTools.SearchSymbols(_equationSymbolQuery).Take(40))
+            {
+                symbols.Children.Add(ActionButton(symbol.Glyph + " " + symbol.Command, () =>
+                {
+                    if (block?.Equation is null) return Task.CompletedTask;
+                    var source = block.Equation.Source + symbol.Command;
+                    _viewModel.UpdateEquation(block, source, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+                    RefreshAll();
+                    return Task.CompletedTask;
+                }, symbol.Name + " · " + symbol.Category));
+            }
+        }
+        symbolSearch.TextChanged += (_, _) =>
+        {
+            _equationSymbolQuery = symbolSearch.Text ?? string.Empty;
+            RefreshSymbols();
+        };
+        RefreshSymbols();
+
+        var actions = new WrapPanel();
+        actions.Children.Add(ActionButton("Insert template", () =>
+        {
+            if (block?.Equation is null || template.SelectedIndex < 0 || template.SelectedIndex >= templates.Length)
+                return Task.CompletedTask;
+            var selected = templates[template.SelectedIndex];
+            var source = string.IsNullOrWhiteSpace(block.Equation.Source)
+                ? selected.Latex
+                : block.Equation.Source + " " + selected.Latex;
+            _viewModel.UpdateEquation(block, source, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Insert a source-preserving visual equation template"));
+        actions.Children.Add(ActionButton("Expand input", () =>
+        {
+            if (block?.Equation is null) return Task.CompletedTask;
+            var expanded = NotesEquationTools.ExpandIntelligentInput(block.Equation.Source);
+            _viewModel.UpdateEquation(block, expanded, block.Equation.ViewMode, block.Equation.AccessibleAlternative);
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Expand exact intelligent-input shortcuts such as sqrt, sum, int and alpha"));
+        actions.Children.Add(ActionButton("Save to library", () =>
+        {
+            if (block?.Equation is null) return Task.CompletedTask;
+            MutateAdvancedState(document, state => state.EquationLibrary.Add(new NotesEquationLibraryEntry
+            {
+                Name = string.IsNullOrWhiteSpace(block.Equation.Label)
+                    ? "Equation " + (state.EquationLibrary.Count + 1)
+                    : block.Equation.Label,
+                Description = block.Equation.AccessibleAlternative,
+                Latex = block.Equation.Source,
+                Category = "Document"
+            }), "Saved equation to personal document library");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Save the selected editable equation in this document's native library"));
+        actions.Children.Add(ActionButton("Export equation", () => ExportSelectedEquationAsync(), "Export selected equation as LaTeX, MathML or accessible SVG"));
+
+        var macroName = new TextBox { Watermark = @"Macro name, e.g. \R", IsEnabled = equation is not null };
+        var macroValue = new TextBox { Watermark = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
+        var addMacro = ActionButton("Add macro", () =>
+        {
+            if (block?.Equation is null) return Task.CompletedTask;
+            var candidate = new Dictionary<string, string>(block.Equation.Macros, StringComparer.Ordinal)
+            {
+                [macroName.Text?.Trim() ?? string.Empty] = macroValue.Text ?? string.Empty
+            };
+            var errors = NotesEquationTools.ValidateMacros(candidate);
+            if (errors.Count > 0)
+            {
+                _status.Text = string.Join(" ", errors);
+                return Task.CompletedTask;
+            }
+            _viewModel.BeginBlockEdit(block);
+            block.Equation.Macros = candidate;
+            _viewModel.CommitBlockEdit(block, "Added equation macro " + macroName.Text?.Trim());
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Add a validated document-level equation macro");
+        addMacro.IsEnabled = equation is not null;
+
+        RefreshEquationLibrary(document);
+        return ToolCard("Equation tools", new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = equation is null
+                        ? "Select an equation block to insert templates, symbols, macros or exports."
+                        : "Source remains authoritative. Visual helpers insert reviewable LaTeX and never replace valid source silently.",
+                    Classes = { "muted2" },
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 9
+                },
+                Labeled("Template", template),
+                actions,
+                symbolSearch,
+                symbols,
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 5,
+                    Children = { macroName, WithColumn(macroValue, 1) }
+                },
+                addMacro,
+                _equationLibraryPanel
+            }
+        });
+    }
+
+    private Control BuildCanvasProductivity(NotesDocument document)
+    {
+        var block = _viewModel.SelectedBlock;
+        var canvas = block?.Canvas;
+        if (canvas is null)
+        {
+            return ToolCard("Canvas geometry", new TextBlock
+            {
+                Text = "Select a canvas block to manage geometry, connectors and spatial bookmarks.",
+                Classes = { "muted2" },
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 9
+            });
+        }
+
+        var objects = canvas.Objects.ToArray();
+        var objectNames = objects.Select(ObjectLabel).ToArray();
+        var selected = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 0 ? 0 : -1 };
+        var x = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
+        var y = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
+        var width = new NumericUpDown { Minimum = 8, Maximum = 1_000_000 };
+        var height = new NumericUpDown { Minimum = 8, Maximum = 1_000_000 };
+        var rotation = new NumericUpDown { Minimum = -360_000, Maximum = 360_000 };
+        var locked = new CheckBox { Content = "Locked" };
+        var grid = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = 10 };
+        var ready = false;
+        void LoadSelection()
+        {
+            ready = false;
+            if (selected.SelectedIndex >= 0 && selected.SelectedIndex < objects.Length)
+            {
+                var value = objects[selected.SelectedIndex];
+                x.Value = (decimal)value.X;
+                y.Value = (decimal)value.Y;
+                width.Value = (decimal)value.Width;
+                height.Value = (decimal)value.Height;
+                rotation.Value = (decimal)value.Rotation;
+                locked.IsChecked = value.Locked;
+            }
+            ready = true;
+        }
+        selected.SelectionChanged += (_, _) => LoadSelection();
+        LoadSelection();
+
+        var apply = ActionButton("Apply geometry", () =>
+        {
+            if (!ready || selected.SelectedIndex < 0 || selected.SelectedIndex >= objects.Length) return Task.CompletedTask;
+            var value = objects[selected.SelectedIndex];
+            _viewModel.BeginBlockEdit(block!);
+            value.Locked = locked.IsChecked == true;
+            if (!value.Locked)
+            {
+                NotesCanvasOperations.Move(value, (double)(x.Value ?? 0), (double)(y.Value ?? 0), (double)(grid.Value ?? 0));
+                NotesCanvasOperations.Resize(value, (double)(width.Value ?? 160), (double)(height.Value ?? 100), (double)(grid.Value ?? 0));
+                NotesCanvasOperations.Rotate(value, (double)(rotation.Value ?? 0));
+            }
+            _viewModel.CommitBlockEdit(block!, "Changed canvas object geometry");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Apply snapped position, size, rotation and lock state to the selected canvas object");
+
+        var from = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 0 ? 0 : -1 };
+        var to = new ComboBox { ItemsSource = objectNames, SelectedIndex = objectNames.Length > 1 ? 1 : -1 };
+        var connectorLabel = new TextBox { Watermark = "Connector label" };
+        var connect = ActionButton("Connect objects", () =>
+        {
+            if (from.SelectedIndex < 0 || to.SelectedIndex < 0
+                || from.SelectedIndex >= objects.Length || to.SelectedIndex >= objects.Length)
+                return Task.CompletedTask;
+            try
+            {
+                _viewModel.BeginBlockEdit(block!);
+                var connector = NotesCanvasOperations.Connect(objects[from.SelectedIndex], objects[to.SelectedIndex], connectorLabel.Text ?? string.Empty);
+                connector.ZIndex = canvas.Objects.Count == 0 ? 0 : canvas.Objects.Max(value => value.ZIndex) + 1;
+                canvas.Objects.Add(connector);
+                _viewModel.CommitBlockEdit(block!, "Connected canvas objects");
+                RefreshAll();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _status.Text = ex.Message;
+            }
+            return Task.CompletedTask;
+        }, "Create an editable connector between two canvas objects");
+
+        var bookmarkName = new TextBox { Watermark = "Spatial bookmark name" };
+        var addBookmark = ActionButton("Add canvas bookmark", () =>
+        {
+            MutateAdvancedState(document, state => state.CanvasBookmarks.Add(new NotesCanvasBookmarkEntry
+            {
+                PageId = _viewModel.CurrentPage?.Id ?? Guid.Empty,
+                Name = string.IsNullOrWhiteSpace(bookmarkName.Text)
+                    ? "Canvas view " + (state.CanvasBookmarks.Count + 1)
+                    : bookmarkName.Text.Trim(),
+                X = canvas.OffsetX,
+                Y = canvas.OffsetY,
+                Zoom = canvas.Zoom
+            }), "Added canvas spatial bookmark");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Save the current pan and zoom position inside the native document");
+
+        var grouping = new WrapPanel();
+        grouping.Children.Add(ActionButton("Group unlocked", () =>
+        {
+            _viewModel.BeginBlockEdit(block!);
+            NotesCanvasOperations.Group(canvas.Objects.Where(value => !value.Locked));
+            _viewModel.CommitBlockEdit(block!, "Grouped canvas objects");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Group all currently unlocked canvas objects"));
+        grouping.Children.Add(ActionButton("Ungroup all", () =>
+        {
+            _viewModel.BeginBlockEdit(block!);
+            NotesCanvasOperations.Ungroup(canvas.Objects);
+            _viewModel.CommitBlockEdit(block!, "Ungrouped canvas objects");
+            RefreshAll();
+            return Task.CompletedTask;
+        }, "Remove group IDs from all unlocked canvas objects"));
+
+        var bounds = NotesCanvasOperations.Bounds(canvas.Objects);
+        RefreshCanvasBookmarks(document, canvas);
+        return ToolCard("Canvas geometry", new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = $"{canvas.Objects.Count} objects · {canvas.Strokes.Count} editable strokes · bounds {bounds.Width:0}×{bounds.Height:0}",
+                    Classes = { "muted" },
+                    FontSize = 9
+                },
+                Labeled("Object", selected),
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 5,
+                    Children = { Labeled("X", x), WithColumn(Labeled("Y", y), 1) }
+                },
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 5,
+                    Children = { Labeled("Width", width), WithColumn(Labeled("Height", height), 1) }
+                },
+                Labeled("Rotation", rotation),
+                Labeled("Snap grid (0 disables)", grid),
+                locked,
+                apply,
+                grouping,
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 5,
+                    Children = { Labeled("From", from), WithColumn(Labeled("To", to), 1) }
+                },
+                connectorLabel,
+                connect,
+                bookmarkName,
+                addBookmark,
+                _canvasBookmarksPanel
+            }
+        });
+    }
+
+    private Control BuildStudyProductivity(NotesDocument document)
+    {
+        var block = _viewModel.SelectedBlock;
+        var card = block?.Flashcard;
+        var state = LoadAdvancedState(document);
+        var dailyTarget = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.DailyTarget };
+        var newLimit = new NumericUpDown { Minimum = 0, Maximum = 10_000, Value = state.Study.NewCardLimit };
+        var sessionLimit = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.MaximumCardsPerSession };
+        var shuffle = new CheckBox { Content = "Shuffle study order", IsChecked = state.Study.Shuffle };
+        var mistakes = new CheckBox { Content = "Review mistakes only", IsChecked = state.Study.ReviewMistakesOnly };
+        var cram = new CheckBox { Content = "Cram mode", IsChecked = state.Study.CramMode };
+        var ready = false;
+        void CommitPreferences()
+        {
+            if (!ready) return;
+            MutateAdvancedState(document, value =>
+            {
+                value.Study.DailyTarget = (int)(dailyTarget.Value ?? 20);
+                value.Study.NewCardLimit = (int)(newLimit.Value ?? 10);
+                value.Study.MaximumCardsPerSession = (int)(sessionLimit.Value ?? 50);
+                value.Study.Shuffle = shuffle.IsChecked == true;
+                value.Study.ReviewMistakesOnly = mistakes.IsChecked == true;
+                value.Study.CramMode = cram.IsChecked == true;
+            }, "Changed flashcard study preferences");
+        }
+        dailyTarget.ValueChanged += (_, _) => CommitPreferences();
+        newLimit.ValueChanged += (_, _) => CommitPreferences();
+        sessionLimit.ValueChanged += (_, _) => CommitPreferences();
+        shuffle.IsCheckedChanged += (_, _) => CommitPreferences();
+        mistakes.IsCheckedChanged += (_, _) => CommitPreferences();
+        cram.IsCheckedChanged += (_, _) => CommitPreferences();
+        ready = true;
+
+        var panel = new StackPanel
+        {
+            Spacing = 5,
+            Children =
+            {
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+                    ColumnSpacing = 5,
+                    Children =
+                    {
+                        Labeled("Daily target", dailyTarget),
+                        WithColumn(Labeled("New cards", newLimit), 1),
+                        WithColumn(Labeled("Session maximum", sessionLimit), 2)
+                    }
+                },
+                shuffle,
+                mistakes,
+                cram
+            }
+        };
+
+        if (card is not null)
+        {
+            panel.Children.Insert(0, new TextBlock
+            {
+                Text = NotesStudyTools.ExplainDueReason(card, DateTimeOffset.Now),
+                Classes = { "muted" },
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 9
+            });
+            var answer = new TextBox { Watermark = "Write or type your answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
+            var confidence = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, TickFrequency = 0.1 };
+            var hints = new NumericUpDown { Minimum = 0, Maximum = 100, Value = 0 };
+            var mark = new ComboBox { ItemsSource = new[] { "Correct", "Partly correct", "Incorrect" }, SelectedIndex = 0 };
+            var record = ActionButton("Record self-marked attempt", () =>
+            {
+                MutateAdvancedState(document, value =>
+                {
+                    var attempt = NotesStudyTools.BeginAttempt(value, card, block!.Id, confidence.Value);
+                    NotesStudyTools.CompleteAttempt(
+                        attempt,
+                        answer.Text ?? string.Empty,
+                        mark.SelectedItem as string ?? "Unmarked",
+                        (int)(hints.Value ?? 0),
+                        DateTimeOffset.UtcNow);
+                }, "Recorded flashcard self-marking attempt");
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Store the learner answer, confidence, hints, correctness and response time in the native document");
+            panel.Children.Add(new TextBlock { Text = "SELF-MARKING", Classes = { "eyebrow" }, Margin = new Thickness(0, 6, 0, 0) });
+            panel.Children.Add(answer);
+            panel.Children.Add(Labeled("Confidence", confidence));
+            panel.Children.Add(Labeled("Hints used", hints));
+            panel.Children.Add(Labeled("Mark after revealing", mark));
+            panel.Children.Add(record);
+        }
+        else
+        {
+            panel.Children.Insert(0, new TextBlock
+            {
+                Text = "Select a flashcard block to record an answer and self-mark it.",
+                Classes = { "muted2" },
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 9
+            });
+        }
+        RefreshStudyAttempts(document, card?.CardId);
+        panel.Children.Add(_studyAttemptsPanel);
+        return ToolCard("Study and self-marking", panel);
+    }
+
+    private Control BuildCollaborationTools(NotesDocument document)
+    {
+        RefreshConflicts(document);
+        return ToolCard("Collaboration conflicts", new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = "Conflict metadata is local-first and reviewable. No remote value is applied until a resolution is selected.",
+                    Classes = { "muted2" },
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 9
+                },
+                _conflictsPanel
+            }
+        });
+    }
+
+    private void RefreshCrossReferences(NotesDocument document)
+    {
+        _crossReferencesPanel.Children.Clear();
+        var state = LoadAdvancedState(document);
+        var existingIds = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).Select(block => block.Id).ToHashSet();
+        foreach (var reference in state.CrossReferences)
+        {
+            reference.IsBroken = !existingIds.Contains(reference.SourceBlockId) || !existingIds.Contains(reference.TargetBlockId);
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
+            row.Children.Add(new TextBlock
+            {
+                Text = reference.Label + (reference.IsBroken ? " · broken" : " · " + reference.Kind),
+                Classes = { reference.IsBroken ? "muted2" : "muted" },
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 9
+            });
+            row.Children.Add(WithColumn(ActionButton("Open", () =>
+            {
+                NavigateToBlock(reference.TargetBlockId);
+                return Task.CompletedTask;
+            }, "Open reference target"), 1));
+            row.Children.Add(WithColumn(ActionButton("×", () =>
+            {
+                MutateAdvancedState(document, value =>
+                {
+                    var target = value.CrossReferences.FirstOrDefault(item => item.Id == reference.Id);
+                    if (target is not null) value.CrossReferences.Remove(target);
+                }, "Removed document cross-reference");
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Remove cross-reference", danger: true), 2));
+            _crossReferencesPanel.Children.Add(row);
+        }
+        if (state.CrossReferences.Count == 0)
+            _crossReferencesPanel.Children.Add(new TextBlock { Text = "No cross-references.", Classes = { "muted2" }, FontSize = 9 });
+    }
+
+    private void RefreshEquationLibrary(NotesDocument document)
+    {
+        _equationLibraryPanel.Children.Clear();
+        var state = LoadAdvancedState(document);
+        foreach (var entry in state.EquationLibrary.OrderByDescending(value => value.IsFavourite).ThenBy(value => value.Name))
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
+            row.Children.Add(new TextBlock
+            {
+                Text = (entry.IsFavourite ? "★ " : string.Empty) + entry.Name + " · " + entry.Latex,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Classes = { "muted" },
+                FontSize = 9
+            });
+            row.Children.Add(WithColumn(ActionButton("Insert", () =>
+            {
+                if (_viewModel.SelectedBlock is not { Equation: { } equation } block) return Task.CompletedTask;
+                _viewModel.UpdateEquation(block, entry.Latex, equation.ViewMode, equation.AccessibleAlternative);
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Insert this saved editable equation"), 1));
+            row.Children.Add(WithColumn(ActionButton("×", () =>
+            {
+                MutateAdvancedState(document, value =>
+                {
+                    var target = value.EquationLibrary.FirstOrDefault(item => item.Id == entry.Id);
+                    if (target is not null) value.EquationLibrary.Remove(target);
+                }, "Removed equation library entry");
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Remove equation from document library", danger: true), 2));
+            _equationLibraryPanel.Children.Add(row);
+        }
+        if (state.EquationLibrary.Count == 0)
+            _equationLibraryPanel.Children.Add(new TextBlock { Text = "No saved equations in this document.", Classes = { "muted2" }, FontSize = 9 });
+    }
+
+    private void RefreshCanvasBookmarks(NotesDocument document, NotesCanvasData canvas)
+    {
+        _canvasBookmarksPanel.Children.Clear();
+        var pageId = _viewModel.CurrentPage?.Id;
+        var state = LoadAdvancedState(document);
+        foreach (var bookmark in state.CanvasBookmarks.Where(value => value.PageId == pageId))
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
+            row.Children.Add(new TextBlock { Text = bookmark.Name + $" · {bookmark.Zoom:P0}", Classes = { "muted" }, FontSize = 9 });
+            row.Children.Add(WithColumn(ActionButton("Open", () =>
+            {
+                _viewModel.BeginBlockEdit(_viewModel.SelectedBlock!);
+                canvas.OffsetX = bookmark.X;
+                canvas.OffsetY = bookmark.Y;
+                canvas.Zoom = bookmark.Zoom;
+                _viewModel.CommitBlockEdit(_viewModel.SelectedBlock!, "Opened canvas spatial bookmark");
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Restore this pan and zoom position"), 1));
+            row.Children.Add(WithColumn(ActionButton("×", () =>
+            {
+                MutateAdvancedState(document, value =>
+                {
+                    var target = value.CanvasBookmarks.FirstOrDefault(item => item.Id == bookmark.Id);
+                    if (target is not null) value.CanvasBookmarks.Remove(target);
+                }, "Removed canvas spatial bookmark");
+                RefreshAll();
+                return Task.CompletedTask;
+            }, "Remove canvas bookmark", danger: true), 2));
+            _canvasBookmarksPanel.Children.Add(row);
+        }
+        if (_canvasBookmarksPanel.Children.Count == 0)
+            _canvasBookmarksPanel.Children.Add(new TextBlock { Text = "No spatial bookmarks for this page.", Classes = { "muted2" }, FontSize = 9 });
+    }
+
+    private void RefreshStudyAttempts(NotesDocument document, Guid? cardId)
+    {
+        _studyAttemptsPanel.Children.Clear();
+        var state = LoadAdvancedState(document);
+        var attempts = state.StudyAttempts
+            .Where(attempt => cardId is null || attempt.CardId == cardId)
+            .OrderByDescending(attempt => attempt.StartedAt)
+            .Take(20)
+            .ToArray();
+        foreach (var attempt in attempts)
+        {
+            _studyAttemptsPanel.Children.Add(new TextBlock
+            {
+                Text = $"{attempt.StartedAt.LocalDateTime:g} · {attempt.Correctness} · confidence {attempt.Confidence:P0} · {attempt.ResponseTime.TotalSeconds:0.#}s · {attempt.HintsUsed} hint{(attempt.HintsUsed == 1 ? string.Empty : "s")}\n{attempt.AttemptText}",
+                Classes = { "muted" },
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 9
+            });
+        }
+        if (attempts.Length == 0)
+            _studyAttemptsPanel.Children.Add(new TextBlock { Text = "No recorded study attempts in this scope.", Classes = { "muted2" }, FontSize = 9 });
+    }
+
+    private void RefreshConflicts(NotesDocument document)
+    {
+        _conflictsPanel.Children.Clear();
+        foreach (var conflict in document.Collaboration.Conflicts.OrderByDescending(value => value.DetectedAt))
+        {
+            var panel = new StackPanel { Spacing = 4 };
+            panel.Children.Add(new TextBlock
+            {
+                Text = conflict.ResolvedAt is null ? "Open conflict" : "Resolved conflict",
+                FontWeight = FontWeight.SemiBold
+            });
+            panel.Children.Add(new TextBlock { Text = "Local: " + conflict.LocalValue, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9 });
+            panel.Children.Add(new TextBlock { Text = "Remote: " + conflict.RemoteValue, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9 });
+            if (conflict.ResolvedAt is null)
+            {
+                var actions = new WrapPanel();
+                actions.Children.Add(ActionButton("Keep local", () => ResolveConflict(document, conflict, "local"), "Resolve this conflict with the local value"));
+                actions.Children.Add(ActionButton("Keep remote", () => ResolveConflict(document, conflict, "remote"), "Resolve this conflict with the remote value"));
+                panel.Children.Add(actions);
+            }
+            else
+            {
+                panel.Children.Add(new TextBlock { Text = "Resolution: " + conflict.Resolution, Classes = { "muted2" }, FontSize = 9 });
+            }
+            _conflictsPanel.Children.Add(Card(panel));
+        }
+        if (document.Collaboration.Conflicts.Count == 0)
+            _conflictsPanel.Children.Add(new TextBlock { Text = "No collaboration conflicts.", Classes = { "muted2" }, FontSize = 9 });
+    }
+
+    private Task ResolveConflict(NotesDocument document, NotesConflict conflict, string resolution)
+    {
+        var anchor = BeginWholeDocumentEdit();
+        if (anchor is null) return Task.CompletedTask;
+        var revisionsBefore = document.Revisions.Count;
+        NotesCollaborationTools.ResolveConflict(document, conflict, resolution);
+        RemoveServiceRevisions(document, revisionsBefore);
+        CompleteWholeDocumentEdit(anchor, changed: true, "Resolved collaboration conflict");
+        RefreshAll();
+        return Task.CompletedTask;
+    }
+
+    private async Task ExportSelectedEquationAsync()
+    {
+        if (_viewModel.SelectedBlock?.Equation is not { } equation) return;
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export equation",
+            SuggestedFileName = "equation.tex",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("LaTeX source") { Patterns = ["*.tex"] },
+                new FilePickerFileType("MathML") { Patterns = ["*.mathml", "*.xml"] },
+                new FilePickerFileType("Accessible SVG") { Patterns = ["*.svg"] },
+                new FilePickerFileType("Plain text") { Patterns = ["*.txt"] }
+            ]
+        });
+        var path = file?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        var content = extension switch
+        {
+            ".mathml" or ".xml" => NotesEquationTools.ToMathMl(equation),
+            ".svg" => NotesEquationTools.ToSvg(equation),
+            ".txt" => string.IsNullOrWhiteSpace(equation.AccessibleAlternative) ? equation.RenderedText : equation.AccessibleAlternative,
+            _ => equation.Source
+        };
+        await File.WriteAllTextAsync(path, content);
+        _status.Text = "Exported editable equation content.";
+    }
+
+    private static string BlockLabel(NotesBlock block)
+    {
+        var text = block.PlainText;
+        if (string.IsNullOrWhiteSpace(text)) text = block.Equation?.Label;
+        if (string.IsNullOrWhiteSpace(text)) text = block.Flashcard?.Front;
+        if (string.IsNullOrWhiteSpace(text)) text = block.Media?.Caption;
+        text = string.IsNullOrWhiteSpace(text) ? block.Kind.ToString() : text.ReplaceLineEndings(" ").Trim();
+        return block.Kind + " · " + text[..Math.Min(text.Length, 48)];
+    }
+
+    private static string ObjectLabel(NotesCanvasObject value)
+    {
+        var text = string.IsNullOrWhiteSpace(value.Text) ? value.Kind.ToString() : value.Text.ReplaceLineEndings(" ").Trim();
+        return text[..Math.Min(text.Length, 56)];
+    }
+}
