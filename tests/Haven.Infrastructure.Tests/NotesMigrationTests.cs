@@ -98,7 +98,7 @@ public sealed class NotesMigrationTests : IDisposable
         Assert.Contains("Migrated content", loaded.Sections[0].Pages[0].Blocks[0].PlainText);
         Assert.NotEmpty(versions);
         Assert.True(File.Exists(Path.Combine(directory, "current.integrity.json")));
-        Assert.True(File.Exists(Path.Combine(directory, "current.backup.haven-notes.json")));
+        Assert.True(File.Exists(Path.Combine(directory, "backup.haven-notes.json")));
         using var json = JsonDocument.Parse(await File.ReadAllTextAsync(current));
         Assert.Equal(NotesDocument.CurrentSchemaVersion, json.RootElement.GetProperty("schemaVersion").GetInt32());
     }
