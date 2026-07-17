@@ -224,33 +224,72 @@ public sealed class GeminiModelProvider(
         return result;
     }
 
-    private static IReadOnlyList<object> BuildToolContents(IReadOnlyList<OllamaToolTurn> messages)
+    internal static IReadOnlyList<object> BuildToolContents(IReadOnlyList<OllamaToolTurn> messages)
     {
-        var result = new List<object>();
-        foreach (var message in messages)
+        var correlated = ProviderToolTurnCorrelation.Correlate(messages, "gemini_haven");
+        var result = new List<object>(correlated.Count);
+
+        for (var index = 0; index < correlated.Count; index++)
         {
-            if (message.ToolCalls is { Count: > 0 })
+            var current = correlated[index];
+            var message = current.Turn;
+
+            if (current.Calls.Count > 0)
             {
-                result.Add(new
+                var parts = new List<object>();
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                    parts.Add(new { text = message.Content });
+                parts.AddRange(current.Calls.Select(value => (object)new
                 {
-                    role = "model",
-                    parts = message.ToolCalls.Select(call => new { functionCall = new { name = call.Name, args = call.Arguments } })
-                });
+                    functionCall = new
+                    {
+                        id = value.Id,
+                        name = value.Call.Name,
+                        args = value.Call.Arguments
+                    }
+                }));
+                result.Add(new { role = "model", parts });
                 continue;
             }
-            if (!string.IsNullOrWhiteSpace(message.ToolName))
+
+            if (current.ResultCallId is not null)
             {
-                result.Add(new
+                var parts = new List<object>();
+                while (index < correlated.Count && correlated[index].ResultCallId is not null)
                 {
-                    role = "user",
-                    parts = new[] { new { functionResponse = new { name = message.ToolName, response = ParseToolResponse(message.Content) } } }
-                });
+                    var toolResult = correlated[index];
+                    parts.Add(new
+                    {
+                        functionResponse = new
+                        {
+                            id = toolResult.ResultCallId,
+                            name = toolResult.Turn.ToolName,
+                            response = ParseToolResponse(toolResult.Turn.Content)
+                        }
+                    });
+                    index++;
+                }
+                index--;
+                result.Add(new { role = "user", parts });
                 continue;
             }
+
             var role = MapRole(message.Role);
             if (role is null) continue;
-            result.Add(new { role, parts = new[] { new { text = message.Content } } });
+            var normalParts = new List<object>();
+            if (!string.IsNullOrWhiteSpace(message.Content))
+                normalParts.Add(new { text = message.Content });
+            if (message.Images is { Count: > 0 })
+            {
+                normalParts.AddRange(message.Images.Select(image => (object)new
+                {
+                    inlineData = new { mimeType = "image/jpeg", data = image }
+                }));
+            }
+            if (normalParts.Count > 0)
+                result.Add(new { role, parts = normalParts });
         }
+
         return result;
     }
 
