@@ -113,7 +113,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
         services.AddSingleton<IModelRouter, ModelRouter>();
         services.AddSingleton<ProviderRoutingModelClient>();
-        services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ProviderRoutingModelClient>());
+        services.AddSingleton<ResilientProviderRoutingModelClient>();
+        services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ResilientProviderRoutingModelClient>());
         services.AddSingleton<INotesAiService>(provider => new NotesAiService(
             provider.GetRequiredService<IProviderModelClient>(),
             provider.GetRequiredService<IProductionDiagnostics>()));
