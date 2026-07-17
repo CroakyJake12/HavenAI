@@ -21,11 +21,39 @@ public sealed class NotesReadAloudControllerTests
 
             Assert.Equal("Selected paragraph.", speech.LastText);
             Assert.Equal("default-output", speech.LastOutputDeviceId);
+            Assert.Null(speech.LastVoiceName);
             Assert.False(controller.IsActive);
             Assert.Contains(diagnostics.Events, value =>
                 value.EventName == "read-aloud-completed"
                 && value.Data.TryGetValue("networkContentSent", out var sent)
                 && sent.Equals(bool.FalseString, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            await controller.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task LanguageMatchedVoiceIdentifierIsPassedToSpeechService()
+    {
+        var speech = new FakeSpeechOutputService
+        {
+            AvailableVoices =
+            [
+                new CallVoice("voice-en-us", "English US", "en-US", true),
+                new CallVoice("voice-en-gb", "English UK", "en-GB", false)
+            ]
+        };
+        var controller = new NotesReadAloudController(
+            speech,
+            new FakeCallCoordinator(),
+            new RecordingDiagnostics());
+        try
+        {
+            await controller.ReadAsync("Selected paragraph.", "en-GB", CancellationToken.None);
+
+            Assert.Equal("voice-en-gb", speech.LastVoiceName);
         }
         finally
         {
@@ -109,23 +137,26 @@ public sealed class NotesReadAloudControllerTests
         public int SpeakCalls { get; private set; }
         public int StopCalls { get; private set; }
         public string LastText { get; private set; } = string.Empty;
+        public string? LastVoiceName { get; private set; }
         public string? LastOutputDeviceId { get; private set; }
         public CancellationToken LastSpeakCancellation { get; private set; }
         public TaskCompletionSource SpeakStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool IsAvailable => true;
         public string? UnavailableReason => null;
-        public IReadOnlyList<CallVoice> Voices => [];
-        public IReadOnlyList<CallAudioDevice> OutputDevices { get; } =
+        public IReadOnlyList<CallVoice> AvailableVoices { get; init; } = [];
+        public IReadOnlyList<CallVoice> Voices => AvailableVoices;
+        public IReadOnlyList<CallAudioDevice> Devices { get; } =
             [new("default-output", "Default speakers", true)];
 
         public async Task SpeakAsync(
             string text,
-            CallVoice? voice,
+            string? voiceName,
             string? outputDeviceId,
             CancellationToken cancellationToken)
         {
             SpeakCalls++;
             LastText = text;
+            LastVoiceName = voiceName;
             LastOutputDeviceId = outputDeviceId;
             LastSpeakCancellation = cancellationToken;
             SpeakStarted.TrySetResult();
