@@ -31,7 +31,7 @@ public sealed partial class NotesWorkspaceView
         {
             ItemsSource = _viewModel.Models,
             SelectedItem = _viewModel.SelectedModelName,
-            Watermark = "Choose model"
+            PlaceholderText = "Choose model"
         };
         model.SelectionChanged += (_, _) => _viewModel.SelectedModelName = model.SelectedItem as string ?? string.Empty;
         _aiPanel.Children.Add(model);
@@ -366,9 +366,9 @@ public sealed partial class NotesWorkspaceView
         {
             if (!ready) return;
             BeginDocumentMetadataEdit();
-            document.PageSetup.WidthPoints = (double)(width.Value ?? 595);
-            document.PageSetup.HeightPoints = (double)(height.Value ?? 842);
-            var margin = (double)(margins.Value ?? 72);
+            document.PageSetup.WidthPoints = (double)(width.Value ?? 595m);
+            document.PageSetup.HeightPoints = (double)(height.Value ?? 842m);
+            var margin = (double)(margins.Value ?? 72m);
             document.PageSetup.MarginTopPoints = margin;
             document.PageSetup.MarginRightPoints = margin;
             document.PageSetup.MarginBottomPoints = margin;
