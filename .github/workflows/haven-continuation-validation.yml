@@ -40,13 +40,16 @@ jobs:
       - name: Test Debug
         run: dotnet test Haven.sln -c Debug --no-build --logger "trx;LogFileName=haven-debug.trx"
 
+      - name: Build automation worker Debug
+        run: dotnet build src/Haven.AutomationWorker/Haven.AutomationWorker.csproj -c Debug --no-restore
+
       - name: Build Release
         run: dotnet build Haven.sln -c Release --no-restore
 
       - name: Test Release
         run: dotnet test Haven.sln -c Release --no-build --logger "trx;LogFileName=haven-release.trx"
 
-      - name: Build automation worker
+      - name: Build automation worker Release
         run: dotnet build src/Haven.AutomationWorker/Haven.AutomationWorker.csproj -c Release --no-restore
 
       - name: Upload test results
