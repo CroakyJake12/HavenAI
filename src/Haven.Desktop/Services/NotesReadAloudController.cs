@@ -50,8 +50,8 @@ public sealed class NotesReadAloudController(
                 throw new InvalidOperationException("Notes read aloud is already active. Stop it before starting another passage.");
 
             voice = SelectVoice(speech.Voices, language);
-            var output = speech.OutputDevices.FirstOrDefault(value => value.IsDefault)
-                         ?? speech.OutputDevices.FirstOrDefault();
+            var output = speech.Devices.FirstOrDefault(value => value.IsDefault)
+                         ?? speech.Devices.FirstOrDefault();
             outputDeviceId = output?.Id;
             linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _activeCancellation = linked;
@@ -67,7 +67,7 @@ public sealed class NotesReadAloudController(
         {
             await speech.SpeakAsync(
                 text.Trim(),
-                voice,
+                voice?.Id,
                 outputDeviceId,
                 linked.Token).ConfigureAwait(false);
             if (!linked.IsCancellationRequested)
