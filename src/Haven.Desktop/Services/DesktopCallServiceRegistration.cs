@@ -7,8 +7,8 @@ public static class DesktopCallServiceRegistration
 {
     /// <summary>
     /// Replaces infrastructure fallbacks with Windows desktop implementations while
-    /// preserving a single process-wide instance for Call, preview, Notes dictation
-    /// and interruption.
+    /// preserving a single process-wide instance for Call, preview, Notes dictation,
+    /// Notes read aloud and interruption.
     /// </summary>
     public static IServiceCollection AddHavenDesktopCallServices(this IServiceCollection services)
     {
@@ -20,6 +20,7 @@ public static class DesktopCallServiceRegistration
         services.AddSingleton<CallVoicePreviewController>();
         services.AddSingleton<CallCompletionController>();
         services.AddSingleton<NotesDictationController>();
+        services.AddSingleton<NotesReadAloudController>();
         return services;
     }
 }
