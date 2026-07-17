@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -17,32 +19,84 @@ public sealed partial class BrowserView : UserControl
     private NativeWebViewHost? _host;
     private BrowserPageViewModel? _viewModel;
     private BrowserUtilitiesControl? _utilities;
+    private NativeWebView _nativeBrowser = null!;
+    private BrowserPrivateProfileManager? _privateProfiles;
+    private Guid? _mountedTabId;
+    private bool _mountedPrivate;
+    private CancellationTokenSource _lifetime = new();
 
     public BrowserView()
     {
         InitializeComponent();
-        NativeBrowser.EnvironmentRequested += (_, args) => ConfigureEnvironment(args);
-        DataContextChanged += (_, _) =>
-        {
-            if (_viewModel is not null) _viewModel.ImportExtensionRequested -= OnImportExtensionRequested;
-            DetachBrowser();
-            _viewModel = DataContext as BrowserPageViewModel;
-            if (_viewModel is not null) _viewModel.ImportExtensionRequested += OnImportExtensionRequested;
-            if (_utilities is not null) _utilities.DataContext = DataContext;
-            EnsureUtilities();
-            AttachBrowser();
-        };
+        _nativeBrowser = NativeBrowser;
+        ConfigureEnvironmentForCurrentTab(_nativeBrowser);
+        DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPageViewModel);
         AttachedToVisualTree += (_, _) =>
         {
+            if (_lifetime.IsCancellationRequested)
+            {
+                _lifetime.Dispose();
+                _lifetime = new CancellationTokenSource();
+            }
             EnsureUtilities();
-            AttachBrowser();
+            _ = MountSelectedTabAsync();
         };
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        _lifetime.Cancel();
         DetachBrowser();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void ChangeViewModel(BrowserPageViewModel? next)
+    {
+        if (_viewModel is not null)
+        {
+            _viewModel.ImportExtensionRequested -= OnImportExtensionRequested;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.Tabs.CollectionChanged -= OnTabsChanged;
+        }
+
+        DetachBrowser();
+        _viewModel = next;
+        _privateProfiles = next is null ? null : new BrowserPrivateProfileManager(next.Browser.ProfileDirectory);
+        _mountedTabId = null;
+        _mountedPrivate = false;
+
+        if (_viewModel is not null)
+        {
+            _viewModel.ImportExtensionRequested += OnImportExtensionRequested;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.Tabs.CollectionChanged += OnTabsChanged;
+        }
+
+        if (_utilities is not null) _utilities.DataContext = DataContext;
+        EnsureUtilities();
+        _ = CleanupPrivateProfilesAsync();
+        _ = MountSelectedTabAsync();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(BrowserPageViewModel.SelectedTab) or nameof(BrowserPageViewModel.IsPrivate))
+            _ = MountSelectedTabAsync();
+    }
+
+    private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs args) => _ = CleanupPrivateProfilesAsync();
+
+    private async Task CleanupPrivateProfilesAsync()
+    {
+        if (_privateProfiles is null || _viewModel is null) return;
+        try
+        {
+            var active = _viewModel.Tabs.Where(tab => tab.IsPrivate).Select(tab => tab.Id).ToHashSet();
+            await _privateProfiles.CleanupOrphansAsync(active, _lifetime.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (IOException ex) { _viewModel.ReportBrowserError(new IOException("A private Browser profile could not be removed. Close other Browser processes and try again.", ex)); }
+        catch (UnauthorizedAccessException ex) { _viewModel.ReportBrowserError(new UnauthorizedAccessException("Haven could not remove a private Browser profile.", ex)); }
     }
 
     private void DetachBrowser()
@@ -75,10 +129,7 @@ public sealed partial class BrowserView : UserControl
         if (_utilities is not null) return;
         var addressBox = this.GetVisualDescendants()
             .OfType<TextBox>()
-            .FirstOrDefault(textBox => string.Equals(
-                textBox.PlaceholderText,
-                "Search or enter address",
-                StringComparison.Ordinal));
+            .FirstOrDefault(textBox => string.Equals(textBox.PlaceholderText, "Search or enter address", StringComparison.Ordinal));
         if (addressBox?.Parent is not Grid navigation) return;
 
         navigation.ColumnDefinitions.Insert(5, new ColumnDefinition(GridLength.Auto));
@@ -92,23 +143,57 @@ public sealed partial class BrowserView : UserControl
         navigation.Children.Add(_utilities);
     }
 
-    private void AttachBrowser()
+    private async Task MountSelectedTabAsync()
     {
-        if (_host is not null || !this.IsAttachedToVisualTree() || _viewModel is not { } vm) return;
+        if (!this.IsAttachedToVisualTree() || _viewModel?.SelectedTab is not { } tab) return;
+        if (_host is not null && _mountedTabId == tab.Id && _mountedPrivate == tab.IsPrivate) return;
 
         try
         {
-            Directory.CreateDirectory(vm.Browser.ProfileDirectory);
+            var token = _lifetime.Token;
+            token.ThrowIfCancellationRequested();
+            var profileDirectory = tab.IsPrivate
+                ? await (_privateProfiles ?? throw new InvalidOperationException("Private profile management is unavailable."))
+                    .CreateAsync(tab.Id, token).ConfigureAwait(false)
+                : _viewModel.Browser.ProfileDirectory;
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                ReplaceNativeBrowser(profileDirectory, tab.IsPrivate, tab.Id);
+                AttachBrowser();
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _viewModel.ReportBrowserError(ex); }
+    }
+
+    private void ReplaceNativeBrowser(string profileDirectory, bool isPrivate, Guid tabId)
+    {
+        DetachBrowser();
+        if (_nativeBrowser.Parent is not Border container)
+            throw new InvalidOperationException("The native Browser host container is unavailable.");
+
+        var replacement = new NativeWebView();
+        replacement.EnvironmentRequested += (_, args) => ConfigureEnvironment(args, profileDirectory, isPrivate, tabId);
+        container.Child = replacement;
+        _nativeBrowser = replacement;
+        _mountedTabId = tabId;
+        _mountedPrivate = isPrivate;
+    }
+
+    private void AttachBrowser()
+    {
+        if (_host is not null || !this.IsAttachedToVisualTree() || _viewModel is not { } vm) return;
+        try
+        {
             var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
             var permissions = BrowserSitePermissionStoreProvider.Get(services.GetRequiredService<IAppPaths>());
-            _host = new NativeWebViewHost(NativeBrowser, permissions);
+            _host = new NativeWebViewHost(_nativeBrowser, permissions);
             vm.Browser.Attach(_host);
             _ = vm.NavigateSafelyAsync();
         }
-        catch (Exception ex)
-        {
-            vm.ReportBrowserError(ex);
-        }
+        catch (Exception ex) { vm.ReportBrowserError(ex); }
     }
 
     private void OnAddressKeyDown(object? sender, KeyEventArgs e)
@@ -118,20 +203,32 @@ public sealed partial class BrowserView : UserControl
         e.Handled = true;
     }
 
-    private void ConfigureEnvironment(object arguments)
+    private void ConfigureEnvironmentForCurrentTab(NativeWebView webView)
     {
-        if (_viewModel is not { } vm) return;
-        Directory.CreateDirectory(vm.Browser.ProfileDirectory);
-        SetPlatformOption(arguments, "UserDataFolder", vm.Browser.ProfileDirectory);
-        SetPlatformOption(arguments, "ProfileName", "Haven");
+        webView.EnvironmentRequested += (_, args) =>
+        {
+            if (_viewModel?.SelectedTab is not { } tab) return;
+            var profile = tab.IsPrivate && _privateProfiles is not null
+                ? _privateProfiles.GetProfileDirectory(tab.Id)
+                : _viewModel.Browser.ProfileDirectory;
+            ConfigureEnvironment(args, profile, tab.IsPrivate, tab.Id);
+        };
     }
 
-    private static void SetPlatformOption(object target, string name, string value)
+    private static void ConfigureEnvironment(object arguments, string profileDirectory, bool isPrivate, Guid tabId)
+    {
+        Directory.CreateDirectory(profileDirectory);
+        SetPlatformOption(arguments, "UserDataFolder", profileDirectory);
+        SetPlatformOption(arguments, "ProfileName", isPrivate ? "Private-" + tabId.ToString("N") : "Haven");
+        SetPlatformOption(arguments, "InPrivateModeEnabled", isPrivate);
+    }
+
+    private static void SetPlatformOption(object target, string name, object value)
     {
         try
         {
             var property = target.GetType().GetProperty(name);
-            if (property?.CanWrite == true && property.PropertyType == typeof(string)) property.SetValue(target, value);
+            if (property?.CanWrite == true && property.PropertyType.IsInstanceOfType(value)) property.SetValue(target, value);
         }
         catch (Exception ex) when (ex is ArgumentException or System.Reflection.TargetInvocationException) { }
     }
@@ -172,39 +269,11 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task GoBackAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (_webView.CanGoBack) _webView.GoBack();
-        return Task.CompletedTask;
-    }
-
-    public Task GoForwardAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (_webView.CanGoForward) _webView.GoForward();
-        return Task.CompletedTask;
-    }
-
-    public Task ReloadAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        _webView.Refresh();
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        _webView.Stop();
-        return Task.CompletedTask;
-    }
-
-    public Task<string?> ExecuteScriptAsync(string script, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return _webView.InvokeScript(script);
-    }
+    public Task GoBackAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoBack) _webView.GoBack(); return Task.CompletedTask; }
+    public Task GoForwardAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoForward) _webView.GoForward(); return Task.CompletedTask; }
+    public Task ReloadAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Refresh(); return Task.CompletedTask; }
+    public Task StopAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Stop(); return Task.CompletedTask; }
+    public Task<string?> ExecuteScriptAsync(string script, CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return _webView.InvokeScript(script); }
 
     public async Task OpenDeveloperToolsAsync(CancellationToken cancellationToken)
     {
@@ -214,8 +283,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         if (adapter is not null) targets.Add(adapter);
         foreach (var target in targets)
         {
-            var method = target.GetType().GetMethods().FirstOrDefault(candidate =>
-                candidate.GetParameters().Length == 0 && candidate.Name is "OpenDevToolsWindow" or "OpenDeveloperTools" or "ShowDevTools");
+            var method = target.GetType().GetMethods().FirstOrDefault(candidate => candidate.GetParameters().Length == 0 && candidate.Name is "OpenDevToolsWindow" or "OpenDeveloperTools" or "ShowDevTools");
             if (method is null) continue;
             if (method.Invoke(target, null) is Task task) await task.ConfigureAwait(false);
             return;
@@ -240,8 +308,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     {
         if (_disposed) return;
         var assessment = BrowserNativeRequestPolicy.AssessTopLevel(args.Request);
-        if (args.IsSuccess && assessment.IsAllowed && args.Request.Scheme is "http" or "https")
-            _lastCommittedAddress = args.Request;
+        if (args.IsSuccess && assessment.IsAllowed && args.Request.Scheme is "http" or "https") _lastCommittedAddress = args.Request;
         Publish(Snapshot(args.IsSuccess ? args.Request.Host : "Navigation failed"));
     }
 
@@ -255,12 +322,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
             ? _permissions.GetDecision(requester, BrowserSitePermissionKind.WindowManagement)
             : BrowserSitePermissionDecision.Ask;
         var assessment = BrowserNativeRequestPolicy.AssessPopup(requester, args.Request, decision);
-        if (!assessment.IsAllowed)
-        {
-            Publish(_state with { Status = assessment.Reason });
-            return;
-        }
-
+        if (!assessment.IsAllowed) { Publish(_state with { Status = assessment.Reason }); return; }
         Publish(_state with { Address = args.Request, IsLoading = true, Status = "Opening approved popup in the current tab…" });
         _webView.Navigate(args.Request);
     }
@@ -275,51 +337,25 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     private void OnAdapterCreated(object? sender, WebViewAdapterEventArgs args)
     {
         if (_disposed) return;
-        if (!_adapterLost)
-        {
-            Publish(Snapshot("Native browser ready"));
-            return;
-        }
-
+        if (!_adapterLost) { Publish(Snapshot("Native browser ready")); return; }
         _adapterLost = false;
         if (!_recoveryLimiter.TryAcquire(DateTimeOffset.UtcNow))
         {
             Publish(_state with { IsLoading = false, Status = "Browser recovery paused after repeated adapter failures. Use Reload to try again." });
             return;
         }
-
         var restore = _lastCommittedAddress;
-        if (restore is null)
-        {
-            Publish(Snapshot("Browser adapter recovered."));
-            return;
-        }
-
+        if (restore is null) { Publish(Snapshot("Browser adapter recovered.")); return; }
         Publish(_state with { Address = restore, IsLoading = true, Status = "Browser adapter recovered. Restoring the last page…" });
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (!_disposed) _webView.Navigate(restore);
-        });
+        Dispatcher.UIThread.Post(() => { if (!_disposed) _webView.Navigate(restore); });
     }
 
-    private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(
-        _webView.Source,
-        _webView.Source?.Host ?? "Browser",
-        _webView.CanGoBack,
-        _webView.CanGoForward,
-        isLoading,
-        status);
+    private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(_webView.Source, _webView.Source?.Host ?? "Browser", _webView.CanGoBack, _webView.CanGoForward, isLoading, status);
 
     private void Publish(BrowserSnapshot state)
     {
-        void Update()
-        {
-            if (_disposed) return;
-            _state = state;
-            StateChanged?.Invoke(this, state);
-        }
-        if (Dispatcher.UIThread.CheckAccess()) Update();
-        else Dispatcher.UIThread.Post(Update);
+        void Update() { if (_disposed) return; _state = state; StateChanged?.Invoke(this, state); }
+        if (Dispatcher.UIThread.CheckAccess()) Update(); else Dispatcher.UIThread.Post(Update);
     }
 
     public void Dispose()
