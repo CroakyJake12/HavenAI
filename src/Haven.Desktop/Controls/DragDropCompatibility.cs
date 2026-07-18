@@ -11,6 +11,20 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 internal static class HavenDragDropCompatibility
 {
+    // The project-wide DragDrop alias also applies to routed-event registrations. Forward
+    // Avalonia's event fields so existing AddHandler/RemoveHandler calls keep compiling.
+    public static readonly RoutedEvent<DragEventArgs> DragEnterEvent =
+        Avalonia.Input.DragDrop.DragEnterEvent;
+
+    public static readonly RoutedEvent<DragEventArgs> DragLeaveEvent =
+        Avalonia.Input.DragDrop.DragLeaveEvent;
+
+    public static readonly RoutedEvent<DragEventArgs> DragOverEvent =
+        Avalonia.Input.DragDrop.DragOverEvent;
+
+    public static readonly RoutedEvent<DragEventArgs> DropEvent =
+        Avalonia.Input.DragDrop.DropEvent;
+
     public static void SetAllowDrop(Interactive element, bool value) =>
         Avalonia.Input.DragDrop.SetAllowDrop(element, value);
 
