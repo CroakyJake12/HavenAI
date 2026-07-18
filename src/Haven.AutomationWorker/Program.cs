@@ -11,7 +11,7 @@ builder.Logging.AddConsole();
 builder.Services.AddHavenInfrastructure();
 builder.Services.AddHavenAutomations();
 
-await using var host = builder.Build();
+using var host = builder.Build();
 var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Haven.AutomationWorker");
 var diagnostics = host.Services.GetRequiredService<IProductionDiagnostics>();
 
