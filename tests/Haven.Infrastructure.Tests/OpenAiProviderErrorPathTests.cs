@@ -41,7 +41,7 @@ public sealed class OpenAiProviderErrorPathTests
 
         var error = await Assert.ThrowsAsync<InvalidDataException>(() =>
             provider.ChatWithToolsAsync(
-                new OllamaToolRequest("test-model", null, [], [], null),
+                new OllamaToolRequest("test-model", [], [], EffortLevel.Low, null),
                 CancellationToken.None));
 
         Assert.Contains("malformed JSON arguments", error.Message, StringComparison.OrdinalIgnoreCase);
