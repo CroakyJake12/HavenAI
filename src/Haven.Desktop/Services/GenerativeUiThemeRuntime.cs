@@ -264,7 +264,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     private static void ApplyPalette(
-        Application application,
+        Avalonia.Application application,
         GenerativeThemePalette palette,
         GenerativeThemeShape shape)
     {
@@ -304,7 +304,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     private void ApplyGeneratedStyles(
-        Application application,
+        Avalonia.Application application,
         GenerativeThemePack theme,
         GenerativeThemePalette palette)
     {
@@ -388,6 +388,6 @@ public sealed class GenerativeUiThemeRuntime(
                + 0.0722d * Linear(colour.B);
     }
 
-    private static void SetBrush(Application application, string key, string colour) =>
+    private static void SetBrush(Avalonia.Application application, string key, string colour) =>
         application.Resources[key] = new SolidColorBrush(Color.Parse(colour));
 }
