@@ -48,10 +48,10 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
         var now = DateTimeOffset.UtcNow;
         var subject = new ContainerDefinition(
             Guid.NewGuid(), HavenMode.Teach, "A-Level Law", null,
-            "OCR law revision context", "Use the current specification", false, now, now);
+            "OCR law revision context", "Use the current specification", now, now, false);
         var lessons = new[]
         {
-            new LessonDefinition(Guid.NewGuid(), subject.Id, "Causation", "Criminal Law", "{\"topics\":[\"but for\",\"legal causation\"]}", now, now)
+            new Lesson(Guid.NewGuid(), subject.Id, "Causation", "Criminal Law", "{\"topics\":[\"but for\",\"legal causation\"]}", now, now)
         };
 
         await indexer.IndexSubjectAsync(subject, lessons, CancellationToken.None);
