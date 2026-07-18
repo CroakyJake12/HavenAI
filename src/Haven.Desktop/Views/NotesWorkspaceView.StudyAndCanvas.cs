@@ -304,7 +304,7 @@ public sealed partial class NotesWorkspaceView
             _viewModel.CommitBlockEdit(selectedBlock, "Changed canvas object geometry");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Apply snapped position, size, rotation and lock state"));
+        }, "Apply snapped position, size, rotation and lock state");
 
         var from = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
         var to = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
@@ -327,7 +327,7 @@ public sealed partial class NotesWorkspaceView
             _viewModel.CommitBlockEdit(selectedBlock, "Connected canvas objects");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Create a validator-safe editable connector"));
+        }, "Create a validator-safe editable connector");
 
         var bookmarkName = new TextBox { Watermark = "Spatial bookmark name" };
         var addBookmark = ActionButton("Add canvas bookmark", () =>
@@ -344,7 +344,7 @@ public sealed partial class NotesWorkspaceView
             }), "Added canvas spatial bookmark");
             RefreshAll();
             return Task.CompletedTask;
-        }, "Save current pan and zoom in the native document"));
+        }, "Save current pan and zoom in the native document");
         var grouping = new WrapPanel();
         grouping.Children.Add(ActionButton("Group unlocked", () =>
         {
