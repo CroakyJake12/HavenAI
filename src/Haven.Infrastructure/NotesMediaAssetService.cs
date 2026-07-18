@@ -135,7 +135,7 @@ public sealed class NotesMediaAssetService(
             throw new InvalidDataException("The media asset failed integrity verification and was not opened.");
         try
         {
-            Process.Start(new ProcessStartInfo
+            _ = Process.Start(new ProcessStartInfo
             {
                 FileName = verification.Path,
                 UseShellExecute = true
