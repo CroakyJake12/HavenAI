@@ -49,8 +49,8 @@
               <Grid ColumnDefinitions="38,*" ColumnSpacing="13" Margin="0,0,0,28" Opacity="{Binding ContentOpacity}">
                 <Border Classes="avatar" Width="36" Height="36"><Image Source="/Assets/haven-32.png" Width="36" Height="36" /></Border>
                 <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="{Binding Alignment}" MaxWidth="{Binding MaxBubbleWidth}">
-                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><Border Grid.Column="1" Background="{DynamicResource HavenBlueSoftBrush}" CornerRadius="999" Padding="7,2" IsVisible="{Binding HasModelLabel}"><TextBlock Text="{Binding ModelLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" /></Border><TextBlock Grid.Column="3" Text="{Binding TimeLabel}" Classes="muted2" FontSize="10" /></Grid>
-                  <Border Background="#18FFFFFF" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="14" Padding="15,12">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><Border Grid.Column="1" Background="{DynamicResource HavenBlueSoftBrush}" CornerRadius="999" Padding="7,2" IsVisible="{Binding HasModelLabel}"><TextBlock Text="{Binding ModelLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" /></Border><Button Grid.Column="3" Classes="chrome" Click="OnMessageActionsClicked" ToolTip.Tip="Message actions" Padding="5,2"><controls:HavenIcon IconKey="more" Width="13" Height="13" /></Button><TextBlock Grid.Column="4" Text="{Binding TimeLabel}" Classes="muted2" FontSize="10" VerticalAlignment="Center" /></Grid>
+                  <Border Background="{Binding BubbleBackground}" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="{Binding BubbleCornerRadius}" Padding="15,12">
                     <controls:MarkdownView Markdown="{Binding Content}"><controls:MarkdownView.ContextMenu><ContextMenu><MenuItem Header="Copy message" Click="OnCopyMessageClicked" /></ContextMenu></controls:MarkdownView.ContextMenu></controls:MarkdownView>
                   </Border>
                   <ItemsControl ItemsSource="{Binding Activities}" IsVisible="{Binding HasActivities}">
@@ -67,9 +67,9 @@
     </ScrollViewer>
 
     <!-- Section: Exposes an explicit user action through a command or event handler. -->
-    <Button Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPluginPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    <Button Classes="popupDismissLayer" Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPluginPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
     <!-- Section: Exposes an explicit user action through a command or event handler. -->
-    <Button Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPromptPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    <Button Classes="popupDismissLayer" Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPromptPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Margin="24,0,24,14" MaxWidth="920" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">

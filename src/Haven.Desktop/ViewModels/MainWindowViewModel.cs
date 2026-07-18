@@ -360,6 +360,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         SelectTabCommand = new RelayCommand<WorkspaceTabViewModel>(item => SelectedTab = item);
         CloseTabCommand = new RelayCommand<WorkspaceTabViewModel>(CloseTab);
         AddNewTabCommand = new RelayCommand(AddNewTab);
+        NavigateBackCommand = new RelayCommand(NavigateBack, () => SelectedTab?.CanGoBack == true);
+        NavigateForwardCommand = new RelayCommand(NavigateForward, () => SelectedTab?.CanGoForward == true);
         BranchCurrentCommand = new AsyncRelayCommand(() => CurrentChat.BranchCurrentAsync());
         CompactCurrentCommand = new AsyncRelayCommand(() => CurrentChat.CompactContextAsync());
         ArchiveCurrentCommand = new AsyncRelayCommand(() => CurrentChat.ArchiveCurrentAsync());
@@ -475,29 +477,42 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
             if (!SetProperty(ref _selectedTab, value)) return;
             value.IsSelected = true;
-            if (value.Page is ChatPageViewModel chat)
-            {
-                CurrentChat = chat;
-                if (chat.Mode == HavenMode.Studio && chat.SelectedContainer is not null)
-                    ActivateProject(chat.SelectedContainer.Definition);
-                else if (chat.Mode == HavenMode.Studio)
-                    ClearActiveProject();
-            }
-            else if (value.Page is StudioProjectPageViewModel project)
-            {
-                ActivateProject(project.Definition, project);
-                if (_projectChats.TryGetValue(project.ProjectId, out var projectChat)) CurrentChat = projectChat;
-            }
-            else if (value.Page is WorkspaceEditorPageViewModel editor)
-            {
-                ActivateProject(editor.Container);
-                if (_projectChats.TryGetValue(editor.Container.Id, out var projectChat)) CurrentChat = projectChat;
-            }
-            CurrentPage = value.Page;
-            RaiseShellProperties();
-            if (value.Page is IActivatablePage activatable)
-                _ = activatable.ActivateAsync(CancellationToken.None);
+            ApplySelectedTab(value);
         }
+    }
+
+    /// <summary>
+    /// Applies the selected tab's current history entry to shell-wide state.
+    /// This is shared by direct tab selection and Back/Forward navigation so
+    /// every screen participates in one predictable navigation contract.
+    /// </summary>
+    private void ApplySelectedTab(WorkspaceTabViewModel value)
+    {
+        if (value.Page is ChatPageViewModel chat)
+        {
+            CurrentChat = chat;
+            if (chat.Mode == HavenMode.Studio && chat.SelectedContainer is not null)
+                ActivateProject(chat.SelectedContainer.Definition);
+            else if (chat.Mode == HavenMode.Studio)
+                ClearActiveProject();
+        }
+        else if (value.Page is StudioProjectPageViewModel project)
+        {
+            ActivateProject(project.Definition, project);
+            if (_projectChats.TryGetValue(project.ProjectId, out var projectChat)) CurrentChat = projectChat;
+        }
+        else if (value.Page is WorkspaceEditorPageViewModel editor)
+        {
+            ActivateProject(editor.Container);
+            if (_projectChats.TryGetValue(editor.Container.Id, out var projectChat)) CurrentChat = projectChat;
+        }
+
+        CurrentPage = value.Page;
+        NavigateBackCommand.RaiseCanExecuteChanged();
+        NavigateForwardCommand.RaiseCanExecuteChanged();
+        RaiseShellProperties();
+        if (value.Page is IActivatablePage activatable)
+            _ = activatable.ActivateAsync(CancellationToken.None);
     }
 
     /// <summary>
@@ -899,6 +914,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// Gets or updates add new tab command, the bindable or domain state represented by this property.
     /// </summary>
     public RelayCommand AddNewTabCommand { get; }
+    /// <summary>
+    /// Navigates to the previous screen within the selected workspace tab.
+    /// </summary>
+    public RelayCommand NavigateBackCommand { get; }
+    /// <summary>
+    /// Reapplies the screen most recently undone by the universal Back command.
+    /// </summary>
+    public RelayCommand NavigateForwardCommand { get; }
     /// <summary>
     /// Gets or updates branch current command, the bindable or domain state represented by this property.
     /// </summary>
@@ -1513,7 +1536,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         var chat = CreateChat(CurrentMode);
         var key = "chat-" + CurrentMode.ToString().ToLowerInvariant() + "-" + Guid.NewGuid().ToString("N")[..8];
-        AddOrSelectTab(key, ProductName, chat, true);
+        AddOrSelectTab(key, ProductName, chat, true, forceNewTab: true);
     }
 
     /// <summary>
@@ -1812,7 +1835,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Performs the add or select tab step owned by this component.
     /// </summary>
-    private void AddOrSelectTab(string key, string title, object page, bool closeable, HavenSurface? surface = null)
+    private void AddOrSelectTab(
+        string key,
+        string title,
+        object page,
+        bool closeable,
+        HavenSurface? surface = null,
+        bool forceNewTab = false)
     {
         var resolvedSurface = surface ?? InferSurface(page);
         var existing = OpenTabs.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
@@ -1825,6 +1854,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             else SelectedTab = existing;
             return;
         }
+
+        // Sidebar and in-app navigation reuse the current tab. A second tab is
+        // created only by the explicit + command, matching familiar browser UI.
+        if (!forceNewTab && SelectedTab is not null)
+        {
+            if (SelectedTab.Page is IActivatablePage previous) previous.Deactivate();
+            SelectedTab.NavigateTo(key, title, page, closeable, resolvedSurface);
+            ApplySelectedTab(SelectedTab);
+            return;
+        }
+
         var tab = new WorkspaceTabViewModel(key, title, page, closeable, resolvedSurface);
         OpenTabs.Add(tab);
         SelectedTab = tab;
@@ -1865,12 +1905,30 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     private void CloseTab(WorkspaceTabViewModel? item)
     {
-        if (item is null || !item.IsCloseable) return;
+        if (item is null || !item.IsCloseable || OpenTabs.Count <= 1) return;
         var index = OpenTabs.IndexOf(item);
         OpenTabs.Remove(item);
-        if (item.Page is IDisposable disposable) disposable.Dispose();
+        item.Dispose();
         if (ReferenceEquals(SelectedTab, item)) SelectedTab = OpenTabs.ElementAtOrDefault(Math.Clamp(index - 1, 0, Math.Max(0, OpenTabs.Count - 1))) ?? OpenTabs.FirstOrDefault();
         RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
+    }
+
+    /// <summary>
+    /// Navigates backward inside the selected tab without creating another tab.
+    /// </summary>
+    private void NavigateBack()
+    {
+        if (SelectedTab is null || !SelectedTab.TryGoBack()) return;
+        ApplySelectedTab(SelectedTab);
+    }
+
+    /// <summary>
+    /// Reverses the most recent backward navigation inside the selected tab.
+    /// </summary>
+    private void NavigateForward()
+    {
+        if (SelectedTab is null || !SelectedTab.TryGoForward()) return;
+        ApplySelectedTab(SelectedTab);
     }
 
     /// <summary>
@@ -2022,7 +2080,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 /// <summary>
 /// Represents workspace tab view model and keeps its related state and behavior together.
 /// </summary>
-public sealed class WorkspaceTabViewModel : ObservableObject
+public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
 {
     /// <summary>
     /// Stores title locally so this component can preserve the dependency, cache, or state between member calls.
@@ -2036,19 +2094,23 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     /// Stores is hovered locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private bool _isHovered;
+    private string _key;
+    private bool _isCloseable;
+    private readonly Stack<WorkspaceTabState> _backHistory = new();
+    private readonly Stack<WorkspaceTabState> _forwardHistory = new();
 
     public WorkspaceTabViewModel(string key, string title, object page, bool isCloseable, HavenSurface surface)
     {
-        Key = key;
+        _key = key;
         _title = title;
         Page = page;
-        IsCloseable = isCloseable;
+        _isCloseable = isCloseable;
         Surface = surface;
     }
     /// <summary>
     /// Gets or updates key, the bindable or domain state represented by this property.
     /// </summary>
-    public string Key { get; }
+    public string Key { get => _key; private set => SetProperty(ref _key, value); }
     /// <summary>
     /// Gets or updates title, the bindable or domain state represented by this property.
     /// </summary>
@@ -2060,7 +2122,7 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     /// <summary>
     /// Reports whether closeable applies to the current state.
     /// </summary>
-    public bool IsCloseable { get; }
+    public bool IsCloseable { get => _isCloseable; private set => SetProperty(ref _isCloseable, value); }
     /// <summary>
     /// Gets or updates surface, the bindable or domain state represented by this property.
     /// </summary>
@@ -2073,6 +2135,93 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     /// Reports whether hovered applies to the current state.
     /// </summary>
     public bool IsHovered { get => _isHovered; set => SetProperty(ref _isHovered, value); }
+    /// <summary>
+    /// Indicates whether the universal Back command has an earlier screen to restore.
+    /// </summary>
+    public bool CanGoBack => _backHistory.Count > 0;
+    /// <summary>
+    /// Indicates whether the universal Forward command can reverse a Back action.
+    /// </summary>
+    public bool CanGoForward => _forwardHistory.Count > 0;
+
+    /// <summary>
+    /// Navigates this tab to a new screen while retaining the old screen for Back.
+    /// </summary>
+    public void NavigateTo(string key, string title, object page, bool isCloseable, HavenSurface surface)
+    {
+        if (ReferenceEquals(Page, page) && Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            Title = title;
+            IsCloseable = isCloseable;
+            SetSurface(surface);
+            return;
+        }
+
+        _backHistory.Push(CaptureState());
+        _forwardHistory.Clear();
+        ApplyState(new WorkspaceTabState(key, title, page, isCloseable, surface));
+        RaiseHistoryChanged();
+    }
+
+    /// <summary>
+    /// Restores the preceding screen in this tab and saves the current screen for Forward.
+    /// </summary>
+    public bool TryGoBack()
+    {
+        if (_backHistory.Count == 0) return false;
+        _forwardHistory.Push(CaptureState());
+        ApplyState(_backHistory.Pop());
+        RaiseHistoryChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Restores the screen most recently removed by Back.
+    /// </summary>
+    public bool TryGoForward()
+    {
+        if (_forwardHistory.Count == 0) return false;
+        _backHistory.Push(CaptureState());
+        ApplyState(_forwardHistory.Pop());
+        RaiseHistoryChanged();
+        return true;
+    }
+
+    private WorkspaceTabState CaptureState() => new(Key, Title, Page, IsCloseable, Surface);
+
+    private void ApplyState(WorkspaceTabState state)
+    {
+        Key = state.Key;
+        Title = state.Title;
+        Page = state.Page;
+        IsCloseable = state.IsCloseable;
+        Surface = state.Surface;
+        RaisePropertyChanged(nameof(Page));
+        RaisePropertyChanged(nameof(Surface));
+    }
+
+    private void RaiseHistoryChanged()
+    {
+        RaisePropertyChanged(nameof(CanGoBack));
+        RaisePropertyChanged(nameof(CanGoForward));
+    }
+
+    /// <summary>
+    /// Releases the current screen and every retained history screen exactly once
+    /// when the owning tab closes.
+    /// </summary>
+    public void Dispose()
+    {
+        var pages = _backHistory.Select(state => state.Page)
+            .Concat(_forwardHistory.Select(state => state.Page))
+            .Append(Page)
+            .Distinct(ReferenceEqualityComparer.Instance);
+        foreach (var page in pages)
+            if (page is IDisposable disposable) disposable.Dispose();
+        _backHistory.Clear();
+        _forwardHistory.Clear();
+        RaiseHistoryChanged();
+    }
     /// <summary>
     /// Performs the replace page step owned by this component.
     /// </summary>
@@ -2093,6 +2242,16 @@ public sealed class WorkspaceTabViewModel : ObservableObject
         RaisePropertyChanged(nameof(Surface));
     }
 }
+
+/// <summary>
+/// Immutable snapshot of one screen in a workspace tab's navigation history.
+/// </summary>
+public sealed record WorkspaceTabState(
+    string Key,
+    string Title,
+    object Page,
+    bool IsCloseable,
+    HavenSurface Surface);
 
 /// <summary>
 /// Represents command palette item view model and keeps its related state and behavior together.

@@ -7,11 +7,6 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
-using Avalonia.VisualTree;
-using Haven.Desktop.ViewModels;
-using Haven.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Haven.Desktop.Views;
 
 /// <summary>
@@ -22,36 +17,8 @@ public sealed partial class ConversationProductionToolbarView
     /// <summary>
     /// Stores safe regeneration handler installed locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private bool _safeRegenerationHandlerInstalled;
-
-    /// <summary>
-    /// Performs the install safe regeneration handler step owned by this component.
-    /// </summary>
-    internal void InstallSafeRegenerationHandler()
-    {
-        if (_safeRegenerationHandlerInstalled) return;
-        _safeRegenerationHandlerInstalled = true;
-        _messageTools.RegenerationRequested -= OnRegenerationRequested;
-        _messageTools.RegenerationRequested += ReplayRegenerationAsync;
-    }
-
-    /// <summary>
-    /// Performs replay regeneration asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async void ReplayRegenerationAsync(string prompt)
-    {
-        if (App.Services is null || this.FindAncestorOfType<ChatView>()?.DataContext is not ChatPageViewModel chat) return;
-        try
-        {
-            var replay = ActivatorUtilities.CreateInstance<RegenerationReplayService>(App.Services);
-            await replay.PrepareUserReplayAsync(chat.ConversationId, prompt, CancellationToken.None);
-            await chat.LoadConversationAsync(chat.ConversationId, CancellationToken.None);
-            chat.Composer = prompt;
-            if (chat.SendCommand.CanExecute(null)) chat.SendCommand.Execute(null);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException)
-        {
-            System.Diagnostics.Debug.WriteLine("Regeneration replay failed: " + ex.Message);
-        }
-    }
+    // Message regeneration now lives in ChatView's message-local action flyout.
+    // Keep this compatibility hook because older bootstrap code calls it while
+    // walking the visual tree; removing the member would break that startup path.
+    internal void InstallSafeRegenerationHandler() { }
 }

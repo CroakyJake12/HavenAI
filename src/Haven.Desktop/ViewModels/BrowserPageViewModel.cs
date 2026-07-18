@@ -54,6 +54,12 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private string _status;
+    /// <summary>Tracks whether the native page is currently navigating.</summary>
+    private bool _isLoading;
+    /// <summary>Mirrors the native adapter's backward-history availability.</summary>
+    private bool _canGoBack;
+    /// <summary>Mirrors the native adapter's forward-history availability.</summary>
+    private bool _canGoForward;
     /// <summary>
     /// Stores bookmark group locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -154,8 +160,12 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         _status = browser.State.Status;
 
         NavigateCommand = new AsyncRelayCommand(NavigateSafelyAsync);
-        BackCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () => _ = await _browser.BackAsync(CancellationToken.None)));
-        ForwardCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () => _ = await _browser.ForwardAsync(CancellationToken.None)));
+        BackCommand = new AsyncRelayCommand(
+            () => RunSafelyAsync(async () => _ = await _browser.BackAsync(CancellationToken.None)),
+            () => CanGoBack);
+        ForwardCommand = new AsyncRelayCommand(
+            () => RunSafelyAsync(async () => _ = await _browser.ForwardAsync(CancellationToken.None)),
+            () => CanGoForward);
         ReloadCommand = new AsyncRelayCommand(() => RunSafelyAsync(() => _browser.ReloadAsync(CancellationToken.None)));
         HardReloadCommand = new AsyncRelayCommand(() => RunSafelyAsync(async () => _ = await _browser.ReloadAsync(true, CancellationToken.None)));
         StopCommand = new AsyncRelayCommand(() => RunSafelyAsync(() => _browser.StopAsync(CancellationToken.None)));
@@ -251,6 +261,12 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     /// Gets or updates status, the bindable or domain state represented by this property.
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>Reports whether a navigation is in progress so the view can cover stale pixels.</summary>
+    public bool IsLoading { get => _isLoading; private set => SetProperty(ref _isLoading, value); }
+    /// <summary>Reports whether the native history contains an earlier entry.</summary>
+    public bool CanGoBack { get => _canGoBack; private set => SetProperty(ref _canGoBack, value); }
+    /// <summary>Reports whether the native history contains a later entry.</summary>
+    public bool CanGoForward { get => _canGoForward; private set => SetProperty(ref _canGoForward, value); }
     /// <summary>
     /// Gets or updates bookmark group, the bindable or domain state represented by this property.
     /// </summary>
@@ -868,6 +884,11 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     private async Task HandleStateChangedAsync(BrowserSnapshot state)
     {
         if (state.Address is not null) Address = state.Address.ToString();
+        IsLoading = state.IsLoading;
+        CanGoBack = state.CanGoBack;
+        CanGoForward = state.CanGoForward;
+        BackCommand.RaiseCanExecuteChanged();
+        ForwardCommand.RaiseCanExecuteChanged();
         Status = state.IsLoading ? "Loading..." : state.Status;
         if (SelectedTab is null) return;
         SelectedTab.Address = Address;

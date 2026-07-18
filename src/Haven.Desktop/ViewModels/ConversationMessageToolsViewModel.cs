@@ -233,6 +233,15 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Opens the tools on a specific rendered message. Keeping selection by stable
+    /// message id avoids relying on the old global message dropdown's current value.
+    /// </summary>
+    public void SelectMessage(Guid messageId)
+    {
+        SelectedMessage = Messages.FirstOrDefault(message => message.Id == messageId);
+    }
+
+    /// <summary>
     /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);

@@ -35,6 +35,10 @@ public sealed partial class ChatView : UserControl
     /// Stores production toolbar locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly ConversationProductionToolbarView _productionToolbar;
+    /// <summary>Hosts edit, bookmark, regeneration, and branch actions beside a message.</summary>
+    private readonly ConversationMessageToolsView _messageTools;
+    /// <summary>Reusable floating surface opened by each message's three-dot button.</summary>
+    private readonly Flyout _messageToolsFlyout;
     /// <summary>
     /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -88,6 +92,10 @@ public sealed partial class ChatView : UserControl
     {
         InitializeComponent();
         _productionToolbar = new ConversationProductionToolbarView();
+        _messageTools = new ConversationMessageToolsView { Width = 650 };
+        _messageTools.BranchChanged += OnBranchChanged;
+        _messageTools.RegenerationRequested += OnMessageRegenerationRequested;
+        _messageToolsFlyout = new Flyout { Content = _messageTools };
         AttachProductionToolbar();
 
         if (App.Services is { } services)
@@ -190,6 +198,7 @@ public sealed partial class ChatView : UserControl
     private async Task LoadProductionStateAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
         await _productionToolbar.LoadAsync(viewModel.ConversationId, cancellationToken);
+        await _messageTools.LoadAsync(viewModel.ConversationId, cancellationToken);
         if (_production is null || viewModel.IsTemporary) return;
         try
         {
@@ -573,6 +582,30 @@ public sealed partial class ChatView : UserControl
         if (sender is not MenuItem { DataContext: MessageBubbleViewModel message }) return;
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard is not null) await clipboard.SetTextAsync(message.Content);
+    }
+
+    /// <summary>Opens message-specific actions next to the message instead of in a global toolbar.</summary>
+    private void OnMessageActionsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: MessageBubbleViewModel message } button) return;
+        _messageTools.SelectMessage(message.Id);
+        _messageToolsFlyout.ShowAt(button);
+    }
+
+    /// <summary>Resumes chat after the message panel prepares a response regeneration branch.</summary>
+    private async void OnMessageRegenerationRequested(string prompt)
+    {
+        if (_viewModel is null) return;
+        try
+        {
+            await _viewModel.LoadConversationAsync(_viewModel.ConversationId, CancellationToken.None);
+            _viewModel.Composer = prompt;
+            if (_viewModel.SendCommand.CanExecute(null)) _viewModel.SendCommand.Execute(null);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            System.Diagnostics.Debug.WriteLine("Regeneration could not resume chat: " + ex.Message);
+        }
     }
 
     /// <summary>

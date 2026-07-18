@@ -70,8 +70,8 @@
 
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6" Margin="10,8,10,6">
-      <Button Content="&#x2190;" Classes="icon" Command="{Binding BackCommand}" ToolTip.Tip="Back" />
-      <Button Grid.Column="1" Content="&#x2192;" Classes="icon" Command="{Binding ForwardCommand}" ToolTip.Tip="Forward" />
+      <Button Content="&#x2190;" Classes="icon" Command="{Binding BackCommand}" IsEnabled="{Binding CanGoBack}" ToolTip.Tip="Back" />
+      <Button Grid.Column="1" Content="&#x2192;" Classes="icon" Command="{Binding ForwardCommand}" IsEnabled="{Binding CanGoForward}" ToolTip.Tip="Forward" />
       <Button Grid.Column="2" Content="&#x2302;" Classes="icon" Command="{Binding HomeCommand}" ToolTip.Tip="Home" />
       <Button Grid.Column="3" Content="&#x21BB;" Classes="icon" Command="{Binding ReloadCommand}" ToolTip.Tip="Reload">
         <Button.ContextMenu>
@@ -208,11 +208,22 @@
       </Border>
 
       <Border Grid.Column="1"
-              Background="White"
+              Background="{DynamicResource HavenPanelBrush}"
               BorderBrush="{DynamicResource HavenLineStrongBrush}"
               BorderThickness="1,1,0,0"
               ClipToBounds="True">
-        <NativeWebView x:Name="NativeBrowser" />
+        <Grid>
+          <NativeWebView x:Name="NativeBrowser" />
+          <!-- Keep navigation transitions inside Haven's palette instead of exposing
+               the native host's default white surface while a page is being replaced. -->
+          <Border Background="{DynamicResource HavenPanelBrush}"
+                  IsVisible="{Binding IsLoading}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+              <ProgressBar Width="190" Height="4" IsIndeterminate="True" />
+              <TextBlock Text="Loading page…" Classes="muted" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Grid>
       </Border>
 
       <Border Grid.Column="2"

@@ -222,11 +222,29 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+      <Setter Property="Opacity" Value="0.97" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.16" />
+          <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+        </Transitions>
+      </Setter>
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="RenderTransform" Value="scale(1.025)" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <!-- Full-window click catchers close floating pickers. They must remain visually
+         inert: inheriting the normal hover scale would make the entire chat flash. -->
+    <Style Selector="Button.popupDismissLayer:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+      <Setter Property="Opacity" Value="1" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:pressed /template/ ContentPresenter">
@@ -254,7 +272,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.chrome:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Ghost: transparent -->
@@ -273,8 +290,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.subtle:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.secondary">
@@ -290,7 +305,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.navigation:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Status pill -->
@@ -329,7 +343,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebar:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Active: accent nub only, no background tint -->
@@ -351,7 +364,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebarUtility:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
 
     <!-- Project identity -->
@@ -392,7 +404,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.workspaceTab:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.tabClose">
@@ -402,7 +413,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.tabClose:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
 
     <!-- ============================================================
@@ -418,7 +428,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenBlueBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
@@ -433,7 +442,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenBlueBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
@@ -493,8 +501,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#35FF6677" />
-      <Setter Property="BorderBrush" Value="#70FF6677" />
     </Style>
 
     <!-- ============================================================
@@ -536,7 +542,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox.sidebarSearch:pointerover /template/ Border#PART_BorderElement">
-      <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
     </Style>
 
     <!-- ============================================================
@@ -568,7 +573,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
@@ -608,7 +612,6 @@
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="MenuItem:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ContextMenu">

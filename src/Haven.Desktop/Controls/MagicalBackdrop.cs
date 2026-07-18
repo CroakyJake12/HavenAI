@@ -126,12 +126,25 @@ public sealed class MagicalBackdrop : Grid, IDisposable
     /// </summary>
     private void AddBloom(string colour, double size, double opacity, double speed, double driftX, double driftY, double phase)
     {
+        var core = Color.Parse(colour);
         var ellipse = new Ellipse
         {
             Width = size,
             Height = size,
             Opacity = opacity,
-            Fill = new SolidColorBrush(Color.Parse(colour)),
+            // A radial falloff makes each aurora dissolve into the backdrop. The old
+            // solid ellipse exposed a crisp circular edge, especially on large screens.
+            Fill = new RadialGradientBrush
+            {
+                Center = new RelativePoint(0.5, 0.5, RelativeUnit.Relative),
+                GradientOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative),
+                GradientStops =
+                [
+                    new GradientStop(core, 0),
+                    new GradientStop(Color.FromArgb(175, core.R, core.G, core.B), 0.42),
+                    new GradientStop(Color.FromArgb(0, core.R, core.G, core.B), 1)
+                ]
+            },
             IsHitTestVisible = false
         };
         _blooms.Add(new AuroraBloom(ellipse, opacity, speed, driftX, driftY, phase));

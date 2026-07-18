@@ -69,7 +69,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     /// <summary>
     /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private string _status = "Conversation tools ready.";
+    private string _status = "Conversation details ready.";
     /// <summary>
     /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -242,7 +242,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     /// <summary>
     /// Gets or updates expand label, the bindable or domain state represented by this property.
     /// </summary>
-    public string ExpandLabel => IsExpanded ? "Hide conversation tools" : "Conversation tools";
+    public string ExpandLabel => IsExpanded ? "Hide conversation details" : "Conversation details";
     /// <summary>
     /// Gets or updates share address, the bindable or domain state represented by this property.
     /// </summary>

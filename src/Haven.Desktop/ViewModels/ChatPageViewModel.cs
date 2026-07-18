@@ -10,7 +10,9 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Avalonia;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
@@ -2469,6 +2471,20 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// Gets or updates max bubble width, the bindable or domain state represented by this property.
     /// </summary>
     public double MaxBubbleWidth => Role == MessageRole.User ? 720 : 10000;
+    /// <summary>
+    /// Gives user turns an accent-tinted speech bubble while assistant and system
+    /// turns continue to use the neutral conversational surface.
+    /// </summary>
+    public IBrush BubbleBackground => Role == MessageRole.User
+        ? new SolidColorBrush(Color.FromArgb(42, 124, 92, 255))
+        : new SolidColorBrush(Color.FromArgb(24, 255, 255, 255));
+    /// <summary>
+    /// Uses a tighter lower-right corner for sent messages so their silhouette reads
+    /// as a speech bubble without introducing decorative tails that steal space.
+    /// </summary>
+    public CornerRadius BubbleCornerRadius => Role == MessageRole.User
+        ? new CornerRadius(16, 16, 5, 16)
+        : new CornerRadius(16, 16, 16, 5);
     public string Content
     {
         get => _content;

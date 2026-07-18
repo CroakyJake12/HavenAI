@@ -108,8 +108,6 @@
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Button.captionButton:pointerover /template/ ContentPresenter">
-    <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#28FFFFFF" />
   </Style>
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->

@@ -47,4 +47,7 @@ public sealed partial class ConversationMessageToolsView : UserControl
     /// </summary>
     public Task LoadAsync(Guid conversationId, CancellationToken cancellationToken) =>
         _viewModel?.LoadAsync(conversationId, cancellationToken) ?? Task.CompletedTask;
+
+    /// <summary>Selects the message whose local three-dot menu opened this panel.</summary>
+    public void SelectMessage(Guid messageId) => _viewModel?.SelectMessage(messageId);
 }

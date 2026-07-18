@@ -31,20 +31,11 @@ public sealed partial class ConversationProductionToolbarView : UserControl
     /// Stores usage view locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly ConversationUsageView _usageView;
-    /// <summary>
-    /// Stores message tools locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private readonly ConversationMessageToolsView _messageTools;
-
     public ConversationProductionToolbarView()
     {
         InitializeComponent();
         _usageView = new ConversationUsageView();
-        _messageTools = new ConversationMessageToolsView();
-        _messageTools.BranchChanged += (_, _) => BranchChanged?.Invoke(this, EventArgs.Empty);
-        _messageTools.RegenerationRequested += OnRegenerationRequested;
         ExpandedContent.Children.Add(_usageView);
-        ExpandedContent.Children.Add(_messageTools);
 
         if (App.Services is null) return;
         _viewModel = ActivatorUtilities.CreateInstance<ConversationProductionToolbarViewModel>(App.Services);
@@ -70,25 +61,6 @@ public sealed partial class ConversationProductionToolbarView : UserControl
     {
         if (_viewModel is not null) await _viewModel.LoadAsync(conversationId, cancellationToken);
         await _usageView.LoadAsync(conversationId, cancellationToken);
-        await _messageTools.LoadAsync(conversationId, cancellationToken);
-    }
-
-    /// <summary>
-    /// Handles the regeneration requested event raised by the UI or runtime.
-    /// </summary>
-    private async void OnRegenerationRequested(string prompt)
-    {
-        if (this.FindAncestorOfType<ChatView>()?.DataContext is not ChatPageViewModel chat) return;
-        try
-        {
-            await chat.LoadConversationAsync(chat.ConversationId, CancellationToken.None);
-            chat.Composer = prompt;
-            if (chat.SendCommand.CanExecute(null)) chat.SendCommand.Execute(null);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException)
-        {
-            System.Diagnostics.Debug.WriteLine("Regeneration could not resume chat: " + ex.Message);
-        }
     }
 
     /// <summary>

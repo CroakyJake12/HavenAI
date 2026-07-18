@@ -14,6 +14,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Core;
@@ -51,6 +52,24 @@ public sealed partial class WorkspaceChromeHost
         MaxWidth = 235,
         TextTrimming = TextTrimming.CharacterEllipsis,
         VerticalAlignment = VerticalAlignment.Center
+    };
+    private readonly Button _backButton = new()
+    {
+        Content = new HavenIcon { IconKey = "chevron-left", Width = 14, Height = 14 },
+        Width = 30,
+        Height = 30,
+        Padding = new Thickness(0),
+        VerticalContentAlignment = VerticalAlignment.Center,
+        HorizontalContentAlignment = HorizontalAlignment.Center
+    };
+    private readonly Button _forwardButton = new()
+    {
+        Content = new HavenIcon { IconKey = "chevron-right", Width = 14, Height = 14 },
+        Width = 30,
+        Height = 30,
+        Padding = new Thickness(0),
+        VerticalContentAlignment = VerticalAlignment.Center,
+        HorizontalContentAlignment = HorizontalAlignment.Center
     };
 
     /// <summary>
@@ -147,7 +166,7 @@ public sealed partial class WorkspaceChromeHost
     {
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto,Auto"),
             ColumnSpacing = 10,
             Margin = new Thickness(18, 7, 12, 6)
         };
@@ -160,6 +179,30 @@ public sealed partial class WorkspaceChromeHost
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6, 0, 8, 0)
         });
+
+        _backButton.Classes.Add("chrome");
+        _forwardButton.Classes.Add("chrome");
+        ToolTip.SetTip(_backButton, "Back");
+        ToolTip.SetTip(_forwardButton, "Forward");
+        _backButton.Click += (_, _) =>
+        {
+            if (_modernShell?.NavigateBackCommand.CanExecute(null) == true)
+                _modernShell.NavigateBackCommand.Execute(null);
+        };
+        _forwardButton.Click += (_, _) =>
+        {
+            if (_modernShell?.NavigateForwardCommand.CanExecute(null) == true)
+                _modernShell.NavigateForwardCommand.Execute(null);
+        };
+        var navigation = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _backButton, _forwardButton }
+        };
+        Grid.SetColumn(navigation, 1);
+        grid.Children.Add(navigation);
 
         var addTab = new Button
         {
@@ -185,7 +228,7 @@ public sealed partial class WorkspaceChromeHost
         });
         Grid.SetColumn(addTab, 1);
         tabArea.Children.Add(addTab);
-        Grid.SetColumn(tabArea, 1);
+        Grid.SetColumn(tabArea, 2);
         grid.Children.Add(tabArea);
 
         var modelStatus = new Button
@@ -206,7 +249,7 @@ public sealed partial class WorkspaceChromeHost
                 _modernShell.RefreshModelsCommand.Execute(null);
             _ = ShowModelRefreshPulseAsync();
         };
-        Grid.SetColumn(modelStatus, 2);
+        Grid.SetColumn(modelStatus, 3);
         grid.Children.Add(modelStatus);
 
         _actionsButton = new Button
@@ -233,7 +276,7 @@ public sealed partial class WorkspaceChromeHost
             RebuildActions();
             Dispatcher.UIThread.Post(() => _actionsSearch.Focus());
         };
-        Grid.SetColumn(_actionsButton, 3);
+        Grid.SetColumn(_actionsButton, 4);
         grid.Children.Add(_actionsButton);
 
         return new Border
@@ -306,6 +349,7 @@ public sealed partial class WorkspaceChromeHost
         return new Flyout
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
+            FlyoutPresenterTheme = Avalonia.Application.Current?.Resources["HavenAcrylicFlyoutPresenterTheme"] as ControlTheme,
             Content = content
         };
     }
@@ -407,7 +451,10 @@ public sealed partial class WorkspaceChromeHost
         else if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
                  or nameof(MainWindowViewModel.CurrentChat)
                  or nameof(MainWindowViewModel.ProductName))
+        {
+            UpdateNavigationButtons();
             Dispatcher.UIThread.Post(AuditRailButtons);
+        }
     }
 
     /// <summary>
@@ -483,10 +530,17 @@ public sealed partial class WorkspaceChromeHost
     private void RebuildTabs()
     {
         _modernTabs.Children.Clear();
+        UpdateNavigationButtons();
         if (_modernShell is null) return;
 
         foreach (var tab in _modernShell.OpenTabs)
             _modernTabs.Children.Add(BuildModernTab(tab));
+    }
+
+    private void UpdateNavigationButtons()
+    {
+        _backButton.IsEnabled = _modernShell?.NavigateBackCommand.CanExecute(null) == true;
+        _forwardButton.IsEnabled = _modernShell?.NavigateForwardCommand.CanExecute(null) == true;
     }
 
     /// <summary>
@@ -502,31 +556,14 @@ public sealed partial class WorkspaceChromeHost
             Text = tab.Title,
             MaxLines = 1,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Left,
             FontSize = 12
         };
-        var underline = new Border
+        var iconAndTitle = new StackPanel
         {
-            Height = 2,
-            Width = EstimateUnderlineWidth(tab.Title),
-            Margin = new Thickness(0, 1, 0, 0),
-            Background = ModernResourceBrush("HavenAccentBrush", Colors.DodgerBlue),
-            CornerRadius = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            IsVisible = tab.IsSelected
-        };
-        var label = new StackPanel
-        {
-            Spacing = 0,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Children = { title, underline }
-        };
-
-        var content = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto"),
-            ColumnSpacing = 7,
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
             HorizontalAlignment = HorizontalAlignment.Center,
             Children =
             {
@@ -538,8 +575,23 @@ public sealed partial class WorkspaceChromeHost
                     Opacity = tab.IsSelected ? 1 : 0.72,
                     VerticalAlignment = VerticalAlignment.Center
                 },
-                WithModernColumn(label, 1)
+                title
             }
+        };
+        var underline = new Border
+        {
+            Height = 2,
+            Margin = new Thickness(-2, 2, -2, 0),
+            Background = ModernResourceBrush("HavenAccentBrush", Colors.DodgerBlue),
+            CornerRadius = new CornerRadius(2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            IsVisible = tab.IsSelected
+        };
+        var content = new StackPanel
+        {
+            Spacing = 0,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Children = { iconAndTitle, underline }
         };
 
         var button = new Button
@@ -549,9 +601,7 @@ public sealed partial class WorkspaceChromeHost
             MaxWidth = 225,
             MinHeight = 38,
             Padding = new Thickness(10, 3),
-            Background = tab.IsSelected
-                ? ModernResourceBrush("HavenAccentSoftBrush", Color.FromArgb(60, 0, 120, 212))
-                : Brushes.Transparent,
+            Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(10),
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -588,13 +638,66 @@ public sealed partial class WorkspaceChromeHost
     /// </summary>
     private ContextMenu BuildTabContextMenu(WorkspaceTabViewModel tab)
     {
+        var refresh = new MenuItem { Header = "Refresh tab" };
+        refresh.Click += async (_, _) => await RefreshTabAsync(tab);
+
         var rename = new MenuItem { Header = "Rename tab" };
         rename.Click += async (_, _) => await RenameTabAsync(tab);
 
-        var close = new MenuItem { Header = "Close tab" };
+        var tabIndex = _modernShell?.OpenTabs.IndexOf(tab) ?? -1;
+        var closeRight = new MenuItem
+        {
+            Header = "Close all tabs to the right",
+            IsEnabled = _modernShell is not null && tabIndex >= 0 && tabIndex < _modernShell.OpenTabs.Count - 1
+        };
+        closeRight.Click += (_, _) => CloseTabsBeside(tab, closeRight: true);
+
+        var closeLeft = new MenuItem
+        {
+            Header = "Close all tabs to the left",
+            IsEnabled = tabIndex > 0
+        };
+        closeLeft.Click += (_, _) => CloseTabsBeside(tab, closeRight: false);
+
+        var close = new MenuItem
+        {
+            Header = "Close tab",
+            IsVisible = _modernShell is { OpenTabs.Count: > 1 } && tab.IsCloseable
+        };
         close.Click += (_, _) => CloseModernTab(tab);
 
-        return new ContextMenu { ItemsSource = new object[] { rename, close } };
+        return new ContextMenu
+        {
+            ItemsSource = new object[] { refresh, rename, new Separator(), closeRight, closeLeft, new Separator(), close }
+        };
+    }
+
+    private async Task RefreshTabAsync(WorkspaceTabViewModel tab)
+    {
+        if (tab.Page is BrowserPageViewModel browser)
+        {
+            await browser.ReloadCommand.ExecuteAsync();
+            return;
+        }
+
+        if (tab.Page is IActivatablePage activatable)
+        {
+            activatable.Deactivate();
+            await activatable.ActivateAsync(CancellationToken.None);
+        }
+    }
+
+    private void CloseTabsBeside(WorkspaceTabViewModel anchor, bool closeRight)
+    {
+        if (_modernShell is null) return;
+        var anchorIndex = _modernShell.OpenTabs.IndexOf(anchor);
+        if (anchorIndex < 0) return;
+
+        var candidates = _modernShell.OpenTabs
+            .Where((tab, index) => tab.IsCloseable && (closeRight ? index > anchorIndex : index < anchorIndex))
+            .ToArray();
+        foreach (var candidate in candidates)
+            CloseModernTab(candidate);
     }
 
     /// <summary>
@@ -654,22 +757,11 @@ public sealed partial class WorkspaceChromeHost
     /// </summary>
     private void CloseModernTab(WorkspaceTabViewModel tab)
     {
-        if (_modernShell is null) return;
-
-        var index = _modernShell.OpenTabs.IndexOf(tab);
-        if (index < 0) return;
-        var wasSelected = ReferenceEquals(_modernShell.SelectedTab, tab);
-        _modernShell.OpenTabs.RemoveAt(index);
-
-        if (wasSelected && _modernShell.OpenTabs.Count > 0)
-        {
-            var nextIndex = Math.Clamp(index - 1, 0, _modernShell.OpenTabs.Count - 1);
-            _modernShell.SelectedTab = _modernShell.OpenTabs[nextIndex];
-        }
-        else if (_modernShell.OpenTabs.Count == 0)
-        {
-            _ = OpenFreshHomeTabAsync();
-        }
+        if (_modernShell is null || _modernShell.OpenTabs.Count <= 1 || !tab.IsCloseable) return;
+        // Route every close gesture through the shell command so selection,
+        // disposal, and the one-tab minimum have one source of truth.
+        if (_modernShell.CloseTabCommand.CanExecute(tab))
+            _modernShell.CloseTabCommand.Execute(tab);
     }
 
     /// <summary>
@@ -936,12 +1028,17 @@ public sealed partial class WorkspaceChromeHost
                     WithModernColumn(new TextBlock { Text = category, FontWeight = FontWeight.SemiBold }, 1)
                 }
             };
-            _actionsSections.Children.Add(new Expander
+            var section = new Expander
             {
                 Header = header,
                 IsExpanded = category is "File" or "Chat" or "Tools",
-                Content = rows
-            });
+                Content = rows,
+                Background = Brushes.Transparent,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
+            };
+            section.Classes.Add("actionSection");
+            _actionsSections.Children.Add(section);
         }
     }
 
@@ -997,6 +1094,7 @@ public sealed partial class WorkspaceChromeHost
             Content = content
         };
         button.Classes.Add("sidebar");
+        button.Classes.Add("actionRow");
         button.Click += (_, _) =>
         {
             _actionsFlyout?.Hide();
