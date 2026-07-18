@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/ProductionMarkdownView.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns MarkdownCodeAction, MarkdownCodeActionRequest, ProductionMarkdownView, TextObserver. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
@@ -9,6 +18,9 @@ using Avalonia.Media;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Lists the supported markdown code action values used to make state explicit and type-safe.
+/// </summary>
 public enum MarkdownCodeAction
 {
     Copy,
@@ -16,17 +28,41 @@ public enum MarkdownCodeAction
     AskToApply
 }
 
+/// <summary>
+/// Represents markdown code action request and keeps its related state and behavior together.
+/// </summary>
 public sealed record MarkdownCodeActionRequest(MarkdownCodeAction Action, string Language, string Code);
 
+/// <summary>
+/// Represents production markdown view and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProductionMarkdownView : UserControl
 {
+    /// <summary>
+    /// Stores text property locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly StyledProperty<string> TextProperty = AvaloniaProperty.Register<ProductionMarkdownView, string>(nameof(Text), string.Empty);
+    /// <summary>
+    /// Stores inline pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex InlinePattern = new(
         "(`[^`]+`|\\*\\*[^*]+\\*\\*|(?<!\\*)\\*[^*]+\\*(?!\\*)|\\[[^\\]]+\\]\\([^)]+\\)|\\$[^$\\n]+\\$)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores ordered list locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex OrderedList = new("^\\s*(\\d+)[.)]\\s+(.+)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores task list locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex TaskList = new("^\\s*[-*+]\\s+\\[([ xX])\\]\\s+(.+)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores bullet list locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex BulletList = new("^\\s*[-*+]\\s+(.+)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _root = new() { Spacing = 8 };
 
     public ProductionMarkdownView()
@@ -41,8 +77,14 @@ public sealed class ProductionMarkdownView : UserControl
         set => SetValue(TextProperty, value);
     }
 
+    /// <summary>
+    /// Stores code action requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event Action<MarkdownCodeActionRequest>? CodeActionRequested;
 
+    /// <summary>
+    /// Performs the rebuild step owned by this component.
+    /// </summary>
     private void Rebuild(string? value)
     {
         _root.Children.Clear();
@@ -126,6 +168,9 @@ public sealed class ProductionMarkdownView : UserControl
         FlushParagraph(paragraph);
     }
 
+    /// <summary>
+    /// Performs the flush paragraph step owned by this component.
+    /// </summary>
     private void FlushParagraph(List<string> paragraph)
     {
         if (paragraph.Count == 0) return;
@@ -133,6 +178,9 @@ public sealed class ProductionMarkdownView : UserControl
         paragraph.Clear();
     }
 
+    /// <summary>
+    /// Attempts to build heading and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryBuildHeading(string line, out Control heading)
     {
         var count = line.TakeWhile(character => character == '#').Count();
@@ -146,6 +194,9 @@ public sealed class ProductionMarkdownView : UserControl
         return true;
     }
 
+    /// <summary>
+    /// Builds quote from the currently available inputs.
+    /// </summary>
     private static Control BuildQuote(string text) => new Border
     {
         BorderThickness = new Thickness(3, 0, 0, 0),
@@ -156,6 +207,9 @@ public sealed class ProductionMarkdownView : UserControl
         Child = BuildInlineText(text, 13, FontWeight.Normal, FontStyle.Italic)
     };
 
+    /// <summary>
+    /// Builds task from the currently available inputs.
+    /// </summary>
     private static Control BuildTask(string text, bool isChecked) => new Grid
     {
         ColumnDefinitions = new ColumnDefinitions("Auto,*"),
@@ -167,6 +221,9 @@ public sealed class ProductionMarkdownView : UserControl
         }
     };
 
+    /// <summary>
+    /// Builds list item from the currently available inputs.
+    /// </summary>
     private static Control BuildListItem(string marker, string text) => new Grid
     {
         ColumnDefinitions = new ColumnDefinitions("28,*"),
@@ -178,6 +235,9 @@ public sealed class ProductionMarkdownView : UserControl
         }
     };
 
+    /// <summary>
+    /// Builds code block from the currently available inputs.
+    /// </summary>
     private Border BuildCodeBlock(string language, string code)
     {
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto"), ColumnSpacing = 6 };
@@ -222,6 +282,9 @@ public sealed class ProductionMarkdownView : UserControl
         };
     }
 
+    /// <summary>
+    /// Performs the action button step owned by this component.
+    /// </summary>
     private Button ActionButton(string label, int column, MarkdownCodeAction action, string language, string code)
     {
         var button = new Button { Content = label, FontSize = 10, Padding = new Thickness(8, 4) };
@@ -238,6 +301,9 @@ public sealed class ProductionMarkdownView : UserControl
         return button;
     }
 
+    /// <summary>
+    /// Builds equation from the currently available inputs.
+    /// </summary>
     private static Control BuildEquation(string latex)
     {
         var display = FormatLatex(latex);
@@ -257,6 +323,9 @@ public sealed class ProductionMarkdownView : UserControl
         };
     }
 
+    /// <summary>
+    /// Attempts to build table and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryBuildTable(string[] lines, ref int index, out Control table)
     {
         table = null!;
@@ -300,8 +369,14 @@ public sealed class ProductionMarkdownView : UserControl
         return true;
     }
 
+    /// <summary>
+    /// Performs the split table row step owned by this component.
+    /// </summary>
     private static IReadOnlyList<string> SplitTableRow(string line) => line.Trim().Trim('|').Split('|').Select(value => value.Trim()).ToArray();
 
+    /// <summary>
+    /// Builds inline text from the currently available inputs.
+    /// </summary>
     private static TextBlock BuildInlineText(string text, double size, FontWeight weight, FontStyle style = FontStyle.Normal)
     {
         var block = new TextBlock { FontSize = size, FontWeight = weight, FontStyle = style, TextWrapping = TextWrapping.Wrap };
@@ -332,6 +407,9 @@ public sealed class ProductionMarkdownView : UserControl
         return block;
     }
 
+    /// <summary>
+    /// Performs the format latex step owned by this component.
+    /// </summary>
     private static string FormatLatex(string latex)
     {
         var value = latex.Trim();
@@ -367,12 +445,27 @@ public sealed class ProductionMarkdownView : UserControl
         return control;
     }
 
+    /// <summary>
+    /// Performs the brush step owned by this component.
+    /// </summary>
     private static IBrush? Brush(string key) => Avalonia.Application.Current?.TryFindResource(key, out var value) == true ? value as IBrush : null;
 
+    /// <summary>
+    /// Represents text observer and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TextObserver(ProductionMarkdownView owner) : IObserver<string>
     {
+        /// <summary>
+        /// Handles the completed event raised by the UI or runtime.
+        /// </summary>
         public void OnCompleted() { }
+        /// <summary>
+        /// Handles the error event raised by the UI or runtime.
+        /// </summary>
         public void OnError(Exception error) { }
+        /// <summary>
+        /// Handles the next event raised by the UI or runtime.
+        /// </summary>
         public void OnNext(string value) => owner.Rebuild(value);
     }
 }

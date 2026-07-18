@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/UsageTrackingConversationRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns UsageTrackingConversationRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
@@ -6,6 +15,9 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents usage tracking conversation repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class UsageTrackingConversationRepository(
     ConversationRepository inner,
     IModelUsageRepository usageRepository,
@@ -13,22 +25,49 @@ public sealed class UsageTrackingConversationRepository(
     IProviderPricingService pricingService,
     ProviderUsageCaptureBuffer usageCapture) : IConversationRepository
 {
+    /// <summary>
+    /// Stores turn started locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, long> _turnStarted = new();
 
+    /// <summary>
+    /// Retrieves recent async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<Conversation>> GetRecentAsync(HavenMode? mode, int limit, CancellationToken cancellationToken) =>
         inner.GetRecentAsync(mode, limit, cancellationToken);
 
+    /// <summary>
+    /// Retrieves recent in scope async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<Conversation>> GetRecentInScopeAsync(ConversationScope scope, int limit, CancellationToken cancellationToken) =>
         inner.GetRecentInScopeAsync(scope, limit, cancellationToken);
 
+    /// <summary>
+    /// Retrieves archived async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<Conversation>> GetArchivedAsync(HavenMode? mode, int limit, CancellationToken cancellationToken) =>
         inner.GetArchivedAsync(mode, limit, cancellationToken);
 
+    /// <summary>
+    /// Retrieves async for the current operation.
+    /// </summary>
     public Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken) => inner.GetAsync(id, cancellationToken);
+    /// <summary>
+    /// Retrieves messages async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetMessagesAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Retrieves context messages async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ChatMessage>> GetContextMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetContextMessagesAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken) => inner.UpsertConversationAsync(conversation, cancellationToken);
 
+    /// <summary>
+    /// Performs add message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
     {
         if (message.Role == MessageRole.User) _turnStarted[message.ConversationId] = Stopwatch.GetTimestamp();
@@ -90,15 +129,30 @@ public sealed class UsageTrackingConversationRepository(
         }
     }
 
+    /// <summary>
+    /// Performs mark messages compacted async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken) =>
         inner.MarkMessagesCompactedAsync(conversationId, messageIds, cancellationToken);
 
+    /// <summary>
+    /// Retrieves context entries async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ConversationContextEntry>> GetContextEntriesAsync(Guid conversationId, CancellationToken cancellationToken) =>
         inner.GetContextEntriesAsync(conversationId, cancellationToken);
 
+    /// <summary>
+    /// Performs add context entry async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken) => inner.AddContextEntryAsync(entry, cancellationToken);
+    /// <summary>
+    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => inner.DeleteConversationAsync(id, cancellationToken);
 
+    /// <summary>
+    /// Performs the estimate tokens step owned by this component.
+    /// </summary>
     private static long EstimateTokens(string text)
     {
         if (string.IsNullOrEmpty(text)) return 0;
@@ -106,6 +160,9 @@ public sealed class UsageTrackingConversationRepository(
         return Math.Max(1, (long)Math.Ceiling(bytes / 4d));
     }
 
+    /// <summary>
+    /// Performs the resolve provider id step owned by this component.
+    /// </summary>
     private static string ResolveProviderId(string? model)
     {
         if (string.IsNullOrWhiteSpace(model)) return "ollama";
@@ -117,6 +174,9 @@ public sealed class UsageTrackingConversationRepository(
             : "ollama";
     }
 
+    /// <summary>
+    /// Performs the resolve model name step owned by this component.
+    /// </summary>
     private static string ResolveModelName(string? model)
     {
         if (string.IsNullOrWhiteSpace(model)) return "unknown";

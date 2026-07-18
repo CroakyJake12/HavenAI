@@ -1,9 +1,22 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/StudioProjectView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.StudioProjectView. Its visual vocabulary includes: ScrollViewer, StackPanel, Grid, TextBlock, Button, Border, UniformGrid, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, Button.ContextMenu, ContextMenu, MenuItem, TextBox.
+  Data flow: Binding expressions read or update these view-model paths: ProjectName, RootPath, StartChatCommand, OpenEditorCommand, OpenTerminalCommand, StartServerCommand, BuildCommand, TestCommand, IsInOverview, SwitchToOverviewCommand, IsInCreateMode, SwitchToCreateCommand, IsInConfigureMode, SwitchToConfigureCommand, Branch, LastCommit, WorkState, LastBuild, LastMeaningfulTask, RecommendedAction, AdaptiveHelp, LatestError, RefreshCommand, Files, Name, Folder, InitializeGitCommand, GitRemoteUrl, ConnectGitCommand, HasCreationKind, StartModeCreationCommand, StartPluginCreationCommand, StartAgentCreationCommand, StartPromptCreationCommand, CreationTitle, CancelCreationCommand, CreationHint, CreationName, CreationDescription, CreationInstructions, CreationBuilderPrompt, BuildWithAiCommand, CreateItemCommand, Status, ArchiveProjectCommand.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              x:Class="Haven.Desktop.Views.StudioProjectView"
              x:DataType="vm:StudioProjectPageViewModel">
+  <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel MaxWidth="1180" Margin="32,28" Spacing="18">
 
       <!-- HEADER -->

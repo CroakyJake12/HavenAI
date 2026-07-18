@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/LanguageServerProtocolClient.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LanguageServerClientFactory, LanguageServerRequestException, StdioLanguageServerClient, LanguageServerProtocolCodec. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -8,8 +17,14 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents language server client factory and keeps its related state and behavior together.
+/// </summary>
 public sealed class LanguageServerClientFactory : ILanguageServerClientFactory
 {
+    /// <summary>
+    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ILanguageServerClient> StartAsync(
         LanguageServerDefinition definition,
         string workspaceRoot,
@@ -51,28 +66,85 @@ public sealed class LanguageServerClientFactory : ILanguageServerClientFactory
     }
 }
 
+/// <summary>
+/// Represents language server request exception and keeps its related state and behavior together.
+/// </summary>
 public sealed class LanguageServerRequestException(int code, string message, JsonElement? data = null) : Exception(message)
 {
+    /// <summary>
+    /// Gets or updates code, the bindable or domain state represented by this property.
+    /// </summary>
     public int Code { get; } = code;
+    /// <summary>
+    /// Gets or updates data, the bindable or domain state represented by this property.
+    /// </summary>
     public JsonElement? Data { get; } = data;
 }
 
+/// <summary>
+/// Represents stdio language server client and keeps its related state and behavior together.
+/// </summary>
 internal sealed class StdioLanguageServerClient : ILanguageServerClient
 {
+    /// <summary>
+    /// Stores definition locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly LanguageServerDefinition _definition;
+    /// <summary>
+    /// Stores workspace root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _workspaceRoot;
+    /// <summary>
+    /// Stores process locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Process _process;
+    /// <summary>
+    /// Stores input locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Stream _input;
+    /// <summary>
+    /// Stores output locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Stream _output;
+    /// <summary>
+    /// Stores write gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _writeGate = new(1, 1);
+    /// <summary>
+    /// Stores lifetime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CancellationTokenSource _lifetime = new();
+    /// <summary>
+    /// Stores pending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonElement>> _pending = new();
+    /// <summary>
+    /// Stores published diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<string, IReadOnlyList<CodeDiagnostic>> _publishedDiagnostics = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores diagnostic waiters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<string, TaskCompletionSource<IReadOnlyList<CodeDiagnostic>>> _diagnosticWaiters = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores stderr locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StringBuilder _stderr = new();
+    /// <summary>
+    /// Stores reader task locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Task _readerTask;
+    /// <summary>
+    /// Stores stderr task locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Task _stderrTask;
+    /// <summary>
+    /// Stores request id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private long _requestId;
+    /// <summary>
+    /// Stores shutdown locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _shutdown;
 
     public StdioLanguageServerClient(LanguageServerDefinition definition, string workspaceRoot, Process process)
@@ -87,8 +159,14 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         process.Exited += (_, _) => FailPending(new InvalidOperationException(BuildExitMessage()));
     }
 
+    /// <summary>
+    /// Gets or updates server id, the bindable or domain state represented by this property.
+    /// </summary>
     public string ServerId => _definition.Id;
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         JsonElement initializationOptions;
@@ -126,6 +204,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         await NotifyAsync("initialized", new { }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs open document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task OpenDocumentAsync(
         string documentUri,
         string languageId,
@@ -139,6 +220,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves diagnostics async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<CodeDiagnostic>> GetDiagnosticsAsync(
         string documentUri,
         string workspaceRoot,
@@ -177,6 +261,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }
     }
 
+    /// <summary>
+    /// Performs search workspace symbols async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<CodeSymbol>> SearchWorkspaceSymbolsAsync(
         string query,
         string workspaceRoot,
@@ -201,6 +288,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return symbols;
     }
 
+    /// <summary>
+    /// Performs format document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<LanguageServerTextEdit>> FormatDocumentAsync(
         string documentUri,
         int tabSize,
@@ -224,6 +314,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return edits;
     }
 
+    /// <summary>
+    /// Performs shutdown async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ShutdownAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _shutdown, 1) != 0) return;
@@ -249,6 +342,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }
     }
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -262,6 +358,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         _lifetime.Dispose();
     }
 
+    /// <summary>
+    /// Performs request async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<JsonElement> RequestAsync(
         string method,
         object? parameters,
@@ -294,15 +393,24 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }
     }
 
+    /// <summary>
+    /// Performs notify async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task NotifyAsync(string method, object? parameters, CancellationToken cancellationToken) =>
         WriteMessageAsync(new { jsonrpc = "2.0", method, @params = parameters }, cancellationToken);
 
+    /// <summary>
+    /// Performs notify cancellation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task NotifyCancellationAsync(long id)
     {
         try { await NotifyAsync("$/cancelRequest", new { id }, CancellationToken.None).ConfigureAwait(false); }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or ObjectDisposedException) { }
     }
 
+    /// <summary>
+    /// Performs write message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task WriteMessageAsync(object payload, CancellationToken cancellationToken)
     {
         var body = JsonSerializer.SerializeToUtf8Bytes(payload, ProviderHttp.Json);
@@ -320,6 +428,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }
     }
 
+    /// <summary>
+    /// Performs read loop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -338,6 +449,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         }
     }
 
+    /// <summary>
+    /// Performs read stderr async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ReadStderrAsync(CancellationToken cancellationToken)
     {
         try
@@ -358,6 +472,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         catch (IOException) { }
     }
 
+    /// <summary>
+    /// Performs the dispatch step owned by this component.
+    /// </summary>
     private void Dispatch(JsonElement message)
     {
         if (message.TryGetProperty("id", out var idElement) && idElement.ValueKind is JsonValueKind.Number or JsonValueKind.String)
@@ -381,6 +498,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
             HandlePublishedDiagnostics(parameters);
     }
 
+    /// <summary>
+    /// Performs the handle published diagnostics step owned by this component.
+    /// </summary>
     private void HandlePublishedDiagnostics(JsonElement parameters)
     {
         if (!parameters.TryGetProperty("uri", out var uriElement) || uriElement.GetString() is not { Length: > 0 } uri) return;
@@ -391,12 +511,18 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         if (_diagnosticWaiters.TryGetValue(uri, out var waiter)) waiter.TrySetResult(diagnostics);
     }
 
+    /// <summary>
+    /// Performs the fail pending step owned by this component.
+    /// </summary>
     private void FailPending(Exception exception)
     {
         foreach (var pair in _pending) pair.Value.TrySetException(exception);
         foreach (var pair in _diagnosticWaiters) pair.Value.TrySetException(exception);
     }
 
+    /// <summary>
+    /// Builds exit message from the currently available inputs.
+    /// </summary>
     private string BuildExitMessage()
     {
         string error;
@@ -405,18 +531,27 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return $"{_definition.DisplayName} exited unexpectedly with code {(_process.HasExited ? _process.ExitCode : -1)}.{suffix}";
     }
 
+    /// <summary>
+    /// Attempts to kill and reports the result without using failure for normal control flow.
+    /// </summary>
     private void TryKill()
     {
         try { if (!_process.HasExited) _process.Kill(entireProcessTree: true); }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { }
     }
 
+    /// <summary>
+    /// Attempts to read request id and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadRequestId(JsonElement element, out long id)
     {
         if (element.ValueKind == JsonValueKind.Number) return element.TryGetInt64(out id);
         return long.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out id);
     }
 
+    /// <summary>
+    /// Performs the parse diagnostics step owned by this component.
+    /// </summary>
     private static IReadOnlyList<CodeDiagnostic> ParseDiagnostics(JsonElement values, string documentUri, string workspaceRoot)
     {
         var relative = RelativePathFromUri(documentUri, workspaceRoot) ?? documentUri;
@@ -435,6 +570,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return result;
     }
 
+    /// <summary>
+    /// Attempts to read location and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadLocation(JsonElement item, out string uri, out CodeRange range)
     {
         uri = string.Empty;
@@ -448,6 +586,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return false;
     }
 
+    /// <summary>
+    /// Attempts to read range and reports the result without using failure for normal control flow.
+    /// </summary>
     internal static bool TryReadRange(JsonElement element, out CodeRange range)
     {
         range = default!;
@@ -457,6 +598,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return true;
     }
 
+    /// <summary>
+    /// Attempts to read position and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadPosition(JsonElement element, out CodePosition position)
     {
         position = default!;
@@ -466,8 +610,14 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return true;
     }
 
+    /// <summary>
+    /// Performs the to document uri step owned by this component.
+    /// </summary>
     internal static string ToDocumentUri(string path) => new Uri(Path.GetFullPath(path)).AbsoluteUri;
 
+    /// <summary>
+    /// Performs the relative path from uri step owned by this component.
+    /// </summary>
     internal static string? RelativePathFromUri(string uri, string workspaceRoot)
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed) || !parsed.IsFile) return null;
@@ -478,6 +628,9 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
         return Path.GetRelativePath(root, path);
     }
 
+    /// <summary>
+    /// Performs the symbol kind name step owned by this component.
+    /// </summary>
     private static string SymbolKindName(int value) => value switch
     {
         2 => "Module", 3 => "Namespace", 4 => "Package", 5 => "Class", 6 => "Method", 7 => "Property", 8 => "Field",
@@ -487,8 +640,14 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     };
 }
 
+/// <summary>
+/// Represents language server protocol codec and keeps its related state and behavior together.
+/// </summary>
 internal static class LanguageServerProtocolCodec
 {
+    /// <summary>
+    /// Performs read message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task<JsonElement?> ReadMessageAsync(Stream stream, CancellationToken cancellationToken)
     {
         int? contentLength = null;
@@ -520,6 +679,9 @@ internal static class LanguageServerProtocolCodec
         return document.RootElement.Clone();
     }
 
+    /// <summary>
+    /// Performs write message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task WriteMessageAsync(Stream stream, JsonElement message, CancellationToken cancellationToken)
     {
         var body = JsonSerializer.SerializeToUtf8Bytes(message);
@@ -529,6 +691,9 @@ internal static class LanguageServerProtocolCodec
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs read ascii line async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string?> ReadAsciiLineAsync(Stream stream, CancellationToken cancellationToken)
     {
         var bytes = new List<byte>(128);

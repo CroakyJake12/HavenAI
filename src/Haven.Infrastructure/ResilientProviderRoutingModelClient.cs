@@ -1,19 +1,46 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ResilientProviderRoutingModelClient.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ResilientProviderRoutingModelClient. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents resilient provider routing model client and keeps its related state and behavior together.
+/// </summary>
 public sealed class ResilientProviderRoutingModelClient(
     ProviderRoutingModelClient primary,
     IModelProviderRegistry providers,
     IProviderConfigurationStore configurations) : IProviderModelClient
 {
+    /// <summary>
+    /// Reports whether is available async is true for the current state.
+    /// </summary>
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => primary.IsAvailableAsync(cancellationToken);
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => primary.GetModelsAsync(cancellationToken);
+    /// <summary>
+    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => primary.PullModelAsync(model, progress, cancellationToken);
+    /// <summary>
+    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => primary.DeleteModelAsync(model, cancellationToken);
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -50,6 +77,9 @@ public sealed class ResilientProviderRoutingModelClient(
         throw new InvalidOperationException("Every compatible model failed before producing output.", firstFailure);
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         Exception? firstFailure = null;
@@ -61,6 +91,9 @@ public sealed class ResilientProviderRoutingModelClient(
         throw new InvalidOperationException("Every compatible model failed before completing the request.", firstFailure);
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         var hasPriorToolState = request.Messages.Any(message => !string.IsNullOrWhiteSpace(message.ToolName) || message.ToolCalls is { Count: > 0 });
@@ -75,6 +108,9 @@ public sealed class ResilientProviderRoutingModelClient(
         throw new InvalidOperationException("Every compatible model failed before the first tool call.", firstFailure);
     }
 
+    /// <summary>
+    /// Retrieves candidates async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<string>> GetCandidatesAsync(
         string requestedModel,
         IReadOnlySet<ToolCapability> required,
@@ -121,6 +157,9 @@ public sealed class ResilientProviderRoutingModelClient(
         }
     }
 
+    /// <summary>
+    /// Performs the required capabilities step owned by this component.
+    /// </summary>
     private static IReadOnlySet<ToolCapability> RequiredCapabilities(OllamaChatRequest request)
     {
         var required = new HashSet<ToolCapability> { ToolCapability.Text };
@@ -128,6 +167,9 @@ public sealed class ResilientProviderRoutingModelClient(
         return required;
     }
 
+    /// <summary>
+    /// Performs the required capabilities step owned by this component.
+    /// </summary>
     private static IReadOnlySet<ToolCapability> RequiredCapabilities(OllamaToolRequest request)
     {
         var required = new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Tools };
@@ -135,6 +177,9 @@ public sealed class ResilientProviderRoutingModelClient(
         return required;
     }
 
+    /// <summary>
+    /// Reports whether is recoverable is true for the current state.
+    /// </summary>
     private static bool IsRecoverable(Exception exception, CancellationToken cancellationToken) => exception switch
     {
         OperationCanceledException when cancellationToken.IsCancellationRequested => false,
@@ -146,6 +191,9 @@ public sealed class ResilientProviderRoutingModelClient(
         _ => false
     };
 
+    /// <summary>
+    /// Performs the provider id step owned by this component.
+    /// </summary>
     private static string ProviderId(string model)
     {
         var separator = model.IndexOf(':');
@@ -154,6 +202,9 @@ public sealed class ResilientProviderRoutingModelClient(
         return prefix is "openai" or "anthropic" or "gemini" or "openrouter" or "openai-compatible" or "ollama" ? prefix : "ollama";
     }
 
+    /// <summary>
+    /// Performs the model name step owned by this component.
+    /// </summary>
     private static string ModelName(string model)
     {
         var provider = ProviderId(model);

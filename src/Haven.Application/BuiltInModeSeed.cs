@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/BuiltInModeSeed.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns BuiltInModeSeed. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents built in mode seed and keeps its related state and behavior together.
+/// </summary>
 public sealed class BuiltInModeSeed
 {
+    /// <summary>
+    /// Gets or updates modes, the bindable or domain state represented by this property.
+    /// </summary>
     public static IReadOnlyList<ModeDefinition> Modes { get; } =
     [
         new ModeDefinition(

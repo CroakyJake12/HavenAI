@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/NotesInkCanvasControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns NotesInkCanvasControl. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -6,10 +15,22 @@ using Haven.Core;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents notes ink canvas control and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesInkCanvasControl : Control
 {
+    /// <summary>
+    /// Stores active points locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly List<NotesInkPoint> _activePoints = [];
+    /// <summary>
+    /// Stores drawing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _drawing;
+    /// <summary>
+    /// Stores stroke start locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private long _strokeStart;
 
     public NotesInkCanvasControl()
@@ -24,16 +45,46 @@ public sealed class NotesInkCanvasControl : Control
         PointerWheelChanged += OnPointerWheelChanged;
     }
 
+    /// <summary>
+    /// Reports whether canvas data is true for the current state.
+    /// </summary>
     public NotesCanvasData? CanvasData { get; set; }
+    /// <summary>
+    /// Gets or updates tool, the bindable or domain state represented by this property.
+    /// </summary>
     public string Tool { get; set; } = "pen";
+    /// <summary>
+    /// Gets or updates colour, the bindable or domain state represented by this property.
+    /// </summary>
     public string Colour { get; set; } = "#FF2F80ED";
+    /// <summary>
+    /// Gets or updates stroke width, the bindable or domain state represented by this property.
+    /// </summary>
     public double StrokeWidth { get; set; } = 2.5;
+    /// <summary>
+    /// Gets or updates opacity, the bindable or domain state represented by this property.
+    /// </summary>
     public new double Opacity { get; set; } = 1;
+    /// <summary>
+    /// Gets or updates active ghost layer id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid? ActiveGhostLayerId { get; set; }
+    /// <summary>
+    /// Stores stroke completed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<NotesInkStroke>? StrokeCompleted;
+    /// <summary>
+    /// Stores stroke erased locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<Guid>? StrokeErased;
+    /// <summary>
+    /// Stores view changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? ViewChanged;
 
+    /// <summary>
+    /// Performs the render step owned by this component.
+    /// </summary>
     public override void Render(DrawingContext context)
     {
         base.Render(context);
@@ -70,6 +121,9 @@ public sealed class NotesInkCanvasControl : Control
         }
     }
 
+    /// <summary>
+    /// Handles the pointer pressed event raised by the UI or runtime.
+    /// </summary>
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (CanvasData is null) return;
@@ -92,6 +146,9 @@ public sealed class NotesInkCanvasControl : Control
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Handles the pointer moved event raised by the UI or runtime.
+    /// </summary>
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!_drawing || CanvasData is null) return;
@@ -109,6 +166,9 @@ public sealed class NotesInkCanvasControl : Control
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Handles the pointer released event raised by the UI or runtime.
+    /// </summary>
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (!_drawing) return;
@@ -117,8 +177,14 @@ public sealed class NotesInkCanvasControl : Control
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Handles the pointer capture lost event raised by the UI or runtime.
+    /// </summary>
     private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => CompleteStroke();
 
+    /// <summary>
+    /// Performs the complete stroke step owned by this component.
+    /// </summary>
     private void CompleteStroke()
     {
         if (!_drawing) return;
@@ -141,6 +207,9 @@ public sealed class NotesInkCanvasControl : Control
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// Handles the pointer wheel changed event raised by the UI or runtime.
+    /// </summary>
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (CanvasData is null) return;
@@ -150,6 +219,9 @@ public sealed class NotesInkCanvasControl : Control
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Performs the to canvas step owned by this component.
+    /// </summary>
     private Point ToCanvas(Point position)
     {
         var canvas = CanvasData!;
@@ -157,6 +229,9 @@ public sealed class NotesInkCanvasControl : Control
         return new Point((position.X - canvas.OffsetX) / scale, (position.Y - canvas.OffsetY) / scale);
     }
 
+    /// <summary>
+    /// Performs the to ink point step owned by this component.
+    /// </summary>
     private NotesInkPoint ToInkPoint(PointerPoint pointer, Point point)
     {
         var properties = pointer.Properties;
@@ -171,6 +246,9 @@ public sealed class NotesInkCanvasControl : Control
         };
     }
 
+    /// <summary>
+    /// Performs the find stroke step owned by this component.
+    /// </summary>
     private NotesInkStroke? FindStroke(Point point, double radius)
     {
         var canvas = CanvasData!;
@@ -183,6 +261,9 @@ public sealed class NotesInkCanvasControl : Control
         }));
     }
 
+    /// <summary>
+    /// Performs the draw grid step owned by this component.
+    /// </summary>
     private static void DrawGrid(DrawingContext context, NotesCanvasData canvas)
     {
         var pen = new Pen(new SolidColorBrush(Color.FromArgb(18, 255, 255, 255)), 1 / Math.Max(canvas.Zoom, 0.05));
@@ -193,6 +274,9 @@ public sealed class NotesInkCanvasControl : Control
         for (var y = 0; y <= height; y += step) context.DrawLine(pen, new Point(0, y), new Point(width, y));
     }
 
+    /// <summary>
+    /// Performs the draw object step owned by this component.
+    /// </summary>
     private static void DrawObject(DrawingContext context, NotesCanvasObject value)
     {
         var fill = new SolidColorBrush(value.Locked ? Color.FromArgb(70, 160, 160, 160) : Color.FromArgb(70, 47, 128, 237));
@@ -202,6 +286,9 @@ public sealed class NotesInkCanvasControl : Control
             context.DrawLine(pen, new Point(value.X, value.Y), new Point(value.X + value.Width, value.Y + value.Height));
     }
 
+    /// <summary>
+    /// Performs the draw stroke step owned by this component.
+    /// </summary>
     private static void DrawStroke(DrawingContext context, NotesCanvasData canvas, NotesInkStroke stroke, bool ignoreGhostVisibility = false)
     {
         if (!ignoreGhostVisibility && stroke.IsGhost && stroke.GhostLayerId is { } layerId)
@@ -228,6 +315,9 @@ public sealed class NotesInkCanvasControl : Control
         }
     }
 
+    /// <summary>
+    /// Performs the read number step owned by this component.
+    /// </summary>
     private static double ReadNumber(object properties, string name, double fallback)
     {
         try

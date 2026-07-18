@@ -1,11 +1,26 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ContainerRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ContainerRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents container repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPaths? paths = null) : IContainerRepository
 {
+    /// <summary>
+    /// Retrieves by mode async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ContainerDefinition>> GetByModeAsync(HavenMode mode, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -19,6 +34,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         return result;
     }
 
+    /// <summary>
+    /// Retrieves archived by mode async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ContainerDefinition>> GetArchivedByModeAsync(HavenMode mode, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -31,6 +49,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAsync(ContainerDefinition item, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -53,6 +74,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Creates subject async with the invariants required by its callers.
+    /// </summary>
     public async Task<Lesson> CreateSubjectAsync(ContainerDefinition subject, CancellationToken cancellationToken)
     {
         if (subject.Mode != HavenMode.Teach)
@@ -89,8 +113,14 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         return general;
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken) => DeleteAndDetachConversationsAsync(id, cancellationToken);
 
+    /// <summary>
+    /// Performs delete and detach conversations async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAndDetachConversationsAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -141,6 +171,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         DeleteResourceDirectory(id);
     }
 
+    /// <summary>
+    /// Retrieves lessons async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<Lesson>> GetLessonsAsync(Guid subjectId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -157,6 +190,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert lesson async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertLessonAsync(Lesson lesson, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -178,6 +214,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete lesson async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteLessonAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -205,6 +244,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the add container parameters step owned by this component.
+    /// </summary>
     private static void AddContainerParameters(SqliteCommand command, ContainerDefinition item)
     {
         command.Parameters.AddWithValue("$id", item.Id.ToString());
@@ -218,6 +260,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         command.Parameters.AddWithValue("$isArchived", item.IsArchived ? 1 : 0);
     }
 
+    /// <summary>
+    /// Performs the add lesson parameters step owned by this component.
+    /// </summary>
     private static void AddLessonParameters(SqliteCommand command, Lesson lesson)
     {
         command.Parameters.AddWithValue("$id", lesson.Id.ToString());
@@ -230,6 +275,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         command.Parameters.AddWithValue("$updatedAt", lesson.UpdatedAt.ToString("O"));
     }
 
+    /// <summary>
+    /// Performs the delete resource directory step owned by this component.
+    /// </summary>
     private void DeleteResourceDirectory(Guid containerId)
     {
         if (paths is null) return;
@@ -242,6 +290,9 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
         catch (UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Performs the map step owned by this component.
+    /// </summary>
     private static ContainerDefinition Map(Microsoft.Data.Sqlite.SqliteDataReader reader) =>
         new(reader.Guid("id"), (HavenMode)reader.Int32("mode"), reader.String("name"), reader.NullableString("root_path"),
             reader.String("context"), reader.String("instructions"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"),

@@ -1,22 +1,73 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/ReliabilityStatusViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns ReliabilityStatusViewModel, ReliabilityEventViewModel, DatabaseBackupViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Haven.Application;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents reliability status view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ReliabilityStatusViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores database locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDatabaseMaintenance _database;
+    /// <summary>
+    /// Stores restore locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDatabaseRestoreService _restore;
+    /// <summary>
+    /// Stores startup locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IStartupRecoveryCoordinator _startup;
+    /// <summary>
+    /// Stores diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProductionDiagnostics _diagnostics;
+    /// <summary>
+    /// Stores bundles locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDiagnosticsBundleService _bundles;
+    /// <summary>
+    /// Stores database status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _databaseStatus = "Not checked yet.";
+    /// <summary>
+    /// Stores startup status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _startupStatus = "Startup recovery has not reported yet.";
+    /// <summary>
+    /// Stores backup status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _backupStatus = "No verified backup inventory loaded.";
+    /// <summary>
+    /// Stores pending restore status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _pendingRestoreStatus = "No database restore is pending.";
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = string.Empty;
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
+    /// <summary>
+    /// Stores is restore confirming locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isRestoreConfirming;
+    /// <summary>
+    /// Stores restore candidate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DatabaseBackupViewModel? _restoreCandidate;
 
     public ReliabilityStatusViewModel(
@@ -38,18 +89,57 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         CancelPendingRestoreCommand = new AsyncRelayCommand(CancelPendingRestoreAsync, () => HasPendingRestore && !IsBusy);
     }
 
+    /// <summary>
+    /// Gets or updates events, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ReliabilityEventViewModel> Events { get; } = [];
+    /// <summary>
+    /// Gets or updates backups, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<DatabaseBackupViewModel> Backups { get; } = [];
+    /// <summary>
+    /// Gets or updates refresh command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>
+    /// Gets or updates request restore command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<DatabaseBackupViewModel> RequestRestoreCommand { get; }
+    /// <summary>
+    /// Gets or updates confirm restore command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ConfirmRestoreCommand { get; }
+    /// <summary>
+    /// Reports whether cancel restore confirmation command is true for the current state.
+    /// </summary>
     public RelayCommand CancelRestoreConfirmationCommand { get; }
+    /// <summary>
+    /// Reports whether cancel pending restore command is true for the current state.
+    /// </summary>
     public AsyncRelayCommand CancelPendingRestoreCommand { get; }
+    /// <summary>
+    /// Gets or updates database status, the bindable or domain state represented by this property.
+    /// </summary>
     public string DatabaseStatus { get => _databaseStatus; private set => SetProperty(ref _databaseStatus, value); }
+    /// <summary>
+    /// Gets or updates startup status, the bindable or domain state represented by this property.
+    /// </summary>
     public string StartupStatus { get => _startupStatus; private set => SetProperty(ref _startupStatus, value); }
+    /// <summary>
+    /// Gets or updates backup status, the bindable or domain state represented by this property.
+    /// </summary>
     public string BackupStatus { get => _backupStatus; private set => SetProperty(ref _backupStatus, value); }
+    /// <summary>
+    /// Gets or updates pending restore status, the bindable or domain state represented by this property.
+    /// </summary>
     public string PendingRestoreStatus { get => _pendingRestoreStatus; private set => SetProperty(ref _pendingRestoreStatus, value); }
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Reports whether is restore confirming is true for the current state.
+    /// </summary>
     public bool IsRestoreConfirming { get => _isRestoreConfirming; private set => SetProperty(ref _isRestoreConfirming, value); }
     public DatabaseBackupViewModel? RestoreCandidate
     {
@@ -60,6 +150,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
             ConfirmRestoreCommand.RaiseCanExecuteChanged();
         }
     }
+    /// <summary>
+    /// Reports whether has pending restore is true for the current state.
+    /// </summary>
     public bool HasPendingRestore { get; private set; }
     public bool IsBusy
     {
@@ -73,8 +166,14 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
+    /// <summary>
+    /// Creates bundle async with the invariants required by its callers.
+    /// </summary>
     public async Task<string> CreateBundleAsync(string destinationDirectory, CancellationToken cancellationToken)
     {
         try
@@ -97,8 +196,14 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
         try
@@ -132,6 +237,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs the begin restore step owned by this component.
+    /// </summary>
     private void BeginRestore(DatabaseBackupViewModel? backup)
     {
         if (backup is null) return;
@@ -145,6 +253,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         Status = "Review the restore warning before scheduling it.";
     }
 
+    /// <summary>
+    /// Performs confirm restore async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ConfirmRestoreAsync()
     {
         if (RestoreCandidate is null) return;
@@ -171,6 +282,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Reports whether cancel restore confirmation is true for the current state.
+    /// </summary>
     private void CancelRestoreConfirmation()
     {
         RestoreCandidate = null;
@@ -178,6 +292,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         Status = "Restore selection cancelled. No data was changed.";
     }
 
+    /// <summary>
+    /// Reports whether cancel pending restore async is true for the current state.
+    /// </summary>
     private async Task CancelPendingRestoreAsync()
     {
         try
@@ -201,6 +318,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs load backups and restore async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LoadBackupsAndRestoreAsync(CancellationToken cancellationToken)
     {
         var backups = await _restore.GetBackupsAsync(cancellationToken);
@@ -219,6 +339,9 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         CancelPendingRestoreCommand.RaiseCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Performs load events async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LoadEventsAsync(CancellationToken cancellationToken)
     {
         var events = await _diagnostics.ReadRecentAsync(50, cancellationToken);
@@ -227,19 +350,49 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents reliability event view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record ReliabilityEventViewModel(ReliabilityEvent Event)
 {
+    /// <summary>
+    /// Gets or updates time, the bindable or domain state represented by this property.
+    /// </summary>
     public string Time => Event.Timestamp.LocalDateTime.ToString("g", System.Globalization.CultureInfo.CurrentCulture);
+    /// <summary>
+    /// Gets or updates severity, the bindable or domain state represented by this property.
+    /// </summary>
     public string Severity => Event.Severity.ToString();
+    /// <summary>
+    /// Gets or updates source, the bindable or domain state represented by this property.
+    /// </summary>
     public string Source => Event.Component + " / " + Event.EventName;
+    /// <summary>
+    /// Gets or updates message, the bindable or domain state represented by this property.
+    /// </summary>
     public string Message => Event.Message;
+    /// <summary>
+    /// Gets or updates correlation id, the bindable or domain state represented by this property.
+    /// </summary>
     public string CorrelationId => Event.CorrelationId;
 }
 
+/// <summary>
+/// Represents database backup view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record DatabaseBackupViewModel(ManagedDatabaseBackup Backup)
 {
+    /// <summary>
+    /// Gets or updates file name, the bindable or domain state represented by this property.
+    /// </summary>
     public string FileName => Backup.FileName;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => $"Schema {Backup.FromVersion} backup · {Backup.CreatedAt.LocalDateTime:g}";
+    /// <summary>
+    /// Gets or updates size, the bindable or domain state represented by this property.
+    /// </summary>
     public string Size => Backup.SizeBytes switch
     {
         >= 1024L * 1024 * 1024 => $"{Backup.SizeBytes / (1024d * 1024 * 1024):0.00} GB",
@@ -247,7 +400,16 @@ public sealed record DatabaseBackupViewModel(ManagedDatabaseBackup Backup)
         >= 1024 => $"{Backup.SizeBytes / 1024d:0.0} KB",
         _ => Backup.SizeBytes + " B"
     };
+    /// <summary>
+    /// Reports whether is verified is true for the current state.
+    /// </summary>
     public bool IsVerified => Backup.IsVerified;
+    /// <summary>
+    /// Gets or updates verification, the bindable or domain state represented by this property.
+    /// </summary>
     public string Verification => Backup.IsVerified ? "Verified" : "Blocked: " + Backup.VerificationMessage;
+    /// <summary>
+    /// Gets or updates schema, the bindable or domain state represented by this property.
+    /// </summary>
     public string Schema => $"v{Backup.FromVersion} → target v{Backup.ToVersion}";
 }

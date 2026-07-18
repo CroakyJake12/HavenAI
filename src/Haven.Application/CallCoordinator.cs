@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/CallCoordinator.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns CallCoordinator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Threading.Channels;
 using Haven.Core;
@@ -11,27 +20,78 @@ namespace Haven.Application;
 /// </summary>
 public sealed class CallCoordinator : ICallCoordinator
 {
+    /// <summary>
+    /// Stores default system prompt locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string DefaultSystemPrompt =
         "You are Haven in a private, local live call. Respond conversationally and concisely. " +
         "Prefer short paragraphs that sound natural when spoken. Do not claim to see a shared " +
         "screen unless an image is attached to the current turn.";
 
+    /// <summary>
+    /// Stores calls locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICallRepository _calls;
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores speech input locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ISpeechInputService _speechInput;
+    /// <summary>
+    /// Stores speech output locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ISpeechOutputService _speechOutput;
+    /// <summary>
+    /// Stores screen share locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IScreenShareService _screenShare;
+    /// <summary>
+    /// Stores time provider locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Stores lifecycle gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    /// <summary>
+    /// Stores turn gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _turnGate = new(1, 1);
 
+    /// <summary>
+    /// Stores lifetime cts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _lifetimeCts;
+    /// <summary>
+    /// Stores turn cts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _turnCts;
+    /// <summary>
+    /// Stores options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallStartOptions? _options;
+    /// <summary>
+    /// Stores speech model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private SpeechModelInfo? _speechModel;
+    /// <summary>
+    /// Stores partial user message id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid _partialUserMessageId;
+    /// <summary>
+    /// Stores ending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _ending;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public CallCoordinator(
@@ -54,13 +114,34 @@ public sealed class CallCoordinator : ICallCoordinator
         _screenShare.SnapshotAvailable += OnScreenShareSnapshotAvailable;
     }
 
+    /// <summary>
+    /// Gets or updates state, the bindable or domain state represented by this property.
+    /// </summary>
     public CallState State { get; private set; } = CallState.Idle;
+    /// <summary>
+    /// Gets or updates current session, the bindable or domain state represented by this property.
+    /// </summary>
     public CallSession? CurrentSession { get; private set; }
+    /// <summary>
+    /// Gets or updates current conversation, the bindable or domain state represented by this property.
+    /// </summary>
     public Conversation? CurrentConversation { get; private set; }
+    /// <summary>
+    /// Reports whether is active is true for the current state.
+    /// </summary>
     public bool IsActive => CurrentSession?.Status == CallSessionStatus.Active;
+    /// <summary>
+    /// Reports whether is muted is true for the current state.
+    /// </summary>
     public bool IsMuted { get; private set; }
+    /// <summary>
+    /// Reports whether is screen sharing is true for the current state.
+    /// </summary>
     public bool IsScreenSharing => _screenShare.IsSharing;
 
+    /// <summary>
+    /// Gets or updates capabilities, the bindable or domain state represented by this property.
+    /// </summary>
     public CallCapabilities Capabilities => new(
         _speechInput.IsAvailable,
         _speechOutput.IsAvailable,
@@ -72,11 +153,26 @@ public sealed class CallCoordinator : ICallCoordinator
         _speechOutput.Devices,
         _speechOutput.Voices);
 
+    /// <summary>
+    /// Stores state changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<CallStateChangedEventArgs>? StateChanged;
+    /// <summary>
+    /// Stores transcript changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;
+    /// <summary>
+    /// Stores audio level changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<CallAudioLevelEventArgs>? AudioLevelChanged;
+    /// <summary>
+    /// Stores screen preview changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
 
+    /// <summary>
+    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<CallSession> StartAsync(
         CallStartOptions options,
         SpeechModelInfo? speechModel,
@@ -147,9 +243,15 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs submit text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SubmitTextAsync(string text, CancellationToken cancellationToken) =>
         RunTurnAsync(text, fromSpeech: false, Guid.NewGuid(), cancellationToken);
 
+    /// <summary>
+    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task BeginPushToTalkAsync(CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -170,6 +272,9 @@ public sealed class CallCoordinator : ICallCoordinator
         await _speechInput.BeginPushToTalkAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task EndPushToTalkAsync(CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -178,6 +283,9 @@ public sealed class CallCoordinator : ICallCoordinator
         await _speechInput.EndPushToTalkAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs set muted async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SetMutedAsync(bool muted, CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -195,6 +303,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs pause async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task PauseAsync(CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -203,6 +314,9 @@ public sealed class CallCoordinator : ICallCoordinator
         SetState(CallState.Paused, "Call paused");
     }
 
+    /// <summary>
+    /// Performs resume async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ResumeAsync(CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -212,6 +326,9 @@ public sealed class CallCoordinator : ICallCoordinator
         SetState(CallState.Listening, IsMuted ? "Call resumed · microphone muted" : "Listening");
     }
 
+    /// <summary>
+    /// Performs start screen share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StartScreenShareAsync(CancellationToken cancellationToken)
     {
         EnsureActive();
@@ -242,6 +359,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs stop screen share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StopScreenShareAsync(CancellationToken cancellationToken)
     {
         if (!_screenShare.IsSharing) return;
@@ -249,6 +369,9 @@ public sealed class CallCoordinator : ICallCoordinator
         SetState(State, "Screen sharing stopped.");
     }
 
+    /// <summary>
+    /// Performs interrupt async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InterruptAsync(CancellationToken cancellationToken)
     {
         if (!IsActive) return;
@@ -259,6 +382,9 @@ public sealed class CallCoordinator : ICallCoordinator
             SetState(CallState.Listening, "Interrupted · listening");
     }
 
+    /// <summary>
+    /// Performs end async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task EndAsync(CancellationToken cancellationToken)
     {
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -278,6 +404,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Runs run turn async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunTurnAsync(
         string text,
         bool fromSpeech,
@@ -417,6 +546,9 @@ public sealed class CallCoordinator : ICallCoordinator
             await FailAsync(fatalError.Message).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs speak queued async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SpeakQueuedAsync(ChannelReader<string> reader, CancellationToken cancellationToken)
     {
         var failed = false;
@@ -441,6 +573,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs handle speech input event async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task HandleSpeechInputEventAsync(SpeechInputEvent inputEvent, CancellationToken cancellationToken)
     {
         if (!IsActive || _ending || IsMuted || State == CallState.Paused) return;
@@ -479,12 +614,18 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs start speech input async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task StartSpeechInputAsync(CancellationToken cancellationToken) =>
         _speechInput.StartAsync(
             new SpeechInputOptions(_options?.InputDeviceId, _speechModel, _options?.InputMode ?? CallInputMode.HandsFree),
             HandleSpeechInputEventAsync,
             cancellationToken);
 
+    /// <summary>
+    /// Performs fail async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task FailAsync(string error)
     {
         await _lifecycleGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -500,6 +641,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs end core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EndCoreAsync(
         CallSessionStatus status,
         string? error,
@@ -532,48 +676,75 @@ public sealed class CallCoordinator : ICallCoordinator
         }
     }
 
+    /// <summary>
+    /// Performs stop media input and output async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StopMediaInputAndOutputAsync(CancellationToken cancellationToken)
     {
         await BestEffortAsync(() => _speechInput.StopAsync(cancellationToken)).ConfigureAwait(false);
         await BestEffortAsync(() => _speechOutput.StopAsync(cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs cleanup media async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CleanupMediaAsync(CancellationToken cancellationToken)
     {
         await StopMediaInputAndOutputAsync(cancellationToken).ConfigureAwait(false);
         await BestEffortAsync(() => _screenShare.StopAsync(cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs best effort async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task BestEffortAsync(Func<Task> action)
     {
         try { await action().ConfigureAwait(false); }
         catch (Exception) { /* cleanup must continue across adapter failures */ }
     }
 
+    /// <summary>
+    /// Performs the ensure active step owned by this component.
+    /// </summary>
     private void EnsureActive()
     {
         if (!IsActive || CurrentConversation is null || _options is null)
             throw new InvalidOperationException("Start a Haven call first.");
     }
 
+    /// <summary>
+    /// Performs the set state step owned by this component.
+    /// </summary>
     private void SetState(CallState state, string status)
     {
         State = state;
         StateChanged?.Invoke(this, new(state, status));
     }
 
+    /// <summary>
+    /// Handles the screen share snapshot available event raised by the UI or runtime.
+    /// </summary>
     private void OnScreenShareSnapshotAvailable(object? sender, ScreenShareSnapshotEventArgs e) =>
         ScreenPreviewChanged?.Invoke(this, e);
 
+    /// <summary>
+    /// Handles the screen share source closed event raised by the UI or runtime.
+    /// </summary>
     private void OnScreenShareSourceClosed(object? sender, EventArgs e) =>
         _ = HandleScreenShareSourceClosedAsync();
 
+    /// <summary>
+    /// Performs handle screen share source closed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task HandleScreenShareSourceClosedAsync()
     {
         if (!IsActive || _ending) return;
         await FailAsync("The shared screen or window was closed.").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

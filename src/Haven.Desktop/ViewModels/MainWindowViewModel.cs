@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/MainWindowViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns MainWindowViewModel, WorkspaceTabViewModel, CommandPaletteItemViewModel, RecentConversationViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Threading;
@@ -10,63 +19,234 @@ using Haven.Infrastructure;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents main window view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores containers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IContainerRepository _containers;
+    /// <summary>
+    /// Stores catalog locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICatalogRepository _catalog;
+    /// <summary>
+    /// Stores automations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAutomationRepository _automations;
+    /// <summary>
+    /// Stores workspace state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IWorkspaceStateRepository _workspaceState;
+    /// <summary>
+    /// Stores workspace tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IWorkspaceToolService _workspaceTools;
+    /// <summary>
+    /// Stores project intelligence locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProjectIntelligenceService _projectIntelligence;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores sessions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ChatSessionService _sessions;
+    /// <summary>
+    /// Stores preflight locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CapabilityPreflightService _preflight;
+    /// <summary>
+    /// Stores browser locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserSessionService _browser;
+    /// <summary>
+    /// Stores browser data locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserDataService _browserData;
+    /// <summary>
+    /// Stores registration locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly WindowsAutomationRegistrationService _registration;
+    /// <summary>
+    /// Stores automation runner locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly AutomationRunner _automationRunner;
+    /// <summary>
+    /// Stores schedule calculator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ScheduleCalculator _scheduleCalculator;
+    /// <summary>
+    /// Stores preferences locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly UserPreferencesService _preferences;
+    /// <summary>
+    /// Stores project creator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ProjectCreationService _projectCreator;
+    /// <summary>
+    /// Stores notifications locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NotificationService _notifications;
+    /// <summary>
+    /// Stores training repo locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ITrainingRepository _trainingRepo;
+    /// <summary>
+    /// Stores container resources locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IContainerResourceRepository _containerResources;
+    /// <summary>
+    /// Stores dashboard locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDashboardRepository _dashboard;
+    /// <summary>
+    /// Stores dashboard layout locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDashboardLayoutRepository _dashboardLayout;
+    /// <summary>
+    /// Stores dashboard providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyList<IDashboardTileProvider> _dashboardProviders;
+    /// <summary>
+    /// Stores call coordinator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICallCoordinator _callCoordinator;
+    /// <summary>
+    /// Stores speech models locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ISpeechModelManager _speechModels;
+    /// <summary>
+    /// Stores planner locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPlannerRepository _planner;
+    /// <summary>
+    /// Stores planner proposals locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPlannerProposalService _plannerProposals;
+    /// <summary>
+    /// Stores calendar providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICalendarSyncProviderRegistry _calendarProviders;
+    /// <summary>
+    /// Stores surface orchestration locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SurfaceOrchestrationService _surfaceOrchestration;
+    /// <summary>
+    /// Stores mode registry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry _modeRegistry;
+    /// <summary>
+    /// Stores mode usage locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeUsageRepository _modeUsage;
+    /// <summary>
+    /// Stores pins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPinRepository _pins;
+    /// <summary>
+    /// Stores companion dock vm locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CompanionDockViewModel _companionDockVm;
+    /// <summary>
+    /// Stores chats locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<HavenMode, ChatPageViewModel> _chats = [];
+    /// <summary>
+    /// Stores project chats locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Guid, ChatPageViewModel> _projectChats = [];
+    /// <summary>
+    /// Stores project pages locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Guid, StudioProjectPageViewModel> _projectPages = [];
+    /// <summary>
+    /// Stores group chats locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Guid, ChatPageViewModel> _groupChats = [];
+    /// <summary>
+    /// Stores group pages locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Guid, ChatGroupPageViewModel> _groupPages = [];
+    /// <summary>
+    /// Stores home page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private HomePageViewModel? _homePage;
+    /// <summary>
+    /// Stores call page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallPageViewModel? _callPage;
+    /// <summary>
+    /// Stores plan page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private PlanPageViewModel? _planPage;
+    /// <summary>
+    /// Stores reminder timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _reminderTimer;
+    /// <summary>
+    /// Stores is polling reminders locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _isPollingReminders;
+    /// <summary>
+    /// Stores current page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private object? _currentPage;
+    /// <summary>
+    /// Stores current chat locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ChatPageViewModel _currentChat;
+    /// <summary>
+    /// Stores selected tab locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private WorkspaceTabViewModel? _selectedTab;
+    /// <summary>
+    /// Stores startup status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _startupStatus = "Starting Haven…";
+    /// <summary>
+    /// Stores search query locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _searchQuery = string.Empty;
+    /// <summary>
+    /// Stores command search locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _commandSearch = string.Empty;
+    /// <summary>
+    /// Stores is sidebar open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isSidebarOpen = true;
+    /// <summary>
+    /// Stores is command palette open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isCommandPaletteOpen;
+    /// <summary>
+    /// Stores is rename open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isRenameOpen;
+    /// <summary>
+    /// Stores is delete confirmation open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isDeleteConfirmationOpen;
+    /// <summary>
+    /// Stores rename draft locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _renameDraft = string.Empty;
+    /// <summary>
+    /// Stores active project locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ContainerDefinition? _activeProject;
+    /// <summary>
+    /// Stores active project page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private StudioProjectPageViewModel? _activeProjectPage;
 
     public MainWindowViewModel(
@@ -213,14 +393,41 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         BuildCommandPalette();
     }
 
+    /// <summary>
+    /// Stores copy requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<string>? CopyRequested;
+    /// <summary>
+    /// Stores dictate requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? DictateRequested;
+    /// <summary>
+    /// Gets or updates pinned conversations, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<RecentConversationViewModel> PinnedConversations { get; } = [];
+    /// <summary>
+    /// Gets or updates recent conversations, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<RecentConversationViewModel> RecentConversations { get; } = [];
+    /// <summary>
+    /// Gets or updates open tabs, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<WorkspaceTabViewModel> OpenTabs { get; } = [];
+    /// <summary>
+    /// Gets or updates command items, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CommandPaletteItemViewModel> CommandItems { get; } = [];
+    /// <summary>
+    /// Gets or updates notifications, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ToastNotification> Notifications => _notifications.Notifications;
+    /// <summary>
+    /// Gets or updates all command items, the bindable or domain state represented by this property.
+    /// </summary>
     private IReadOnlyList<CommandPaletteItemViewModel> AllCommandItems { get; set; } = [];
+    /// <summary>
+    /// Gets or updates companion dock, the bindable or domain state represented by this property.
+    /// </summary>
     public CompanionDockViewModel CompanionDock => _companionDockVm;
 
     public ChatPageViewModel CurrentChat
@@ -293,13 +500,37 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Reports whether is chat visible is true for the current state.
+    /// </summary>
     public bool IsChatVisible => ReferenceEquals(CurrentPage, CurrentChat);
+    /// <summary>
+    /// Reports whether is page visible is true for the current state.
+    /// </summary>
     public bool IsPageVisible => !IsChatVisible;
+    /// <summary>
+    /// Gets or updates current surface, the bindable or domain state represented by this property.
+    /// </summary>
     public HavenSurface CurrentSurface => SelectedTab?.Surface ?? HavenSurface.Chat;
+    /// <summary>
+    /// Reports whether is browse mode is true for the current state.
+    /// </summary>
     public bool IsBrowseMode => CurrentSurface == HavenSurface.Browse;
+    /// <summary>
+    /// Reports whether is training mode is true for the current state.
+    /// </summary>
     public bool IsTrainingMode => CurrentSurface == HavenSurface.Training;
+    /// <summary>
+    /// Reports whether is project open is true for the current state.
+    /// </summary>
     public bool IsProjectOpen => CurrentSurface == HavenSurface.Studio && ActiveProject is not null;
+    /// <summary>
+    /// Reports whether is workspace header visible is true for the current state.
+    /// </summary>
     public bool IsWorkspaceHeaderVisible => IsChatVisible;
+    /// <summary>
+    /// Reports whether is horizontal tabs visible is true for the current state.
+    /// </summary>
     public bool IsHorizontalTabsVisible => OpenTabs.Count > 0;
     public ContainerDefinition? ActiveProject
     {
@@ -319,8 +550,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         get => _activeProjectPage;
         private set => SetProperty(ref _activeProjectPage, value);
     }
+    /// <summary>
+    /// Gets or updates active project name, the bindable or domain state represented by this property.
+    /// </summary>
     public string ActiveProjectName => ActiveProject?.Name ?? "Project";
+    /// <summary>
+    /// Gets or updates active project root, the bindable or domain state represented by this property.
+    /// </summary>
     public string ActiveProjectRoot => ActiveProject?.RootPath ?? "Folder not connected";
+    /// <summary>
+    /// Gets or updates startup status, the bindable or domain state represented by this property.
+    /// </summary>
     public string StartupStatus { get => _startupStatus; private set => SetProperty(ref _startupStatus, value); }
     public string SearchQuery
     {
@@ -338,9 +578,21 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Reports whether is command palette open is true for the current state.
+    /// </summary>
     public bool IsCommandPaletteOpen { get => _isCommandPaletteOpen; private set => SetProperty(ref _isCommandPaletteOpen, value); }
+    /// <summary>
+    /// Reports whether is rename open is true for the current state.
+    /// </summary>
     public bool IsRenameOpen { get => _isRenameOpen; private set => SetProperty(ref _isRenameOpen, value); }
+    /// <summary>
+    /// Reports whether is delete confirmation open is true for the current state.
+    /// </summary>
     public bool IsDeleteConfirmationOpen { get => _isDeleteConfirmationOpen; private set => SetProperty(ref _isDeleteConfirmationOpen, value); }
+    /// <summary>
+    /// Gets or updates rename draft, the bindable or domain state represented by this property.
+    /// </summary>
     public string RenameDraft { get => _renameDraft; set { if (SetProperty(ref _renameDraft, value)) SaveRenameCurrentCommand.RaiseCanExecuteChanged(); } }
     public bool IsSidebarOpen
     {
@@ -354,23 +606,77 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(HasCompactSidebar));
         }
     }
+    /// <summary>
+    /// Reports whether is sidebar closed is true for the current state.
+    /// </summary>
     public bool IsSidebarClosed => !IsSidebarOpen;
+    /// <summary>
+    /// Gets or updates supports conversation sidebar, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SupportsConversationSidebar => CurrentSurface is HavenSurface.Chat or HavenSurface.Teach or HavenSurface.Do or HavenSurface.Studio;
+    /// <summary>
+    /// Gets or updates supports conversation commands, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SupportsConversationCommands => SupportsConversationSidebar;
+    /// <summary>
+    /// Gets or updates supports editing commands, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SupportsEditingCommands => SupportsConversationCommands || CurrentPage is WorkspaceEditorPageViewModel;
+    /// <summary>
+    /// Reports whether is sidebar visible is true for the current state.
+    /// </summary>
     public bool IsSidebarVisible => SupportsConversationSidebar;
+    /// <summary>
+    /// Reports whether has full sidebar is true for the current state.
+    /// </summary>
     public bool HasFullSidebar => IsSidebarOpen && SupportsConversationSidebar;
+    /// <summary>
+    /// Reports whether has compact sidebar is true for the current state.
+    /// </summary>
     public bool HasCompactSidebar => !IsSidebarOpen && SupportsConversationSidebar;
+    /// <summary>
+    /// Reports whether has pinned conversations is true for the current state.
+    /// </summary>
     public bool HasPinnedConversations => PinnedConversations.Count > 0;
+    /// <summary>
+    /// Reports whether has recent conversations is true for the current state.
+    /// </summary>
     public bool HasRecentConversations => RecentConversations.Count > 0;
+    /// <summary>
+    /// Gets or updates show no project chats, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowNoProjectChats => IsProjectOpen && !HasPinnedConversations && !HasRecentConversations;
+    /// <summary>
+    /// Gets or updates current mode, the bindable or domain state represented by this property.
+    /// </summary>
     public HavenMode CurrentMode => CurrentChat.Mode;
+    /// <summary>
+    /// Reports whether is teach is true for the current state.
+    /// </summary>
     public bool IsTeach => CurrentSurface == HavenSurface.Teach;
+    /// <summary>
+    /// Reports whether is chat product is true for the current state.
+    /// </summary>
     public bool IsChatProduct => CurrentSurface is HavenSurface.Chat or HavenSurface.Teach;
+    /// <summary>
+    /// Reports whether has containers is true for the current state.
+    /// </summary>
     public bool HasContainers => CurrentChat.HasContainers;
+    /// <summary>
+    /// Reports whether has any containers is true for the current state.
+    /// </summary>
     public bool HasAnyContainers => CurrentChat.HasAnyContainers;
+    /// <summary>
+    /// Gets or updates supports duo, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SupportsDuo => CurrentChat.SupportsDuo;
+    /// <summary>
+    /// Gets or updates chat type label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ChatTypeLabel => CurrentSurface == HavenSurface.Teach ? "Teaching" : "General";
+    /// <summary>
+    /// Gets or updates product name, the bindable or domain state represented by this property.
+    /// </summary>
     public string ProductName => CurrentSurface switch
     {
         HavenSurface.Home => "Haven Home",
@@ -383,6 +689,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         HavenSurface.Training => "Haven Training",
         _ => "Haven"
     };
+    /// <summary>
+    /// Gets or updates new item label, the bindable or domain state represented by this property.
+    /// </summary>
     public string NewItemLabel => CurrentMode switch
     {
         HavenMode.Do => "+ New task",
@@ -390,13 +699,37 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         HavenMode.Studio => "+ New studio chat",
         _ => "New chat"
     };
+    /// <summary>
+    /// Gets or updates file new label, the bindable or domain state represented by this property.
+    /// </summary>
     public string FileNewLabel => CurrentMode switch { HavenMode.Do => "New task", HavenMode.Teach => "New teaching chat", HavenMode.Studio => "New studio chat", _ => "New chat" };
+    /// <summary>
+    /// Gets or updates file new container label, the bindable or domain state represented by this property.
+    /// </summary>
     public string FileNewContainerLabel => CurrentMode switch { HavenMode.Chat => "New Chat Group", HavenMode.Teach => "New Subject", HavenMode.Do => "New Task Group", _ => "New Project" };
+    /// <summary>
+    /// Gets or updates container heading, the bindable or domain state represented by this property.
+    /// </summary>
     public string ContainerHeading => CurrentMode switch { HavenMode.Chat => "Chat Groups", HavenMode.Teach => "Subjects", HavenMode.Do => "Task Groups", _ => "Projects" };
+    /// <summary>
+    /// Gets or updates project menu header, the bindable or domain state represented by this property.
+    /// </summary>
     public string ProjectMenuHeader => CurrentMode switch { HavenMode.Chat => "Chat Group", HavenMode.Teach => "Subject", HavenMode.Do => "Task Group", _ => "Project" };
+    /// <summary>
+    /// Gets or updates workspace eyebrow, the bindable or domain state represented by this property.
+    /// </summary>
     public string WorkspaceEyebrow => CurrentMode switch { HavenMode.Teach => "Lesson", HavenMode.Do => "Task Group", HavenMode.Studio => "Project", _ => "Haven" };
+    /// <summary>
+    /// Gets or updates workspace title, the bindable or domain state represented by this property.
+    /// </summary>
     public string WorkspaceTitle => CurrentChat.SelectedLesson?.Name ?? CurrentChat.SelectedContainer?.Name ?? (CurrentMode == HavenMode.Chat ? "Private local conversation" : "Local workspace");
+    /// <summary>
+    /// Gets or updates recent heading, the bindable or domain state represented by this property.
+    /// </summary>
     public string RecentHeading => CurrentMode switch { HavenMode.Do => "Recent tasks", HavenMode.Teach => "Recent teaching chats", HavenMode.Studio when IsProjectOpen => "Project chats", HavenMode.Studio => "Standalone chats", _ => "Recent" };
+    /// <summary>
+    /// Gets or updates container settings label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ContainerSettingsLabel => CurrentMode switch
     {
         HavenMode.Teach when CurrentChat.SelectedLesson is not null => "Lesson settings",
@@ -405,67 +738,247 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         HavenMode.Chat => "Chat Group settings",
         _ => "Project settings"
     };
+    /// <summary>
+    /// Gets or updates ollama status, the bindable or domain state represented by this property.
+    /// </summary>
     public string OllamaStatus => CurrentChat.Status;
+    /// <summary>
+    /// Gets or updates duo label, the bindable or domain state represented by this property.
+    /// </summary>
     public string DuoLabel => CurrentChat.IsDuoPluginActive ? CurrentChat.SelectedDuo.ToString() : "Solo";
+    /// <summary>
+    /// Reports whether has live call is true for the current state.
+    /// </summary>
     public bool HasLiveCall => _callCoordinator.IsActive;
+    /// <summary>
+    /// Gets or updates live call label, the bindable or domain state represented by this property.
+    /// </summary>
     public string LiveCallLabel => _callCoordinator.State == CallState.Paused ? "Call paused" : $"Live call · {_callCoordinator.State}";
 
+    /// <summary>
+    /// Gets or updates navigate chat command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateChatCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate teach command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateTeachCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate do command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateDoCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate studio command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateStudioCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate browser command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateBrowserCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate training command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateTrainingCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate home command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateHomeCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate call command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateCallCommand { get; }
+    /// <summary>
+    /// Gets or updates open live call command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand OpenLiveCallCommand { get; }
+    /// <summary>
+    /// Gets or updates end live call command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand EndLiveCallCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate plan command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigatePlanCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate agents command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateAgentsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate plugins command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigatePluginsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate prompts command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigatePromptsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate automations command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateAutomationsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate macros command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateMacrosCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate archive command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateArchiveCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate activity log command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateActivityLogCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss notification command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<Guid> DismissNotificationCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate settings command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateSettingsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate container settings command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateContainerSettingsCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate current chat command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateCurrentChatCommand { get; }
+    /// <summary>
+    /// Gets or updates new chat command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NewChatCommand { get; }
+    /// <summary>
+    /// Gets or updates new container command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NewContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates delete container command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ContainerItemViewModel> DeleteContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates new project chat command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NewProjectChatCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate project home command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateProjectHomeCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle temporary command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleTemporaryCommand { get; }
+    /// <summary>
+    /// Gets or updates refresh models command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand RefreshModelsCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle sidebar command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleSidebarCommand { get; }
+    /// <summary>
+    /// Gets or updates select container command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ContainerItemViewModel> SelectContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates open command palette command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand OpenCommandPaletteCommand { get; }
+    /// <summary>
+    /// Gets or updates close command palette command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand CloseCommandPaletteCommand { get; }
+    /// <summary>
+    /// Gets or updates select tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<WorkspaceTabViewModel> SelectTabCommand { get; }
+    /// <summary>
+    /// Gets or updates close tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<WorkspaceTabViewModel> CloseTabCommand { get; }
+    /// <summary>
+    /// Gets or updates add new tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand AddNewTabCommand { get; }
+    /// <summary>
+    /// Gets or updates branch current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand BranchCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates compact current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand CompactCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates archive current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ArchiveCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle pin current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand TogglePinCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates begin rename current command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand BeginRenameCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates save rename current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SaveRenameCurrentCommand { get; }
+    /// <summary>
+    /// Reports whether cancel rename current command is true for the current state.
+    /// </summary>
     public RelayCommand CancelRenameCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates request delete current command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand RequestDeleteCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates confirm delete current command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ConfirmDeleteCurrentCommand { get; }
+    /// <summary>
+    /// Reports whether cancel delete current command is true for the current state.
+    /// </summary>
     public RelayCommand CancelDeleteCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates configure model command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ConfigureModelCommand { get; }
+    /// <summary>
+    /// Gets or updates copy last response command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand CopyLastResponseCommand { get; }
+    /// <summary>
+    /// Gets or updates dictate command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DictateCommand { get; }
+    /// <summary>
+    /// Gets or updates undo current command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand UndoCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates redo current command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand RedoCurrentCommand { get; }
+    /// <summary>
+    /// Gets or updates save current command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand SaveCurrentCommand { get; }
+    /// <summary>
+    /// Builds browser extension command from the currently available inputs.
+    /// </summary>
     public RelayCommand BuildBrowserExtensionCommand { get; }
+    /// <summary>
+    /// Gets or updates switch surface command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<string> SwitchSurfaceCommand { get; }
+    /// <summary>
+    /// Gets or updates navigate mode library command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NavigateModeLibraryCommand { get; }
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(LegacyMigrationResult migration, CancellationToken cancellationToken)
     {
         await CurrentChat.InitializeAsync(cancellationToken);
@@ -478,8 +991,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             : "Local-only · SQLite ready";
     }
 
+    /// <summary>
+    /// Performs the set startup error step owned by this component.
+    /// </summary>
     public void SetStartupError(string message) => StartupStatus = $"Startup problem: {message}";
 
+    /// <summary>
+    /// Performs poll planner reminders async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PollPlannerRemindersAsync()
     {
         if (Interlocked.Exchange(ref _isPollingReminders, 1) != 0) return;
@@ -500,6 +1019,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             Interlocked.Exchange(ref _isPollingReminders, 0);
         }
     }
+    /// <summary>
+    /// Performs the open command palette step owned by this component.
+    /// </summary>
     public void OpenCommandPalette()
     {
         CommandSearch = string.Empty;
@@ -507,6 +1029,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         IsCommandPaletteOpen = true;
     }
 
+    /// <summary>
+    /// Performs open home async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task OpenHomeAsync()
     {
         _homePage ??= new HomePageViewModel(
@@ -530,6 +1055,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs open call async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenCallAsync()
     {
         _callPage ??= new CallPageViewModel(_callCoordinator, _ollama, _speechModels);
@@ -537,12 +1065,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("call", "Call", _callPage, false, HavenSurface.Call);
     }
 
+    /// <summary>
+    /// Performs the open plan step owned by this component.
+    /// </summary>
     private void OpenPlan()
     {
         _planPage ??= new PlanPageViewModel(_planner, _plannerProposals, _calendarProviders, _ollama);
         AddOrSelectTab("plan", "Plan", _planPage, false, HavenSurface.Plan);
     }
 
+    /// <summary>
+    /// Performs navigate mode async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task NavigateModeAsync(HavenMode mode, bool showHome)
     {
         var page = await GetOrCreateChatAsync(mode);
@@ -552,6 +1086,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Retrieves or create chat async for the current operation.
+    /// </summary>
     private async Task<ChatPageViewModel> GetOrCreateChatAsync(HavenMode mode)
     {
         if (_chats.TryGetValue(mode, out var existing))
@@ -566,6 +1103,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return page;
     }
 
+    /// <summary>
+    /// Performs open mode home async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenModeHomeAsync()
     {
         if (CurrentMode is not (HavenMode.Do or HavenMode.Studio))
@@ -588,6 +1128,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab(key, CurrentMode == HavenMode.Studio ? "Studio Home" : "Do Home", page, false, SurfaceForMode(CurrentMode));
     }
 
+    /// <summary>
+    /// Performs the open new container step owned by this component.
+    /// </summary>
     private void OpenNewContainer()
     {
         if (CurrentMode == HavenMode.Studio)
@@ -598,6 +1141,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         if (CurrentChat.NewContainerCommand.CanExecute(null)) CurrentChat.NewContainerCommand.Execute(null);
     }
 
+    /// <summary>
+    /// Performs open project creator async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task OpenProjectCreatorAsync()
     {
         var page = new ProjectCreatorPageViewModel(_projectCreator, OpenCreatedProjectAsync);
@@ -605,6 +1151,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs open created project async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenCreatedProjectAsync(ContainerDefinition definition)
     {
         if (!_chats.TryGetValue(HavenMode.Studio, out var standalone)) standalone = await GetOrCreateChatAsync(HavenMode.Studio);
@@ -614,6 +1163,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await StartProjectChatAsync(string.Empty);
     }
 
+    /// <summary>
+    /// Retrieves or create project chat async for the current operation.
+    /// </summary>
     private async Task<ChatPageViewModel> GetOrCreateProjectChatAsync(ContainerDefinition definition)
     {
         if (!_projectChats.TryGetValue(definition.Id, out var chat))
@@ -627,6 +1179,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return chat;
     }
 
+    /// <summary>
+    /// Retrieves or create group chat async for the current operation.
+    /// </summary>
     private async Task<ChatPageViewModel> GetOrCreateGroupChatAsync(ContainerDefinition definition)
     {
         if (!_groupChats.TryGetValue(definition.Id, out var chat))
@@ -643,6 +1198,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return chat;
     }
 
+    /// <summary>
+    /// Retrieves or create group page for the current operation.
+    /// </summary>
     private ChatGroupPageViewModel GetOrCreateGroupPage(ContainerDefinition definition)
     {
         if (_groupPages.TryGetValue(definition.Id, out var page)) return page;
@@ -659,6 +1217,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return page;
     }
 
+    /// <summary>
+    /// Performs open chat group async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenChatGroupAsync(ContainerDefinition definition)
     {
         var page = GetOrCreateGroupPage(definition);
@@ -666,6 +1227,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("group-" + definition.Id.ToString("N"), definition.Name, page, true, HavenSurface.Chat);
     }
 
+    /// <summary>
+    /// Performs start group chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StartGroupChatAsync(ContainerDefinition definition)
     {
         var chat = await GetOrCreateGroupChatAsync(definition);
@@ -675,6 +1239,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs open grouped conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenGroupedConversationAsync(Conversation conversation)
     {
         if (conversation.ContainerId is not Guid groupId) return;
@@ -688,6 +1255,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs open group settings async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task OpenGroupSettingsAsync(ContainerDefinition definition)
     {
         var item = new ContainerItemViewModel(definition);
@@ -704,6 +1274,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs close group page async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task CloseGroupPageAsync(Guid groupId)
     {
         _groupPages.Remove(groupId);
@@ -713,6 +1286,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return NavigateModeAsync(HavenMode.Chat, false);
     }
 
+    /// <summary>
+    /// Retrieves or create project page for the current operation.
+    /// </summary>
     private StudioProjectPageViewModel GetOrCreateProjectPage(ContainerDefinition definition)
     {
         if (_projectPages.TryGetValue(definition.Id, out var page)) return page;
@@ -722,6 +1298,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return page;
     }
 
+    /// <summary>
+    /// Performs the activate project step owned by this component.
+    /// </summary>
     private void ActivateProject(ContainerDefinition definition, StudioProjectPageViewModel? page = null)
     {
         ActiveProject = definition;
@@ -729,6 +1308,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaiseShellProperties();
     }
 
+    /// <summary>
+    /// Performs the clear active project step owned by this component.
+    /// </summary>
     private void ClearActiveProject()
     {
         ActiveProject = null;
@@ -736,6 +1318,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaiseShellProperties();
     }
 
+    /// <summary>
+    /// Performs the open active project home step owned by this component.
+    /// </summary>
     private void OpenActiveProjectHome()
     {
         if (ActiveProject is null) return;
@@ -743,6 +1328,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("project-" + ActiveProject.Id.ToString("N"), ActiveProject.Name, page, true);
     }
 
+    /// <summary>
+    /// Performs the open browser step owned by this component.
+    /// </summary>
     private void OpenBrowser()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "browse");
@@ -751,6 +1339,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("browse", "Browse", page, true);
     }
 
+    /// <summary>
+    /// Performs the open training step owned by this component.
+    /// </summary>
     private void OpenTraining()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "training");
@@ -766,6 +1357,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("training", "Training", page, true);
     }
 
+    /// <summary>
+    /// Performs the open catalog step owned by this component.
+    /// </summary>
     private void OpenCatalog(CatalogPageKind kind)
     {
         var page = new CatalogPageViewModel(kind, _catalog, _ollama, true);
@@ -773,26 +1367,41 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, page, true);
     }
 
+    /// <summary>
+    /// Performs the open automations step owned by this component.
+    /// </summary>
     private void OpenAutomations()
     {
         AddOrSelectTab("scheduled-actions", "Scheduled Actions",
             new AutomationsPageViewModel(_automations, _registration, _automationRunner, _scheduleCalculator), true);
     }
 
+    /// <summary>
+    /// Performs the open macros step owned by this component.
+    /// </summary>
     private void OpenMacros()
     {
         var page = new MacrosPageViewModel(_workspaceState, CurrentChat.SelectedContainer?.Id, instruction => InvokeMacroAsync(instruction));
         AddOrSelectTab("macros-" + (CurrentChat.SelectedContainer?.Id.ToString("N") ?? "global"), "Macros", page, true);
     }
 
+    /// <summary>
+    /// Performs invoke macro async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task InvokeMacroAsync(string instruction)
     {
         OpenCurrentChatTab();
         await CurrentChat.InvokeAsync(instruction, "Macro");
     }
 
+    /// <summary>
+    /// Performs the open archive step owned by this component.
+    /// </summary>
     private void OpenArchive() => AddOrSelectTab("archive-" + CurrentMode, "Archive", new ArchivePageViewModel(CurrentMode, _conversations, _containers), true);
 
+    /// <summary>
+    /// Performs the open activity log step owned by this component.
+    /// </summary>
     private void OpenActivityLog()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "activity-log");
@@ -801,6 +1410,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("activity-log", "Activity Log", page, true);
     }
 
+    /// <summary>
+    /// Performs the open mode library step owned by this component.
+    /// </summary>
     private void OpenModeLibrary()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "mode-library");
@@ -813,18 +1425,27 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab("mode-library", "Mode Library", page, true);
     }
 
+    /// <summary>
+    /// Performs navigate current chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task NavigateCurrentChatAsync()
     {
         OpenCurrentChatTab();
         await CurrentChat.RefreshCatalogAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the open current chat tab step owned by this component.
+    /// </summary>
     private void OpenCurrentChatTab()
     {
         var key = IsProjectOpen ? "project-chat-" + ActiveProject!.Id.ToString("N") : "chat-" + CurrentMode.ToString().ToLowerInvariant();
         AddOrSelectTab(key, IsProjectOpen ? ActiveProjectName + " chat" : ProductName, CurrentChat, IsProjectOpen);
     }
 
+    /// <summary>
+    /// Performs switch surface async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SwitchSurfaceAsync(string? surfaceName)
     {
         if (string.IsNullOrWhiteSpace(surfaceName)) return;
@@ -870,6 +1491,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the start new conversation step owned by this component.
+    /// </summary>
     private void StartNewConversation()
     {
         if (CurrentMode == HavenMode.Studio && IsProjectOpen)
@@ -882,6 +1506,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _ = RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the add new tab step owned by this component.
+    /// </summary>
     private void AddNewTab()
     {
         var chat = CreateChat(CurrentMode);
@@ -889,6 +1516,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         AddOrSelectTab(key, ProductName, chat, true);
     }
 
+    /// <summary>
+    /// Performs select container async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SelectContainerAsync(ContainerItemViewModel? item)
     {
         if (item is null) return;
@@ -904,6 +1534,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaiseShellProperties();
     }
 
+    /// <summary>
+    /// Performs open container definition async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenContainerDefinitionAsync(ContainerDefinition definition)
     {
         if (definition.Mode == HavenMode.Chat)
@@ -933,6 +1566,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaiseShellProperties();
     }
 
+    /// <summary>
+    /// Performs start project chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StartProjectChatAsync(string prompt)
     {
         if (ActiveProject is null) return;
@@ -944,6 +1580,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs open file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task OpenFileAsync(ContainerDefinition container, WorkspaceFileItemViewModel file)
     {
         ActivateProject(container);
@@ -953,6 +1592,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the open container settings step owned by this component.
+    /// </summary>
     private void OpenContainerSettings()
     {
         if (CurrentMode == HavenMode.Teach && CurrentChat.SelectedLesson is not null)
@@ -966,6 +1608,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             new ContainerSettingsPageViewModel(CurrentChat.SelectedContainer, _containers, RefreshAfterSettingsAsync), true);
     }
 
+    /// <summary>
+    /// Performs refresh after settings async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAfterSettingsAsync()
     {
         await CurrentChat.RefreshContainersAsync(CancellationToken.None);
@@ -981,12 +1626,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaiseShellProperties();
     }
 
+    /// <summary>
+    /// Performs the open application settings step owned by this component.
+    /// </summary>
     private void OpenApplicationSettings()
     {
         AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPageViewModel(_preferences, _ollama,
             (model, effort) => CurrentChat.ApplyPreferences(model, effort), CurrentMode == HavenMode.Studio), true);
     }
 
+    /// <summary>
+    /// Performs open conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenConversationAsync(RecentConversationViewModel? item)
     {
         if (item is null) return;
@@ -1014,6 +1665,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs rename conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RenameConversationAsync(RecentConversationViewModel? item)
     {
         if (item is null || string.IsNullOrWhiteSpace(item.DraftTitle)) return;
@@ -1023,6 +1677,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs toggle pin async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task TogglePinAsync(RecentConversationViewModel? item)
     {
         if (item is null) return;
@@ -1030,6 +1687,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs branch conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task BranchConversationAsync(RecentConversationViewModel? item)
     {
         if (item is null) return;
@@ -1038,6 +1698,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs archive conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ArchiveConversationAsync(RecentConversationViewModel? item)
     {
         if (item is null) return;
@@ -1046,6 +1709,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteConversationAsync(RecentConversationViewModel? item)
     {
         if (item is null) return;
@@ -1054,6 +1720,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs refresh recents async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshRecentsAsync(CancellationToken cancellationToken)
     {
         IEnumerable<Conversation> items;
@@ -1087,6 +1756,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(ShowNoProjectChats));
     }
 
+    /// <summary>
+    /// Performs toggle pin current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task TogglePinCurrentAsync()
     {
         var item = await _conversations.GetAsync(CurrentChat.ConversationId, CancellationToken.None);
@@ -1095,12 +1767,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the begin rename current step owned by this component.
+    /// </summary>
     private void BeginRenameCurrent()
     {
         RenameDraft = CurrentChat.ConversationTitle;
         IsRenameOpen = true;
     }
 
+    /// <summary>
+    /// Performs save rename current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveRenameCurrentAsync()
     {
         var item = await _conversations.GetAsync(CurrentChat.ConversationId, CancellationToken.None);
@@ -1111,6 +1789,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs delete current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteCurrentAsync()
     {
         IsDeleteConfirmationOpen = false;
@@ -1119,12 +1800,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the copy last response step owned by this component.
+    /// </summary>
     private void CopyLastResponse()
     {
         var content = CurrentChat.Messages.LastOrDefault(item => item.Role == MessageRole.Assistant)?.Content;
         if (!string.IsNullOrWhiteSpace(content)) CopyRequested?.Invoke(this, content);
     }
 
+    /// <summary>
+    /// Performs the add or select tab step owned by this component.
+    /// </summary>
     private void AddOrSelectTab(string key, string title, object page, bool closeable, HavenSurface? surface = null)
     {
         var resolvedSurface = surface ?? InferSurface(page);
@@ -1144,6 +1831,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
     }
 
+    /// <summary>
+    /// Performs the infer surface step owned by this component.
+    /// </summary>
     private HavenSurface InferSurface(object page) => page switch
     {
         HomePageViewModel => HavenSurface.Home,
@@ -1158,6 +1848,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _ => SelectedTab?.Surface ?? SurfaceForMode(CurrentMode)
     };
 
+    /// <summary>
+    /// Performs the surface for mode step owned by this component.
+    /// </summary>
     private static HavenSurface SurfaceForMode(HavenMode mode) => mode switch
     {
         HavenMode.Chat => HavenSurface.Chat,
@@ -1167,6 +1860,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _ => HavenSurface.Chat
     };
 
+    /// <summary>
+    /// Performs the close tab step owned by this component.
+    /// </summary>
     private void CloseTab(WorkspaceTabViewModel? item)
     {
         if (item is null || !item.IsCloseable) return;
@@ -1177,6 +1873,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
     }
 
+    /// <summary>
+    /// Builds command palette from the currently available inputs.
+    /// </summary>
     private void BuildCommandPalette()
     {
         AllCommandItems =
@@ -1206,9 +1905,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         FilterCommands();
     }
 
+    /// <summary>
+    /// Performs the command step owned by this component.
+    /// </summary>
     private CommandPaletteItemViewModel Command(string name, string description, string shortcut, System.Windows.Input.ICommand command) =>
         new(name, description, shortcut, new RelayCommand(() => { IsCommandPaletteOpen = false; if (command.CanExecute(null)) command.Execute(null); }));
 
+    /// <summary>
+    /// Performs the filter commands step owned by this component.
+    /// </summary>
     private void FilterCommands()
     {
         CommandItems.Clear();
@@ -1217,31 +1922,49 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             CommandItems.Add(item);
     }
 
+    /// <summary>
+    /// Performs the attach chat step owned by this component.
+    /// </summary>
     private void AttachChat(ChatPageViewModel chat)
     {
         chat.PropertyChanged += OnChatPropertyChanged;
         chat.ConversationChanged += OnConversationChanged;
     }
+    /// <summary>
+    /// Performs the detach chat step owned by this component.
+    /// </summary>
     private void DetachChat(ChatPageViewModel chat)
     {
         chat.PropertyChanged -= OnChatPropertyChanged;
         chat.ConversationChanged -= OnConversationChanged;
     }
+    /// <summary>
+    /// Handles the chat property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnChatPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ChatPageViewModel.Status) or nameof(ChatPageViewModel.SelectedContainer) or nameof(ChatPageViewModel.SelectedLesson) or nameof(ChatPageViewModel.SelectedDuo))
             RaiseShellProperties();
     }
+    /// <summary>
+    /// Handles the conversation changed event raised by the UI or runtime.
+    /// </summary>
     private void OnConversationChanged(object? sender, EventArgs e)
     {
         RaiseShellProperties();
         _ = RefreshRecentsAsync(CancellationToken.None);
     }
+    /// <summary>
+    /// Handles the call state changed event raised by the UI or runtime.
+    /// </summary>
     private void OnCallStateChanged(object? sender, CallStateChangedEventArgs e) => Dispatcher.UIThread.Post(() =>
     {
         RaisePropertyChanged(nameof(HasLiveCall));
         RaisePropertyChanged(nameof(LiveCallLabel));
     });
+    /// <summary>
+    /// Performs the raise shell properties step owned by this component.
+    /// </summary>
     private void RaiseShellProperties()
     {
         RaisePropertyChanged(nameof(CurrentSurface));
@@ -1276,9 +1999,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(IsTrainingMode));
     }
 
+    /// <summary>
+    /// Creates chat with the invariants required by its callers.
+    /// </summary>
     private ChatPageViewModel CreateChat(HavenMode mode) => new(mode, _conversations, _containers, _catalog, _ollama, _sessions,
         _preferences, _preflight, _workspaceState, _projectIntelligence, _containerResources);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         _reminderTimer.Stop();
@@ -1290,10 +2019,22 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 }
 
+/// <summary>
+/// Represents workspace tab view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceTabViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _title;
+    /// <summary>
+    /// Stores is selected locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isSelected;
+    /// <summary>
+    /// Stores is hovered locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isHovered;
 
     public WorkspaceTabViewModel(string key, string title, object page, bool isCloseable, HavenSurface surface)
@@ -1304,13 +2045,37 @@ public sealed class WorkspaceTabViewModel : ObservableObject
         IsCloseable = isCloseable;
         Surface = surface;
     }
+    /// <summary>
+    /// Gets or updates key, the bindable or domain state represented by this property.
+    /// </summary>
     public string Key { get; }
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title { get => _title; set => SetProperty(ref _title, value); }
+    /// <summary>
+    /// Gets or updates page, the bindable or domain state represented by this property.
+    /// </summary>
     public object Page { get; private set; }
+    /// <summary>
+    /// Reports whether is closeable is true for the current state.
+    /// </summary>
     public bool IsCloseable { get; }
+    /// <summary>
+    /// Gets or updates surface, the bindable or domain state represented by this property.
+    /// </summary>
     public HavenSurface Surface { get; private set; }
+    /// <summary>
+    /// Reports whether is selected is true for the current state.
+    /// </summary>
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
+    /// <summary>
+    /// Reports whether is hovered is true for the current state.
+    /// </summary>
     public bool IsHovered { get => _isHovered; set => SetProperty(ref _isHovered, value); }
+    /// <summary>
+    /// Performs the replace page step owned by this component.
+    /// </summary>
     public void ReplacePage(object page)
     {
         if (ReferenceEquals(Page, page)) return;
@@ -1318,6 +2083,9 @@ public sealed class WorkspaceTabViewModel : ObservableObject
         Page = page;
         RaisePropertyChanged(nameof(Page));
     }
+    /// <summary>
+    /// Performs the set surface step owned by this component.
+    /// </summary>
     public void SetSurface(HavenSurface surface)
     {
         if (Surface == surface) return;
@@ -1326,14 +2094,35 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents command palette item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record CommandPaletteItemViewModel(string Name, string Description, string Shortcut, RelayCommand RunCommand);
 
+/// <summary>
+/// Represents recent conversation view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class RecentConversationViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores definition locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Conversation _definition;
+    /// <summary>
+    /// Stores is renaming locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isRenaming;
+    /// <summary>
+    /// Stores is delete confirming locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isDeleteConfirming;
+    /// <summary>
+    /// Stores draft title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _draftTitle;
+    /// <summary>
+    /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isActive;
 
     public RecentConversationViewModel(Conversation definition, Func<RecentConversationViewModel?, Task> open,
@@ -1355,27 +2144,90 @@ public sealed class RecentConversationViewModel : ObservableObject
         CancelDeleteCommand = new RelayCommand(() => IsDeleteConfirming = false);
     }
 
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public Conversation Definition => _definition;
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title => Definition.Title;
+    /// <summary>
+    /// Gets or updates meta, the bindable or domain state represented by this property.
+    /// </summary>
     public string Meta => Definition.UpdatedAt.LocalDateTime.ToString("g");
+    /// <summary>
+    /// Reports whether is pinned is true for the current state.
+    /// </summary>
     public bool IsPinned => Definition.IsPinned;
+    /// <summary>
+    /// Gets or updates pin label, the bindable or domain state represented by this property.
+    /// </summary>
     public string PinLabel => IsPinned ? "Unpin" : "Pin";
+    /// <summary>
+    /// Reports whether is active is true for the current state.
+    /// </summary>
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
+    /// <summary>
+    /// Reports whether is renaming is true for the current state.
+    /// </summary>
     public bool IsRenaming { get => _isRenaming; set { if (SetProperty(ref _isRenaming, value)) RaisePropertyChanged(nameof(IsNormal)); } }
+    /// <summary>
+    /// Reports whether is delete confirming is true for the current state.
+    /// </summary>
     public bool IsDeleteConfirming { get => _isDeleteConfirming; set { if (SetProperty(ref _isDeleteConfirming, value)) RaisePropertyChanged(nameof(IsNormal)); } }
+    /// <summary>
+    /// Reports whether is normal is true for the current state.
+    /// </summary>
     public bool IsNormal => !IsRenaming && !IsDeleteConfirming;
+    /// <summary>
+    /// Gets or updates draft title, the bindable or domain state represented by this property.
+    /// </summary>
     public string DraftTitle { get => _draftTitle; set { if (SetProperty(ref _draftTitle, value)) SaveRenameCommand.RaiseCanExecuteChanged(); } }
+    /// <summary>
+    /// Gets or updates open command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand OpenCommand { get; }
+    /// <summary>
+    /// Gets or updates begin rename command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand BeginRenameCommand { get; }
+    /// <summary>
+    /// Gets or updates save rename command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SaveRenameCommand { get; }
+    /// <summary>
+    /// Reports whether cancel rename command is true for the current state.
+    /// </summary>
     public RelayCommand CancelRenameCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle pin command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand TogglePinCommand { get; }
+    /// <summary>
+    /// Gets or updates branch command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand BranchCommand { get; }
+    /// <summary>
+    /// Gets or updates archive command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ArchiveCommand { get; }
+    /// <summary>
+    /// Gets or updates delete command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DeleteCommand { get; }
+    /// <summary>
+    /// Gets or updates confirm delete command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ConfirmDeleteCommand { get; }
+    /// <summary>
+    /// Reports whether cancel delete command is true for the current state.
+    /// </summary>
     public RelayCommand CancelDeleteCommand { get; }
 
+    /// <summary>
+    /// Performs the finish rename step owned by this component.
+    /// </summary>
     public void FinishRename(Conversation updated)
     {
         _definition = updated;

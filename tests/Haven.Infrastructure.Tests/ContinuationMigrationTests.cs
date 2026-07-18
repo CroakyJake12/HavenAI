@@ -1,12 +1,30 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/ContinuationMigrationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns ContinuationMigrationTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents continuation migration tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class ContinuationMigrationTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the production and retrieval schemas apply repeatedly without changing earlier versions step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProductionAndRetrievalSchemasApplyRepeatedlyWithoutChangingEarlierVersions()
     {
@@ -33,8 +51,14 @@ public sealed class ContinuationMigrationTests : IDisposable
         Assert.Equal(10, versions.Max());
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : Haven.Application.IAppPaths, IDisposable
     {
         public TestPaths()
@@ -48,12 +72,33 @@ public sealed class ContinuationMigrationTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

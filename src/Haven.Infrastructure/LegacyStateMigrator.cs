@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/LegacyStateMigrator.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LegacyStateMigrator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents legacy state migrator and keeps its related state and behavior together.
+/// </summary>
 public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactory factory, IConversationRepository conversations, IContainerRepository containers) : ILegacyStateMigrator
 {
+    /// <summary>
+    /// Stores migration key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string MigrationKey = "legacy-localcode-state-v1";
 
+    /// <summary>
+    /// Performs migrate if needed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<LegacyMigrationResult> MigrateIfNeededAsync(CancellationToken cancellationToken)
     {
         if (await HasCompletedAsync(cancellationToken).ConfigureAwait(false)) return new(false, false, 0, 0, "Migration was already completed.");
@@ -78,6 +96,9 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
         }
     }
 
+    /// <summary>
+    /// Reports whether has completed async is true for the current state.
+    /// </summary>
     private async Task<bool> HasCompletedAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -87,6 +108,9 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture) > 0;
     }
 
+    /// <summary>
+    /// Performs mark completed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MarkCompletedAsync(string note, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -98,7 +122,16 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the parse or stable step owned by this component.
+    /// </summary>
     private static Guid ParseOrStable(string value, string scope) => Guid.TryParse(value, out var id) ? id : GuidUtility.FromStableName($"legacy.{scope}.{value}");
+    /// <summary>
+    /// Retrieves string for the current operation.
+    /// </summary>
     private static string? GetString(JsonElement element, string property) => element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    /// <summary>
+    /// Retrieves boolean for the current operation.
+    /// </summary>
     private static bool GetBoolean(JsonElement element, string property) => element.TryGetProperty(property, out var value) && (value.ValueKind is JsonValueKind.True or JsonValueKind.False) && value.GetBoolean();
 }

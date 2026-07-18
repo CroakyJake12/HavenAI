@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/NotesMediaAiReview.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns NotesMediaAiTarget, NotesMediaAiReview. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -5,6 +14,9 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Lists the supported notes media ai target values used to make state explicit and type-safe.
+/// </summary>
 public enum NotesMediaAiTarget
 {
     AltText = 0,
@@ -12,15 +24,30 @@ public enum NotesMediaAiTarget
     Transcript = 2
 }
 
+/// <summary>
+/// Represents notes media ai review and keeps its related state and behavior together.
+/// </summary>
 public static class NotesMediaAiReview
 {
+    /// <summary>
+    /// Stores prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string Prefix = "[haven-media-ai:";
+    /// <summary>
+    /// Stores pending key prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string PendingKeyPrefix = "haven.notes.media-ai.pending.";
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Performs propose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task<NotesAiChange> ProposeAsync(
         INotesAiService ai,
         NotesWorkspaceViewModel workspace,
@@ -85,6 +112,9 @@ public static class NotesMediaAiReview
         return change;
     }
 
+    /// <summary>
+    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task ApplyAsync(
         NotesWorkspaceViewModel workspace,
         NotesBlock block,
@@ -126,6 +156,9 @@ public static class NotesMediaAiReview
             await workspace.SaveCommand.ExecuteAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the reject step owned by this component.
+    /// </summary>
     public static void Reject(
         NotesWorkspaceViewModel workspace,
         NotesBlock block,
@@ -149,6 +182,9 @@ public static class NotesMediaAiReview
         workspace.CommitBlockEdit(block, "Rejected AI media accessibility proposal");
     }
 
+    /// <summary>
+    /// Performs the find pending step owned by this component.
+    /// </summary>
     public static NotesAiChange? FindPending(
         NotesDocument document,
         Guid blockId,
@@ -162,6 +198,9 @@ public static class NotesMediaAiReview
         return block is null ? null : ReadPending(block, target);
     }
 
+    /// <summary>
+    /// Performs the display name step owned by this component.
+    /// </summary>
     public static string DisplayName(NotesMediaAiTarget target) => target switch
     {
         NotesMediaAiTarget.AltText => "Alt text",
@@ -170,6 +209,9 @@ public static class NotesMediaAiReview
         _ => throw new ArgumentOutOfRangeException(nameof(target))
     };
 
+    /// <summary>
+    /// Attempts to get target and reports the result without using failure for normal control flow.
+    /// </summary>
     public static bool TryGetTarget(NotesAiChange change, out NotesMediaAiTarget target)
     {
         ArgumentNullException.ThrowIfNull(change);
@@ -182,9 +224,15 @@ public static class NotesMediaAiReview
                && Enum.IsDefined(target);
     }
 
+    /// <summary>
+    /// Performs the pending key step owned by this component.
+    /// </summary>
     private static string PendingKey(NotesMediaAiTarget target) =>
         PendingKeyPrefix + target.ToString().ToLowerInvariant();
 
+    /// <summary>
+    /// Performs the read pending step owned by this component.
+    /// </summary>
     private static NotesAiChange? ReadPending(NotesBlock block, NotesMediaAiTarget target)
     {
         if (!block.Metadata.TryGetValue(PendingKey(target), out var json) || string.IsNullOrWhiteSpace(json)) return null;
@@ -205,21 +253,36 @@ public static class NotesMediaAiReview
         }
     }
 
+    /// <summary>
+    /// Performs the write pending step owned by this component.
+    /// </summary>
     private static void WritePending(NotesBlock block, NotesMediaAiTarget target, NotesAiChange change) =>
         block.Metadata[PendingKey(target)] = JsonSerializer.Serialize(change, JsonOptions);
 
+    /// <summary>
+    /// Performs the remove pending step owned by this component.
+    /// </summary>
     private static void RemovePending(NotesBlock block, NotesMediaAiTarget target) =>
         block.Metadata.Remove(PendingKey(target));
 
+    /// <summary>
+    /// Performs the encode instruction step owned by this component.
+    /// </summary>
     private static string EncodeInstruction(NotesMediaAiTarget target, string instruction) =>
         Prefix + target + "] " + instruction.Trim();
 
+    /// <summary>
+    /// Builds model instruction from the currently available inputs.
+    /// </summary>
     private static string BuildModelInstruction(NotesMediaAiTarget target, string instruction) =>
         $"Create only the proposed {DisplayName(target).ToLowerInvariant()} for this media block. "
         + "Do not claim to have seen or heard content that is not explicitly present in the supplied evidence. "
         + "Do not include labels, markdown, quotation marks or an explanation in proposedContent. "
         + instruction;
 
+    /// <summary>
+    /// Performs the default instruction step owned by this component.
+    /// </summary>
     private static string DefaultInstruction(NotesMediaAiTarget target, NotesBlockKind kind) => target switch
     {
         NotesMediaAiTarget.AltText => kind == NotesBlockKind.Image
@@ -230,6 +293,9 @@ public static class NotesMediaAiReview
         _ => throw new ArgumentOutOfRangeException(nameof(target))
     };
 
+    /// <summary>
+    /// Builds selected evidence from the currently available inputs.
+    /// </summary>
     private static string BuildSelectedEvidence(
         NotesDocument document,
         NotesBlock block,
@@ -260,6 +326,9 @@ public static class NotesMediaAiReview
         });
     }
 
+    /// <summary>
+    /// Performs the read target step owned by this component.
+    /// </summary>
     private static string ReadTarget(NotesBlock block, NotesMediaAiTarget target) => target switch
     {
         NotesMediaAiTarget.AltText => block.Media?.AltText ?? string.Empty,
@@ -268,6 +337,9 @@ public static class NotesMediaAiReview
         _ => throw new ArgumentOutOfRangeException(nameof(target))
     };
 
+    /// <summary>
+    /// Performs the write target step owned by this component.
+    /// </summary>
     private static void WriteTarget(NotesBlock block, NotesMediaAiTarget target, string value)
     {
         var media = block.Media ?? throw new InvalidOperationException("The media block no longer contains media metadata.");

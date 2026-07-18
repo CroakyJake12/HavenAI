@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ProjectIntelligenceService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProjectIntelligenceService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.RegularExpressions;
 using Haven.Application;
@@ -5,18 +14,33 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents project intelligence service and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class ProjectIntelligenceService(IWorkspaceToolService processes) : IProjectIntelligenceService
 {
+    /// <summary>
+    /// Stores ignored directories locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".vs", "bin", "obj", "node_modules", ".idea", ".cache", "packages", "dist", "artifacts"
     };
+    /// <summary>
+    /// Stores project extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ProjectExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".sln", ".slnx", ".csproj", ".fsproj", ".vbproj", ".vcxproj"
     };
+    /// <summary>
+    /// Stores build results locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<string, string> _buildResults = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs scan async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<ProjectDiscoveryItem>> ScanAsync(string root, CancellationToken cancellationToken) => Task.Run<IReadOnlyList<ProjectDiscoveryItem>>(() =>
     {
         var canonicalRoot = Path.GetFullPath(root);
@@ -62,6 +86,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
             .ToArray();
     }, cancellationToken);
 
+    /// <summary>
+    /// Retrieves state async for the current operation.
+    /// </summary>
     public async Task<ProjectStateSnapshot> GetStateAsync(string root, CancellationToken cancellationToken)
     {
         var branch = await GitTextAsync(root, "branch --show-current", cancellationToken).ConfigureAwait(false);
@@ -82,6 +109,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
             build, string.IsNullOrWhiteSpace(error) ? "No recent error found" : error, recommendation, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Performs forecast release risk async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ReleaseRiskReport> ForecastReleaseRiskAsync(string root, CancellationToken cancellationToken)
     {
         var filesText = await GitTextAsync(root, "diff --name-only HEAD", cancellationToken).ConfigureAwait(false);
@@ -126,6 +156,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         return new ReleaseRiskReport(score, level, files, riskAreas.Distinct().ToArray(), tests.ToArray(), critical);
     }
 
+    /// <summary>
+    /// Performs find intent matches async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> FindIntentMatchesAsync(string root, string intent, CancellationToken cancellationToken) => Task.Run(() =>
     {
         var words = System.Text.RegularExpressions.Regex.Matches(intent.ToLowerInvariant(), "[a-z0-9_]{3,}")
@@ -150,6 +183,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
                 .Select(item => $"{item.Path} — relevance {item.Score}; matched {item.Evidence}"));
     }, cancellationToken);
 
+    /// <summary>
+    /// Runs run build async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<ProcessResult> RunBuildAsync(string root, CancellationToken cancellationToken)
     {
         var result = await RunPowerShellAsync(root, "dotnet build", TimeSpan.FromMinutes(12), cancellationToken).ConfigureAwait(false);
@@ -159,6 +195,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         return result;
     }
 
+    /// <summary>
+    /// Runs run tests async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken)
     {
         if (File.Exists(Path.Combine(root, "package.json")))
@@ -170,9 +209,15 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         return processes.RunProcessAsync(new ProcessRequest("dotnet.exe", "test", root, TimeSpan.FromMinutes(20)), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs initialize git async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<ProcessResult> InitializeGitAsync(string root, CancellationToken cancellationToken) =>
         RunGitAsync(root, "init", TimeSpan.FromMinutes(2), cancellationToken);
 
+    /// <summary>
+    /// Performs connect git remote async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ProcessResult> ConnectGitRemoteAsync(string root, string remoteUrl, CancellationToken cancellationToken)
     {
         var url = remoteUrl.Trim();
@@ -184,6 +229,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         return await RunGitAsync(root, $"{operation} \"{url}\"", TimeSpan.FromMinutes(1), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs run bug time machine async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<ProcessResult> RunBugTimeMachineAsync(string root, string reproductionCommand, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(reproductionCommand)) throw new ArgumentException("A deterministic reproduction command is required.", nameof(reproductionCommand));
@@ -232,6 +280,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         };
     }
 
+    /// <summary>
+    /// Performs launch editor async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LaunchEditorAsync(string root, CancellationToken cancellationToken)
     {
         var entry = Directory.EnumerateFiles(root, "*.sln*", SearchOption.TopDirectoryOnly).FirstOrDefault()
@@ -250,6 +301,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
             await processes.RunProcessAsync(new ProcessRequest("explorer.exe", $"\"{target}\"", root, TimeSpan.FromSeconds(5), DetachGui: true), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs launch terminal async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LaunchTerminalAsync(string root, CancellationToken cancellationToken)
     {
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -260,6 +314,9 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
             await processes.RunProcessAsync(new ProcessRequest("powershell.exe", "-NoExit", root, TimeSpan.FromSeconds(5), DetachGui: true), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs launch local server async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LaunchLocalServerAsync(string root, CancellationToken cancellationToken)
     {
         var command = File.Exists(Path.Combine(root, "package.json")) ? "npm run dev" : "dotnet run";
@@ -267,9 +324,15 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         await processes.RunProcessAsync(new ProcessRequest("powershell.exe", $"-NoExit -EncodedCommand {encoded}", root, TimeSpan.FromSeconds(5), DetachGui: true), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs run git async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private Task<ProcessResult> RunGitAsync(string root, string arguments, TimeSpan timeout, CancellationToken cancellationToken) =>
         processes.RunProcessAsync(new ProcessRequest("git.exe", arguments, root, timeout), cancellationToken);
 
+    /// <summary>
+    /// Performs git text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<string> GitTextAsync(string root, string arguments, CancellationToken cancellationToken)
     {
         try
@@ -280,12 +343,18 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         catch (Exception ex) when (ex is IOException or InvalidOperationException) { return string.Empty; }
     }
 
+    /// <summary>
+    /// Runs run power shell async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private Task<ProcessResult> RunPowerShellAsync(string root, string command, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
         return processes.RunProcessAsync(new ProcessRequest("powershell.exe", $"-NoProfile -NonInteractive -EncodedCommand {encoded}", root, timeout), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs the enumerate text files step owned by this component.
+    /// </summary>
     private static IEnumerable<string> EnumerateTextFiles(string root, int limit, CancellationToken cancellationToken)
     {
         var pending = new Stack<string>();
@@ -313,11 +382,17 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         }
     }
 
+    /// <summary>
+    /// Reports whether is text extension is true for the current state.
+    /// </summary>
     private static bool IsTextExtension(string extension) => new[]
     {
         ".cs", ".fs", ".vb", ".cpp", ".h", ".axaml", ".xaml", ".xml", ".json", ".md", ".txt", ".log", ".ps1", ".js", ".ts", ".tsx", ".jsx", ".css", ".html", ".py", ".go", ".rs", ".yaml", ".yml", ".toml", ".props", ".targets", ".csproj", ".sln"
     }.Contains(extension, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the find recent error step owned by this component.
+    /// </summary>
     private static string FindRecentError(string root)
     {
         try
@@ -335,20 +410,32 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         return string.Empty;
     }
 
+    /// <summary>
+    /// Reports whether is unsafe link is true for the current state.
+    /// </summary>
     private static bool IsUnsafeLink(DirectoryInfo info)
     {
         try { return info.Attributes.HasFlag(FileAttributes.ReparsePoint) && !string.IsNullOrWhiteSpace(info.LinkTarget); }
         catch (IOException) { return true; }
     }
 
+    /// <summary>
+    /// Reports whether is within is true for the current state.
+    /// </summary>
     private static bool IsWithin(string path, string root)
     {
         var relative = Path.GetRelativePath(root, path);
         return !relative.Equals("..", StringComparison.Ordinal) && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the truncate step owned by this component.
+    /// </summary>
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length] + "…";
 
+    /// <summary>
+    /// Performs the git scp url pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^git@[A-Za-z0-9.-]+:[A-Za-z0-9_./-]+(?:\.git)?$")]
     private static partial Regex GitScpUrlPattern();
 }

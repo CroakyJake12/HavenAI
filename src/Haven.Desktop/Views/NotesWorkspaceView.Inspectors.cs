@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/NotesWorkspaceView.Inspectors.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns NotesWorkspaceView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -9,8 +18,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents notes workspace view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesWorkspaceView
 {
+    /// <summary>
+    /// Performs the refresh inspector step owned by this component.
+    /// </summary>
     private void RefreshInspector()
     {
         BuildAiInspector();
@@ -19,6 +34,9 @@ public sealed partial class NotesWorkspaceView
         BuildInformationInspector();
     }
 
+    /// <summary>
+    /// Builds ai inspector from the currently available inputs.
+    /// </summary>
     private void BuildAiInspector()
     {
         _aiPanel.Children.Clear();
@@ -100,6 +118,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Builds standard ai proposal from the currently available inputs.
+    /// </summary>
     private Control BuildStandardAiProposal(NotesAiChange change) => Card(new StackPanel
     {
         Spacing = 7,
@@ -139,6 +160,9 @@ public sealed partial class NotesWorkspaceView
         }
     });
 
+    /// <summary>
+    /// Builds media ai inspector from the currently available inputs.
+    /// </summary>
     private void BuildMediaAiInspector()
     {
         if (_viewModel.Document is not { } document || _viewModel.SelectedBlock is not { Media: not null } block) return;
@@ -209,6 +233,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Builds media ai proposal from the currently available inputs.
+    /// </summary>
     private Control BuildMediaAiProposal(
         NotesBlock block,
         NotesMediaAiTarget target,
@@ -252,6 +279,9 @@ public sealed partial class NotesWorkspaceView
         }
     });
 
+    /// <summary>
+    /// Builds review inspector from the currently available inputs.
+    /// </summary>
     private void BuildReviewInspector()
     {
         _reviewPanel.Children.Clear();
@@ -333,6 +363,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Builds citation editor from the currently available inputs.
+    /// </summary>
     private Control BuildCitationEditor(NotesCitation citation)
     {
         var title = new TextBox { Text = citation.Title, PlaceholderText = "Source title" };
@@ -374,6 +407,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds versions inspector from the currently available inputs.
+    /// </summary>
     private void BuildVersionsInspector()
     {
         _versionsPanel.Children.Clear();
@@ -415,6 +451,9 @@ public sealed partial class NotesWorkspaceView
         }, "Restore as a new current version"));
     }
 
+    /// <summary>
+    /// Builds information inspector from the currently available inputs.
+    /// </summary>
     private void BuildInformationInspector()
     {
         _informationPanel.Children.Clear();
@@ -475,6 +514,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds page setup from the currently available inputs.
+    /// </summary>
     private Control BuildPageSetup(NotesDocument document)
     {
         var width = new NumericUpDown { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.WidthPoints };

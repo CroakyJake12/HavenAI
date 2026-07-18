@@ -1,1 +1,7 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Core/Haven.Core.csproj in the dependency-free Core layer, where shared domain models and rules live.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk" />

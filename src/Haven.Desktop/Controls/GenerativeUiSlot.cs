@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/GenerativeUiSlot.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns GenerativeUiSlot. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -13,12 +22,24 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents generative ui slot and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeUiSlot : StackPanel
 {
+    /// <summary>
+    /// Stores region property locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly StyledProperty<string> RegionProperty =
         AvaloniaProperty.Register<GenerativeUiSlot, string>(nameof(Region), string.Empty);
 
+    /// <summary>
+    /// Stores runtime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private GenerativeUiThemeRuntime? _runtime;
+    /// <summary>
+    /// Stores subscribed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _subscribed;
 
     public GenerativeUiSlot()
@@ -37,12 +58,18 @@ public sealed class GenerativeUiSlot : StackPanel
         set => SetValue(RegionProperty, value);
     }
 
+    /// <summary>
+    /// Handles the property changed event raised by the UI or runtime.
+    /// </summary>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == RegionProperty) Rebuild();
     }
 
+    /// <summary>
+    /// Performs the attach runtime step owned by this component.
+    /// </summary>
     private void AttachRuntime()
     {
         if (_subscribed) return;
@@ -53,6 +80,9 @@ public sealed class GenerativeUiSlot : StackPanel
         Rebuild();
     }
 
+    /// <summary>
+    /// Performs the detach runtime step owned by this component.
+    /// </summary>
     private void DetachRuntime()
     {
         if (!_subscribed || _runtime is null) return;
@@ -61,9 +91,15 @@ public sealed class GenerativeUiSlot : StackPanel
         DisposeChildren();
     }
 
+    /// <summary>
+    /// Handles the theme changed event raised by the UI or runtime.
+    /// </summary>
     private void OnThemeChanged(object? sender, EventArgs e) =>
         Dispatcher.UIThread.Post(Rebuild, DispatcherPriority.Background);
 
+    /// <summary>
+    /// Performs the rebuild step owned by this component.
+    /// </summary>
     private void Rebuild()
     {
         DisposeChildren();
@@ -82,11 +118,17 @@ public sealed class GenerativeUiSlot : StackPanel
             Children.Add(CreateGeneratedPagesLauncher());
     }
 
+    /// <summary>
+    /// Performs the dispose children step owned by this component.
+    /// </summary>
     private void DisposeChildren()
     {
         foreach (var disposable in Children.OfType<IDisposable>().ToArray()) disposable.Dispose();
     }
 
+    /// <summary>
+    /// Creates item with the invariants required by its callers.
+    /// </summary>
     private Control? CreateItem(string itemId, string presentation) => itemId switch
     {
         "chat.temporary" => CreateTemporary(presentation),
@@ -98,6 +140,9 @@ public sealed class GenerativeUiSlot : StackPanel
         _ => null
     };
 
+    /// <summary>
+    /// Creates temporary with the invariants required by its callers.
+    /// </summary>
     private Button CreateTemporary(string presentation)
     {
         var button = new Button
@@ -111,6 +156,9 @@ public sealed class GenerativeUiSlot : StackPanel
         return button;
     }
 
+    /// <summary>
+    /// Creates context with the invariants required by its callers.
+    /// </summary>
     private Button CreateContext(string presentation)
     {
         var label = new TextBlock
@@ -160,6 +208,9 @@ public sealed class GenerativeUiSlot : StackPanel
         return button;
     }
 
+    /// <summary>
+    /// Creates generated pages launcher with the invariants required by its callers.
+    /// </summary>
     private Button CreateGeneratedPagesLauncher()
     {
         var stack = new StackPanel { Width = 310, Spacing = 5 };
@@ -194,6 +245,9 @@ public sealed class GenerativeUiSlot : StackPanel
         return launcher;
     }
 
+    /// <summary>
+    /// Performs the open generated page step owned by this component.
+    /// </summary>
     private void OpenGeneratedPage(GeneratedPageDefinition definition)
     {
         if (DataContext is not MainWindowViewModel shell) return;
@@ -211,6 +265,9 @@ public sealed class GenerativeUiSlot : StackPanel
         shell.SelectedTab = tab;
     }
 
+    /// <summary>
+    /// Runs execute shell command async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static Task ExecuteShellCommandAsync(MainWindowViewModel shell, string commandId)
     {
         System.Windows.Input.ICommand? command = commandId.ToLowerInvariant() switch
@@ -232,6 +289,9 @@ public sealed class GenerativeUiSlot : StackPanel
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the binding for step owned by this component.
+    /// </summary>
     private Binding BindingFor(string chatPath, BindingMode mode = BindingMode.OneWay) => new()
     {
         Path = Region.Equals(GenerativeUiCatalog.ShellHeaderRight, StringComparison.OrdinalIgnoreCase)

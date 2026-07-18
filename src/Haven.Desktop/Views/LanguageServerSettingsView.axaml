@@ -1,7 +1,20 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/LanguageServerSettingsView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.LanguageServerSettingsView. Its visual vocabulary includes: Border, StackPanel, Grid, TextBlock, Button, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, TextBox, CheckBox, NumericUpDown, ProgressBar.
+  Data flow: Binding expressions read or update these view-model paths: AddCommand, RefreshCommand, Items, DisplayName, Id, IsEnabled, Command, Arguments, LanguageId, ExtensionsText, RequestTimeoutSeconds, InitializationOptionsJson, Status, IsBusy.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.LanguageServerSettingsView">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
   <Border Classes="card">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Spacing="11">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>

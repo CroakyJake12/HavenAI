@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Core.Tests/NotesProductivityTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesProductivityTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Core.Tests;
 
+/// <summary>
+/// Represents notes productivity tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesProductivityTests
 {
+    /// <summary>
+    /// Performs the every built in template produces a valid native document step owned by this component.
+    /// </summary>
     [Fact]
     public void EveryBuiltInTemplateProducesAValidNativeDocument()
     {
@@ -31,6 +46,9 @@ public sealed class NotesProductivityTests
         }
     }
 
+    /// <summary>
+    /// Performs the revision template contains real study and worked example structures step owned by this component.
+    /// </summary>
     [Fact]
     public void RevisionTemplateContainsRealStudyAndWorkedExampleStructures()
     {
@@ -46,6 +64,9 @@ public sealed class NotesProductivityTests
                      && block.PlainText.Contains("Worked example", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the find replace preserves formatted runs and creates one revision step owned by this component.
+    /// </summary>
     [Fact]
     public void FindReplacePreservesFormattedRunsAndCreatesOneRevision()
     {
@@ -76,6 +97,9 @@ public sealed class NotesProductivityTests
         Assert.Equal(revisionsBefore + 1, document.Revisions.Count);
     }
 
+    /// <summary>
+    /// Performs the whole word replace does not change longer words step owned by this component.
+    /// </summary>
     [Fact]
     public void WholeWordReplaceDoesNotChangeLongerWords()
     {
@@ -95,6 +119,9 @@ public sealed class NotesProductivityTests
         Assert.Equal("task planner planning task", block.PlainText);
     }
 
+    /// <summary>
+    /// Performs the language checks return exact block ranges and suggestions step owned by this component.
+    /// </summary>
     [Fact]
     public void LanguageChecksReturnExactBlockRangesAndSuggestions()
     {
@@ -124,6 +151,9 @@ public sealed class NotesProductivityTests
                      && issue.Suggestions.Count == 1);
     }
 
+    /// <summary>
+    /// Performs the no match does not create revision or dirty document timestamp step owned by this component.
+    /// </summary>
     [Fact]
     public void NoMatchDoesNotCreateRevisionOrDirtyDocumentTimestamp()
     {

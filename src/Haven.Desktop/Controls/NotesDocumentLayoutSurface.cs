@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/NotesDocumentLayoutSurface.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns NotesDocumentLayoutSurface, NotesFreeformPageControl. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,8 +19,14 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents notes document layout surface and keeps its related state and behavior together.
+/// </summary>
 public static class NotesDocumentLayoutSurface
 {
+    /// <summary>
+    /// Builds paginated from the currently available inputs.
+    /// </summary>
     public static Control BuildPaginated(
         NotesWorkspaceViewModel viewModel,
         NotesAdvancedDocumentState advanced,
@@ -134,6 +149,9 @@ public static class NotesDocumentLayoutSurface
         };
     }
 
+    /// <summary>
+    /// Builds freeform from the currently available inputs.
+    /// </summary>
     public static Control BuildFreeform(
         NotesWorkspaceViewModel viewModel,
         bool infinite,
@@ -143,6 +161,9 @@ public static class NotesDocumentLayoutSurface
         Func<Task> importMedia) =>
         new NotesFreeformPageControl(viewModel, infinite, beginEdit, endEdit, refresh, importMedia);
 
+    /// <summary>
+    /// Performs the header for step owned by this component.
+    /// </summary>
     private static string HeaderFor(
         NotesSection section,
         NotesSectionHeaderFooterState variant,
@@ -159,6 +180,9 @@ public static class NotesDocumentLayoutSurface
         return section.Header;
     }
 
+    /// <summary>
+    /// Performs the footer for step owned by this component.
+    /// </summary>
     private static string FooterFor(
         NotesSection section,
         NotesSectionHeaderFooterState variant,
@@ -175,6 +199,9 @@ public static class NotesDocumentLayoutSurface
         return section.Footer;
     }
 
+    /// <summary>
+    /// Performs the expand fields step owned by this component.
+    /// </summary>
     private static string ExpandFields(string value, NotesDocument document, int pageNumber)
     {
         var statistics = NotesTextStatistics.Calculate(document);
@@ -188,6 +215,9 @@ public static class NotesDocumentLayoutSurface
             .Replace("{words}", statistics.Words.ToString(CultureInfo.CurrentCulture), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the format page number step owned by this component.
+    /// </summary>
     private static string FormatPageNumber(int value, string format) => format switch
     {
         "i, ii, iii" => Roman(value).ToLowerInvariant(),
@@ -197,6 +227,9 @@ public static class NotesDocumentLayoutSurface
         _ => value.ToString(CultureInfo.CurrentCulture)
     };
 
+    /// <summary>
+    /// Performs the roman step owned by this component.
+    /// </summary>
     private static string Roman(int number)
     {
         number = Math.Clamp(number, 1, 3999);
@@ -212,6 +245,9 @@ public static class NotesDocumentLayoutSurface
         return result;
     }
 
+    /// <summary>
+    /// Performs the alpha step owned by this component.
+    /// </summary>
     private static string Alpha(int number)
     {
         number = Math.Max(1, number);
@@ -225,6 +261,9 @@ public static class NotesDocumentLayoutSurface
         return result;
     }
 
+    /// <summary>
+    /// Attempts to brush and reports the result without using failure for normal control flow.
+    /// </summary>
     private static IBrush TryBrush(string value, IBrush fallback)
     {
         if (string.IsNullOrWhiteSpace(value)) return fallback;
@@ -233,17 +272,50 @@ public static class NotesDocumentLayoutSurface
     }
 }
 
+/// <summary>
+/// Represents notes freeform page control and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesFreeformPageControl : UserControl
 {
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NotesWorkspaceViewModel _viewModel;
+    /// <summary>
+    /// Stores page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NotesPage _page;
+    /// <summary>
+    /// Stores surface locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Canvas _surface = new();
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _status = new() { Classes = { "muted2" }, FontSize = 9 };
+    /// <summary>
+    /// Stores begin edit locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Action<NotesBlock> _beginEdit;
+    /// <summary>
+    /// Stores end edit locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Action<NotesBlock, string> _endEdit;
+    /// <summary>
+    /// Stores refresh locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Action _refresh;
+    /// <summary>
+    /// Stores import media locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Func<Task> _importMedia;
+    /// <summary>
+    /// Stores infinite locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly bool _infinite;
+    /// <summary>
+    /// Stores zoom locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _zoom = 1;
 
     public NotesFreeformPageControl(
@@ -264,6 +336,9 @@ public sealed class NotesFreeformPageControl : UserControl
         Build();
     }
 
+    /// <summary>
+    /// Builds this member from the currently available inputs.
+    /// </summary>
     private void Build()
     {
         var zoom = new Slider { Minimum = 0.25, Maximum = 3, Value = 1, Width = 180 };
@@ -331,6 +406,9 @@ public sealed class NotesFreeformPageControl : UserControl
         };
     }
 
+    /// <summary>
+    /// Performs the add block step owned by this component.
+    /// </summary>
     private void AddBlock(NotesBlock block, int index)
     {
         var x = Read(block, "freeform-x", 50 + index % 4 * 440);
@@ -392,6 +470,9 @@ public sealed class NotesFreeformPageControl : UserControl
         _surface.Children.Add(frame);
     }
 
+    /// <summary>
+    /// Performs the attach drag step owned by this component.
+    /// </summary>
     private void AttachDrag(Control handle, Control frame, NotesBlock block)
     {
         var dragging = false;
@@ -437,6 +518,9 @@ public sealed class NotesFreeformPageControl : UserControl
         };
     }
 
+    /// <summary>
+    /// Performs the attach resize step owned by this component.
+    /// </summary>
     private void AttachResize(Control handle, Control frame, NotesBlock block)
     {
         var resizing = false;
@@ -482,14 +566,23 @@ public sealed class NotesFreeformPageControl : UserControl
         };
     }
 
+    /// <summary>
+    /// Performs the status text step owned by this component.
+    /// </summary>
     private string StatusText() => $"{(_infinite ? "Infinite" : "Freeform")} canvas · {_page.Blocks.Count} mixed blocks · zoom {_zoom:P0}";
 
+    /// <summary>
+    /// Performs the read step owned by this component.
+    /// </summary>
     private static double Read(NotesBlock block, string key, double fallback) =>
         block.Metadata.TryGetValue(key, out var text)
         && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
             : fallback;
 
+    /// <summary>
+    /// Performs the write step owned by this component.
+    /// </summary>
     private static void Write(NotesBlock block, string key, double value) =>
         block.Metadata[key] = value.ToString("R", CultureInfo.InvariantCulture);
 

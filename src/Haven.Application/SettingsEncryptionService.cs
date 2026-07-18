@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/SettingsEncryptionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns SettingsEncryptionService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents settings encryption service and keeps its related state and behavior together.
+/// </summary>
 public sealed class SettingsEncryptionService
 {
+    /// <summary>
+    /// Stores salt locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly byte[] Salt = "HavenSettingsSalt2024"u8.ToArray();
 
     private static (byte[] Key, byte[] Iv) DeriveKey(string passphrase)
@@ -20,6 +35,9 @@ public sealed class SettingsEncryptionService
         return (key, iv);
     }
 
+    /// <summary>
+    /// Performs the encrypt step owned by this component.
+    /// </summary>
     public string Encrypt(string plainText, string passphrase)
     {
         var (key, iv) = DeriveKey(passphrase);
@@ -36,6 +54,9 @@ public sealed class SettingsEncryptionService
         return Convert.ToBase64String(ms.ToArray());
     }
 
+    /// <summary>
+    /// Performs the decrypt step owned by this component.
+    /// </summary>
     public string Decrypt(string cipherText, string passphrase)
     {
         var (key, iv) = DeriveKey(passphrase);

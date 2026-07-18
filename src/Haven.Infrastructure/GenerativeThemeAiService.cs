@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/GenerativeThemeAiService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns GenerativeThemeAiService, ProposalEnvelope. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Application;
@@ -5,17 +14,26 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents generative theme ai service and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeThemeAiService(
     IOllamaClient models,
     IGenerativeThemeValidator validator,
     IProductionDiagnostics diagnostics) : IGenerativeThemeAiService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
 
+    /// <summary>
+    /// Creates async with the invariants required by its callers.
+    /// </summary>
     public async Task<GenerativeThemeProposal> CreateAsync(
         string prompt,
         string modelName,
@@ -96,6 +114,9 @@ public sealed class GenerativeThemeAiService(
         return new GenerativeThemeProposal(validation.NormalizedTheme, summary, changes, notes);
     }
 
+    /// <summary>
+    /// Performs the parse envelope step owned by this component.
+    /// </summary>
     private static ProposalEnvelope ParseEnvelope(string response)
     {
         if (string.IsNullOrWhiteSpace(response)) throw new InvalidDataException("The model returned an empty Theme Studio response.");
@@ -116,6 +137,9 @@ public sealed class GenerativeThemeAiService(
         }
     }
 
+    /// <summary>
+    /// Builds system prompt from the currently available inputs.
+    /// </summary>
     private static string BuildSystemPrompt(GenerativeThemePack? startingTheme)
     {
         var builder = new StringBuilder();
@@ -145,6 +169,9 @@ public sealed class GenerativeThemeAiService(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the normalize prompt step owned by this component.
+    /// </summary>
     private static string NormalizePrompt(string? value)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
@@ -153,6 +180,9 @@ public sealed class GenerativeThemeAiService(
         return string.IsNullOrWhiteSpace(normalized) ? throw new ArgumentException("Describe the theme or page you want Haven to create.", nameof(value)) : normalized;
     }
 
+    /// <summary>
+    /// Performs the normalize text step owned by this component.
+    /// </summary>
     private static string NormalizeText(string? value, int maximumLength)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
@@ -160,6 +190,9 @@ public sealed class GenerativeThemeAiService(
         return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
     }
 
+    /// <summary>
+    /// Represents proposal envelope and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ProposalEnvelope(
         GenerativeThemePack Theme,
         string Summary,

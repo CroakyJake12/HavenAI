@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/PlannerMigration.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns PlannerMigration. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 namespace Haven.Infrastructure;
 
 /// <summary>Schema fragment to add to the application's version 7 SQLite migration.</summary>
 public static class PlannerMigration
 {
+    /// <summary>
+    /// Stores version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const int Version = 7;
 
+    /// <summary>
+    /// Stores sql locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const string Sql = """
         CREATE TABLE planner_collections(
             id TEXT PRIMARY KEY,

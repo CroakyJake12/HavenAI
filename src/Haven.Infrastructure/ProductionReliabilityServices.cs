@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ProductionReliabilityServices.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProductionDiagnostics, StartupRecoveryCoordinator, StartupState, StartupRun, DiagnosticsBundleService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -6,20 +15,47 @@ using Haven.Application;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents production diagnostics and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnostics
 {
+    /// <summary>
+    /// Stores maximum file bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumFileBytes = 5L * 1024 * 1024;
+    /// <summary>
+    /// Stores maximum files locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumFiles = 20;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores sensitive key pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex SensitiveKeyPattern = new(
         "(?:api[-_]?key|access[-_]?token|refresh[-_]?token|secret|password|authorization|cookie|credential|client[-_]?secret)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores url pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex UrlPattern = new(
         "https?://[^\\s\\\"'<>]+",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
+    /// <summary>
+    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask WriteAsync(
         ReliabilitySeverity severity,
         string component,
@@ -64,6 +100,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         }
     }
 
+    /// <summary>
+    /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(int limit, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -99,6 +138,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         }
     }
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public ValueTask DisposeAsync()
     {
         _disposed = true;
@@ -106,6 +148,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the redact step owned by this component.
+    /// </summary>
     internal static string Redact(string? value, int maximumLength = 4_000)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
@@ -122,6 +167,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         return sanitized.Length <= maximumLength ? sanitized : sanitized[..maximumLength] + "…";
     }
 
+    /// <summary>
+    /// Performs the sanitize data step owned by this component.
+    /// </summary>
     private IReadOnlyDictionary<string, string> SanitizeData(IReadOnlyDictionary<string, string>? data)
     {
         if (data is null || data.Count == 0) return new Dictionary<string, string>();
@@ -134,6 +182,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         return result;
     }
 
+    /// <summary>
+    /// Performs the select current file step owned by this component.
+    /// </summary>
     private string SelectCurrentFile()
     {
         var prefix = "haven-" + DateTime.UtcNow.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
@@ -146,6 +197,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         return Path.Combine(paths.LogsDirectory, prefix + "-overflow-" + Guid.NewGuid().ToString("N") + ".jsonl");
     }
 
+    /// <summary>
+    /// Performs the apply retention step owned by this component.
+    /// </summary>
     private void ApplyRetention()
     {
         var files = EnumerateLogFiles().ToArray();
@@ -157,10 +211,16 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         }
     }
 
+    /// <summary>
+    /// Performs the enumerate log files step owned by this component.
+    /// </summary>
     private IEnumerable<string> EnumerateLogFiles() => Directory.EnumerateFiles(paths.LogsDirectory, "haven-*.jsonl", SearchOption.TopDirectoryOnly)
         .OrderByDescending(File.GetLastWriteTimeUtc)
         .ThenByDescending(path => path, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the normalize token step owned by this component.
+    /// </summary>
     private static string NormalizeToken(string? value, int maximumLength, string fallback)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
@@ -168,6 +228,9 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
         return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
     }
 
+    /// <summary>
+    /// Performs the redact url step owned by this component.
+    /// </summary>
     private static string RedactUrl(string value)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return value;
@@ -179,16 +242,40 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
     }
 }
 
+/// <summary>
+/// Represents startup recovery coordinator and keeps its related state and behavior together.
+/// </summary>
 public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagnostics diagnostics) : IStartupRecoveryCoordinator
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores crash window locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly TimeSpan CrashWindow = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// Stores safe mode threshold locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int SafeModeThreshold = 3;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores state path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _statePath = Path.Combine(paths.DataDirectory, "startup-recovery.json");
 
+    /// <summary>
+    /// Gets or updates current, the bindable or domain state represented by this property.
+    /// </summary>
     public StartupRecoveryState Current { get; private set; } = new(false, 0, string.Empty, "Startup recovery has not run.", DateTimeOffset.MinValue);
 
+    /// <summary>
+    /// Performs begin startup async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<StartupRecoveryState> BeginStartupAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -235,17 +322,26 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Performs mark startup completed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MarkStartupCompletedAsync(CancellationToken cancellationToken)
     {
         await UpdateCurrentAsync(run => run with { StartupCompleted = true }, "startup-complete", cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs mark clean shutdown async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MarkCleanShutdownAsync(CancellationToken cancellationToken)
     {
         await UpdateCurrentAsync(run => run with { StartupCompleted = true, CleanShutdown = true }, "clean-shutdown", cancellationToken).ConfigureAwait(false);
         RuntimeSafetyState.DisableSafeMode();
     }
 
+    /// <summary>
+    /// Performs update current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpdateCurrentAsync(Func<StartupRun, StartupRun> update, string eventName, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -270,6 +366,9 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<StartupState> ReadAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(_statePath)) return new StartupState(1, null, []);
@@ -289,6 +388,9 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task WriteAsync(StartupState state, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(paths.DataDirectory);
@@ -312,18 +414,33 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Represents startup state and keeps its related state and behavior together.
+    /// </summary>
     private sealed record StartupState(int Version, StartupRun? CurrentRun, IReadOnlyList<DateTimeOffset> RecentUncleanStarts);
+    /// <summary>
+    /// Represents startup run and keeps its related state and behavior together.
+    /// </summary>
     private sealed record StartupRun(string Id, DateTimeOffset StartedAt, bool StartupCompleted, bool CleanShutdown);
 }
 
+/// <summary>
+/// Represents diagnostics bundle service and keeps its related state and behavior together.
+/// </summary>
 public sealed class DiagnosticsBundleService(
     IAppPaths paths,
     IDatabaseMaintenance database,
     IStartupRecoveryCoordinator startup,
     IProductionDiagnostics diagnostics) : IDiagnosticsBundleService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Creates bundle async with the invariants required by its callers.
+    /// </summary>
     public async Task<string> CreateBundleAsync(string destinationDirectory, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(destinationDirectory)) throw new ArgumentException("A destination directory is required.", nameof(destinationDirectory));

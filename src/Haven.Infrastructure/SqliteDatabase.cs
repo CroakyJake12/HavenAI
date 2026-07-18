@@ -1,15 +1,33 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/SqliteDatabase.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ISqliteConnectionFactory, SqliteDatabase, Migration, Migrations. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Defines the i sqlite connection factory contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ISqliteConnectionFactory
 {
     Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents sqlite database and keeps its related state and behavior together.
+/// </summary>
 public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
 {
+    /// <summary>
+    /// Stores connection string locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _connectionString;
 
     public SqliteDatabase(IAppPaths paths)
@@ -25,6 +43,9 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
         }.ToString();
     }
 
+    /// <summary>
+    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(_connectionString);
@@ -35,6 +56,9 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
         return connection;
     }
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -56,6 +80,9 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves current version async for the current operation.
+    /// </summary>
     private static async Task<int> GetCurrentVersionAsync(SqliteConnection connection, SqliteTransaction transaction, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -64,6 +91,9 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static async Task ExecuteAsync(SqliteConnection connection, SqliteTransaction transaction, string sql, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -73,10 +103,19 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
     }
 }
 
+/// <summary>
+/// Represents migration and keeps its related state and behavior together.
+/// </summary>
 internal sealed record Migration(int Version, string Sql);
 
+/// <summary>
+/// Represents migrations and keeps its related state and behavior together.
+/// </summary>
 internal static class Migrations
 {
+    /// <summary>
+    /// Stores all locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly IReadOnlyList<Migration> All =
     [
         new(1, """

@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Core.Tests/NotesAdvancedServicesTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesAdvancedServicesTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Core.Tests;
 
+/// <summary>
+/// Represents notes advanced services tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesAdvancedServicesTests
 {
+    /// <summary>
+    /// Performs the advanced state round trips inside native document metadata step owned by this component.
+    /// </summary>
     [Fact]
     public void AdvancedStateRoundTripsInsideNativeDocumentMetadata()
     {
@@ -45,6 +60,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Single(loaded.StudyAttempts);
     }
 
+    /// <summary>
+    /// Performs the advanced state clamps unsafe preference values step owned by this component.
+    /// </summary>
     [Fact]
     public void AdvancedStateClampsUnsafePreferenceValues()
     {
@@ -66,6 +84,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal(10_000, loaded.Study.MaximumCardsPerSession);
     }
 
+    /// <summary>
+    /// Performs the regex find and replace honours page and whole word scope step owned by this component.
+    /// </summary>
     [Fact]
     public void RegexFindAndReplaceHonoursPageAndWholeWordScope()
     {
@@ -93,6 +114,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal("cat elsewhere", secondPage.Blocks[0].PlainText);
     }
 
+    /// <summary>
+    /// Performs the invalid regular expression fails without changing document step owned by this component.
+    /// </summary>
     [Fact]
     public void InvalidRegularExpressionFailsWithoutChangingDocument()
     {
@@ -108,6 +132,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal(before, document.Sections[0].Pages[0].Blocks[0].PlainText);
     }
 
+    /// <summary>
+    /// Performs the computed fields refresh from current document truth step owned by this component.
+    /// </summary>
     [Fact]
     public void ComputedFieldsRefreshFromCurrentDocumentTruth()
     {
@@ -129,6 +156,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal("2026-07-17", document.Fields[3].Value);
     }
 
+    /// <summary>
+    /// Performs the version comparison reports added and removed lines step owned by this component.
+    /// </summary>
     [Fact]
     public void VersionComparisonReportsAddedAndRemovedLines()
     {
@@ -147,6 +177,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Contains(comparison.Lines, line => line.Kind == NotesDiffKind.Added && line.Text == "New line");
     }
 
+    /// <summary>
+    /// Performs the table operations sort sum and round trip delimited text step owned by this component.
+    /// </summary>
     [Fact]
     public void TableOperationsSortSumAndRoundTripDelimitedText()
     {
@@ -171,6 +204,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal(table.Rows[0].Cells.Count, roundTrip.Rows[0].Cells.Count);
     }
 
+    /// <summary>
+    /// Performs the equation tools expose templates search macros and accessible exports step owned by this component.
+    /// </summary>
     [Fact]
     public void EquationToolsExposeTemplatesSearchMacrosAndAccessibleExports()
     {
@@ -191,6 +227,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Contains("alpha plus beta", NotesEquationTools.ToSvg(equation), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Reports whether canvas operations respect locks snap and preserve editable points is true for the current state.
+    /// </summary>
     [Fact]
     public void CanvasOperationsRespectLocksSnapAndPreserveEditablePoints()
     {
@@ -225,6 +264,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Equal(50, first.X);
     }
 
+    /// <summary>
+    /// Performs the study attempts preserve confidence hints timing and mark step owned by this component.
+    /// </summary>
     [Fact]
     public void StudyAttemptsPreserveConfidenceHintsTimingAndMark()
     {
@@ -243,6 +285,9 @@ public sealed class NotesAdvancedServicesTests
         Assert.Contains("New card", NotesStudyTools.ExplainDueReason(card, DateTimeOffset.UtcNow));
     }
 
+    /// <summary>
+    /// Performs the collaboration conflict resolution is versioned step owned by this component.
+    /// </summary>
     [Fact]
     public void CollaborationConflictResolutionIsVersioned()
     {

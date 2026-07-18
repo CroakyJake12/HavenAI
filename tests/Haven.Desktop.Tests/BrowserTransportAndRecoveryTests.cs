@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/BrowserTransportAndRecoveryTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserTransportAndRecoveryTests, RecordingPolicy, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -7,10 +16,19 @@ using Haven.Core;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents browser transport and recovery tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserTransportAndRecoveryTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the background loader validates and pins every redirect hop step owned by this component.
+    /// </summary>
     [Fact]
     public async Task BackgroundLoaderValidatesAndPinsEveryRedirectHop()
     {
@@ -34,6 +52,9 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         Assert.EndsWith("/page", policy.Assessed[1].AbsolutePath, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the approved action interrupted by restart becomes failed and audited step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ApprovedActionInterruptedByRestartBecomesFailedAndAudited()
     {
@@ -69,6 +90,9 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         Assert.Contains(audit, item => item.Operation == "recovery-interrupted" && item.Kind == BrowserActionKind.Download && !item.Succeeded);
     }
 
+    /// <summary>
+    /// Performs serve redirect and page async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ServeRedirectAndPageAsync(TcpListener listener, CancellationToken cancellationToken)
     {
         for (var index = 0; index < 2; index++)
@@ -94,6 +118,9 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs read request line async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ReadRequestLineAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
         var builder = new StringBuilder();
@@ -108,6 +135,9 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs drain headers async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task DrainHeadersAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
         var matched = 0;
@@ -121,11 +151,23 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents recording policy and keeps its related state and behavior together.
+    /// </summary>
     private sealed class RecordingPolicy : IBrowserNavigationPolicy
     {
+        /// <summary>
+        /// Gets or updates assessed, the bindable or domain state represented by this property.
+        /// </summary>
         public List<Uri> Assessed { get; } = [];
+        /// <summary>
+        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
         {
             Assessed.Add(address);
@@ -133,6 +175,9 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -145,12 +190,33 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
             LogsDirectory = Path.Combine(DataDirectory, "logs");
             LegacyStatePath = Path.Combine(DataDirectory, "legacy.json");
         }
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

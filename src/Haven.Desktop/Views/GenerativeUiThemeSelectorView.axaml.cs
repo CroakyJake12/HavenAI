@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns GenerativeUiThemeSelectorView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
@@ -7,9 +16,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents generative ui theme selector view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDisposable
 {
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly GenerativeUiThemeStudioViewModel? _viewModel;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public GenerativeUiThemeSelectorView()
@@ -34,6 +52,9 @@ public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDispos
         AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -47,12 +68,18 @@ public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDispos
         DataContext = null;
     }
 
+    /// <summary>
+    /// Handles the attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private async void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
         AttachedToVisualTree -= OnAttachedToVisualTree;
         if (_viewModel is not null) await _viewModel.InitializeAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Handles the export requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnExportRequested(object? sender, ThemeExportRequestedEventArgs e)
     {
         if (_viewModel is null || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
@@ -67,6 +94,9 @@ public sealed partial class GenerativeUiThemeSelectorView : UserControl, IDispos
         catch { }
     }
 
+    /// <summary>
+    /// Handles the import requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnImportRequested(object? sender, EventArgs e)
     {
         if (_viewModel is null || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;

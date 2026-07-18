@@ -1,15 +1,33 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Core.Tests/ChatSessionToolLoopTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns ChatSessionToolLoopTests, FakeOllama, UnsupportedToolsOllama, FakeConversations, TestWorkspaceTools, TestComputerTools. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Core.Tests;
 
+/// <summary>
+/// Represents chat session tool loop tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class ChatSessionToolLoopTests : IDisposable
 {
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(Path.GetTempPath(), "haven-chat-loop-tests", Guid.NewGuid().ToString("N"));
 
     public ChatSessionToolLoopTests() => Directory.CreateDirectory(_root);
 
+    /// <summary>
+    /// Performs the tool capable workspace chat executes and reports real tool result step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ToolCapableWorkspaceChatExecutesAndReportsRealToolResult()
     {
@@ -33,6 +51,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         Assert.Equal(2, ollama.ToolRequests);
     }
 
+    /// <summary>
+    /// Performs the workspace tools are not exposed by chat mode even when a root is supplied step owned by this component.
+    /// </summary>
     [Fact]
     public async Task WorkspaceToolsAreNotExposedByChatModeEvenWhenARootIsSupplied()
     {
@@ -54,6 +75,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         Assert.Equal(0, ollama.ToolRequests);
     }
 
+    /// <summary>
+    /// Performs the direct computer launch completes without sending unsupported tool schema to model step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DirectComputerLaunchCompletesWithoutSendingUnsupportedToolSchemaToModel()
     {
@@ -78,6 +102,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         Assert.Contains(events, item => item.Kind == ChatStreamEventKind.AssistantCompleted && item.Message?.Content == "Done — opened notepad.");
     }
 
+    /// <summary>
+    /// Performs the unsupported native tool schema falls back to compatibility router step owned by this component.
+    /// </summary>
     [Fact]
     public async Task UnsupportedNativeToolSchemaFallsBackToCompatibilityRouter()
     {
@@ -99,18 +126,42 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         Assert.Contains(events, item => item.Kind == ChatStreamEventKind.AssistantCompleted && item.Message?.Content == "Done — the requested tool action completed.");
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
     }
 
+    /// <summary>
+    /// Represents fake ollama and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeOllama(ModelDescriptor model) : IOllamaClient
     {
+        /// <summary>
+        /// Gets or updates tool requests, the bindable or domain state represented by this property.
+        /// </summary>
         public int ToolRequests { get; private set; }
+        /// <summary>
+        /// Reports whether is available async is true for the current state.
+        /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([model]);
+        /// <summary>
+        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
+        /// <summary>
+        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+        /// <summary>
+        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
         {
             ToolRequests++;
@@ -119,6 +170,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
                 : new OllamaToolResponse("Created and verified the file.", []));
         }
 
+        /// <summary>
+        /// Performs the call step owned by this component.
+        /// </summary>
         private static OllamaToolCall Call(string name, object arguments)
         {
             using var document = JsonDocument.Parse(JsonSerializer.Serialize(arguments));
@@ -126,30 +180,75 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Represents unsupported tools ollama and keeps its related state and behavior together.
+    /// </summary>
     private sealed class UnsupportedToolsOllama(ModelDescriptor model) : IOllamaClient
     {
+        /// <summary>
+        /// Reports whether is available async is true for the current state.
+        /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([model]);
+        /// <summary>
+        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
+        /// <summary>
+        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) =>
             Task.FromResult("{\"name\":\"computer_snapshot\",\"arguments\":{}}");
+        /// <summary>
+        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromException<OllamaToolResponse>(new HttpRequestException(
                 "Ollama returned 400: model does not support tools", null, System.Net.HttpStatusCode.BadRequest));
     }
 
+    /// <summary>
+    /// Represents fake conversations and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeConversations : IConversationRepository
     {
+        /// <summary>
+        /// Retrieves recent async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<Conversation>> GetRecentAsync(HavenMode? mode, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Conversation>>([]);
+        /// <summary>
+        /// Retrieves async for the current operation.
+        /// </summary>
         public Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<Conversation?>(null);
+        /// <summary>
+        /// Retrieves messages async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ChatMessage>>([]);
+        /// <summary>
+        /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs add message async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Represents test workspace tools and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestWorkspaceTools : IWorkspaceToolService
     {
+        /// <summary>
+        /// Performs the resolve workspace path step owned by this component.
+        /// </summary>
         public string ResolveWorkspacePath(string workspaceRoot, string relativePath)
         {
             var root = Path.GetFullPath(workspaceRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -158,28 +257,73 @@ public sealed class ChatSessionToolLoopTests : IDisposable
             return result;
         }
 
+        /// <summary>
+        /// Performs read text async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken) => File.ReadAllTextAsync(ResolveWorkspacePath(workspaceRoot, relativePath), cancellationToken);
+        /// <summary>
+        /// Performs write text atomic async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
         {
             var path = ResolveWorkspacePath(workspaceRoot, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllTextAsync(path, content, cancellationToken);
         }
+        /// <summary>
+        /// Performs search files async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
+        /// <summary>
+        /// Runs run process async while preserving the surrounding cancellation and error-handling contract.
+        /// </summary>
         public Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
+    /// <summary>
+    /// Represents test computer tools and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestComputerTools : IComputerToolService
     {
+        /// <summary>
+        /// Gets or updates launched name, the bindable or domain state represented by this property.
+        /// </summary>
         public string? LaunchedName { get; private set; }
+        /// <summary>
+        /// Performs snapshot async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> SnapshotAsync(CancellationToken cancellationToken) => Task.FromResult("snapshot");
+        /// <summary>
+        /// Performs list windows async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ListWindowsAsync(CancellationToken cancellationToken) => Task.FromResult("[]");
+        /// <summary>
+        /// Performs launch app async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken) { LaunchedName = name; return Task.FromResult($"opened {name}"); }
+        /// <summary>
+        /// Performs focus window async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult($"focused {title}");
+        /// <summary>
+        /// Performs invoke async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken) => Task.FromResult("invoked");
+        /// <summary>
+        /// Performs click async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken) => Task.FromResult("clicked");
+        /// <summary>
+        /// Performs type async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken) => Task.FromResult("typed");
+        /// <summary>
+        /// Performs press async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken) => Task.FromResult("pressed");
+        /// <summary>
+        /// Performs close window async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult("closed");
     }
 }

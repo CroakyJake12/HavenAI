@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/WorkspaceToolRuntime.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns WorkspaceToolResult, WorkspaceToolRuntime, WorkspaceMutation. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -5,18 +14,39 @@ using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents workspace tool result and keeps its related state and behavior together.
+/// </summary>
 public sealed record WorkspaceToolResult(ToolActivity Activity, string Output);
 
+/// <summary>
+/// Represents workspace tool runtime and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspaceStateRepository? history = null)
 {
+    /// <summary>
+    /// Stores max file characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaxFileCharacters = 1_000_000;
+    /// <summary>
+    /// Stores max tool output characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaxToolOutputCharacters = 120_000;
+    /// <summary>
+    /// Stores change sets locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly WorkspaceChangeSetService _changeSets = new(tools);
+    /// <summary>
+    /// Stores ignored directories locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".svn", ".hg", ".vs", ".idea", "node_modules", "bin", "obj", "dist", "build", "target", ".venv", "venv"
     };
 
+    /// <summary>
+    /// Gets or updates definitions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<OllamaToolDefinition> Definitions =>
     [
         Definition("list_files", "List files and folders inside the selected Haven workspace.",
@@ -39,6 +69,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
             new() { ["command"] = StringProperty("Optional explicit PowerShell test command."), ["timeout_seconds"] = IntegerProperty("Timeout from 1 to 1800 seconds.") })
     ];
 
+    /// <summary>
+    /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<WorkspaceToolResult> ExecuteAsync(string workspaceRoot, OllamaToolCall call, CancellationToken cancellationToken, Guid? conversationId = null, Guid? containerId = null)
     {
         var started = Stopwatch.GetTimestamp();
@@ -104,6 +137,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         }
     }
 
+    /// <summary>
+    /// Performs preview change set async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<string> PreviewChangeSetAsync(string root, string json, CancellationToken cancellationToken)
     {
         var preview = await _changeSets.PreviewAsync(root, json, cancellationToken).ConfigureAwait(false);
@@ -120,6 +156,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return builder.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// Performs list files async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<string> ListFilesAsync(string root, string relativePath, int maxDepth, CancellationToken cancellationToken)
     {
         var start = tools.ResolveWorkspacePath(root, relativePath);
@@ -153,6 +192,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return results.Count == 0 ? "Workspace folder is empty." : string.Join('\n', results);
     }
 
+    /// <summary>
+    /// Performs read file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<string> ReadFileAsync(string root, string path, CancellationToken cancellationToken)
     {
         var resolved = tools.ResolveWorkspacePath(root, path);
@@ -164,6 +206,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return Truncate(content, MaxFileCharacters);
     }
 
+    /// <summary>
+    /// Performs search files async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<string> SearchFilesAsync(string root, string relativePath, string query, int maxResults, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(query)) throw new ArgumentException("Search query is required.");
@@ -190,6 +235,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return matches.Count == 0 ? "No matches found." : string.Join('\n', matches);
     }
 
+    /// <summary>
+    /// Performs write file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<WorkspaceMutation> WriteFileAsync(string root, string path, string content, CancellationToken cancellationToken)
     {
         string before;
@@ -200,6 +248,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return new WorkspaceMutation(path, before, content, $"Wrote {path} ({content.Length} characters, +{added}/-{removed} lines).", added, removed);
     }
 
+    /// <summary>
+    /// Performs replace in file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<WorkspaceMutation> ReplaceInFileAsync(string root, string path, string oldText, string newText, bool replaceAll, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(oldText)) throw new ArgumentException("old_text is required.");
@@ -224,6 +275,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
             $"Updated {path} ({replacements} replacement{(replacements == 1 ? string.Empty : "s")}, +{added}/-{removed} lines).", added, removed);
     }
 
+    /// <summary>
+    /// Runs run command async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> RunCommandAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
     {
         timeoutSeconds = Math.Clamp(timeoutSeconds, 1, 900);
@@ -233,6 +287,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return FormatProcess(result);
     }
 
+    /// <summary>
+    /// Runs run tests async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> RunTestsAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(command))
@@ -245,6 +302,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return await RunCommandAsync(root, command, Math.Clamp(timeoutSeconds, 1, 1800), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the format process step owned by this component.
+    /// </summary>
     private static string FormatProcess(ProcessResult result)
     {
         var builder = new StringBuilder();
@@ -255,30 +315,60 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return builder.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// Performs the definition step owned by this component.
+    /// </summary>
     private static OllamaToolDefinition Definition(string name, string description, Dictionary<string, object> properties, params string[] required) => new(name, description, properties, required);
+    /// <summary>
+    /// Performs the string property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> StringProperty(string description) => new() { ["type"] = "string", ["description"] = description };
+    /// <summary>
+    /// Performs the integer property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> IntegerProperty(string description) => new() { ["type"] = "integer", ["description"] = description };
+    /// <summary>
+    /// Performs the boolean property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> BooleanProperty(string description) => new() { ["type"] = "boolean", ["description"] = description };
 
+    /// <summary>
+    /// Performs the required text step owned by this component.
+    /// </summary>
     private static string RequiredText(OllamaToolCall call, string key)
     {
         var value = Text(call, key);
         return string.IsNullOrWhiteSpace(value) ? throw new ArgumentException($"{key} is required.") : value;
     }
 
+    /// <summary>
+    /// Performs the text step owned by this component.
+    /// </summary>
     private static string Text(OllamaToolCall call, string key, string fallback = "") =>
         call.Arguments.TryGetValue(key, out var value) ? value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : value.ToString() : fallback;
+    /// <summary>
+    /// Performs the integer step owned by this component.
+    /// </summary>
     private static int Integer(OllamaToolCall call, string key, int fallback) =>
         call.Arguments.TryGetValue(key, out var value) && value.TryGetInt32(out var result) ? result : fallback;
+    /// <summary>
+    /// Performs the boolean step owned by this component.
+    /// </summary>
     private static bool Boolean(OllamaToolCall call, string key) =>
         call.Arguments.TryGetValue(key, out var value) && (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var result) && result);
 
+    /// <summary>
+    /// Performs the contains ignored directory step owned by this component.
+    /// </summary>
     private static bool ContainsIgnoredDirectory(string root, string path)
     {
         var relative = Path.GetRelativePath(root, path);
         return relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(IgnoredDirectories.Contains);
     }
 
+    /// <summary>
+    /// Performs the count occurrences step owned by this component.
+    /// </summary>
     private static int CountOccurrences(string content, string value)
     {
         var count = 0;
@@ -298,6 +388,9 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         return (Math.Max(0, newLines.Length - prefix - suffix), Math.Max(0, oldLines.Length - prefix - suffix));
     }
 
+    /// <summary>
+    /// Performs the human label step owned by this component.
+    /// </summary>
     private static string HumanLabel(string name) => name switch
     {
         "list_files" => "Listed project files",
@@ -312,7 +405,16 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
         _ => name.Replace('_', ' ')
     };
 
+    /// <summary>
+    /// Performs the first line step owned by this component.
+    /// </summary>
     private static string FirstLine(string value) => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Completed";
+    /// <summary>
+    /// Performs the truncate step owned by this component.
+    /// </summary>
     private static string Truncate(string value, int limit) => value.Length <= limit ? value : value[..limit] + "\n[truncated]";
+    /// <summary>
+    /// Represents workspace mutation and keeps its related state and behavior together.
+    /// </summary>
     private sealed record WorkspaceMutation(string Path, string Before, string After, string Output, int LinesAdded, int LinesRemoved);
 }

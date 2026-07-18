@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ToolAvailability.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ToolRuntimeKind, ToolAvailabilityContext, ToolDefinitionSources, ToolAvailabilityPlan, ToolAvailabilityPlanner. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Lists the supported tool runtime kind values used to make state explicit and type-safe.
+/// </summary>
 public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation }
 
+/// <summary>
+/// Represents tool availability context and keeps its related state and behavior together.
+/// </summary>
 public sealed record ToolAvailabilityContext(
     HavenMode Mode,
     string? WorkspaceRoot,
@@ -16,10 +31,19 @@ public sealed record ToolAvailabilityContext(
     bool BrowserInteractiveHostAvailable,
     bool AutomationHostAvailable)
 {
+    /// <summary>
+    /// Reports whether has existing workspace is true for the current state.
+    /// </summary>
     public bool HasExistingWorkspace => !string.IsNullOrWhiteSpace(WorkspaceRoot) && Directory.Exists(WorkspaceRoot);
+    /// <summary>
+    /// Reports whether is plugin active is true for the current state.
+    /// </summary>
     public bool IsPluginActive(string name) => Plugins.Any(plugin => plugin.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 }
 
+/// <summary>
+/// Represents tool definition sources and keeps its related state and behavior together.
+/// </summary>
 public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> Workspace,
     IReadOnlyList<OllamaToolDefinition> Computer,
@@ -28,12 +52,27 @@ public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> Automation,
     IReadOnlyList<OllamaToolDefinition> Macros);
 
+/// <summary>
+/// Represents tool availability plan and keeps its related state and behavior together.
+/// </summary>
 public sealed class ToolAvailabilityPlan
 {
+    /// <summary>
+    /// Stores contextual plugin names locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ContextualPluginNames = new(StringComparer.OrdinalIgnoreCase)
     { "Automate", "BrowserUse", "ComputerUse", "Macro", "Test", "WebSearch" };
+    /// <summary>
+    /// Stores routes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyDictionary<string, ToolRuntimeKind> _routes;
+    /// <summary>
+    /// Stores unavailable reasons locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyDictionary<string, string> _unavailableReasons;
+    /// <summary>
+    /// Stores available contextual plugins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlySet<string> _availableContextualPlugins;
 
     internal ToolAvailabilityPlan(IReadOnlyList<OllamaToolDefinition> definitions,
@@ -47,13 +86,34 @@ public sealed class ToolAvailabilityPlan
         _availableContextualPlugins = availableContextualPlugins;
     }
 
+    /// <summary>
+    /// Gets or updates definitions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<OllamaToolDefinition> Definitions { get; }
+    /// <summary>
+    /// Reports whether has runtime is true for the current state.
+    /// </summary>
     public bool HasRuntime(ToolRuntimeKind runtime) => _routes.Values.Contains(runtime);
+    /// <summary>
+    /// Attempts to get runtime and reports the result without using failure for normal control flow.
+    /// </summary>
     public bool TryGetRuntime(string toolName, out ToolRuntimeKind runtime) => _routes.TryGetValue(toolName, out runtime);
+    /// <summary>
+    /// Reports whether is plugin available is true for the current state.
+    /// </summary>
     public bool IsPluginAvailable(string pluginName) => !ContextualPluginNames.Contains(pluginName) || _availableContextualPlugins.Contains(pluginName);
+    /// <summary>
+    /// Performs the filter plugins step owned by this component.
+    /// </summary>
     public IReadOnlyCollection<ActivePlugin> FilterPlugins(IReadOnlyCollection<ActivePlugin> plugins) => plugins.Where(plugin => IsPluginAvailable(plugin.Name)).ToArray();
+    /// <summary>
+    /// Retrieves unavailable reason for the current operation.
+    /// </summary>
     public string GetUnavailableReason(string toolName) => _unavailableReasons.TryGetValue(toolName, out var reason) ? reason : $"Tool '{toolName}' is not registered for this Haven pass.";
 
+    /// <summary>
+    /// Performs the restrict to model step owned by this component.
+    /// </summary>
     public ToolAvailabilityPlan RestrictToModel(ModelDescriptor model)
     {
         if (model.Supports(ToolCapability.Tools)) return this;
@@ -85,14 +145,29 @@ public sealed class ToolAvailabilityPlan
     }
 }
 
+/// <summary>
+/// Represents tool availability planner and keeps its related state and behavior together.
+/// </summary>
 public sealed class ToolAvailabilityPlanner
 {
+    /// <summary>
+    /// Stores workspace read tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> WorkspaceReadTools = new(StringComparer.Ordinal)
     { "list_files", "read_file", "search_files", "preview_change_set" };
+    /// <summary>
+    /// Stores workspace mutation tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> WorkspaceMutationTools = new(StringComparer.Ordinal)
     { "write_file", "replace_in_file", "apply_change_set" };
+    /// <summary>
+    /// Gets or updates default, the bindable or domain state represented by this property.
+    /// </summary>
     public static ToolAvailabilityPlanner Default { get; } = new();
 
+    /// <summary>
+    /// Creates this member with the invariants required by its callers.
+    /// </summary>
     public ToolAvailabilityPlan Create(ToolAvailabilityContext context, ToolDefinitionSources sources)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -108,6 +183,9 @@ public sealed class ToolAvailabilityPlanner
         return new ToolAvailabilityPlan(definitions, routes, reasons, plugins);
     }
 
+    /// <summary>
+    /// Performs the plan workspace step owned by this component.
+    /// </summary>
     private static void PlanWorkspace(ToolAvailabilityContext context, IReadOnlyList<OllamaToolDefinition> source,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
@@ -141,6 +219,9 @@ public sealed class ToolAvailabilityPlanner
         }
     }
 
+    /// <summary>
+    /// Performs the plan computer step owned by this component.
+    /// </summary>
     private static void PlanComputer(ToolAvailabilityContext context, IReadOnlyList<OllamaToolDefinition> source,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
@@ -156,6 +237,9 @@ public sealed class ToolAvailabilityPlanner
         if (!RuntimeSafetyState.IsSafeMode && enabled && context.IsWindowsHost && source.Count > 0) plugins.Add("ComputerUse");
     }
 
+    /// <summary>
+    /// Performs the plan browser step owned by this component.
+    /// </summary>
     private static void PlanBrowser(ToolAvailabilityContext context,
         IReadOnlyList<OllamaToolDefinition> background, IReadOnlyList<OllamaToolDefinition> interactive,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
@@ -188,6 +272,9 @@ public sealed class ToolAvailabilityPlanner
         if (backgroundAllowed && webSearch) plugins.Add("WebSearch");
     }
 
+    /// <summary>
+    /// Performs the plan automations step owned by this component.
+    /// </summary>
     private static void PlanAutomations(ToolAvailabilityContext context,
         IReadOnlyList<OllamaToolDefinition> automation, IReadOnlyList<OllamaToolDefinition> macros,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
@@ -203,6 +290,9 @@ public sealed class ToolAvailabilityPlanner
         PlanAutomationGroup("Macro", context.IsPluginActive("Macro"), modeAllowed, context.AutomationHostAvailable, macros, definitions, routes, reasons, plugins);
     }
 
+    /// <summary>
+    /// Performs the plan automation group step owned by this component.
+    /// </summary>
     private static void PlanAutomationGroup(string plugin, bool active, bool modeAllowed, bool host,
         IReadOnlyList<OllamaToolDefinition> source, List<OllamaToolDefinition> definitions,
         Dictionary<string, ToolRuntimeKind> routes, Dictionary<string, string> reasons, HashSet<string> plugins)
@@ -217,6 +307,9 @@ public sealed class ToolAvailabilityPlanner
         if (active && modeAllowed && host && source.Count > 0) plugins.Add(plugin);
     }
 
+    /// <summary>
+    /// Performs the browser reason step owned by this component.
+    /// </summary>
     private static string BrowserReason(string tool, bool any, ToolAvailabilityContext context)
     {
         if (!any) return $"Tool '{tool}' requires @WebSearch or @BrowserUse.";
@@ -226,9 +319,15 @@ public sealed class ToolAvailabilityPlanner
         return $"Tool '{tool}' requires Auto Safe or Full Access browser permission, or approval for this message.";
     }
 
+    /// <summary>
+    /// Performs the safe mode reason step owned by this component.
+    /// </summary>
     private static string SafeModeReason(string tool) =>
         $"Tool '{tool}' is disabled because Haven is in crash-loop recovery safe mode. {RuntimeSafetyState.Reason}";
 
+    /// <summary>
+    /// Performs the add step owned by this component.
+    /// </summary>
     private static void Add(OllamaToolDefinition definition, ToolRuntimeKind runtime,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
     {

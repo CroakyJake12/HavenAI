@@ -1,12 +1,30 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/SecureDatabaseRestoreServiceTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns SecureDatabaseRestoreServiceTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents secure database restore service tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class SecureDatabaseRestoreServiceTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the renamed manifest cannot authorize another managed database file step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RenamedManifestCannotAuthorizeAnotherManagedDatabaseFile()
     {
@@ -33,6 +51,9 @@ public sealed class SecureDatabaseRestoreServiceTests : IDisposable
         Assert.Null(await secure.GetPendingAsync(CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the production boundary accepts untampered managed backup step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProductionBoundaryAcceptsUntamperedManagedBackup()
     {
@@ -54,8 +75,14 @@ public sealed class SecureDatabaseRestoreServiceTests : IDisposable
         await secure.CancelPendingAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -70,13 +97,34 @@ public sealed class SecureDatabaseRestoreServiceTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

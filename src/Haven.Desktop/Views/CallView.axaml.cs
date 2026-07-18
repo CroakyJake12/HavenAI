@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/CallView.axaml.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns CallView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Specialized;
 using System.Text;
 using Avalonia.Controls;
@@ -11,11 +20,26 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents call view and keeps its related state and behavior together.
+/// </summary>
 public partial class CallView : UserControl
 {
+    /// <summary>
+    /// Stores observed transcript locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private INotifyCollectionChanged? _observedTranscript;
+    /// <summary>
+    /// Stores voice preview button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _voicePreviewButton;
+    /// <summary>
+    /// Stores transcript export button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _transcriptExportButton;
+    /// <summary>
+    /// Stores voice preview cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _voicePreviewCancellation;
 
     public CallView()
@@ -25,6 +49,9 @@ public partial class CallView : UserControl
         DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
+    /// <summary>
+    /// Handles the loaded event raised by the UI or runtime.
+    /// </summary>
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel) return;
@@ -35,9 +62,15 @@ public partial class CallView : UserControl
         EnsureTranscriptExport(viewModel);
     }
 
+    /// <summary>
+    /// Handles the data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDataContextChanged(object? sender, EventArgs e) =>
         ObserveTranscript(DataContext as CallPageViewModel);
 
+    /// <summary>
+    /// Performs the observe transcript step owned by this component.
+    /// </summary>
     private void ObserveTranscript(CallPageViewModel? viewModel)
     {
         if (_observedTranscript is not null)
@@ -47,6 +80,9 @@ public partial class CallView : UserControl
             _observedTranscript.CollectionChanged += OnTranscriptCollectionChanged;
     }
 
+    /// <summary>
+    /// Performs the ensure voice preview step owned by this component.
+    /// </summary>
     private void EnsureVoicePreview(CallPageViewModel viewModel)
     {
         if (_voicePreviewButton is not null) return;
@@ -67,6 +103,9 @@ public partial class CallView : UserControl
         _voicePreviewButton = preview;
     }
 
+    /// <summary>
+    /// Performs the ensure transcript export step owned by this component.
+    /// </summary>
     private void EnsureTranscriptExport(CallPageViewModel viewModel)
     {
         if (_transcriptExportButton is not null) return;
@@ -87,6 +126,9 @@ public partial class CallView : UserControl
         _transcriptExportButton = export;
     }
 
+    /// <summary>
+    /// Handles the preview voice clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnPreviewVoiceClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel || _voicePreviewButton is null) return;
@@ -133,6 +175,9 @@ public partial class CallView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the export transcript clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnExportTranscriptClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel || viewModel.Transcript.Count == 0) return;
@@ -172,6 +217,9 @@ public partial class CallView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the detached from visual tree event raised by the UI or runtime.
+    /// </summary>
     private async void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         ObserveTranscript(null);
@@ -191,6 +239,9 @@ public partial class CallView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the transcript collection changed event raised by the UI or runtime.
+    /// </summary>
     private void OnTranscriptCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         TranscriptScroller.ScrollToEnd();
@@ -198,6 +249,9 @@ public partial class CallView : UserControl
             _transcriptExportButton.IsEnabled = viewModel.Transcript.Count > 0;
     }
 
+    /// <summary>
+    /// Handles the push to talk pressed event raised by the UI or runtime.
+    /// </summary>
     private async void OnPushToTalkPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel) return;
@@ -206,6 +260,9 @@ public partial class CallView : UserControl
         await viewModel.BeginPushToTalkAsync();
     }
 
+    /// <summary>
+    /// Handles the push to talk released event raised by the UI or runtime.
+    /// </summary>
     private async void OnPushToTalkReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (DataContext is not CallPageViewModel viewModel) return;
@@ -214,6 +271,9 @@ public partial class CallView : UserControl
         await viewModel.EndPushToTalkAsync();
     }
 
+    /// <summary>
+    /// Handles the push to talk capture lost event raised by the UI or runtime.
+    /// </summary>
     private async void OnPushToTalkCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
         if (DataContext is CallPageViewModel viewModel)

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/VisualBootstrapHost.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns VisualBootstrapHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -12,12 +21,30 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 internal static class VisualBootstrapHost
 {
+    /// <summary>
+    /// Stores sync locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly object Sync = new();
+    /// <summary>
+    /// Stores attachments locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly List<Action<Visual>> Attachments = [];
+    /// <summary>
+    /// Stores startup timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static DispatcherTimer? _startupTimer;
+    /// <summary>
+    /// Stores window locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static Window? _window;
+    /// <summary>
+    /// Stores scheduled locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static bool _scheduled;
 
+    /// <summary>
+    /// Performs the register step owned by this component.
+    /// </summary>
     public static void Register(Action<Visual> attachment)
     {
         ArgumentNullException.ThrowIfNull(attachment);
@@ -47,6 +74,9 @@ internal static class VisualBootstrapHost
         }
     }
 
+    /// <summary>
+    /// Performs the start polling step owned by this component.
+    /// </summary>
     private static void StartPolling()
     {
         if (_startupTimer is not null) return;
@@ -59,8 +89,14 @@ internal static class VisualBootstrapHost
         TryInstallWindow();
     }
 
+    /// <summary>
+    /// Handles the startup tick event raised by the UI or runtime.
+    /// </summary>
     private static void OnStartupTick(object? sender, EventArgs e) => TryInstallWindow();
 
+    /// <summary>
+    /// Attempts to install window and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryInstallWindow()
     {
         try
@@ -79,6 +115,9 @@ internal static class VisualBootstrapHost
         }
     }
 
+    /// <summary>
+    /// Performs the install window step owned by this component.
+    /// </summary>
     private static void InstallWindow(Window window)
     {
         Window? previous;
@@ -100,6 +139,9 @@ internal static class VisualBootstrapHost
         InvokeAll(window);
     }
 
+    /// <summary>
+    /// Performs the stop polling step owned by this component.
+    /// </summary>
     private static void StopPolling()
     {
         if (_startupTimer is null) return;
@@ -108,11 +150,17 @@ internal static class VisualBootstrapHost
         _startupTimer = null;
     }
 
+    /// <summary>
+    /// Handles the window layout updated event raised by the UI or runtime.
+    /// </summary>
     private static void OnWindowLayoutUpdated(object? sender, EventArgs e)
     {
         if (sender is Visual root) InvokeAll(root);
     }
 
+    /// <summary>
+    /// Performs the invoke all step owned by this component.
+    /// </summary>
     private static void InvokeAll(Visual root)
     {
         Action<Visual>[] attachments;
@@ -123,6 +171,9 @@ internal static class VisualBootstrapHost
             InvokeAttachment(attachment, root);
     }
 
+    /// <summary>
+    /// Performs the invoke attachment step owned by this component.
+    /// </summary>
     private static void InvokeAttachment(Action<Visual> attachment, Visual root)
     {
         try { attachment(root); }

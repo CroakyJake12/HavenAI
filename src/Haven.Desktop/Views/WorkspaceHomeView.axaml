@@ -1,8 +1,21 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/WorkspaceHomeView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.WorkspaceHomeView. Its visual vocabulary includes: ScrollViewer, StackPanel, Grid, TextBlock, Button, Border, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Title, Subtitle, RefreshCommand, CreateLabel, CreateBlankCommand, CollectionHeading, Items, Name, Accent, Path, LastTask, Branch, WorkState, RecommendedAction, ActiveAutomations, NextRun, Macros, Description, Status.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.WorkspaceHomeView">
   <!-- Workspace Home — project listing dashboard with cards, automations, and macros -->
+  <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel MaxWidth="1120" Margin="34,30" Spacing="22">
 
       <!-- ============================================================

@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/BrowserPrivateProfileManagerTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserPrivateProfileManagerTests, TemporaryDirectory. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Browser;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents browser private profile manager tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserPrivateProfileManagerTests
 {
+    /// <summary>
+    /// Performs the profiles are unique and remain under the managed root step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProfilesAreUniqueAndRemainUnderTheManagedRoot()
     {
@@ -22,6 +37,9 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.True(Directory.Exists(second));
     }
 
+    /// <summary>
+    /// Performs the closing one private tab deletes only its profile step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ClosingOnePrivateTabDeletesOnlyItsProfile()
     {
@@ -43,6 +61,9 @@ public sealed class BrowserPrivateProfileManagerTests
             path => Path.GetFileName(path).StartsWith(".deleting-", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the startup cleanup removes orphans but preserves active profiles step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StartupCleanupRemovesOrphansButPreservesActiveProfiles()
     {
@@ -63,6 +84,9 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.False(Directory.Exists(malformed));
     }
 
+    /// <summary>
+    /// Performs the startup cleanup completes interrupted tombstone deletion step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StartupCleanupCompletesInterruptedTombstoneDeletion()
     {
@@ -80,6 +104,9 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.False(Directory.Exists(manager.RootDirectory));
     }
 
+    /// <summary>
+    /// Reports whether cancelled cleanup does not move or delete active profile is true for the current state.
+    /// </summary>
     [Fact]
     public async Task CancelledCleanupDoesNotMoveOrDeleteActiveProfile()
     {
@@ -97,6 +124,9 @@ public sealed class BrowserPrivateProfileManagerTests
             path => Path.GetFileName(path).StartsWith(".deleting-", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the reparse point profile is removed without deleting its target step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ReparsePointProfileIsRemovedWithoutDeletingItsTarget()
     {
@@ -125,6 +155,9 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.True(File.Exists(marker));
     }
 
+    /// <summary>
+    /// Performs the empty tab identifiers are rejected step owned by this component.
+    /// </summary>
     [Fact]
     public void EmptyTabIdentifiersAreRejected()
     {
@@ -133,6 +166,9 @@ public sealed class BrowserPrivateProfileManagerTests
         Assert.Throws<ArgumentException>(() => manager.GetProfileDirectory(Guid.Empty));
     }
 
+    /// <summary>
+    /// Represents temporary directory and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()
@@ -141,8 +177,14 @@ public sealed class BrowserPrivateProfileManagerTests
             Directory.CreateDirectory(Path);
         }
 
+        /// <summary>
+        /// Gets or updates path, the bindable or domain state represented by this property.
+        /// </summary>
         public string Path { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             if (Directory.Exists(Path)) Directory.Delete(Path, true);

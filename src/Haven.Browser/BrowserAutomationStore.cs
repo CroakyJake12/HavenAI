@@ -1,17 +1,50 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserAutomationStore.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserAutomationStore, BrowserAutomationData. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser automation store and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposable
 {
+    /// <summary>
+    /// Stores maximum store bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumStoreBytes = 16L * 1024 * 1024;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _path;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores data locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserAutomationData _data;
+    /// <summary>
+    /// Stores has unsaved recovery locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _hasUnsavedRecovery;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _disposed;
 
     public BrowserAutomationStore(IAppPaths paths)
@@ -22,6 +55,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         (_data, _hasUnsavedRecovery) = RecoverAfterStartup(_data, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Retrieves pending async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -36,6 +72,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves audit async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -49,6 +88,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves downloads async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -62,6 +104,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPendingAction> AddPendingAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -82,6 +127,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves action async for the current operation.
+    /// </summary>
     public async Task<BrowserPendingAction?> GetActionAsync(Guid actionId, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -95,6 +143,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs update action async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPendingAction> UpdateActionAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -116,6 +167,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -131,6 +185,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs add download async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(download);
@@ -146,6 +203,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs the load step owned by this component.
+    /// </summary>
     private BrowserAutomationData Load()
     {
         if (!File.Exists(_path)) return BrowserAutomationData.Empty;
@@ -210,6 +270,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         }, true);
     }
 
+    /// <summary>
+    /// Performs the expire pending step owned by this component.
+    /// </summary>
     private static BrowserAutomationData ExpirePending(
         BrowserAutomationData data,
         DateTimeOffset now,
@@ -235,6 +298,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         };
     }
 
+    /// <summary>
+    /// Performs persist recovery and expiry async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PersistRecoveryAndExpiryAsync(CancellationToken cancellationToken)
     {
         var candidate = ExpirePending(_data, DateTimeOffset.UtcNow, out var expired);
@@ -242,6 +308,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         await CommitAsync(candidate, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs commit async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CommitAsync(BrowserAutomationData candidate, CancellationToken cancellationToken)
     {
         await SaveUnsafeAsync(candidate, cancellationToken).ConfigureAwait(false);
@@ -249,6 +318,9 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         _hasUnsavedRecovery = false;
     }
 
+    /// <summary>
+    /// Performs save unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveUnsafeAsync(BrowserAutomationData data, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -268,9 +340,15 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         }
     }
 
+    /// <summary>
+    /// Performs the throw if disposed step owned by this component.
+    /// </summary>
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
@@ -278,11 +356,17 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
         // in-flight save during coordinated service-provider shutdown.
     }
 
+    /// <summary>
+    /// Represents browser automation data and keeps its related state and behavior together.
+    /// </summary>
     private sealed record BrowserAutomationData(
         IReadOnlyList<BrowserPendingAction> Actions,
         IReadOnlyList<BrowserAuditEntry> Audit,
         IReadOnlyList<BrowserDownloadRecord> Downloads)
     {
+        /// <summary>
+        /// Gets or updates empty, the bindable or domain state represented by this property.
+        /// </summary>
         public static BrowserAutomationData Empty { get; } = new([], [], []);
     }
 }

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.MagicalTheme.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns WorkspaceChromeHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -10,24 +19,63 @@ using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents workspace chrome host and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class WorkspaceChromeHost
 {
+    /// <summary>
+    /// Stores magical styles gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly object MagicalStylesGate = new();
+    /// <summary>
+    /// Stores magical styles loaded locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static bool _magicalStylesLoaded;
 
+    /// <summary>
+    /// Stores maximize geometry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Geometry MaximizeGeometry = StreamGeometry.Parse(
         "M5,5 L19,5 L19,7 L5,7 Z M5,17 L19,17 L19,19 L5,19 Z M5,7 L7,7 L7,17 L5,17 Z M17,7 L19,7 L19,17 L17,17 Z");
+    /// <summary>
+    /// Stores restore geometry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Geometry RestoreGeometry = StreamGeometry.Parse(
         "M7,4 L20,4 L20,17 L17,17 L17,7 L7,7 Z M4,7 L16,7 L16,20 L4,20 Z M6,9 L6,18 L14,18 L14,9 Z");
 
+    /// <summary>
+    /// Stores magical backdrop locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MagicalBackdrop? _magicalBackdrop;
+    /// <summary>
+    /// Stores motion preferences locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MotionPreferencesService? _motionPreferences;
+    /// <summary>
+    /// Stores magical mode rail host locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Border? _magicalModeRailHost;
+    /// <summary>
+    /// Stores floating top rail host locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Border? _floatingTopRailHost;
+    /// <summary>
+    /// Stores host window locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Window? _hostWindow;
+    /// <summary>
+    /// Stores maximize icon locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private PathIcon? _maximizeIcon;
+    /// <summary>
+    /// Stores maximize button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _maximizeButton;
 
+    /// <summary>
+    /// Builds magical backdrop from the currently available inputs.
+    /// </summary>
     private MagicalBackdrop BuildMagicalBackdrop()
     {
         _magicalBackdrop = new MagicalBackdrop();
@@ -35,6 +83,9 @@ public sealed partial class WorkspaceChromeHost
         return _magicalBackdrop;
     }
 
+    /// <summary>
+    /// Builds floating top rail from the currently available inputs.
+    /// </summary>
     private Border BuildFloatingTopRail(Border topBar)
     {
         topBar.Background = Brushes.Transparent;
@@ -77,6 +128,9 @@ public sealed partial class WorkspaceChromeHost
         return _floatingTopRailHost;
     }
 
+    /// <summary>
+    /// Builds window controls from the currently available inputs.
+    /// </summary>
     private StackPanel BuildWindowControls()
     {
         var minimize = CaptionButton(
@@ -123,6 +177,9 @@ public sealed partial class WorkspaceChromeHost
         };
     }
 
+    /// <summary>
+    /// Performs the caption button step owned by this component.
+    /// </summary>
     private static Button CaptionButton(Control content, string tooltip)
     {
         var button = new Button
@@ -140,6 +197,9 @@ public sealed partial class WorkspaceChromeHost
         return button;
     }
 
+    /// <summary>
+    /// Performs the initialize magical theme step owned by this component.
+    /// </summary>
     private void InitializeMagicalTheme()
     {
         EnsureMagicalStylesLoaded();
@@ -153,6 +213,9 @@ public sealed partial class WorkspaceChromeHost
         ApplyMotionPreference();
     }
 
+    /// <summary>
+    /// Performs the dispose magical theme step owned by this component.
+    /// </summary>
     private void DisposeMagicalTheme()
     {
         if (_motionPreferences is not null)
@@ -174,6 +237,9 @@ public sealed partial class WorkspaceChromeHost
         _maximizeButton = null;
     }
 
+    /// <summary>
+    /// Performs the ensure magical styles loaded step owned by this component.
+    /// </summary>
     private static void EnsureMagicalStylesLoaded()
     {
         lock (MagicalStylesGate)
@@ -188,12 +254,18 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Handles the magical attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnMagicalAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         DecorateModeRail();
         ConfigureHostWindow();
     }
 
+    /// <summary>
+    /// Performs the configure host window step owned by this component.
+    /// </summary>
     private void ConfigureHostWindow()
     {
         if (TopLevel.GetTopLevel(this) is not Window window) return;
@@ -210,12 +282,18 @@ public sealed partial class WorkspaceChromeHost
         UpdateMaximizeVisual(window);
     }
 
+    /// <summary>
+    /// Handles the host window property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnHostWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (e.Property == Window.WindowStateProperty && sender is Window window)
             UpdateMaximizeVisual(window);
     }
 
+    /// <summary>
+    /// Handles the top rail pointer pressed event raised by the UI or runtime.
+    /// </summary>
     private void OnTopRailPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || IsInsideButton(e.Source)) return;
@@ -228,12 +306,18 @@ public sealed partial class WorkspaceChromeHost
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Reports whether is inside button is true for the current state.
+    /// </summary>
     private static bool IsInsideButton(object? source)
     {
         if (source is not Visual visual) return false;
         return visual is Button || visual.GetVisualAncestors().OfType<Button>().Any();
     }
 
+    /// <summary>
+    /// Performs the toggle maximize step owned by this component.
+    /// </summary>
     private void ToggleMaximize(Window window)
     {
         window.WindowState = window.WindowState == WindowState.Maximized
@@ -242,6 +326,9 @@ public sealed partial class WorkspaceChromeHost
         UpdateMaximizeVisual(window);
     }
 
+    /// <summary>
+    /// Performs the update maximize visual step owned by this component.
+    /// </summary>
     private void UpdateMaximizeVisual(Window window)
     {
         if (_maximizeIcon is null || _maximizeButton is null) return;
@@ -250,6 +337,9 @@ public sealed partial class WorkspaceChromeHost
         ToolTip.SetTip(_maximizeButton, maximized ? "Restore" : "Maximize");
     }
 
+    /// <summary>
+    /// Performs the decorate mode rail step owned by this component.
+    /// </summary>
     private void DecorateModeRail()
     {
         if (_magicalModeRailHost is not null) return;
@@ -294,9 +384,15 @@ public sealed partial class WorkspaceChromeHost
         _experienceShell.Children.Insert(0, _magicalModeRailHost);
     }
 
+    /// <summary>
+    /// Handles the motion preference changed event raised by the UI or runtime.
+    /// </summary>
     private void OnMotionPreferenceChanged(object? sender, EventArgs e) =>
         Dispatcher.UIThread.Post(ApplyMotionPreference);
 
+    /// <summary>
+    /// Performs the apply motion preference step owned by this component.
+    /// </summary>
     private void ApplyMotionPreference()
     {
         var reduceAnimations = _motionPreferences?.ReduceAnimations == true;

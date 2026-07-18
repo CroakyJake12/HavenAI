@@ -1,14 +1,38 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/ProviderConnectionsViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns ProviderConnectionsViewModel, ProviderConnectionItemViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents provider connections view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderConnectionsViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModelProviderRegistry _providers;
+    /// <summary>
+    /// Stores configurations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProviderConfigurationStore _configurations;
+    /// <summary>
+    /// Stores secrets locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProviderSecretStore _secrets;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = "Loading provider settings…";
 
     public ProviderConnectionsViewModel(
@@ -27,13 +51,34 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         _ = RefreshAsync();
     }
 
+    /// <summary>
+    /// Gets or updates items, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ProviderConnectionItemViewModel> Items { get; } = [];
+    /// <summary>
+    /// Gets or updates refresh command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>
+    /// Gets or updates connect command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ProviderConnectionItemViewModel> ConnectCommand { get; }
+    /// <summary>
+    /// Gets or updates test command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ProviderConnectionItemViewModel> TestCommand { get; }
+    /// <summary>
+    /// Gets or updates disconnect command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ProviderConnectionItemViewModel> DisconnectCommand { get; }
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync()
     {
         try
@@ -84,6 +129,9 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ConnectAsync(ProviderConnectionItemViewModel? item)
     {
         if (item is null)
@@ -137,6 +185,9 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs test async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task TestAsync(ProviderConnectionItemViewModel? item)
     {
         if (item is null)
@@ -159,6 +210,9 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs test core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task TestCoreAsync(ProviderConnectionItemViewModel item)
     {
         var provider = _providers.GetRequired(item.Id);
@@ -180,6 +234,9 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
         Status = $"{item.DisplayName} is connected.";
     }
 
+    /// <summary>
+    /// Performs disconnect async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DisconnectAsync(ProviderConnectionItemViewModel? item)
     {
         if (item is null)
@@ -212,14 +269,38 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents provider connection item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderConnectionItemViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores endpoint locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _endpoint;
+    /// <summary>
+    /// Stores api key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _apiKey = string.Empty;
+    /// <summary>
+    /// Stores is connected locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isConnected;
+    /// <summary>
+    /// Stores is healthy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isHealthy;
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status;
+    /// <summary>
+    /// Stores model summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _modelSummary = "Models not checked yet";
 
     public ProviderConnectionItemViewModel(
@@ -237,11 +318,29 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
         _status = isConnected ? "Configured." : "Not connected.";
     }
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public string Id { get; }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName { get; }
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public ModelProviderKind Kind { get; }
+    /// <summary>
+    /// Gets or updates kind label, the bindable or domain state represented by this property.
+    /// </summary>
     public string KindLabel => Kind == ModelProviderKind.OpenAICompatible ? "CUSTOM OPENAI-COMPATIBLE" : Kind.ToString().ToUpperInvariant();
+    /// <summary>
+    /// Gets or updates endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     public string Endpoint { get => _endpoint; set => SetProperty(ref _endpoint, value); }
+    /// <summary>
+    /// Gets or updates api key, the bindable or domain state represented by this property.
+    /// </summary>
     public string ApiKey { get => _apiKey; set => SetProperty(ref _apiKey, value); }
     public bool IsConnected
     {
@@ -274,15 +373,42 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
             RaiseActionProperties();
         }
     }
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Gets or updates model summary, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModelSummary { get => _modelSummary; set => SetProperty(ref _modelSummary, value); }
+    /// <summary>
+    /// Gets or updates connection label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ConnectionLabel => !IsConnected ? "Not connected" : IsHealthy ? "Connected" : "Configured";
+    /// <summary>
+    /// Gets or updates connect label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ConnectLabel => IsConnected ? "Update connection" : "Connect";
+    /// <summary>
+    /// Gets or updates api key hint, the bindable or domain state represented by this property.
+    /// </summary>
     public string ApiKeyHint => IsConnected ? "Leave blank to keep the saved API key" : "API key";
+    /// <summary>
+    /// Reports whether can connect is true for the current state.
+    /// </summary>
     public bool CanConnect => !IsBusy;
+    /// <summary>
+    /// Reports whether can test is true for the current state.
+    /// </summary>
     public bool CanTest => IsConnected && !IsBusy;
+    /// <summary>
+    /// Reports whether can disconnect is true for the current state.
+    /// </summary>
     public bool CanDisconnect => IsConnected && !IsBusy;
 
+    /// <summary>
+    /// Performs the raise action properties step owned by this component.
+    /// </summary>
     private void RaiseActionProperties()
     {
         RaisePropertyChanged(nameof(CanConnect));
@@ -290,6 +416,9 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
         RaisePropertyChanged(nameof(CanDisconnect));
     }
 
+    /// <summary>
+    /// Performs the raise connection properties step owned by this component.
+    /// </summary>
     private void RaiseConnectionProperties()
     {
         RaisePropertyChanged(nameof(ConnectionLabel));

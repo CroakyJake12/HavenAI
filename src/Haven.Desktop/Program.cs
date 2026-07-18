@@ -1,11 +1,26 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Program.cs, in the Desktop composition layer, which starts and wires the Avalonia application.
+ * What: This file owns Program. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia;
 
 namespace Haven.Desktop;
 
+/// <summary>
+/// Represents program and keeps its related state and behavior together.
+/// </summary>
 internal static class Program
 {
+    /// <summary>
+    /// Performs the main step owned by this component.
+    /// </summary>
     [STAThread]
     public static void Main(string[] args)
     {
@@ -22,12 +37,18 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Builds avalonia app from the currently available inputs.
+    /// </summary>
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
 
+    /// <summary>
+    /// Performs the report bootstrap failure step owned by this component.
+    /// </summary>
     private static void ReportBootstrapFailure(Exception exception)
     {
         string? logPath = null;
@@ -71,9 +92,15 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Performs the set current process explicit app user model id step owned by this component.
+    /// </summary>
     [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 
+    /// <summary>
+    /// Performs the message box w step owned by this component.
+    /// </summary>
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int MessageBoxW(IntPtr owner, string text, string caption, uint type);
 }

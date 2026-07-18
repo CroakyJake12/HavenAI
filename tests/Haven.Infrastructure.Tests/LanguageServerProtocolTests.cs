@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/LanguageServerProtocolTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns LanguageServerProtocolTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Application;
@@ -6,8 +15,14 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents language server protocol tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class LanguageServerProtocolTests
 {
+    /// <summary>
+    /// Performs the codec round trips utf8 json using byte content length step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CodecRoundTripsUtf8JsonUsingByteContentLength()
     {
@@ -28,6 +43,9 @@ public sealed class LanguageServerProtocolTests
         Assert.Equal("héllo 世界", decoded.Value.GetProperty("result").GetProperty("text").GetString());
     }
 
+    /// <summary>
+    /// Performs the codec rejects messages without content length step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CodecRejectsMessagesWithoutContentLength()
     {
@@ -37,6 +55,9 @@ public sealed class LanguageServerProtocolTests
             await LanguageServerProtocolCodec.ReadMessageAsync(stream, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the text edits apply from end and preserve utf16 positions step owned by this component.
+    /// </summary>
     [Fact]
     public void TextEditsApplyFromEndAndPreserveUtf16Positions()
     {
@@ -52,6 +73,9 @@ public sealed class LanguageServerProtocolTests
         Assert.Equal("alpha 😀 BETA\nupdated line\n", updated);
     }
 
+    /// <summary>
+    /// Performs the text edits reject overlapping ranges step owned by this component.
+    /// </summary>
     [Fact]
     public void TextEditsRejectOverlappingRanges()
     {
@@ -65,6 +89,9 @@ public sealed class LanguageServerProtocolTests
         Assert.Throws<InvalidOperationException>(() => LanguageServerTextEditApplicator.Apply(original, edits));
     }
 
+    /// <summary>
+    /// Performs the unified diff contains reviewed old and new lines step owned by this component.
+    /// </summary>
     [Fact]
     public void UnifiedDiffContainsReviewedOldAndNewLines()
     {

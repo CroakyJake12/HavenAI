@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/PlanAutomationControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns PlanAutomationControl. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -16,12 +25,30 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class PlanAutomationControl : Button, IDisposable
 {
+    /// <summary>
+    /// Stores repository locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAutomationRepository? _repository;
+    /// <summary>
+    /// Stores schedules locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ScheduleCalculator? _schedules;
+    /// <summary>
+    /// Stores runner locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly AutomationRunner? _runner;
+    /// <summary>
+    /// Stores registration locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly WindowsAutomationRegistrationService? _registration;
 
+    /// <summary>
+    /// Stores name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _name = new() { PlaceholderText = "Automation name" };
+    /// <summary>
+    /// Stores instruction locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _instruction = new()
     {
         PlaceholderText = "What should Haven do or check?",
@@ -30,11 +57,29 @@ public sealed class PlanAutomationControl : Button, IDisposable
         MinHeight = 86,
         MaxHeight = 180
     };
+    /// <summary>
+    /// Stores mode locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ComboBox _mode = new() { ItemsSource = Enum.GetValues<HavenMode>() };
+    /// <summary>
+    /// Stores kind locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ComboBox _kind = new() { ItemsSource = Enum.GetValues<AutomationScheduleKind>() };
+    /// <summary>
+    /// Stores once date locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CalendarDatePicker _onceDate = new() { PlaceholderText = "Run date" };
+    /// <summary>
+    /// Stores time locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TimePicker _time = new() { ClockIdentifier = "24HourClock" };
+    /// <summary>
+    /// Stores day locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ComboBox _day = new() { ItemsSource = Enum.GetValues<DayOfWeek>() };
+    /// <summary>
+    /// Stores interval hours locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NumericUpDown _intervalHours = new()
     {
         Minimum = 1,
@@ -42,6 +87,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         Increment = 1,
         Value = 1
     };
+    /// <summary>
+    /// Stores condition minutes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NumericUpDown _conditionMinutes = new()
     {
         Minimum = 60,
@@ -49,24 +97,48 @@ public sealed class PlanAutomationControl : Button, IDisposable
         Increment = 60,
         Value = 60
     };
+    /// <summary>
+    /// Stores enabled locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CheckBox _enabled = new() { Content = "Enabled", IsChecked = true };
+    /// <summary>
+    /// Stores schedule hint locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _scheduleHint = new()
     {
         Classes = { "muted" },
         FontSize = 10,
         TextWrapping = TextWrapping.Wrap
     };
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _status = new()
     {
         Classes = { "muted" },
         FontSize = 10,
         TextWrapping = TextWrapping.Wrap
     };
+    /// <summary>
+    /// Stores items locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _items = new() { Spacing = 7 };
+    /// <summary>
+    /// Stores save button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Button _saveButton = new() { Content = "Create automation" };
 
+    /// <summary>
+    /// Stores editing id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid? _editingId;
+    /// <summary>
+    /// Stores editing created at locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DateTimeOffset? _editingCreatedAt;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public PlanAutomationControl()
@@ -118,6 +190,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         UpdateScheduleVisibility();
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -126,6 +201,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Builds editor from the currently available inputs.
+    /// </summary>
     private Control BuildEditor(
         Button reset,
         Button refresh,
@@ -217,6 +295,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     };
 
+    /// <summary>
+    /// Performs the update schedule visibility step owned by this component.
+    /// </summary>
     private void UpdateScheduleVisibility()
     {
         var kind = SelectedKind;
@@ -230,6 +311,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         UpdateScheduleHint();
     }
 
+    /// <summary>
+    /// Performs the update schedule hint step owned by this component.
+    /// </summary>
     private void UpdateScheduleHint()
     {
         try
@@ -242,6 +326,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveAsync()
     {
         if (_repository is null || _schedules is null)
@@ -295,6 +382,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync()
     {
         if (_disposed || _repository is null) return;
@@ -310,6 +400,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the rebuild items step owned by this component.
+    /// </summary>
     private void RebuildItems(IReadOnlyList<AutomationDefinition> definitions)
     {
         _items.Children.Clear();
@@ -328,6 +421,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
             _items.Children.Add(BuildDefinitionCard(definition));
     }
 
+    /// <summary>
+    /// Builds definition card from the currently available inputs.
+    /// </summary>
     private Control BuildDefinitionCard(AutomationDefinition definition)
     {
         var draft = AutomationScheduleComposer.Parse(
@@ -413,6 +509,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         };
     }
 
+    /// <summary>
+    /// Performs the load for edit step owned by this component.
+    /// </summary>
     private void LoadForEdit(AutomationDefinition definition)
     {
         _editingId = definition.Id;
@@ -437,6 +536,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         _status.Text = $"Editing {definition.Name}.";
     }
 
+    /// <summary>
+    /// Performs the reset editor step owned by this component.
+    /// </summary>
     private void ResetEditor()
     {
         _editingId = null;
@@ -447,6 +549,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         _saveButton.Content = "Create automation";
     }
 
+    /// <summary>
+    /// Performs toggle async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ToggleAsync(AutomationDefinition definition)
     {
         if (_repository is null || _schedules is null) return;
@@ -463,6 +568,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         await RefreshAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs run now async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunNowAsync(AutomationDefinition definition)
     {
         if (_runner is null) return;
@@ -485,6 +593,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs show history async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ShowHistoryAsync(AutomationDefinition definition)
     {
         if (_repository is null) return;
@@ -508,6 +619,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteAsync(AutomationDefinition definition)
     {
         if (_repository is null) return;
@@ -517,6 +631,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         await RefreshAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs register worker async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RegisterWorkerAsync()
     {
         if (_registration is null) return;
@@ -532,6 +649,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         await Dispatcher.UIThread.InvokeAsync(() => _status.Text = result.Message);
     }
 
+    /// <summary>
+    /// Performs unregister worker async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UnregisterWorkerAsync()
     {
         if (_registration is null) return;
@@ -539,6 +659,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         await Dispatcher.UIThread.InvokeAsync(() => _status.Text = result.Message);
     }
 
+    /// <summary>
+    /// Performs the read draft step owned by this component.
+    /// </summary>
     private AutomationScheduleDraft ReadDraft()
     {
         var selectedDate = _onceDate.SelectedDate ?? DateTime.Today.AddDays(1);
@@ -555,6 +678,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
             (int)(_conditionMinutes.Value ?? 60));
     }
 
+    /// <summary>
+    /// Performs the resolve worker executable step owned by this component.
+    /// </summary>
     private static string? ResolveWorkerExecutable()
     {
         var candidates = new[]
@@ -565,17 +691,29 @@ public sealed class PlanAutomationControl : Button, IDisposable
         return candidates.FirstOrDefault(File.Exists);
     }
 
+    /// <summary>
+    /// Gets or updates selected kind, the bindable or domain state represented by this property.
+    /// </summary>
     private AutomationScheduleKind SelectedKind =>
         _kind.SelectedItem is AutomationScheduleKind kind
             ? kind
             : AutomationScheduleKind.Daily;
 
+    /// <summary>
+    /// Gets or updates selected mode, the bindable or domain state represented by this property.
+    /// </summary>
     private HavenMode SelectedMode =>
         _mode.SelectedItem is HavenMode mode ? mode : HavenMode.Chat;
 
+    /// <summary>
+    /// Performs the format next step owned by this component.
+    /// </summary>
     private static string FormatNext(DateTimeOffset? next) =>
         next is null ? "not scheduled" : next.Value.ToLocalTime().ToString("g");
 
+    /// <summary>
+    /// Performs the summarise run step owned by this component.
+    /// </summary>
     private static string SummariseRun(AutomationRun run)
     {
         var value = run.Error ?? run.Result ?? "No report";
@@ -583,6 +721,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         return value.Length <= 150 ? value : value[..150] + "…";
     }
 
+    /// <summary>
+    /// Performs the labelled step owned by this component.
+    /// </summary>
     private static StackPanel Labelled(string label, Control control) => new()
     {
         Spacing = 3,
@@ -593,6 +734,9 @@ public sealed class PlanAutomationControl : Button, IDisposable
         }
     };
 
+    /// <summary>
+    /// Performs the resource brush step owned by this component.
+    /// </summary>
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 

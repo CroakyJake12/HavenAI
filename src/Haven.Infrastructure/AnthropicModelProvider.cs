@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/AnthropicModelProvider.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns AnthropicModelProvider. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -6,19 +15,43 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents anthropic model provider and keeps its related state and behavior together.
+/// </summary>
 public sealed class AnthropicModelProvider(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
     IProviderSecretStore secrets,
     ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
+    /// <summary>
+    /// Stores default endpoint locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string DefaultEndpoint = "https://api.anthropic.com/v1/";
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public string Id => "anthropic";
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => "Anthropic";
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public ModelProviderKind Kind => ModelProviderKind.Anthropic;
+    /// <summary>
+    /// Reports whether is local is true for the current state.
+    /// </summary>
     public bool IsLocal => false;
+    /// <summary>
+    /// Reports whether can manage models is true for the current state.
+    /// </summary>
     public bool CanManageModels => false;
 
+    /// <summary>
+    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -39,6 +72,9 @@ public sealed class AnthropicModelProvider(
         }
     }
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ProviderModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
     {
         ProviderConfiguration configuration;
@@ -66,6 +102,9 @@ public sealed class AnthropicModelProvider(
         return result;
     }
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -105,6 +144,9 @@ public sealed class AnthropicModelProvider(
         CaptureUsage(request.Model, inputTokens, outputTokens, cachedTokens);
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -115,6 +157,9 @@ public sealed class AnthropicModelProvider(
         return ReadText(document.RootElement);
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -159,9 +204,15 @@ public sealed class AnthropicModelProvider(
         return new(ReadText(document.RootElement), calls);
     }
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken) =>
         await CreateClientAsync(await ProviderHttp.RequireEnabledAsync(configurations, Id, DefaultEndpoint, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(ProviderConfiguration configuration, CancellationToken cancellationToken)
     {
         var client = ProviderHttp.CreateClient(httpClients, "Haven.ModelProvider.anthropic", configuration);
@@ -170,6 +221,9 @@ public sealed class AnthropicModelProvider(
         return client;
     }
 
+    /// <summary>
+    /// Builds payload from the currently available inputs.
+    /// </summary>
     private static object BuildPayload(OllamaChatRequest request, bool stream) => new
     {
         model = request.Model,
@@ -180,6 +234,9 @@ public sealed class AnthropicModelProvider(
         stream
     };
 
+    /// <summary>
+    /// Builds tool payload from the currently available inputs.
+    /// </summary>
     private static object BuildToolPayload(OllamaToolRequest request) => new
     {
         model = request.Model,
@@ -190,6 +247,9 @@ public sealed class AnthropicModelProvider(
         temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 1)
     };
 
+    /// <summary>
+    /// Builds tool messages from the currently available inputs.
+    /// </summary>
     internal static IReadOnlyList<object> BuildToolMessages(IReadOnlyList<OllamaToolTurn> messages)
     {
         var correlated = ProviderToolTurnCorrelation.Correlate(messages, "toolu_haven");
@@ -242,6 +302,9 @@ public sealed class AnthropicModelProvider(
         return result;
     }
 
+    /// <summary>
+    /// Performs the to message step owned by this component.
+    /// </summary>
     private static object ToMessage(OllamaMessage message)
     {
         if (message.Images is not { Count: > 0 }) return new { role = message.Role, content = (object)message.Content };
@@ -251,6 +314,9 @@ public sealed class AnthropicModelProvider(
         return new { role = message.Role, content = (object)content };
     }
 
+    /// <summary>
+    /// Performs the to tool message step owned by this component.
+    /// </summary>
     private static object ToToolMessage(OllamaToolTurn message)
     {
         if (message.Images is not { Count: > 0 })
@@ -266,6 +332,9 @@ public sealed class AnthropicModelProvider(
         return new { role = message.Role, content = (object)content };
     }
 
+    /// <summary>
+    /// Performs the capture usage step owned by this component.
+    /// </summary>
     private void CaptureUsage(JsonElement root, string model)
     {
         if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object) return;
@@ -276,6 +345,9 @@ public sealed class AnthropicModelProvider(
         CaptureUsage(model, input, output, cached);
     }
 
+    /// <summary>
+    /// Performs the capture usage step owned by this component.
+    /// </summary>
     private void CaptureUsage(string model, long? input, long? output, long? cached)
     {
         if (input is null && output is null && cached is null) return;
@@ -284,6 +356,9 @@ public sealed class AnthropicModelProvider(
             UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
     }
 
+    /// <summary>
+    /// Performs the read usage step owned by this component.
+    /// </summary>
     private static void ReadUsage(JsonElement usage, ref long? input, ref long? output, ref long? cached)
     {
         input = ReadInt64(usage, "input_tokens") ?? input;
@@ -293,9 +368,15 @@ public sealed class AnthropicModelProvider(
         if (cacheRead is not null || cacheCreation is not null) cached = (cacheRead ?? 0) + (cacheCreation ?? 0);
     }
 
+    /// <summary>
+    /// Performs the read int64 step owned by this component.
+    /// </summary>
     private static long? ReadInt64(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
+    /// <summary>
+    /// Performs the read text step owned by this component.
+    /// </summary>
     private static string ReadText(JsonElement root)
     {
         if (!root.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return string.Empty;

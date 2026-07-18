@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WindowsSpeechInputService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WindowsSpeechInputService, SpeechWorkItem. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Threading.Channels;
 using Haven.Application;
@@ -15,33 +24,111 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDisposable
 {
+    /// <summary>
+    /// Stores sample rate hz locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int SampleRateHz = 16_000;
+    /// <summary>
+    /// Stores bytes per sample locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int BytesPerSample = 2;
+    /// <summary>
+    /// Stores frame milliseconds locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int FrameMilliseconds = 30;
+    /// <summary>
+    /// Stores frame bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int FrameBytes = SampleRateHz * BytesPerSample * FrameMilliseconds / 1000;
+    /// <summary>
+    /// Stores silence frames to finish locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int SilenceFramesToFinish = 20;
+    /// <summary>
+    /// Stores minimum utterance bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MinimumUtteranceBytes = SampleRateHz * BytesPerSample / 4;
+    /// <summary>
+    /// Stores maximum utterance bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumUtteranceBytes = SampleRateHz * BytesPerSample * 30;
+    /// <summary>
+    /// Stores audio level interval locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly TimeSpan AudioLevelInterval = TimeSpan.FromMilliseconds(100);
 
+    /// <summary>
+    /// Stores sync locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly object _sync = new();
+    /// <summary>
+    /// Stores inside worker locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly AsyncLocal<bool> _insideWorker = new();
+    /// <summary>
+    /// Stores capture locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private WaveInEvent? _capture;
+    /// <summary>
+    /// Stores vad locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private WebRtcVad? _vad;
+    /// <summary>
+    /// Stores work locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Channel<SpeechWorkItem>? _work;
+    /// <summary>
+    /// Stores worker locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Task? _worker;
+    /// <summary>
+    /// Stores capture cts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _captureCts;
+    /// <summary>
+    /// Stores options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private SpeechInputOptions? _options;
+    /// <summary>
+    /// Stores pending frames locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly List<byte> _pendingFrames = [];
+    /// <summary>
+    /// Stores utterance locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MemoryStream _utterance = new();
+    /// <summary>
+    /// Stores in speech locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _inSpeech;
+    /// <summary>
+    /// Stores push to talk held locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _pushToTalkHeld;
+    /// <summary>
+    /// Stores stopping locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _stopping;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
+    /// <summary>
+    /// Stores silence frames locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _silenceFrames;
+    /// <summary>
+    /// Stores last audio level timestamp locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private long _lastAudioLevelTimestamp;
 
+    /// <summary>
+    /// Reports whether is available is true for the current state.
+    /// </summary>
     public bool IsAvailable => !_disposed && OperatingSystem.IsWindows() && TryGetDeviceCount() > 0;
+    /// <summary>
+    /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string? UnavailableReason => IsAvailable
         ? null
         : _disposed
@@ -71,6 +158,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StartAsync(
         SpeechInputOptions options,
         Func<SpeechInputEvent, CancellationToken, Task> onEvent,
@@ -156,6 +246,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task BeginPushToTalkAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -174,6 +267,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task EndPushToTalkAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -188,6 +284,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         WaveInEvent? capture;
@@ -243,6 +342,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Handles the data available event raised by the UI or runtime.
+    /// </summary>
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
         lock (_sync)
@@ -258,6 +360,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Performs the process frame locked step owned by this component.
+    /// </summary>
     private void ProcessFrameLocked(byte[] frame)
     {
         var now = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -308,6 +413,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         if (_utterance.Length >= MaximumUtteranceBytes) FinishUtteranceLocked();
     }
 
+    /// <summary>
+    /// Performs the finish utterance locked step owned by this component.
+    /// </summary>
     private void FinishUtteranceLocked()
     {
         var audio = _utterance.ToArray();
@@ -321,6 +429,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
             _work?.Writer.TryWrite(new SpeechWorkItem(Audio: audio));
     }
 
+    /// <summary>
+    /// Performs process work async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ProcessWorkAsync(
         ChannelReader<SpeechWorkItem> reader,
         Func<SpeechInputEvent, CancellationToken, Task> callback,
@@ -366,6 +477,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Performs transcribe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task TranscribeAsync(
         byte[] pcm,
         Func<SpeechInputEvent, CancellationToken, Task> callback,
@@ -408,6 +522,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
             callback(new SpeechInputEvent(SpeechInputEventKind.FinalTranscript, text), cancellationToken));
     }
 
+    /// <summary>
+    /// Performs observe final callback async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ObserveFinalCallbackAsync(Task callbackTask)
     {
         try { await callbackTask.ConfigureAwait(false); }
@@ -415,6 +532,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         catch (Exception) { /* coordinator publishes its own fatal status */ }
     }
 
+    /// <summary>
+    /// Handles the recording stopped event raised by the UI or runtime.
+    /// </summary>
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
         lock (_sync)
@@ -426,15 +546,24 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         }
     }
 
+    /// <summary>
+    /// Performs the queue event locked step owned by this component.
+    /// </summary>
     private void QueueEventLocked(SpeechInputEvent inputEvent) =>
         _work?.Writer.TryWrite(new SpeechWorkItem(Event: inputEvent));
 
+    /// <summary>
+    /// Performs the ensure running locked step owned by this component.
+    /// </summary>
     private void EnsureRunningLocked()
     {
         if (_capture is null || _work is null)
             throw new InvalidOperationException("Microphone capture is not running.");
     }
 
+    /// <summary>
+    /// Performs the reset audio state locked step owned by this component.
+    /// </summary>
     private void ResetAudioStateLocked()
     {
         _pendingFrames.Clear();
@@ -446,6 +575,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         _lastAudioLevelTimestamp = 0;
     }
 
+    /// <summary>
+    /// Creates wave stream with the invariants required by its callers.
+    /// </summary>
     private static MemoryStream CreateWaveStream(byte[] pcm)
     {
         var stream = new MemoryStream(44 + pcm.Length);
@@ -470,6 +602,9 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         return stream;
     }
 
+    /// <summary>
+    /// Performs the calculate level step owned by this component.
+    /// </summary>
     private static double CalculateLevel(byte[] frame)
     {
         double sum = 0;
@@ -482,12 +617,18 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         return samples == 0 ? 0 : Math.Clamp(Math.Sqrt(sum / samples) * 3.5, 0, 1);
     }
 
+    /// <summary>
+    /// Attempts to get device count and reports the result without using failure for normal control flow.
+    /// </summary>
     private static int TryGetDeviceCount()
     {
         try { return WaveInEvent.DeviceCount; }
         catch (Exception) { return 0; }
     }
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         lock (_sync)
@@ -504,5 +645,8 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Represents speech work item and keeps its related state and behavior together.
+    /// </summary>
     private sealed record SpeechWorkItem(SpeechInputEvent? Event = null, byte[]? Audio = null);
 }

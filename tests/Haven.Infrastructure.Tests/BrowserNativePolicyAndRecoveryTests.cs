@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/BrowserNativePolicyAndRecoveryTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserNativePolicyAndRecoveryTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Browser;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents browser native policy and recovery tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserNativePolicyAndRecoveryTests
 {
+    /// <summary>
+    /// Performs the top level policy allows supported safe addresses step owned by this component.
+    /// </summary>
     [Theory]
     [InlineData("https://example.com/path")]
     [InlineData("http://example.com:8080/path")]
@@ -14,6 +29,9 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.True(result.IsAllowed, result.Reason);
     }
 
+    /// <summary>
+    /// Performs the top level policy blocks unsupported or credential bearing addresses step owned by this component.
+    /// </summary>
     [Theory]
     [InlineData("file:///C:/secret.txt")]
     [InlineData("ftp://example.com/file")]
@@ -24,6 +42,9 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.False(result.IsAllowed);
     }
 
+    /// <summary>
+    /// Performs the popup policy requires safe requester target and explicit allow step owned by this component.
+    /// </summary>
     [Fact]
     public void PopupPolicyRequiresSafeRequesterTargetAndExplicitAllow()
     {
@@ -44,6 +65,9 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.Equal(BrowserPopupDisposition.BlockUnsafe, unsafeRequester.Disposition);
     }
 
+    /// <summary>
+    /// Performs the recovery limiter bounds attempts and reopens after the window step owned by this component.
+    /// </summary>
     [Fact]
     public void RecoveryLimiterBoundsAttemptsAndReopensAfterTheWindow()
     {
@@ -58,6 +82,9 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.Equal(2, limiter.ActiveAttempts(start.AddMinutes(1)));
     }
 
+    /// <summary>
+    /// Performs the recovery limiter rejects invalid configuration step owned by this component.
+    /// </summary>
     [Fact]
     public void RecoveryLimiterRejectsInvalidConfiguration()
     {

@@ -1,9 +1,22 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ChatView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ChatView. Its visual vocabulary includes: UserControl.Resources, ResourceDictionary, ResourceDictionary.ThemeDictionaries, SolidColorBrush, Grid, ScrollViewer, StackPanel, Image, TextBlock, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, Border, MarkdownView, MarkdownView.ContextMenu, ContextMenu, MenuItem, Button, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, HavenIcon, ProgressBar, ComboBox, ComboBox.ItemTemplate, TextBox, Button.Flyout, MenuFlyout, GenerativeUiSlot.
+  Data flow: Binding expressions read or update these view-model paths: IsEmpty, EmptyTitle, ModeSubtitle, Messages, HasMessages, ContentOpacity, Alignment, MaxBubbleWidth, DisplayName, HasModelLabel, ModelLabel, TimeLabel, Content, Activities, HasActivities, Title, Detail, Duration, ChangeLabel, HasChanges, HasConfidence, ConfidenceLabel, ConfidenceWidth, State, HasState, IsPluginPickerOpen, ClosePickersCommand, IsPromptPickerOpen, HasMissingPluginNotice, MissingPluginName, MissingPluginReason, DismissMissingPluginCommand, RetryWithPluginCommand, IsComputerPermissionPending, DismissComputerUseCommand, EnableComputerUseCommand, IsToolPermissionPending, ToolPermissionRequest, DismissToolPermissionCommand, ApproveToolPermissionCommand, HasInlineQuestion, InlineQuestion.Question, InlineQuestion.Options, DismissInlineQuestionCommand, IsEditProgressVisible, EditProgressLabel, PluginSuggestions, IsVisibleInPicker, IconKey, Description, AllowedModesLabel, PromptSuggestions, Attachments, KindLabel, Name, Plugins, IsActive, Prompts, IsAgentPluginActive, Agents, SelectedAgent, AgentNotice, IsDuoPluginActive, DuoModes, SelectedDuo, Composer, OpenPluginPickerCommand, OpenPromptPickerCommand, StopCommand, IsSending, SendCommand, IsNotSending.
+  Interaction: Direct event handlers in this file are: OnCopyMessageClicked, OnComposerKeyDown, OnAttachClicked.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.ChatView">
 
+  <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <UserControl.Resources>
+    <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Dark">
@@ -19,7 +32,9 @@
   </UserControl.Resources>
 
   <!-- Chat View — the main conversation interface with messages and one unified composer model switcher. -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid>
+    <!-- Section: Keeps the region usable when content exceeds the available window size. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <Grid HorizontalAlignment="Stretch" Margin="30,28,30,235">
         <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" MaxWidth="1020" Margin="0,65,0,30" Spacing="12">
@@ -51,9 +66,12 @@
       </Grid>
     </ScrollViewer>
 
+    <!-- Section: Exposes an explicit user action through a command or event handler. -->
     <Button Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPluginPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+    <!-- Section: Exposes an explicit user action through a command or event handler. -->
     <Button Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPromptPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Margin="24,0,24,14" MaxWidth="920" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
       <Border Classes="permission" Margin="0,0,0,8" IsVisible="{Binding HasMissingPluginNotice}">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><StackPanel><TextBlock Text="{Binding MissingPluginName, StringFormat='Missing plugin: @{0}'}" FontWeight="SemiBold" /><TextBlock Text="{Binding MissingPluginReason}" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissMissingPluginCommand}" /><Button Grid.Column="2" Content="Enable and retry" Classes="accent" Command="{Binding RetryWithPluginCommand}" /></Grid>

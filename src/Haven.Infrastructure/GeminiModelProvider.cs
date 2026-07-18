@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/GeminiModelProvider.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns GeminiModelProvider. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -6,20 +15,44 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents gemini model provider and keeps its related state and behavior together.
+/// </summary>
 public sealed class GeminiModelProvider(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
     IProviderSecretStore secrets,
     ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
+    /// <summary>
+    /// Stores default endpoint locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string DefaultEndpoint = "https://generativelanguage.googleapis.com/v1beta/";
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public string Id => "gemini";
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => "Google Gemini";
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public ModelProviderKind Kind => ModelProviderKind.Gemini;
+    /// <summary>
+    /// Reports whether is local is true for the current state.
+    /// </summary>
     public bool IsLocal => false;
+    /// <summary>
+    /// Reports whether can manage models is true for the current state.
+    /// </summary>
     public bool CanManageModels => false;
 
+    /// <summary>
+    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -40,6 +73,9 @@ public sealed class GeminiModelProvider(
         }
     }
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ProviderModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
     {
         ProviderConfiguration configuration;
@@ -86,6 +122,9 @@ public sealed class GeminiModelProvider(
         return result;
     }
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -114,6 +153,9 @@ public sealed class GeminiModelProvider(
         if (lastUsage is not null) usageCapture.Set(lastUsage);
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -128,6 +170,9 @@ public sealed class GeminiModelProvider(
         return ReadText(document.RootElement);
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -177,11 +222,17 @@ public sealed class GeminiModelProvider(
         return new OllamaToolResponse(ReadText(document.RootElement), calls);
     }
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken) =>
         await CreateClientAsync(
             await ProviderHttp.RequireEnabledAsync(configurations, Id, DefaultEndpoint, cancellationToken).ConfigureAwait(false),
             cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(ProviderConfiguration configuration, CancellationToken cancellationToken)
     {
         var client = ProviderHttp.CreateClient(httpClients, "Haven.ModelProvider.gemini", configuration);
@@ -191,6 +242,9 @@ public sealed class GeminiModelProvider(
         return client;
     }
 
+    /// <summary>
+    /// Builds chat payload from the currently available inputs.
+    /// </summary>
     private static object BuildChatPayload(OllamaChatRequest request)
     {
         var payload = new Dictionary<string, object>
@@ -207,6 +261,9 @@ public sealed class GeminiModelProvider(
         return payload;
     }
 
+    /// <summary>
+    /// Builds tool payload from the currently available inputs.
+    /// </summary>
     private static object BuildToolPayload(OllamaToolRequest request)
     {
         var payload = new Dictionary<string, object>
@@ -235,6 +292,9 @@ public sealed class GeminiModelProvider(
         return payload;
     }
 
+    /// <summary>
+    /// Builds chat contents from the currently available inputs.
+    /// </summary>
     private static IReadOnlyList<object> BuildChatContents(IReadOnlyList<OllamaMessage> messages)
     {
         var result = new List<object>();
@@ -251,6 +311,9 @@ public sealed class GeminiModelProvider(
         return result;
     }
 
+    /// <summary>
+    /// Builds tool contents from the currently available inputs.
+    /// </summary>
     internal static IReadOnlyList<object> BuildToolContents(IReadOnlyList<OllamaToolTurn> messages)
     {
         var correlated = ProviderToolTurnCorrelation.Correlate(messages, "gemini_haven");
@@ -320,6 +383,9 @@ public sealed class GeminiModelProvider(
         return result;
     }
 
+    /// <summary>
+    /// Performs the parse tool response step owned by this component.
+    /// </summary>
     private static object ParseToolResponse(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return new Dictionary<string, object?> { ["result"] = null };
@@ -334,6 +400,9 @@ public sealed class GeminiModelProvider(
         }
     }
 
+    /// <summary>
+    /// Performs the map role step owned by this component.
+    /// </summary>
     private static string? MapRole(string role) => role.ToLowerInvariant() switch
     {
         "user" => "user",
@@ -342,6 +411,9 @@ public sealed class GeminiModelProvider(
         _ => null
     };
 
+    /// <summary>
+    /// Retrieves model resource for the current operation.
+    /// </summary>
     private static string GetModelResource(string model)
     {
         if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("A Gemini model name is required.", nameof(model));
@@ -352,6 +424,9 @@ public sealed class GeminiModelProvider(
         return "models/" + trimmed;
     }
 
+    /// <summary>
+    /// Performs the infer capabilities step owned by this component.
+    /// </summary>
     private static IReadOnlySet<ToolCapability> InferCapabilities(string modelName)
     {
         var capabilities = new HashSet<ToolCapability>
@@ -369,6 +444,9 @@ public sealed class GeminiModelProvider(
         return capabilities;
     }
 
+    /// <summary>
+    /// Performs the read usage step owned by this component.
+    /// </summary>
     private static ProviderUsageSnapshot? ReadUsage(JsonElement root, string model)
     {
         if (!root.TryGetProperty("usageMetadata", out var usage) || usage.ValueKind != JsonValueKind.Object) return null;
@@ -382,9 +460,15 @@ public sealed class GeminiModelProvider(
             UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Performs the read int64 step owned by this component.
+    /// </summary>
     private static long? ReadInt64(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
+    /// <summary>
+    /// Performs the enumerate candidate parts step owned by this component.
+    /// </summary>
     private static IEnumerable<JsonElement> EnumerateCandidateParts(JsonElement root)
     {
         if (!root.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array) yield break;
@@ -397,6 +481,9 @@ public sealed class GeminiModelProvider(
         }
     }
 
+    /// <summary>
+    /// Performs the read text step owned by this component.
+    /// </summary>
     private static string ReadText(JsonElement root) => string.Concat(
         EnumerateCandidateParts(root)
             .Where(part => part.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)

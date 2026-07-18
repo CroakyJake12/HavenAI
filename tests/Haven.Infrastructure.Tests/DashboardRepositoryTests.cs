@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/DashboardRepositoryTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns DashboardRepositoryTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents dashboard repository tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class DashboardRepositoryTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the aggregate snapshot includes agenda recent work and every feature counter step owned by this component.
+    /// </summary>
     [Fact]
     public async Task AggregateSnapshotIncludesAgendaRecentWorkAndEveryFeatureCounter()
     {
@@ -74,6 +92,9 @@ public sealed class DashboardRepositoryTests : IDisposable
         Assert.Contains(snapshot.RecentWork, item => item.Kind == "call");
     }
 
+    /// <summary>
+    /// Performs the versioned layout normalizes order visibility size and duplicate keys step owned by this component.
+    /// </summary>
     [Fact]
     public async Task VersionedLayoutNormalizesOrderVisibilitySizeAndDuplicateKeys()
     {
@@ -107,6 +128,9 @@ public sealed class DashboardRepositoryTests : IDisposable
             });
     }
 
+    /// <summary>
+    /// Performs the latest migration creates scoped dashboard call planner and sync storage step owned by this component.
+    /// </summary>
     [Fact]
     public async Task LatestMigrationCreatesScopedDashboardCallPlannerAndSyncStorage()
     {
@@ -126,12 +150,21 @@ public sealed class DashboardRepositoryTests : IDisposable
         Assert.Equal(13, names.Count);
     }
 
+    /// <summary>
+    /// Performs the task at step owned by this component.
+    /// </summary>
     private static PlannerTask TaskAt(string title, DateTimeOffset dueAt, DateTimeOffset now) => new(
         Guid.NewGuid(), PlannerDefaults.PersonalCollectionId, null, title, "", PlannerPriority.Medium,
         PlannerTaskStatus.Planned, "[]", 30, null, dueAt, null, null, null, 0, now, now, "Europe/London");
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -145,12 +178,33 @@ public sealed class DashboardRepositoryTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

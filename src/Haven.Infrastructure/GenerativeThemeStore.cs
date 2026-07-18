@@ -1,25 +1,58 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/GenerativeThemeStore.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns GenerativeThemeStore, BuiltInThemes. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents generative theme store and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeThemeStore(
     IAppPaths paths,
     IGenerativeThemeValidator validator,
     IProductionDiagnostics diagnostics) : IGenerativeThemeStore
 {
+    /// <summary>
+    /// Stores selection schema version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int SelectionSchemaVersion = 1;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(paths.DataDirectory, "GenerativeUi");
+    /// <summary>
+    /// Stores themes directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _themesDirectory = Path.Combine(paths.DataDirectory, "GenerativeUi", "Themes");
+    /// <summary>
+    /// Stores selection path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _selectionPath = Path.Combine(paths.DataDirectory, "GenerativeUi", "selection.json");
 
+    /// <summary>
+    /// Retrieves themes async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<GenerativeThemePack>> GetThemesAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -27,6 +60,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves selection async for the current operation.
+    /// </summary>
     public async Task<GenerativeThemeSelection> GetSelectionAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -34,6 +70,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves active theme async for the current operation.
+    /// </summary>
     public async Task<GenerativeThemePack> GetActiveThemeAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -46,6 +85,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SaveAsync(GenerativeThemePack theme, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -81,6 +123,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs rename async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -99,6 +144,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(Guid themeId, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -125,6 +173,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs select async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SelectAsync(Guid themeId, GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -141,6 +192,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SetAppearanceAsync(GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -156,6 +210,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportAsync(Guid themeId, string destinationDirectory, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(destinationDirectory)) throw new ArgumentException("A destination directory is required.", nameof(destinationDirectory));
@@ -175,6 +232,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<GenerativeThemePack> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourcePath)) throw new ArgumentException("A source theme file is required.", nameof(sourcePath));
@@ -217,6 +277,9 @@ public sealed class GenerativeThemeStore(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves themes core async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<GenerativeThemePack>> GetThemesCoreAsync(CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(_themesDirectory);
@@ -237,6 +300,9 @@ public sealed class GenerativeThemeStore(
             .ToArray();
     }
 
+    /// <summary>
+    /// Retrieves selection core async for the current operation.
+    /// </summary>
     private async Task<GenerativeThemeSelection> GetSelectionCoreAsync(CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(_root);
@@ -278,6 +344,9 @@ public sealed class GenerativeThemeStore(
         }
     }
 
+    /// <summary>
+    /// Performs read theme file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<GenerativeThemePack?> ReadThemeFileAsync(string path, CancellationToken cancellationToken)
     {
         try
@@ -309,14 +378,23 @@ public sealed class GenerativeThemeStore(
         }
     }
 
+    /// <summary>
+    /// Performs the theme path step owned by this component.
+    /// </summary>
     private string ThemePath(Guid id) => Path.Combine(_themesDirectory, id.ToString("N") + ".haven-theme.json");
 
+    /// <summary>
+    /// Performs the ensure custom step owned by this component.
+    /// </summary>
     private static void EnsureCustom(Guid id)
     {
         if (BuiltInThemes.All.Any(theme => theme.Id == id))
             throw new InvalidOperationException("Built-in Haven themes cannot be renamed or deleted.");
     }
 
+    /// <summary>
+    /// Performs the normalize name step owned by this component.
+    /// </summary>
     private static string NormalizeName(string? value)
     {
         var name = string.IsNullOrWhiteSpace(value) ? "Custom theme" : value.Trim();
@@ -324,6 +402,9 @@ public sealed class GenerativeThemeStore(
         return name.Length <= 80 ? name : name[..80];
     }
 
+    /// <summary>
+    /// Performs the sanitize file name step owned by this component.
+    /// </summary>
     private static string SanitizeFileName(string value)
     {
         var invalid = Path.GetInvalidFileNameChars().ToHashSet();
@@ -331,6 +412,9 @@ public sealed class GenerativeThemeStore(
         return string.IsNullOrWhiteSpace(normalized) ? "haven-theme" : normalized[..Math.Min(80, normalized.Length)];
     }
 
+    /// <summary>
+    /// Performs the unique path step owned by this component.
+    /// </summary>
     private static string UniquePath(string directory, string fileName)
     {
         var candidate = Path.Combine(directory, fileName);
@@ -344,6 +428,9 @@ public sealed class GenerativeThemeStore(
         throw new IOException("Could not allocate a unique theme export name.");
     }
 
+    /// <summary>
+    /// Performs the format issues step owned by this component.
+    /// </summary>
     private static string FormatIssues(IReadOnlyList<GenerativeThemeValidationIssue> issues) =>
         "Theme validation failed: " + string.Join("; ", issues.Where(issue => issue.IsError).Take(12).Select(issue => issue.Path + ": " + issue.Message));
 
@@ -369,6 +456,9 @@ public sealed class GenerativeThemeStore(
         stream.Flush(flushToDisk: true);
     }
 
+    /// <summary>
+    /// Performs the quarantine step owned by this component.
+    /// </summary>
     private static void Quarantine(string path)
     {
         if (!File.Exists(path)) return;
@@ -377,6 +467,9 @@ public sealed class GenerativeThemeStore(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
@@ -384,8 +477,14 @@ public sealed class GenerativeThemeStore(
     }
 }
 
+/// <summary>
+/// Represents built in themes and keeps its related state and behavior together.
+/// </summary>
 internal static class BuiltInThemes
 {
+    /// <summary>
+    /// Gets or updates default, the bindable or domain state represented by this property.
+    /// </summary>
     public static GenerativeThemePack Default { get; } = Create(
         Guid.Parse("a87db32e-5ff7-4a70-96b1-6264e807db10"),
         "Haven Default",
@@ -399,6 +498,9 @@ internal static class BuiltInThemes
             panel: "#FF20242D",
             accent: "#FF0078D4"));
 
+    /// <summary>
+    /// Gets or updates midnight, the bindable or domain state represented by this property.
+    /// </summary>
     public static GenerativeThemePack Midnight { get; } = Create(
         Guid.Parse("e1337929-c3fd-4da8-8895-b17e8e84701b"),
         "Midnight Studio",
@@ -406,8 +508,14 @@ internal static class BuiltInThemes
         LightPalette("#FFF2F7F7", "#FFFAFDFD", "#FF087F8C"),
         DarkPalette("#FF0D161B", "#FF142229", "#FF28A6A6"));
 
+    /// <summary>
+    /// Gets or updates all, the bindable or domain state represented by this property.
+    /// </summary>
     public static IReadOnlyList<GenerativeThemePack> All { get; } = [Default, Midnight];
 
+    /// <summary>
+    /// Creates this member with the invariants required by its callers.
+    /// </summary>
     private static GenerativeThemePack Create(
         Guid id,
         string name,
@@ -434,6 +542,9 @@ internal static class BuiltInThemes
             []);
     }
 
+    /// <summary>
+    /// Performs the light palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette LightPalette(string background, string panel, string accent) => new(
         background,
         "#FFF7F9FC",
@@ -462,6 +573,9 @@ internal static class BuiltInThemes
         "#FFE7EBF0",
         "#800078D4");
 
+    /// <summary>
+    /// Performs the dark palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette DarkPalette(string background, string panel, string accent) => new(
         background,
         "#FF1B2028",

@@ -1,12 +1,36 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/SurfaceOrchestrationService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns SurfaceOrchestrationService, SurfaceResolutionResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents surface orchestration service and keeps its related state and behavior together.
+/// </summary>
 public sealed class SurfaceOrchestrationService
 {
+    /// <summary>
+    /// Stores surface router locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ISurfaceRouter _surfaceRouter;
+    /// <summary>
+    /// Stores modes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry _modes;
+    /// <summary>
+    /// Stores docked locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICompanionDockService _docked;
+    /// <summary>
+    /// Stores activity log locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IActivityLogRepository _activityLog;
 
     public SurfaceOrchestrationService(
@@ -21,6 +45,9 @@ public sealed class SurfaceOrchestrationService
         _activityLog = activityLog;
     }
 
+    /// <summary>
+    /// Performs resolve async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SurfaceResolutionResult> ResolveAsync(
         string prompt,
         HavenMode currentMode,
@@ -51,6 +78,9 @@ public sealed class SurfaceOrchestrationService
             isCrossSurface ? $"Switching to {targetSurface} surface" : null);
     }
 
+    /// <summary>
+    /// Performs classify intent async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task<IntentClassification> ClassifyIntentAsync(
         string prompt,
         HavenMode currentMode,
@@ -78,6 +108,9 @@ public sealed class SurfaceOrchestrationService
         return Task.FromResult(IntentClassification.DirectTool);
     }
 
+    /// <summary>
+    /// Performs the mode to surface step owned by this component.
+    /// </summary>
     private static SurfaceKind ModeToSurface(HavenMode mode) => mode switch
     {
         HavenMode.Chat => SurfaceKind.Chat,
@@ -87,10 +120,16 @@ public sealed class SurfaceOrchestrationService
         _ => SurfaceKind.Chat
     };
 
+    /// <summary>
+    /// Performs the escape json step owned by this component.
+    /// </summary>
     private static string EscapeJson(string value) =>
         value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
 }
 
+/// <summary>
+/// Represents surface resolution result and keeps its related state and behavior together.
+/// </summary>
 public sealed record SurfaceResolutionResult(
     IntentClassification Classification,
     SurfaceKind TargetSurface,

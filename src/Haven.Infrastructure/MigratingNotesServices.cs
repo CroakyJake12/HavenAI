@@ -1,9 +1,21 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/MigratingNotesServices.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns MigratingNotesRepository, MigratingNotesImportExportService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents migrating notes repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class MigratingNotesRepository(
     VerifiedNotesRepository inner,
     INotesDocumentMigrator migrator,
@@ -11,35 +23,59 @@ public sealed class MigratingNotesRepository(
     IAppPaths paths,
     IProductionDiagnostics diagnostics) : INotesRepository
 {
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Documents");
 
+    /// <summary>
+    /// Performs list async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken)
     {
         await EnsureAllCurrentDocumentsMigratedAsync(cancellationToken).ConfigureAwait(false);
         return await inner.ListAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> LoadAsync(Guid documentId, CancellationToken cancellationToken)
     {
         await EnsureCurrentDocumentMigratedAsync(documentId, cancellationToken).ConfigureAwait(false);
         return await inner.LoadAsync(documentId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<NotesSaveResult> SaveAsync(
         NotesDocument document,
         string reason,
         CancellationToken cancellationToken) =>
         inner.SaveAsync(document, reason, cancellationToken);
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(documentId, cancellationToken);
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<NotesVersionInfo>> GetVersionsAsync(
         Guid documentId,
         CancellationToken cancellationToken) =>
         inner.GetVersionsAsync(documentId, cancellationToken);
 
+    /// <summary>
+    /// Performs load version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> LoadVersionAsync(
         Guid documentId,
         string versionId,
@@ -59,6 +95,9 @@ public sealed class MigratingNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs recover latest async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> RecoverLatestAsync(Guid documentId, CancellationToken cancellationToken)
     {
         try
@@ -90,11 +129,17 @@ public sealed class MigratingNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<NotesSearchHit>> SearchAsync(
         string query,
         CancellationToken cancellationToken) =>
         SearchMigratedAsync(query, cancellationToken);
 
+    /// <summary>
+    /// Performs search migrated async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<NotesSearchHit>> SearchMigratedAsync(
         string query,
         CancellationToken cancellationToken)
@@ -103,6 +148,9 @@ public sealed class MigratingNotesRepository(
         return await inner.SearchAsync(query, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs ensure all current documents migrated async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EnsureAllCurrentDocumentsMigratedAsync(CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_root)) return;
@@ -131,6 +179,9 @@ public sealed class MigratingNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs ensure current document migrated async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EnsureCurrentDocumentMigratedAsync(Guid documentId, CancellationToken cancellationToken)
     {
         if (documentId == Guid.Empty) throw new ArgumentException("Document ID cannot be empty.", nameof(documentId));
@@ -168,6 +219,9 @@ public sealed class MigratingNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(
@@ -194,6 +248,9 @@ public sealed class MigratingNotesRepository(
             : throw new InvalidDataException("The native Notes schemaVersion must be an integer.");
     }
 
+    /// <summary>
+    /// Performs the ensure valid step owned by this component.
+    /// </summary>
     private void EnsureValid(NotesDocument document)
     {
         var validation = validator.Validate(document);
@@ -204,15 +261,27 @@ public sealed class MigratingNotesRepository(
     }
 }
 
+/// <summary>
+/// Represents migrating notes import export service and keeps its related state and behavior together.
+/// </summary>
 public sealed class MigratingNotesImportExportService(
     NotesImportExportService inner,
     INotesDocumentMigrator migrator,
     INotesDocumentValidator validator,
     IProductionDiagnostics diagnostics) : INotesImportExportService
 {
+    /// <summary>
+    /// Gets or updates import extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> ImportExtensions => inner.ImportExtensions;
+    /// <summary>
+    /// Gets or updates export extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> ExportExtensions => inner.ExportExtensions;
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         var extension = EffectiveExtension(sourcePath);
@@ -264,15 +333,24 @@ public sealed class MigratingNotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ExportAsync(
         NotesDocument document,
         string destinationPath,
         CancellationToken cancellationToken) =>
         inner.ExportAsync(document, destinationPath, cancellationToken);
 
+    /// <summary>
+    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task PrintAsync(NotesDocument document, CancellationToken cancellationToken) =>
         inner.PrintAsync(document, cancellationToken);
 
+    /// <summary>
+    /// Performs the effective extension step owned by this component.
+    /// </summary>
     private static string EffectiveExtension(string path) =>
         path.EndsWith(".haven-notes.json", StringComparison.OrdinalIgnoreCase)
             ? ".haven-notes.json"

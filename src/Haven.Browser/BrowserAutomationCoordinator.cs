@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserAutomationCoordinator.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserAutomationService, SubmitActionTarget. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Haven.Application;
@@ -5,17 +14,50 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser automation service and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserAutomationService : IBrowserAutomationService, IDisposable
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores browser locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserSessionService _browser;
+    /// <summary>
+    /// Stores policy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IBrowserNavigationPolicy _policy;
+    /// <summary>
+    /// Stores store locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IBrowserAutomationStore _store;
+    /// <summary>
+    /// Stores downloads locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserDownloadTransport _downloads;
+    /// <summary>
+    /// Stores background pages locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserBackgroundPageLoader _backgroundPages;
+    /// <summary>
+    /// Stores action gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _actionGate = new(1, 1);
+    /// <summary>
+    /// Stores ephemeral targets locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, string> _ephemeralTargets = new();
+    /// <summary>
+    /// Stores background snapshot locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserPageSnapshot? _backgroundSnapshot;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _disposed;
 
     public BrowserAutomationService(
@@ -46,6 +88,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         _backgroundPages = backgroundPages ?? throw new ArgumentNullException(nameof(backgroundPages));
     }
 
+    /// <summary>
+    /// Performs capture page async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -56,6 +101,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return snapshot;
     }
 
+    /// <summary>
+    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> NavigateAsync(string address, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -85,6 +133,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return result;
     }
 
+    /// <summary>
+    /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -122,6 +173,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return result;
     }
 
+    /// <summary>
+    /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -138,6 +192,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return result;
     }
 
+    /// <summary>
+    /// Performs request download async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPendingAction> RequestDownloadAsync(string address, string? suggestedFileName, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -174,6 +231,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return action;
     }
 
+    /// <summary>
+    /// Performs approve async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -186,6 +246,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         finally { _actionGate.Release(); }
     }
 
+    /// <summary>
+    /// Performs reject async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -206,6 +269,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         finally { _actionGate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves pending async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -216,18 +282,27 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return pending;
     }
 
+    /// <summary>
+    /// Retrieves audit async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
         return _store.GetAuditAsync(limit, cancellationToken);
     }
 
+    /// <summary>
+    /// Retrieves downloads async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
         return _store.GetDownloadsAsync(limit, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs approve core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<BrowserActionExecutionResult> ApproveCoreAsync(Guid actionId, CancellationToken cancellationToken)
     {
         var action = await _store.GetActionAsync(actionId, cancellationToken).ConfigureAwait(false)
@@ -329,6 +404,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
     }
 
+    /// <summary>
+    /// Performs the resolve download target step owned by this component.
+    /// </summary>
     private string ResolveDownloadTarget(BrowserPendingAction action)
     {
         if (!action.Target.StartsWith("ephemeral:", StringComparison.Ordinal)) return action.Target;
@@ -337,6 +415,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
             : throw new InvalidOperationException("This signed download request cannot be resumed after restart. Request it again so the token remains session-only.");
     }
 
+    /// <summary>
+    /// Performs require interactive snapshot async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<BrowserPageSnapshot> RequireInteractiveSnapshotAsync(CancellationToken cancellationToken)
     {
         if (!_browser.IsInteractiveAvailable)
@@ -344,6 +425,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return await _browser.CaptureStructuredPageAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the find element step owned by this component.
+    /// </summary>
     private static BrowserPageElement FindElement(BrowserPageSnapshot snapshot, string reference)
     {
         if (string.IsNullOrWhiteSpace(reference)) throw new ArgumentException("An element reference is required.", nameof(reference));
@@ -351,6 +435,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
                ?? throw new KeyNotFoundException("The element reference is stale or was not present in the latest page snapshot.");
     }
 
+    /// <summary>
+    /// Performs the matches step owned by this component.
+    /// </summary>
     private static bool Matches(BrowserPageElement element, SubmitActionTarget target) =>
         element.Reference.Equals(target.Reference, StringComparison.Ordinal)
         && element.Kind.Equals(target.Kind, StringComparison.Ordinal)
@@ -359,18 +446,27 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         && string.Equals(element.Name, target.Name, StringComparison.Ordinal)
         && string.Equals(element.InputType, target.InputType, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the ensure browser result step owned by this component.
+    /// </summary>
     private static void EnsureBrowserResult(string result, string expectedPrefix, string failure)
     {
         if (!result.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(failure + " Browser response: " + Bounded(result, 300));
     }
 
+    /// <summary>
+    /// Performs the new action step owned by this component.
+    /// </summary>
     private static BrowserPendingAction NewAction(BrowserActionKind kind, string origin, string summary, string target, string? fileName)
     {
         var now = DateTimeOffset.UtcNow;
         return new BrowserPendingAction(Guid.NewGuid(), kind, origin, summary, target, fileName, BrowserActionState.Pending, now, now.AddMinutes(10), now, null);
     }
 
+    /// <summary>
+    /// Performs audit async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task AuditAsync(
         BrowserActionKind? kind,
         string operation,
@@ -398,6 +494,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
     }
 
+    /// <summary>
+    /// Attempts to update action async and reports the result without using failure for normal control flow.
+    /// </summary>
     private async Task TryUpdateActionAsync(BrowserPendingAction action)
     {
         try { await _store.UpdateActionAsync(action, CancellationToken.None).ConfigureAwait(false); }
@@ -407,6 +506,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
     }
 
+    /// <summary>
+    /// Attempts to delete downloaded file and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryDeleteDownloadedFile(string path)
     {
         try
@@ -420,6 +522,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         }
     }
 
+    /// <summary>
+    /// Performs the normalize address step owned by this component.
+    /// </summary>
     private static Uri NormalizeAddress(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -429,13 +534,28 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         return new Uri("https://www.google.com/search?q=" + Uri.EscapeDataString(candidate), UriKind.Absolute);
     }
 
+    /// <summary>
+    /// Performs the origin step owned by this component.
+    /// </summary>
     private static string Origin(Uri? address) => address is null ? string.Empty : address.GetLeftPart(UriPartial.Authority);
+    /// <summary>
+    /// Performs the redacted address step owned by this component.
+    /// </summary>
     private static string RedactedAddress(Uri address) => address.GetLeftPart(UriPartial.Path);
+    /// <summary>
+    /// Performs the bounded step owned by this component.
+    /// </summary>
     private static string Bounded(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
 
+    /// <summary>
+    /// Performs the throw if disposed step owned by this component.
+    /// </summary>
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
@@ -444,6 +564,9 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         // in-flight approval may still release it during coordinated shutdown.
     }
 
+    /// <summary>
+    /// Represents submit action target and keeps its related state and behavior together.
+    /// </summary>
     private sealed record SubmitActionTarget(
         string Reference,
         string Kind,

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/NotesBlockEditorFactory.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns NotesBlockEditorFactory. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -10,8 +19,14 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents notes block editor factory and keeps its related state and behavior together.
+/// </summary>
 public static class NotesBlockEditorFactory
 {
+    /// <summary>
+    /// Builds this member from the currently available inputs.
+    /// </summary>
     public static Control Build(
         NotesWorkspaceViewModel viewModel,
         NotesBlock block,
@@ -78,6 +93,9 @@ public static class NotesBlockEditorFactory
         return card;
     }
 
+    /// <summary>
+    /// Builds rich text from the currently available inputs.
+    /// </summary>
     private static Control BuildRichText(
         NotesBlock block,
         Action<NotesBlock> beginEdit,
@@ -157,6 +175,9 @@ public static class NotesBlockEditorFactory
         return root;
     }
 
+    /// <summary>
+    /// Builds run editor from the currently available inputs.
+    /// </summary>
     private static Control BuildRunEditor(
         NotesBlock block,
         NotesTextRun run,
@@ -225,6 +246,9 @@ public static class NotesBlockEditorFactory
         };
     }
 
+    /// <summary>
+    /// Performs the format toggle step owned by this component.
+    /// </summary>
     private static ToggleButton FormatToggle(
         string label,
         bool value,
@@ -252,6 +276,9 @@ public static class NotesBlockEditorFactory
         return toggle;
     }
 
+    /// <summary>
+    /// Builds list from the currently available inputs.
+    /// </summary>
     private static Control BuildList(
         NotesBlock block,
         Action<NotesBlock> beginEdit,
@@ -307,6 +334,9 @@ public static class NotesBlockEditorFactory
         return root;
     }
 
+    /// <summary>
+    /// Builds table from the currently available inputs.
+    /// </summary>
     private static Control BuildTable(
         NotesWorkspaceViewModel viewModel,
         NotesBlock block,
@@ -359,6 +389,9 @@ public static class NotesBlockEditorFactory
         return root;
     }
 
+    /// <summary>
+    /// Builds media from the currently available inputs.
+    /// </summary>
     private static Control BuildMedia(
         NotesBlock block,
         Action<NotesBlock> beginEdit,
@@ -405,6 +438,9 @@ public static class NotesBlockEditorFactory
         };
     }
 
+    /// <summary>
+    /// Builds equation from the currently available inputs.
+    /// </summary>
     private static Control BuildEquation(NotesWorkspaceViewModel viewModel, NotesBlock block)
     {
         block.Equation ??= new NotesEquationData();
@@ -460,6 +496,9 @@ public static class NotesBlockEditorFactory
         return new StackPanel { Spacing = 7, Children = { options, split } };
     }
 
+    /// <summary>
+    /// Builds html from the currently available inputs.
+    /// </summary>
     private static Control BuildHtml(NotesWorkspaceViewModel viewModel, NotesBlock block)
     {
         block.Html ??= new NotesHtmlData();
@@ -527,6 +566,9 @@ public static class NotesBlockEditorFactory
         };
     }
 
+    /// <summary>
+    /// Builds canvas from the currently available inputs.
+    /// </summary>
     private static Control BuildCanvas(NotesWorkspaceViewModel viewModel, NotesBlock block, Action refresh)
     {
         block.Canvas ??= new NotesCanvasData();
@@ -649,6 +691,9 @@ public static class NotesBlockEditorFactory
         }
     }
 
+    /// <summary>
+    /// Builds canvas object list from the currently available inputs.
+    /// </summary>
     private static Control BuildCanvasObjectList(
         NotesWorkspaceViewModel viewModel,
         NotesBlock block,
@@ -698,6 +743,9 @@ public static class NotesBlockEditorFactory
         return panel;
     }
 
+    /// <summary>
+    /// Builds flashcard from the currently available inputs.
+    /// </summary>
     private static Control BuildFlashcard(
         NotesBlock block,
         Action<NotesBlock> beginEdit,
@@ -760,6 +808,9 @@ public static class NotesBlockEditorFactory
         };
     }
 
+    /// <summary>
+    /// Performs the source editor step owned by this component.
+    /// </summary>
     private static TextBox SourceEditor(string name, string value) => new()
     {
         Text = value,
@@ -771,9 +822,15 @@ public static class NotesBlockEditorFactory
         PlaceholderText = name + " source"
     };
 
+    /// <summary>
+    /// Performs the sync plain text step owned by this component.
+    /// </summary>
     private static void SyncPlainText(NotesBlock block) =>
         block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
 
+    /// <summary>
+    /// Performs the small button step owned by this component.
+    /// </summary>
     private static Button SmallButton(string label, Action action, string tooltip, bool danger = false)
     {
         var button = new Button { Content = label, Margin = new Thickness(2) };
@@ -784,6 +841,9 @@ public static class NotesBlockEditorFactory
         return button;
     }
 
+    /// <summary>
+    /// Performs the labeled step owned by this component.
+    /// </summary>
     private static Control Labeled(string label, Control control) => new StackPanel
     {
         Spacing = 3,
@@ -794,6 +854,9 @@ public static class NotesBlockEditorFactory
         }
     };
 
+    /// <summary>
+    /// Performs the resource brush step owned by this component.
+    /// </summary>
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 

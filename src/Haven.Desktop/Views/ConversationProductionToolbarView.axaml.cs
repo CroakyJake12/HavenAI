@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/ConversationProductionToolbarView.axaml.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns ConversationProductionToolbarView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -9,10 +18,22 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents conversation production toolbar view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class ConversationProductionToolbarView : UserControl
 {
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConversationProductionToolbarViewModel? _viewModel;
+    /// <summary>
+    /// Stores usage view locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConversationUsageView _usageView;
+    /// <summary>
+    /// Stores message tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConversationMessageToolsView _messageTools;
 
     public ConversationProductionToolbarView()
@@ -33,9 +54,18 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         DataContext = _viewModel;
     }
 
+    /// <summary>
+    /// Stores branch changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? BranchChanged;
+    /// <summary>
+    /// Stores model selected locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event Action<ModelDescriptor>? ModelSelected;
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         if (_viewModel is not null) await _viewModel.LoadAsync(conversationId, cancellationToken);
@@ -43,6 +73,9 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         await _messageTools.LoadAsync(conversationId, cancellationToken);
     }
 
+    /// <summary>
+    /// Handles the regeneration requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnRegenerationRequested(string prompt)
     {
         if (this.FindAncestorOfType<ChatView>()?.DataContext is not ChatPageViewModel chat) return;
@@ -58,12 +91,18 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the cloud model changed event raised by the UI or runtime.
+    /// </summary>
     private void OnCloudModelChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_viewModel is null || sender is not ComboBox { SelectedItem: ProviderModelChoiceViewModel model }) return;
         if (_viewModel.SelectCloudModelCommand.CanExecute(model)) _viewModel.SelectCloudModelCommand.Execute(model);
     }
 
+    /// <summary>
+    /// Handles the copy share clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnCopyShareClicked(object? sender, RoutedEventArgs e)
     {
         if (_viewModel is null || string.IsNullOrWhiteSpace(_viewModel.ShareAddress)) return;
@@ -71,6 +110,9 @@ public sealed partial class ConversationProductionToolbarView : UserControl
         if (clipboard is not null) await clipboard.SetTextAsync(_viewModel.ShareAddress);
     }
 
+    /// <summary>
+    /// Handles the export requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnExportRequested(ConversationExportRequest request)
     {
         var top = TopLevel.GetTopLevel(this);

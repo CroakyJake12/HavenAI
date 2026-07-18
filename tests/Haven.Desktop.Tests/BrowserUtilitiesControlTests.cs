@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/BrowserUtilitiesControlTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserUtilitiesControlTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
@@ -5,8 +14,14 @@ using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents browser utilities control tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserUtilitiesControlTests
 {
+    /// <summary>
+    /// Performs the utility cluster exposes find zoom policy tools and safety flyouts step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void UtilityClusterExposesFindZoomPolicyToolsAndSafetyFlyouts()
     {
@@ -31,6 +46,9 @@ public sealed class BrowserUtilitiesControlTests
         }
     }
 
+    /// <summary>
+    /// Performs the find zoom policy and tools flyouts contain real interactive controls step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void FindZoomPolicyAndToolsFlyoutsContainRealInteractiveControls()
     {
@@ -54,6 +72,9 @@ public sealed class BrowserUtilitiesControlTests
         Assert.Contains(toolsPanel.Children.OfType<Button>(), button => button.Content?.ToString() == "Open developer tools");
     }
 
+    /// <summary>
+    /// Performs the detach and reattach keeps utility control reusable step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void DetachAndReattachKeepsUtilityControlReusable()
     {

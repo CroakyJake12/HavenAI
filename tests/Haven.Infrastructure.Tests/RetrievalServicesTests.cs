@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/RetrievalServicesTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns RetrievalServicesTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents retrieval services tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class RetrievalServicesTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the indexing same content is incremental and does not duplicate chunks step owned by this component.
+    /// </summary>
     [Fact]
     public async Task IndexingSameContentIsIncrementalAndDoesNotDuplicateChunks()
     {
@@ -27,6 +45,9 @@ public sealed class RetrievalServicesTests : IDisposable
         Assert.InRange(count, 2, 20);
     }
 
+    /// <summary>
+    /// Performs the hybrid search finds semantically related and keyword specific chunks with citations step owned by this component.
+    /// </summary>
     [Fact]
     public async Task HybridSearchFindsSemanticallyRelatedAndKeywordSpecificChunksWithCitations()
     {
@@ -47,6 +68,9 @@ public sealed class RetrievalServicesTests : IDisposable
         Assert.Contains("Hybrid", result.Method);
     }
 
+    /// <summary>
+    /// Performs the search never leaks across unselected scopes step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SearchNeverLeaksAcrossUnselectedScopes()
     {
@@ -62,6 +86,9 @@ public sealed class RetrievalServicesTests : IDisposable
         Assert.DoesNotContain("cobalt", result.Context, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the token budget and per document diversity are enforced step owned by this component.
+    /// </summary>
     [Fact]
     public async Task TokenBudgetAndPerDocumentDiversityAreEnforced()
     {
@@ -85,8 +112,14 @@ public sealed class RetrievalServicesTests : IDisposable
         return (database, service);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -100,12 +133,33 @@ public sealed class RetrievalServicesTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

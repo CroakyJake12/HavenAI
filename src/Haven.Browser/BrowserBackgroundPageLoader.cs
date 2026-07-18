@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserBackgroundPageLoader.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserBackgroundPageLoader. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -6,11 +15,23 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser background page loader and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
 {
+    /// <summary>
+    /// Stores maximum response bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumResponseBytes = 8 * 1024 * 1024;
+    /// <summary>
+    /// Stores maximum text characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumTextCharacters = 120_000;
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPageSnapshot> LoadAsync(Uri address, CancellationToken cancellationToken)
     {
         await using var lease = await BrowserPinnedHttpTransport.SendAsync(
@@ -65,6 +86,9 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
             truncated);
     }
 
+    /// <summary>
+    /// Performs the resolve encoding step owned by this component.
+    /// </summary>
     private static Encoding ResolveEncoding(string? charset)
     {
         if (string.IsNullOrWhiteSpace(charset)) return Encoding.UTF8;
@@ -72,12 +96,18 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException) { return Encoding.UTF8; }
     }
 
+    /// <summary>
+    /// Performs the extract title step owned by this component.
+    /// </summary>
     private static string ExtractTitle(string html)
     {
         var match = Regex.Match(html, "<title[^>]*>(?<value>[\\s\\S]*?)</title>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         return match.Success ? NormalizeText(WebUtility.HtmlDecode(StripTags(match.Groups["value"].Value))) : string.Empty;
     }
 
+    /// <summary>
+    /// Performs the extract headings step owned by this component.
+    /// </summary>
     private static IReadOnlyList<string> ExtractHeadings(string html) => Regex.Matches(
             html,
             "<h[1-6][^>]*>(?<value>[\\s\\S]*?)</h[1-6]>",
@@ -88,6 +118,9 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
         .Take(100)
         .ToArray();
 
+    /// <summary>
+    /// Performs the html to text step owned by this component.
+    /// </summary>
     private static string HtmlToText(string html)
     {
         var withoutNoise = Regex.Replace(
@@ -98,6 +131,12 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
         return NormalizeText(WebUtility.HtmlDecode(StripTags(withoutNoise)));
     }
 
+    /// <summary>
+    /// Performs the strip tags step owned by this component.
+    /// </summary>
     private static string StripTags(string value) => Regex.Replace(value, "<[^>]+>", " ", RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Performs the normalize text step owned by this component.
+    /// </summary>
     private static string NormalizeText(string value) => Regex.Replace(value.Replace("\0", string.Empty, StringComparison.Ordinal), "\\s+", " ").Trim();
 }

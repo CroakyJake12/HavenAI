@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/MessageAttachmentServiceTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns MessageAttachmentServiceTests, NoTools, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.IO.Compression;
 using System.Text;
 using Haven.Application;
@@ -6,10 +15,19 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents message attachment service tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class MessageAttachmentServiceTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the text and image attachments persist and build prompt context step owned by this component.
+    /// </summary>
     [Fact]
     public async Task TextAndImageAttachmentsPersistAndBuildPromptContext()
     {
@@ -34,6 +52,9 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         Assert.Contains(context.Notices, item => item.Contains("sent directly", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the open xml document text is extracted without executing document content step owned by this component.
+    /// </summary>
     [Fact]
     public async Task OpenXmlDocumentTextIsExtractedWithoutExecutingDocumentContent()
     {
@@ -58,6 +79,9 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         Assert.Contains("Hello from the document", attachment.ExtractedText);
     }
 
+    /// <summary>
+    /// Performs the video without local media tools reports metadata only rather than inventing analysis step owned by this component.
+    /// </summary>
     [Fact]
     public async Task VideoWithoutLocalMediaToolsReportsMetadataOnlyRatherThanInventingAnalysis()
     {
@@ -76,6 +100,9 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         Assert.Contains("No frames or audio were analysed", attachment.MetadataJson, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the size limits are enforced before copying step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SizeLimitsAreEnforcedBeforeCopying()
     {
@@ -102,16 +129,31 @@ public sealed class MessageAttachmentServiceTests : IDisposable
         return (conversations, production, service);
     }
 
+    /// <summary>
+    /// Performs the conversation at step owned by this component.
+    /// </summary>
     private static Conversation ConversationAt(DateTimeOffset now) => new(
         Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Attachments", null, null, false, false, now, now);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents no tools and keeps its related state and behavior together.
+    /// </summary>
     private sealed class NoTools : ILocalMediaToolLocator
     {
+        /// <summary>
+        /// Performs the find executable step owned by this component.
+        /// </summary>
         public string? FindExecutable(string name) => null;
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -125,12 +167,33 @@ public sealed class MessageAttachmentServiceTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

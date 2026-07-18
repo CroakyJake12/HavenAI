@@ -1,18 +1,45 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/RecoverySafetyProbe.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns RecoverySafetyProbe, StartupState, StartupRun. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents recovery safety probe and keeps its related state and behavior together.
+/// </summary>
 public sealed class RecoverySafetyProbe(IAppPaths paths) : IRecoverySafetyProbe
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
+    /// <summary>
+    /// Stores crash window locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly TimeSpan CrashWindow = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// Stores safe mode threshold locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int SafeModeThreshold = 3;
+    /// <summary>
+    /// Stores state path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _statePath = Path.Combine(paths.DataDirectory, "startup-recovery.json");
 
+    /// <summary>
+    /// Performs assess async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<RecoverySafetyAssessment> AssessAsync(CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -68,6 +95,12 @@ public sealed class RecoverySafetyProbe(IAppPaths paths) : IRecoverySafetyProbe
         }
     }
 
+    /// <summary>
+    /// Represents startup state and keeps its related state and behavior together.
+    /// </summary>
     private sealed record StartupState(int Version, StartupRun? CurrentRun, IReadOnlyList<DateTimeOffset> RecentUncleanStarts);
+    /// <summary>
+    /// Represents startup run and keeps its related state and behavior together.
+    /// </summary>
     private sealed record StartupRun(string Id, DateTimeOffset StartedAt, bool StartupCompleted, bool CleanShutdown);
 }

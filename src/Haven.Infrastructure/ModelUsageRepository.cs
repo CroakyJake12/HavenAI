@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ModelUsageRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProviderUsageCaptureBuffer, ProviderPricingService, ModelUsageRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Globalization;
 using Haven.Application;
@@ -5,16 +14,28 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents provider usage capture buffer and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
 {
+    /// <summary>
+    /// Stores usage locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<string, ConcurrentQueue<ProviderUsageSnapshot>> _usage = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the set step owned by this component.
+    /// </summary>
     public void Set(ProviderUsageSnapshot usage)
     {
         ArgumentNullException.ThrowIfNull(usage);
         _usage.GetOrAdd(Key(usage.ProviderId, usage.ModelName), static _ => new ConcurrentQueue<ProviderUsageSnapshot>()).Enqueue(usage);
     }
 
+    /// <summary>
+    /// Performs the consume step owned by this component.
+    /// </summary>
     public ProviderUsageSnapshot? Consume(string providerId, string modelName)
     {
         var key = Key(providerId, modelName);
@@ -25,6 +46,9 @@ public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
         return Aggregate(values);
     }
 
+    /// <summary>
+    /// Performs the consume last usage step owned by this component.
+    /// </summary>
     public ProviderUsageSnapshot? ConsumeLastUsage()
     {
         foreach (var key in _usage.Keys.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
@@ -38,6 +62,9 @@ public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
         return null;
     }
 
+    /// <summary>
+    /// Performs the aggregate step owned by this component.
+    /// </summary>
     private static ProviderUsageSnapshot? Aggregate(IReadOnlyList<ProviderUsageSnapshot> values)
     {
         if (values.Count == 0) return null;
@@ -57,17 +84,29 @@ public sealed class ProviderUsageCaptureBuffer : IModelUsageCapture
             values.Max(item => item.CapturedAt));
     }
 
+    /// <summary>
+    /// Performs the sum nullable step owned by this component.
+    /// </summary>
     private static long? SumNullable(IEnumerable<long?> values)
     {
         var materialized = values.ToArray();
         return materialized.Any(value => value is not null) ? materialized.Sum(value => value ?? 0) : null;
     }
 
+    /// <summary>
+    /// Performs the key step owned by this component.
+    /// </summary>
     private static string Key(string providerId, string modelName) => providerId.Trim().ToLowerInvariant() + "\n" + modelName.Trim().ToLowerInvariant();
 }
 
+/// <summary>
+/// Represents provider pricing service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderPricingService : IProviderPricingService
 {
+    /// <summary>
+    /// Performs the read pricing step owned by this component.
+    /// </summary>
     public ProviderPricing? ReadPricing(ProviderConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -82,6 +121,9 @@ public sealed class ProviderPricingService : IProviderPricingService
         return new ProviderPricing(configuration.Id, input, output, cached, reasoning, currency, configuration.UpdatedAt);
     }
 
+    /// <summary>
+    /// Performs the calculate cost step owned by this component.
+    /// </summary>
     public decimal? CalculateCost(ProviderUsageSnapshot usage, ProviderPricing pricing)
     {
         ArgumentNullException.ThrowIfNull(usage);
@@ -102,14 +144,23 @@ public sealed class ProviderPricingService : IProviderPricingService
         }
     }
 
+    /// <summary>
+    /// Performs the read decimal step owned by this component.
+    /// </summary>
     private static decimal? ReadDecimal(IReadOnlyDictionary<string, string> metadata, string key) =>
         metadata.TryGetValue(key, out var value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0
             ? parsed
             : null;
 }
 
+/// <summary>
+/// Represents model usage repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IModelUsageRepository
 {
+    /// <summary>
+    /// Performs record async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RecordAsync(ResponseUsageEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -140,6 +191,9 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves conversation usage async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ResponseUsageEntry>> GetConversationUsageAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -150,6 +204,9 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
         return await ReadAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves message usage async for the current operation.
+    /// </summary>
     public async Task<ResponseUsageEntry?> GetMessageUsageAsync(Guid messageId, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -160,6 +217,9 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
         return (await ReadAsync(command, cancellationToken).ConfigureAwait(false)).FirstOrDefault();
     }
 
+    /// <summary>
+    /// Retrieves summary async for the current operation.
+    /// </summary>
     public async Task<ConversationUsageSummary> GetSummaryAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var entries = await GetConversationUsageAsync(conversationId, cancellationToken).ConfigureAwait(false);
@@ -178,6 +238,9 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
             entries.Count);
     }
 
+    /// <summary>
+    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<ResponseUsageEntry>> ReadAsync(Microsoft.Data.Sqlite.SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<ResponseUsageEntry>();
@@ -207,6 +270,9 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
         return result;
     }
 
+    /// <summary>
+    /// Performs the read nullable int64 step owned by this component.
+    /// </summary>
     private static long? ReadNullableInt64(Microsoft.Data.Sqlite.SqliteDataReader reader, string name)
     {
         var ordinal = reader.GetOrdinal(name);

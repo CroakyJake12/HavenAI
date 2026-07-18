@@ -1,12 +1,30 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/BrowserSitePermissionStoreTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserSitePermissionStoreTests, PermissionTestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Browser;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents browser site permission store tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserSitePermissionStoreTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly PermissionTestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the persists exact origin decisions and ask removes the override step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PersistsExactOriginDecisionsAndAskRemovesTheOverride()
     {
@@ -30,6 +48,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the rejects non web and credential bearing origins step owned by this component.
+    /// </summary>
     [Fact]
     public void RejectsNonWebAndCredentialBearingOrigins()
     {
@@ -38,6 +59,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Equal("http://example.com:8080", BrowserSitePermissionStore.CanonicalOrigin(new Uri("http://EXAMPLE.com:8080/path")));
     }
 
+    /// <summary>
+    /// Performs the concurrent mutations are serialized without lost decisions step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConcurrentMutationsAreSerializedWithoutLostDecisions()
     {
@@ -57,6 +81,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Equal(40, reloaded.Permissions.Select(item => item.Origin).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
+    /// <summary>
+    /// Performs the revoke origin resets every permission and records audit step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RevokeOriginResetsEveryPermissionAndRecordsAudit()
     {
@@ -73,6 +100,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Contains(store.Audit, item => item.Kind == BrowserSitePermissionKind.Microphone && item.Decision == BrowserSitePermissionDecision.Ask);
     }
 
+    /// <summary>
+    /// Performs the failed write rolls back in memory and cleans temporary files step owned by this component.
+    /// </summary>
     [Fact]
     public async Task FailedWriteRollsBackInMemoryAndCleansTemporaryFiles()
     {
@@ -88,6 +118,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(_paths.DataDirectory, "browser-site-permissions.json.tmp-*"));
     }
 
+    /// <summary>
+    /// Performs the corrupt primary is quarantined and last valid backup is recovered step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CorruptPrimaryIsQuarantinedAndLastValidBackupIsRecovered()
     {
@@ -107,6 +140,9 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Single(Directory.EnumerateFiles(_paths.DataDirectory, "browser-site-permissions.json.corrupt-*"));
     }
 
+    /// <summary>
+    /// Performs the unsupported future schema is quarantined and fails closed to ask step owned by this component.
+    /// </summary>
     [Fact]
     public void UnsupportedFutureSchemaIsQuarantinedAndFailsClosedToAsk()
     {
@@ -128,14 +164,23 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
         Assert.Single(Directory.EnumerateFiles(_paths.DataDirectory, "browser-site-permissions.json.corrupt-*"));
     }
 
+    /// <summary>
+    /// Performs the provider returns one store for the same data directory step owned by this component.
+    /// </summary>
     [Fact]
     public void ProviderReturnsOneStoreForTheSameDataDirectory()
     {
         Assert.Same(BrowserSitePermissionStoreProvider.Get(_paths), BrowserSitePermissionStoreProvider.Get(_paths));
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents permission test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class PermissionTestPaths : IAppPaths, IDisposable
     {
         public PermissionTestPaths()
@@ -149,13 +194,34 @@ public sealed class BrowserSitePermissionStoreTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, true); }

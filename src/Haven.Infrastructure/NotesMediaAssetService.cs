@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/NotesMediaAssetService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns NotesMediaAssetService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Security.Cryptography;
 using Haven.Application;
@@ -5,10 +14,16 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents notes media asset service and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesMediaAssetService(
     INotesAttachmentStore attachments,
     IProductionDiagnostics diagnostics) : INotesMediaAssetService
 {
+    /// <summary>
+    /// Performs verify async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesMediaVerification> VerifyAsync(
         NotesMediaData media,
         CancellationToken cancellationToken)
@@ -50,6 +65,9 @@ public sealed class NotesMediaAssetService(
         return verification;
     }
 
+    /// <summary>
+    /// Performs replace async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesMediaData> ReplaceAsync(
         NotesMediaData current,
         string sourcePath,
@@ -81,6 +99,9 @@ public sealed class NotesMediaAssetService(
         return replacement;
     }
 
+    /// <summary>
+    /// Performs save copy async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> SaveCopyAsync(
         NotesMediaData media,
         string destinationPath,
@@ -127,6 +148,9 @@ public sealed class NotesMediaAssetService(
         }
     }
 
+    /// <summary>
+    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task OpenAsync(NotesMediaData media, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(media);
@@ -147,6 +171,9 @@ public sealed class NotesMediaAssetService(
         }
     }
 
+    /// <summary>
+    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeSha256Async(
         string path,
         CancellationToken cancellationToken)
@@ -162,6 +189,9 @@ public sealed class NotesMediaAssetService(
             .ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }

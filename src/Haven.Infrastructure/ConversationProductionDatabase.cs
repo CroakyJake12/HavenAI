@@ -1,12 +1,33 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ConversationProductionDatabase.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ConversationProductionDatabase, ConversationProductionSchema. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents conversation production database and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationProductionDatabase : IAppDatabase
 {
+    /// <summary>
+    /// Stores database locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SqliteDatabase _database;
+    /// <summary>
+    /// Stores maintenance locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDatabaseMaintenance? _maintenance;
+    /// <summary>
+    /// Stores restore locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDatabaseRestoreService? _restore;
 
     // Focused repository tests historically construct this wrapper around an isolated
@@ -35,6 +56,9 @@ public sealed class ConversationProductionDatabase : IAppDatabase
         _restore = restore;
     }
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         // A restore is intentionally applied before SqliteDatabase opens its first
@@ -62,10 +86,19 @@ public sealed class ConversationProductionDatabase : IAppDatabase
     }
 }
 
+/// <summary>
+/// Represents conversation production schema and keeps its related state and behavior together.
+/// </summary>
 internal static class ConversationProductionSchema
 {
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    /// <summary>
+    /// Performs ensure async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task EnsureAsync(ISqliteConnectionFactory factory, CancellationToken cancellationToken)
     {
         await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -95,6 +128,9 @@ internal static class ConversationProductionSchema
         }
     }
 
+    /// <summary>
+    /// Stores sql locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     internal const string Sql = """
         CREATE TABLE IF NOT EXISTS conversation_branches(
             id TEXT PRIMARY KEY,

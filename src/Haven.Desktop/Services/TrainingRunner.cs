@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/TrainingRunner.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns TrainingRunner, TimelineEvent, Reasoning, ToolCall, FinalSummary, TrainingAttemptResult, TrainingActionLog, TrainingProgressEvent, TrainingProgressKind. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -6,12 +15,18 @@ using Haven.Core;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Represents training runner and keeps its related state and behavior together.
+/// </summary>
 public sealed class TrainingRunner(
     ChatSessionService sessions,
     IConversationRepository conversations,
     IOllamaClient ollama,
     UserPreferencesService preferences)
 {
+    /// <summary>
+    /// Creates workspace snapshot with the invariants required by its callers.
+    /// </summary>
     public static string CreateWorkspaceSnapshot(string sourceWorkspace)
     {
         var snapshotDir = Path.Combine(Path.GetTempPath(), "haven_training_" + Guid.NewGuid().ToString("N")[..12]);
@@ -19,6 +34,9 @@ public sealed class TrainingRunner(
         return snapshotDir;
     }
 
+    /// <summary>
+    /// Performs the cleanup snapshot step owned by this component.
+    /// </summary>
     public static void CleanupSnapshot(string snapshotPath)
     {
         if (Directory.Exists(snapshotPath))
@@ -28,6 +46,9 @@ public sealed class TrainingRunner(
         }
     }
 
+    /// <summary>
+    /// Performs the copy directory step owned by this component.
+    /// </summary>
     private static void CopyDirectory(string source, string destination, bool recursive)
     {
         Directory.CreateDirectory(destination);
@@ -38,6 +59,9 @@ public sealed class TrainingRunner(
             CopyDirectory(dir, Path.Combine(destination, Path.GetFileName(dir)), true);
     }
 
+    /// <summary>
+    /// Runs run attempt async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<TrainingAttemptResult> RunAttemptAsync(
         string taskPrompt,
         string workspaceRoot,
@@ -159,6 +183,9 @@ public sealed class TrainingRunner(
             completedBeforeTimeout);
     }
 
+    /// <summary>
+    /// Performs the generate markdown report step owned by this component.
+    /// </summary>
     public static string GenerateMarkdownReport(TrainingAttemptResult attempt)
     {
         var sb = new StringBuilder();
@@ -228,17 +255,35 @@ public sealed class TrainingRunner(
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Performs the format duration step owned by this component.
+    /// </summary>
     private static string FormatDuration(TimeSpan ts) =>
         ts.TotalMinutes >= 1 ? $"{(int)ts.TotalMinutes}m {ts.Seconds:D2}s" : $"{ts.TotalSeconds:F1}s";
 }
 
+/// <summary>
+/// Represents timeline event and keeps its related state and behavior together.
+/// </summary>
 public abstract record TimelineEvent
 {
+    /// <summary>
+    /// Represents reasoning and keeps its related state and behavior together.
+    /// </summary>
     public sealed record Reasoning(string Text) : TimelineEvent;
+    /// <summary>
+    /// Represents tool call and keeps its related state and behavior together.
+    /// </summary>
     public sealed record ToolCall(TrainingActionLog Action) : TimelineEvent;
+    /// <summary>
+    /// Represents final summary and keeps its related state and behavior together.
+    /// </summary>
     public sealed record FinalSummary(string Message) : TimelineEvent;
 }
 
+/// <summary>
+/// Represents training attempt result and keeps its related state and behavior together.
+/// </summary>
 public sealed record TrainingAttemptResult(
     int AttemptNumber,
     string TaskPrompt,
@@ -247,10 +292,22 @@ public sealed record TrainingAttemptResult(
     IReadOnlyList<TrainingActionLog> Actions,
     bool CompletedBeforeTimeout)
 {
+    /// <summary>
+    /// Gets or updates total tool calls, the bindable or domain state represented by this property.
+    /// </summary>
     public int TotalToolCalls => Actions.Count;
+    /// <summary>
+    /// Gets or updates files changed, the bindable or domain state represented by this property.
+    /// </summary>
     public int FilesChanged => Actions.Count(a => a.ToolName is "write_file" or "replace_in_file");
+    /// <summary>
+    /// Builds attempts from the currently available inputs.
+    /// </summary>
     public int BuildAttempts => Actions.Count(a => a.ToolName == "run_command" &&
         a.Summary.Contains("build", StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Gets or updates test runs, the bindable or domain state represented by this property.
+    /// </summary>
     public int TestRuns => Actions.Count(a => a.ToolName == "run_tests" ||
         (a.ToolName == "run_command" && a.Summary.Contains("test", StringComparison.OrdinalIgnoreCase)));
     public bool AllTestsPassed
@@ -264,6 +321,9 @@ public sealed record TrainingAttemptResult(
     }
 }
 
+/// <summary>
+/// Represents training action log and keeps its related state and behavior together.
+/// </summary>
 public sealed record TrainingActionLog(
     int Step,
     string ToolName,
@@ -274,6 +334,12 @@ public sealed record TrainingActionLog(
     int LinesRemoved,
     DateTimeOffset Timestamp);
 
+/// <summary>
+/// Represents training progress event and keeps its related state and behavior together.
+/// </summary>
 public sealed record TrainingProgressEvent(TrainingProgressKind Kind, TrainingActionLog? Action = null, string? ReasoningText = null);
 
+/// <summary>
+/// Lists the supported training progress kind values used to make state explicit and type-safe.
+/// </summary>
 public enum TrainingProgressKind { ActionRecorded, ReasoningDelta }

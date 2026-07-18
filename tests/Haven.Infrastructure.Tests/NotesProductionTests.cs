@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/NotesProductionTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesProductionTests, FakeModelClient, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -5,10 +14,19 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents notes production tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesProductionTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the complete mixed document passes deep validation step owned by this component.
+    /// </summary>
     [Fact]
     public void CompleteMixedDocumentPassesDeepValidation()
     {
@@ -21,6 +39,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Contains(document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks), block => block.Flashcard is not null);
     }
 
+    /// <summary>
+    /// Performs the invalid html permissions and duplicate orders fail closed step owned by this component.
+    /// </summary>
     [Fact]
     public void InvalidHtmlPermissionsAndDuplicateOrdersFailClosed()
     {
@@ -42,6 +63,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Contains(result.Issues, issue => issue.Path.EndsWith("allowPopups", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the atomic repository versions searches and recovers corrupt current file step owned by this component.
+    /// </summary>
     [Fact]
     public async Task AtomicRepositoryVersionsSearchesAndRecoversCorruptCurrentFile()
     {
@@ -75,6 +99,9 @@ public sealed class NotesProductionTests : IDisposable
             File.Exists);
     }
 
+    /// <summary>
+    /// Performs the verified repository rejects valid json tampering and returns previous version step owned by this component.
+    /// </summary>
     [Fact]
     public async Task VerifiedRepositoryRejectsValidJsonTamperingAndReturnsPreviousVersion()
     {
@@ -103,6 +130,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Contains(events, item => item.EventName == "integrity-mismatch");
     }
 
+    /// <summary>
+    /// Performs the native round trip preserves ink html flashcards comments and ai provenance step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NativeRoundTripPreservesInkHtmlFlashcardsCommentsAndAiProvenance()
     {
@@ -125,6 +155,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Contains(imported.Revisions, revision => revision.Kind == NotesRevisionKind.Imported);
     }
 
+    /// <summary>
+    /// Performs the pdf and html exports use truthful fallbacks for interactive content step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PdfAndHtmlExportsUseTruthfulFallbacksForInteractiveContent()
     {
@@ -146,6 +179,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Contains("Interactive canvas data remains in the native file", htmlText, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the notes ai requires consent and rejects invented citation ids step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NotesAiRequiresConsentAndRejectsInventedCitationIds()
     {
@@ -183,6 +219,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Equal(1, fake.CompleteCalls);
     }
 
+    /// <summary>
+    /// Performs the notes ai accepts only supplied evidence and returns review proposal step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NotesAiAcceptsOnlySuppliedEvidenceAndReturnsReviewProposal()
     {
@@ -219,6 +258,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.Equal("openai:test-model", result.ModelName);
     }
 
+    /// <summary>
+    /// Performs the flashcard scheduler records lapses and expands successful intervals step owned by this component.
+    /// </summary>
     [Fact]
     public void FlashcardSchedulerRecordsLapsesAndExpandsSuccessfulIntervals()
     {
@@ -241,6 +283,9 @@ public sealed class NotesProductionTests : IDisposable
         Assert.True(card.Schedule.DueAt > now);
     }
 
+    /// <summary>
+    /// Performs the secure attachment store resolves files without extensions inside managed root step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SecureAttachmentStoreResolvesFilesWithoutExtensionsInsideManagedRoot()
     {
@@ -260,12 +305,18 @@ public sealed class NotesProductionTests : IDisposable
             StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         RuntimeSafetyState.DisableSafeMode();
         _paths.Dispose();
     }
 
+    /// <summary>
+    /// Performs the complete document step owned by this component.
+    /// </summary>
     private static NotesDocument CompleteDocument()
     {
         var document = NotesDocument.Create("Complete Notes document");
@@ -396,12 +447,27 @@ public sealed class NotesProductionTests : IDisposable
         return document;
     }
 
+    /// <summary>
+    /// Represents fake model client and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeModelClient(string response) : IOllamaClient
     {
+        /// <summary>
+        /// Gets or updates complete calls, the bindable or domain state represented by this property.
+        /// </summary>
         public int CompleteCalls { get; private set; }
+        /// <summary>
+        /// Reports whether is available async is true for the current state.
+        /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
+        /// <summary>
+        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -409,18 +475,33 @@ public sealed class NotesProductionTests : IDisposable
             await Task.CompletedTask;
             yield break;
         }
+        /// <summary>
+        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
         {
             CompleteCalls++;
             return Task.FromResult(response);
         }
+        /// <summary>
+        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Empty, []));
+        /// <summary>
+        /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+        /// <summary>
+        /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -434,12 +515,33 @@ public sealed class NotesProductionTests : IDisposable
             Directory.CreateDirectory(DataDirectory);
             Directory.CreateDirectory(LogsDirectory);
         }
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WorkspaceTransactionService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WorkspaceTransactionService, ResolvedMutation. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using Haven.Application;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents workspace transaction service and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceTransactionService(IWorkspaceToolService workspaceTools) : IWorkspaceTransactionService
 {
+    /// <summary>
+    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<WorkspaceTransactionResult> ApplyAsync(
         string workspaceRoot,
         IReadOnlyList<WorkspaceFileMutation> mutations,
@@ -89,6 +104,9 @@ public sealed class WorkspaceTransactionService(IWorkspaceToolService workspaceT
         }
     }
 
+    /// <summary>
+    /// Performs the roll back step owned by this component.
+    /// </summary>
     private static void RollBack(IReadOnlyList<ResolvedMutation> mutations, int appliedCount)
     {
         List<Exception>? failures = null;
@@ -117,6 +135,9 @@ public sealed class WorkspaceTransactionService(IWorkspaceToolService workspaceT
             throw new AggregateException("The workspace transaction failed and one or more files could not be restored.", failures);
     }
 
+    /// <summary>
+    /// Attempts to delete directory and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDeleteDirectory(string path)
     {
         try
@@ -127,6 +148,9 @@ public sealed class WorkspaceTransactionService(IWorkspaceToolService workspaceT
         catch (UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Represents resolved mutation and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ResolvedMutation(
         string RelativePath,
         string TargetPath,

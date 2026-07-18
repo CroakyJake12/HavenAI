@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/GenerativeUiThemeRuntimeTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeUiThemeRuntimeTests, InMemoryThemeStore, RecordingDiagnostics. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -8,8 +17,14 @@ using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents generative ui theme runtime tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeUiThemeRuntimeTests
 {
+    /// <summary>
+    /// Performs the applying light and dark updates the resources used by dynamic bindings step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public async Task ApplyingLightAndDarkUpdatesTheResourcesUsedByDynamicBindings()
     {
@@ -44,6 +59,9 @@ public sealed class GenerativeUiThemeRuntimeTests
         Assert.Contains(diagnostics.Events, item => item.EventName == "theme-applied");
     }
 
+    /// <summary>
+    /// Performs the preview changes resources without persisting selection and revert restores saved theme step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public async Task PreviewChangesResourcesWithoutPersistingSelectionAndRevertRestoresSavedTheme()
     {
@@ -81,12 +99,18 @@ public sealed class GenerativeUiThemeRuntimeTests
         Assert.Equal(saved.Id, store.Selection.ActiveThemeId);
     }
 
+    /// <summary>
+    /// Performs the brush colour step owned by this component.
+    /// </summary>
     private static Color BrushColour(string key)
     {
         Assert.True(Avalonia.Application.Current!.Resources.TryGetValue(key, out var value));
         return Assert.IsType<SolidColorBrush>(value).Color;
     }
 
+    /// <summary>
+    /// Creates theme with the invariants required by its callers.
+    /// </summary>
     private static GenerativeThemePack CreateTheme()
     {
         var now = DateTimeOffset.UtcNow;
@@ -116,6 +140,9 @@ public sealed class GenerativeUiThemeRuntimeTests
             []);
     }
 
+    /// <summary>
+    /// Performs the palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette Palette(
         string background,
         string text,
@@ -148,36 +175,66 @@ public sealed class GenerativeUiThemeRuntimeTests
         background,
         accent);
 
+    /// <summary>
+    /// Represents in memory theme store and keeps its related state and behavior together.
+    /// </summary>
     private sealed class InMemoryThemeStore(
         GenerativeThemePack theme,
         GenerativeThemeSelection selection) : IGenerativeThemeStore
     {
+        /// <summary>
+        /// Gets or updates theme, the bindable or domain state represented by this property.
+        /// </summary>
         public GenerativeThemePack Theme { get; private set; } = theme;
+        /// <summary>
+        /// Gets or updates selection, the bindable or domain state represented by this property.
+        /// </summary>
         public GenerativeThemeSelection Selection { get; private set; } = selection;
 
+        /// <summary>
+        /// Retrieves themes async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<GenerativeThemePack>> GetThemesAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<GenerativeThemePack>>([Theme]);
 
+        /// <summary>
+        /// Retrieves selection async for the current operation.
+        /// </summary>
         public Task<GenerativeThemeSelection> GetSelectionAsync(CancellationToken cancellationToken) =>
             Task.FromResult(Selection);
 
+        /// <summary>
+        /// Retrieves active theme async for the current operation.
+        /// </summary>
         public Task<GenerativeThemePack> GetActiveThemeAsync(CancellationToken cancellationToken) =>
             Task.FromResult(Theme);
 
+        /// <summary>
+        /// Performs save async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task SaveAsync(GenerativeThemePack value, CancellationToken cancellationToken)
         {
             Theme = value;
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs rename async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken)
         {
             Theme = Theme with { Name = name };
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteAsync(Guid themeId, CancellationToken cancellationToken) => Task.CompletedTask;
 
+        /// <summary>
+        /// Performs select async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task SelectAsync(
             Guid themeId,
             GenerativeThemeAppearance appearance,
@@ -192,6 +249,9 @@ public sealed class GenerativeUiThemeRuntimeTests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task SetAppearanceAsync(
             GenerativeThemeAppearance appearance,
             CancellationToken cancellationToken)
@@ -204,22 +264,37 @@ public sealed class GenerativeUiThemeRuntimeTests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs export async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ExportAsync(
             Guid themeId,
             string destinationDirectory,
             CancellationToken cancellationToken) =>
             Task.FromResult(Path.Combine(destinationDirectory, "theme.haven-theme.json"));
 
+        /// <summary>
+        /// Performs import async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<GenerativeThemePack> ImportAsync(
             string sourcePath,
             CancellationToken cancellationToken) =>
             Task.FromResult(Theme);
     }
 
+    /// <summary>
+    /// Represents recording diagnostics and keeps its related state and behavior together.
+    /// </summary>
     private sealed class RecordingDiagnostics : IProductionDiagnostics
     {
+        /// <summary>
+        /// Gets or updates events, the bindable or domain state represented by this property.
+        /// </summary>
         public List<ReliabilityEvent> Events { get; } = [];
 
+        /// <summary>
+        /// Performs write async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public ValueTask WriteAsync(
             ReliabilitySeverity severity,
             string component,
@@ -240,11 +315,17 @@ public sealed class GenerativeUiThemeRuntimeTests
             return ValueTask.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(
             int limit,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ReliabilityEvent>>(Events.TakeLast(limit).Reverse().ToArray());
 
+        /// <summary>
+        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

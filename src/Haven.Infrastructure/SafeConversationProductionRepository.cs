@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/SafeConversationProductionRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns SafeConversationProductionRepository, BranchMessageRow. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Microsoft.Data.Sqlite;
@@ -14,6 +23,9 @@ public sealed class SafeConversationProductionRepository(
     IConversationRepository conversations,
     ConversationProductionRepository inner) : IConversationProductionRepository
 {
+    /// <summary>
+    /// Performs ensure root branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationBranch> EnsureRootBranchAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         if (await inner.GetCurrentBranchAsync(conversationId, cancellationToken).ConfigureAwait(false) is { } existing)
@@ -65,6 +77,9 @@ public sealed class SafeConversationProductionRepository(
         return branch;
     }
 
+    /// <summary>
+    /// Creates branch async with the invariants required by its callers.
+    /// </summary>
     public async Task<ConversationBranch> CreateBranchAsync(
         Guid conversationId,
         Guid parentBranchId,
@@ -109,30 +124,102 @@ public sealed class SafeConversationProductionRepository(
         return branch;
     }
 
+    /// <summary>
+    /// Retrieves branches async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ConversationBranch>> GetBranchesAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetBranchesAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Retrieves current branch async for the current operation.
+    /// </summary>
     public Task<ConversationBranch?> GetCurrentBranchAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetCurrentBranchAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Performs set current branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetCurrentBranchAsync(Guid conversationId, Guid branchId, CancellationToken cancellationToken) => inner.SetCurrentBranchAsync(conversationId, branchId, cancellationToken);
+    /// <summary>
+    /// Retrieves turns async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<ConversationTurn>> GetTurnsAsync(Guid conversationId, Guid branchId, CancellationToken cancellationToken) => inner.GetTurnsAsync(conversationId, branchId, cancellationToken);
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<MessageVersion>> GetVersionsAsync(Guid messageId, Guid branchId, CancellationToken cancellationToken) => inner.GetVersionsAsync(messageId, branchId, cancellationToken);
+    /// <summary>
+    /// Retrieves current version async for the current operation.
+    /// </summary>
     public Task<MessageVersion?> GetCurrentVersionAsync(Guid messageId, Guid branchId, CancellationToken cancellationToken) => inner.GetCurrentVersionAsync(messageId, branchId, cancellationToken);
+    /// <summary>
+    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<MessageVersion> AddVersionAsync(Guid messageId, Guid branchId, MessageVersionKind kind, string content, string? metadataJson, bool makeCurrent, CancellationToken cancellationToken) => inner.AddVersionAsync(messageId, branchId, kind, content, metadataJson, makeCurrent, cancellationToken);
+    /// <summary>
+    /// Performs replace message content async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task ReplaceMessageContentAsync(Guid messageId, string content, string? metadataJson, CancellationToken cancellationToken) => inner.ReplaceMessageContentAsync(messageId, content, metadataJson, cancellationToken);
+    /// <summary>
+    /// Performs remove branch messages after async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task RemoveBranchMessagesAfterAsync(Guid branchId, Guid messageId, CancellationToken cancellationToken) => inner.RemoveBranchMessagesAfterAsync(branchId, messageId, cancellationToken);
+    /// <summary>
+    /// Retrieves attachments async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<MessageAttachment>> GetAttachmentsAsync(Guid conversationId, Guid? messageId, CancellationToken cancellationToken) => inner.GetAttachmentsAsync(conversationId, messageId, cancellationToken);
+    /// <summary>
+    /// Performs upsert attachment async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<MessageAttachment> UpsertAttachmentAsync(MessageAttachment attachment, CancellationToken cancellationToken) => inner.UpsertAttachmentAsync(attachment, cancellationToken);
+    /// <summary>
+    /// Performs delete attachment async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAttachmentAsync(Guid attachmentId, CancellationToken cancellationToken) => inner.DeleteAttachmentAsync(attachmentId, cancellationToken);
+    /// <summary>
+    /// Retrieves draft async for the current operation.
+    /// </summary>
     public Task<ConversationDraft?> GetDraftAsync(Guid conversationId, Guid? branchId, CancellationToken cancellationToken) => inner.GetDraftAsync(conversationId, branchId, cancellationToken);
+    /// <summary>
+    /// Performs save draft async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SaveDraftAsync(ConversationDraft draft, CancellationToken cancellationToken) => inner.SaveDraftAsync(draft, cancellationToken);
+    /// <summary>
+    /// Performs delete draft async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteDraftAsync(Guid conversationId, Guid? branchId, CancellationToken cancellationToken) => inner.DeleteDraftAsync(conversationId, branchId, cancellationToken);
+    /// <summary>
+    /// Retrieves bookmarks async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<MessageBookmark>> GetBookmarksAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetBookmarksAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Performs upsert bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task UpsertBookmarkAsync(MessageBookmark bookmark, CancellationToken cancellationToken) => inner.UpsertBookmarkAsync(bookmark, cancellationToken);
+    /// <summary>
+    /// Performs delete bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteBookmarkAsync(Guid bookmarkId, CancellationToken cancellationToken) => inner.DeleteBookmarkAsync(bookmarkId, cancellationToken);
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<ConversationSearchResult>> SearchAsync(string query, Guid? conversationId, int limit, CancellationToken cancellationToken) => inner.SearchAsync(query, conversationId, limit, cancellationToken);
+    /// <summary>
+    /// Retrieves active share async for the current operation.
+    /// </summary>
     public Task<SharedSession?> GetActiveShareAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetActiveShareAsync(conversationId, cancellationToken);
+    /// <summary>
+    /// Performs upsert share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task UpsertShareAsync(SharedSession session, CancellationToken cancellationToken) => inner.UpsertShareAsync(session, cancellationToken);
+    /// <summary>
+    /// Performs stop share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopShareAsync(Guid shareId, DateTimeOffset stoppedAt, CancellationToken cancellationToken) => inner.StopShareAsync(shareId, stoppedAt, cancellationToken);
+    /// <summary>
+    /// Builds export async from the currently available inputs.
+    /// </summary>
     public Task<ConversationExportDocument> BuildExportAsync(Guid conversationId, CancellationToken cancellationToken) => inner.BuildExportAsync(conversationId, cancellationToken);
 
+    /// <summary>
+    /// Performs load branch messages async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<BranchMessageRow>> LoadBranchMessagesAsync(Guid branchId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -146,6 +233,9 @@ public sealed class SafeConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs clear current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ClearCurrentAsync(SqliteConnection connection, SqliteTransaction transaction, Guid conversationId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -155,6 +245,9 @@ public sealed class SafeConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertBranchAsync(SqliteConnection connection, SqliteTransaction transaction, ConversationBranch branch, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -175,6 +268,9 @@ public sealed class SafeConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert branch message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertBranchMessageAsync(SqliteConnection connection, SqliteTransaction transaction, Guid branchId, Guid messageId, int sequence, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -186,6 +282,9 @@ public sealed class SafeConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert initial version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertInitialVersionAsync(SqliteConnection connection, SqliteTransaction transaction, Guid branchId, ChatMessage message, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -203,6 +302,9 @@ public sealed class SafeConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert turn async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertTurnAsync(SqliteConnection connection, SqliteTransaction transaction, ConversationTurn turn, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -221,5 +323,8 @@ public sealed class SafeConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Represents branch message row and keeps its related state and behavior together.
+    /// </summary>
     private sealed record BranchMessageRow(Guid MessageId, int Sequence);
 }

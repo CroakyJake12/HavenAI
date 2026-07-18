@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Automations/AutomationDeliveryOutbox.cs, in the Automations layer, which parses schedules and runs durable background actions.
+ * What: This file owns AutomationDeliveryOutbox. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -10,12 +19,21 @@ namespace Haven.Automations;
 /// </summary>
 public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
 
+    /// <summary>
+    /// Stores path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _path;
+    /// <summary>
+    /// Stores lock path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _lockPath;
 
     public AutomationDeliveryOutbox(IAppPaths paths)
@@ -26,6 +44,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         _lockPath = Path.Combine(paths.DataDirectory, "automation-deliveries.lock");
     }
 
+    /// <summary>
+    /// Performs enqueue async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task EnqueueAsync(
         AutomationDelivery delivery,
         CancellationToken cancellationToken)
@@ -40,6 +61,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         await WriteUnsafeAsync(existing, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs drain async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<AutomationDelivery>> DrainAsync(
         CancellationToken cancellationToken)
     {
@@ -50,6 +74,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         return existing.OrderBy(item => item.CreatedAt).ToArray();
     }
 
+    /// <summary>
+    /// Performs acquire lock async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<FileStream> AcquireLockAsync(CancellationToken cancellationToken)
     {
         IOException? lastError = null;
@@ -75,6 +102,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         throw new IOException("The automation delivery outbox remained locked by another Haven process.", lastError);
     }
 
+    /// <summary>
+    /// Performs read unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<List<AutomationDelivery>> ReadUnsafeAsync(
         CancellationToken cancellationToken)
     {
@@ -101,6 +131,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         }
     }
 
+    /// <summary>
+    /// Performs write unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task WriteUnsafeAsync(
         IReadOnlyList<AutomationDelivery> deliveries,
         CancellationToken cancellationToken)
@@ -139,6 +172,9 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
         }
     }
 
+    /// <summary>
+    /// Performs the quarantine corrupt file step owned by this component.
+    /// </summary>
     private void QuarantineCorruptFile()
     {
         try

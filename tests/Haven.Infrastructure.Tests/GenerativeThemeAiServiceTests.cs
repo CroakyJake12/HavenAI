@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/GenerativeThemeAiServiceTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeThemeAiServiceTests, FakeOllamaClient, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -6,10 +15,19 @@ using Xunit;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents generative theme ai service tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeThemeAiServiceTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the valid model proposal becomes previewable but is not persisted step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ValidModelProposalBecomesPreviewableButIsNotPersisted()
     {
@@ -74,6 +92,9 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_paths.DataDirectory, "GenerativeUi", "Themes")));
     }
 
+    /// <summary>
+    /// Performs the arbitrary model control is rejected and audited step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ArbitraryModelControlIsRejectedAndAudited()
     {
@@ -106,6 +127,9 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         Assert.Contains(events, item => item.EventName == "ai-proposal-rejected");
     }
 
+    /// <summary>
+    /// Performs the malformed model json is rejected without persistence step owned by this component.
+    /// </summary>
     [Fact]
     public async Task MalformedModelJsonIsRejectedWithoutPersistence()
     {
@@ -124,6 +148,9 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_paths.DataDirectory, "GenerativeUi")));
     }
 
+    /// <summary>
+    /// Performs the safe mode blocks theme model before calling provider step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SafeModeBlocksThemeModelBeforeCallingProvider()
     {
@@ -146,12 +173,18 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         RuntimeSafetyState.DisableSafeMode();
         _paths.Dispose();
     }
 
+    /// <summary>
+    /// Performs the valid theme step owned by this component.
+    /// </summary>
     private static GenerativeThemePack ValidTheme()
     {
         var now = DateTimeOffset.UtcNow;
@@ -173,6 +206,9 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             []);
     }
 
+    /// <summary>
+    /// Performs the palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette Palette(bool light, string background, string accent) => new(
         background,
         light ? "#FFF7F9FC" : "#FF182129",
@@ -201,16 +237,31 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
         light ? "#FFE7EBF0" : "#20FFFFFF",
         "#A060CDFF");
 
+    /// <summary>
+    /// Represents fake ollama client and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeOllamaClient(string response) : IOllamaClient
     {
+        /// <summary>
+        /// Gets or updates complete calls, the bindable or domain state represented by this property.
+        /// </summary>
         public int CompleteCalls { get; private set; }
 
+        /// <summary>
+        /// Reports whether is available async is true for the current state.
+        /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) =>
             Task.FromResult(true);
 
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
 
+        /// <summary>
+        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -219,6 +270,9 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             yield break;
         }
 
+        /// <summary>
+        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CompleteAsync(
             OllamaChatRequest request,
             CancellationToken cancellationToken)
@@ -227,21 +281,33 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             return Task.FromResult(response);
         }
 
+        /// <summary>
+        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(
             OllamaToolRequest request,
             CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Empty, []));
 
+        /// <summary>
+        /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task PullModelAsync(
             string model,
             IProgress<double>? progress,
             CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
+        /// <summary>
+        /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteModelAsync(string model, CancellationToken cancellationToken) =>
             Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -258,13 +324,34 @@ public sealed class GenerativeThemeAiServiceTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns WindowsNaturalSpeechOutputService, PlaybackState. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Windows.Media.Core;
@@ -12,9 +21,21 @@ namespace Haven.Desktop.Services;
 /// </summary>
 public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IAsyncDisposable
 {
+    /// <summary>
+    /// Stores utterance gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _utteranceGate = new(1, 1);
+    /// <summary>
+    /// Stores state gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly object _stateGate = new();
+    /// <summary>
+    /// Stores current locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private PlaybackState? _current;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public bool IsAvailable
@@ -27,12 +48,18 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         }
     }
 
+    /// <summary>
+    /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string? UnavailableReason => IsAvailable
         ? null
         : OperatingSystem.IsWindows()
             ? "No modern Windows speech voices are installed. Add a Windows language speech pack."
             : "Modern Windows speech synthesis requires Windows.";
 
+    /// <summary>
+    /// Gets or updates devices, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<CallAudioDevice> Devices { get; } =
         [new CallAudioDevice("default", "Windows default output", true)];
 
@@ -62,6 +89,9 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         }
     }
 
+    /// <summary>
+    /// Performs speak async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SpeakAsync(
         string text,
         string? voiceName,
@@ -141,6 +171,9 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         }
     }
 
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -149,6 +182,9 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the stop current step owned by this component.
+    /// </summary>
     private void StopCurrent()
     {
         PlaybackState? state;
@@ -160,6 +196,9 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         state?.Cancel();
     }
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
@@ -171,16 +210,43 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Represents playback state and keeps its related state and behavior together.
+    /// </summary>
     private sealed class PlaybackState : IDisposable
     {
+        /// <summary>
+        /// Stores synthesizer locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly SpeechSynthesizer _synthesizer;
+        /// <summary>
+        /// Stores stream locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly SpeechSynthesisStream _stream;
+        /// <summary>
+        /// Stores source locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly MediaSource _source;
+        /// <summary>
+        /// Stores player locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly MediaPlayer _player;
+        /// <summary>
+        /// Stores playback cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly CancellationTokenSource _playbackCancellation;
+        /// <summary>
+        /// Stores registration locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private readonly CancellationTokenRegistration _registration;
+        /// <summary>
+        /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private int _disposed;
 
+        /// <summary>
+        /// Gets or updates completion, the bindable or domain state represented by this property.
+        /// </summary>
         public TaskCompletionSource Completion { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -202,6 +268,9 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
             _player.MediaFailed += OnFailed;
         }
 
+        /// <summary>
+        /// Reports whether cancel is true for the current state.
+        /// </summary>
         public void Cancel()
         {
             try { _playbackCancellation.Cancel(); }
@@ -214,12 +283,21 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
             catch (ObjectDisposedException) { }
         }
 
+        /// <summary>
+        /// Handles the ended event raised by the UI or runtime.
+        /// </summary>
         private void OnEnded(MediaPlayer sender, object args) => Completion.TrySetResult();
 
+        /// <summary>
+        /// Handles the failed event raised by the UI or runtime.
+        /// </summary>
         private void OnFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args) =>
             Completion.TrySetException(new InvalidOperationException(
                 "Windows speech playback failed: " + args.ErrorMessage));
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

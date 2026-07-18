@@ -1,13 +1,28 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ConversationProductionRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ConversationProductionRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents conversation production repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationProductionRepository(
     ISqliteConnectionFactory factory,
     IConversationRepository conversations) : IConversationProductionRepository
 {
+    /// <summary>
+    /// Performs ensure root branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationBranch> EnsureRootBranchAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -80,6 +95,9 @@ public sealed class ConversationProductionRepository(
         return branch;
     }
 
+    /// <summary>
+    /// Retrieves branches async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationBranch>> GetBranchesAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -90,6 +108,9 @@ public sealed class ConversationProductionRepository(
         return await ReadBranchesAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves current branch async for the current operation.
+    /// </summary>
     public async Task<ConversationBranch?> GetCurrentBranchAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -97,6 +118,9 @@ public sealed class ConversationProductionRepository(
         return await ReadCurrentBranchAsync(connection, null, conversationId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Creates branch async with the invariants required by its callers.
+    /// </summary>
     public async Task<ConversationBranch> CreateBranchAsync(
         Guid conversationId,
         Guid parentBranchId,
@@ -177,6 +201,9 @@ public sealed class ConversationProductionRepository(
         return branch;
     }
 
+    /// <summary>
+    /// Performs set current branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SetCurrentBranchAsync(Guid conversationId, Guid branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -194,6 +221,9 @@ public sealed class ConversationProductionRepository(
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves turns async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationTurn>> GetTurnsAsync(Guid conversationId, Guid branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -216,6 +246,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<MessageVersion>> GetVersionsAsync(Guid messageId, Guid branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -227,6 +260,9 @@ public sealed class ConversationProductionRepository(
         return await ReadVersionsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves current version async for the current operation.
+    /// </summary>
     public async Task<MessageVersion?> GetCurrentVersionAsync(Guid messageId, Guid branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -251,6 +287,9 @@ public sealed class ConversationProductionRepository(
         return null;
     }
 
+    /// <summary>
+    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<MessageVersion> AddVersionAsync(
         Guid messageId,
         Guid branchId,
@@ -287,6 +326,9 @@ public sealed class ConversationProductionRepository(
         return version;
     }
 
+    /// <summary>
+    /// Performs replace message content async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ReplaceMessageContentAsync(Guid messageId, string content, string? metadataJson, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -300,6 +342,9 @@ public sealed class ConversationProductionRepository(
             throw new InvalidOperationException("The message no longer exists.");
     }
 
+    /// <summary>
+    /// Performs remove branch messages after async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RemoveBranchMessagesAfterAsync(Guid branchId, Guid messageId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -339,6 +384,9 @@ public sealed class ConversationProductionRepository(
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves attachments async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<MessageAttachment>> GetAttachmentsAsync(Guid conversationId, Guid? messageId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -352,6 +400,9 @@ public sealed class ConversationProductionRepository(
         return await ReadAttachmentsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert attachment async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<MessageAttachment> UpsertAttachmentAsync(MessageAttachment attachment, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -370,6 +421,9 @@ public sealed class ConversationProductionRepository(
         return attachment;
     }
 
+    /// <summary>
+    /// Performs delete attachment async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAttachmentAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -380,6 +434,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves draft async for the current operation.
+    /// </summary>
     public async Task<ConversationDraft?> GetDraftAsync(Guid conversationId, Guid? branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -401,6 +458,9 @@ public sealed class ConversationProductionRepository(
             : null;
     }
 
+    /// <summary>
+    /// Performs save draft async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SaveDraftAsync(ConversationDraft draft, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -419,6 +479,9 @@ public sealed class ConversationProductionRepository(
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete draft async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteDraftAsync(Guid conversationId, Guid? branchId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -426,6 +489,9 @@ public sealed class ConversationProductionRepository(
         await DeleteDraftCoreAsync(connection, null, conversationId, branchId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves bookmarks async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<MessageBookmark>> GetBookmarksAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -446,6 +512,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertBookmarkAsync(MessageBookmark bookmark, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -465,6 +534,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteBookmarkAsync(Guid bookmarkId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -475,6 +547,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationSearchResult>> SearchAsync(string query, Guid? conversationId, int limit, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(query)) return [];
@@ -510,6 +585,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Retrieves active share async for the current operation.
+    /// </summary>
     public async Task<SharedSession?> GetActiveShareAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -522,6 +600,9 @@ public sealed class ConversationProductionRepository(
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadShare(reader) : null;
     }
 
+    /// <summary>
+    /// Performs upsert share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertShareAsync(SharedSession session, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -544,6 +625,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs stop share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StopShareAsync(Guid shareId, DateTimeOffset stoppedAt, CancellationToken cancellationToken)
     {
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
@@ -555,6 +639,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Builds export async from the currently available inputs.
+    /// </summary>
     public async Task<ConversationExportDocument> BuildExportAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var conversation = await conversations.GetAsync(conversationId, cancellationToken).ConfigureAwait(false)
@@ -577,9 +664,15 @@ public sealed class ConversationProductionRepository(
         return new ConversationExportDocument(conversation, branches, messages, versions, attachments, bookmarks, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Performs ensure schema async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EnsureSchemaAsync(CancellationToken cancellationToken) =>
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs read current branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<ConversationBranch?> ReadCurrentBranchAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -594,6 +687,9 @@ public sealed class ConversationProductionRepository(
         return rows.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Performs read branches async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<ConversationBranch>> ReadBranchesAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<ConversationBranch>();
@@ -612,6 +708,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs read versions async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<MessageVersion>> ReadVersionsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<MessageVersion>();
@@ -630,6 +729,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs read attachments async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<MessageAttachment>> ReadAttachmentsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<MessageAttachment>();
@@ -655,6 +757,9 @@ public sealed class ConversationProductionRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs insert branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertBranchAsync(SqliteConnection connection, SqliteTransaction transaction, ConversationBranch branch, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -675,6 +780,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs set all branches not current async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task SetAllBranchesNotCurrentAsync(SqliteConnection connection, SqliteTransaction transaction, Guid conversationId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -684,6 +792,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert branch message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertBranchMessageAsync(SqliteConnection connection, SqliteTransaction transaction, Guid branchId, Guid messageId, int sequence, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -695,6 +806,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert initial version if missing async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertInitialVersionIfMissingAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -720,6 +834,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertVersionAsync(SqliteConnection connection, SqliteTransaction transaction, MessageVersion version, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -740,6 +857,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert turn async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertTurnAsync(SqliteConnection connection, SqliteTransaction transaction, ConversationTurn turn, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -758,6 +878,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs are turn messages mapped async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<bool> AreTurnMessagesMappedAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -779,6 +902,9 @@ public sealed class ConversationProductionRepository(
         return true;
     }
 
+    /// <summary>
+    /// Performs the add attachment parameters step owned by this component.
+    /// </summary>
     private static void AddAttachmentParameters(SqliteCommand command, MessageAttachment attachment)
     {
         command.Parameters.AddWithValue("$id", attachment.Id.ToString());
@@ -799,6 +925,9 @@ public sealed class ConversationProductionRepository(
         command.Parameters.AddWithValue("$updatedAt", attachment.UpdatedAt.ToString("O"));
     }
 
+    /// <summary>
+    /// Performs delete draft core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task DeleteDraftCoreAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -816,6 +945,9 @@ public sealed class ConversationProductionRepository(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the read share step owned by this component.
+    /// </summary>
     private static SharedSession ReadShare(SqliteDataReader reader) => new(
         Guid.Parse(reader.GetString(reader.GetOrdinal("id"))),
         Guid.Parse(reader.GetString(reader.GetOrdinal("conversation_id"))),
@@ -827,14 +959,23 @@ public sealed class ConversationProductionRepository(
         DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("expires_at")), System.Globalization.CultureInfo.InvariantCulture),
         reader.IsDBNull(reader.GetOrdinal("stopped_at")) ? null : DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("stopped_at")), System.Globalization.CultureInfo.InvariantCulture));
 
+    /// <summary>
+    /// Performs the read nullable guid step owned by this component.
+    /// </summary>
     private static Guid? ReadNullableGuid(SqliteDataReader reader, string name)
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : Guid.Parse(reader.GetString(ordinal));
     }
 
+    /// <summary>
+    /// Performs the escape like step owned by this component.
+    /// </summary>
     private static string EscapeLike(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Builds snippet from the currently available inputs.
+    /// </summary>
     private static string BuildSnippet(string content, string query)
     {
         const int radius = 90;

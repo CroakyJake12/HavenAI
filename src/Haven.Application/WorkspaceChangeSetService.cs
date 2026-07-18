@@ -1,19 +1,52 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/WorkspaceChangeSetService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns WorkspaceChangeSetEntry, WorkspaceChangePreview, WorkspaceAppliedChange, WorkspaceChangeSetResult, WorkspaceChangeSetService, PreparedChange. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents workspace change set entry and keeps its related state and behavior together.
+/// </summary>
 public sealed record WorkspaceChangeSetEntry(string Path, string Content, string? ExpectedSha256);
+/// <summary>
+/// Represents workspace change preview and keeps its related state and behavior together.
+/// </summary>
 public sealed record WorkspaceChangePreview(string Path, bool Existed, string BeforeSha256, string AfterSha256, int LinesAdded, int LinesRemoved);
+/// <summary>
+/// Represents workspace applied change and keeps its related state and behavior together.
+/// </summary>
 public sealed record WorkspaceAppliedChange(string Path, string Before, string After, int LinesAdded, int LinesRemoved);
+/// <summary>
+/// Represents workspace change set result and keeps its related state and behavior together.
+/// </summary>
 public sealed record WorkspaceChangeSetResult(IReadOnlyList<WorkspaceAppliedChange> Changes, string Summary);
 
+/// <summary>
+/// Represents workspace change set service and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
 {
+    /// <summary>
+    /// Stores max entries locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaxEntries = 50;
+    /// <summary>
+    /// Stores max content characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaxContentCharacters = 2_000_000;
 
+    /// <summary>
+    /// Performs preview async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<WorkspaceChangePreview>> PreviewAsync(
         string workspaceRoot,
         string changesJson,
@@ -29,6 +62,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
             item.LinesRemoved)).ToArray();
     }
 
+    /// <summary>
+    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<WorkspaceChangeSetResult> ApplyAsync(
         string workspaceRoot,
         string changesJson,
@@ -63,6 +99,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
             $"Applied {changes.Length} workspace file change{(changes.Length == 1 ? string.Empty : "s")} transactionally (+{added}/-{removed} lines)." );
     }
 
+    /// <summary>
+    /// Performs prepare async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<PreparedChange>> PrepareAsync(
         string workspaceRoot,
         string changesJson,
@@ -104,6 +143,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
         return prepared;
     }
 
+    /// <summary>
+    /// Performs roll back async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RollBackAsync(string workspaceRoot, IReadOnlyList<PreparedChange> applied)
     {
         List<Exception>? failures = null;
@@ -126,6 +168,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
             throw new AggregateException("The change set failed and one or more rollback operations also failed.", failures);
     }
 
+    /// <summary>
+    /// Performs the parse step owned by this component.
+    /// </summary>
     private static IReadOnlyList<WorkspaceChangeSetEntry> Parse(string json)
     {
         if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("changes_json is required.");
@@ -151,6 +196,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
         return entries;
     }
 
+    /// <summary>
+    /// Performs the sha256 step owned by this component.
+    /// </summary>
     private static string Sha256(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
     private static (int Added, int Removed) CountLineChanges(string before, string after)
@@ -165,6 +213,9 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
         return (Math.Max(0, newLines.Length - prefix - suffix), Math.Max(0, oldLines.Length - prefix - suffix));
     }
 
+    /// <summary>
+    /// Represents prepared change and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PreparedChange(
         WorkspaceChangeSetEntry Entry,
         string ResolvedPath,

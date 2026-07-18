@@ -1,14 +1,30 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.GenerativeUiThemeSelectorView. Its visual vocabulary includes: UserControl.Resources, NonEmptyStringToBoolConverter, PositiveCountToBoolConverter, StackPanel, Border, Grid, TextBlock, Button, ComboBox, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate, Button.ContextMenu, ContextMenu, MenuItem, Separator, TextBox, ProgressBar, TabControl, TabItem, ComboBox.ItemTemplate, ScrollViewer, NumericUpDown, CheckBox, ThemePaletteEditorView.
+  Data flow: Binding expressions read or update these view-model paths: ImportRequestedCommand, CreateWithStudioCommand, Appearances, SelectedAppearance, Themes, ApplyCommand, EditCommand, DuplicateCommand, RenameCommand, IsCustom, ExportCommand, DeleteCommand, Name, OriginLabel, IsActive, LightPreview, DarkPreview, AccentPreview, Description, PagesLabel, IsRenaming, RenameText, CancelRenameCommand, ConfirmRenameCommand, IsDeleteConfirming, DeleteCandidate.Name, CancelDeleteCommand, ConfirmDeleteCommand, IsStudioOpen, IsBusy, StudioTabIndex, Models, SelectedModel, RefreshCommand, AiPrompt, GenerateWithAiCommand, ProposalSummary, ProposalChanges, StringFormat, DraftName, DraftAuthor, DraftDescription, DraftFontFamily, DraftBaseFontSize, DraftHeadingScale, DraftLetterSpacing, DraftControlRadius, DraftCardRadius, DraftSurfaceRadius, DraftSpacingScale, DraftShowCardBorders, DraftUseAcrylic, LightPalette, DarkPalette, Placements, DisplayName, AllowedRegions, Region, Order, Presentation, IsVisible, CanHide, AddShortcutPageCommand, AddTimerPageCommand, Pages, Title, WidgetSummary, SafetyNotes.Count, SafetyNotes, Status, CancelStudioCommand, PreviewManualCommand, SaveAndApplyCommand.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:Haven.Desktop.Views"
              xmlns:converters="using:Haven.Desktop.Converters"
              x:Class="Haven.Desktop.Views.GenerativeUiThemeSelectorView">
+  <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <UserControl.Resources>
+    <!-- Section: Hosts the NonEmptyStringToBoolConverter portion of this view at this position in the visual tree. -->
     <converters:NonEmptyStringToBoolConverter x:Key="NonEmptyString" />
+    <!-- Section: Hosts the PositiveCountToBoolConverter portion of this view at this position in the visual tree. -->
     <converters:PositiveCountToBoolConverter x:Key="PositiveCount" />
   </UserControl.Resources>
 
+  <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
   <StackPanel Spacing="14">
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Classes="card">
       <StackPanel Spacing="12">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -83,6 +99,7 @@
       </StackPanel>
     </Border>
 
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Classes="card" IsVisible="{Binding IsStudioOpen}">
       <StackPanel Spacing="12">
         <Grid ColumnDefinitions="*,Auto">

@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ConversationMoveRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ConversationMoveRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents conversation move repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationMoveRepository(ISqliteConnectionFactory factory) : IConversationMoveRepository
 {
+    /// <summary>
+    /// Performs record move async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RecordMoveAsync(ConversationMove move, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -26,6 +41,9 @@ public sealed class ConversationMoveRepository(ISqliteConnectionFactory factory)
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves moves async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationMove>> GetMovesAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);

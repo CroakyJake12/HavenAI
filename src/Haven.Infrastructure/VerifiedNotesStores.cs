@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/VerifiedNotesStores.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns VerifiedNotesRepository, NotesIntegrityManifest, SecureNotesAttachmentStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text.Json;
 using Haven.Application;
@@ -5,18 +14,36 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents verified notes repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class VerifiedNotesRepository(
     NotesRepository inner,
     IAppPaths paths,
     IProductionDiagnostics diagnostics) : INotesRepository
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Documents");
 
+    /// <summary>
+    /// Performs list async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken) =>
         inner.ListAsync(cancellationToken);
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> LoadAsync(Guid documentId, CancellationToken cancellationToken)
     {
         var document = await inner.LoadAsync(documentId, cancellationToken).ConfigureAwait(false);
@@ -75,6 +102,9 @@ public sealed class VerifiedNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesSaveResult> SaveAsync(
         NotesDocument document,
         string reason,
@@ -102,31 +132,52 @@ public sealed class VerifiedNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(documentId, cancellationToken);
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<NotesVersionInfo>> GetVersionsAsync(
         Guid documentId,
         CancellationToken cancellationToken) =>
         inner.GetVersionsAsync(documentId, cancellationToken);
 
+    /// <summary>
+    /// Performs load version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<NotesDocument?> LoadVersionAsync(
         Guid documentId,
         string versionId,
         CancellationToken cancellationToken) =>
         inner.LoadVersionAsync(documentId, versionId, cancellationToken);
 
+    /// <summary>
+    /// Performs recover latest async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<NotesDocument?> RecoverLatestAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.RecoverLatestAsync(documentId, cancellationToken);
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<NotesSearchHit>> SearchAsync(
         string query,
         CancellationToken cancellationToken) =>
         inner.SearchAsync(query, cancellationToken);
 
+    /// <summary>
+    /// Performs the manifest path step owned by this component.
+    /// </summary>
     private string ManifestPath(Guid documentId) =>
         Path.Combine(_root, documentId.ToString("D"), "current.integrity.json");
 
+    /// <summary>
+    /// Performs read manifest async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<NotesIntegrityManifest?> ReadManifestAsync(
         string path,
         CancellationToken cancellationToken)
@@ -144,6 +195,9 @@ public sealed class VerifiedNotesRepository(
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs write manifest atomic async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteManifestAtomicAsync(
         string path,
         NotesIntegrityManifest manifest,
@@ -178,6 +232,9 @@ public sealed class VerifiedNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeSha256Async(
         string path,
         CancellationToken cancellationToken)
@@ -194,6 +251,9 @@ public sealed class VerifiedNotesRepository(
             .ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try
@@ -205,6 +265,9 @@ public sealed class VerifiedNotesRepository(
         }
     }
 
+    /// <summary>
+    /// Represents notes integrity manifest and keeps its related state and behavior together.
+    /// </summary>
     private sealed record NotesIntegrityManifest(
         int Version,
         Guid DocumentId,
@@ -213,22 +276,37 @@ public sealed class VerifiedNotesRepository(
         long SizeBytes,
         DateTimeOffset CreatedAt)
     {
+        /// <summary>
+        /// Gets or updates version number, the bindable or domain state represented by this property.
+        /// </summary>
         public long VersionNumber => DocumentVersion;
     }
 }
 
+/// <summary>
+/// Represents secure notes attachment store and keeps its related state and behavior together.
+/// </summary>
 public sealed class SecureNotesAttachmentStore(
     NotesAttachmentStore inner,
     IAppPaths paths) : INotesAttachmentStore
 {
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.GetFullPath(
         Path.Combine(paths.DataDirectory, "Notes", "Attachments"));
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<NotesMediaData> ImportAsync(
         string sourcePath,
         CancellationToken cancellationToken) =>
         inner.ImportAsync(sourcePath, cancellationToken);
 
+    /// <summary>
+    /// Performs resolve path async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ResolvePathAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -249,6 +327,9 @@ public sealed class SecureNotesAttachmentStore(
             : Task.FromResult(match);
     }
 
+    /// <summary>
+    /// Performs delete unreferenced async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteUnreferencedAsync(
         IReadOnlyCollection<Guid> referencedAttachmentIds,
         CancellationToken cancellationToken) =>

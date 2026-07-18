@@ -1,8 +1,20 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/CodeIntelligenceAbstractions.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ILanguageServerConfigurationStore, ILanguageServerClientFactory, ILanguageServerClient, LanguageServerTextEdit, ICodeIntelligenceService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Defines the i language server configuration store contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ILanguageServerConfigurationStore
 {
     Task<IReadOnlyList<LanguageServerDefinition>> GetAllAsync(CancellationToken cancellationToken);
@@ -11,6 +23,9 @@ public interface ILanguageServerConfigurationStore
     Task DeleteAsync(string id, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i language server client factory contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ILanguageServerClientFactory
 {
     Task<ILanguageServerClient> StartAsync(
@@ -19,6 +34,9 @@ public interface ILanguageServerClientFactory
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i language server client contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ILanguageServerClient : IAsyncDisposable
 {
     string ServerId { get; }
@@ -45,8 +63,14 @@ public interface ILanguageServerClient : IAsyncDisposable
     Task ShutdownAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents language server text edit and keeps its related state and behavior together.
+/// </summary>
 public sealed record LanguageServerTextEdit(CodeRange Range, string NewText);
 
+/// <summary>
+/// Defines the i code intelligence service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICodeIntelligenceService
 {
     Task<CodeIntelligenceStatus> GetStatusAsync(

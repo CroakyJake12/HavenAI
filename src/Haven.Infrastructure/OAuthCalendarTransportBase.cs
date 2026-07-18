@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/OAuthCalendarTransportBase.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns OAuthCalendarTransportBase, CalendarHttpException. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Net;
@@ -10,6 +19,9 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents o auth calendar transport base and keeps its related state and behavior together.
+/// </summary>
 public abstract class OAuthCalendarTransportBase(
     CalendarProviderConfiguration configuration,
     IHttpClientFactory httpClientFactory,
@@ -17,17 +29,44 @@ public abstract class OAuthCalendarTransportBase(
     ICalendarSyncStore store,
     ICalendarTokenStore tokenStore) : ICalendarProviderTransport
 {
+    /// <summary>
+    /// Gets or updates client, the bindable or domain state represented by this property.
+    /// </summary>
     protected HttpClient Client => httpClientFactory.CreateClient("HavenCalendarSync");
+    /// <summary>
+    /// Gets or updates repository, the bindable or domain state represented by this property.
+    /// </summary>
     protected IPlannerRepository Repository => repository;
+    /// <summary>
+    /// Gets or updates store, the bindable or domain state represented by this property.
+    /// </summary>
     protected ICalendarSyncStore Store => store;
+    /// <summary>
+    /// Gets or updates configuration, the bindable or domain state represented by this property.
+    /// </summary>
     protected CalendarProviderConfiguration Configuration => configuration;
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public CalendarProviderKind Kind => configuration.Provider;
 
+    /// <summary>
+    /// Gets or updates authorization endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected abstract Uri AuthorizationEndpoint { get; }
+    /// <summary>
+    /// Gets or updates token endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected abstract Uri TokenEndpoint { get; }
     protected abstract Task<(string Identifier, string DisplayName)> GetIdentityAsync(string accessToken, CancellationToken cancellationToken);
+    /// <summary>
+    /// Performs sync core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     protected abstract Task<CalendarSyncResult> SyncCoreAsync(CalendarAccount account, CalendarTokenEnvelope token, CalendarSyncRequest request, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<CalendarAuthorizationResult> ConnectAsync(CalendarProviderConfiguration suppliedConfiguration, CancellationToken cancellationToken)
     {
         if (!ReferenceEquals(suppliedConfiguration, configuration) && suppliedConfiguration.Provider != Kind)
@@ -79,6 +118,9 @@ public abstract class OAuthCalendarTransportBase(
         }
     }
 
+    /// <summary>
+    /// Performs sync async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<CalendarSyncResult> SyncAsync(CalendarSyncRequest request, CancellationToken cancellationToken)
     {
         var account = (await repository.GetCalendarAccountsAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(item => item.Id == request.AccountId && item.Provider == Kind);
@@ -130,6 +172,9 @@ public abstract class OAuthCalendarTransportBase(
         }
     }
 
+    /// <summary>
+    /// Performs disconnect async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DisconnectAsync(Guid accountId, CancellationToken cancellationToken)
     {
         await tokenStore.DeleteAsync(accountId, cancellationToken).ConfigureAwait(false);
@@ -138,6 +183,9 @@ public abstract class OAuthCalendarTransportBase(
             await repository.UpsertCalendarAccountAsync(account with { Status = CalendarSyncStatus.Disconnected, StatusMessage = "Disconnected", UpdatedAt = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves json async for the current operation.
+    /// </summary>
     protected async Task<JsonDocument> GetJsonAsync(Uri uri, string accessToken, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
@@ -145,6 +193,9 @@ public abstract class OAuthCalendarTransportBase(
         return await SendJsonAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs send json async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     protected async Task<JsonDocument> SendJsonAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -154,6 +205,9 @@ public abstract class OAuthCalendarTransportBase(
         return JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
     }
 
+    /// <summary>
+    /// Performs drain outbox async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     protected async Task DrainOutboxAsync(CalendarAccount account, CalendarTokenEnvelope token, Func<CalendarOutboxItem, PlannerEvent, string, CancellationToken, Task> apply,
         CancellationToken cancellationToken)
     {
@@ -176,6 +230,9 @@ public abstract class OAuthCalendarTransportBase(
         }
     }
 
+    /// <summary>
+    /// Builds authorization uri from the currently available inputs.
+    /// </summary>
     private Uri BuildAuthorizationUri(string state, string challenge)
     {
         var values = new Dictionary<string, string?>
@@ -193,6 +250,9 @@ public abstract class OAuthCalendarTransportBase(
         return WithQuery(AuthorizationEndpoint, values);
     }
 
+    /// <summary>
+    /// Performs exchange code async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<CalendarTokenEnvelope> ExchangeCodeAsync(string code, string verifier, CancellationToken cancellationToken)
     {
         var values = new Dictionary<string, string>
@@ -203,6 +263,9 @@ public abstract class OAuthCalendarTransportBase(
         return await RequestTokenAsync(values, null, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs refresh if needed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<CalendarTokenEnvelope> RefreshIfNeededAsync(Guid accountId, CalendarTokenEnvelope token, CancellationToken cancellationToken)
     {
         if (token.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(2)) return token;
@@ -216,6 +279,9 @@ public abstract class OAuthCalendarTransportBase(
         return refreshed;
     }
 
+    /// <summary>
+    /// Performs request token async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<CalendarTokenEnvelope> RequestTokenAsync(Dictionary<string, string> values, string? existingRefreshToken, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint) { Content = new FormUrlEncodedContent(values) };
@@ -228,6 +294,9 @@ public abstract class OAuthCalendarTransportBase(
         return new(accessToken, refreshToken, DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn)), scope);
     }
 
+    /// <summary>
+    /// Performs complete browser response async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task CompleteBrowserResponseAsync(HttpListenerResponse response, bool success, CancellationToken cancellationToken)
     {
         var html = success
@@ -240,22 +309,37 @@ public abstract class OAuthCalendarTransportBase(
         response.Close();
     }
 
+    /// <summary>
+    /// Performs the ensure listener prefix step owned by this component.
+    /// </summary>
     private static string EnsureListenerPrefix(Uri redirect)
     {
         var value = redirect.AbsoluteUri;
         return value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
     }
 
+    /// <summary>
+    /// Performs the with query step owned by this component.
+    /// </summary>
     protected static Uri WithQuery(Uri uri, IReadOnlyDictionary<string, string?> values)
     {
         var query = string.Join('&', values.Where(pair => pair.Value is not null).Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value!)}"));
         return new UriBuilder(uri) { Query = query }.Uri;
     }
 
+    /// <summary>
+    /// Performs the base64 url step owned by this component.
+    /// </summary>
     private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
 
+/// <summary>
+/// Represents calendar http exception and keeps its related state and behavior together.
+/// </summary>
 public sealed class CalendarHttpException(HttpStatusCode statusCode, string message) : HttpRequestException(message, null, statusCode)
 {
+    /// <summary>
+    /// Gets or updates calendar status code, the bindable or domain state represented by this property.
+    /// </summary>
     public HttpStatusCode CalendarStatusCode => statusCode;
 }

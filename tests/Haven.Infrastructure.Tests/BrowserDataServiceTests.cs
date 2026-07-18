@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/BrowserDataServiceTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserDataServiceTests, BrowserTestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Browser;
 using Haven.Core;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents browser data service tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserDataServiceTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserTestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the persists standard tabs bookmarks and history but not private state step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PersistsStandardTabsBookmarksAndHistoryButNotPrivateState()
     {
@@ -30,6 +48,9 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Equal(BrowserTabPrivacy.Standard, reloaded.Tabs[0].Privacy);
     }
 
+    /// <summary>
+    /// Performs the bookmark changes and vertical tab preference survive reload step owned by this component.
+    /// </summary>
     [Fact]
     public async Task BookmarkChangesAndVerticalTabPreferenceSurviveReload()
     {
@@ -57,6 +78,9 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.True(reloaded.Settings.VerticalTabs);
     }
 
+    /// <summary>
+    /// Performs the failed persistence rolls back the in memory mutation and cleans temporary files step owned by this component.
+    /// </summary>
     [Fact]
     public async Task FailedPersistenceRollsBackTheInMemoryMutationAndCleansTemporaryFiles()
     {
@@ -70,6 +94,9 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(_paths.DataDirectory, "browser-data.json.tmp-*"));
     }
 
+    /// <summary>
+    /// Performs the concurrent bookmark mutations are serialized without lost updates step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConcurrentBookmarkMutationsAreSerializedWithoutLostUpdates()
     {
@@ -86,6 +113,9 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Equal(24, reloaded.Bookmarks.Select(item => item.Address).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
+    /// <summary>
+    /// Performs the corrupt primary is quarantined and last valid backup is recovered step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CorruptPrimaryIsQuarantinedAndLastValidBackupIsRecovered()
     {
@@ -107,6 +137,9 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Single(Directory.EnumerateFiles(_paths.DataDirectory, "browser-data.json.corrupt-*"));
     }
 
+    /// <summary>
+    /// Performs the startup migration purges legacy private tabs and rejects unsupported future schema step owned by this component.
+    /// </summary>
     [Fact]
     public void StartupMigrationPurgesLegacyPrivateTabsAndRejectsUnsupportedFutureSchema()
     {
@@ -144,8 +177,14 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Single(Directory.EnumerateFiles(_paths.DataDirectory, "browser-data.json.corrupt-*"));
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents browser test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class BrowserTestPaths : IAppPaths, IDisposable
     {
         public BrowserTestPaths()
@@ -158,12 +197,33 @@ public sealed class BrowserDataServiceTests : IDisposable
             LogsDirectory = Path.Combine(DataDirectory, "logs");
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

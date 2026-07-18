@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/ProductionReliabilityTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns ProductionReliabilityTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.IO.Compression;
 using Haven.Application;
 using Haven.Infrastructure;
@@ -5,10 +14,19 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents production reliability tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProductionReliabilityTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the pre migration backup uses sqlite backup and produces verified manifest step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PreMigrationBackupUsesSqliteBackupAndProducesVerifiedManifest()
     {
@@ -37,6 +55,9 @@ public sealed class ProductionReliabilityTests : IDisposable
         Assert.Null(await maintenance.PrepareForMigrationAsync(10, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the integrity check reports foreign key corruption step owned by this component.
+    /// </summary>
     [Fact]
     public async Task IntegrityCheckReportsForeignKeyCorruption()
     {
@@ -62,6 +83,9 @@ public sealed class ProductionReliabilityTests : IDisposable
         Assert.Contains(health.ForeignKeyViolations, message => message.Contains("messages", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the rolling diagnostics redacts secrets urls and user profile step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RollingDiagnosticsRedactsSecretsUrlsAndUserProfile()
     {
@@ -96,6 +120,9 @@ public sealed class ProductionReliabilityTests : IDisposable
         Assert.DoesNotContain("another-secret", raw, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the repeated unclean starts enter safe mode and clean shutdown resets history step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RepeatedUncleanStartsEnterSafeModeAndCleanShutdownResetsHistory()
     {
@@ -131,6 +158,9 @@ public sealed class ProductionReliabilityTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the diagnostics bundle contains only redacted operational evidence step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DiagnosticsBundleContainsOnlyRedactedOperationalEvidence()
     {
@@ -167,12 +197,18 @@ public sealed class ProductionReliabilityTests : IDisposable
         RuntimeSafetyState.DisableSafeMode();
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         RuntimeSafetyState.DisableSafeMode();
         _paths.Dispose();
     }
 
+    /// <summary>
+    /// Creates connection with the invariants required by its callers.
+    /// </summary>
     private static SqliteConnection CreateConnection(string path, SqliteOpenMode mode) => new(new SqliteConnectionStringBuilder
     {
         DataSource = path,
@@ -181,6 +217,9 @@ public sealed class ProductionReliabilityTests : IDisposable
         ForeignKeys = true
     }.ToString());
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -195,13 +234,34 @@ public sealed class ProductionReliabilityTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

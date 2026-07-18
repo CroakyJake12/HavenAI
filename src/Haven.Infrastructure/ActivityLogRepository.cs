@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ActivityLogRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ActivityLogRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents activity log repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ActivityLogRepository(ISqliteConnectionFactory factory) : IActivityLogRepository
 {
+    /// <summary>
+    /// Retrieves recent async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ActivityEvent>> GetRecentAsync(int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -25,6 +40,9 @@ public sealed class ActivityLogRepository(ISqliteConnectionFactory factory) : IA
         return results;
     }
 
+    /// <summary>
+    /// Performs add event async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddEventAsync(ActivityEvent activityEvent, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);

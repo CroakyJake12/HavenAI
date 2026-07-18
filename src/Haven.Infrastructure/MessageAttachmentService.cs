@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/MessageAttachmentService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LocalMediaToolLocator, MessageAttachmentService, ProcessResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -9,8 +18,14 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents local media tool locator and keeps its related state and behavior together.
+/// </summary>
 public sealed class LocalMediaToolLocator : ILocalMediaToolLocator
 {
+    /// <summary>
+    /// Performs the find executable step owned by this component.
+    /// </summary>
     public string? FindExecutable(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;
@@ -34,11 +49,17 @@ public sealed class LocalMediaToolLocator : ILocalMediaToolLocator
     }
 }
 
+/// <summary>
+/// Represents message attachment service and keeps its related state and behavior together.
+/// </summary>
 public sealed class MessageAttachmentService(
     IAppPaths paths,
     IConversationProductionRepository repository,
     ILocalMediaToolLocator tools) : IMessageAttachmentService
 {
+    /// <summary>
+    /// Stores source extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> SourceExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".fs", ".vb", ".java", ".kt", ".kts", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".py", ".js", ".jsx", ".ts", ".tsx",
@@ -46,26 +67,41 @@ public sealed class MessageAttachmentService(
         ".sql", ".ps1", ".sh", ".bash", ".cmd", ".bat", ".md", ".razor", ".vue", ".svelte", ".gradle", ".csproj", ".fsproj", ".vbproj", ".sln"
     };
 
+    /// <summary>
+    /// Stores text extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".txt", ".csv", ".tsv", ".log", ".ini", ".cfg", ".conf", ".rtf"
     };
 
+    /// <summary>
+    /// Stores image extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"
     };
 
+    /// <summary>
+    /// Stores audio extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma"
     };
 
+    /// <summary>
+    /// Stores video extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp4", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".m4v"
     };
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<MessageAttachment> ImportAsync(
         Guid conversationId,
         Guid? messageId,
@@ -159,6 +195,9 @@ public sealed class MessageAttachmentService(
         return await repository.UpsertAttachmentAsync(attachment, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Builds prompt context async from the currently available inputs.
+    /// </summary>
     public async Task<AttachmentPromptContext> BuildPromptContextAsync(
         Guid conversationId,
         IReadOnlyCollection<Guid>? attachmentIds,
@@ -208,6 +247,9 @@ public sealed class MessageAttachmentService(
         return new AttachmentPromptContext(images, Truncate(text.ToString(), options.MaxExtractedCharacters), notices, selected);
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
         MessageAttachment? attachment = null;
@@ -345,6 +387,9 @@ public sealed class MessageAttachmentService(
         return (transcript, framePaths.Length > 0 ? AttachmentAnalysisMethod.SampledFrames : audioMethod, AttachmentProcessingState.Ready, metadata);
     }
 
+    /// <summary>
+    /// Performs add probe metadata async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task AddProbeMetadataAsync(string path, Dictionary<string, object?> metadata, CancellationToken cancellationToken)
     {
         var ffprobe = tools.FindExecutable("ffprobe");
@@ -361,6 +406,9 @@ public sealed class MessageAttachmentService(
         catch (JsonException) { }
     }
 
+    /// <summary>
+    /// Performs the read duration seconds step owned by this component.
+    /// </summary>
     private static double? ReadDurationSeconds(IReadOnlyDictionary<string, object?> metadata)
     {
         if (!metadata.TryGetValue("probe", out var probe) || probe is not JsonElement element) return null;
@@ -368,6 +416,9 @@ public sealed class MessageAttachmentService(
         return double.TryParse(duration.GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : null;
     }
 
+    /// <summary>
+    /// Performs extract open xml text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ExtractOpenXmlTextAsync(
         string path,
         MessageAttachmentKind kind,
@@ -411,6 +462,9 @@ public sealed class MessageAttachmentService(
         return Truncate(builder.ToString().Trim(), maxCharacters);
     }
 
+    /// <summary>
+    /// Performs read bounded text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ReadBoundedTextAsync(string path, int maxCharacters, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -426,6 +480,9 @@ public sealed class MessageAttachmentService(
         return Truncate(builder.ToString(), maxCharacters);
     }
 
+    /// <summary>
+    /// Performs the classify step owned by this component.
+    /// </summary>
     private static MessageAttachmentKind Classify(string extension)
     {
         if (ImageExtensions.Contains(extension)) return MessageAttachmentKind.Image;
@@ -440,6 +497,9 @@ public sealed class MessageAttachmentService(
         return MessageAttachmentKind.Other;
     }
 
+    /// <summary>
+    /// Performs the size limit step owned by this component.
+    /// </summary>
     private static long SizeLimit(MessageAttachmentKind kind, AttachmentProcessingOptions options) => kind switch
     {
         MessageAttachmentKind.Image => options.MaxImageBytes,
@@ -448,6 +508,9 @@ public sealed class MessageAttachmentService(
         _ => options.MaxDocumentBytes
     };
 
+    /// <summary>
+    /// Performs the media type for step owned by this component.
+    /// </summary>
     private static string MediaTypeFor(string extension, MessageAttachmentKind kind) => extension switch
     {
         ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".webp" => "image/webp", ".gif" => "image/gif", ".bmp" => "image/bmp",
@@ -460,6 +523,9 @@ public sealed class MessageAttachmentService(
         _ => "application/octet-stream"
     };
 
+    /// <summary>
+    /// Performs the notice for step owned by this component.
+    /// </summary>
     private static string NoticeFor(MessageAttachment attachment)
     {
         try
@@ -477,6 +543,9 @@ public sealed class MessageAttachmentService(
         };
     }
 
+    /// <summary>
+    /// Performs the read frame paths step owned by this component.
+    /// </summary>
     private static IReadOnlyList<string> ReadFramePaths(string metadataJson)
     {
         try
@@ -488,6 +557,9 @@ public sealed class MessageAttachmentService(
         catch (JsonException) { return []; }
     }
 
+    /// <summary>
+    /// Performs copy atomically async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task CopyAtomicallyAsync(string source, string destination, CancellationToken cancellationToken)
     {
         var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
@@ -508,12 +580,18 @@ public sealed class MessageAttachmentService(
         }
     }
 
+    /// <summary>
+    /// Reports whether hash async is true for the current state.
+    /// </summary>
     private static async Task<string> HashAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Runs run async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static async Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -543,10 +621,28 @@ public sealed class MessageAttachmentService(
         }
     }
 
+    /// <summary>
+    /// Performs the truncate step owned by this component.
+    /// </summary>
     private static string Truncate(string value, int maxCharacters) => value.Length <= maxCharacters ? value : value[..maxCharacters] + "\n[content truncated by Haven]";
+    /// <summary>
+    /// Performs the format bytes step owned by this component.
+    /// </summary>
     private static string FormatBytes(long bytes) => bytes >= 1024L * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.#} GB" : bytes >= 1024L * 1024 ? $"{bytes / (1024d * 1024):0.#} MB" : $"{bytes / 1024d:0.#} KB";
+    /// <summary>
+    /// Reports whether is inside is true for the current state.
+    /// </summary>
     private static bool IsInside(string path, string root) => path.StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path) { try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    /// <summary>
+    /// Attempts to delete directory and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDeleteDirectory(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    /// <summary>
+    /// Represents process result and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ProcessResult(int ExitCode, string Output, string Error);
 }

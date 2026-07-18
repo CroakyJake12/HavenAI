@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/BrowserView.axaml.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns BrowserView, NativeWebViewHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia;
@@ -14,15 +23,42 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents browser view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class BrowserView : UserControl
 {
+    /// <summary>
+    /// Stores host locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private NativeWebViewHost? _host;
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserPageViewModel? _viewModel;
+    /// <summary>
+    /// Stores utilities locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserUtilitiesControl? _utilities;
+    /// <summary>
+    /// Stores native browser locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private NativeWebView _nativeBrowser = null!;
+    /// <summary>
+    /// Stores private profiles locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserPrivateProfileManager? _privateProfiles;
+    /// <summary>
+    /// Stores mounted tab id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid? _mountedTabId;
+    /// <summary>
+    /// Stores mounted private locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _mountedPrivate;
+    /// <summary>
+    /// Stores lifetime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource _lifetime = new();
 
     public BrowserView()
@@ -43,6 +79,9 @@ public sealed partial class BrowserView : UserControl
         };
     }
 
+    /// <summary>
+    /// Handles the detached from visual tree event raised by the UI or runtime.
+    /// </summary>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _lifetime.Cancel();
@@ -50,6 +89,9 @@ public sealed partial class BrowserView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
+    /// <summary>
+    /// Performs the change view model step owned by this component.
+    /// </summary>
     private void ChangeViewModel(BrowserPageViewModel? next)
     {
         if (_viewModel is not null)
@@ -78,14 +120,23 @@ public sealed partial class BrowserView : UserControl
         _ = MountSelectedTabAsync();
     }
 
+    /// <summary>
+    /// Handles the view model property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(BrowserPageViewModel.SelectedTab) or nameof(BrowserPageViewModel.IsPrivate))
             _ = MountSelectedTabAsync();
     }
 
+    /// <summary>
+    /// Handles the tabs changed event raised by the UI or runtime.
+    /// </summary>
     private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs args) => _ = CleanupPrivateProfilesAsync();
 
+    /// <summary>
+    /// Performs cleanup private profiles async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CleanupPrivateProfilesAsync()
     {
         if (_privateProfiles is null || _viewModel is null) return;
@@ -99,6 +150,9 @@ public sealed partial class BrowserView : UserControl
         catch (UnauthorizedAccessException ex) { _viewModel.ReportBrowserError(new UnauthorizedAccessException("Haven could not remove a private Browser profile.", ex)); }
     }
 
+    /// <summary>
+    /// Performs the detach browser step owned by this component.
+    /// </summary>
     private void DetachBrowser()
     {
         if (_host is null) return;
@@ -107,6 +161,9 @@ public sealed partial class BrowserView : UserControl
         _host = null;
     }
 
+    /// <summary>
+    /// Handles the import extension requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnImportExtensionRequested(object? sender, bool convertChrome)
     {
         if (DataContext is not BrowserPageViewModel vm || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
@@ -124,6 +181,9 @@ public sealed partial class BrowserView : UserControl
         catch (Exception ex) { vm.ReportBrowserError(ex); }
     }
 
+    /// <summary>
+    /// Performs the ensure utilities step owned by this component.
+    /// </summary>
     private void EnsureUtilities()
     {
         if (_utilities is not null) return;
@@ -143,6 +203,9 @@ public sealed partial class BrowserView : UserControl
         navigation.Children.Add(_utilities);
     }
 
+    /// <summary>
+    /// Performs mount selected tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MountSelectedTabAsync()
     {
         if (!this.IsAttachedToVisualTree() || _viewModel?.SelectedTab is not { } tab) return;
@@ -168,6 +231,9 @@ public sealed partial class BrowserView : UserControl
         catch (Exception ex) { _viewModel.ReportBrowserError(ex); }
     }
 
+    /// <summary>
+    /// Performs the replace native browser step owned by this component.
+    /// </summary>
     private void ReplaceNativeBrowser(string profileDirectory, bool isPrivate, Guid tabId)
     {
         DetachBrowser();
@@ -182,6 +248,9 @@ public sealed partial class BrowserView : UserControl
         _mountedPrivate = isPrivate;
     }
 
+    /// <summary>
+    /// Performs the attach browser step owned by this component.
+    /// </summary>
     private void AttachBrowser()
     {
         if (_host is not null || !this.IsAttachedToVisualTree() || _viewModel is not { } vm) return;
@@ -196,6 +265,9 @@ public sealed partial class BrowserView : UserControl
         catch (Exception ex) { vm.ReportBrowserError(ex); }
     }
 
+    /// <summary>
+    /// Handles the address key down event raised by the UI or runtime.
+    /// </summary>
     private void OnAddressKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not BrowserPageViewModel vm) return;
@@ -203,6 +275,9 @@ public sealed partial class BrowserView : UserControl
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Performs the configure environment for current tab step owned by this component.
+    /// </summary>
     private void ConfigureEnvironmentForCurrentTab(NativeWebView webView)
     {
         webView.EnvironmentRequested += (_, args) =>
@@ -215,6 +290,9 @@ public sealed partial class BrowserView : UserControl
         };
     }
 
+    /// <summary>
+    /// Performs the configure environment step owned by this component.
+    /// </summary>
     private static void ConfigureEnvironment(object arguments, string profileDirectory, bool isPrivate, Guid tabId)
     {
         Directory.CreateDirectory(profileDirectory);
@@ -223,6 +301,9 @@ public sealed partial class BrowserView : UserControl
         SetPlatformOption(arguments, "InPrivateModeEnabled", isPrivate);
     }
 
+    /// <summary>
+    /// Performs the set platform option step owned by this component.
+    /// </summary>
     private static void SetPlatformOption(object target, string name, object value)
     {
         try
@@ -234,14 +315,38 @@ public sealed partial class BrowserView : UserControl
     }
 }
 
+/// <summary>
+/// Represents native web view host and keeps its related state and behavior together.
+/// </summary>
 internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
 {
+    /// <summary>
+    /// Stores web view locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NativeWebView _webView;
+    /// <summary>
+    /// Stores permissions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserSitePermissionStore _permissions;
+    /// <summary>
+    /// Stores recovery limiter locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserRecoveryLimiter _recoveryLimiter = new(2, TimeSpan.FromMinutes(1));
+    /// <summary>
+    /// Stores state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserSnapshot _state;
+    /// <summary>
+    /// Stores last committed address locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Uri? _lastCommittedAddress;
+    /// <summary>
+    /// Stores adapter lost locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _adapterLost;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public NativeWebViewHost(NativeWebView webView, BrowserSitePermissionStore permissions)
@@ -256,9 +361,18 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         _webView.NewWindowRequested += OnNewWindowRequested;
     }
 
+    /// <summary>
+    /// Stores state changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<BrowserSnapshot>? StateChanged;
+    /// <summary>
+    /// Gets or updates state, the bindable or domain state represented by this property.
+    /// </summary>
     public BrowserSnapshot State => _state;
 
+    /// <summary>
+    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task NavigateAsync(Uri address, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -269,12 +383,30 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs go back async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task GoBackAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoBack) _webView.GoBack(); return Task.CompletedTask; }
+    /// <summary>
+    /// Performs go forward async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task GoForwardAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoForward) _webView.GoForward(); return Task.CompletedTask; }
+    /// <summary>
+    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task ReloadAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Refresh(); return Task.CompletedTask; }
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Stop(); return Task.CompletedTask; }
+    /// <summary>
+    /// Runs execute script async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public Task<string?> ExecuteScriptAsync(string script, CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return _webView.InvokeScript(script); }
 
+    /// <summary>
+    /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task OpenDeveloperToolsAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -291,6 +423,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         throw new InvalidOperationException("Developer tools are not exposed by the installed native WebView adapter.");
     }
 
+    /// <summary>
+    /// Handles the navigation started event raised by the UI or runtime.
+    /// </summary>
     private void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs args)
     {
         if (_disposed) return;
@@ -304,6 +439,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         Publish(_state with { Address = args.Request, IsLoading = true, Status = "Loading…" });
     }
 
+    /// <summary>
+    /// Handles the navigation completed event raised by the UI or runtime.
+    /// </summary>
     private void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs args)
     {
         if (_disposed) return;
@@ -323,6 +461,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         Publish(Snapshot(args.IsSuccess ? request.Host : "Navigation failed"));
     }
 
+    /// <summary>
+    /// Handles the new window requested event raised by the UI or runtime.
+    /// </summary>
     private void OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs args)
     {
         args.Handled = true;
@@ -353,6 +494,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         _webView.Navigate(requested);
     }
 
+    /// <summary>
+    /// Handles the adapter destroyed event raised by the UI or runtime.
+    /// </summary>
     private void OnAdapterDestroyed(object? sender, WebViewAdapterEventArgs args)
     {
         if (_disposed) return;
@@ -360,6 +504,9 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         Publish(_state with { IsLoading = false, Status = "Browser process stopped. Waiting for the native adapter to recover…" });
     }
 
+    /// <summary>
+    /// Handles the adapter created event raised by the UI or runtime.
+    /// </summary>
     private void OnAdapterCreated(object? sender, WebViewAdapterEventArgs args)
     {
         if (_disposed) return;
@@ -376,14 +523,23 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
         Dispatcher.UIThread.Post(() => { if (!_disposed) _webView.Navigate(restore); });
     }
 
+    /// <summary>
+    /// Performs the snapshot step owned by this component.
+    /// </summary>
     private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(_webView.Source, _webView.Source?.Host ?? "Browser", _webView.CanGoBack, _webView.CanGoForward, isLoading, status);
 
+    /// <summary>
+    /// Performs the publish step owned by this component.
+    /// </summary>
     private void Publish(BrowserSnapshot state)
     {
         void Update() { if (_disposed) return; _state = state; StateChanged?.Invoke(this, state); }
         if (Dispatcher.UIThread.CheckAccess()) Update(); else Dispatcher.UIThread.Post(Update);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;

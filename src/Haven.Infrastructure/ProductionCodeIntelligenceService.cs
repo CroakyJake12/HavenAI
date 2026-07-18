@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ProductionCodeIntelligenceService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProductionCodeIntelligenceService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -6,16 +15,25 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents production code intelligence service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProductionCodeIntelligenceService(
     IWorkspaceToolService workspaceTools,
     IWorkspaceTransactionService transactions,
     ILanguageServerConfigurationStore configurations,
     ILanguageServerClientFactory languageServers) : ICodeIntelligenceService
 {
+    /// <summary>
+    /// Builds diagnostic pattern from the currently available inputs.
+    /// </summary>
     private static readonly Regex BuildDiagnosticPattern = new(
         "^(?<file>.+?)\\((?<line>\\d+),(?<column>\\d+)(?:,(?<endLine>\\d+),(?<endColumn>\\d+))?\\):\\s*(?<severity>error|warning)\\s+(?<code>[^: ]+):\\s*(?<message>.*?)(?:\\s+\\[[^]]+\\])?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+    /// <summary>
+    /// Retrieves status async for the current operation.
+    /// </summary>
     public async Task<CodeIntelligenceStatus> GetStatusAsync(
         string workspaceRoot,
         string relativePath,
@@ -53,6 +71,9 @@ public sealed class ProductionCodeIntelligenceService(
             message);
     }
 
+    /// <summary>
+    /// Retrieves diagnostics async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<CodeDiagnostic>> GetDiagnosticsAsync(
         string workspaceRoot,
         string relativePath,
@@ -113,6 +134,9 @@ public sealed class ProductionCodeIntelligenceService(
         throw new InvalidOperationException("No enabled language server or .NET diagnostics fallback is available for this workspace.");
     }
 
+    /// <summary>
+    /// Performs search symbols async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<CodeSymbol>> SearchSymbolsAsync(
         string workspaceRoot,
         string query,
@@ -153,6 +177,9 @@ public sealed class ProductionCodeIntelligenceService(
             .ToArray();
     }
 
+    /// <summary>
+    /// Performs preview format async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<CodeFormatPreview> PreviewFormatAsync(
         string workspaceRoot,
         string relativePath,
@@ -194,6 +221,9 @@ public sealed class ProductionCodeIntelligenceService(
         }
     }
 
+    /// <summary>
+    /// Performs apply format async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<CodeFormatApplyResult> ApplyFormatAsync(
         string workspaceRoot,
         CodeFormatPreview preview,
@@ -220,6 +250,9 @@ public sealed class ProductionCodeIntelligenceService(
             $"Applied formatting through workspace transaction {result.TransactionId:N}.");
     }
 
+    /// <summary>
+    /// Performs the parse build diagnostics step owned by this component.
+    /// </summary>
     internal static IReadOnlyList<CodeDiagnostic> ParseBuildDiagnostics(string output, string workspaceRoot)
     {
         var root = Path.GetFullPath(workspaceRoot);
@@ -254,6 +287,9 @@ public sealed class ProductionCodeIntelligenceService(
         return result;
     }
 
+    /// <summary>
+    /// Performs the resolve root step owned by this component.
+    /// </summary>
     private static string ResolveRoot(string workspaceRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
@@ -262,6 +298,9 @@ public sealed class ProductionCodeIntelligenceService(
         return root;
     }
 
+    /// <summary>
+    /// Performs the find dot net build target step owned by this component.
+    /// </summary>
     private static string? FindDotNetBuildTarget(string root)
     {
         var solution = Directory.EnumerateFiles(root, "*.sln", SearchOption.TopDirectoryOnly)
@@ -281,9 +320,15 @@ public sealed class ProductionCodeIntelligenceService(
             .FirstOrDefault();
     }
 
+    /// <summary>
+    /// Performs the symbol key step owned by this component.
+    /// </summary>
     private static string SymbolKey(CodeSymbol symbol) =>
         $"{symbol.RelativePath}\n{symbol.Range.Start.Line}\n{symbol.Range.Start.Character}\n{symbol.Name}";
 
+    /// <summary>
+    /// Performs the infer language id step owned by this component.
+    /// </summary>
     private static string InferLanguageId(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
         ".cs" => "csharp", ".fs" => "fsharp", ".vb" => "vb", ".ts" => "typescript", ".tsx" => "typescriptreact",
@@ -291,9 +336,15 @@ public sealed class ProductionCodeIntelligenceService(
         ".java" => "java", ".cpp" or ".cc" or ".cxx" => "cpp", ".c" or ".h" => "c", _ => "plaintext"
     };
 
+    /// <summary>
+    /// Performs the content hash step owned by this component.
+    /// </summary>
     private static string ContentHash(string content) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
 
+    /// <summary>
+    /// Reports whether is within root is true for the current state.
+    /// </summary>
     private static bool IsWithinRoot(string root, string path)
     {
         var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

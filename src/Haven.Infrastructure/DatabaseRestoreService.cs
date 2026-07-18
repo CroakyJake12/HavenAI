@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/DatabaseRestoreService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns DatabaseRestoreService, PendingRestoreFile, BackupManifest. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text.Json;
 using Haven.Application;
@@ -5,19 +14,37 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents database restore service and keeps its related state and behavior together.
+/// </summary>
 public sealed class DatabaseRestoreService(
     IAppPaths paths,
     IProductionDiagnostics diagnostics) : IDatabaseRestoreService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores backup directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _backupDirectory = Path.Combine(paths.DataDirectory, "Backups");
+    /// <summary>
+    /// Stores pending path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _pendingPath = Path.Combine(paths.DataDirectory, "pending-database-restore.json");
 
+    /// <summary>
+    /// Retrieves backups async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ManagedDatabaseBackup>> GetBackupsAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -25,6 +52,9 @@ public sealed class DatabaseRestoreService(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves pending async for the current operation.
+    /// </summary>
     public async Task<PendingDatabaseRestore?> GetPendingAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -32,6 +62,9 @@ public sealed class DatabaseRestoreService(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs request restore async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<PendingDatabaseRestore> RequestRestoreAsync(string backupFileName, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -65,6 +98,9 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Reports whether cancel pending async is true for the current state.
+    /// </summary>
     public async Task CancelPendingAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -85,6 +121,9 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Performs apply pending restore async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<DatabaseRestoreResult?> ApplyPendingRestoreAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -200,6 +239,9 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Retrieves backups core async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<ManagedDatabaseBackup>> GetBackupsCoreAsync(CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_backupDirectory)) return [];
@@ -259,6 +301,9 @@ public sealed class DatabaseRestoreService(
         return result.OrderByDescending(item => item.CreatedAt).ToArray();
     }
 
+    /// <summary>
+    /// Performs read pending core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<PendingDatabaseRestore?> ReadPendingCoreAsync(CancellationToken cancellationToken)
     {
         var pending = await ReadPendingFileCoreAsync(cancellationToken).ConfigureAwait(false);
@@ -267,6 +312,9 @@ public sealed class DatabaseRestoreService(
             : new PendingDatabaseRestore(pending.BackupFileName, pending.Sha256, pending.RequestedAt, true, "Verified restore pending for the next Haven launch.");
     }
 
+    /// <summary>
+    /// Performs read pending file core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<PendingRestoreFile?> ReadPendingFileCoreAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(_pendingPath)) return null;
@@ -292,6 +340,9 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Creates emergency backup async with the invariants required by its callers.
+    /// </summary>
     private async Task<string> CreateEmergencyBackupAsync(int restoreTargetVersion, CancellationToken cancellationToken)
     {
         await CheckpointCurrentDatabaseAsync(cancellationToken).ConfigureAwait(false);
@@ -334,6 +385,9 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Performs checkpoint current database async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CheckpointCurrentDatabaseAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(paths.DatabasePath) || new FileInfo(paths.DatabasePath).Length == 0) return;
@@ -345,6 +399,9 @@ public sealed class DatabaseRestoreService(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs verify database async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<DatabaseHealthReport> VerifyDatabaseAsync(string path, CancellationToken cancellationToken)
     {
         await using var connection = CreateConnection(path, SqliteOpenMode.ReadOnly);
@@ -365,6 +422,9 @@ public sealed class DatabaseRestoreService(
             DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Creates connection with the invariants required by its callers.
+    /// </summary>
     private static SqliteConnection CreateConnection(string path, SqliteOpenMode mode)
     {
         SqliteProviderBootstrap.EnsureInitialized();
@@ -378,6 +438,9 @@ public sealed class DatabaseRestoreService(
         }.ToString());
     }
 
+    /// <summary>
+    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         await using var exists = connection.CreateCommand();
@@ -388,6 +451,9 @@ public sealed class DatabaseRestoreService(
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Performs read strings async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<string>> ReadStringsAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
         var result = new List<string>();
@@ -398,6 +464,9 @@ public sealed class DatabaseRestoreService(
         return result;
     }
 
+    /// <summary>
+    /// Performs read foreign keys async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<string>> ReadForeignKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         var result = new List<string>();
@@ -409,6 +478,9 @@ public sealed class DatabaseRestoreService(
         return result;
     }
 
+    /// <summary>
+    /// Performs the resolve managed backup step owned by this component.
+    /// </summary>
     private string ResolveManagedBackup(string fileName)
     {
         var normalized = NormalizeFileName(fileName);
@@ -418,6 +490,9 @@ public sealed class DatabaseRestoreService(
         return path;
     }
 
+    /// <summary>
+    /// Performs the normalize file name step owned by this component.
+    /// </summary>
     private static string NormalizeFileName(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("A backup file name is required.", nameof(fileName));
@@ -429,6 +504,9 @@ public sealed class DatabaseRestoreService(
         return normalized;
     }
 
+    /// <summary>
+    /// Performs quarantine pending async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task QuarantinePendingAsync(string reason, CancellationToken cancellationToken)
     {
         if (!File.Exists(_pendingPath)) return;
@@ -440,11 +518,17 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Performs the quarantine pending step owned by this component.
+    /// </summary>
     private void QuarantinePending(string reason)
     {
         QuarantinePendingAsync(reason, CancellationToken.None).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Performs copy durably async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task CopyDurablyAsync(string source, string destination, CancellationToken cancellationToken)
     {
         await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -454,6 +538,9 @@ public sealed class DatabaseRestoreService(
         output.Flush(flushToDisk: true);
     }
 
+    /// <summary>
+    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -488,13 +575,22 @@ public sealed class DatabaseRestoreService(
         }
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Represents pending restore file and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PendingRestoreFile(int Version, string BackupFileName, string Sha256, DateTimeOffset RequestedAt);
+    /// <summary>
+    /// Represents backup manifest and keeps its related state and behavior together.
+    /// </summary>
     private sealed record BackupManifest(
         int Version,
         string FileName,

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/MainWindow.axaml.cs, in the Desktop composition layer, which starts and wires the Avalonia application.
+ * What: This file owns MainWindow. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Avalonia;
@@ -18,11 +27,26 @@ using Haven.Desktop.Views;
 
 namespace Haven.Desktop;
 
+/// <summary>
+/// Represents main window and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class MainWindow : Window
 {
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MainWindowViewModel? _viewModel;
+    /// <summary>
+    /// Stores experience shell locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private WorkspaceChromeHost? _experienceShell;
+    /// <summary>
+    /// Stores studio experience button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _studioExperienceButton;
+    /// <summary>
+    /// Stores notes experience button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _notesExperienceButton;
 
     public MainWindow()
@@ -43,6 +67,9 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// Handles the window opened event raised by the UI or runtime.
+    /// </summary>
     private async void OnWindowOpened(object? sender, EventArgs e)
     {
         RefineExperienceRail();
@@ -50,6 +77,9 @@ public sealed partial class MainWindow : Window
         if (IsVisible) RefineExperienceRail();
     }
 
+    /// <summary>
+    /// Performs the install generative ui header slot step owned by this component.
+    /// </summary>
     private void InstallGenerativeUiHeaderSlot()
     {
         if (Content is not Grid root) return;
@@ -67,6 +97,9 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    /// <summary>
+    /// Performs the install experience shell step owned by this component.
+    /// </summary>
     private void InstallExperienceShell()
     {
         if (Content is not Control existingShell || existingShell is WorkspaceChromeHost) return;
@@ -84,6 +117,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Performs the refine experience rail step owned by this component.
+    /// </summary>
     private void RefineExperienceRail()
     {
         if (_experienceShell is null) return;
@@ -107,6 +143,9 @@ public sealed partial class MainWindow : Window
         UpdateExperienceFamilyState();
     }
 
+    /// <summary>
+    /// Performs the hide secondary fixed modes step owned by this component.
+    /// </summary>
     private void HideSecondaryFixedModes()
     {
         if (_experienceShell is null) return;
@@ -119,6 +158,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Performs the ensure notes experience button step owned by this component.
+    /// </summary>
     private void EnsureNotesExperienceButton()
     {
         if (_experienceShell is null) return;
@@ -160,6 +202,9 @@ public sealed partial class MainWindow : Window
         _notesExperienceButton = notes;
     }
 
+    /// <summary>
+    /// Performs the notes entry step owned by this component.
+    /// </summary>
     private Button NotesEntry(NotesExperienceKind kind)
     {
         var button = new Button
@@ -194,12 +239,18 @@ public sealed partial class MainWindow : Window
         return button;
     }
 
+    /// <summary>
+    /// Handles the studio experience clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnStudioExperienceClicked(object? sender, RoutedEventArgs e)
     {
         if (_viewModel is not null)
             await _viewModel.NavigateStudioCommand.ExecuteAsync();
     }
 
+    /// <summary>
+    /// Performs the attach view model step owned by this component.
+    /// </summary>
     private void AttachViewModel(MainWindowViewModel? viewModel)
     {
         if (_viewModel is not null)
@@ -218,6 +269,9 @@ public sealed partial class MainWindow : Window
         Dispatcher.UIThread.Post(RefineExperienceRail);
     }
 
+    /// <summary>
+    /// Handles the view model property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
@@ -226,6 +280,9 @@ public sealed partial class MainWindow : Window
             Dispatcher.UIThread.Post(RefineExperienceRail);
     }
 
+    /// <summary>
+    /// Performs the update experience family state step owned by this component.
+    /// </summary>
     private void UpdateExperienceFamilyState()
     {
         if (_experienceShell is null || _viewModel is null) return;
@@ -238,14 +295,23 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Performs the resource brush step owned by this component.
+    /// </summary>
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
+    /// <summary>
+    /// Handles the copy requested event raised by the UI or runtime.
+    /// </summary>
     private async void OnCopyRequested(object? sender, string content)
     {
         if (Clipboard is not null) await Clipboard.SetTextAsync(content);
     }
 
+    /// <summary>
+    /// Handles the dictate requested event raised by the UI or runtime.
+    /// </summary>
     private void OnDictateRequested(object? sender, EventArgs e)
     {
         if (!OperatingSystem.IsWindows()) return;
@@ -255,6 +321,9 @@ public sealed partial class MainWindow : Window
         keybd_event(0x5B, 0, 2, UIntPtr.Zero);
     }
 
+    /// <summary>
+    /// Handles the window key down event raised by the UI or runtime.
+    /// </summary>
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
@@ -291,11 +360,20 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Performs the current notes view model step owned by this component.
+    /// </summary>
     private static NotesWorkspaceViewModel? CurrentNotesViewModel(MainWindowViewModel shell) =>
         shell.CurrentPage is NotesWorkspaceView { DataContext: NotesWorkspaceViewModel notes } ? notes : null;
 
+    /// <summary>
+    /// Handles the exit clicked event raised by the UI or runtime.
+    /// </summary>
     private void OnExitClicked(object? sender, RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// Handles the about clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnAboutClicked(object? sender, RoutedEventArgs e)
     {
         var dialog = new Window
@@ -320,15 +398,24 @@ public sealed partial class MainWindow : Window
         await dialog.ShowDialog(this);
     }
 
+    /// <summary>
+    /// Performs the keybd_event step owned by this component.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
 
+    /// <summary>
+    /// Performs the tab_pointer entered step owned by this component.
+    /// </summary>
     private void Tab_PointerEntered(object? sender, PointerEventArgs e)
     {
         if (sender is Control control && control.DataContext is WorkspaceTabViewModel tab)
             tab.IsHovered = true;
     }
 
+    /// <summary>
+    /// Performs the tab_pointer exited step owned by this component.
+    /// </summary>
     private void Tab_PointerExited(object? sender, PointerEventArgs e)
     {
         if (sender is Control control && control.DataContext is WorkspaceTabViewModel tab)

@@ -1,7 +1,19 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/WorkspaceEditorView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.WorkspaceEditorView. Its visual vocabulary includes: Grid, StackPanel, TextBlock, Button, ComboBox, ComboBox.ItemTemplate, DataTemplate, Border, TextBox, ScrollViewer, ItemsControl, ItemsControl.ItemTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Title, ProjectName, RelativePath, UndoCommand, RedoCommand, Versions, SelectedVersion, Label, Changes, RollbackCommand, RollforwardCommand, ToggleDiffCommand, SaveCommand, Content, RequiresBranchAfterRollback, BranchAfterRollbackCommand, SelectedSnippet, CommentPrompt, AddCommentCommand, Comments, Prompt, Snippet, Changelog, DirtyLabel, Status, ReloadCommand, InterruptCommand, ShowDiff, DiffText.
+  Interaction: Direct event handlers in this file are: OnEditorSelectionChanged.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.WorkspaceEditorView">
   <!-- Main layout: 4 rows — Toolbar, Editor+Sidebar, Status Bar, Diff Panel -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
 
     <!-- ============================================================
@@ -9,6 +21,7 @@
          File title, undo/redo, version history, rollback/rollforward,
          diff toggle, and save button. All on one horizontal line.
          ============================================================ -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="7">
       <!-- File title + project/path breadcrumb -->
       <StackPanel>
@@ -49,6 +62,7 @@
          Left (3/4 width): the code/text editor (TextBox with monospace font)
          Right (1/4 width): sidebar with inline comment, comment list, changelog
          ============================================================ -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="3*,*" ColumnSpacing="14" Margin="0,14,0,10">
 
       <!-- LEFT: Main text editor
@@ -142,6 +156,7 @@
          ROW 2: STATUS BAR
          Shows dirty state, status message, reload button, and interrupt.
          ============================================================ -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
       <!-- Dirty indicator — "Unsaved changes" in yellow or "Saved" -->
       <TextBlock Text="{Binding DirtyLabel}" Foreground="{DynamicResource HavenWarningBrush}" VerticalAlignment="Center" />
@@ -160,6 +175,7 @@
          Only visible when the "Diff" button is clicked.
          Max height 250px, scrollable.
          ============================================================ -->
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Grid.Row="3" Classes="card" Padding="0" IsVisible="{Binding ShowDiff}" Margin="0,10,0,0" MaxHeight="250">
       <Grid RowDefinitions="Auto,*">
         <TextBlock Text="Diff (saved ↔ current)" FontWeight="SemiBold" FontSize="12" Margin="14,10,14,6"/>

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/BrowserPageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns BrowserPageViewModel, BrowserTabViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text;
@@ -8,35 +17,122 @@ using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents browser page view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserPageViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Stores browser locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserSessionService _browser;
+    /// <summary>
+    /// Stores data locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserDataService _data;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores preferences locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly UserPreferencesService _preferences;
+    /// <summary>
+    /// Stores browser tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly BrowserToolRuntime _browserTools;
+    /// <summary>
+    /// Stores selected tab locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserTabViewModel? _selectedTab;
+    /// <summary>
+    /// Stores address locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _address;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status;
+    /// <summary>
+    /// Stores bookmark group locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _bookmarkGroup = "Bookmarks";
+    /// <summary>
+    /// Stores new group name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _newGroupName = "Research";
+    /// <summary>
+    /// Stores assistant input locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _assistantInput = string.Empty;
+    /// <summary>
+    /// Stores assistant output locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _assistantOutput = "Ask Haven to summarise, explain, or extract information from this page.";
+    /// <summary>
+    /// Stores is bookmarks open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBookmarksOpen;
+    /// <summary>
+    /// Stores is history open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isHistoryOpen;
+    /// <summary>
+    /// Stores is settings open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isSettingsOpen;
+    /// <summary>
+    /// Stores is extensions open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isExtensionsOpen;
+    /// <summary>
+    /// Stores is logins open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isLoginsOpen;
+    /// <summary>
+    /// Stores is assistant open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isAssistantOpen;
+    /// <summary>
+    /// Stores home page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _homePage;
+    /// <summary>
+    /// Stores search template locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _searchTemplate;
+    /// <summary>
+    /// Stores save history locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _saveHistory;
+    /// <summary>
+    /// Stores offer to save logins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _offerToSaveLogins;
+    /// <summary>
+    /// Stores restore tabs locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _restoreTabs;
+    /// <summary>
+    /// Stores enable extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _enableExtensions;
+    /// <summary>
+    /// Stores vertical tabs locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _verticalTabs;
+    /// <summary>
+    /// Stores login origin locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _loginOrigin = string.Empty;
+    /// <summary>
+    /// Stores login username locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _loginUsername = string.Empty;
+    /// <summary>
+    /// Stores login password locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _loginPassword = string.Empty;
 
     public BrowserPageViewModel(BrowserSessionService browser, BrowserDataService data, IOllamaClient ollama, UserPreferencesService preferences)
@@ -98,13 +194,37 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         _browser.StateChanged += OnStateChanged;
     }
 
+    /// <summary>
+    /// Stores import extension requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<bool>? ImportExtensionRequested;
+    /// <summary>
+    /// Gets or updates browser, the bindable or domain state represented by this property.
+    /// </summary>
     public BrowserSessionService Browser => _browser;
+    /// <summary>
+    /// Gets or updates tabs, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<BrowserTabViewModel> Tabs { get; } = [];
+    /// <summary>
+    /// Gets or updates bookmarks, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<BrowserBookmark> Bookmarks { get; } = [];
+    /// <summary>
+    /// Gets or updates history, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<BrowserHistoryEntry> History { get; } = [];
+    /// <summary>
+    /// Gets or updates extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<BrowserExtensionDefinition> Extensions { get; } = [];
+    /// <summary>
+    /// Gets or updates logins, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<SavedLogin> Logins { get; } = [];
+    /// <summary>
+    /// Gets or updates tab groups, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<string> TabGroups { get; } = [];
 
     public BrowserTabViewModel? SelectedTab
@@ -123,29 +243,101 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets or updates address, the bindable or domain state represented by this property.
+    /// </summary>
     public string Address { get => _address; set => SetProperty(ref _address, value); }
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Gets or updates bookmark group, the bindable or domain state represented by this property.
+    /// </summary>
     public string BookmarkGroup { get => _bookmarkGroup; set => SetProperty(ref _bookmarkGroup, value); }
+    /// <summary>
+    /// Reports whether has bookmarks is true for the current state.
+    /// </summary>
     public bool HasBookmarks => Bookmarks.Count > 0;
+    /// <summary>
+    /// Reports whether has no bookmarks is true for the current state.
+    /// </summary>
     public bool HasNoBookmarks => !HasBookmarks;
+    /// <summary>
+    /// Gets or updates bookmark summary, the bindable or domain state represented by this property.
+    /// </summary>
     public string BookmarkSummary => Bookmarks.Count == 1 ? "1 saved bookmark" : $"{Bookmarks.Count} saved bookmarks";
+    /// <summary>
+    /// Gets or updates new group name, the bindable or domain state represented by this property.
+    /// </summary>
     public string NewGroupName { get => _newGroupName; set => SetProperty(ref _newGroupName, value); }
+    /// <summary>
+    /// Gets or updates assistant input, the bindable or domain state represented by this property.
+    /// </summary>
     public string AssistantInput { get => _assistantInput; set { if (SetProperty(ref _assistantInput, value)) AskAssistantCommand.RaiseCanExecuteChanged(); } }
+    /// <summary>
+    /// Gets or updates assistant output, the bindable or domain state represented by this property.
+    /// </summary>
     public string AssistantOutput { get => _assistantOutput; private set => SetProperty(ref _assistantOutput, value); }
+    /// <summary>
+    /// Reports whether is bookmarks open is true for the current state.
+    /// </summary>
     public bool IsBookmarksOpen { get => _isBookmarksOpen; private set => SetProperty(ref _isBookmarksOpen, value); }
+    /// <summary>
+    /// Reports whether is history open is true for the current state.
+    /// </summary>
     public bool IsHistoryOpen { get => _isHistoryOpen; private set => SetProperty(ref _isHistoryOpen, value); }
+    /// <summary>
+    /// Reports whether is settings open is true for the current state.
+    /// </summary>
     public bool IsSettingsOpen { get => _isSettingsOpen; private set => SetProperty(ref _isSettingsOpen, value); }
+    /// <summary>
+    /// Reports whether is extensions open is true for the current state.
+    /// </summary>
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
+    /// <summary>
+    /// Reports whether is logins open is true for the current state.
+    /// </summary>
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
+    /// <summary>
+    /// Reports whether is assistant open is true for the current state.
+    /// </summary>
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
+    /// <summary>
+    /// Reports whether is any panel open is true for the current state.
+    /// </summary>
     public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen;
+    /// <summary>
+    /// Reports whether is private is true for the current state.
+    /// </summary>
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
+    /// <summary>
+    /// Gets or updates privacy label, the bindable or domain state represented by this property.
+    /// </summary>
     public string PrivacyLabel => IsPrivate ? "Private tab - history and tab state are not saved" : "Standard tab";
+    /// <summary>
+    /// Gets or updates home page, the bindable or domain state represented by this property.
+    /// </summary>
     public string HomePage { get => _homePage; set => SetProperty(ref _homePage, value); }
+    /// <summary>
+    /// Gets or updates search template, the bindable or domain state represented by this property.
+    /// </summary>
     public string SearchTemplate { get => _searchTemplate; set => SetProperty(ref _searchTemplate, value); }
+    /// <summary>
+    /// Gets or updates save history, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SaveHistory { get => _saveHistory; set => SetProperty(ref _saveHistory, value); }
+    /// <summary>
+    /// Gets or updates offer to save logins, the bindable or domain state represented by this property.
+    /// </summary>
     public bool OfferToSaveLogins { get => _offerToSaveLogins; set => SetProperty(ref _offerToSaveLogins, value); }
+    /// <summary>
+    /// Gets or updates restore tabs, the bindable or domain state represented by this property.
+    /// </summary>
     public bool RestoreTabs { get => _restoreTabs; set => SetProperty(ref _restoreTabs, value); }
+    /// <summary>
+    /// Gets or updates enable extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public bool EnableExtensions { get => _enableExtensions; set => SetProperty(ref _enableExtensions, value); }
     public bool VerticalTabs
     {
@@ -156,52 +348,175 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(HorizontalTabs));
         }
     }
+    /// <summary>
+    /// Gets or updates horizontal tabs, the bindable or domain state represented by this property.
+    /// </summary>
     public bool HorizontalTabs => !VerticalTabs;
+    /// <summary>
+    /// Gets or updates login origin, the bindable or domain state represented by this property.
+    /// </summary>
     public string LoginOrigin { get => _loginOrigin; set => SetProperty(ref _loginOrigin, value); }
+    /// <summary>
+    /// Gets or updates login username, the bindable or domain state represented by this property.
+    /// </summary>
     public string LoginUsername { get => _loginUsername; set => SetProperty(ref _loginUsername, value); }
+    /// <summary>
+    /// Gets or updates login password, the bindable or domain state represented by this property.
+    /// </summary>
     public string LoginPassword { get => _loginPassword; set => SetProperty(ref _loginPassword, value); }
 
+    /// <summary>
+    /// Gets or updates navigate command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NavigateCommand { get; }
+    /// <summary>
+    /// Gets or updates back command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand BackCommand { get; }
+    /// <summary>
+    /// Gets or updates forward command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ForwardCommand { get; }
+    /// <summary>
+    /// Gets or updates reload command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ReloadCommand { get; }
+    /// <summary>
+    /// Gets or updates hard reload command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand HardReloadCommand { get; }
+    /// <summary>
+    /// Gets or updates stop command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand StopCommand { get; }
+    /// <summary>
+    /// Gets or updates home command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand HomeCommand { get; }
+    /// <summary>
+    /// Gets or updates new tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NewTabCommand { get; }
+    /// <summary>
+    /// Gets or updates new private tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NewPrivateTabCommand { get; }
+    /// <summary>
+    /// Gets or updates close tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserTabViewModel> CloseTabCommand { get; }
+    /// <summary>
+    /// Gets or updates select tab command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserTabViewModel> SelectTabCommand { get; }
+    /// <summary>
+    /// Gets or updates add bookmark command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand AddBookmarkCommand { get; }
+    /// <summary>
+    /// Gets or updates remove bookmark command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserBookmark> RemoveBookmarkCommand { get; }
+    /// <summary>
+    /// Gets or updates open bookmark command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserBookmark> OpenBookmarkCommand { get; }
+    /// <summary>
+    /// Gets or updates open history command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserHistoryEntry> OpenHistoryCommand { get; }
+    /// <summary>
+    /// Gets or updates clear history command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ClearHistoryCommand { get; }
+    /// <summary>
+    /// Creates tab group command with the invariants required by its callers.
+    /// </summary>
     public AsyncRelayCommand CreateTabGroupCommand { get; }
+    /// <summary>
+    /// Gets or updates print command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand PrintCommand { get; }
+    /// <summary>
+    /// Gets or updates inspect command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand InspectCommand { get; }
+    /// <summary>
+    /// Gets or updates ask assistant command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand AskAssistantCommand { get; }
+    /// <summary>
+    /// Gets or updates summarise command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SummariseCommand { get; }
+    /// <summary>
+    /// Gets or updates save browser settings command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SaveBrowserSettingsCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle extension command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserExtensionDefinition> ToggleExtensionCommand { get; }
+    /// <summary>
+    /// Gets or updates delete extension command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<BrowserExtensionDefinition> DeleteExtensionCommand { get; }
+    /// <summary>
+    /// Gets or updates save login command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SaveLoginCommand { get; }
+    /// <summary>
+    /// Gets or updates delete login command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<SavedLogin> DeleteLoginCommand { get; }
+    /// <summary>
+    /// Gets or updates autofill login command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<SavedLogin> AutofillLoginCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle bookmarks command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleBookmarksCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle history command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleHistoryCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle settings command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleSettingsCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle extensions command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleExtensionsCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle logins command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleLoginsCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle assistant command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleAssistantCommand { get; }
+    /// <summary>
+    /// Gets or updates import extension requested command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ImportExtensionRequestedCommand { get; }
+    /// <summary>
+    /// Gets or updates convert chrome extension requested command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ConvertChromeExtensionRequestedCommand { get; }
 
+    /// <summary>
+    /// Performs navigate safely async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task NavigateSafelyAsync() => RunSafelyAsync(async () =>
     {
         Status = await _browser.NavigateAsync(Address, CancellationToken.None);
     });
 
+    /// <summary>
+    /// Performs import extension async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task ImportExtensionAsync(string path, bool convertChrome) => RunSafelyAsync(async () =>
     {
         var extension = convertChrome
@@ -211,8 +526,14 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = $"Imported {extension.Name}. Review it, then enable it explicitly.";
     });
 
+    /// <summary>
+    /// Performs the report browser error step owned by this component.
+    /// </summary>
     public void ReportBrowserError(Exception exception) => Status = $"Browser unavailable: {exception.Message}";
 
+    /// <summary>
+    /// Performs the restore saved tabs step owned by this component.
+    /// </summary>
     private void RestoreSavedTabs()
     {
         var stored = RestoreTabs ? _data.Tabs : [];
@@ -225,6 +546,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(SelectedTab));
     }
 
+    /// <summary>
+    /// Performs add tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task AddTabAsync(bool isPrivate)
     {
         var tab = new BrowserTabViewModel(Guid.NewGuid(), isPrivate ? "Private tab" : "New tab", HomePage, isPrivate, string.Empty);
@@ -233,6 +557,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         await SaveTabsAsync();
     }
 
+    /// <summary>
+    /// Performs close tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CloseTabAsync(BrowserTabViewModel? tab)
     {
         if (tab is null) return;
@@ -243,12 +570,18 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         await SaveTabsAsync();
     }
 
+    /// <summary>
+    /// Performs select tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task SelectTabAsync(BrowserTabViewModel? tab)
     {
         if (tab is not null) SelectedTab = tab;
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs add bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task AddBookmarkAsync() => RunSafelyAsync(async () =>
     {
         await _data.AddBookmarkAsync(SelectedTab?.Title ?? Address, Address, BookmarkGroup, CancellationToken.None);
@@ -256,6 +589,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = $"Bookmark saved locally in {NormalizedBookmarkGroup}.";
     });
 
+    /// <summary>
+    /// Performs remove bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task RemoveBookmarkAsync(BrowserBookmark? bookmark)
     {
         if (bookmark is null) return Task.CompletedTask;
@@ -267,6 +603,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         });
     }
 
+    /// <summary>
+    /// Performs open bookmark async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenBookmarkAsync(BrowserBookmark? bookmark)
     {
         if (bookmark is null) return;
@@ -274,6 +613,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         await NavigateSafelyAsync();
     }
 
+    /// <summary>
+    /// Performs open history async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenHistoryAsync(BrowserHistoryEntry? entry)
     {
         if (entry is null) return;
@@ -281,6 +623,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         await NavigateSafelyAsync();
     }
 
+    /// <summary>
+    /// Performs clear history async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ClearHistoryAsync()
     {
         await _data.ClearHistoryAsync(CancellationToken.None);
@@ -288,6 +633,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = "Browser history cleared.";
     }
 
+    /// <summary>
+    /// Creates tab group async with the invariants required by its callers.
+    /// </summary>
     private async Task CreateTabGroupAsync()
     {
         if (SelectedTab is null || string.IsNullOrWhiteSpace(NewGroupName)) return;
@@ -297,8 +645,14 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = $"Added this tab to {SelectedTab.Group}.";
     }
 
+    /// <summary>
+    /// Performs ask assistant async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task AskAssistantAsync() => AskAssistantAsync(AssistantInput);
 
+    /// <summary>
+    /// Performs ask assistant async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task AskAssistantAsync(string instruction) => RunSafelyAsync(async () =>
     {
         if (string.IsNullOrWhiteSpace(instruction)) return;
@@ -348,6 +702,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
             "You are Haven's browser side assistant. Use only the supplied page text, state uncertainty, and explain that this model cannot interact with the page."), CancellationToken.None);
     });
 
+    /// <summary>
+    /// Performs save browser settings async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task SaveBrowserSettingsAsync() => RunSafelyAsync(async () =>
     {
         await _data.SaveSettingsAsync(new BrowserSettings(HomePage.Trim(), SearchTemplate.Trim(), SaveHistory, OfferToSaveLogins,
@@ -355,6 +712,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = "Browser settings saved locally.";
     });
 
+    /// <summary>
+    /// Performs toggle extension async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ToggleExtensionAsync(BrowserExtensionDefinition? extension)
     {
         if (extension is null) return;
@@ -362,6 +722,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RefreshCollections();
     }
 
+    /// <summary>
+    /// Performs delete extension async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteExtensionAsync(BrowserExtensionDefinition? extension)
     {
         if (extension is null) return;
@@ -369,6 +732,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RefreshCollections();
     }
 
+    /// <summary>
+    /// Performs save login async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task SaveLoginAsync() => RunSafelyAsync(async () =>
     {
         await _data.SaveLoginAsync(LoginOrigin, LoginUsername, LoginPassword, CancellationToken.None);
@@ -377,6 +743,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = "Login stored in Windows Credential Manager. Haven saved only its origin and username metadata.";
     });
 
+    /// <summary>
+    /// Performs delete login async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteLoginAsync(SavedLogin? login)
     {
         if (login is null) return;
@@ -384,6 +753,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RefreshCollections();
     }
 
+    /// <summary>
+    /// Performs autofill login async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task AutofillLoginAsync(SavedLogin? login) => RunSafelyAsync(async () =>
     {
         if (login is null) return;
@@ -401,6 +773,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Status = "Filled matching fields. Haven did not submit the form.";
     });
 
+    /// <summary>
+    /// Performs apply extensions async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyExtensionsAsync(Uri address)
     {
         foreach (var extension in _data.GetScriptsFor(address))
@@ -410,9 +785,15 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs save tabs async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task SaveTabsAsync() => _data.SaveTabsAsync(Tabs.Select(tab => new BrowserTabState(tab.Id, tab.Title, tab.Address,
         tab.IsPrivate ? BrowserTabPrivacy.Private : BrowserTabPrivacy.Standard, tab.Group, DateTimeOffset.UtcNow)), CancellationToken.None);
 
+    /// <summary>
+    /// Runs run safely async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunSafelyAsync(Func<Task> action)
     {
         try { await action(); }
@@ -420,6 +801,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         catch (Exception ex) { ReportBrowserError(ex); }
     }
 
+    /// <summary>
+    /// Performs the refresh collections step owned by this component.
+    /// </summary>
     private void RefreshCollections()
     {
         Replace(Bookmarks, _data.Bookmarks);
@@ -432,6 +816,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RefreshGroups();
     }
 
+    /// <summary>
+    /// Performs the refresh groups step owned by this component.
+    /// </summary>
     private void RefreshGroups() => Replace(TabGroups, Tabs.Select(tab => tab.Group).Where(value => !string.IsNullOrWhiteSpace(value))
         .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(value => value));
 
@@ -441,6 +828,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         foreach (var value in values) target.Add(value);
     }
 
+    /// <summary>
+    /// Performs the toggle panel step owned by this component.
+    /// </summary>
     private void TogglePanel(string panel)
     {
         var opening = panel switch
@@ -461,11 +851,20 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(IsAnyPanelOpen));
     }
 
+    /// <summary>
+    /// Gets or updates normalized bookmark group, the bindable or domain state represented by this property.
+    /// </summary>
     private string NormalizedBookmarkGroup => string.IsNullOrWhiteSpace(BookmarkGroup) ? "Bookmarks" : BookmarkGroup.Trim();
 
+    /// <summary>
+    /// Handles the state changed event raised by the UI or runtime.
+    /// </summary>
     private void OnStateChanged(object? sender, BrowserSnapshot state) =>
         Dispatcher.UIThread.Post(() => _ = HandleStateChangedAsync(state));
 
+    /// <summary>
+    /// Performs handle state changed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task HandleStateChangedAsync(BrowserSnapshot state)
     {
         if (state.Address is not null) Address = state.Address.ToString();
@@ -480,6 +879,9 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         await ApplyExtensionsAsync(state.Address);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         _browser.StateChanged -= OnStateChanged;
@@ -487,11 +889,26 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 }
 
+/// <summary>
+/// Represents browser tab view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserTabViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _title;
+    /// <summary>
+    /// Stores address locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _address;
+    /// <summary>
+    /// Stores group locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _group;
+    /// <summary>
+    /// Stores is selected locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isSelected;
 
     public BrowserTabViewModel(Guid id, string title, string address, bool isPrivate, string group)
@@ -503,11 +920,32 @@ public sealed class BrowserTabViewModel : ObservableObject
         _group = group;
     }
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; }
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title { get => _title; set { if (SetProperty(ref _title, value)) RaisePropertyChanged(nameof(DisplayTitle)); } }
+    /// <summary>
+    /// Gets or updates address, the bindable or domain state represented by this property.
+    /// </summary>
     public string Address { get => _address; set => SetProperty(ref _address, value); }
+    /// <summary>
+    /// Reports whether is private is true for the current state.
+    /// </summary>
     public bool IsPrivate { get; }
+    /// <summary>
+    /// Reports whether is selected is true for the current state.
+    /// </summary>
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
+    /// <summary>
+    /// Gets or updates group, the bindable or domain state represented by this property.
+    /// </summary>
     public string Group { get => _group; set => SetProperty(ref _group, value); }
+    /// <summary>
+    /// Gets or updates display title, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayTitle => (IsPrivate ? "Private - " : string.Empty) + Title;
 }

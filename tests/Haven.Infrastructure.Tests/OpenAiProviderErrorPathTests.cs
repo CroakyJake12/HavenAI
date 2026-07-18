@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/OpenAiProviderErrorPathTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns OpenAiProviderErrorPathTests, TestHttpClientFactory, TestHandler, TestConfigurationStore, TestSecretStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Text;
 using Haven.Application;
@@ -6,8 +15,14 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents open ai provider error path tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class OpenAiProviderErrorPathTests
 {
+    /// <summary>
+    /// Performs the malformed function arguments are rejected instead of becoming empty arguments step owned by this component.
+    /// </summary>
     [Fact]
     public async Task MalformedFunctionArgumentsAreRejectedInsteadOfBecomingEmptyArguments()
     {
@@ -47,6 +62,9 @@ public sealed class OpenAiProviderErrorPathTests
         Assert.Contains("malformed JSON arguments", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Reports whether cancelled health probe propagates cancellation is true for the current state.
+    /// </summary>
     [Fact]
     public async Task CancelledHealthProbePropagatesCancellation()
     {
@@ -58,20 +76,35 @@ public sealed class OpenAiProviderErrorPathTests
             provider.CheckHealthAsync(cancellation.Token));
     }
 
+    /// <summary>
+    /// Creates provider with the invariants required by its callers.
+    /// </summary>
     private static OpenAiModelProvider CreateProvider(Func<HttpResponseMessage> responseFactory) => new(
         new TestHttpClientFactory(responseFactory),
         new TestConfigurationStore(),
         new TestSecretStore(),
         new ProviderUsageCaptureBuffer());
 
+    /// <summary>
+    /// Represents test http client factory and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestHttpClientFactory(Func<HttpResponseMessage> responseFactory) : IHttpClientFactory
     {
+        /// <summary>
+        /// Creates client with the invariants required by its callers.
+        /// </summary>
         public HttpClient CreateClient(string name) =>
             new(new TestHandler(responseFactory), disposeHandler: true);
     }
 
+    /// <summary>
+    /// Represents test handler and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestHandler(Func<HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
+        /// <summary>
+        /// Performs send async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
@@ -81,8 +114,14 @@ public sealed class OpenAiProviderErrorPathTests
         }
     }
 
+    /// <summary>
+    /// Represents test configuration store and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestConfigurationStore : IProviderConfigurationStore
     {
+        /// <summary>
+        /// Stores configuration locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private static readonly ProviderConfiguration Configuration = new(
             "openai",
             ModelProviderKind.OpenAI,
@@ -94,12 +133,18 @@ public sealed class OpenAiProviderErrorPathTests
             new Dictionary<string, string>(),
             DateTimeOffset.UtcNow);
 
+        /// <summary>
+        /// Retrieves all async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ProviderConfiguration>> GetAllAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<IReadOnlyList<ProviderConfiguration>>([Configuration]);
         }
 
+        /// <summary>
+        /// Retrieves async for the current operation.
+        /// </summary>
         public Task<ProviderConfiguration?> GetAsync(
             string providerId,
             CancellationToken cancellationToken)
@@ -108,21 +153,36 @@ public sealed class OpenAiProviderErrorPathTests
             return Task.FromResult<ProviderConfiguration?>(Configuration);
         }
 
+        /// <summary>
+        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task UpsertAsync(
             ProviderConfiguration configuration,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
+        /// <summary>
+        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteAsync(string providerId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Represents test secret store and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestSecretStore : IProviderSecretStore
     {
+        /// <summary>
+        /// Performs set async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task SetAsync(
             string providerId,
             string secretName,
             string secret,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
+        /// <summary>
+        /// Retrieves async for the current operation.
+        /// </summary>
         public Task<string?> GetAsync(
             string providerId,
             string secretName,
@@ -132,6 +192,9 @@ public sealed class OpenAiProviderErrorPathTests
             return Task.FromResult<string?>("test-key");
         }
 
+        /// <summary>
+        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteAsync(
             string providerId,
             string secretName,

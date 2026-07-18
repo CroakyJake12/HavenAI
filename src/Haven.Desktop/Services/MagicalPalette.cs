@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/MagicalPalette.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns MagicalPalette. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia.Media;
 
 namespace Haven.Desktop.Services;
@@ -9,8 +18,14 @@ namespace Haven.Desktop.Services;
 /// </summary>
 public static class MagicalPalette
 {
+    /// <summary>
+    /// Stores applied locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static bool _applied;
 
+    /// <summary>
+    /// Performs the apply step owned by this component.
+    /// </summary>
     public static void Apply()
     {
         if (_applied || Avalonia.Application.Current is not { } application) return;
@@ -54,6 +69,9 @@ public static class MagicalPalette
         _applied = true;
     }
 
+    /// <summary>
+    /// Performs the set brush step owned by this component.
+    /// </summary>
     private static void SetBrush(Avalonia.Application application, string key, string colour) =>
         application.Resources[key] = new SolidColorBrush(Color.Parse(colour));
 }

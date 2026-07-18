@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/BrowserToolRuntime.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns BrowserToolRuntime. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -5,9 +14,18 @@ using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents browser tool runtime and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserToolRuntime
 {
+    /// <summary>
+    /// Stores browser locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IBrowserToolService _browser;
+    /// <summary>
+    /// Stores automation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IBrowserAutomationService _automation;
 
     public BrowserToolRuntime(IBrowserToolService browser, IBrowserAutomationService automation)
@@ -21,6 +39,9 @@ public sealed class BrowserToolRuntime
     {
     }
 
+    /// <summary>
+    /// Stores background tool definitions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyList<OllamaToolDefinition> BackgroundToolDefinitions =
     [
         Definition("browser_navigate", "Navigate Haven's isolated browser to a public HTTP or HTTPS URL or search query. Local and private network destinations are blocked.",
@@ -35,6 +56,9 @@ public sealed class BrowserToolRuntime
             }, "address")
     ];
 
+    /// <summary>
+    /// Stores interactive tool definitions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyList<OllamaToolDefinition> InteractiveToolDefinitions =
     [
         Definition("browser_click_ref", "Click a stable element reference returned by browser_snapshot. Form submission requires explicit user approval.",
@@ -53,11 +77,26 @@ public sealed class BrowserToolRuntime
             new() { ["x"] = NumberProperty("Horizontal pixels."), ["y"] = NumberProperty("Vertical pixels.") })
     ];
 
+    /// <summary>
+    /// Gets or updates background definitions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<OllamaToolDefinition> BackgroundDefinitions => BackgroundToolDefinitions;
+    /// <summary>
+    /// Gets or updates interactive definitions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<OllamaToolDefinition> InteractiveDefinitions => InteractiveToolDefinitions;
+    /// <summary>
+    /// Gets or updates definitions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<OllamaToolDefinition> Definitions => [.. BackgroundToolDefinitions, .. InteractiveToolDefinitions];
+    /// <summary>
+    /// Reports whether is interactive available is true for the current state.
+    /// </summary>
     public bool IsInteractiveAvailable => _browser.IsInteractiveAvailable;
 
+    /// <summary>
+    /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<WorkspaceToolResult> ExecuteAsync(OllamaToolCall call, CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
@@ -91,6 +130,9 @@ public sealed class BrowserToolRuntime
         }
     }
 
+    /// <summary>
+    /// Performs the format snapshot step owned by this component.
+    /// </summary>
     private static string FormatSnapshot(BrowserPageSnapshot snapshot)
     {
         var builder = new StringBuilder();
@@ -120,19 +162,52 @@ public sealed class BrowserToolRuntime
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the format pending step owned by this component.
+    /// </summary>
     private static string FormatPending(BrowserPendingAction action) =>
         $"Approval required. Pending browser action {action.Id} expires at {action.ExpiresAt:O}. Open Browser safety to approve or reject: {action.Summary}";
 
+    /// <summary>
+    /// Performs the definition step owned by this component.
+    /// </summary>
     private static OllamaToolDefinition Definition(string name, string description, Dictionary<string, object> properties, params string[] required) =>
         new(name, description, properties, required);
+    /// <summary>
+    /// Performs the string property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> StringProperty(string description) => new() { ["type"] = "string", ["description"] = description };
+    /// <summary>
+    /// Performs the boolean property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> BooleanProperty(string description) => new() { ["type"] = "boolean", ["description"] = description };
+    /// <summary>
+    /// Performs the number property step owned by this component.
+    /// </summary>
     private static Dictionary<string, object> NumberProperty(string description) => new() { ["type"] = "number", ["description"] = description };
+    /// <summary>
+    /// Performs the required text step owned by this component.
+    /// </summary>
     private static string RequiredText(OllamaToolCall call, string key) => string.IsNullOrWhiteSpace(Text(call, key)) ? throw new ArgumentException($"{key} is required.") : Text(call, key)!;
+    /// <summary>
+    /// Performs the text step owned by this component.
+    /// </summary>
     private static string? Text(OllamaToolCall call, string key, string? fallback = "") => call.Arguments.TryGetValue(key, out var value) ? value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : value.ToString() : fallback;
+    /// <summary>
+    /// Performs the boolean step owned by this component.
+    /// </summary>
     private static bool Boolean(OllamaToolCall call, string key) => call.Arguments.TryGetValue(key, out var value) && (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var result) && result);
+    /// <summary>
+    /// Performs the number step owned by this component.
+    /// </summary>
     private static double Number(OllamaToolCall call, string key, double fallback = 0) => call.Arguments.TryGetValue(key, out var value) && value.TryGetDouble(out var result) ? result : fallback;
+    /// <summary>
+    /// Performs the first line step owned by this component.
+    /// </summary>
     private static string FirstLine(string value) => value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Completed";
+    /// <summary>
+    /// Performs the human label step owned by this component.
+    /// </summary>
     private static string HumanLabel(string name) => name switch
     {
         "browser_navigate" => "Navigated browser",

@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/DatabaseRestoreServiceTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns DatabaseRestoreServiceTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents database restore service tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class DatabaseRestoreServiceTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the verified backup restores previous data and keeps emergency current copy step owned by this component.
+    /// </summary>
     [Fact]
     public async Task VerifiedBackupRestoresPreviousDataAndKeepsEmergencyCurrentCopy()
     {
@@ -40,6 +58,9 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         Assert.True((await maintenance.VerifyIntegrityAsync(CancellationToken.None)).IsHealthy);
     }
 
+    /// <summary>
+    /// Performs the tampered backup is quarantined without changing current database step owned by this component.
+    /// </summary>
     [Fact]
     public async Task TamperedBackupIsQuarantinedWithoutChangingCurrentDatabase()
     {
@@ -69,6 +90,9 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
             path => File.Exists(path));
     }
 
+    /// <summary>
+    /// Performs the restore request rejects paths outside managed backups step owned by this component.
+    /// </summary>
     [Theory]
     [InlineData("../haven.db")]
     [InlineData("subfolder/backup.db")]
@@ -83,6 +107,9 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_paths.DataDirectory, "pending-database-restore.json")));
     }
 
+    /// <summary>
+    /// Reports whether cancel pending restore leaves current database untouched is true for the current state.
+    /// </summary>
     [Fact]
     public async Task CancelPendingRestoreLeavesCurrentDatabaseUntouched()
     {
@@ -101,14 +128,23 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         Assert.True((await maintenance.VerifyIntegrityAsync(CancellationToken.None)).IsHealthy);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Performs the conversation step owned by this component.
+    /// </summary>
     private static Conversation Conversation(string title)
     {
         var now = DateTimeOffset.UtcNow;
         return new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, title, null, null, false, false, now, now);
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -123,13 +159,34 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

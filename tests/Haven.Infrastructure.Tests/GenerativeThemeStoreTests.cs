@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/GenerativeThemeStoreTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeThemeStoreTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
@@ -5,10 +14,19 @@ using Xunit;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents generative theme store tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeThemeStoreTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the new store provides immutable dual variant built ins and dark selection step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NewStoreProvidesImmutableDualVariantBuiltInsAndDarkSelection()
     {
@@ -31,6 +49,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         Assert.True(active.IsBuiltIn);
     }
 
+    /// <summary>
+    /// Performs the custom theme round trips rename selection export import and delete step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CustomThemeRoundTripsRenameSelectionExportImportAndDelete()
     {
@@ -64,6 +85,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         Assert.Contains(afterDelete, theme => theme.Id == fallback.ActiveThemeId && theme.IsBuiltIn);
     }
 
+    /// <summary>
+    /// Performs the built in themes cannot be renamed deleted or overwritten step owned by this component.
+    /// </summary>
     [Fact]
     public async Task BuiltInThemesCannotBeRenamedDeletedOrOverwritten()
     {
@@ -82,6 +106,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
             theme => theme.Id == builtIn.Id && theme.Name == builtIn.Name);
     }
 
+    /// <summary>
+    /// Performs the corrupt custom theme is quarantined and other themes still load step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CorruptCustomThemeIsQuarantinedAndOtherThemesStillLoad()
     {
@@ -104,6 +131,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         Assert.Contains(events, item => item.EventName == "theme-quarantined");
     }
 
+    /// <summary>
+    /// Performs the corrupt selection is quarantined and reset to built in theme step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CorruptSelectionIsQuarantinedAndResetToBuiltInTheme()
     {
@@ -124,6 +154,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         Assert.Contains(events, item => item.EventName == "selection-quarantined");
     }
 
+    /// <summary>
+    /// Performs the invalid imported layout never creates a stored theme step owned by this component.
+    /// </summary>
     [Fact]
     public async Task InvalidImportedLayoutNeverCreatesAStoredTheme()
     {
@@ -157,11 +190,20 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         Assert.Empty(storedFiles);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Creates store with the invariants required by its callers.
+    /// </summary>
     private GenerativeThemeStore CreateStore(IProductionDiagnostics diagnostics) =>
         new(_paths, new GenerativeThemeValidator(), diagnostics);
 
+    /// <summary>
+    /// Performs the valid theme step owned by this component.
+    /// </summary>
     private static GenerativeThemePack ValidTheme(string name)
     {
         var now = DateTimeOffset.UtcNow;
@@ -183,6 +225,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
             []);
     }
 
+    /// <summary>
+    /// Performs the palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette Palette(bool light, string background, string accent) => new(
         background,
         light ? "#FFF7F9FC" : "#FF182129",
@@ -211,6 +256,9 @@ public sealed class GenerativeThemeStoreTests : IDisposable
         light ? "#FFE7EBF0" : "#20FFFFFF",
         "#A060CDFF");
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -227,13 +275,34 @@ public sealed class GenerativeThemeStoreTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try

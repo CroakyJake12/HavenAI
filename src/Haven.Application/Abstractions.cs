@@ -1,7 +1,19 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/Abstractions.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns IConversationRepository, IContainerRepository, IContainerResourceRepository, ICatalogRepository, IWorkspaceStateRepository, IProjectIntelligenceService, ProjectDiscoveryItem, IAutomationRepository, ITrainingRepository, IOllamaClient, GenerationOptions, OllamaChatRequest, OllamaMessage, OllamaToolDefinition, OllamaToolCall, OllamaToolTurn, OllamaToolRequest, OllamaToolResponse, IWorkspaceToolService, IComputerToolService, IBrowserToolService, ProcessRequest, ProcessResult, ILegacyStateMigrator, LegacyMigrationResult, IModeRegistry, IModeUsageRepository, IPinRepository, ISurfaceRouter, IModeIntentRouter, IActivityLogRepository, IConversationMoveRepository, ICompanionDockService, IBrowserTabHostManager, IPlatformShellService, IAppDiagnostics, IAppCommandRegistry, IAppDatabase, IAppPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Defines the i conversation repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IConversationRepository
 {
     Task<IReadOnlyList<Conversation>> GetRecentAsync(HavenMode? mode, int limit, CancellationToken cancellationToken);
@@ -22,6 +34,9 @@ public interface IConversationRepository
     Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i container repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IContainerRepository
 {
     Task<IReadOnlyList<ContainerDefinition>> GetByModeAsync(HavenMode mode, CancellationToken cancellationToken);
@@ -35,6 +50,9 @@ public interface IContainerRepository
     Task DeleteLessonAsync(Guid id, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i container resource repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IContainerResourceRepository
 {
     Task<IReadOnlyList<ContainerResource>> GetByContainerAsync(Guid containerId, CancellationToken cancellationToken);
@@ -44,6 +62,9 @@ public interface IContainerResourceRepository
     Task<string> BuildPromptContextAsync(Guid containerId, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i catalog repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICatalogRepository
 {
     Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken);
@@ -60,6 +81,9 @@ public interface ICatalogRepository
     Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i workspace state repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IWorkspaceStateRepository
 {
     Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken);
@@ -72,6 +96,9 @@ public interface IWorkspaceStateRepository
     Task DeleteDecisionAsync(Guid id, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i project intelligence service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IProjectIntelligenceService
 {
     Task<IReadOnlyList<ProjectDiscoveryItem>> ScanAsync(string root, CancellationToken cancellationToken);
@@ -88,8 +115,14 @@ public interface IProjectIntelligenceService
     Task LaunchLocalServerAsync(string root, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents project discovery item and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProjectDiscoveryItem(string Name, string RootPath, string EntryPath, string Kind, string Category);
 
+/// <summary>
+/// Defines the i automation repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IAutomationRepository
 {
     Task<IReadOnlyList<AutomationDefinition>> GetAllAsync(CancellationToken cancellationToken);
@@ -101,6 +134,9 @@ public interface IAutomationRepository
     Task<IReadOnlyList<AutomationRun>> GetRunsAsync(Guid automationId, int limit, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i training repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ITrainingRepository
 {
     Task UpsertRunAsync(TrainingRun run, CancellationToken cancellationToken);
@@ -111,6 +147,9 @@ public interface ITrainingRepository
     Task<IReadOnlyList<TrainingAttempt>> GetAttemptsAsync(Guid runId, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i ollama client contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IOllamaClient
 {
     Task<bool> IsAvailableAsync(CancellationToken cancellationToken);
@@ -122,8 +161,14 @@ public interface IOllamaClient
     Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.FromException(new NotSupportedException("This model provider does not support model removal."));
 }
 
+/// <summary>
+/// Represents generation options and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerationOptions(double Temperature = 0.7, int ContextLimit = 32768, int ActionLimit = 24);
 
+/// <summary>
+/// Represents ollama chat request and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaChatRequest(
     string Model,
     IReadOnlyList<OllamaMessage> Messages,
@@ -132,19 +177,31 @@ public sealed record OllamaChatRequest(
     bool EnableTools = false,
     GenerationOptions? Options = null);
 
+/// <summary>
+/// Represents ollama message and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaMessage(string Role, string Content, IReadOnlyList<string>? Images = null);
 
+/// <summary>
+/// Represents ollama tool definition and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaToolDefinition(
     string Name,
     string Description,
     IReadOnlyDictionary<string, object> Properties,
     IReadOnlyList<string> Required);
 
+/// <summary>
+/// Represents ollama tool call and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaToolCall(
     string Name,
     IReadOnlyDictionary<string, System.Text.Json.JsonElement> Arguments,
     string? Id = null);
 
+/// <summary>
+/// Represents ollama tool turn and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaToolTurn(
     string Role,
     string Content,
@@ -152,6 +209,9 @@ public sealed record OllamaToolTurn(
     string? ToolName = null,
     IReadOnlyList<string>? Images = null);
 
+/// <summary>
+/// Represents ollama tool request and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaToolRequest(
     string Model,
     IReadOnlyList<OllamaToolTurn> Messages,
@@ -160,8 +220,14 @@ public sealed record OllamaToolRequest(
     string? SystemPrompt = null,
     GenerationOptions? Options = null);
 
+/// <summary>
+/// Represents ollama tool response and keeps its related state and behavior together.
+/// </summary>
 public sealed record OllamaToolResponse(string Content, IReadOnlyList<OllamaToolCall> ToolCalls);
 
+/// <summary>
+/// Defines the i workspace tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IWorkspaceToolService
 {
     string ResolveWorkspacePath(string workspaceRoot, string relativePath);
@@ -171,6 +237,9 @@ public interface IWorkspaceToolService
     Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i computer tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IComputerToolService
 {
     Task<string> SnapshotAsync(CancellationToken cancellationToken);
@@ -184,6 +253,9 @@ public interface IComputerToolService
     Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i browser tool service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IBrowserToolService
 {
     bool IsInteractiveAvailable => false;
@@ -198,16 +270,31 @@ public interface IBrowserToolService
     Task<string> ScrollAsync(double x, double y, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents process request and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProcessRequest(string FileName, string Arguments, string WorkingDirectory, TimeSpan Timeout, IReadOnlyDictionary<string, string>? Environment = null, bool DetachGui = false);
+/// <summary>
+/// Represents process result and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError, TimeSpan Duration, bool TimedOut);
 
+/// <summary>
+/// Defines the i legacy state migrator contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ILegacyStateMigrator
 {
     Task<LegacyMigrationResult> MigrateIfNeededAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents legacy migration result and keeps its related state and behavior together.
+/// </summary>
 public sealed record LegacyMigrationResult(bool Attempted, bool Imported, int ConversationCount, int MessageCount, string? Note);
 
+/// <summary>
+/// Defines the i mode registry contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IModeRegistry
 {
     Task<IReadOnlyList<ModeDefinition>> GetModesAsync(CancellationToken cancellationToken);
@@ -220,6 +307,9 @@ public interface IModeRegistry
     Task UpsertGrantAsync(ModePermissionGrant grant, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i mode usage repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IModeUsageRepository
 {
     Task RecordUsageAsync(Guid modeId, DateOnly date, CancellationToken cancellationToken);
@@ -228,6 +318,9 @@ public interface IModeUsageRepository
     Task<IReadOnlyList<ModeUsage>> GetUsageByModeAsync(Guid modeId, int limit, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i pin repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IPinRepository
 {
     Task<IReadOnlyList<ModePin>> GetPinsAsync(CancellationToken cancellationToken);
@@ -235,6 +328,9 @@ public interface IPinRepository
     Task DeletePinAsync(Guid modeId, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i surface router contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ISurfaceRouter
 {
     Task<SurfaceKind> ResolveSurfaceAsync(string intent, HavenMode currentMode, CancellationToken cancellationToken);
@@ -242,24 +338,36 @@ public interface ISurfaceRouter
     Task RecordRunAsync(SurfaceRun run, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i mode intent router contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IModeIntentRouter
 {
     Task<IntentClassification> ClassifyAsync(string prompt, HavenMode currentMode, string? workspaceRoot, CancellationToken cancellationToken);
     Task<ModeSlot?> ResolveModeAsync(string prompt, HavenMode currentMode, string? workspaceRoot, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i activity log repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IActivityLogRepository
 {
     Task<IReadOnlyList<ActivityEvent>> GetRecentAsync(int limit, CancellationToken cancellationToken);
     Task AddEventAsync(ActivityEvent activityEvent, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i conversation move repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IConversationMoveRepository
 {
     Task RecordMoveAsync(ConversationMove move, CancellationToken cancellationToken);
     Task<IReadOnlyList<ConversationMove>> GetMovesAsync(Guid conversationId, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i companion dock service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICompanionDockService
 {
     Task<bool> IsDockedAsync(Guid conversationId, CancellationToken cancellationToken);
@@ -268,6 +376,9 @@ public interface ICompanionDockService
     Task<IReadOnlyList<Guid>> GetDockedConversationsAsync(SurfaceKind surface, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i browser tab host manager contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IBrowserTabHostManager
 {
     Task<int> GetActiveTabCountAsync(CancellationToken cancellationToken);
@@ -275,6 +386,9 @@ public interface IBrowserTabHostManager
     Task<string> GetCompletionSummaryAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i platform shell service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IPlatformShellService
 {
     Task OpenExternalAsync(string url, CancellationToken cancellationToken);
@@ -282,6 +396,9 @@ public interface IPlatformShellService
     Task SetClipboardTextAsync(string text, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i app diagnostics contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IAppDiagnostics
 {
     Task<IReadOnlyDictionary<string, string>> GetDiagnosticsAsync(CancellationToken cancellationToken);
@@ -289,17 +406,26 @@ public interface IAppDiagnostics
     Task<IReadOnlyList<(string Component, string Error, DateTimeOffset Timestamp)>> GetRecentErrorsAsync(int limit, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i app command registry contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IAppCommandRegistry
 {
     void Register(string key, string label, string description, Action execute);
     IReadOnlyList<(string Key, string Label, string Description)> GetAll();
 }
 
+/// <summary>
+/// Defines the i app database contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IAppDatabase
 {
     Task InitializeAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i app paths contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IAppPaths
 {
     string DataDirectory { get; }

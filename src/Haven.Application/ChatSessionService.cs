@@ -1,9 +1,21 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ChatSessionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ChatSessionService, ChatStreamEvent, ChatStreamEventKind. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents chat session service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ChatSessionService(
     IConversationRepository conversations,
     IOllamaClient ollama,
@@ -14,6 +26,9 @@ public sealed class ChatSessionService(
     AutomationToolRuntime? automationTools = null,
     ToolAvailabilityPlanner? toolAvailability = null)
 {
+    /// <summary>
+    /// Retrieves tool availability for the current operation.
+    /// </summary>
     public ToolAvailabilityPlan GetToolAvailability(
         HavenMode mode,
         string? workspaceRoot,
@@ -27,6 +42,9 @@ public sealed class ChatSessionService(
             computerPass.Definitions);
     }
 
+    /// <summary>
+    /// Reports whether can activate plugin is true for the current state.
+    /// </summary>
     public bool CanActivatePlugin(
         string pluginName,
         HavenMode mode,
@@ -37,6 +55,9 @@ public sealed class ChatSessionService(
         GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
             Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
 
+    /// <summary>
+    /// Performs send async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> SendAsync(
         Conversation conversation,
         string prompt,
@@ -261,6 +282,9 @@ public sealed class ChatSessionService(
         yield return ChatStreamEvent.AssistantCompleted(assistant);
     }
 
+    /// <summary>
+    /// Creates availability plan with the invariants required by its callers.
+    /// </summary>
     private ToolAvailabilityPlan CreateAvailabilityPlan(
         HavenMode mode,
         string? workspaceRoot,
@@ -289,9 +313,15 @@ public sealed class ChatSessionService(
                 automationTools?.GetDefinitions(true, false) ?? [],
                 automationTools?.GetDefinitions(false, true) ?? []));
 
+    /// <summary>
+    /// Performs the approvable step owned by this component.
+    /// </summary>
     private static PermissionMode Approvable(PermissionMode permission) =>
         permission == PermissionMode.Ask ? PermissionMode.FullAccess : permission;
 
+    /// <summary>
+    /// Performs the looks like tool request step owned by this component.
+    /// </summary>
     private static bool LooksLikeToolRequest(string prompt)
     {
         var value = prompt.TrimStart();
@@ -299,10 +329,16 @@ public sealed class ChatSessionService(
             .Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Reports whether is unsupported tool schema is true for the current state.
+    /// </summary>
     private static bool IsUnsupportedToolSchema(HttpRequestException exception) =>
         exception.Message.Contains("does not support tools", StringComparison.OrdinalIgnoreCase) ||
         exception.Message.Contains("tool support", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the response contradicts completed action step owned by this component.
+    /// </summary>
     private static bool ResponseContradictsCompletedAction(string response)
     {
         var value = response.ToLowerInvariant();
@@ -315,6 +351,9 @@ public sealed class ChatSessionService(
                value.Contains("cannot open applications", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the completed action message step owned by this component.
+    /// </summary>
     private static string CompletedActionMessage(OllamaToolCall call) => call.Name switch
     {
         "computer_launch_app" => $"Done — opened {ArgumentText(call, "name", "the application")}.",
@@ -326,11 +365,17 @@ public sealed class ChatSessionService(
         _ => "Done — the requested tool action completed."
     };
 
+    /// <summary>
+    /// Performs the argument text step owned by this component.
+    /// </summary>
     private static string ArgumentText(OllamaToolCall call, string name, string fallback) =>
         call.Arguments.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
             ? value.GetString()!
             : fallback;
 
+    /// <summary>
+    /// Attempts to bridge tool call async and reports the result without using failure for normal control flow.
+    /// </summary>
     private static async Task<OllamaToolCall?> TryBridgeToolCallAsync(
         IOllamaClient ollama,
         ModelDescriptor model,
@@ -367,6 +412,9 @@ public sealed class ChatSessionService(
         }
     }
 
+    /// <summary>
+    /// Builds system prompt from the currently available inputs.
+    /// </summary>
     private static string BuildSystemPrompt(
         Conversation conversation,
         IReadOnlyCollection<ActivePlugin> plugins,
@@ -427,6 +475,9 @@ public sealed class ChatSessionService(
     }
 }
 
+/// <summary>
+/// Represents chat stream event and keeps its related state and behavior together.
+/// </summary>
 public sealed record ChatStreamEvent(
     ChatStreamEventKind Kind,
     ChatMessage? Message = null,
@@ -437,12 +488,33 @@ public sealed record ChatStreamEvent(
     CapabilityPreflightResult? PreflightResult = null,
     ToolActivity? ToolActivity = null)
 {
+    /// <summary>
+    /// Performs the user step owned by this component.
+    /// </summary>
     public static ChatStreamEvent User(ChatMessage message) => new(ChatStreamEventKind.UserMessage, Message: message);
+    /// <summary>
+    /// Performs the assistant started step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantStarted(Guid id, string model, string agent) => new(ChatStreamEventKind.AssistantStarted, MessageId: id, Model: model, Agent: agent);
+    /// <summary>
+    /// Performs the assistant delta step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantDelta(Guid id, string delta) => new(ChatStreamEventKind.AssistantDelta, MessageId: id, Delta: delta);
+    /// <summary>
+    /// Performs the assistant completed step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantCompleted(ChatMessage message) => new(ChatStreamEventKind.AssistantCompleted, Message: message);
+    /// <summary>
+    /// Performs the preflight step owned by this component.
+    /// </summary>
     public static ChatStreamEvent Preflight(CapabilityPreflightResult result) => new(ChatStreamEventKind.PreflightFailed, PreflightResult: result);
+    /// <summary>
+    /// Performs the activity step owned by this component.
+    /// </summary>
     public static ChatStreamEvent Activity(ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, ToolActivity: activity);
 }
 
+/// <summary>
+/// Lists the supported chat stream event kind values used to make state explicit and type-safe.
+/// </summary>
 public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ToolActivity, PreflightFailed }

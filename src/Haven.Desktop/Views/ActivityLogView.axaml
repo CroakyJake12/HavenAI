@@ -1,11 +1,24 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ActivityLogView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ActivityLogView. Its visual vocabulary includes: UserControl.Styles, Style, Setter, Border, Grid, StackPanel, TextBlock, Button, TextBox, ScrollViewer, ItemsControl, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: RefreshCommand, SearchQuery, FilteredItems, Title, Mode, MessageCount, LastMessagePreview, UpdatedAt, StatusMessage.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              x:Class="Haven.Desktop.Views.ActivityLogView"
              x:DataType="vm:ActivityLogPageViewModel">
 
+  <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <UserControl.Styles>
     <!-- Section headers: used above input fields and list groups -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.section-header">
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
@@ -14,8 +27,10 @@
   </UserControl.Styles>
 
   <!-- Root padding wrapper -->
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
   <Border Padding="20">
     <!-- Main layout: 4 rows — Header, Search, Conversation List, Status Bar -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid RowDefinitions="Auto,Auto,*,Auto">
 
       <!-- ============================================================

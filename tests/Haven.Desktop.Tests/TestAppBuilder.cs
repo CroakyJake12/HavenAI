@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/TestAppBuilder.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns TestAppBuilder. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -7,8 +16,14 @@ using Haven.Desktop;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents test app builder and keeps its related state and behavior together.
+/// </summary>
 public static class TestAppBuilder
 {
+    /// <summary>
+    /// Builds avalonia app from the currently available inputs.
+    /// </summary>
     public static AppBuilder BuildAvaloniaApp() => AppBuilder
         .Configure<App>()
         .UseHeadless(new AvaloniaHeadlessPlatformOptions());

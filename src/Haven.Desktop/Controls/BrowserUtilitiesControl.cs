@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/BrowserUtilitiesControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns BrowserUtilitiesControl. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.ComponentModel;
 using System.Text.Json;
 using Avalonia.Controls;
@@ -17,16 +26,49 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
 {
+    /// <summary>
+    /// Stores zoom button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Button _zoomButton;
+    /// <summary>
+    /// Stores policy button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Button _policyButton;
+    /// <summary>
+    /// Stores policy summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _policySummary;
+    /// <summary>
+    /// Stores policy detail locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _policyDetail;
+    /// <summary>
+    /// Stores navigation status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _navigationStatus;
+    /// <summary>
+    /// Stores zoom slider locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Slider _zoomSlider = null!;
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserPageViewModel? _viewModel;
+    /// <summary>
+    /// Stores notifications locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private INotifyPropertyChanged? _notifications;
+    /// <summary>
+    /// Stores lifetime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource _lifetime = new();
+    /// <summary>
+    /// Stores policy version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _policyVersion;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public BrowserUtilitiesControl()
@@ -58,6 +100,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         DetachedFromVisualTree += OnDetached;
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -71,6 +116,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Performs the utility button step owned by this component.
+    /// </summary>
     private Button UtilityButton(string content, string tooltip, Control panel)
     {
         var button = new Button { Content = content };
@@ -80,6 +128,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Builds find panel from the currently available inputs.
+    /// </summary>
     private Control BuildFindPanel()
     {
         var query = new TextBox { PlaceholderText = "Find on this page", MinWidth = 260 };
@@ -157,6 +208,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             status, 340);
     }
 
+    /// <summary>
+    /// Builds zoom panel from the currently available inputs.
+    /// </summary>
     private Control BuildZoomPanel()
     {
         _zoomSlider = new Slider
@@ -196,6 +250,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         return Panel("PAGE ZOOM", scale, reset, status, 310);
     }
 
+    /// <summary>
+    /// Builds policy panel from the currently available inputs.
+    /// </summary>
     private Control BuildPolicyPanel() => Panel("SITE AND AUTOMATION POLICY",
         _policySummary,
         _policyDetail,
@@ -206,6 +263,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         Muted("User navigation and model-driven browsing are separate. Model navigation permits only HTTP/HTTPS public-network destinations, blocks embedded credentials and local/internal addresses, and rechecks DNS resolution before use.", 9, true),
         400);
 
+    /// <summary>
+    /// Builds tools panel from the currently available inputs.
+    /// </summary>
     private Control BuildToolsPanel()
     {
         var status = Muted("Actions apply to the mounted browser document.", 10);
@@ -219,6 +279,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             Muted("Developer tools can inspect page content and storage. Use them only for sites you trust.", 9, true), 300);
     }
 
+    /// <summary>
+    /// Runs run browser action async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunBrowserActionAsync(Func<CancellationToken, Task> action, string success, string name, TextBlock status)
     {
         if (_viewModel is null)
@@ -242,6 +305,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs apply zoom async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyZoomAsync(int value, TextBlock status)
     {
         _zoomButton.Content = value + "%";
@@ -265,6 +331,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs refresh policy async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshPolicyAsync()
     {
         var version = Interlocked.Increment(ref _policyVersion);
@@ -303,6 +372,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the set policy step owned by this component.
+    /// </summary>
     private void SetPolicy(int version, string glyph, string summary, string detail)
     {
         if (_disposed || version != Volatile.Read(ref _policyVersion)) return;
@@ -311,9 +383,15 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _policyDetail.Text = detail;
     }
 
+    /// <summary>
+    /// Performs the linked operation step owned by this component.
+    /// </summary>
     private CancellationTokenSource LinkedOperation() =>
         CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
 
+    /// <summary>
+    /// Handles the attached event raised by the UI or runtime.
+    /// </summary>
     private void OnAttached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
         if (_disposed || !_lifetime.IsCancellationRequested) return;
@@ -322,8 +400,14 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _ = RefreshPolicyAsync();
     }
 
+    /// <summary>
+    /// Handles the detached event raised by the UI or runtime.
+    /// </summary>
     private void OnDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) => CancelLifetime(dispose: false);
 
+    /// <summary>
+    /// Reports whether cancel lifetime is true for the current state.
+    /// </summary>
     private void CancelLifetime(bool dispose)
     {
         Interlocked.Increment(ref _policyVersion);
@@ -331,6 +415,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         if (dispose) _lifetime.Dispose();
     }
 
+    /// <summary>
+    /// Handles the data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         DetachViewModel();
@@ -340,6 +427,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _ = RefreshPolicyAsync();
     }
 
+    /// <summary>
+    /// Performs the detach view model step owned by this component.
+    /// </summary>
     private void DetachViewModel()
     {
         if (_notifications is not null) _notifications.PropertyChanged -= OnViewModelPropertyChanged;
@@ -347,6 +437,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _viewModel = null;
     }
 
+    /// <summary>
+    /// Handles the view model property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is not (nameof(BrowserPageViewModel.Address)
@@ -361,6 +454,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         _ = RefreshPolicyAsync();
     }
 
+    /// <summary>
+    /// Performs the panel step owned by this component.
+    /// </summary>
     private static StackPanel Panel(string heading, params object[] items)
     {
         var width = items.LastOrDefault() is int value ? value : 320;
@@ -370,6 +466,9 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         return panel;
     }
 
+    /// <summary>
+    /// Performs the muted step owned by this component.
+    /// </summary>
     private static TextBlock Muted(string text, double size, bool secondary = false) => new()
     {
         Text = text,

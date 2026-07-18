@@ -1,11 +1,26 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ConversationRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ConversationRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents conversation repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationRepository(ISqliteConnectionFactory factory) : IConversationRepository
 {
+    /// <summary>
+    /// Retrieves recent async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<Conversation>> GetRecentAsync(HavenMode? mode, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -18,6 +33,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return await ReadConversationsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves recent in scope async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<Conversation>> GetRecentInScopeAsync(ConversationScope scope, int limit, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(scope);
@@ -40,6 +58,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return await ReadConversationsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the kind for scope step owned by this component.
+    /// </summary>
     private static ConversationKind KindForScope(ConversationScopeKind kind) => kind switch
     {
         ConversationScopeKind.GeneralChat or ConversationScopeKind.ChatGroup => ConversationKind.Chat,
@@ -48,6 +69,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 
+    /// <summary>
+    /// Retrieves archived async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<Conversation>> GetArchivedAsync(HavenMode? mode, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -60,6 +84,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return await ReadConversationsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves async for the current operation.
+    /// </summary>
     public async Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -70,12 +97,21 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return rows.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Retrieves messages async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken)
         => await ReadMessagesAsync(conversationId, includeCompacted: true, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Retrieves context messages async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ChatMessage>> GetContextMessagesAsync(Guid conversationId, CancellationToken cancellationToken)
         => await ReadMessagesAsync(conversationId, includeCompacted: false, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs read messages async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(Guid conversationId, bool includeCompacted, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -116,6 +152,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return await ReadMessagesFromReaderAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs read messages from reader async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesFromReaderAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<ChatMessage>();
@@ -130,6 +169,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -158,6 +200,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs add message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -212,6 +257,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs mark messages compacted async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken)
     {
         if (messageIds.Count == 0) return;
@@ -229,6 +277,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves context entries async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationContextEntry>> GetContextEntriesAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -243,6 +294,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return result;
     }
 
+    /// <summary>
+    /// Performs add context entry async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -261,6 +315,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -270,6 +327,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs ensure current branch core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<Guid> EnsureCurrentBranchCoreAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -308,6 +368,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return branchId;
     }
 
+    /// <summary>
+    /// Retrieves current branch id async for the current operation.
+    /// </summary>
     private static async Task<Guid?> GetCurrentBranchIdAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -322,6 +385,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return value is null or DBNull ? null : Guid.Parse((string)value);
     }
 
+    /// <summary>
+    /// Retrieves next message sequence async for the current operation.
+    /// </summary>
     private static async Task<int> GetNextMessageSequenceAsync(SqliteConnection connection, SqliteTransaction transaction, Guid branchId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -331,6 +397,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Performs update turns for message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task UpdateTurnsForMessageAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -376,6 +445,9 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         }
     }
 
+    /// <summary>
+    /// Performs read conversations async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<Conversation>> ReadConversationsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<Conversation>();

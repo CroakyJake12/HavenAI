@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WorkspaceStateRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WorkspaceStateRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents workspace state repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) : IWorkspaceStateRepository
 {
+    /// <summary>
+    /// Retrieves macros async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -21,6 +36,9 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert macro async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -42,11 +60,17 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete macro async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken)
     {
         await ExecuteDeleteAsync("macros", id, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<WorkspaceVersion>> GetVersionsAsync(Guid? containerId, string? relativePath, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -74,6 +98,9 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         return result;
     }
 
+    /// <summary>
+    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddVersionAsync(WorkspaceVersion version, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -97,6 +124,9 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves decisions async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<DecisionRecord>> GetDecisionsAsync(Guid containerId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -112,6 +142,9 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert decision async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertDecisionAsync(DecisionRecord decision, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -135,8 +168,14 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete decision async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteDecisionAsync(Guid id, CancellationToken cancellationToken) => ExecuteDeleteAsync("decisions", id, cancellationToken);
 
+    /// <summary>
+    /// Runs execute delete async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task ExecuteDeleteAsync(string table, Guid id, CancellationToken cancellationToken)
     {
         if (table is not ("macros" or "decisions")) throw new ArgumentOutOfRangeException(nameof(table));

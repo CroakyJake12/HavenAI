@@ -1,15 +1,33 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/WorkspaceToolRuntimeTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns WorkspaceToolRuntimeTests, FailOnSecondWriteService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents workspace tool runtime tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceToolRuntimeTests : IDisposable
 {
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(Path.GetTempPath(), "haven-runtime-tests", Guid.NewGuid().ToString("N"));
 
     public WorkspaceToolRuntimeTests() => Directory.CreateDirectory(_root);
 
+    /// <summary>
+    /// Performs the write read and replace remain inside workspace step owned by this component.
+    /// </summary>
     [Fact]
     public async Task WriteReadAndReplaceRemainInsideWorkspace()
     {
@@ -23,6 +41,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.Equal("after", read.Output);
     }
 
+    /// <summary>
+    /// Performs the preview change set does not write and returns review hashes step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PreviewChangeSetDoesNotWriteAndReturnsReviewHashes()
     {
@@ -43,6 +64,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_root, "two.txt")));
     }
 
+    /// <summary>
+    /// Performs the apply change set writes all files through real tool entry point step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ApplyChangeSetWritesAllFilesThroughRealToolEntryPoint()
     {
@@ -62,6 +86,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.Equal("created", await File.ReadAllTextAsync(Path.Combine(_root, "folder", "two.txt")));
     }
 
+    /// <summary>
+    /// Performs the stale expected hash rejects whole set before writing step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StaleExpectedHashRejectsWholeSetBeforeWriting()
     {
@@ -81,6 +108,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_root, "two.txt")));
     }
 
+    /// <summary>
+    /// Performs the failed later write rolls back earlier writes and created files step owned by this component.
+    /// </summary>
     [Fact]
     public async Task FailedLaterWriteRollsBackEarlierWritesAndCreatedFiles()
     {
@@ -99,6 +129,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.Equal("before", await File.ReadAllTextAsync(Path.Combine(_root, "one.txt")));
     }
 
+    /// <summary>
+    /// Performs the traversal is reported as failed tool result step owned by this component.
+    /// </summary>
     [Fact]
     public async Task TraversalIsReportedAsFailedToolResult()
     {
@@ -108,6 +141,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.Contains("outside", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the change set traversal and duplicate targets are rejected before writing step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ChangeSetTraversalAndDuplicateTargetsAreRejectedBeforeWriting()
     {
@@ -127,6 +163,9 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_root, "same.txt")));
     }
 
+    /// <summary>
+    /// Performs the call step owned by this component.
+    /// </summary>
     private static OllamaToolCall Call(string name, object arguments)
     {
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(arguments));
@@ -134,18 +173,42 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         return new OllamaToolCall(name, values);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
     }
 
+    /// <summary>
+    /// Represents fail on second write service and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FailOnSecondWriteService(IWorkspaceToolService inner) : IWorkspaceToolService
     {
+        /// <summary>
+        /// Stores writes locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         private int _writes;
+        /// <summary>
+        /// Performs the resolve workspace path step owned by this component.
+        /// </summary>
         public string ResolveWorkspacePath(string workspaceRoot, string relativePath) => inner.ResolveWorkspacePath(workspaceRoot, relativePath);
+        /// <summary>
+        /// Performs read text async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken) => inner.ReadTextAsync(workspaceRoot, relativePath, cancellationToken);
+        /// <summary>
+        /// Performs search files async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken) => inner.SearchFilesAsync(workspaceRoot, searchPattern, cancellationToken);
+        /// <summary>
+        /// Runs run process async while preserving the surrounding cancellation and error-handling contract.
+        /// </summary>
         public Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken) => inner.RunProcessAsync(request, cancellationToken);
+        /// <summary>
+        /// Performs write text atomic async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
         {
             if (Interlocked.Increment(ref _writes) == 2) throw new IOException("Injected second-write failure.");

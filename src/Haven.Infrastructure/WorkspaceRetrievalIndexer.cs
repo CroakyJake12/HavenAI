@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WorkspaceRetrievalIndexer.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WorkspaceRetrievalIndexer. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using Haven.Application;
@@ -5,8 +14,14 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents workspace retrieval indexer and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) : IWorkspaceRetrievalIndexer
 {
+    /// <summary>
+    /// Stores allowed extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".fs", ".vb", ".java", ".kt", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".py", ".js", ".jsx", ".ts", ".tsx",
@@ -14,11 +29,17 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
         ".md", ".txt", ".sql", ".ps1", ".sh", ".cmd", ".bat", ".csproj", ".fsproj", ".vbproj", ".sln", ".props", ".targets"
     };
 
+    /// <summary>
+    /// Stores excluded directories locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".vs", ".idea", "bin", "obj", "node_modules", "packages", "artifacts", "dist", "build", ".next", ".nuxt", "coverage"
     };
 
+    /// <summary>
+    /// Performs index project async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<RetrievalIndexReport> IndexProjectAsync(Guid projectId, string rootPath, CancellationToken cancellationToken)
     {
         if (projectId == Guid.Empty) throw new ArgumentException("Project identifier is required.", nameof(projectId));
@@ -73,6 +94,9 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
         return new RetrievalIndexReport(indexed, unchanged, removed, skipped, notices);
     }
 
+    /// <summary>
+    /// Performs index subject async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<RetrievalIndexReport> IndexSubjectAsync(
         ContainerDefinition subject,
         IReadOnlyList<Lesson> lessons,
@@ -119,6 +143,9 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
         }
     }
 
+    /// <summary>
+    /// Performs the enumerate files step owned by this component.
+    /// </summary>
     private static IEnumerable<string> EnumerateFiles(string root, int maximumFiles, CancellationToken cancellationToken)
     {
         var stack = new Stack<string>();
@@ -150,6 +177,9 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
         }
     }
 
+    /// <summary>
+    /// Reports whether hash is true for the current state.
+    /// </summary>
     private static string Hash(string text)
     {
         var normalized = text.Replace("\0", string.Empty, StringComparison.Ordinal).ReplaceLineEndings("\n").Trim();

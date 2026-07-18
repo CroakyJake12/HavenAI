@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ServiceCollectionExtensions.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ServiceCollectionExtensions. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents service collection extensions and keeps its related state and behavior together.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Performs the add haven infrastructure step owned by this component.
+    /// </summary>
     public static IServiceCollection AddHavenInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IAppPaths, AppPaths>();

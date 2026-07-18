@@ -1,14 +1,35 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/MainWindowModeNavigationExtensions.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns MainWindowModeNavigationExtensions, ModeActivationSnapshot. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents main window mode navigation extensions and keeps its related state and behavior together.
+/// </summary>
 public static class MainWindowModeNavigationExtensions
 {
+    /// <summary>
+    /// Stores mode profile prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string ModeProfilePrefix = "Mode profile · ";
+    /// <summary>
+    /// Stores snapshots locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly ConditionalWeakTable<ChatPageViewModel, ModeActivationSnapshot> Snapshots = new();
 
+    /// <summary>
+    /// Performs open mode definition async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task OpenModeDefinitionAsync(this MainWindowViewModel shell, ModeDefinition mode)
     {
         ArgumentNullException.ThrowIfNull(shell);
@@ -51,6 +72,9 @@ public static class MainWindowModeNavigationExtensions
         await shell.NavigateCurrentChatCommand.ExecuteAsync();
     }
 
+    /// <summary>
+    /// Performs the apply mode profile step owned by this component.
+    /// </summary>
     internal static void ApplyModeProfile(ChatPageViewModel chat, ModeDefinition mode)
     {
         ArgumentNullException.ThrowIfNull(chat);
@@ -91,6 +115,9 @@ public static class MainWindowModeNavigationExtensions
             plugin.IsActive = requestedPlugins.Contains(plugin.Name) && plugin.IsAvailableInMode && plugin.IsRuntimeAvailable;
     }
 
+    /// <summary>
+    /// Performs the clear mode profile step owned by this component.
+    /// </summary>
     internal static void ClearModeProfile(ChatPageViewModel chat)
     {
         foreach (var oldProfile in chat.Prompts
@@ -104,6 +131,9 @@ public static class MainWindowModeNavigationExtensions
         Snapshots.Remove(chat);
     }
 
+    /// <summary>
+    /// Performs navigate to base workspace async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task NavigateToBaseWorkspaceAsync(MainWindowViewModel shell, HavenMode baseMode)
     {
         switch (baseMode)
@@ -125,6 +155,9 @@ public static class MainWindowModeNavigationExtensions
         }
     }
 
+    /// <summary>
+    /// Performs the parse names step owned by this component.
+    /// </summary>
     private static HashSet<string> ParseNames(string? json)
     {
         try
@@ -139,5 +172,8 @@ public static class MainWindowModeNavigationExtensions
         }
     }
 
+    /// <summary>
+    /// Represents mode activation snapshot and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ModeActivationSnapshot(HashSet<string> ActivePlugins);
 }

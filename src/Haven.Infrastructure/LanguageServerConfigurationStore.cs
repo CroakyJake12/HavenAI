@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/LanguageServerConfigurationStore.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LanguageServerConfigurationStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Application;
@@ -5,14 +14,26 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents language server configuration store and keeps its related state and behavior together.
+/// </summary>
 public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguageServerConfigurationStore
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    /// <summary>
+    /// Retrieves all async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<LanguageServerDefinition>> GetAllAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -47,6 +68,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         }
     }
 
+    /// <summary>
+    /// Performs find for path async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<LanguageServerDefinition?> FindForPathAsync(string path, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -57,6 +81,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
             .FirstOrDefault(item => item.Extensions.Any(value => NormalizeExtension(value).Equals(extension, StringComparison.OrdinalIgnoreCase)));
     }
 
+    /// <summary>
+    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAsync(LanguageServerDefinition definition, CancellationToken cancellationToken)
     {
         Validate(definition);
@@ -76,6 +103,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(string id, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -92,8 +122,14 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         }
     }
 
+    /// <summary>
+    /// Gets or updates configuration path, the bindable or domain state represented by this property.
+    /// </summary>
     private string ConfigurationPath => Path.Combine(paths.DataDirectory, "language-servers.json");
 
+    /// <summary>
+    /// Performs read unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<List<LanguageServerDefinition>> ReadUnsafeAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(ConfigurationPath)) return BuiltInDefaults().ToList();
@@ -101,6 +137,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         return Normalize(await JsonSerializer.DeserializeAsync<List<LanguageServerDefinition>>(stream, JsonOptions, cancellationToken).ConfigureAwait(false) ?? []).ToList();
     }
 
+    /// <summary>
+    /// Performs write unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task WriteUnsafeAsync(IReadOnlyList<LanguageServerDefinition> definitions, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(paths.DataDirectory);
@@ -121,6 +160,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         }
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static IReadOnlyList<LanguageServerDefinition> Normalize(IEnumerable<LanguageServerDefinition> definitions) =>
         definitions.Select(NormalizeDefinition)
             .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
@@ -128,6 +170,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
             .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+    /// <summary>
+    /// Performs the normalize definition step owned by this component.
+    /// </summary>
     private static LanguageServerDefinition NormalizeDefinition(LanguageServerDefinition value) => value with
     {
         Id = value.Id.Trim().ToLowerInvariant(),
@@ -140,12 +185,18 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         InitializationOptionsJson = NormalizeJson(value.InitializationOptionsJson)
     };
 
+    /// <summary>
+    /// Performs the normalize extension step owned by this component.
+    /// </summary>
     private static string NormalizeExtension(string extension)
     {
         var trimmed = extension.Trim();
         return trimmed.StartsWith('.') ? trimmed : "." + trimmed;
     }
 
+    /// <summary>
+    /// Performs the normalize json step owned by this component.
+    /// </summary>
     private static string NormalizeJson(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return "{}";
@@ -153,6 +204,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         return JsonSerializer.Serialize(document.RootElement, JsonOptions);
     }
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void Validate(LanguageServerDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -165,6 +219,9 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
         _ = NormalizeJson(definition.InitializationOptionsJson);
     }
 
+    /// <summary>
+    /// Performs the built in defaults step owned by this component.
+    /// </summary>
     private static IReadOnlyList<LanguageServerDefinition> BuiltInDefaults() =>
     [
         new("csharp-ls", "C# Language Server", "csharp-ls", string.Empty, "csharp", [".cs"], false, 25),

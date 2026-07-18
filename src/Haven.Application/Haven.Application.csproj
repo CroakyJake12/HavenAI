@@ -1,3 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Application/Haven.Application.csproj in the Application layer, which coordinates use cases through abstractions without owning platform details.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup><ProjectReference Include="..\Haven.Core\Haven.Core.csproj" /></ItemGroup>
 </Project>

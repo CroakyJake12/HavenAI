@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/HomePageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns HomePageViewModel, ManifestDashboardTileProvider, DashboardTileViewModel, DashboardAgendaItemViewModel, DashboardWorkItemViewModel, BuiltInDashboardTiles, DelegateDashboardTileProvider. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using Haven.Application;
@@ -5,22 +14,70 @@ using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents home page view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDisposable
 {
+    /// <summary>
+    /// Stores repository locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDashboardRepository _repository;
+    /// <summary>
+    /// Stores layout repository locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IDashboardLayoutRepository _layoutRepository;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores catalog locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICatalogRepository _catalog;
+    /// <summary>
+    /// Stores actions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyDictionary<string, Func<Task>> _actions;
+    /// <summary>
+    /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyList<IDashboardTileProvider> _providers;
+    /// <summary>
+    /// Stores timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _timer;
+    /// <summary>
+    /// Stores refresh cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _refreshCancellation;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = "Loading your dashboard…";
+    /// <summary>
+    /// Stores model status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _modelStatus = "Checking local models…";
+    /// <summary>
+    /// Stores greeting locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _greeting = "Welcome back";
+    /// <summary>
+    /// Stores date label locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _dateLabel = string.Empty;
+    /// <summary>
+    /// Stores last updated locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DateTimeOffset? _lastUpdated;
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
+    /// <summary>
+    /// Stores is customizing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isCustomizing;
 
     public HomePageViewModel(
@@ -51,39 +108,114 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         UpdateClock(DateTimeOffset.Now);
     }
 
+    /// <summary>
+    /// Gets or updates tiles, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<DashboardTileViewModel> Tiles { get; } = [];
+    /// <summary>
+    /// Gets or updates hidden tiles, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<DashboardTileViewModel> HiddenTiles { get; } = [];
+    /// <summary>
+    /// Gets or updates agenda, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<DashboardAgendaItemViewModel> Agenda { get; } = [];
+    /// <summary>
+    /// Gets or updates recent work, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<DashboardWorkItemViewModel> RecentWork { get; } = [];
 
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Gets or updates model status, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModelStatus { get => _modelStatus; private set => SetProperty(ref _modelStatus, value); }
+    /// <summary>
+    /// Gets or updates greeting, the bindable or domain state represented by this property.
+    /// </summary>
     public string Greeting { get => _greeting; private set => SetProperty(ref _greeting, value); }
+    /// <summary>
+    /// Gets or updates date label, the bindable or domain state represented by this property.
+    /// </summary>
     public string DateLabel { get => _dateLabel; private set => SetProperty(ref _dateLabel, value); }
+    /// <summary>
+    /// Gets or updates last updated label, the bindable or domain state represented by this property.
+    /// </summary>
     public string LastUpdatedLabel => _lastUpdated is null ? "Not refreshed yet" : $"Updated {_lastUpdated.Value.LocalDateTime:t}";
+    /// <summary>
+    /// Reports whether has agenda is true for the current state.
+    /// </summary>
     public bool HasAgenda => Agenda.Count > 0;
+    /// <summary>
+    /// Reports whether has recent work is true for the current state.
+    /// </summary>
     public bool HasRecentWork => RecentWork.Count > 0;
+    /// <summary>
+    /// Reports whether has hidden tiles is true for the current state.
+    /// </summary>
     public bool HasHiddenTiles => HiddenTiles.Count > 0;
+    /// <summary>
+    /// Reports whether is busy is true for the current state.
+    /// </summary>
     public bool IsBusy { get => _isBusy; private set { if (SetProperty(ref _isBusy, value)) RefreshCommand.RaiseCanExecuteChanged(); } }
+    /// <summary>
+    /// Reports whether is customizing is true for the current state.
+    /// </summary>
     public bool IsCustomizing { get => _isCustomizing; set => SetProperty(ref _isCustomizing, value); }
 
+    /// <summary>
+    /// Gets or updates refresh command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>
+    /// Gets or updates open tile command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardTileViewModel> OpenTileCommand { get; }
+    /// <summary>
+    /// Gets or updates move earlier command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardTileViewModel> MoveEarlierCommand { get; }
+    /// <summary>
+    /// Gets or updates move later command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardTileViewModel> MoveLaterCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle tile command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardTileViewModel> ToggleTileCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle customize command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleCustomizeCommand { get; }
+    /// <summary>
+    /// Gets or updates open agenda item command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardAgendaItemViewModel> OpenAgendaItemCommand { get; }
+    /// <summary>
+    /// Gets or updates open recent item command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<DashboardWorkItemViewModel> OpenRecentItemCommand { get; }
 
+    /// <summary>
+    /// Performs activate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ActivateAsync(CancellationToken cancellationToken)
     {
         _timer.Start();
         await RefreshAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Performs the deactivate step owned by this component.
+    /// </summary>
     public void Deactivate() => _timer.Stop();
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
         _refreshCancellation?.Cancel();
@@ -125,6 +257,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs populate tiles async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PopulateTilesAsync(DashboardSnapshot snapshot, IReadOnlyList<DashboardTileLayout> stored,
         IReadOnlyList<IDashboardTileProvider> providers, CancellationToken token)
     {
@@ -146,6 +281,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         RaisePropertyChanged(nameof(HasHiddenTiles));
     }
 
+    /// <summary>
+    /// Retrieves manifest providers async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<IDashboardTileProvider>> GetManifestProvidersAsync(CancellationToken cancellationToken)
     {
         var result = new List<IDashboardTileProvider>();
@@ -168,6 +306,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         return result;
     }
 
+    /// <summary>
+    /// Attempts to create manifest provider and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryCreateManifestProvider(PluginDefinition plugin, DashboardPluginTileManifest manifest, int order,
         out IDashboardTileProvider provider)
     {
@@ -182,8 +323,14 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         return true;
     }
 
+    /// <summary>
+    /// Performs open tile async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenTileAsync(DashboardTileViewModel? item) => await RunActionAsync(item?.ActionKey);
 
+    /// <summary>
+    /// Runs run action async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunActionAsync(string? actionKey)
     {
         if (string.IsNullOrWhiteSpace(actionKey)) return;
@@ -191,6 +338,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         else Status = "This dashboard action is not available in the current build.";
     }
 
+    /// <summary>
+    /// Performs move async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MoveAsync(DashboardTileViewModel? item, int offset)
     {
         if (item is null || !item.IsVisible) return;
@@ -201,6 +351,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         await SaveLayoutAsync();
     }
 
+    /// <summary>
+    /// Performs move to index async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MoveToIndexAsync(DashboardTileViewModel item, int index)
     {
         var current = Tiles.IndexOf(item);
@@ -211,6 +364,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         await SaveLayoutAsync();
     }
 
+    /// <summary>
+    /// Performs toggle tile async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ToggleTileAsync(DashboardTileViewModel? item)
     {
         if (item is null) return;
@@ -229,6 +385,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         await SaveLayoutAsync();
     }
 
+    /// <summary>
+    /// Performs save layout async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task SaveLayoutAsync()
     {
         var layout = Tiles.Select((item, index) => new DashboardTileLayout(1, item.Key, index, true, item.Size))
@@ -236,6 +395,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         return _layoutRepository.SaveAsync(layout, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the update clock step owned by this component.
+    /// </summary>
     private void UpdateClock(DateTimeOffset now)
     {
         Greeting = now.Hour switch { < 12 => "Good morning", < 18 => "Good afternoon", _ => "Good evening" };
@@ -248,6 +410,9 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
         foreach (var item in source) target.Add(item);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         _timer.Stop();
@@ -256,10 +421,19 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 }
 
+/// <summary>
+/// Represents manifest dashboard tile provider and keeps its related state and behavior together.
+/// </summary>
 internal sealed class ManifestDashboardTileProvider(DashboardTileDefinition definition) : IDashboardTileProvider
 {
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public DashboardTileDefinition Definition { get; } = definition;
 
+    /// <summary>
+    /// Retrieves data async for the current operation.
+    /// </summary>
     public Task<DashboardTileData> GetDataAsync(DashboardSnapshot snapshot, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -278,52 +452,151 @@ internal sealed class ManifestDashboardTileProvider(DashboardTileDefinition defi
     }
 }
 
+/// <summary>
+/// Represents dashboard tile view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class DashboardTileViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores is visible locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isVisible;
     public DashboardTileViewModel(DashboardTileDefinition definition, DashboardTileData data, int order, bool isVisible, DashboardTileSize size)
     {
         Definition = definition; Data = data; Order = order; _isVisible = isVisible; Size = size;
     }
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public DashboardTileDefinition Definition { get; }
+    /// <summary>
+    /// Gets or updates data, the bindable or domain state represented by this property.
+    /// </summary>
     public DashboardTileData Data { get; }
+    /// <summary>
+    /// Gets or updates key, the bindable or domain state represented by this property.
+    /// </summary>
     public string Key => Definition.Key;
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title => Definition.Title;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => Definition.Description;
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey => Definition.IconKey;
+    /// <summary>
+    /// Gets or updates action key, the bindable or domain state represented by this property.
+    /// </summary>
     public string ActionKey => Definition.ActionKey;
+    /// <summary>
+    /// Gets or updates primary, the bindable or domain state represented by this property.
+    /// </summary>
     public string Primary => Data.Primary;
+    /// <summary>
+    /// Gets or updates secondary, the bindable or domain state represented by this property.
+    /// </summary>
     public string Secondary => Data.Secondary;
+    /// <summary>
+    /// Gets or updates badge, the bindable or domain state represented by this property.
+    /// </summary>
     public string? Badge => Data.Badge;
+    /// <summary>
+    /// Reports whether has badge is true for the current state.
+    /// </summary>
     public bool HasBadge => !string.IsNullOrWhiteSpace(Badge);
+    /// <summary>
+    /// Reports whether has warning is true for the current state.
+    /// </summary>
     public bool HasWarning => Data.HasWarning;
+    /// <summary>
+    /// Gets or updates order, the bindable or domain state represented by this property.
+    /// </summary>
     public int Order { get; }
+    /// <summary>
+    /// Gets or updates size, the bindable or domain state represented by this property.
+    /// </summary>
     public DashboardTileSize Size { get; }
+    /// <summary>
+    /// Reports whether is wide is true for the current state.
+    /// </summary>
     public bool IsWide => Size == DashboardTileSize.Wide;
+    /// <summary>
+    /// Reports whether is visible is true for the current state.
+    /// </summary>
     public bool IsVisible { get => _isVisible; set => SetProperty(ref _isVisible, value); }
 }
 
+/// <summary>
+/// Represents dashboard agenda item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record DashboardAgendaItemViewModel(DashboardAgendaItem Item)
 {
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title => Item.Title;
+    /// <summary>
+    /// Gets or updates detail, the bindable or domain state represented by this property.
+    /// </summary>
     public string Detail => Item.Detail;
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public string Kind => Item.Kind;
+    /// <summary>
+    /// Gets or updates action key, the bindable or domain state represented by this property.
+    /// </summary>
     public string ActionKey => Item.ActionKey;
+    /// <summary>
+    /// Reports whether is overdue is true for the current state.
+    /// </summary>
     public bool IsOverdue => Item.IsOverdue;
+    /// <summary>
+    /// Gets or updates time label, the bindable or domain state represented by this property.
+    /// </summary>
     public string TimeLabel => Item.StartsAt?.LocalDateTime.ToString("t") ?? string.Empty;
 }
 
+/// <summary>
+/// Represents dashboard work item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record DashboardWorkItemViewModel(DashboardWorkItem Item)
 {
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title => Item.Title;
+    /// <summary>
+    /// Gets or updates detail, the bindable or domain state represented by this property.
+    /// </summary>
     public string Detail => Item.Detail;
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey => Item.IconKey;
+    /// <summary>
+    /// Gets or updates action key, the bindable or domain state represented by this property.
+    /// </summary>
     public string ActionKey => Item.ActionKey;
+    /// <summary>
+    /// Gets or updates updated label, the bindable or domain state represented by this property.
+    /// </summary>
     public string UpdatedLabel => Item.UpdatedAt.LocalDateTime.ToString("g");
 }
 
+/// <summary>
+/// Represents built in dashboard tiles and keeps its related state and behavior together.
+/// </summary>
 internal static class BuiltInDashboardTiles
 {
+    /// <summary>
+    /// Creates this member with the invariants required by its callers.
+    /// </summary>
     public static IReadOnlyList<IDashboardTileProvider> Create() =>
     [
         Tile("new-chat", "New chat", "Start a private local conversation", "chat", "action", "new-chat", 0,
@@ -344,13 +617,25 @@ internal static class BuiltInDashboardTiles
             s => new(s.EnabledAutomations.ToString(), "Enabled automations"))
     ];
 
+    /// <summary>
+    /// Performs the tile step owned by this component.
+    /// </summary>
     private static IDashboardTileProvider Tile(string key, string title, string description, string icon, string provider, string action,
         int order, Func<DashboardSnapshot, DashboardTileData> value) =>
         new DelegateDashboardTileProvider(new DashboardTileDefinition(key, title, description, icon, provider, action, DashboardTileSize.Standard, order), value);
 
+    /// <summary>
+    /// Represents delegate dashboard tile provider and keeps its related state and behavior together.
+    /// </summary>
     private sealed class DelegateDashboardTileProvider(DashboardTileDefinition definition, Func<DashboardSnapshot, DashboardTileData> value) : IDashboardTileProvider
     {
+        /// <summary>
+        /// Gets or updates definition, the bindable or domain state represented by this property.
+        /// </summary>
         public DashboardTileDefinition Definition { get; } = definition;
+        /// <summary>
+        /// Retrieves data async for the current operation.
+        /// </summary>
         public Task<DashboardTileData> GetDataAsync(DashboardSnapshot snapshot, CancellationToken cancellationToken) => Task.FromResult(value(snapshot));
     }
 }

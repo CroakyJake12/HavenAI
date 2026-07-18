@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesLanguageSuggestionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns NotesLanguageSuggestionService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents notes language suggestion service and keeps its related state and behavior together.
+/// </summary>
 public static class NotesLanguageSuggestionService
 {
+    /// <summary>
+    /// Performs the apply step owned by this component.
+    /// </summary>
     public static bool Apply(
         NotesDocument document,
         NotesLanguageIssue issue,
@@ -44,6 +59,9 @@ public static class NotesLanguageSuggestionService
         return true;
     }
 
+    /// <summary>
+    /// Performs the replace across runs step owned by this component.
+    /// </summary>
     private static void ReplaceAcrossRuns(
         IReadOnlyList<NotesTextRun> runs,
         int start,

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/OdsAwareMessageAttachmentService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns OdsAwareMessageAttachmentService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.IO.Compression;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -6,12 +15,18 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents ods aware message attachment service and keeps its related state and behavior together.
+/// </summary>
 public sealed class OdsAwareMessageAttachmentService(
     SafeMessageAttachmentService inner,
     IAppPaths paths,
     ISqliteConnectionFactory factory,
     IRetrievalIndexService retrieval) : IMessageAttachmentService
 {
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<MessageAttachment> ImportAsync(
         Guid conversationId,
         Guid? messageId,
@@ -78,6 +93,9 @@ public sealed class OdsAwareMessageAttachmentService(
         }
     }
 
+    /// <summary>
+    /// Builds prompt context async from the currently available inputs.
+    /// </summary>
     public Task<AttachmentPromptContext> BuildPromptContextAsync(
         Guid conversationId,
         IReadOnlyCollection<Guid>? attachmentIds,
@@ -85,8 +103,14 @@ public sealed class OdsAwareMessageAttachmentService(
         CancellationToken cancellationToken) =>
         inner.BuildPromptContextAsync(conversationId, attachmentIds, options, cancellationToken);
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken) => inner.DeleteAsync(attachmentId, cancellationToken);
 
+    /// <summary>
+    /// Performs extract ods text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ExtractOdsTextAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -112,6 +136,9 @@ public sealed class OdsAwareMessageAttachmentService(
         return builder.ToString().Trim();
     }
 
+    /// <summary>
+    /// Performs update record async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpdateRecordAsync(MessageAttachment attachment, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -131,6 +158,9 @@ public sealed class OdsAwareMessageAttachmentService(
             throw new InvalidOperationException("The imported ODS attachment record was not found.");
     }
 
+    /// <summary>
+    /// Performs the merge metadata step owned by this component.
+    /// </summary>
     private static string MergeMetadata(string existingJson, IReadOnlyDictionary<string, object?> additions)
     {
         var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);

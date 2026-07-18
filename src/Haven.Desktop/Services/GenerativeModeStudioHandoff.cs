@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/GenerativeModeStudioHandoff.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns GenerativeModeStudioHandoff. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Represents generative mode studio handoff and keeps its related state and behavior together.
+/// </summary>
 public static class GenerativeModeStudioHandoff
 {
+    /// <summary>
+    /// Stores navigation timeout locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly TimeSpan NavigationTimeout = TimeSpan.FromSeconds(8);
 
+    /// <summary>
+    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task OpenAsync(
         MainWindowViewModel shell,
         string request,
@@ -43,6 +61,9 @@ public static class GenerativeModeStudioHandoff
         shell.CurrentChat.UsePrompt(BuildSpecification(normalized));
     }
 
+    /// <summary>
+    /// Builds specification from the currently available inputs.
+    /// </summary>
     internal static string BuildSpecification(string request)
     {
         var builder = new StringBuilder();
@@ -79,6 +100,9 @@ public static class GenerativeModeStudioHandoff
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the normalize request step owned by this component.
+    /// </summary>
     internal static string NormalizeRequest(string? request)
     {
         var normalized = string.IsNullOrWhiteSpace(request) ? string.Empty : request.Trim();

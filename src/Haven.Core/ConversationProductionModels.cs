@@ -1,7 +1,19 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Core/ConversationProductionModels.cs, in the dependency-free Core layer, where shared domain models and rules live.
+ * What: This file owns ConversationBranchReason, MessageVersionKind, MessageAttachmentKind, AttachmentProcessingState, AttachmentAnalysisMethod, SharedSessionState, ConversationBranch, ConversationTurn, MessageVersion, MessageAttachment, ConversationDraft, MessageBookmark, SharedSession, ConversationSearchResult, ConversationExportDocument. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: This code stays free of UI and storage dependencies so the same rule or data shape can be reused and tested everywhere.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 
 namespace Haven.Core;
 
+/// <summary>
+/// Lists the supported conversation branch reason values used to make state explicit and type-safe.
+/// </summary>
 public enum ConversationBranchReason
 {
     Root = 0,
@@ -12,6 +24,9 @@ public enum ConversationBranchReason
     Import = 5
 }
 
+/// <summary>
+/// Lists the supported message version kind values used to make state explicit and type-safe.
+/// </summary>
 public enum MessageVersionKind
 {
     Original = 0,
@@ -21,6 +36,9 @@ public enum MessageVersionKind
     Imported = 4
 }
 
+/// <summary>
+/// Lists the supported message attachment kind values used to make state explicit and type-safe.
+/// </summary>
 public enum MessageAttachmentKind
 {
     Image = 0,
@@ -35,6 +53,9 @@ public enum MessageAttachmentKind
     Other = 9
 }
 
+/// <summary>
+/// Lists the supported attachment processing state values used to make state explicit and type-safe.
+/// </summary>
 public enum AttachmentProcessingState
 {
     Pending = 0,
@@ -43,6 +64,9 @@ public enum AttachmentProcessingState
     Unsupported = 3
 }
 
+/// <summary>
+/// Lists the supported attachment analysis method values used to make state explicit and type-safe.
+/// </summary>
 public enum AttachmentAnalysisMethod
 {
     None = 0,
@@ -53,6 +77,9 @@ public enum AttachmentAnalysisMethod
     InferredFromMetadata = 5
 }
 
+/// <summary>
+/// Lists the supported shared session state values used to make state explicit and type-safe.
+/// </summary>
 public enum SharedSessionState
 {
     Active = 0,
@@ -60,6 +87,9 @@ public enum SharedSessionState
     Expired = 2
 }
 
+/// <summary>
+/// Represents conversation branch and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationBranch(
     Guid Id,
     Guid ConversationId,
@@ -71,6 +101,9 @@ public sealed record ConversationBranch(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Represents conversation turn and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationTurn(
     Guid Id,
     Guid ConversationId,
@@ -80,6 +113,9 @@ public sealed record ConversationTurn(
     Guid? AssistantMessageId,
     DateTimeOffset CreatedAt);
 
+/// <summary>
+/// Represents message version and keeps its related state and behavior together.
+/// </summary>
 public sealed record MessageVersion(
     Guid Id,
     Guid MessageId,
@@ -91,12 +127,18 @@ public sealed record MessageVersion(
     bool IsCurrent,
     DateTimeOffset CreatedAt)
 {
+    /// <summary>
+    /// Gets or updates metadata, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyDictionary<string, JsonElement> Metadata =>
         string.IsNullOrWhiteSpace(MetadataJson)
             ? new Dictionary<string, JsonElement>()
             : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(MetadataJson) ?? new Dictionary<string, JsonElement>();
 }
 
+/// <summary>
+/// Represents message attachment and keeps its related state and behavior together.
+/// </summary>
 public sealed record MessageAttachment(
     Guid Id,
     Guid ConversationId,
@@ -115,6 +157,9 @@ public sealed record MessageAttachment(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Represents conversation draft and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationDraft(
     Guid ConversationId,
     Guid? BranchId,
@@ -122,6 +167,9 @@ public sealed record ConversationDraft(
     string AttachmentIdsJson,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Represents message bookmark and keeps its related state and behavior together.
+/// </summary>
 public sealed record MessageBookmark(
     Guid Id,
     Guid ConversationId,
@@ -130,6 +178,9 @@ public sealed record MessageBookmark(
     string Note,
     DateTimeOffset CreatedAt);
 
+/// <summary>
+/// Represents shared session and keeps its related state and behavior together.
+/// </summary>
 public sealed record SharedSession(
     Guid Id,
     Guid ConversationId,
@@ -141,6 +192,9 @@ public sealed record SharedSession(
     DateTimeOffset ExpiresAt,
     DateTimeOffset? StoppedAt);
 
+/// <summary>
+/// Represents conversation search result and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationSearchResult(
     Guid ConversationId,
     Guid? MessageId,
@@ -149,6 +203,9 @@ public sealed record ConversationSearchResult(
     DateTimeOffset Timestamp,
     double Rank);
 
+/// <summary>
+/// Represents conversation export document and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationExportDocument(
     Conversation Conversation,
     IReadOnlyList<ConversationBranch> Branches,

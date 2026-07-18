@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserNavigationPolicy.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserNavigationPolicy. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Net.Sockets;
 using Haven.Application;
@@ -5,8 +14,14 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser navigation policy and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserNavigationPolicy : IBrowserNavigationPolicy
 {
+    /// <summary>
+    /// Performs assess async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(address);
@@ -41,8 +56,14 @@ public sealed class BrowserNavigationPolicy : IBrowserNavigationPolicy
         return new BrowserNavigationAssessment(address, true, "The address resolved only to public network addresses.", resolved.Select(item => item.ToString()).ToArray());
     }
 
+    /// <summary>
+    /// Performs the denied step owned by this component.
+    /// </summary>
     private static BrowserNavigationAssessment Denied(Uri address, string reason) => new(address, false, reason, []);
 
+    /// <summary>
+    /// Reports whether is non public is true for the current state.
+    /// </summary>
     internal static bool IsNonPublic(IPAddress address)
     {
         if (IPAddress.IsLoopback(address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any)

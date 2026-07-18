@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ModelProviderRegistry.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ModelProviderRegistry, ModelRouter. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents model provider registry and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModelProviderRegistry(IEnumerable<IModelProvider> providers) : IModelProviderRegistry
 {
+    /// <summary>
+    /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IReadOnlyList<IModelProvider> _providers = providers
         .GroupBy(provider => provider.Id, StringComparer.OrdinalIgnoreCase)
         .Select(group => group.Last())
@@ -11,10 +26,22 @@ public sealed class ModelProviderRegistry(IEnumerable<IModelProvider> providers)
         .ThenBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
+    /// <summary>
+    /// Gets or updates providers, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<IModelProvider> Providers => _providers;
+    /// <summary>
+    /// Performs the find step owned by this component.
+    /// </summary>
     public IModelProvider? Find(string providerId) => _providers.FirstOrDefault(provider => provider.Id.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Retrieves required for the current operation.
+    /// </summary>
     public IModelProvider GetRequired(string providerId) => Find(providerId) ?? throw new InvalidOperationException($"Model provider '{providerId}' is not registered.");
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ProviderModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
     {
         var models = new List<ProviderModelDescriptor>();
@@ -32,8 +59,14 @@ public sealed class ModelProviderRegistry(IEnumerable<IModelProvider> providers)
     }
 }
 
+/// <summary>
+/// Represents model router and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModelRouter(IModelProviderRegistry providers) : IModelRouter
 {
+    /// <summary>
+    /// Performs route async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ModelRoutingDecision> RouteAsync(ModelRoutingRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);

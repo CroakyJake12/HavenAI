@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/CodeIntelligenceUtilities.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LanguageServerTextEditApplicator, ResolvedEdit, UnifiedDiffBuilder, DiffKind, DiffOperation, ExecutableLocator, LexicalSymbolSearch, LexicalPattern. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.RegularExpressions;
 using Haven.Application;
@@ -5,8 +14,14 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents language server text edit applicator and keeps its related state and behavior together.
+/// </summary>
 internal static class LanguageServerTextEditApplicator
 {
+    /// <summary>
+    /// Performs the apply step owned by this component.
+    /// </summary>
     public static string Apply(string original, IReadOnlyList<LanguageServerTextEdit> edits)
     {
         ArgumentNullException.ThrowIfNull(original);
@@ -35,6 +50,9 @@ internal static class LanguageServerTextEditApplicator
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Builds line starts from the currently available inputs.
+    /// </summary>
     private static int[] BuildLineStarts(string text)
     {
         var starts = new List<int> { 0 };
@@ -43,6 +61,9 @@ internal static class LanguageServerTextEditApplicator
         return starts.ToArray();
     }
 
+    /// <summary>
+    /// Performs the offset step owned by this component.
+    /// </summary>
     private static int Offset(CodePosition position, string text, int[] lineStarts)
     {
         if (position.Line < 0 || position.Line >= lineStarts.Length)
@@ -55,11 +76,20 @@ internal static class LanguageServerTextEditApplicator
         return lineStart + position.Character;
     }
 
+    /// <summary>
+    /// Represents resolved edit and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ResolvedEdit(int Start, int End, string NewText);
 }
 
+/// <summary>
+/// Represents unified diff builder and keeps its related state and behavior together.
+/// </summary>
 internal static class UnifiedDiffBuilder
 {
+    /// <summary>
+    /// Builds this member from the currently available inputs.
+    /// </summary>
     public static string Build(string relativePath, string original, string updated)
     {
         if (string.Equals(original, updated, StringComparison.Ordinal)) return "No changes.";
@@ -77,6 +107,9 @@ internal static class UnifiedDiffBuilder
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the diff step owned by this component.
+    /// </summary>
     private static IReadOnlyList<DiffOperation> Diff(string[] before, string[] after)
     {
         if ((long)before.Length * after.Length > 4_000_000)
@@ -107,12 +140,24 @@ internal static class UnifiedDiffBuilder
         return result;
     }
 
+    /// <summary>
+    /// Lists the supported diff kind values used to make state explicit and type-safe.
+    /// </summary>
     private enum DiffKind { Equal, Remove, Add }
+    /// <summary>
+    /// Represents diff operation and keeps its related state and behavior together.
+    /// </summary>
     private sealed record DiffOperation(DiffKind Kind, string Line);
 }
 
+/// <summary>
+/// Represents executable locator and keeps its related state and behavior together.
+/// </summary>
 internal static class ExecutableLocator
 {
+    /// <summary>
+    /// Reports whether is available is true for the current state.
+    /// </summary>
     public static bool IsAvailable(string command)
     {
         if (string.IsNullOrWhiteSpace(command)) return false;
@@ -139,19 +184,31 @@ internal static class ExecutableLocator
     }
 }
 
+/// <summary>
+/// Represents lexical symbol search and keeps its related state and behavior together.
+/// </summary>
 internal static class LexicalSymbolSearch
 {
+    /// <summary>
+    /// Stores excluded directories locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ExcludedDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".vs", ".idea", ".haven", "bin", "obj", "node_modules", "packages", "artifacts", "dist", "build", ".next", ".nuxt", "coverage"
     };
 
+    /// <summary>
+    /// Stores java script patterns locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyList<LexicalPattern> JavaScriptPatterns =
     [
         new("Symbol", new Regex("\\b(?:class|interface|type|enum|function)\\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)", RegexOptions.Compiled | RegexOptions.CultureInvariant)),
         new("Symbol", new Regex("\\b(?:const|let|var)\\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)\\s*=", RegexOptions.Compiled | RegexOptions.CultureInvariant))
     ];
 
+    /// <summary>
+    /// Stores patterns locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<LexicalPattern>> Patterns =
         new Dictionary<string, IReadOnlyList<LexicalPattern>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -173,12 +230,18 @@ internal static class LexicalSymbolSearch
             [".java"] = [new("Symbol", new Regex("\\b(?:class|interface|enum|record|@interface)\\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)|\\b(?:public|private|protected|static|final|abstract|synchronized|native|strictfp|\\s)+[A-Za-z_][A-Za-z0-9_<>,.?\\[\\] ]*\\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\\s*\\(", RegexOptions.Compiled | RegexOptions.CultureInvariant))]
         };
 
+    /// <summary>
+    /// Performs the workspace contains extension step owned by this component.
+    /// </summary>
     public static bool WorkspaceContainsExtension(string root, IReadOnlyList<string> extensions)
     {
         var allowed = extensions.Select(NormalizeExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return EnumerateFiles(root, 300, CancellationToken.None).Any(path => allowed.Contains(Path.GetExtension(path)));
     }
 
+    /// <summary>
+    /// Performs the search step owned by this component.
+    /// </summary>
     public static IReadOnlyList<CodeSymbol> Search(string root, string query, CancellationToken cancellationToken)
     {
         var result = new List<CodeSymbol>();
@@ -215,6 +278,9 @@ internal static class LexicalSymbolSearch
         return result;
     }
 
+    /// <summary>
+    /// Performs the enumerate files step owned by this component.
+    /// </summary>
     public static IEnumerable<string> EnumerateFiles(string root, int maximum, CancellationToken cancellationToken)
     {
         var stack = new Stack<string>();
@@ -246,6 +312,9 @@ internal static class LexicalSymbolSearch
         }
     }
 
+    /// <summary>
+    /// Builds line starts from the currently available inputs.
+    /// </summary>
     private static int[] BuildLineStarts(string text)
     {
         var starts = new List<int> { 0 };
@@ -253,6 +322,9 @@ internal static class LexicalSymbolSearch
         return starts.ToArray();
     }
 
+    /// <summary>
+    /// Performs the position at step owned by this component.
+    /// </summary>
     private static CodePosition PositionAt(int offset, int[] lineStarts)
     {
         var index = Array.BinarySearch(lineStarts, offset);
@@ -261,6 +333,12 @@ internal static class LexicalSymbolSearch
         return new CodePosition(line, offset - lineStarts[line]);
     }
 
+    /// <summary>
+    /// Performs the normalize extension step owned by this component.
+    /// </summary>
     private static string NormalizeExtension(string value) => value.StartsWith('.') ? value : "." + value;
+    /// <summary>
+    /// Represents lexical pattern and keeps its related state and behavior together.
+    /// </summary>
     private sealed record LexicalPattern(string Kind, Regex Pattern);
 }

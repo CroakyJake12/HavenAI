@@ -1,27 +1,69 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/GenerativeThemeValidator.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns GenerativeThemeValidator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents generative theme validator and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
 {
+    /// <summary>
+    /// Stores current schema version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int CurrentSchemaVersion = 1;
+    /// <summary>
+    /// Stores maximum pages locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPages = 12;
+    /// <summary>
+    /// Stores maximum widgets per page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumWidgetsPerPage = 30;
+    /// <summary>
+    /// Stores maximum placements locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPlacements = 64;
+    /// <summary>
+    /// Stores maximum shortcuts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumShortcuts = 12;
+    /// <summary>
+    /// Stores normal text contrast locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const double NormalTextContrast = 4.5d;
+    /// <summary>
+    /// Stores secondary text contrast locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const double SecondaryTextContrast = 3d;
 
+    /// <summary>
+    /// Stores item catalog locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, GenerativeUiCatalogItem> ItemCatalog =
         GenerativeUiCatalog.Items.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Stores command catalog locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> CommandCatalog =
         GenerativeUiCatalog.PageCommands
             .Select(command => command.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     public GenerativeThemeValidationResult Validate(GenerativeThemePack theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -177,6 +219,9 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
         }
     }
 
+    /// <summary>
+    /// Validates placements before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static IReadOnlyList<GenerativeUiPlacement> ValidatePlacements(
         IReadOnlyList<GenerativeUiPlacement> placements,
         List<GenerativeThemeValidationIssue> issues)
@@ -260,6 +305,9 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
             .ToArray();
     }
 
+    /// <summary>
+    /// Validates pages before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static IReadOnlyList<GeneratedPageDefinition> ValidatePages(
         IReadOnlyList<GeneratedPageDefinition> pages,
         List<GenerativeThemeValidationIssue> issues)
@@ -344,6 +392,9 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
             .ToArray();
     }
 
+    /// <summary>
+    /// Validates widgets before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static IReadOnlyList<GeneratedWidgetDefinition> ValidateWidgets(
         string pageId,
         IReadOnlyList<GeneratedWidgetDefinition> widgets,
@@ -514,6 +565,9 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
         return result;
     }
 
+    /// <summary>
+    /// Performs the normalize text step owned by this component.
+    /// </summary>
     private static string NormalizeText(string? value, int maximumLength)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
@@ -523,9 +577,15 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
         return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
     }
 
+    /// <summary>
+    /// Performs the normalize id step owned by this component.
+    /// </summary>
     private static string NormalizeId(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
 
+    /// <summary>
+    /// Performs the normalize presentation step owned by this component.
+    /// </summary>
     private static string NormalizePresentation(string? value) => NormalizeId(value) switch
     {
         "compact" => "compact",
@@ -534,9 +594,15 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
         _ => "default"
     };
 
+    /// <summary>
+    /// Performs the to camel case step owned by this component.
+    /// </summary>
     private static string ToCamelCase(string value) =>
         char.ToLowerInvariant(value[0]) + value[1..];
 
+    /// <summary>
+    /// Performs the contrast ratio step owned by this component.
+    /// </summary>
     private static double ContrastRatio(string foreground, string background)
     {
         var foregroundLuminance = RelativeLuminance(ParseRgb(foreground));
@@ -555,6 +621,9 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
             byte.Parse(colour.AsSpan(start + 4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) / 255d);
     }
 
+    /// <summary>
+    /// Performs the relative luminance step owned by this component.
+    /// </summary>
     private static double RelativeLuminance((double Red, double Green, double Blue) colour)
     {
         static double Linear(double channel) =>
@@ -567,12 +636,21 @@ public sealed partial class GenerativeThemeValidator : IGenerativeThemeValidator
                + 0.0722d * Linear(colour.Blue);
     }
 
+    /// <summary>
+    /// Performs the color pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")]
     private static partial Regex ColorPattern();
 
+    /// <summary>
+    /// Performs the identifier pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,63}$")]
     private static partial Regex IdentifierPattern();
 
+    /// <summary>
+    /// Performs the font family pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9 ,.'-]{0,159}$")]
     private static partial Regex FontFamilyPattern();
 }

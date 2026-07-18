@@ -1,9 +1,21 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Automations/AutomationScheduleComposer.cs, in the Automations layer, which parses schedules and runs durable background actions.
+ * What: This file owns AutomationScheduleDraft, AutomationScheduleComposer. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Automations;
 
+/// <summary>
+/// Represents automation schedule draft and keeps its related state and behavior together.
+/// </summary>
 public sealed record AutomationScheduleDraft(
     DateTimeOffset OnceAt,
     TimeOnly Time,
@@ -11,8 +23,14 @@ public sealed record AutomationScheduleDraft(
     int IntervalHours,
     int ConditionIntervalMinutes);
 
+/// <summary>
+/// Represents automation schedule composer and keeps its related state and behavior together.
+/// </summary>
 public static class AutomationScheduleComposer
 {
+    /// <summary>
+    /// Performs the compose step owned by this component.
+    /// </summary>
     public static string Compose(AutomationScheduleKind kind, AutomationScheduleDraft draft)
     {
         ArgumentNullException.ThrowIfNull(draft);
@@ -44,6 +62,9 @@ public static class AutomationScheduleComposer
         return JsonSerializer.Serialize(value);
     }
 
+    /// <summary>
+    /// Performs the parse step owned by this component.
+    /// </summary>
     public static AutomationScheduleDraft Parse(
         AutomationScheduleKind kind,
         string? scheduleJson,
@@ -96,6 +117,9 @@ public static class AutomationScheduleComposer
         }
     }
 
+    /// <summary>
+    /// Performs the describe step owned by this component.
+    /// </summary>
     public static string Describe(AutomationScheduleKind kind, AutomationScheduleDraft draft) => kind switch
     {
         AutomationScheduleKind.Once => $"Once at {draft.OnceAt.ToLocalTime():g}",
@@ -110,6 +134,9 @@ public static class AutomationScheduleComposer
         _ => kind.ToString()
     };
 
+    /// <summary>
+    /// Performs the format time step owned by this component.
+    /// </summary>
     private static string FormatTime(TimeOnly time) =>
         time.ToString("HH:mm", CultureInfo.InvariantCulture);
 }

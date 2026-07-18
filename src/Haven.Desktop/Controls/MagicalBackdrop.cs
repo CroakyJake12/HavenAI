@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/MagicalBackdrop.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns MagicalBackdrop, AuroraBloom. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -13,12 +22,33 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class MagicalBackdrop : Grid, IDisposable
 {
+    /// <summary>
+    /// Stores bloom canvas locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Canvas _bloomCanvas = new() { IsHitTestVisible = false };
+    /// <summary>
+    /// Stores timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(90) };
+    /// <summary>
+    /// Stores blooms locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly List<AuroraBloom> _blooms = [];
+    /// <summary>
+    /// Stores reduce motion locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _reduceMotion;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
+    /// <summary>
+    /// Stores has arranged locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _hasArranged;
+    /// <summary>
+    /// Stores phase locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _phase;
 
     public MagicalBackdrop()
@@ -91,6 +121,9 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the add bloom step owned by this component.
+    /// </summary>
     private void AddBloom(string colour, double size, double opacity, double speed, double driftX, double driftY, double phase)
     {
         var ellipse = new Ellipse
@@ -105,14 +138,23 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         _bloomCanvas.Children.Add(ellipse);
     }
 
+    /// <summary>
+    /// Handles the attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
         ArrangeBlooms(_reduceMotion ? 0 : _phase, snap: true);
         if (!_reduceMotion && !_disposed) _timer.Start();
     }
 
+    /// <summary>
+    /// Handles the detached from visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnDetachedFromVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) => _timer.Stop();
 
+    /// <summary>
+    /// Handles the size changed event raised by the UI or runtime.
+    /// </summary>
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         if (_reduceMotion)
@@ -121,12 +163,18 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             ArrangeBlooms(_phase, snap: true);
     }
 
+    /// <summary>
+    /// Handles the animation tick event raised by the UI or runtime.
+    /// </summary>
     private void OnAnimationTick(object? sender, EventArgs e)
     {
         _phase += 0.05;
         ArrangeBlooms(_phase, snap: false);
     }
 
+    /// <summary>
+    /// Performs the arrange blooms step owned by this component.
+    /// </summary>
     private void ArrangeBlooms(double phase, bool snap)
     {
         var width = Math.Max(Bounds.Width, 1);
@@ -180,6 +228,9 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         _hasArranged = true;
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -192,6 +243,9 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Represents aurora bloom and keeps its related state and behavior together.
+    /// </summary>
     private sealed class AuroraBloom(
         Ellipse shape,
         double baseOpacity,
@@ -200,14 +254,41 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         double driftY,
         double phase)
     {
+        /// <summary>
+        /// Gets or updates shape, the bindable or domain state represented by this property.
+        /// </summary>
         public Ellipse Shape { get; } = shape;
+        /// <summary>
+        /// Gets or updates base opacity, the bindable or domain state represented by this property.
+        /// </summary>
         public double BaseOpacity { get; } = baseOpacity;
+        /// <summary>
+        /// Gets or updates speed, the bindable or domain state represented by this property.
+        /// </summary>
         public double Speed { get; } = speed;
+        /// <summary>
+        /// Gets or updates drift x, the bindable or domain state represented by this property.
+        /// </summary>
         public double DriftX { get; } = driftX;
+        /// <summary>
+        /// Gets or updates drift y, the bindable or domain state represented by this property.
+        /// </summary>
         public double DriftY { get; } = driftY;
+        /// <summary>
+        /// Gets or updates phase, the bindable or domain state represented by this property.
+        /// </summary>
         public double Phase { get; } = phase;
+        /// <summary>
+        /// Gets or updates x, the bindable or domain state represented by this property.
+        /// </summary>
         public double X { get; set; }
+        /// <summary>
+        /// Gets or updates y, the bindable or domain state represented by this property.
+        /// </summary>
         public double Y { get; set; }
+        /// <summary>
+        /// Reports whether has position is true for the current state.
+        /// </summary>
         public bool HasPosition { get; set; }
     }
 }

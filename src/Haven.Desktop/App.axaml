@@ -1,3 +1,14 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/App.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.App. Its visual vocabulary includes: Application, Application.Resources, SolidColorBrush, Color, ControlTheme, Setter, ControlTemplate, Border, ExperimentalAcrylicBorder, ExperimentalAcrylicBorder.Material, ExperimentalAcrylicMaterial, ContentPresenter, AcrylicSurface, ScrollViewer, ItemsPresenter, Application.Styles, FluentTheme, Style, Application.DataTemplates, DataTemplate, ChatView, ChatGroupView, HomeView, CallView, PlanView, CatalogView, AutomationsView, BrowserView, TrainingView, SettingsView, ContainerSettingsView, LessonSettingsView, WorkspaceHomeView, ProjectCreatorView, StudioProjectView, WorkspaceEditorView, MacrosView, ArchiveView, ActivityLogView, ModeLibraryView.
+  Data flow: Binding expressions read or update these view-model paths: no direct Binding expressions; values are static or resource-driven.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
@@ -10,52 +21,87 @@
        Layered backgrounds, accent nubs, acrylic blur, vibrant buttons
        ============================================================ -->
 
+  <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <Application.Resources>
     <!-- Mica-style layered backgrounds: semi-transparent so the system Mica backdrop shows through -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenBackgroundBrush" Color="Transparent" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenElevatedBrush" Color="Transparent" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenPanelBrush" Color="Transparent" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenPanel2Brush" Color="Transparent" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenPanel3Brush" Color="Transparent" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenPanelHoverBrush" Color="#4A4A4A" />
     <!-- Text: crisp white hierarchy -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenTextBrush" Color="#FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenTextSoftBrush" Color="#D6D6D6" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenMutedBrush" Color="#A0A0A0" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenMuted2Brush" Color="#707070" />
     <!-- System accent: Windows 11 blue -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenAccentBrush" Color="#0078D4" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenAccentInkBrush" Color="#FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenAccentSoftBrush" Color="#263A52" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenBlueBrush" Color="#60CDFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenBlueSoftBrush" Color="#1E3A50" />
     <!-- Semantic -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenDangerBrush" Color="#FF99A4" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenWarningBrush" Color="#FCE4A6" />
     <!-- Borders: invisible by default, visible on cards when toggled -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenLineBrush" Color="#00000000" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenLineStrongBrush" Color="#00000000" />
     <!-- Sidebar accent nub -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenNubBrush" Color="#0078D4" />
     <!-- Mica surface: semi-transparent overlay for depth illusion -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenMicaSurfaceBrush" Color="#18FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenMicaSidebarBrush" Color="#12FFFFFF" />
     <!-- Acrylic: blurred panel background -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenAcrylicBrush" Color="#22FFFFFF" />
+    <!-- Section: Hosts the Color portion of this view at this position in the visual tree. -->
     <Color x:Key="HavenAcrylicTintColor">#182234</Color>
+    <!-- Section: Hosts the Color portion of this view at this position in the visual tree. -->
     <Color x:Key="HavenAcrylicFallbackColor">#F2182234</Color>
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenButtonBrush" Color="#2EFFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenButtonHoverBrush" Color="#46FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenButtonPressedBrush" Color="#20FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenFocusBrush" Color="#A060CDFF" />
     <!-- Compatibility aliases for older views; theme application keeps them in sync. -->
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="#0078D4" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="StrokeBrush" Color="#44FFFFFF" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="SurfaceCardBrush" Color="#A4182234" />
+    <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF" />
 
     <!-- Reusable live acrylic primitive. Consumers can override its styled
          properties, while the defaults track the active Haven theme. -->
+    <!-- Section: Hosts the ControlTheme portion of this view at this position in the visual tree. -->
     <ControlTheme x:Key="{x:Type controls:AcrylicSurface}" TargetType="controls:AcrylicSurface">
       <Setter Property="TintColor" Value="{DynamicResource HavenAcrylicTintColor}" />
       <Setter Property="FallbackColor" Value="{DynamicResource HavenAcrylicFallbackColor}" />
@@ -85,6 +131,7 @@
       </Setter>
     </ControlTheme>
 
+    <!-- Section: Hosts the ControlTheme portion of this view at this position in the visual tree. -->
     <ControlTheme x:Key="HavenAcrylicFlyoutPresenterTheme" TargetType="FlyoutPresenter">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Background" Value="Transparent" />
@@ -98,6 +145,7 @@
       </Setter>
     </ControlTheme>
 
+    <!-- Section: Hosts the ControlTheme portion of this view at this position in the visual tree. -->
     <ControlTheme x:Key="HavenAcrylicMenuPresenterTheme" TargetType="MenuFlyoutPresenter"
                   BasedOn="{StaticResource {x:Type MenuFlyoutPresenter}}">
       <Setter Property="Width" Value="390" />
@@ -116,40 +164,54 @@
     </ControlTheme>
   </Application.Resources>
 
+  <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Application.Styles>
+    <!-- Section: Hosts the FluentTheme portion of this view at this position in the visual tree. -->
     <FluentTheme />
 
     <!-- ============================================================
          BASE STYLES
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Window">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
       <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Montserrat, sans-serif" />
       <Setter Property="FontSize" Value="14" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="UserControl"><Setter Property="Background" Value="Transparent" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <!-- Text variants -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.soft"><Setter Property="Foreground" Value="{DynamicResource HavenTextSoftBrush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="{DynamicResource HavenMutedBrush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.muted2"><Setter Property="Foreground" Value="{DynamicResource HavenMuted2Brush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.heading"><Setter Property="FontSize" Value="32" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.sectionHeading"><Setter Property="FontSize" Value="18" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock.eyebrow"><Setter Property="FontSize" Value="12" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Foreground" Value="{DynamicResource HavenMuted2Brush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="PathIcon">
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="PathIcon.muted"><Setter Property="Foreground" Value="{DynamicResource HavenMutedBrush}" /></Style>
 
     <!-- ============================================================
          BUTTONS — Vibrant, bold, Windows 11 style
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button">
       <Setter Property="MinHeight" Value="36" />
       <Setter Property="CornerRadius" Value="10" />
@@ -161,23 +223,28 @@
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="Normal" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:pressed /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonPressedBrush}" />
       <Setter Property="RenderTransform" Value="scale(0.98)" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:disabled">
       <Setter Property="Opacity" Value="0.42" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button:focus-visible /template/ ContentPresenter">
       <Setter Property="BorderBrush" Value="{DynamicResource HavenFocusBrush}" />
       <Setter Property="BorderThickness" Value="2" />
     </Style>
 
     <!-- Chrome: transparent -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.chrome">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
@@ -185,41 +252,49 @@
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="CornerRadius" Value="10" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.chrome:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Ghost: transparent -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.ghost">
       <Setter Property="MinHeight" Value="36" />
       <Setter Property="Padding" Value="12,6" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.subtle">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.subtle:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.secondary">
       <Setter Property="Background" Value="{DynamicResource HavenButtonBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.navigation">
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="10" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.navigation:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Status pill -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.status">
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="CornerRadius" Value="999" />
@@ -230,6 +305,7 @@
     </Style>
 
     <!-- Product -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.product">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
@@ -241,6 +317,7 @@
     <!-- ============================================================
          SIDEBAR — Windows 11 Settings style with accent nub
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebar">
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="Background" Value="Transparent" />
@@ -250,16 +327,19 @@
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Margin" Value="0,1" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebar:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
 
     <!-- Active: accent nub only, no background tint -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebarActive">
       <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
     </Style>
 
     <!-- Utility buttons -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebarUtility">
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="Background" Value="Transparent" />
@@ -269,11 +349,13 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="CornerRadius" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.sidebarUtility:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
 
     <!-- Project identity -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.projectIdentity">
       <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
       <Setter Property="BorderThickness" Value="0" />
@@ -283,6 +365,7 @@
     </Style>
 
     <!-- Choice -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.choice">
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="MinWidth" Value="175" />
@@ -293,6 +376,7 @@
     <!-- ============================================================
          TABS
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.workspaceTab">
       <Setter Property="Height" Value="32" />
       <Setter Property="MinHeight" Value="32" />
@@ -302,17 +386,21 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="FontSize" Value="12" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.workspaceTab.active">
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.workspaceTab:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenButtonHoverBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.tabClose">
       <Setter Property="Width" Value="24" /><Setter Property="Height" Value="24" /><Setter Property="MinHeight" Value="24" />
       <Setter Property="Margin" Value="-26,3,3,3" /><Setter Property="Padding" Value="0" /><Setter Property="CornerRadius" Value="6" />
       <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="FontSize" Value="12" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.tabClose:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
@@ -320,6 +408,7 @@
     <!-- ============================================================
          ACCENT BUTTONS — Vibrant, bold, high contrast
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.primary">
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="Background" Value="{DynamicResource HavenAccentBrush}" />
@@ -327,27 +416,33 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenBlueBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.primary PathIcon"><Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" /></Style>
 
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.accent">
       <Setter Property="Background" Value="{DynamicResource HavenAccentBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenBlueBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.accent PathIcon"><Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" /></Style>
 
     <!-- ============================================================
          ICON / SEND / STOP
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.icon">
       <Setter Property="Width" Value="36" />
       <Setter Property="Height" Value="36" />
@@ -357,12 +452,14 @@
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.icon.compact">
       <Setter Property="Width" Value="28" />
       <Setter Property="Height" Value="28" />
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="CornerRadius" Value="8" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.send">
       <Setter Property="Height" Value="36" />
       <Setter Property="MinHeight" Value="36" />
@@ -374,21 +471,27 @@
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.send PathIcon"><Setter Property="Foreground" Value="{DynamicResource HavenAccentInkBrush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.stop">
       <Setter Property="Background" Value="{DynamicResource HavenDangerBrush}" />
       <Setter Property="Foreground" Value="#1A0005" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.stop PathIcon"><Setter Property="Foreground" Value="#1A0005" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.chip">
       <Setter Property="CornerRadius" Value="999" />
       <Setter Property="Padding" Value="10,4" />
       <Setter Property="MinHeight" Value="28" />
       <Setter Property="FontSize" Value="12" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.danger">
       <Setter Property="Foreground" Value="{DynamicResource HavenDangerBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="#35FF6677" />
       <Setter Property="BorderBrush" Value="#70FF6677" />
@@ -397,6 +500,7 @@
     <!-- ============================================================
          TEXTBOX — Clean, minimal
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
@@ -407,11 +511,13 @@
       <Setter Property="FontSize" Value="13" />
       <Setter Property="SelectionBrush" Value="{DynamicResource HavenAccentBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
       <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
 
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox.composerInput">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
@@ -419,6 +525,7 @@
       <Setter Property="Padding" Value="16,12,16,6" />
     </Style>
 
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox.sidebarSearch">
       <Setter Property="MinHeight" Value="32" />
       <Setter Property="Background" Value="Transparent" />
@@ -427,6 +534,7 @@
       <Setter Property="Padding" Value="10,6" />
       <Setter Property="FontSize" Value="12" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBox.sidebarSearch:pointerover /template/ Border#PART_BorderElement">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
     </Style>
@@ -434,6 +542,7 @@
     <!-- ============================================================
          COMBOBOX
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBox">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
@@ -444,9 +553,11 @@
       <Setter Property="MinHeight" Value="36" />
       <Setter Property="FontSize" Value="13" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBox:focus /template/ Border#PART_BorderElement">
       <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBoxItem">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
@@ -455,9 +566,11 @@
       <Setter Property="Margin" Value="0,1" />
       <Setter Property="CornerRadius" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
     </Style>
@@ -465,6 +578,7 @@
     <!-- ============================================================
          FLYOUT / MENU — Rounded popups
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="FlyoutPresenter">
       <Setter Property="Background" Value="#C0181E2A" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
@@ -472,6 +586,7 @@
       <Setter Property="CornerRadius" Value="12" />
       <Setter Property="Padding" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="MenuFlyoutPresenter">
       <Setter Property="Background" Value="#C0181E2A" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
@@ -479,19 +594,23 @@
       <Setter Property="CornerRadius" Value="12" />
       <Setter Property="Padding" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Menu">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="MenuItem">
       <Setter Property="FontSize" Value="13" />
       <Setter Property="MinHeight" Value="32" />
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="CornerRadius" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="MenuItem:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ContextMenu">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
@@ -499,6 +618,7 @@
       <Setter Property="CornerRadius" Value="16" />
       <Setter Property="Padding" Value="6" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="ToolTip">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
@@ -510,6 +630,7 @@
     <!-- ============================================================
          BORDERS — Cards with subtle depth
          ============================================================ -->
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.card">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="CornerRadius" Value="14" />
@@ -518,6 +639,7 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="BoxShadow" Value="0 12 34 0 #38000000" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.dashboardTile">
       <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
@@ -526,16 +648,20 @@
       <Setter Property="Padding" Value="16" />
       <Setter Property="BoxShadow" Value="0 10 28 0 #30000000" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.dashboardTile:pointerover">
       <Setter Property="Background" Value="{DynamicResource HavenPanel3Brush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.iconPlate">
       <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" />
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.iconPlate PathIcon"><Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" /></Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.statusPill">
       <Setter Property="CornerRadius" Value="999" />
       <Setter Property="Padding" Value="10,5" />
@@ -543,19 +669,23 @@
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.warningPill">
       <Setter Property="CornerRadius" Value="999" /><Setter Property="Padding" Value="8,4" />
       <Setter Property="Background" Value="#35FCE4A6" /><Setter Property="BorderBrush" Value="#60FCE4A6" /><Setter Property="BorderThickness" Value="1" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.agendaDot">
       <Setter Property="Width" Value="8" /><Setter Property="Height" Value="8" /><Setter Property="CornerRadius" Value="4" />
       <Setter Property="Background" Value="{DynamicResource HavenAccentBrush}" /><Setter Property="VerticalAlignment" Value="Center" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.composer">
       <Setter Property="CornerRadius" Value="16" />
       <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.avatar">
       <Setter Property="Width" Value="34" />
       <Setter Property="Height" Value="34" />
@@ -565,6 +695,7 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="ClipToBounds" Value="True" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.permission">
       <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
       <Setter Property="CornerRadius" Value="12" />
@@ -572,30 +703,52 @@
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
     </Style>
+    <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Separator"><Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" /></Style>
   </Application.Styles>
 
   <!-- Data templates -->
+  <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
   <Application.DataTemplates>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ChatPageViewModel}"><views:ChatView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ChatGroupPageViewModel}"><views:ChatGroupView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:HomePageViewModel}"><views:HomeView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:CallPageViewModel}"><views:CallView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:PlanPageViewModel}"><views:PlanView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:CatalogPageViewModel}"><views:CatalogView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:AutomationsPageViewModel}"><views:AutomationsView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:BrowserPageViewModel}"><views:BrowserView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:TrainingPageViewModel}"><views:TrainingView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:SettingsPageViewModel}"><views:SettingsView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ContainerSettingsPageViewModel}"><views:ContainerSettingsView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:LessonSettingsPageViewModel}"><views:LessonSettingsView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:WorkspaceHomePageViewModel}"><views:WorkspaceHomeView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ProjectCreatorPageViewModel}"><views:ProjectCreatorView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:StudioProjectPageViewModel}"><views:StudioProjectView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:WorkspaceEditorPageViewModel}"><views:WorkspaceEditorView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:MacrosPageViewModel}"><views:MacrosView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ArchivePageViewModel}"><views:ArchiveView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ActivityLogPageViewModel}"><views:ActivityLogView /></DataTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
     <DataTemplate DataType="{x:Type vm:ModeLibraryPageViewModel}"><views:ModeLibraryView /></DataTemplate>
   </Application.DataTemplates>
 </Application>

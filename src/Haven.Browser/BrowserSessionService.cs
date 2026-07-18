@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserSessionService.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserSnapshot, IEmbeddedBrowserHost, BrowserSessionService, PageSnapshotDto, PageElementDto. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -7,8 +16,14 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser snapshot and keeps its related state and behavior together.
+/// </summary>
 public sealed record BrowserSnapshot(Uri? Address, string Title, bool CanGoBack, bool CanGoForward, bool IsLoading, string Status);
 
+/// <summary>
+/// Defines the i embedded browser host contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IEmbeddedBrowserHost
 {
     event EventHandler<BrowserSnapshot>? StateChanged;
@@ -22,25 +37,64 @@ public interface IEmbeddedBrowserHost
     Task OpenDeveloperToolsAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents browser session service and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService, IDisposable
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores reference pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex ReferencePattern = new("^haven-[0-9]{1,4}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores host locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IEmbeddedBrowserHost? _host;
+    /// <summary>
+    /// Stores http locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly HttpClient _http = new(new HttpClientHandler { AllowAutoRedirect = true, AutomaticDecompression = DecompressionMethods.All })
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
+    /// <summary>
+    /// Stores fallback address locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Uri? _fallbackAddress;
+    /// <summary>
+    /// Stores fallback text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _fallbackText = string.Empty;
+    /// <summary>
+    /// Stores fallback state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private BrowserSnapshot _fallbackState = new(null, "Browser", false, false, false, "Browser view is not attached.");
 
+    /// <summary>
+    /// Gets or updates profile directory, the bindable or domain state represented by this property.
+    /// </summary>
     public string ProfileDirectory => paths.BrowserProfileDirectory;
+    /// <summary>
+    /// Reports whether is interactive available is true for the current state.
+    /// </summary>
     public bool IsInteractiveAvailable => _host is not null;
+    /// <summary>
+    /// Gets or updates state, the bindable or domain state represented by this property.
+    /// </summary>
     public BrowserSnapshot State => _host?.State ?? _fallbackState;
 
+    /// <summary>
+    /// Stores state changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<BrowserSnapshot>? StateChanged;
 
+    /// <summary>
+    /// Performs the attach step owned by this component.
+    /// </summary>
     public void Attach(IEmbeddedBrowserHost host)
     {
         if (_host is not null) _host.StateChanged -= ForwardState;
@@ -49,6 +103,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         StateChanged?.Invoke(this, host.State);
     }
 
+    /// <summary>
+    /// Performs the detach step owned by this component.
+    /// </summary>
     public void Detach(IEmbeddedBrowserHost host)
     {
         if (!ReferenceEquals(_host, host)) return;
@@ -56,6 +113,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         _host = null;
     }
 
+    /// <summary>
+    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> NavigateAsync(string value, CancellationToken cancellationToken)
     {
         var normalised = NormaliseAddress(value);
@@ -88,21 +148,36 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return $"Loaded {_fallbackState.Address}. Use browser_snapshot to inspect it. Interactive actions require the Browse view to be open.";
     }
 
+    /// <summary>
+    /// Performs back async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> BackAsync(CancellationToken cancellationToken)
     {
         await RequireHost(x => x.GoBackAsync(cancellationToken)).ConfigureAwait(false);
         return "Went back.";
     }
 
+    /// <summary>
+    /// Performs forward async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ForwardAsync(CancellationToken cancellationToken)
     {
         await RequireHost(x => x.GoForwardAsync(cancellationToken)).ConfigureAwait(false);
         return "Went forward.";
     }
 
+    /// <summary>
+    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task ReloadAsync(CancellationToken cancellationToken) => RequireHost(x => x.ReloadAsync(cancellationToken));
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => RequireHost(x => x.StopAsync(cancellationToken));
 
+    /// <summary>
+    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ReloadAsync(bool clearSiteCache, CancellationToken cancellationToken)
     {
         if (_host is null && _fallbackAddress is not null) return await NavigateAsync(_fallbackAddress.ToString(), cancellationToken).ConfigureAwait(false);
@@ -114,6 +189,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return clearSiteCache ? "Cleared this site's Cache Storage and reloaded." : "Reloaded the page.";
     }
 
+    /// <summary>
+    /// Performs extract visible text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExtractVisibleTextAsync(CancellationToken cancellationToken)
     {
         if (_host is null) return _fallbackText;
@@ -121,8 +199,14 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return UnwrapJavaScriptString(result);
     }
 
+    /// <summary>
+    /// Performs read visible text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ReadVisibleTextAsync(CancellationToken cancellationToken) => ExtractVisibleTextAsync(cancellationToken);
 
+    /// <summary>
+    /// Performs capture structured page async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserPageSnapshot> CaptureStructuredPageAsync(CancellationToken cancellationToken)
     {
         if (_host is null)
@@ -197,6 +281,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
             dto.WasTruncated);
     }
 
+    /// <summary>
+    /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
         ValidateReference(reference);
@@ -213,6 +300,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync(script, cancellationToken)).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
         ValidateReference(reference);
@@ -241,28 +331,55 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync(script, cancellationToken)).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// Performs click async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ClickAsync(string selector, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const e = document.querySelector({JavaScriptString(selector)}); if (!e) return 'not-found'; e.click(); return 'clicked'; }})()", cancellationToken)).ConfigureAwait(false));
 
+    /// <summary>
+    /// Performs click text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ClickTextAsync(string text, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const wanted={JavaScriptString(text)}.toLowerCase(); const e=[...document.querySelectorAll('a,button,[role=button],input[type=submit]')].find(x=>(x.innerText||x.value||'').trim().toLowerCase().includes(wanted)); if(!e)return 'not-found'; e.scrollIntoView({{block:'center'}}); e.click(); return 'clicked '+(e.innerText||e.value||'').trim(); }})()", cancellationToken)).ConfigureAwait(false));
 
+    /// <summary>
+    /// Performs fill async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> FillAsync(string selector, string value, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const e = document.querySelector({JavaScriptString(selector)}); if (!e) return 'not-found'; e.focus(); e.value = {JavaScriptString(value)}; e.dispatchEvent(new Event('input', {{bubbles:true}})); e.dispatchEvent(new Event('change', {{bubbles:true}})); return 'filled'; }})()", cancellationToken)).ConfigureAwait(false));
 
+    /// <summary>
+    /// Performs scroll async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ScrollAsync(double x, double y, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(xHost => xHost.ExecuteScriptAsync($"window.scrollBy({x.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {y.ToString(System.Globalization.CultureInfo.InvariantCulture)}); 'scrolled'", cancellationToken)).ConfigureAwait(false));
 
+    /// <summary>
+    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task PrintAsync(CancellationToken cancellationToken) =>
         _ = await RequireHost(x => x.ExecuteScriptAsync("window.print(); 'print-opened'", cancellationToken)).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task OpenDeveloperToolsAsync(CancellationToken cancellationToken) => RequireHost(x => x.OpenDeveloperToolsAsync(cancellationToken));
 
+    /// <summary>
+    /// Runs execute ui script async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<string> ExecuteUiScriptAsync(string script, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync(script, cancellationToken)).ConfigureAwait(false));
 
+    /// <summary>
+    /// Performs the forward state step owned by this component.
+    /// </summary>
     private void ForwardState(object? sender, BrowserSnapshot state) => StateChanged?.Invoke(this, state);
 
+    /// <summary>
+    /// Performs the require host step owned by this component.
+    /// </summary>
     private Task RequireHost(Func<IEmbeddedBrowserHost, Task> action)
     {
         EnsureHost();
@@ -275,16 +392,25 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return action(_host!);
     }
 
+    /// <summary>
+    /// Performs the ensure host step owned by this component.
+    /// </summary>
     private void EnsureHost()
     {
         if (_host is null) throw new InvalidOperationException("The embedded browser is not currently attached to a native view.");
     }
 
+    /// <summary>
+    /// Validates reference before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void ValidateReference(string reference)
     {
         if (!ReferencePattern.IsMatch(reference)) throw new ArgumentException("The browser element reference is invalid or stale.", nameof(reference));
     }
 
+    /// <summary>
+    /// Performs the normalise address step owned by this component.
+    /// </summary>
     private static Uri NormaliseAddress(string value)
     {
         var candidate = value.Trim();
@@ -293,8 +419,14 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return new Uri("https://www.google.com/search?q=" + Uri.EscapeDataString(candidate), UriKind.Absolute);
     }
 
+    /// <summary>
+    /// Performs the java script string step owned by this component.
+    /// </summary>
     private static string JavaScriptString(string value) => JsonSerializer.Serialize(value);
 
+    /// <summary>
+    /// Performs the unwrap java script string step owned by this component.
+    /// </summary>
     private static string UnwrapJavaScriptString(string? value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
@@ -302,6 +434,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         catch (JsonException) { return value; }
     }
 
+    /// <summary>
+    /// Performs the html to text step owned by this component.
+    /// </summary>
     private static string HtmlToText(string html)
     {
         var withoutScripts = Regex.Replace(html, "<script[\\s\\S]*?</script>|<style[\\s\\S]*?</style>", " ", RegexOptions.IgnoreCase);
@@ -310,8 +445,14 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         return Regex.Replace(text, "\\s+", " ").Trim();
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _http.Dispose();
 
+    /// <summary>
+    /// Represents page snapshot dto and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PageSnapshotDto(
         string? Address,
         string? Title,
@@ -320,6 +461,9 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
         IReadOnlyList<PageElementDto>? Elements,
         bool WasTruncated);
 
+    /// <summary>
+    /// Represents page element dto and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PageElementDto(
         string? Reference,
         string? Kind,

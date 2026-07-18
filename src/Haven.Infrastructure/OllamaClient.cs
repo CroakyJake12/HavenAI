@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/OllamaClient.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns OllamaClient, OllamaTagsResponse, OllamaModel, OllamaDetails. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -7,10 +16,19 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents ollama client and keeps its related state and behavior together.
+/// </summary>
 public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuffer usageCapture) : IOllamaClient
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Reports whether is available async is true for the current state.
+    /// </summary>
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
         try
@@ -22,6 +40,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
     }
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
     {
         using var response = await httpClient.GetAsync("api/tags", cancellationToken).ConfigureAwait(false);
@@ -30,6 +51,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         return payload?.Models.Select(MapModel).ToList() ?? [];
     }
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/chat")
@@ -68,6 +92,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         }
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync("api/chat", BuildPayload(request, stream: false), JsonOptions, cancellationToken).ConfigureAwait(false);
@@ -81,6 +108,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         return document.RootElement.GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync("api/chat", BuildToolPayload(request), JsonOptions, cancellationToken).ConfigureAwait(false);
@@ -128,6 +158,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         return new OllamaToolResponse(content, calls);
     }
 
+    /// <summary>
+    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("A model name is required.", nameof(model));
@@ -157,6 +190,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         progress?.Report(1);
     }
 
+    /// <summary>
+    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteModelAsync(string model, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("A model name is required.", nameof(model));
@@ -172,6 +208,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         }
     }
 
+    /// <summary>
+    /// Performs the capture usage step owned by this component.
+    /// </summary>
     private void CaptureUsage(JsonElement root, string model)
     {
         var input = ReadInt64(root, "prompt_eval_count");
@@ -182,9 +221,15 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
             UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
     }
 
+    /// <summary>
+    /// Performs the read int64 step owned by this component.
+    /// </summary>
     private static long? ReadInt64(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
+    /// <summary>
+    /// Builds payload from the currently available inputs.
+    /// </summary>
     private static object BuildPayload(OllamaChatRequest request, bool stream)
     {
         var messages = new List<object>();
@@ -204,6 +249,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         };
     }
 
+    /// <summary>
+    /// Builds tool payload from the currently available inputs.
+    /// </summary>
     private static object BuildToolPayload(OllamaToolRequest request)
     {
         var messages = new List<object>();
@@ -258,6 +306,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         };
     }
 
+    /// <summary>
+    /// Performs the map model step owned by this component.
+    /// </summary>
     private static ModelDescriptor MapModel(OllamaModel model)
     {
         var family = model.Details?.Family ?? string.Empty;
@@ -269,13 +320,22 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
         return new ModelDescriptor(name, model.Size, family, model.Details?.ParameterSize ?? string.Empty, model.Details?.QuantizationLevel ?? string.Empty, capabilities, model.ModifiedAt);
     }
 
+    /// <summary>
+    /// Represents ollama tags response and keeps its related state and behavior together.
+    /// </summary>
     private sealed record OllamaTagsResponse(IReadOnlyList<OllamaModel> Models);
+    /// <summary>
+    /// Represents ollama model and keeps its related state and behavior together.
+    /// </summary>
     private sealed record OllamaModel(
         string? Name,
         string? Model,
         long Size,
         [property: JsonPropertyName("modified_at")] DateTimeOffset ModifiedAt,
         OllamaDetails? Details);
+    /// <summary>
+    /// Represents ollama details and keeps its related state and behavior together.
+    /// </summary>
     private sealed record OllamaDetails(
         string? Family,
         [property: JsonPropertyName("parameter_size")] string? ParameterSize,

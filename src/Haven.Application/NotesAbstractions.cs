@@ -1,12 +1,27 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesAbstractions.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns INotesDocumentValidator, INotesRepository, INotesImportExportService, INotesAiService, INotesAttachmentStore, NotesValidationIssue, NotesValidationResult, NotesFlashcardScheduler, NotesTextStatistics, NotesStatistics. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Defines the i notes document validator contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesDocumentValidator
 {
     NotesValidationResult Validate(NotesDocument document);
 }
 
+/// <summary>
+/// Defines the i notes repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesRepository
 {
     Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken);
@@ -19,6 +34,9 @@ public interface INotesRepository
     Task<IReadOnlyList<NotesSearchHit>> SearchAsync(string query, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i notes import export service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesImportExportService
 {
     IReadOnlyList<string> ImportExtensions { get; }
@@ -28,11 +46,17 @@ public interface INotesImportExportService
     Task PrintAsync(NotesDocument document, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i notes ai service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesAiService
 {
     Task<NotesAiProposalResult> ProposeAsync(NotesAiProposalRequest request, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i notes attachment store contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesAttachmentStore
 {
     Task<NotesMediaData> ImportAsync(string sourcePath, CancellationToken cancellationToken);
@@ -40,14 +64,26 @@ public interface INotesAttachmentStore
     Task DeleteUnreferencedAsync(IReadOnlyCollection<Guid> referencedAttachmentIds, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents notes validation issue and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesValidationIssue(string Path, string Message, bool IsError);
 
+/// <summary>
+/// Represents notes validation result and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesValidationResult(
     bool IsValid,
     IReadOnlyList<NotesValidationIssue> Issues);
 
+/// <summary>
+/// Represents notes flashcard scheduler and keeps its related state and behavior together.
+/// </summary>
 public static class NotesFlashcardScheduler
 {
+    /// <summary>
+    /// Performs the review step owned by this component.
+    /// </summary>
     public static NotesFlashcardReview Review(
         NotesFlashcardData card,
         NotesFlashcardRating rating,
@@ -104,8 +140,14 @@ public static class NotesFlashcardScheduler
     }
 }
 
+/// <summary>
+/// Represents notes text statistics and keeps its related state and behavior together.
+/// </summary>
 public static class NotesTextStatistics
 {
+    /// <summary>
+    /// Performs the calculate step owned by this component.
+    /// </summary>
     public static NotesStatistics Calculate(NotesDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -120,6 +162,9 @@ public static class NotesTextStatistics
         return new NotesStatistics(words, characters, charactersWithoutSpaces, paragraphs, readingMinutes);
     }
 
+    /// <summary>
+    /// Performs the enumerate text step owned by this component.
+    /// </summary>
     public static IEnumerable<string> EnumerateText(NotesDocument document)
     {
         foreach (var section in document.Sections)
@@ -164,6 +209,9 @@ public static class NotesTextStatistics
     }
 }
 
+/// <summary>
+/// Represents notes statistics and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesStatistics(
     int Words,
     int Characters,

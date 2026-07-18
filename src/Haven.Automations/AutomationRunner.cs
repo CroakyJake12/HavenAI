@@ -1,19 +1,40 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Automations/AutomationRunner.cs, in the Automations layer, which parses schedules and runs durable background actions.
+ * What: This file owns AutomationBatchResult, AutomationRunner, AutomationConditionResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Automations;
 
+/// <summary>
+/// Represents automation batch result and keeps its related state and behavior together.
+/// </summary>
 public sealed record AutomationBatchResult(int Due, int Started, int Succeeded, int Failed, int Skipped);
 
+/// <summary>
+/// Represents automation runner and keeps its related state and behavior together.
+/// </summary>
 public sealed class AutomationRunner(
     IAutomationRepository repository,
     IOllamaClient ollama,
     ScheduleCalculator schedules,
     IAutomationDeliveryOutbox? deliveries = null)
 {
+    /// <summary>
+    /// Stores maximum attempts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumAttempts = 3;
 
+    /// <summary>
+    /// Runs run due async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<AutomationBatchResult> RunDueAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var due = await repository.GetDueAsync(now, cancellationToken).ConfigureAwait(false);
@@ -74,6 +95,9 @@ public sealed class AutomationRunner(
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs complete leased run async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<AutomationRun> CompleteLeasedRunAsync(
         AutomationDefinition automation,
         string leaseToken,
@@ -143,11 +167,17 @@ public sealed class AutomationRunner(
         }
     }
 
+    /// <summary>
+    /// Performs the next run after completion step owned by this component.
+    /// </summary>
     private DateTimeOffset? NextRunAfterCompletion(
         AutomationDefinition automation,
         DateTimeOffset completedAt) =>
         automation.IsEnabled ? schedules.GetNextRun(automation, completedAt) : null;
 
+    /// <summary>
+    /// Attempts to publish delivery async and reports the result without using failure for normal control flow.
+    /// </summary>
     private async Task TryPublishDeliveryAsync(
         AutomationDefinition automation,
         AutomationRun run)
@@ -192,6 +222,9 @@ public sealed class AutomationRunner(
         }
     }
 
+    /// <summary>
+    /// Runs execute with retry async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> ExecuteWithRetryAsync(
         AutomationDefinition automation,
         CancellationToken cancellationToken)
@@ -220,6 +253,9 @@ public sealed class AutomationRunner(
             lastError);
     }
 
+    /// <summary>
+    /// Runs execute once async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> ExecuteOnceAsync(
         AutomationDefinition automation,
         int attempt,
@@ -249,6 +285,9 @@ public sealed class AutomationRunner(
         });
     }
 
+    /// <summary>
+    /// Attempts to read normalized condition and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadNormalizedCondition(
         string? response,
         out AutomationConditionResult result)
@@ -276,6 +315,9 @@ public sealed class AutomationRunner(
         }
     }
 
+    /// <summary>
+    /// Performs the parse condition result step owned by this component.
+    /// </summary>
     internal static AutomationConditionResult ParseConditionResult(string? response)
     {
         if (string.IsNullOrWhiteSpace(response))
@@ -305,6 +347,9 @@ public sealed class AutomationRunner(
         }
     }
 
+    /// <summary>
+    /// Performs the bound step owned by this component.
+    /// </summary>
     private static string Bound(string value, int maximum)
     {
         var normalized = value.ReplaceLineEndings(" ").Trim();
@@ -312,4 +357,7 @@ public sealed class AutomationRunner(
     }
 }
 
+/// <summary>
+/// Represents automation condition result and keeps its related state and behavior together.
+/// </summary>
 public sealed record AutomationConditionResult(bool ConditionMet, string Report);

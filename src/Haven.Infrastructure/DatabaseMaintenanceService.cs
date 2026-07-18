@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/DatabaseMaintenanceService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns DatabaseMaintenanceService, DatabaseBackupManifest. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text.Json;
 using Haven.Application;
@@ -5,14 +14,35 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents database maintenance service and keeps its related state and behavior together.
+/// </summary>
 public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagnostics diagnostics) : IDatabaseMaintenance
 {
+    /// <summary>
+    /// Stores maximum backups locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumBackups = 10;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores backup directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _backupDirectory = Path.Combine(paths.DataDirectory, "Backups");
+    /// <summary>
+    /// Stores highest prepared target locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _highestPreparedTarget;
 
+    /// <summary>
+    /// Performs prepare for migration async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<DatabaseBackupInfo?> PrepareForMigrationAsync(int targetVersion, CancellationToken cancellationToken)
     {
         if (targetVersion <= 0) throw new ArgumentOutOfRangeException(nameof(targetVersion));
@@ -131,6 +161,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Performs verify integrity async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<DatabaseHealthReport> VerifyIntegrityAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -174,6 +207,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         }
     }
 
+    /// <summary>
+    /// Performs verify file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<DatabaseHealthReport> VerifyFileAsync(string path, CancellationToken cancellationToken)
     {
         await using var connection = CreateConnection(path, SqliteOpenMode.ReadOnly);
@@ -190,6 +226,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         return new DatabaseHealthReport(healthy, version, integrity, foreignKeys, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Creates connection with the invariants required by its callers.
+    /// </summary>
     private static SqliteConnection CreateConnection(string path, SqliteOpenMode mode)
     {
         SqliteProviderBootstrap.EnsureInitialized();
@@ -203,6 +242,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         }.ToString());
     }
 
+    /// <summary>
+    /// Performs configure connection async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ConfigureConnectionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -210,6 +252,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         await using var exists = connection.CreateCommand();
@@ -220,6 +265,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         return Convert.ToInt32(await version.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Runs run check async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static async Task<IReadOnlyList<string>> RunCheckAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
         var result = new List<string>();
@@ -231,6 +279,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         return result;
     }
 
+    /// <summary>
+    /// Runs run foreign key check async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static async Task<IReadOnlyList<string>> RunForeignKeyCheckAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         var result = new List<string>();
@@ -248,6 +299,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         return result;
     }
 
+    /// <summary>
+    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -255,6 +309,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Performs write manifest async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteManifestAsync(string path, DatabaseBackupManifest manifest, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
@@ -263,6 +320,9 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         stream.Flush(flushToDisk: true);
     }
 
+    /// <summary>
+    /// Performs the apply retention step owned by this component.
+    /// </summary>
     private void ApplyRetention()
     {
         if (!Directory.Exists(_backupDirectory)) return;
@@ -278,12 +338,18 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
         foreach (var temp in Directory.EnumerateFiles(_backupDirectory, "*.tmp", SearchOption.TopDirectoryOnly)) TryDelete(temp);
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Represents database backup manifest and keeps its related state and behavior together.
+    /// </summary>
     private sealed record DatabaseBackupManifest(
         int Version,
         string FileName,

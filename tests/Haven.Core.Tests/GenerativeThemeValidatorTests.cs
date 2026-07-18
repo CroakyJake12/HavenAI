@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Core.Tests/GenerativeThemeValidatorTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeThemeValidatorTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Xunit;
 
 namespace Haven.Core.Tests;
 
+/// <summary>
+/// Represents generative theme validator tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeThemeValidatorTests
 {
+    /// <summary>
+    /// Stores validator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly GenerativeThemeValidator _validator = new();
 
+    /// <summary>
+    /// Performs the complete dual variant theme with safe layout and pages is accepted step owned by this component.
+    /// </summary>
     [Fact]
     public void CompleteDualVariantThemeWithSafeLayoutAndPagesIsAccepted()
     {
@@ -47,6 +65,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
     }
 
+    /// <summary>
+    /// Performs the unknown ui item is rejected rather than becoming an arbitrary binding step owned by this component.
+    /// </summary>
     [Fact]
     public void UnknownUiItemIsRejectedRatherThanBecomingAnArbitraryBinding()
     {
@@ -63,6 +84,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Message.Contains("Unknown UI item", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the required model selector cannot be hidden step owned by this component.
+    /// </summary>
     [Fact]
     public void RequiredModelSelectorCannotBeHidden()
     {
@@ -79,6 +103,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Path.Contains("chat.model", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the moving control to unapproved region is rejected step owned by this component.
+    /// </summary>
     [Fact]
     public void MovingControlToUnapprovedRegionIsRejected()
     {
@@ -95,6 +122,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Message.Contains("cannot be moved", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the duplicate control placement is rejected step owned by this component.
+    /// </summary>
     [Fact]
     public void DuplicateControlPlacementIsRejected()
     {
@@ -112,6 +142,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Message.Contains("at most once", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the generated command button cannot invoke unknown command step owned by this component.
+    /// </summary>
     [Fact]
     public void GeneratedCommandButtonCannotInvokeUnknownCommand()
     {
@@ -135,6 +168,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Message.Contains("approved Haven command", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the timer outside safe bounds is rejected step owned by this component.
+    /// </summary>
     [Theory]
     [InlineData(4)]
     [InlineData(86401)]
@@ -160,6 +196,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Message.Contains("24 hours", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the missing light variant is rejected step owned by this component.
+    /// </summary>
     [Fact]
     public void MissingLightVariantIsRejected()
     {
@@ -169,6 +208,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Path == "light");
     }
 
+    /// <summary>
+    /// Performs the invalid colour is rejected before it can reach avalonia resources step owned by this component.
+    /// </summary>
     [Fact]
     public void InvalidColourIsRejectedBeforeItCanReachAvaloniaResources()
     {
@@ -180,6 +222,9 @@ public sealed class GenerativeThemeValidatorTests
         Assert.Contains(result.Issues, issue => issue.IsError && issue.Path == "dark.accent");
     }
 
+    /// <summary>
+    /// Performs the valid theme step owned by this component.
+    /// </summary>
     private static GenerativeThemePack ValidTheme()
     {
         var now = DateTimeOffset.UtcNow;
@@ -201,6 +246,9 @@ public sealed class GenerativeThemeValidatorTests
             []);
     }
 
+    /// <summary>
+    /// Performs the palette step owned by this component.
+    /// </summary>
     private static GenerativeThemePalette Palette() => new(
         "#FF101010",
         "#FF111111",

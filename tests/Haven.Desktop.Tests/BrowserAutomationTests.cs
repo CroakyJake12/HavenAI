@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/BrowserAutomationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserAutomationTests, FakeBrowserHost, AllowPolicy, MemoryAutomationStore, StubAutomationService, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Browser;
@@ -5,10 +14,19 @@ using Haven.Core;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents browser automation tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserAutomationTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the navigation policy blocks credentials and non public addresses step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NavigationPolicyBlocksCredentialsAndNonPublicAddresses()
     {
@@ -21,6 +39,9 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.True((await policy.AssessAsync(new Uri("https://8.8.8.8/"), CancellationToken.None)).IsAllowed);
     }
 
+    /// <summary>
+    /// Performs the automation store persists expires and quarantines corrupt state step owned by this component.
+    /// </summary>
     [Fact]
     public async Task AutomationStorePersistsExpiresAndQuarantinesCorruptState()
     {
@@ -43,6 +64,9 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.NotEmpty(Directory.EnumerateFiles(_paths.DataDirectory, "browser-automation.json.corrupt-*.json"));
     }
 
+    /// <summary>
+    /// Performs the structured references allow safe actions but gate submission and sensitive fields step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StructuredReferencesAllowSafeActionsButGateSubmissionAndSensitiveFields()
     {
@@ -77,6 +101,9 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.DoesNotContain(store.Audit, item => item.Detail.Contains("not-secret@example.test", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Performs the stale references are reported as failures rather than successful clicks step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StaleReferencesAreReportedAsFailuresRatherThanSuccessfulClicks()
     {
@@ -92,6 +119,9 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.Contains("page changed", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the downloads are pending until explicitly rejected or approved step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DownloadsArePendingUntilExplicitlyRejectedOrApproved()
     {
@@ -111,6 +141,9 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.Empty(await automation.GetDownloadsAsync(10, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the model visible tools use references instead of raw selectors step owned by this component.
+    /// </summary>
     [Fact]
     public void ModelVisibleToolsUseReferencesInsteadOfRawSelectors()
     {
@@ -128,25 +161,70 @@ public sealed class BrowserAutomationTests : IDisposable
         Assert.DoesNotContain("browser_fill", names);
     }
 
+    /// <summary>
+    /// Performs the element step owned by this component.
+    /// </summary>
     private static BrowserPageElement Element(string reference, string kind, string text, bool sensitive, bool submits, string? inputType = null) =>
         new(reference, kind, text, null, null, inputType, sensitive, submits);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents fake browser host and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeBrowserHost : IEmbeddedBrowserHost
     {
+        /// <summary>
+        /// Gets or updates elements, the bindable or domain state represented by this property.
+        /// </summary>
         public IReadOnlyList<BrowserPageElement> Elements { get; set; } = [];
+        /// <summary>
+        /// Gets or updates click count, the bindable or domain state represented by this property.
+        /// </summary>
         public int ClickCount { get; private set; }
+        /// <summary>
+        /// Gets or updates click result, the bindable or domain state represented by this property.
+        /// </summary>
         public string ClickResult { get; set; } = "clicked";
+        /// <summary>
+        /// Stores state changed locally so this component can preserve the dependency, cache, or state between member calls.
+        /// </summary>
         public event EventHandler<BrowserSnapshot>? StateChanged;
+        /// <summary>
+        /// Gets or updates state, the bindable or domain state represented by this property.
+        /// </summary>
         public BrowserSnapshot State { get; private set; } = new(new Uri("https://example.test/page"), "Example", false, false, false, "Ready");
+        /// <summary>
+        /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task NavigateAsync(Uri address, CancellationToken cancellationToken) { State = State with { Address = address }; StateChanged?.Invoke(this, State); return Task.CompletedTask; }
+        /// <summary>
+        /// Performs go back async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task GoBackAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs go forward async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task GoForwardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs reload async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task ReloadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task OpenDeveloperToolsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
+        /// <summary>
+        /// Runs execute script async while preserving the surrounding cancellation and error-handling contract.
+        /// </summary>
         public Task<string?> ExecuteScriptAsync(string script, CancellationToken cancellationToken)
         {
             if (script.Contains("maxElements", StringComparison.Ordinal))
@@ -183,41 +261,119 @@ public sealed class BrowserAutomationTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Represents allow policy and keeps its related state and behavior together.
+    /// </summary>
     private sealed class AllowPolicy : IBrowserNavigationPolicy
     {
+        /// <summary>
+        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken) =>
             Task.FromResult(new BrowserNavigationAssessment(address, true, "test", ["8.8.8.8"]));
     }
 
+    /// <summary>
+    /// Represents memory automation store and keeps its related state and behavior together.
+    /// </summary>
     private sealed class MemoryAutomationStore : IBrowserAutomationStore
     {
+        /// <summary>
+        /// Gets or updates actions, the bindable or domain state represented by this property.
+        /// </summary>
         public List<BrowserPendingAction> Actions { get; } = [];
+        /// <summary>
+        /// Gets or updates audit, the bindable or domain state represented by this property.
+        /// </summary>
         public List<BrowserAuditEntry> Audit { get; } = [];
+        /// <summary>
+        /// Gets or updates downloads, the bindable or domain state represented by this property.
+        /// </summary>
         public List<BrowserDownloadRecord> Downloads { get; } = [];
+        /// <summary>
+        /// Retrieves pending async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserPendingAction>>(Actions.Where(item => item.State == BrowserActionState.Pending).ToArray());
+        /// <summary>
+        /// Retrieves audit async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserAuditEntry>>(Audit.TakeLast(limit).Reverse().ToArray());
+        /// <summary>
+        /// Retrieves downloads async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserDownloadRecord>>(Downloads.TakeLast(limit).Reverse().ToArray());
+        /// <summary>
+        /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserPendingAction> AddPendingAsync(BrowserPendingAction action, CancellationToken cancellationToken) { Actions.Add(action); return Task.FromResult(action); }
+        /// <summary>
+        /// Retrieves action async for the current operation.
+        /// </summary>
         public Task<BrowserPendingAction?> GetActionAsync(Guid actionId, CancellationToken cancellationToken) => Task.FromResult(Actions.FirstOrDefault(item => item.Id == actionId));
+        /// <summary>
+        /// Performs update action async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserPendingAction> UpdateActionAsync(BrowserPendingAction action, CancellationToken cancellationToken) { var index = Actions.FindIndex(item => item.Id == action.Id); Actions[index] = action; return Task.FromResult(action); }
+        /// <summary>
+        /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken) { Audit.Add(entry); return Task.CompletedTask; }
+        /// <summary>
+        /// Performs add download async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken) { Downloads.Add(download); return Task.CompletedTask; }
     }
 
+    /// <summary>
+    /// Represents stub automation service and keeps its related state and behavior together.
+    /// </summary>
     private sealed class StubAutomationService : IBrowserAutomationService
     {
+        /// <summary>
+        /// Performs capture page async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken) => Task.FromResult(new BrowserPageSnapshot(null, "", "", [], [], DateTimeOffset.UtcNow, false, false));
+        /// <summary>
+        /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> NavigateAsync(string address, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+        /// <summary>
+        /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+        /// <summary>
+        /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+        /// <summary>
+        /// Performs request download async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserPendingAction> RequestDownloadAsync(string address, string? suggestedFileName, CancellationToken cancellationToken) => throw new NotSupportedException();
+        /// <summary>
+        /// Performs approve async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        /// <summary>
+        /// Performs reject async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        /// <summary>
+        /// Retrieves pending async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserPendingAction>> GetPendingAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserPendingAction>>([]);
+        /// <summary>
+        /// Retrieves audit async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserAuditEntry>> GetAuditAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserAuditEntry>>([]);
+        /// <summary>
+        /// Retrieves downloads async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserDownloadRecord>>([]);
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -230,12 +386,33 @@ public sealed class BrowserAutomationTests : IDisposable
             LogsDirectory = Path.Combine(DataDirectory, "logs");
             LegacyStatePath = Path.Combine(DataDirectory, "legacy.json");
         }
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

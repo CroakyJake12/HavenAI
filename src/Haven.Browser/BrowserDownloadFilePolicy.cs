@@ -1,14 +1,38 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserDownloadFilePolicy.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserDownloadFilePolicy. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser download file policy and keeps its related state and behavior together.
+/// </summary>
 public static class BrowserDownloadFilePolicy
 {
+    /// <summary>
+    /// Stores maximum file name length locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const int MaximumFileNameLength = 180;
+    /// <summary>
+    /// Stores partial file retention locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly TimeSpan PartialFileRetention = TimeSpan.FromHours(24);
+    /// <summary>
+    /// Stores partial marker locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string PartialMarker = ".haven-download-";
 
+    /// <summary>
+    /// Stores reserved windows names locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ReservedWindowsNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "CON", "PRN", "AUX", "NUL",
@@ -16,6 +40,9 @@ public static class BrowserDownloadFilePolicy
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     };
 
+    /// <summary>
+    /// Performs the sanitize file name step owned by this component.
+    /// </summary>
     public static string? SanitizeFileName(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -46,6 +73,9 @@ public static class BrowserDownloadFilePolicy
         return name is "" or "." or ".." ? null : name;
     }
 
+    /// <summary>
+    /// Performs the allocate unique path step owned by this component.
+    /// </summary>
     public static string AllocateUniquePath(string directory, string fileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
@@ -69,9 +99,15 @@ public static class BrowserDownloadFilePolicy
         throw new IOException("Could not allocate a unique download file name.");
     }
 
+    /// <summary>
+    /// Creates partial path with the invariants required by its callers.
+    /// </summary>
     public static string CreatePartialPath(string destination) =>
         destination + PartialMarker + Guid.NewGuid().ToString("N") + ".tmp";
 
+    /// <summary>
+    /// Performs the cleanup stale partial files step owned by this component.
+    /// </summary>
     public static int CleanupStalePartialFiles(string directory, DateTimeOffset now)
     {
         if (!Directory.Exists(directory)) return 0;
@@ -94,6 +130,9 @@ public static class BrowserDownloadFilePolicy
         return removed;
     }
 
+    /// <summary>
+    /// Performs the truncate preserving extension step owned by this component.
+    /// </summary>
     private static string TruncatePreservingExtension(string name, int maximumLength)
     {
         if (name.Length <= maximumLength) return name;
@@ -103,6 +142,9 @@ public static class BrowserDownloadFilePolicy
         return TruncateRunes(stem, Math.Max(1, maximumLength - extension.Length)) + extension;
     }
 
+    /// <summary>
+    /// Performs the truncate runes step owned by this component.
+    /// </summary>
     private static string TruncateRunes(string value, int maximumUtf16Length)
     {
         if (value.Length <= maximumUtf16Length) return value;
@@ -115,6 +157,9 @@ public static class BrowserDownloadFilePolicy
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the ensure confined step owned by this component.
+    /// </summary>
     private static string EnsureConfined(string root, string candidate)
     {
         var full = Path.GetFullPath(candidate);

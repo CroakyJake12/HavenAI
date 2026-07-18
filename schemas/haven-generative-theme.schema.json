@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "FILE DOCUMENTATION: This schema is located in schemas/ and is the validation boundary for non-executable generative themes. It enumerates every accepted metadata, palette, typography, shape, layout, and page field so generated UI cannot smuggle arbitrary properties or executable behavior into the Desktop layer. additionalProperties is intentionally false at each closed object boundary: extending the format therefore requires an explicit reviewed schema and validator change rather than silently accepting misspellings or unsupported capabilities.",
   "$id": "https://haven.local/schemas/haven-generative-theme.schema.json",
   "title": "Haven Generative UI Theme",
   "description": "Declarative, non-executable Haven theme and safe layout manifest.",

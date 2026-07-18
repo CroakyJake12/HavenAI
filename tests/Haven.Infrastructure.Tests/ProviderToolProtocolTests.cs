@@ -1,11 +1,26 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/ProviderToolProtocolTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns ProviderToolProtocolTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents provider tool protocol tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderToolProtocolTests
 {
+    /// <summary>
+    /// Performs the open ai tool results reference their exact parallel call ids step owned by this component.
+    /// </summary>
     [Fact]
     public void OpenAiToolResultsReferenceTheirExactParallelCallIds()
     {
@@ -37,6 +52,9 @@ public sealed class ProviderToolProtocolTests
         Assert.Equal(secondId, messages[4].GetProperty("tool_call_id").GetString());
     }
 
+    /// <summary>
+    /// Performs the open ai tool history preserves vision input step owned by this component.
+    /// </summary>
     [Fact]
     public void OpenAiToolHistoryPreservesVisionInput()
     {
@@ -56,6 +74,9 @@ public sealed class ProviderToolProtocolTests
             content[1].GetProperty("image_url").GetProperty("url").GetString());
     }
 
+    /// <summary>
+    /// Performs the anthropic parallel results immediately follow tool use in one user message step owned by this component.
+    /// </summary>
     [Fact]
     public void AnthropicParallelResultsImmediatelyFollowToolUseInOneUserMessage()
     {
@@ -90,6 +111,9 @@ public sealed class ProviderToolProtocolTests
         Assert.Equal(secondCallId, resultContent[1].GetProperty("tool_use_id").GetString());
     }
 
+    /// <summary>
+    /// Performs the anthropic tool history preserves vision input step owned by this component.
+    /// </summary>
     [Fact]
     public void AnthropicToolHistoryPreservesVisionInput()
     {
@@ -107,6 +131,9 @@ public sealed class ProviderToolProtocolTests
         Assert.Equal("text", content[1].GetProperty("type").GetString());
     }
 
+    /// <summary>
+    /// Performs the orphan tool result is rejected before provider request step owned by this component.
+    /// </summary>
     [Fact]
     public void OrphanToolResultIsRejectedBeforeProviderRequest()
     {
@@ -121,6 +148,9 @@ public sealed class ProviderToolProtocolTests
         Assert.Contains("no preceding unmatched tool call", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the arguments step owned by this component.
+    /// </summary>
     private static IReadOnlyDictionary<string, JsonElement> Arguments(string name, string value)
     {
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(new Dictionary<string, string>

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/ExperienceShellHost.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns ExperienceShellHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -18,29 +27,86 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class ExperienceShellHost : Grid, IDisposable
 {
+    /// <summary>
+    /// Stores maximum pinned modes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     internal const int MaximumPinnedModes = 6;
+    /// <summary>
+    /// Stores mode profile prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     internal const string ModeProfilePrefix = "Mode profile · ";
 
+    /// <summary>
+    /// Stores fixed mode keys locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> FixedModeKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "chat", "teach", "do", "studio", "call", "plan", "browse"
     };
 
+    /// <summary>
+    /// Stores experience buttons locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _experienceButtons = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores pinned buttons locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _pinnedButtons = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores mode cards locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _modeCards = new() { Spacing = 9 };
+    /// <summary>
+    /// Stores mode search locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _modeSearch = new() { PlaceholderText = "Search modes", MinWidth = 280 };
+    /// <summary>
+    /// Stores overlay status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _overlayStatus = new() { Classes = { "muted" }, FontSize = 11 };
+    /// <summary>
+    /// Stores overlay locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Grid _overlay;
+    /// <summary>
+    /// Stores mode refresh timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _modeRefreshTimer;
+    /// <summary>
+    /// Stores mode registry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry? _modeRegistry;
+    /// <summary>
+    /// Stores pins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPinRepository? _pins;
+    /// <summary>
+    /// Stores shell locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MainWindowViewModel? _shell;
+    /// <summary>
+    /// Stores shell notifications locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private INotifyPropertyChanged? _shellNotifications;
+    /// <summary>
+    /// Stores modes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IReadOnlyList<ModeDefinition> _modes = [];
+    /// <summary>
+    /// Stores ordered pins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private List<ModePin> _orderedPins = [];
+    /// <summary>
+    /// Stores is reorder mode locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isReorderMode;
+    /// <summary>
+    /// Stores is refreshing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isRefreshing;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public ExperienceShellHost(Control existingShell)
@@ -111,6 +177,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -125,6 +194,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Builds mode overlay from the currently available inputs.
+    /// </summary>
     private Grid BuildModeOverlay()
     {
         var close = new Button { Content = "Close" };
@@ -192,12 +264,18 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         };
     }
 
+    /// <summary>
+    /// Handles the attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private async void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
         await RefreshAsync();
         if (_modes.Count == 0 && !_disposed) _modeRefreshTimer.Start();
     }
 
+    /// <summary>
+    /// Handles the mode refresh timer tick event raised by the UI or runtime.
+    /// </summary>
     private async void OnModeRefreshTimerTick(object? sender, EventArgs e)
     {
         if (_disposed)
@@ -209,6 +287,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         if (_modes.Count > 0) _modeRefreshTimer.Stop();
     }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync()
     {
         if (_disposed || _isRefreshing || _modeRegistry is null || _pins is null) return;
@@ -236,6 +317,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the rebuild rail step owned by this component.
+    /// </summary>
     private void RebuildRail()
     {
         _experienceButtons.Children.Clear();
@@ -274,6 +358,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         UpdateActiveState();
     }
 
+    /// <summary>
+    /// Performs the plan button step owned by this component.
+    /// </summary>
     private Button PlanButton()
     {
         var button = RailButton("▦", "Plan and automations", "ExperiencePlanButton");
@@ -292,6 +379,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the group button step owned by this component.
+    /// </summary>
     private Button GroupButton(string glyph, string tooltip, string name, IReadOnlyList<ModeDefinition> modes)
     {
         var button = RailButton(glyph, tooltip, name);
@@ -304,6 +394,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the direct button step owned by this component.
+    /// </summary>
     private Button DirectButton(string glyph, string tooltip, string name, Func<Task> action)
     {
         var button = RailButton(glyph, tooltip, name);
@@ -311,6 +404,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the pinned mode button step owned by this component.
+    /// </summary>
     private Button PinnedModeButton(ModeDefinition mode)
     {
         var button = RailButton(ModeGlyph(mode.IconKey), mode.Name + (_isReorderMode ? " · drag to reorder" : string.Empty), "PinnedMode_" + mode.Id.ToString("N"));
@@ -353,6 +449,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs show mode library async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ShowModeLibraryAsync()
     {
         await RefreshAsync();
@@ -362,6 +461,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _modeSearch.Focus();
     }
 
+    /// <summary>
+    /// Performs the rebuild mode cards step owned by this component.
+    /// </summary>
     private void RebuildModeCards()
     {
         _modeCards.Children.Clear();
@@ -382,6 +484,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             _modeCards.Children.Add(new TextBlock { Text = "No matching modes.", Classes = { "muted" }, Margin = new Thickness(0, 8) });
     }
 
+    /// <summary>
+    /// Builds mode card from the currently available inputs.
+    /// </summary>
     private Control BuildModeCard(ModeDefinition mode, bool isPinned)
     {
         var isFixed = FixedModeKeys.Contains(mode.Key);
@@ -449,6 +554,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         };
     }
 
+    /// <summary>
+    /// Performs open mode async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenModeAsync(ModeDefinition mode)
     {
         if (_shell is null) return;
@@ -456,6 +564,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         UpdateActiveState();
     }
 
+    /// <summary>
+    /// Performs pin async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PinAsync(Guid modeId)
     {
         if (_pins is null || _orderedPins.Any(pin => pin.ModeId == modeId)) return;
@@ -470,6 +581,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         await Dispatcher.UIThread.InvokeAsync(RebuildRail);
     }
 
+    /// <summary>
+    /// Performs unpin async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UnpinAsync(Guid modeId)
     {
         if (_pins is null) return;
@@ -483,6 +597,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         });
     }
 
+    /// <summary>
+    /// Performs move pin async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MovePinAsync(Guid draggedModeId, Guid targetModeId)
     {
         var source = _orderedPins.FindIndex(pin => pin.ModeId == draggedModeId);
@@ -495,6 +612,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         await Dispatcher.UIThread.InvokeAsync(RebuildRail);
     }
 
+    /// <summary>
+    /// Performs persist pin order async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PersistPinOrderAsync()
     {
         if (_pins is null) return;
@@ -506,12 +626,18 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the built in step owned by this component.
+    /// </summary>
     private IReadOnlyList<ModeDefinition> BuiltIn(params string[] keys) => keys
         .Select(key => _modes.FirstOrDefault(mode => mode.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
         .Where(mode => mode is not null)
         .Cast<ModeDefinition>()
         .ToArray();
 
+    /// <summary>
+    /// Handles the data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_shellNotifications is not null) _shellNotifications.PropertyChanged -= OnShellPropertyChanged;
@@ -521,6 +647,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         UpdateActiveState();
     }
 
+    /// <summary>
+    /// Handles the shell property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_modes.Count == 0 && !_modeRefreshTimer.IsEnabled) _modeRefreshTimer.Start();
@@ -530,6 +659,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             UpdateActiveState();
     }
 
+    /// <summary>
+    /// Performs the update active state step owned by this component.
+    /// </summary>
     private void UpdateActiveState()
     {
         if (_shell is null) return;
@@ -554,6 +686,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
     }
 
+    /// <summary>
+    /// Reports whether is pinned mode active is true for the current state.
+    /// </summary>
     private bool IsPinnedModeActive(string compactId)
     {
         if (_shell is null || !Guid.TryParseExact(compactId, "N", out var modeId)) return false;
@@ -563,6 +698,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             prompt.IsActive && prompt.Name.Equals(ModeProfilePrefix + mode.Name, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the surface for mode step owned by this component.
+    /// </summary>
     private static HavenSurface SurfaceForMode(HavenMode mode) => mode switch
     {
         HavenMode.Chat => HavenSurface.Chat,
@@ -572,6 +710,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _ => HavenSurface.Chat
     };
 
+    /// <summary>
+    /// Performs the descendants step owned by this component.
+    /// </summary>
     private static IEnumerable<Control> Descendants(Control root)
     {
         if (root is Panel panel)
@@ -594,6 +735,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the rail button step owned by this component.
+    /// </summary>
     private static Button RailButton(string glyph, string tooltip, string name)
     {
         var button = new Button
@@ -611,6 +755,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the flyout entry step owned by this component.
+    /// </summary>
     private static Button FlyoutEntry(string title, string description, string iconKey, Func<Task> action)
     {
         var button = new Button
@@ -641,6 +788,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the menu action step owned by this component.
+    /// </summary>
     private static MenuItem MenuAction(string header, Action action)
     {
         var item = new MenuItem { Header = header };
@@ -648,6 +798,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         return item;
     }
 
+    /// <summary>
+    /// Performs the divider step owned by this component.
+    /// </summary>
     private static Border Divider() => new()
     {
         Height = 1,
@@ -655,6 +808,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         Background = ResourceBrush("HavenLineBrush", Color.FromArgb(45, 255, 255, 255))
     };
 
+    /// <summary>
+    /// Performs the mode glyph step owned by this component.
+    /// </summary>
     private static string ModeGlyph(string? key) => key?.ToLowerInvariant() switch
     {
         "home" => "⌂",
@@ -670,9 +826,15 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _ => "◇"
     };
 
+    /// <summary>
+    /// Reports whether is pin transfer is true for the current state.
+    /// </summary>
     private static bool IsPinTransfer(IDataTransfer transfer) =>
         transfer.TryGetText()?.StartsWith("haven-mode-pin:", StringComparison.Ordinal) == true;
 
+    /// <summary>
+    /// Attempts to read pin transfer and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadPinTransfer(IDataTransfer transfer, out Guid modeId)
     {
         modeId = Guid.Empty;
@@ -682,6 +844,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                && Guid.TryParse(text[15..], out modeId);
     }
 
+    /// <summary>
+    /// Performs the resource brush step owned by this component.
+    /// </summary>
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 

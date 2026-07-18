@@ -1,10 +1,23 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/HomeView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.HomeView. Its visual vocabulary includes: ScrollViewer, Grid, StackPanel, TextBlock, Border, Button, HavenIcon, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Greeting, DateLabel, ModelStatus, LastUpdatedLabel, ToggleCustomizeCommand, RefreshCommand, Status, Tiles, IconKey, Title, HasBadge, Badge, Primary, Secondary, Description, IsCustomizing, HiddenTiles, Agenda, Detail, TimeLabel, RecentWork, UpdatedLabel.
+  Interaction: Direct event handlers in this file are: Tile_PointerPressed, Tile_PointerReleased.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.HomeView"
              x:DataType="vm:HomePageViewModel">
+  <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Margin="34,28,34,48" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="24" MaxWidth="1260" HorizontalAlignment="Stretch">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
         <StackPanel Spacing="5">

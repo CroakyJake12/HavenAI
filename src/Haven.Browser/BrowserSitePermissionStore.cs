@@ -1,8 +1,20 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserSitePermissionStore.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserSitePermissionKind, BrowserSitePermissionDecision, BrowserSitePermission, BrowserSitePermissionAudit, BrowserSitePermissionStore, PermissionData. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Lists the supported browser site permission kind values used to make state explicit and type-safe.
+/// </summary>
 public enum BrowserSitePermissionKind
 {
     Camera,
@@ -18,6 +30,9 @@ public enum BrowserSitePermissionKind
     WindowManagement
 }
 
+/// <summary>
+/// Lists the supported browser site permission decision values used to make state explicit and type-safe.
+/// </summary>
 public enum BrowserSitePermissionDecision
 {
     Ask,
@@ -25,12 +40,18 @@ public enum BrowserSitePermissionDecision
     Deny
 }
 
+/// <summary>
+/// Represents browser site permission and keeps its related state and behavior together.
+/// </summary>
 public sealed record BrowserSitePermission(
     string Origin,
     BrowserSitePermissionKind Kind,
     BrowserSitePermissionDecision Decision,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Represents browser site permission audit and keeps its related state and behavior together.
+/// </summary>
 public sealed record BrowserSitePermissionAudit(
     string Origin,
     BrowserSitePermissionKind Kind,
@@ -38,17 +59,50 @@ public sealed record BrowserSitePermissionAudit(
     BrowserSitePermissionDecision Decision,
     DateTimeOffset RecordedAt);
 
+/// <summary>
+/// Represents browser site permission store and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserSitePermissionStore : IDisposable
 {
+    /// <summary>
+    /// Stores current schema version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int CurrentSchemaVersion = 1;
+    /// <summary>
+    /// Stores maximum permissions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPermissions = 500;
+    /// <summary>
+    /// Stores maximum audit entries locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumAuditEntries = 200;
+    /// <summary>
+    /// Stores maximum store bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumStoreBytes = 4L * 1024 * 1024;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _path;
+    /// <summary>
+    /// Stores backup path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _backupPath;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores data locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private PermissionData _data;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _disposed;
 
     public BrowserSitePermissionStore(IAppPaths paths)
@@ -82,6 +136,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Retrieves decision for the current operation.
+    /// </summary>
     public BrowserSitePermissionDecision GetDecision(Uri origin, BrowserSitePermissionKind kind)
     {
         ThrowIfDisposed();
@@ -92,6 +149,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
                ?? BrowserSitePermissionDecision.Ask;
     }
 
+    /// <summary>
+    /// Performs set decision async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetDecisionAsync(Uri origin, BrowserSitePermissionKind kind, BrowserSitePermissionDecision decision, CancellationToken cancellationToken)
     {
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
@@ -119,6 +179,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs revoke origin async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task RevokeOriginAsync(Uri origin, CancellationToken cancellationToken)
     {
         var canonical = CanonicalOrigin(origin);
@@ -139,6 +202,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Reports whether canonical origin is true for the current state.
+    /// </summary>
     public static string CanonicalOrigin(Uri origin)
     {
         ArgumentNullException.ThrowIfNull(origin);
@@ -151,6 +217,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         return origin.GetLeftPart(UriPartial.Authority).TrimEnd('/');
     }
 
+    /// <summary>
+    /// Performs the load step owned by this component.
+    /// </summary>
     private PermissionData Load()
     {
         if (TryLoad(_path, out var primary)) return primary;
@@ -159,6 +228,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         return PermissionData.Empty;
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static PermissionData Normalize(PermissionData data)
     {
         if (data.SchemaVersion > CurrentSchemaVersion)
@@ -189,6 +261,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         return new PermissionData(CurrentSchemaVersion, permissions, audit);
     }
 
+    /// <summary>
+    /// Attempts to normalize audit and reports the result without using failure for normal control flow.
+    /// </summary>
     private static BrowserSitePermissionAudit? TryNormalizeAudit(BrowserSitePermissionAudit item)
     {
         try
@@ -204,6 +279,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Attempts to load and reports the result without using failure for normal control flow.
+    /// </summary>
     private bool TryLoad(string path, out PermissionData data)
     {
         data = PermissionData.Empty;
@@ -229,6 +307,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the quarantine invalid primary step owned by this component.
+    /// </summary>
     private void QuarantineInvalidPrimary()
     {
         if (!File.Exists(_path)) return;
@@ -236,6 +317,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Performs mutate and save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MutateAndSaveAsync(Func<PermissionData, PermissionData> mutation, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(mutation);
@@ -260,6 +344,9 @@ public sealed class BrowserSitePermissionStore : IDisposable
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs save core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveCoreAsync(PermissionData candidate, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -278,9 +365,15 @@ public sealed class BrowserSitePermissionStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the throw if disposed step owned by this component.
+    /// </summary>
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
@@ -288,11 +381,17 @@ public sealed class BrowserSitePermissionStore : IDisposable
         // service-provider shutdown. Do not dispose the semaphore under that write.
     }
 
+    /// <summary>
+    /// Represents permission data and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PermissionData(
         int SchemaVersion,
         IReadOnlyList<BrowserSitePermission> Permissions,
         IReadOnlyList<BrowserSitePermissionAudit> Audit)
     {
+        /// <summary>
+        /// Gets or updates empty, the bindable or domain state represented by this property.
+        /// </summary>
         public static PermissionData Empty { get; } = new(CurrentSchemaVersion, [], []);
     }
 }

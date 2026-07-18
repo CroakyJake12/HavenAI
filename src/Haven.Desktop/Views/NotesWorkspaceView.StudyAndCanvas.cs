@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/NotesWorkspaceView.StudyAndCanvas.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns NotesWorkspaceView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -10,15 +19,39 @@ using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents notes workspace view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesWorkspaceView
 {
+    /// <summary>
+    /// Stores equation library panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _equationLibraryPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores canvas bookmarks panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _canvasBookmarksPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores study attempts panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _studyAttemptsPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores cross references panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _crossReferencesPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores conflicts panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _conflictsPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores equation symbol query locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _equationSymbolQuery = string.Empty;
 
+    /// <summary>
+    /// Builds study and canvas productivity from the currently available inputs.
+    /// </summary>
     private void BuildStudyAndCanvasProductivity(NotesDocument document)
     {
         ApplyDocumentLayoutSurface(document);
@@ -29,6 +62,9 @@ public sealed partial class NotesWorkspaceView
         _informationPanel.Children.Add(BuildCollaborationTools(document));
     }
 
+    /// <summary>
+    /// Performs the apply document layout surface step owned by this component.
+    /// </summary>
     private void ApplyDocumentLayoutSurface(NotesDocument document)
     {
         if (_viewModel.CurrentPage is null || _viewModel.CurrentSection is null) return;
@@ -70,6 +106,9 @@ public sealed partial class NotesWorkspaceView
         _blocksPanel.Children.Add(surface);
     }
 
+    /// <summary>
+    /// Builds cross reference tools from the currently available inputs.
+    /// </summary>
     private Control BuildCrossReferenceTools(NotesDocument document)
     {
         var blocks = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).ToArray();
@@ -110,6 +149,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds equation productivity from the currently available inputs.
+    /// </summary>
     private Control BuildEquationProductivity(NotesDocument document)
     {
         var selectedBlock = _viewModel.SelectedBlock;
@@ -246,6 +288,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds canvas productivity from the currently available inputs.
+    /// </summary>
     private Control BuildCanvasProductivity(NotesDocument document)
     {
         var selectedBlock = _viewModel.SelectedBlock;
@@ -395,6 +440,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds study productivity from the currently available inputs.
+    /// </summary>
     private Control BuildStudyProductivity(NotesDocument document)
     {
         var selectedBlock = _viewModel.SelectedBlock;
@@ -497,6 +545,9 @@ public sealed partial class NotesWorkspaceView
         return ToolCard("Study and self-marking", panel);
     }
 
+    /// <summary>
+    /// Builds collaboration tools from the currently available inputs.
+    /// </summary>
     private Control BuildCollaborationTools(NotesDocument document)
     {
         RefreshConflicts(document);
@@ -517,6 +568,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Performs the refresh cross references step owned by this component.
+    /// </summary>
     private void RefreshCrossReferences(NotesDocument document)
     {
         _crossReferencesPanel.Children.Clear();
@@ -554,6 +608,9 @@ public sealed partial class NotesWorkspaceView
             _crossReferencesPanel.Children.Add(new TextBlock { Text = "No cross-references.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh equation library step owned by this component.
+    /// </summary>
     private void RefreshEquationLibrary(NotesDocument document)
     {
         _equationLibraryPanel.Children.Clear();
@@ -592,6 +649,9 @@ public sealed partial class NotesWorkspaceView
             _equationLibraryPanel.Children.Add(new TextBlock { Text = "No saved equations in this document.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh canvas bookmarks step owned by this component.
+    /// </summary>
     private void RefreshCanvasBookmarks(NotesDocument document, NotesCanvasData canvas)
     {
         _canvasBookmarksPanel.Children.Clear();
@@ -629,6 +689,9 @@ public sealed partial class NotesWorkspaceView
             _canvasBookmarksPanel.Children.Add(new TextBlock { Text = "No spatial bookmarks for this page.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh study attempts step owned by this component.
+    /// </summary>
     private void RefreshStudyAttempts(NotesDocument document, Guid? cardId)
     {
         _studyAttemptsPanel.Children.Clear();
@@ -652,6 +715,9 @@ public sealed partial class NotesWorkspaceView
             _studyAttemptsPanel.Children.Add(new TextBlock { Text = "No recorded study attempts in this scope.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh conflicts step owned by this component.
+    /// </summary>
     private void RefreshConflicts(NotesDocument document)
     {
         _conflictsPanel.Children.Clear();
@@ -678,6 +744,9 @@ public sealed partial class NotesWorkspaceView
             _conflictsPanel.Children.Add(new TextBlock { Text = "No collaboration conflicts.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the resolve conflict step owned by this component.
+    /// </summary>
     private Task ResolveConflict(NotesDocument document, NotesConflict conflict, string resolution)
     {
         var anchor = BeginWholeDocumentEdit();
@@ -690,6 +759,9 @@ public sealed partial class NotesWorkspaceView
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs export selected equation async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ExportSelectedEquationAsync()
     {
         if (_viewModel.SelectedBlock?.Equation is not { } equation) return;
@@ -721,6 +793,9 @@ public sealed partial class NotesWorkspaceView
         _status.Text = "Exported equation content.";
     }
 
+    /// <summary>
+    /// Creates safe connector with the invariants required by its callers.
+    /// </summary>
     private static NotesCanvasObject CreateSafeConnector(
         NotesCanvasObject from,
         NotesCanvasObject to,
@@ -745,6 +820,9 @@ public sealed partial class NotesWorkspaceView
         };
     }
 
+    /// <summary>
+    /// Performs the block label step owned by this component.
+    /// </summary>
     private static string BlockLabel(NotesBlock block)
     {
         var text = block.PlainText;
@@ -755,6 +833,9 @@ public sealed partial class NotesWorkspaceView
         return block.Kind + " · " + text[..Math.Min(text.Length, 48)];
     }
 
+    /// <summary>
+    /// Performs the object label step owned by this component.
+    /// </summary>
     private static string ObjectLabel(NotesCanvasObject value)
     {
         var text = string.IsNullOrWhiteSpace(value.Text) ? value.Kind.ToString() : value.Text.ReplaceLineEndings(" ").Trim();

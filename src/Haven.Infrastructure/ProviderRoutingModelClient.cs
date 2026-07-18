@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ProviderRoutingModelClient.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProviderRoutingModelClient, ResolvedProvider. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
@@ -12,6 +21,9 @@ public sealed class ProviderRoutingModelClient(
     IOllamaClient localOllama,
     IModelProviderRegistry providers) : IProviderModelClient
 {
+    /// <summary>
+    /// Reports whether is available async is true for the current state.
+    /// </summary>
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
         if (await localOllama.IsAvailableAsync(cancellationToken).ConfigureAwait(false)) return true;
@@ -19,6 +31,9 @@ public sealed class ProviderRoutingModelClient(
         return (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false)).Count > 0;
     }
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
         (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false))
         .Where(item => !RuntimeSafetyState.IsSafeMode || item.IsLocal)
@@ -30,6 +45,9 @@ public sealed class ProviderRoutingModelClient(
         .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -39,24 +57,39 @@ public sealed class ProviderRoutingModelClient(
             yield return chunk;
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         var resolved = Resolve(request.Model);
         return resolved.Provider.CompleteAsync(request with { Model = resolved.ModelName }, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         var resolved = Resolve(request.Model);
         return resolved.Provider.ChatWithToolsAsync(request with { Model = resolved.ModelName }, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
         localOllama.PullModelAsync(UnqualifyLocal(model), progress, cancellationToken);
 
+    /// <summary>
+    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteModelAsync(string model, CancellationToken cancellationToken) =>
         localOllama.DeleteModelAsync(UnqualifyLocal(model), cancellationToken);
 
+    /// <summary>
+    /// Performs the to compatibility descriptor step owned by this component.
+    /// </summary>
     public ModelDescriptor ToCompatibilityDescriptor(ProviderModelDescriptor descriptor)
     {
         var requestName = descriptor.ProviderId.Equals("ollama", StringComparison.OrdinalIgnoreCase)
@@ -75,6 +108,9 @@ public sealed class ProviderRoutingModelClient(
         };
     }
 
+    /// <summary>
+    /// Performs the resolve step owned by this component.
+    /// </summary>
     private ResolvedProvider Resolve(string model)
     {
         if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("A model is required.", nameof(model));
@@ -95,9 +131,15 @@ public sealed class ProviderRoutingModelClient(
         return new ResolvedProvider(providers.GetRequired("ollama"), trimmed);
     }
 
+    /// <summary>
+    /// Performs the unqualify local step owned by this component.
+    /// </summary>
     private static string UnqualifyLocal(string model) => model.StartsWith("ollama:", StringComparison.OrdinalIgnoreCase)
         ? model["ollama:".Length..]
         : model;
 
+    /// <summary>
+    /// Represents resolved provider and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ResolvedProvider(IModelProvider Provider, string ModelName);
 }

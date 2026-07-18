@@ -1,3 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: tests/Haven.Core.Tests/Haven.Core.Tests.csproj in the automated test suite, where executable examples protect behavior against regressions.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject></PropertyGroup>
   <ItemGroup>

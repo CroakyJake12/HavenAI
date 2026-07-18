@@ -1,3 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.AutomationWorker/Haven.AutomationWorker.csproj in the automation worker executable, which hosts background automation processing.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Haven.AutomationWorker</AssemblyName></PropertyGroup>
   <ItemGroup>

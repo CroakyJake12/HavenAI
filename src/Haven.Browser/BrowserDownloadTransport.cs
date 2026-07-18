@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserDownloadTransport.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserDownloadTransport. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using Haven.Application;
@@ -5,10 +14,22 @@ using Haven.Core;
 
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser download transport and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserDownloadTransport
 {
+    /// <summary>
+    /// Stores maximum download bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumDownloadBytes = 250L * 1024 * 1024;
+    /// <summary>
+    /// Stores policy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IBrowserNavigationPolicy _policy;
+    /// <summary>
+    /// Stores download directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _downloadDirectory;
 
     public BrowserDownloadTransport(IBrowserNavigationPolicy policy, IAppPaths paths)
@@ -23,6 +44,9 @@ public sealed class BrowserDownloadTransport
         _downloadDirectory = Path.GetFullPath(downloadDirectory);
     }
 
+    /// <summary>
+    /// Performs download async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<BrowserDownloadRecord> DownloadAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -44,6 +68,9 @@ public sealed class BrowserDownloadTransport
         return await SaveAsync(action, lease.FinalAddress, response, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<BrowserDownloadRecord> SaveAsync(
         BrowserPendingAction action,
         Uri finalAddress,
@@ -97,6 +124,9 @@ public sealed class BrowserDownloadTransport
             DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Performs the resolve download directory step owned by this component.
+    /// </summary>
     private static string ResolveDownloadDirectory(IAppPaths paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
@@ -106,6 +136,9 @@ public sealed class BrowserDownloadTransport
             : Path.Combine(profile, "Downloads", "Haven");
     }
 
+    /// <summary>
+    /// Performs the file name from headers step owned by this component.
+    /// </summary>
     private static string? FileNameFromHeaders(ContentDispositionHeaderValue? disposition)
     {
         var value = disposition?.FileNameStar ?? disposition?.FileName;

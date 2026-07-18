@@ -1,3 +1,14 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/CallView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.CallView. Its visual vocabulary includes: Border, Grid, StackPanel, HavenIcon, TextBlock, Ellipse, ScrollViewer, ComboBox, ComboBox.ItemTemplate, DataTemplate, ProgressBar, Button, CheckBox, Image, ItemsControl, ItemsControl.ItemTemplate, TextBox, ItemsControl.ItemsPanel, ItemsPanelTemplate.
+  Data flow: Binding expressions read or update these view-model paths: StateLabel, AvailableModels, SelectedModel, IsNotActive, Name, InputModes, InputMode, InputDevices, SelectedInputDevice, SpeechInputStatus, AvailableSpeechModels, SelectedSpeechModel, DisplayName, SpeechModelStatus, ShowSpeechModelSetup, IsDownloadingSpeechModel, SpeechModelDownloadProgress, DownloadSpeechModelCommand, Voices, SelectedVoice, EnableSpeechOutput, SpeechOutputStatus, StartCallCommand, ScreenShareStatus, IsSharing, HasScreenPreview, ScreenPreview, Status, InterruptCommand, HasTranscript, Transcript, Speaker, TimeLabel, Text, IsPartial, WasInterrupted, TypedTranscript, IsActive, SendTranscriptCommand, WaveformBars, Height, MuteLabel, ToggleMuteCommand, PushToTalkLabel, PauseLabel, PauseResumeCommand, ShareLabel, ToggleScreenShareCommand, EndCallCommand.
+  Interaction: Direct event handlers in this file are: OnPushToTalkPressed, OnPushToTalkReleased.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
@@ -5,7 +16,9 @@
              x:Class="Haven.Desktop.Views.CallView"
              x:DataType="vm:CallPageViewModel"
              Loaded="OnLoaded">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
   <Border Padding="24">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">

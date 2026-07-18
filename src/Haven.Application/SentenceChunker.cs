@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/SentenceChunker.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns SentenceChunker. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 
 namespace Haven.Application;
@@ -8,7 +17,13 @@ namespace Haven.Application;
 /// </summary>
 public sealed class SentenceChunker
 {
+    /// <summary>
+    /// Stores pending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StringBuilder _pending = new();
+    /// <summary>
+    /// Stores soft limit locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly int _softLimit;
 
     public SentenceChunker(int softLimit = 220)
@@ -17,6 +32,9 @@ public sealed class SentenceChunker
         _softLimit = softLimit;
     }
 
+    /// <summary>
+    /// Performs the append step owned by this component.
+    /// </summary>
     public IReadOnlyList<string> Append(string delta)
     {
         if (string.IsNullOrEmpty(delta)) return [];
@@ -33,6 +51,9 @@ public sealed class SentenceChunker
         return chunks;
     }
 
+    /// <summary>
+    /// Performs the flush step owned by this component.
+    /// </summary>
     public string Flush()
     {
         var remainder = _pending.ToString().Trim();
@@ -40,6 +61,9 @@ public sealed class SentenceChunker
         return remainder;
     }
 
+    /// <summary>
+    /// Attempts to find boundary and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryFindBoundary(StringBuilder value, int softLimit, out int boundary)
     {
         for (var index = 0; index < value.Length; index++)

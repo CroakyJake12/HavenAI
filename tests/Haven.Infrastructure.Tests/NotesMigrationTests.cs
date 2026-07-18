@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/NotesMigrationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesMigrationTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -5,10 +14,19 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents notes migration tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesMigrationTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the schema zero file migrates and repairs duplicate identifiers step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SchemaZeroFileMigratesAndRepairsDuplicateIdentifiers()
     {
@@ -51,6 +69,9 @@ public sealed class NotesMigrationTests : IDisposable
         Assert.Contains(result.Changes, change => change.Contains("duplicate", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the managed legacy document is migrated before library listing and preserves old current step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ManagedLegacyDocumentIsMigratedBeforeLibraryListingAndPreservesOldCurrent()
     {
@@ -103,6 +124,9 @@ public sealed class NotesMigrationTests : IDisposable
         Assert.Equal(NotesDocument.CurrentSchemaVersion, json.RootElement.GetProperty("schemaVersion").GetInt32());
     }
 
+    /// <summary>
+    /// Performs the native import migrates before assigning new document identity step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NativeImportMigratesBeforeAssigningNewDocumentIdentity()
     {
@@ -145,6 +169,9 @@ public sealed class NotesMigrationTests : IDisposable
         Assert.True(validator.Validate(document).IsValid);
     }
 
+    /// <summary>
+    /// Performs the newer schema fails closed without overwriting input step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NewerSchemaFailsClosedWithoutOverwritingInput()
     {
@@ -164,6 +191,9 @@ public sealed class NotesMigrationTests : IDisposable
         Assert.Equal(content, await File.ReadAllTextAsync(path));
     }
 
+    /// <summary>
+    /// Performs the all ids step owned by this component.
+    /// </summary>
     private static IEnumerable<Guid> AllIds(NotesDocument document)
     {
         yield return document.Id;
@@ -189,8 +219,14 @@ public sealed class NotesMigrationTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -205,13 +241,34 @@ public sealed class NotesMigrationTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

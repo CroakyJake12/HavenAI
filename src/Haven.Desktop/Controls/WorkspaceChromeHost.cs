@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns WorkspaceChromeHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -12,7 +21,13 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed partial class WorkspaceChromeHost : Grid, IDisposable
 {
+    /// <summary>
+    /// Stores experience shell locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ExperienceShellHost _experienceShell;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public WorkspaceChromeHost(Control existingShell)
@@ -37,6 +52,9 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
         InitializeMagicalTheme();
     }
 
+    /// <summary>
+    /// Performs the extract legacy chrome step owned by this component.
+    /// </summary>
     private static void ExtractLegacyChrome(Control existingShell)
     {
         if (existingShell is not Grid root) return;
@@ -71,6 +89,9 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
         root.RowDefinitions = new RowDefinitions("0,0,*");
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;

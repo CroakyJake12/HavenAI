@@ -1,7 +1,22 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Core/PluginCatalog.cs, in the dependency-free Core layer, where shared domain models and rules live.
+ * What: This file owns PluginCatalog, PromptCatalog, AgentCatalog, GuidUtility. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: This code stays free of UI and storage dependencies so the same rule or data shape can be reused and tested everywhere.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 namespace Haven.Core;
 
+/// <summary>
+/// Represents plugin catalog and keeps its related state and behavior together.
+/// </summary>
 public static class PluginCatalog
 {
+    /// <summary>
+    /// Stores built ins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly IReadOnlyList<PluginDefinition> BuiltIns =
     [
         BuiltIn("Goal", "Continue autonomously until the goal is complete, paused or stopped.", "goal", "Work iteratively toward the requested endpoint with checkpoints and validation.", persists: true, conflicts: "[\"Plan\"]", agentic: true),
@@ -15,12 +30,21 @@ public static class PluginCatalog
         BuiltIn("Macro", "Create or invoke a click-to-run Haven macro.", "macro", "Create or invoke a user-triggered macro. Macros never listen for global keypresses and must show their planned action before first run.", agentic: true, allowedModes: "[\"Do\",\"Studio\"]")
     ];
 
+    /// <summary>
+    /// Performs the built in step owned by this component.
+    /// </summary>
     private static PluginDefinition BuiltIn(string name, string description, string icon, string instructions, string capabilities = "[]", bool persists = false, string conflicts = "[]", bool agentic = false, string allowedModes = "[]") =>
         new(GuidUtility.FromStableName($"haven.plugin.{name}"), name, description, icon, instructions, capabilities, conflicts, persists, true, true, DateTimeOffset.UnixEpoch, agentic, allowedModes);
 }
 
+/// <summary>
+/// Represents prompt catalog and keeps its related state and behavior together.
+/// </summary>
 public static class PromptCatalog
 {
+    /// <summary>
+    /// Stores built ins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly IReadOnlyList<PromptDefinition> BuiltIns =
     [
         BuiltIn("Plan", "Create a precise plan without making changes.", "plan", "Plan only. Inspect enough to remove uncertainty, identify acceptance checks, and do not modify files or perform irreversible actions.", agentic: true),
@@ -40,12 +64,21 @@ public static class PromptCatalog
         BuiltIn("Handoff", "Create a portable, evidence-backed handoff.", "handoff", "Produce a structured handoff with objective, current state, decisions, constraints, changed files, verification, unresolved risks, and exact next steps. In Do or Studio attach evidence and timestamps to claims about completed work.", agentic: true)
     ];
 
+    /// <summary>
+    /// Performs the built in step owned by this component.
+    /// </summary>
     private static PromptDefinition BuiltIn(string name, string description, string icon, string instructions, bool persists = false, bool agentic = false, string allowedModes = "[]") =>
         new(GuidUtility.FromStableName($"haven.prompt.{name}"), name, description, icon, instructions, persists, true, true, DateTimeOffset.UnixEpoch, agentic, allowedModes);
 }
 
+/// <summary>
+/// Represents agent catalog and keeps its related state and behavior together.
+/// </summary>
 public static class AgentCatalog
 {
+    /// <summary>
+    /// Stores built ins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly IReadOnlyList<AgentDefinition> BuiltIns =
     [
         new(GuidUtility.FromStableName("haven.agent.default"), "Default", "Normal Haven behaviour.", "Be helpful, accurate and direct.", "agent-default", "", null, "", "{}", true, true, DateTimeOffset.UnixEpoch),
@@ -54,8 +87,14 @@ public static class AgentCatalog
     ];
 }
 
+/// <summary>
+/// Represents guid utility and keeps its related state and behavior together.
+/// </summary>
 public static class GuidUtility
 {
+    /// <summary>
+    /// Performs the from stable name step owned by this component.
+    /// </summary>
     public static Guid FromStableName(string value)
     {
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value));

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/GenerativeUiViewTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeUiViewTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
@@ -7,8 +16,14 @@ using Haven.Desktop.Views;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents generative ui view tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeUiViewTests
 {
+    /// <summary>
+    /// Performs the theme studio axaml loads with ai and manual tabs step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void ThemeStudioAxamlLoadsWithAiAndManualTabs()
     {
@@ -33,6 +48,9 @@ public sealed class GenerativeUiViewTests
         }
     }
 
+    /// <summary>
+    /// Performs the settings replaces legacy theme creator with one generative ui selector step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void SettingsReplacesLegacyThemeCreatorWithOneGenerativeUiSelector()
     {
@@ -60,6 +78,9 @@ public sealed class GenerativeUiViewTests
         }
     }
 
+    /// <summary>
+    /// Performs the generated page axaml loads real shortcut and timer widgets step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void GeneratedPageAxamlLoadsRealShortcutAndTimerWidgets()
     {
@@ -117,6 +138,9 @@ public sealed class GenerativeUiViewTests
         }
     }
 
+    /// <summary>
+    /// Performs the palette editor axaml loads every required variant field step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void PaletteEditorAxamlLoadsEveryRequiredVariantField()
     {

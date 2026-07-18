@@ -1,7 +1,20 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ChatGroupView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ChatGroupView. Its visual vocabulary includes: ScrollViewer, StackPanel, Grid, TextBlock, Button, Border, ItemsControl, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Name, Status, RefreshCommand, SettingsCommand, NewChatCommand, ChatCountLabel, PinnedCountLabel, LastActivityLabel, Instructions, Context, Resources, TypeLabel, SizeLabel, RecentChats, Title, UpdatedLabel, ArchiveCommand.
+  Interaction: Direct event handlers in this file are: AddReferences_OnClick.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.ChatGroupView">
+  <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Margin="32" Spacing="20" MaxWidth="1100" HorizontalAlignment="Center">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
         <StackPanel>

@@ -1,11 +1,26 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Core/GenerativeUiModels.cs, in the dependency-free Core layer, where shared domain models and rules live.
+ * What: This file owns GenerativeThemeAppearance, GenerativeThemeOrigin, GeneratedWidgetKind, GenerativeThemePalette, GenerativeThemeTypography, GenerativeThemeShape, GenerativeUiPlacement, GenerativeLayoutManifest, GeneratedWidgetDefinition, GeneratedPageDefinition, GenerativeThemePack, GenerativeThemeSelection, GenerativeThemeValidationIssue, GenerativeThemeValidationResult, GenerativeThemeProposal, GenerativeUiCatalogItem, GeneratedCommandDescriptor. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: This code stays free of UI and storage dependencies so the same rule or data shape can be reused and tested everywhere.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 namespace Haven.Core;
 
+/// <summary>
+/// Lists the supported generative theme appearance values used to make state explicit and type-safe.
+/// </summary>
 public enum GenerativeThemeAppearance
 {
     Light = 1,
     Dark = 2
 }
 
+/// <summary>
+/// Lists the supported generative theme origin values used to make state explicit and type-safe.
+/// </summary>
 public enum GenerativeThemeOrigin
 {
     BuiltIn = 0,
@@ -14,6 +29,9 @@ public enum GenerativeThemeOrigin
     Imported = 3
 }
 
+/// <summary>
+/// Lists the supported generated widget kind values used to make state explicit and type-safe.
+/// </summary>
 public enum GeneratedWidgetKind
 {
     Text = 0,
@@ -23,6 +41,9 @@ public enum GeneratedWidgetKind
     Divider = 4
 }
 
+/// <summary>
+/// Represents generative theme palette and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemePalette(
     string Background,
     string Elevated,
@@ -51,12 +72,18 @@ public sealed record GenerativeThemePalette(
     string ButtonPressed,
     string Focus);
 
+/// <summary>
+/// Represents generative theme typography and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeTypography(
     string FontFamily,
     double BaseFontSize,
     double HeadingScale,
     double LetterSpacing);
 
+/// <summary>
+/// Represents generative theme shape and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeShape(
     double ControlRadius,
     double CardRadius,
@@ -65,6 +92,9 @@ public sealed record GenerativeThemeShape(
     bool ShowCardBorders,
     bool UseAcrylic);
 
+/// <summary>
+/// Represents generative ui placement and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeUiPlacement(
     string ItemId,
     string Region,
@@ -72,10 +102,16 @@ public sealed record GenerativeUiPlacement(
     bool IsVisible = true,
     string Presentation = "default");
 
+/// <summary>
+/// Represents generative layout manifest and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeLayoutManifest(
     IReadOnlyList<GenerativeUiPlacement> Placements,
     IReadOnlyList<string> HiddenPageIds);
 
+/// <summary>
+/// Represents generated widget definition and keeps its related state and behavior together.
+/// </summary>
 public sealed record GeneratedWidgetDefinition(
     string Id,
     GeneratedWidgetKind Kind,
@@ -85,6 +121,9 @@ public sealed record GeneratedWidgetDefinition(
     int DurationSeconds,
     IReadOnlyList<string> ShortcutCommandIds);
 
+/// <summary>
+/// Represents generated page definition and keeps its related state and behavior together.
+/// </summary>
 public sealed record GeneratedPageDefinition(
     string Id,
     string Title,
@@ -93,6 +132,9 @@ public sealed record GeneratedPageDefinition(
     int Order,
     IReadOnlyList<GeneratedWidgetDefinition> Widgets);
 
+/// <summary>
+/// Represents generative theme pack and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemePack(
     int SchemaVersion,
     Guid Id,
@@ -110,28 +152,43 @@ public sealed record GenerativeThemePack(
     GenerativeLayoutManifest Layout,
     IReadOnlyList<GeneratedPageDefinition> Pages);
 
+/// <summary>
+/// Represents generative theme selection and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeSelection(
     int SchemaVersion,
     Guid ActiveThemeId,
     GenerativeThemeAppearance Appearance,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Represents generative theme validation issue and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeValidationIssue(
     string Path,
     string Message,
     bool IsError);
 
+/// <summary>
+/// Represents generative theme validation result and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeValidationResult(
     bool IsValid,
     GenerativeThemePack? NormalizedTheme,
     IReadOnlyList<GenerativeThemeValidationIssue> Issues);
 
+/// <summary>
+/// Represents generative theme proposal and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeThemeProposal(
     GenerativeThemePack Theme,
     string Summary,
     IReadOnlyList<string> Changes,
     IReadOnlyList<string> SafetyNotes);
 
+/// <summary>
+/// Represents generative ui catalog item and keeps its related state and behavior together.
+/// </summary>
 public sealed record GenerativeUiCatalogItem(
     string Id,
     string DisplayName,
@@ -142,6 +199,9 @@ public sealed record GenerativeUiCatalogItem(
     string DefaultRegion,
     int DefaultOrder);
 
+/// <summary>
+/// Represents generated command descriptor and keeps its related state and behavior together.
+/// </summary>
 public sealed record GeneratedCommandDescriptor(
     string Id,
     string DisplayName,

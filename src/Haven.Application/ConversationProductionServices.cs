@@ -1,17 +1,35 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ConversationProductionServices.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ConversationVersioningService, ConversationExportService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents conversation versioning service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationVersioningService(
     IConversationRepository conversations,
     IConversationProductionRepository production) : IConversationVersioningService
 {
+    /// <summary>
+    /// Performs ensure current branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationBranch> EnsureCurrentBranchAsync(Guid conversationId, CancellationToken cancellationToken) =>
         await production.GetCurrentBranchAsync(conversationId, cancellationToken).ConfigureAwait(false)
         ?? await production.EnsureRootBranchAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs edit user message async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationBranch> EditUserMessageAsync(
         Guid conversationId,
         Guid messageId,
@@ -67,6 +85,9 @@ public sealed class ConversationVersioningService(
         return target;
     }
 
+    /// <summary>
+    /// Performs prepare regeneration async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationBranch> PrepareRegenerationAsync(
         Guid conversationId,
         Guid messageId,
@@ -119,10 +140,19 @@ public sealed class ConversationVersioningService(
     }
 }
 
+/// <summary>
+/// Represents conversation export service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationExportService(IConversationProductionRepository production) : IConversationExportService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Performs export markdown async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportMarkdownAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var document = await production.BuildExportAsync(conversationId, cancellationToken).ConfigureAwait(false);
@@ -150,6 +180,9 @@ public sealed class ConversationExportService(IConversationProductionRepository 
         return builder.ToString().TrimEnd() + Environment.NewLine;
     }
 
+    /// <summary>
+    /// Performs export plain text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportPlainTextAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var document = await production.BuildExportAsync(conversationId, cancellationToken).ConfigureAwait(false);
@@ -162,6 +195,9 @@ public sealed class ConversationExportService(IConversationProductionRepository 
         return builder.ToString().TrimEnd() + Environment.NewLine;
     }
 
+    /// <summary>
+    /// Performs export json async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportJsonAsync(Guid conversationId, CancellationToken cancellationToken) =>
         JsonSerializer.Serialize(await production.BuildExportAsync(conversationId, cancellationToken).ConfigureAwait(false), JsonOptions);
 }

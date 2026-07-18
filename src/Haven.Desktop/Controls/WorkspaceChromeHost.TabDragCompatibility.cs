@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.TabDragCompatibility.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns WorkspaceChromeHost, TabDragCompatibilityState. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -7,15 +16,27 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents workspace chrome host and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class WorkspaceChromeHost
 {
+    /// <summary>
+    /// Stores tab drag compatibility timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _tabDragCompatibilityTimer = new()
     {
         Interval = TimeSpan.FromMilliseconds(250)
     };
 
+    /// <summary>
+    /// Stores tab drag compatibility states locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Button, TabDragCompatibilityState> _tabDragCompatibilityStates = new();
 
+    /// <summary>
+    /// Performs the initialize tab drag compatibility step owned by this component.
+    /// </summary>
     private void InitializeTabDragCompatibility()
     {
         _tabDragCompatibilityTimer.Tick += OnTabDragCompatibilityTick;
@@ -23,6 +44,9 @@ public sealed partial class WorkspaceChromeHost
         AuditTabDragCompatibility();
     }
 
+    /// <summary>
+    /// Performs the dispose tab drag compatibility step owned by this component.
+    /// </summary>
     private void DisposeTabDragCompatibility()
     {
         _tabDragCompatibilityTimer.Stop();
@@ -34,9 +58,15 @@ public sealed partial class WorkspaceChromeHost
         _tabDragCompatibilityStates.Clear();
     }
 
+    /// <summary>
+    /// Handles the tab drag compatibility tick event raised by the UI or runtime.
+    /// </summary>
     private void OnTabDragCompatibilityTick(object? sender, EventArgs e) =>
         AuditTabDragCompatibility();
 
+    /// <summary>
+    /// Performs the audit tab drag compatibility step owned by this component.
+    /// </summary>
     private void AuditTabDragCompatibility()
     {
         if (_modernShell is null) return;
@@ -66,6 +96,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Performs the attach tab drag compatibility step owned by this component.
+    /// </summary>
     private void AttachTabDragCompatibility(Button button, WorkspaceTabViewModel tab)
     {
         var state = new TabDragCompatibilityState(tab);
@@ -118,6 +151,9 @@ public sealed partial class WorkspaceChromeHost
         _tabDragCompatibilityStates[button] = state;
     }
 
+    /// <summary>
+    /// Performs the detach tab drag compatibility step owned by this component.
+    /// </summary>
     private static void DetachTabDragCompatibility(Button button, TabDragCompatibilityState state)
     {
         if (state.PressedHandler is not null)
@@ -138,16 +174,43 @@ public sealed partial class WorkspaceChromeHost
         return succeeded;
     }
 
+    /// <summary>
+    /// Represents tab drag compatibility state and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TabDragCompatibilityState(WorkspaceTabViewModel tab)
     {
+        /// <summary>
+        /// Gets or updates tab, the bindable or domain state represented by this property.
+        /// </summary>
         public WorkspaceTabViewModel Tab { get; } = tab;
+        /// <summary>
+        /// Gets or updates pressed args, the bindable or domain state represented by this property.
+        /// </summary>
         public PointerPressedEventArgs? PressedArgs { get; set; }
+        /// <summary>
+        /// Gets or updates start, the bindable or domain state represented by this property.
+        /// </summary>
         public Point Start { get; set; }
+        /// <summary>
+        /// Reports whether is dragging is true for the current state.
+        /// </summary>
         public bool IsDragging { get; set; }
+        /// <summary>
+        /// Gets or updates pressed handler, the bindable or domain state represented by this property.
+        /// </summary>
         public EventHandler<PointerPressedEventArgs>? PressedHandler { get; set; }
+        /// <summary>
+        /// Gets or updates moved handler, the bindable or domain state represented by this property.
+        /// </summary>
         public EventHandler<PointerEventArgs>? MovedHandler { get; set; }
+        /// <summary>
+        /// Gets or updates released handler, the bindable or domain state represented by this property.
+        /// </summary>
         public EventHandler<PointerReleasedEventArgs>? ReleasedHandler { get; set; }
 
+        /// <summary>
+        /// Performs the reset step owned by this component.
+        /// </summary>
         public void Reset()
         {
             PressedArgs = null;

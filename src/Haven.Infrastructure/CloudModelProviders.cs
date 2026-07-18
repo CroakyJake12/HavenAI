@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/CloudModelProviders.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProviderHttp, OpenAiCompatibleModelProviderBase, OpenAiModelProvider, OpenRouterModelProvider, CustomOpenAiCompatibleModelProvider. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -7,10 +16,19 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents provider http and keeps its related state and behavior together.
+/// </summary>
 internal static class ProviderHttp
 {
+    /// <summary>
+    /// Stores json locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Performs require enabled async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task<ProviderConfiguration> RequireEnabledAsync(
         IProviderConfigurationStore configurations,
         string providerId,
@@ -26,6 +44,9 @@ internal static class ProviderHttp
         return configuration with { Endpoint = endpoint };
     }
 
+    /// <summary>
+    /// Creates client with the invariants required by its callers.
+    /// </summary>
     public static HttpClient CreateClient(IHttpClientFactory factory, string name, ProviderConfiguration configuration)
     {
         var client = factory.CreateClient(name);
@@ -34,10 +55,16 @@ internal static class ProviderHttp
         return client;
     }
 
+    /// <summary>
+    /// Performs require secret async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task<string> RequireSecretAsync(IProviderSecretStore secrets, string providerId, CancellationToken cancellationToken) =>
         await secrets.GetAsync(providerId, "api-key", cancellationToken).ConfigureAwait(false)
         ?? throw new InvalidOperationException($"No API key is stored for {providerId}.");
 
+    /// <summary>
+    /// Performs ensure success async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task EnsureSuccessAsync(HttpResponseMessage response, string providerName, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode) return;
@@ -46,6 +73,9 @@ internal static class ProviderHttp
         throw new HttpRequestException($"{providerName} returned {(int)response.StatusCode}: {detail}", null, response.StatusCode);
     }
 
+    /// <summary>
+    /// Performs the convert tool schema step owned by this component.
+    /// </summary>
     public static Dictionary<string, object> ConvertToolSchema(OllamaToolDefinition tool) => new()
     {
         ["type"] = "object",
@@ -53,6 +83,9 @@ internal static class ProviderHttp
         ["required"] = tool.Required
     };
 
+    /// <summary>
+    /// Performs the default capabilities step owned by this component.
+    /// </summary>
     public static IReadOnlySet<ToolCapability> DefaultCapabilities() => new HashSet<ToolCapability>
     {
         ToolCapability.Text,
@@ -64,21 +97,48 @@ internal static class ProviderHttp
     };
 }
 
+/// <summary>
+/// Represents open ai compatible model provider base and keeps its related state and behavior together.
+/// </summary>
 public abstract class OpenAiCompatibleModelProviderBase(
     IHttpClientFactory httpClients,
     IProviderConfigurationStore configurations,
     IProviderSecretStore secrets,
     ProviderUsageCaptureBuffer usageCapture) : IModelProvider
 {
+    /// <summary>
+    /// Gets or updates default endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected abstract string DefaultEndpoint { get; }
+    /// <summary>
+    /// Reports whether is open router is true for the current state.
+    /// </summary>
     protected virtual bool IsOpenRouter => false;
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public abstract string Id { get; }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public abstract string DisplayName { get; }
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public abstract ModelProviderKind Kind { get; }
+    /// <summary>
+    /// Reports whether is local is true for the current state.
+    /// </summary>
     public bool IsLocal => false;
+    /// <summary>
+    /// Reports whether can manage models is true for the current state.
+    /// </summary>
     public bool CanManageModels => false;
 
+    /// <summary>
+    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -99,6 +159,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         }
     }
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ProviderModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
     {
         ProviderConfiguration configuration;
@@ -123,6 +186,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return result;
     }
 
+    /// <summary>
+    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -149,6 +215,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         }
     }
 
+    /// <summary>
+    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -159,6 +228,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return ReadContent(document.RootElement.GetProperty("choices")[0].GetProperty("message"));
     }
 
+    /// <summary>
+    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
         using var client = await CreateClientAsync(cancellationToken).ConfigureAwait(false);
@@ -199,6 +271,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return new(ReadContent(message), calls);
     }
 
+    /// <summary>
+    /// Performs the parse tool arguments step owned by this component.
+    /// </summary>
     private IReadOnlyDictionary<string, JsonElement> ParseToolArguments(JsonElement function, string toolName)
     {
         if (!function.TryGetProperty("arguments", out var argumentsElement))
@@ -239,9 +314,15 @@ public abstract class OpenAiCompatibleModelProviderBase(
         }
     }
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken) =>
         await CreateClientAsync(await ProviderHttp.RequireEnabledAsync(configurations, Id, DefaultEndpoint, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Creates client async with the invariants required by its callers.
+    /// </summary>
     private async Task<HttpClient> CreateClientAsync(ProviderConfiguration configuration, CancellationToken cancellationToken)
     {
         var client = ProviderHttp.CreateClient(httpClients, "Haven.ModelProvider." + Id, configuration);
@@ -260,6 +341,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return client;
     }
 
+    /// <summary>
+    /// Builds chat payload from the currently available inputs.
+    /// </summary>
     private object BuildChatPayload(OllamaChatRequest request, bool stream)
     {
         var payload = new Dictionary<string, object?>
@@ -273,6 +357,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return payload;
     }
 
+    /// <summary>
+    /// Builds tool payload from the currently available inputs.
+    /// </summary>
     private static object BuildToolPayload(OllamaToolRequest request) => new
     {
         model = request.Model,
@@ -287,6 +374,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
     };
 
+    /// <summary>
+    /// Performs the capture usage step owned by this component.
+    /// </summary>
     private void CaptureUsage(JsonElement root, string model)
     {
         if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object) return;
@@ -302,9 +392,15 @@ public abstract class OpenAiCompatibleModelProviderBase(
         usageCapture.Set(new ProviderUsageSnapshot(Id, model, input, output, cached, reasoning, UsageMeasurementKind.ProviderConfirmed, DateTimeOffset.UtcNow));
     }
 
+    /// <summary>
+    /// Performs the read int64 step owned by this component.
+    /// </summary>
     private static long? ReadInt64(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
 
+    /// <summary>
+    /// Builds messages from the currently available inputs.
+    /// </summary>
     private static IReadOnlyList<object> BuildMessages(IReadOnlyList<OllamaMessage> messages, string? systemPrompt)
     {
         var result = new List<object>();
@@ -319,6 +415,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return result;
     }
 
+    /// <summary>
+    /// Builds tool messages from the currently available inputs.
+    /// </summary>
     internal static IReadOnlyList<object> BuildToolMessages(IReadOnlyList<OllamaToolTurn> messages, string? systemPrompt)
     {
         var result = new List<object>();
@@ -376,6 +475,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return result;
     }
 
+    /// <summary>
+    /// Performs the read content step owned by this component.
+    /// </summary>
     private static string ReadContent(JsonElement message)
     {
         if (!message.TryGetProperty("content", out var content)) return string.Empty;
@@ -384,6 +486,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
         return string.Concat(content.EnumerateArray().Where(item => item.TryGetProperty("text", out _)).Select(item => item.GetProperty("text").GetString()));
     }
 
+    /// <summary>
+    /// Performs the infer capabilities step owned by this component.
+    /// </summary>
     private static IReadOnlySet<ToolCapability> InferCapabilities(string name, JsonElement model)
     {
         var capabilities = new HashSet<ToolCapability>(ProviderHttp.DefaultCapabilities());
@@ -399,6 +504,9 @@ public abstract class OpenAiCompatibleModelProviderBase(
     }
 }
 
+/// <summary>
+/// Represents open ai model provider and keeps its related state and behavior together.
+/// </summary>
 public sealed class OpenAiModelProvider(
     IHttpClientFactory clients,
     IProviderConfigurationStore configurations,
@@ -406,12 +514,27 @@ public sealed class OpenAiModelProvider(
     ProviderUsageCaptureBuffer usageCapture)
     : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public override string Id => "openai";
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public override string DisplayName => "OpenAI";
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public override ModelProviderKind Kind => ModelProviderKind.OpenAI;
+    /// <summary>
+    /// Gets or updates default endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override string DefaultEndpoint => "https://api.openai.com/v1/";
 }
 
+/// <summary>
+/// Represents open router model provider and keeps its related state and behavior together.
+/// </summary>
 public sealed class OpenRouterModelProvider(
     IHttpClientFactory clients,
     IProviderConfigurationStore configurations,
@@ -419,13 +542,31 @@ public sealed class OpenRouterModelProvider(
     ProviderUsageCaptureBuffer usageCapture)
     : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public override string Id => "openrouter";
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public override string DisplayName => "OpenRouter";
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public override ModelProviderKind Kind => ModelProviderKind.OpenRouter;
+    /// <summary>
+    /// Gets or updates default endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override string DefaultEndpoint => "https://openrouter.ai/api/v1/";
+    /// <summary>
+    /// Reports whether is open router is true for the current state.
+    /// </summary>
     protected override bool IsOpenRouter => true;
 }
 
+/// <summary>
+/// Represents custom open ai compatible model provider and keeps its related state and behavior together.
+/// </summary>
 public sealed class CustomOpenAiCompatibleModelProvider(
     IHttpClientFactory clients,
     IProviderConfigurationStore configurations,
@@ -433,8 +574,20 @@ public sealed class CustomOpenAiCompatibleModelProvider(
     ProviderUsageCaptureBuffer usageCapture)
     : OpenAiCompatibleModelProviderBase(clients, configurations, secrets, usageCapture)
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public override string Id => "openai-compatible";
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public override string DisplayName => "OpenAI-compatible";
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public override ModelProviderKind Kind => ModelProviderKind.OpenAICompatible;
+    /// <summary>
+    /// Gets or updates default endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override string DefaultEndpoint => string.Empty;
 }

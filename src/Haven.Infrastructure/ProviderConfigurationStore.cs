@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ProviderConfigurationStore.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ProviderConfigurationStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Text.Json;
 using Haven.Application;
@@ -5,21 +14,63 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents provider configuration store and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProviderConfigurationStore : IProviderConfigurationStore, IDisposable
 {
+    /// <summary>
+    /// Stores maximum providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumProviders = 64;
+    /// <summary>
+    /// Stores maximum metadata entries locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumMetadataEntries = 64;
+    /// <summary>
+    /// Stores maximum metadata key length locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumMetadataKeyLength = 80;
+    /// <summary>
+    /// Stores maximum metadata value length locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumMetadataValueLength = 4096;
+    /// <summary>
+    /// Stores maximum display name length locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumDisplayNameLength = 120;
+    /// <summary>
+    /// Stores maximum endpoint length locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumEndpointLength = 2048;
+    /// <summary>
+    /// Stores maximum store bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumStoreBytes = 1024L * 1024;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores secret like terms locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly string[] SecretLikeTerms =
+    /// <summary>
+    /// Stores path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
         ["secret", "token", "password", "authorization", "apikey", "credential", "bearer", "accesskey"];
     private readonly string _path;
+    /// <summary>
+    /// Stores backup path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _backupPath;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _disposed;
 
     public ProviderConfigurationStore(IAppPaths paths)
@@ -29,6 +80,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         _backupPath = _path + ".bak";
     }
 
+    /// <summary>
+    /// Retrieves all async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ProviderConfiguration>> GetAllAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -47,6 +101,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Retrieves async for the current operation.
+    /// </summary>
     public async Task<ProviderConfiguration?> GetAsync(string providerId, CancellationToken cancellationToken)
     {
         ValidateIdentifier(providerId, nameof(providerId));
@@ -54,6 +111,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
             .FirstOrDefault(item => item.Id.Equals(providerId, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAsync(ProviderConfiguration configuration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -75,6 +135,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(string providerId, CancellationToken cancellationToken)
     {
         ValidateIdentifier(providerId, nameof(providerId));
@@ -93,6 +156,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs load unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<ProviderConfiguration>> LoadUnsafeAsync(CancellationToken cancellationToken)
     {
         if (await TryLoadAsync(_path, cancellationToken).ConfigureAwait(false) is { } primary)
@@ -104,6 +170,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         return [];
     }
 
+    /// <summary>
+    /// Performs read and normalize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<ProviderConfiguration>?> ReadAndNormalizeAsync(
         string path,
         CancellationToken cancellationToken)
@@ -134,6 +203,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
             .ToArray();
     }
 
+    /// <summary>
+    /// Attempts to load async and reports the result without using failure for normal control flow.
+    /// </summary>
     private static async Task<IReadOnlyList<ProviderConfiguration>?> TryLoadAsync(
         string path,
         CancellationToken cancellationToken)
@@ -157,6 +229,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         }
     }
 
+    /// <summary>
+    /// Performs the quarantine invalid primary step owned by this component.
+    /// </summary>
     private void QuarantineInvalidPrimary()
     {
         if (!File.Exists(_path)) return;
@@ -165,6 +240,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Performs save unsafe async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveUnsafeAsync(
         IReadOnlyList<ProviderConfiguration> configurations,
         CancellationToken cancellationToken)
@@ -196,6 +274,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         }
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static ProviderConfiguration Normalize(ProviderConfiguration configuration)
     {
         ValidateIdentifier(configuration.Id, nameof(configuration.Id));
@@ -276,6 +357,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         };
     }
 
+    /// <summary>
+    /// Reports whether is local network host is true for the current state.
+    /// </summary>
     private static bool IsLocalNetworkHost(string host)
     {
         if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
@@ -300,6 +384,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         return bytes.Length == 16 && (bytes[0] & 0xFE) == 0xFC;
     }
 
+    /// <summary>
+    /// Performs the built in defaults step owned by this component.
+    /// </summary>
     private static IReadOnlyList<ProviderConfiguration> BuiltInDefaults()
     {
         var ollamaEndpoint = Environment.GetEnvironmentVariable("OLLAMA_HOST")?.Trim();
@@ -326,6 +413,9 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         ];
     }
 
+    /// <summary>
+    /// Validates identifier before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void ValidateIdentifier(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value)
@@ -338,9 +428,15 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
         }
     }
 
+    /// <summary>
+    /// Performs the throw if disposed step owned by this component.
+    /// </summary>
     private void ThrowIfDisposed() =>
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

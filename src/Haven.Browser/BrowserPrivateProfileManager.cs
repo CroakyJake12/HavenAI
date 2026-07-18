@@ -1,12 +1,42 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Browser/BrowserPrivateProfileManager.cs, in the Browser layer, which isolates browser state, safety policy, transport, and automation.
+ * What: This file owns BrowserPrivateProfileManager. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Browser capabilities are isolated behind explicit policy boundaries because navigation and automation process untrusted external content.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 namespace Haven.Browser;
 
+/// <summary>
+/// Represents browser private profile manager and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserPrivateProfileManager
 {
+    /// <summary>
+    /// Stores private directory name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string PrivateDirectoryName = "private-profiles";
+    /// <summary>
+    /// Stores deleting prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string DeletingPrefix = ".deleting-";
+    /// <summary>
+    /// Stores cleanup retry delay locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly TimeSpan CleanupRetryDelay = TimeSpan.FromMilliseconds(125);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root;
+    /// <summary>
+    /// Stores root with separator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _rootWithSeparator;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public BrowserPrivateProfileManager(string standardProfileDirectory)
@@ -24,14 +54,23 @@ public sealed class BrowserPrivateProfileManager
             : _root + Path.DirectorySeparatorChar;
     }
 
+    /// <summary>
+    /// Gets or updates root directory, the bindable or domain state represented by this property.
+    /// </summary>
     public string RootDirectory => _root;
 
+    /// <summary>
+    /// Retrieves profile directory for the current operation.
+    /// </summary>
     public string GetProfileDirectory(Guid tabId)
     {
         if (tabId == Guid.Empty) throw new ArgumentException("A private tab ID is required.", nameof(tabId));
         return EnsureContained(Path.Combine(_root, tabId.ToString("N")));
     }
 
+    /// <summary>
+    /// Creates async with the invariants required by its callers.
+    /// </summary>
     public async Task<string> CreateAsync(Guid tabId, CancellationToken cancellationToken)
     {
         var path = GetProfileDirectory(tabId);
@@ -56,6 +95,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs cleanup async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task CleanupAsync(Guid tabId, CancellationToken cancellationToken)
     {
         var path = GetProfileDirectory(tabId);
@@ -75,6 +117,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs cleanup orphans async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<int> CleanupOrphansAsync(IReadOnlySet<Guid> activeTabIds, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(activeTabIds);
@@ -117,6 +162,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs quarantine and delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task QuarantineAndDeleteAsync(string path, CancellationToken cancellationToken)
     {
         path = EnsureContained(path);
@@ -145,6 +193,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs delete pending tombstones async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeletePendingTombstonesAsync(
         CancellationToken cancellationToken,
         bool bestEffort)
@@ -170,6 +221,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs the delete root if empty step owned by this component.
+    /// </summary>
     private void DeleteRootIfEmpty()
     {
         try
@@ -184,6 +238,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs the ensure contained step owned by this component.
+    /// </summary>
     private string EnsureContained(string path)
     {
         var full = Path.GetFullPath(path);
@@ -192,6 +249,9 @@ public sealed class BrowserPrivateProfileManager
         return full;
     }
 
+    /// <summary>
+    /// Performs delete directory if present async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task DeleteDirectoryIfPresentAsync(string path, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(path)) return;
@@ -237,6 +297,9 @@ public sealed class BrowserPrivateProfileManager
             lastFailure);
     }
 
+    /// <summary>
+    /// Performs the reject reparse points in existing path step owned by this component.
+    /// </summary>
     private static void RejectReparsePointsInExistingPath(string path, string message)
     {
         var current = Path.GetFullPath(path);
@@ -250,6 +313,9 @@ public sealed class BrowserPrivateProfileManager
         }
     }
 
+    /// <summary>
+    /// Performs the reject reparse point if present step owned by this component.
+    /// </summary>
     private static void RejectReparsePointIfPresent(string path, string message)
     {
         if (!Directory.Exists(path)) return;

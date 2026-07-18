@@ -1,11 +1,24 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ConversationRetrievalView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ConversationRetrievalView. Its visual vocabulary includes: Border, StackPanel, Grid, TextBlock, Button, TextBox, NumericUpDown, ProgressBar, ItemsControl, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Query, TokenBudget, SearchCommand, ClearCommand, Status, IsBusy, Method, Citations, Number, Title, Score, Excerpt, Source, Location, InsertCommand.
+  Interaction: Direct event handlers in this file are: OnUseComposerQueryClicked.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.ConversationRetrievalView">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
   <Border Background="{DynamicResource HavenPanel2Brush}"
           BorderBrush="{DynamicResource HavenLineBrush}"
           BorderThickness="1"
           CornerRadius="12"
           Padding="12">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Spacing="9">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <StackPanel>

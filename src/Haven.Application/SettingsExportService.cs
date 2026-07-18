@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/SettingsExportService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns SettingsExportService, SettingsExportData, SettingsExportResult, SettingsImportResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents settings export service and keeps its related state and behavior together.
+/// </summary>
 public sealed class SettingsExportService
 {
+    /// <summary>
+    /// Stores encryption locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SettingsEncryptionService _encryption;
 
     public SettingsExportService(SettingsEncryptionService encryption)
@@ -11,6 +26,9 @@ public sealed class SettingsExportService
         _encryption = encryption;
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SettingsExportResult> ExportAsync(
         IReadOnlyDictionary<string, string> settings,
         string? encryptionPassphrase,
@@ -39,6 +57,9 @@ public sealed class SettingsExportService
         }
     }
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SettingsImportResult> ImportAsync(
         string data,
         string? encryptionPassphrase,
@@ -76,13 +97,34 @@ public sealed class SettingsExportService
     }
 }
 
+/// <summary>
+/// Represents settings export data and keeps its related state and behavior together.
+/// </summary>
 public sealed class SettingsExportData
 {
+    /// <summary>
+    /// Gets or updates version, the bindable or domain state represented by this property.
+    /// </summary>
     public int Version { get; set; }
+    /// <summary>
+    /// Gets or updates exported at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset ExportedAt { get; set; }
+    /// <summary>
+    /// Gets or updates app version, the bindable or domain state represented by this property.
+    /// </summary>
     public string AppVersion { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates settings, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyDictionary<string, string> Settings { get; set; } = new Dictionary<string, string>();
 }
 
+/// <summary>
+/// Represents settings export result and keeps its related state and behavior together.
+/// </summary>
 public sealed record SettingsExportResult(bool Succeeded, string? Data, string Message);
+/// <summary>
+/// Represents settings import result and keeps its related state and behavior together.
+/// </summary>
 public sealed record SettingsImportResult(bool Succeeded, IReadOnlyDictionary<string, string>? Settings, string Message);

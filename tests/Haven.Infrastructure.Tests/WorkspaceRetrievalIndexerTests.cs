@@ -1,13 +1,31 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/WorkspaceRetrievalIndexerTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns WorkspaceRetrievalIndexerTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents workspace retrieval indexer tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceRetrievalIndexerTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the project indexer stays inside root skips build folders and removes stale files step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProjectIndexerStaysInsideRootSkipsBuildFoldersAndRemovesStaleFiles()
     {
@@ -38,6 +56,9 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
         Assert.Empty(await retrieval.GetDocumentsAsync(new RetrievalScope(RetrievalScopeKind.Project, projectId), CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the subject indexer keeps lessons inside one subject scope step owned by this component.
+    /// </summary>
     [Fact]
     public async Task SubjectIndexerKeepsLessonsInsideOneSubjectScope()
     {
@@ -62,8 +83,14 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
         Assert.All(result.Citations, item => Assert.Equal(subject.Id, item.ScopeId));
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -77,12 +104,33 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

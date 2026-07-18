@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/LocalConversationShareService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns LocalConversationShareService, ShareRuntime. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -10,11 +19,20 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents local conversation share service and keeps its related state and behavior together.
+/// </summary>
 public sealed class LocalConversationShareService(
     IConversationProductionRepository conversations) : ILocalConversationShareService
 {
+    /// <summary>
+    /// Stores active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, ShareRuntime> _active = new();
 
+    /// <summary>
+    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<LocalShareHandle> StartAsync(Guid conversationId, TimeSpan duration, CancellationToken cancellationToken)
     {
         if (conversationId == Guid.Empty) throw new ArgumentException("Conversation identifier is required.", nameof(conversationId));
@@ -57,6 +75,9 @@ public sealed class LocalConversationShareService(
             "Read-only LAN share. Anyone on this private network with the full link can view the exported conversation until it expires or you stop it.");
     }
 
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StopAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         if (!_active.TryRemove(conversationId, out var runtime))
@@ -77,9 +98,15 @@ public sealed class LocalConversationShareService(
         runtime.Dispose();
     }
 
+    /// <summary>
+    /// Retrieves active async for the current operation.
+    /// </summary>
     public Task<SharedSession?> GetActiveAsync(Guid conversationId, CancellationToken cancellationToken) =>
         conversations.GetActiveShareAsync(conversationId, cancellationToken);
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         foreach (var conversationId in _active.Keys.ToArray())
@@ -89,6 +116,9 @@ public sealed class LocalConversationShareService(
         }
     }
 
+    /// <summary>
+    /// Runs run server async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunServerAsync(ShareRuntime runtime)
     {
         try
@@ -113,6 +143,9 @@ public sealed class LocalConversationShareService(
         }
     }
 
+    /// <summary>
+    /// Performs handle client async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task HandleClientAsync(ShareRuntime runtime, TcpClient client)
     {
         using (client)
@@ -166,6 +199,9 @@ public sealed class LocalConversationShareService(
         }
     }
 
+    /// <summary>
+    /// Performs expire async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ExpireAsync(ShareRuntime runtime)
     {
         var delay = runtime.Session.ExpiresAt - DateTimeOffset.UtcNow;
@@ -183,6 +219,9 @@ public sealed class LocalConversationShareService(
         }
     }
 
+    /// <summary>
+    /// Builds html from the currently available inputs.
+    /// </summary>
     private static string BuildHtml(ConversationExportDocument document, DateTimeOffset expiresAt)
     {
         var encode = HtmlEncoder.Default;
@@ -203,6 +242,9 @@ public sealed class LocalConversationShareService(
         return builder.Append("</main></body></html>").ToString();
     }
 
+    /// <summary>
+    /// Performs the find private address step owned by this component.
+    /// </summary>
     private static IPAddress? FindPrivateAddress() => NetworkInterface.GetAllNetworkInterfaces()
         .Where(item => item.OperationalStatus == OperationalStatus.Up && item.NetworkInterfaceType is not (NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel))
         .SelectMany(item => item.GetIPProperties().UnicastAddresses)
@@ -211,8 +253,14 @@ public sealed class LocalConversationShareService(
         .OrderBy(address => address.ToString(), StringComparer.Ordinal)
         .FirstOrDefault();
 
+    /// <summary>
+    /// Reports whether is private or loopback is true for the current state.
+    /// </summary>
     private static bool IsPrivateOrLoopback(IPAddress address) => IPAddress.IsLoopback(address) || IsPrivate(address) || address.IsIPv6LinkLocal || IsUniqueLocalIpv6(address);
 
+    /// <summary>
+    /// Reports whether is private is true for the current state.
+    /// </summary>
     private static bool IsPrivate(IPAddress address)
     {
         if (address.AddressFamily != AddressFamily.InterNetwork) return false;
@@ -223,6 +271,9 @@ public sealed class LocalConversationShareService(
                bytes[0] == 169 && bytes[1] == 254;
     }
 
+    /// <summary>
+    /// Reports whether is unique local ipv6 is true for the current state.
+    /// </summary>
     private static bool IsUniqueLocalIpv6(IPAddress address)
     {
         if (address.AddressFamily != AddressFamily.InterNetworkV6) return false;
@@ -230,8 +281,14 @@ public sealed class LocalConversationShareService(
         return (bytes[0] & 0xFE) == 0xFC;
     }
 
+    /// <summary>
+    /// Reports whether hash token is true for the current state.
+    /// </summary>
     private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
+    /// <summary>
+    /// Performs the fixed time equals step owned by this component.
+    /// </summary>
     private static bool FixedTimeEquals(string left, string right)
     {
         var leftBytes = Encoding.UTF8.GetBytes(left);
@@ -240,6 +297,9 @@ public sealed class LocalConversationShareService(
         finally { CryptographicOperations.ZeroMemory(leftBytes); CryptographicOperations.ZeroMemory(rightBytes); }
     }
 
+    /// <summary>
+    /// Performs read bounded line async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string?> ReadBoundedLineAsync(StreamReader reader, int maximumLength, CancellationToken cancellationToken)
     {
         var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
@@ -247,9 +307,15 @@ public sealed class LocalConversationShareService(
         return line;
     }
 
+    /// <summary>
+    /// Performs write response async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static Task WriteResponseAsync(TcpClient client, int status, string reason, string content, string contentType, CancellationToken cancellationToken) =>
         WriteResponseAsync(client.GetStream(), status, reason, content, contentType, cancellationToken);
 
+    /// <summary>
+    /// Performs write response async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteResponseAsync(Stream stream, int status, string reason, string content, string contentType, CancellationToken cancellationToken)
     {
         var body = Encoding.UTF8.GetBytes(content);
@@ -260,14 +326,38 @@ public sealed class LocalConversationShareService(
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Represents share runtime and keeps its related state and behavior together.
+    /// </summary>
     private sealed class ShareRuntime(SharedSession session, string token, TcpListener listener, CancellationTokenSource cancellation) : IDisposable
     {
+        /// <summary>
+        /// Gets or updates session, the bindable or domain state represented by this property.
+        /// </summary>
         public SharedSession Session { get; } = session;
+        /// <summary>
+        /// Gets or updates token, the bindable or domain state represented by this property.
+        /// </summary>
         public string Token { get; } = token;
+        /// <summary>
+        /// Gets or updates listener, the bindable or domain state represented by this property.
+        /// </summary>
         public TcpListener Listener { get; } = listener;
+        /// <summary>
+        /// Reports whether cancellation is true for the current state.
+        /// </summary>
         public CancellationTokenSource Cancellation { get; } = cancellation;
+        /// <summary>
+        /// Gets or updates server task, the bindable or domain state represented by this property.
+        /// </summary>
         public Task? ServerTask { get; set; }
+        /// <summary>
+        /// Gets or updates expiry task, the bindable or domain state represented by this property.
+        /// </summary>
         public Task? ExpiryTask { get; set; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             Listener.Stop();

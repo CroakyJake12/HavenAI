@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/GenerativeModeStudioHandoffTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns GenerativeModeStudioHandoffTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents generative mode studio handoff tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeModeStudioHandoffTests
 {
+    /// <summary>
+    /// Performs the specification keeps user request delimited from fixed safety gates step owned by this component.
+    /// </summary>
     [Fact]
     public void SpecificationKeepsUserRequestDelimitedFromFixedSafetyGates()
     {
@@ -18,6 +33,9 @@ public sealed class GenerativeModeStudioHandoffTests
         Assert.Contains("Route executable or privileged capabilities through Haven's existing permission and approval systems.", specification, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the normalize request rejects blank oversized and control only input step owned by this component.
+    /// </summary>
     [Fact]
     public void NormalizeRequestRejectsBlankOversizedAndControlOnlyInput()
     {
@@ -26,6 +44,9 @@ public sealed class GenerativeModeStudioHandoffTests
         Assert.Throws<ArgumentException>(() => GenerativeModeStudioHandoff.NormalizeRequest("\0\u0001\u0002"));
     }
 
+    /// <summary>
+    /// Performs the normalize request trims and removes unsafe control characters step owned by this component.
+    /// </summary>
     [Fact]
     public void NormalizeRequestTrimsAndRemovesUnsafeControlCharacters()
     {

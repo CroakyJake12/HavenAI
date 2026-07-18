@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/BrowserDownloadTransportIntegrationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserDownloadTransportIntegrationTests, LoopbackTestPolicy. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -8,12 +17,21 @@ using Haven.Core;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents browser download transport integration tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
 {
+    /// <summary>
+    /// Stores directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "haven-download-integration-tests-" + Guid.NewGuid().ToString("N"));
 
     public BrowserDownloadTransportIntegrationTests() => Directory.CreateDirectory(_directory);
 
+    /// <summary>
+    /// Performs the approved download uses sanitized header name hash and confined destination step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ApprovedDownloadUsesSanitizedHeaderNameHashAndConfinedDestination()
     {
@@ -37,6 +55,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         Assert.DoesNotContain(Directory.EnumerateFiles(_directory), path => path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the approved download removes stale partial before saving and allocates collision name step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ApprovedDownloadRemovesStalePartialBeforeSavingAndAllocatesCollisionName()
     {
@@ -63,6 +84,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         Assert.Equal("replacement", await File.ReadAllTextAsync(record.StoredPath, TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// Creates download action with the invariants required by its callers.
+    /// </summary>
     private static BrowserPendingAction CreateDownloadAction(Uri target)
     {
         var now = DateTimeOffset.UtcNow;
@@ -72,6 +96,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
             now, now.AddMinutes(10), now, null);
     }
 
+    /// <summary>
+    /// Performs serve file async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ServeFileAsync(TcpListener listener, byte[] body, string contentDispositionParameter, CancellationToken cancellationToken)
     {
         using var client = await listener.AcceptTcpClientAsync(cancellationToken);
@@ -88,6 +115,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         await stream.FlushAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Performs drain request async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task DrainRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
         var delimiter = "\r\n\r\n"u8.ToArray();
@@ -101,8 +131,14 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Represents loopback test policy and keeps its related state and behavior together.
+    /// </summary>
     private sealed class LoopbackTestPolicy : IBrowserNavigationPolicy
     {
+        /// <summary>
+        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -110,6 +146,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         try { Directory.Delete(_directory, true); }

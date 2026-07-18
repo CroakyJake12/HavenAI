@@ -1,3 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: tests/Haven.Desktop.Tests/Haven.Desktop.Tests.csproj in the automated test suite, where executable examples protect behavior against regressions.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>

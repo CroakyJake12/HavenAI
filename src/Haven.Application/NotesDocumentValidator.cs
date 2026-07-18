@@ -1,16 +1,46 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesDocumentValidator.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns NotesDocumentValidator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.RegularExpressions;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents notes document validator and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesDocumentValidator : INotesDocumentValidator
 {
+    /// <summary>
+    /// Stores maximum sections locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumSections = 500;
+    /// <summary>
+    /// Stores maximum pages per section locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPagesPerSection = 2_000;
+    /// <summary>
+    /// Stores maximum blocks per page locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumBlocksPerPage = 20_000;
+    /// <summary>
+    /// Stores maximum strokes per canvas locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumStrokesPerCanvas = 100_000;
+    /// <summary>
+    /// Stores maximum points per stroke locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPointsPerStroke = 200_000;
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     public NotesValidationResult Validate(NotesDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -298,12 +328,21 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
         }
     }
 
+    /// <summary>
+    /// Performs the colour pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")]
     private static partial Regex ColourPattern();
 
+    /// <summary>
+    /// Performs the network reference pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("(?:https?:)?//|url\\s*\\(|@import", RegexOptions.IgnoreCase)]
     private static partial Regex NetworkReferencePattern();
 
+    /// <summary>
+    /// Performs the form pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("<\\s*form\\b", RegexOptions.IgnoreCase)]
     private static partial Regex FormPattern();
 }

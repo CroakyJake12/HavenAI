@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/ProductionMarkdownViewTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns ProductionMarkdownViewTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -5,8 +14,14 @@ using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents production markdown view tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class ProductionMarkdownViewTests
 {
+    /// <summary>
+    /// Performs the renders headings lists tables code and math without web content step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void RendersHeadingsListsTablesCodeAndMathWithoutWebContent()
     {
@@ -44,6 +59,9 @@ public sealed class ProductionMarkdownViewTests
         Assert.DoesNotContain(controls, item => item.GetType().Name.Contains("WebView", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs the ask to run raises explicit action instead of executing code step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void AskToRunRaisesExplicitActionInsteadOfExecutingCode()
     {
@@ -60,6 +78,9 @@ public sealed class ProductionMarkdownViewTests
         Assert.Contains("Write-Output test", request.Code);
     }
 
+    /// <summary>
+    /// Performs the descendants step owned by this component.
+    /// </summary>
     private static IEnumerable<Control> Descendants(Control root)
     {
         yield return root;

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/HavenIcon.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns HavenIcon. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -11,9 +20,15 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class HavenIcon : PathIcon
 {
+    /// <summary>
+    /// Stores icon key property locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly StyledProperty<string> IconKeyProperty =
         AvaloniaProperty.Register<HavenIcon, string>(nameof(IconKey), "info");
 
+    /// <summary>
+    /// Stores icons locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, Geometry> Icons = BuildIcons();
 
     static HavenIcon() => IconKeyProperty.Changed.AddClassHandler<HavenIcon>((icon, _) => icon.ResolveIcon());
@@ -23,6 +38,9 @@ public sealed class HavenIcon : PathIcon
     // PathIcon's default control theme is keyed to PathIcon itself. Without
     // this override a derived HavenIcon has geometry and accessibility text,
     // but no template, so it occupies space without drawing anything.
+    /// <summary>
+    /// Gets or updates style key override, the bindable or domain state represented by this property.
+    /// </summary>
     protected override Type StyleKeyOverride => typeof(PathIcon);
 
     public string IconKey
@@ -31,14 +49,23 @@ public sealed class HavenIcon : PathIcon
         set => SetValue(IconKeyProperty, value);
     }
 
+    /// <summary>
+    /// Reports whether is known is true for the current state.
+    /// </summary>
     public static bool IsKnown(string? key) => !string.IsNullOrWhiteSpace(key) && Icons.ContainsKey(key);
 
+    /// <summary>
+    /// Performs the resolve icon step owned by this component.
+    /// </summary>
     private void ResolveIcon()
     {
         var key = string.IsNullOrWhiteSpace(IconKey) ? "info" : IconKey.Trim();
         Data = Icons.TryGetValue(key, out var geometry) ? geometry : Icons["info"];
     }
 
+    /// <summary>
+    /// Builds icons from the currently available inputs.
+    /// </summary>
     private static IReadOnlyDictionary<string, Geometry> BuildIcons()
     {
         var icons = new Dictionary<string, Geometry>(StringComparer.OrdinalIgnoreCase);

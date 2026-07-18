@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/NotesImportExportService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns NotesImportExportService, StringCharacterExtensions, SimpleNotesPdfWriter. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
@@ -10,22 +19,37 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents notes import export service and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesImportExportService(
     INotesDocumentValidator validator,
     IProductionDiagnostics diagnostics) : INotesImportExportService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Gets or updates import extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> ImportExtensions { get; } =
         [".haven-notes.json", ".json", ".txt", ".md", ".markdown", ".html", ".htm", ".csv", ".rtf", ".docx", ".odt"];
 
+    /// <summary>
+    /// Gets or updates export extensions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> ExportExtensions { get; } =
         [".haven-notes.json", ".txt", ".md", ".html", ".csv", ".rtf", ".docx", ".odt", ".pdf"];
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath)) throw new FileNotFoundException("The selected Notes import file does not exist.", sourcePath);
@@ -70,6 +94,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportAsync(NotesDocument document, string destinationPath, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -135,6 +162,9 @@ public sealed partial class NotesImportExportService(
         }
     }
 
+    /// <summary>
+    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task PrintAsync(NotesDocument document, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -166,6 +196,9 @@ public sealed partial class NotesImportExportService(
         }
     }
 
+    /// <summary>
+    /// Performs import native async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<NotesDocument> ImportNativeAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
@@ -173,6 +206,9 @@ public sealed partial class NotesImportExportService(
                ?? throw new InvalidDataException("The native Notes file was empty.");
     }
 
+    /// <summary>
+    /// Performs the notes from text step owned by this component.
+    /// </summary>
     private static NotesDocument NotesFromText(string text, string title, NotesBlockKind kind)
     {
         var document = NotesDocument.Create(title);
@@ -183,6 +219,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs the notes from markdown step owned by this component.
+    /// </summary>
     private static NotesDocument NotesFromMarkdown(string markdown, string title)
     {
         var document = NotesDocument.Create(title);
@@ -230,6 +269,9 @@ public sealed partial class NotesImportExportService(
         }
     }
 
+    /// <summary>
+    /// Performs the notes from html step owned by this component.
+    /// </summary>
     private static NotesDocument NotesFromHtml(string html, string title)
     {
         var document = NotesDocument.Create(title);
@@ -254,6 +296,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs the notes from csv step owned by this component.
+    /// </summary>
     private static NotesDocument NotesFromCsv(string csv, string title)
     {
         var document = NotesDocument.Create(title);
@@ -271,6 +316,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs import docx async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<NotesDocument> ImportDocxAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
@@ -313,6 +361,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs import odt async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<NotesDocument> ImportOdtAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
@@ -353,6 +404,9 @@ public sealed partial class NotesImportExportService(
         return document;
     }
 
+    /// <summary>
+    /// Performs the render plain text step owned by this component.
+    /// </summary>
     private static string RenderPlainText(NotesDocument document)
     {
         var builder = new StringBuilder();
@@ -376,6 +430,9 @@ public sealed partial class NotesImportExportService(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the render markdown step owned by this component.
+    /// </summary>
     private static string RenderMarkdown(NotesDocument document)
     {
         var builder = new StringBuilder().Append("# ").AppendLine(document.Title).AppendLine();
@@ -422,6 +479,9 @@ public sealed partial class NotesImportExportService(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the render html step owned by this component.
+    /// </summary>
     private static string RenderHtml(NotesDocument document)
     {
         var builder = new StringBuilder("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>")
@@ -444,6 +504,9 @@ public sealed partial class NotesImportExportService(
         return builder.AppendLine("</body></html>").ToString();
     }
 
+    /// <summary>
+    /// Performs the render csv step owned by this component.
+    /// </summary>
     private static string RenderCsv(NotesDocument document)
     {
         var tables = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).Where(block => block.Table is not null).ToArray();
@@ -458,6 +521,9 @@ public sealed partial class NotesImportExportService(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the render rtf step owned by this component.
+    /// </summary>
     private static string RenderRtf(NotesDocument document)
     {
         var text = RenderPlainText(document);
@@ -466,6 +532,9 @@ public sealed partial class NotesImportExportService(
         return "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Segoe UI;}}\\fs24 " + escaped + "}";
     }
 
+    /// <summary>
+    /// Performs export docx async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ExportDocxAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
@@ -492,6 +561,9 @@ public sealed partial class NotesImportExportService(
         stream.Flush(true);
     }
 
+    /// <summary>
+    /// Performs export odt async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ExportOdtAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
@@ -530,6 +602,9 @@ public sealed partial class NotesImportExportService(
         stream.Flush(true);
     }
 
+    /// <summary>
+    /// Performs the word paragraph step owned by this component.
+    /// </summary>
     private static XElement WordParagraph(XNamespace word, string text, string? style)
     {
         var paragraph = new XElement(word + "p");
@@ -538,6 +613,9 @@ public sealed partial class NotesImportExportService(
         return paragraph;
     }
 
+    /// <summary>
+    /// Performs the word table step owned by this component.
+    /// </summary>
     private static XElement WordTable(XNamespace word, NotesTableData table)
     {
         var element = new XElement(word + "tbl");
@@ -550,6 +628,9 @@ public sealed partial class NotesImportExportService(
         return element;
     }
 
+    /// <summary>
+    /// Performs write zip entry async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteZipEntryAsync(ZipArchive archive, string name, string content, CancellationToken cancellationToken)
     {
         var entry = archive.CreateEntry(name, CompressionLevel.Optimal);
@@ -559,12 +640,18 @@ public sealed partial class NotesImportExportService(
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the render block text step owned by this component.
+    /// </summary>
     private static void RenderBlockText(StringBuilder builder, NotesBlock block)
     {
         foreach (var line in BlockLines(block)) builder.AppendLine(line);
         builder.AppendLine();
     }
 
+    /// <summary>
+    /// Performs the block lines step owned by this component.
+    /// </summary>
     private static IEnumerable<string> BlockLines(NotesBlock block)
     {
         switch (block.Kind)
@@ -606,6 +693,9 @@ public sealed partial class NotesImportExportService(
         }
     }
 
+    /// <summary>
+    /// Performs the render block html step owned by this component.
+    /// </summary>
     private static void RenderBlockHtml(StringBuilder builder, NotesBlock block)
     {
         switch (block.Kind)
@@ -648,6 +738,9 @@ public sealed partial class NotesImportExportService(
         }
     }
 
+    /// <summary>
+    /// Performs the render markdown table step owned by this component.
+    /// </summary>
     private static void RenderMarkdownTable(StringBuilder builder, NotesTableData table)
     {
         var columns = table.Rows.Max(row => row.Cells.Count);
@@ -658,10 +751,22 @@ public sealed partial class NotesImportExportService(
         builder.AppendLine();
     }
 
+    /// <summary>
+    /// Performs the split paragraphs step owned by this component.
+    /// </summary>
     private static IEnumerable<string> SplitParagraphs(string text) => text.ReplaceLineEndings("\n").Split("\n\n", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    /// <summary>
+    /// Performs the strip markdown inline step owned by this component.
+    /// </summary>
     private static string StripMarkdownInline(string value) => InlineMarkdownPattern().Replace(value, "$1");
+    /// <summary>
+    /// Performs the decode rtf step owned by this component.
+    /// </summary>
     private static string DecodeRtf(string rtf) => WhitespacePattern().Replace(RtfControlPattern().Replace(rtf.Replace("\\par", "\n", StringComparison.OrdinalIgnoreCase).Replace("\\tab", "\t", StringComparison.OrdinalIgnoreCase), " ").Replace("{", string.Empty, StringComparison.Ordinal).Replace("}", string.Empty, StringComparison.Ordinal), " ").Trim();
 
+    /// <summary>
+    /// Performs the parse csv line step owned by this component.
+    /// </summary>
     private static IReadOnlyList<string> ParseCsvLine(string line)
     {
         var values = new List<string>();
@@ -682,9 +787,18 @@ public sealed partial class NotesImportExportService(
         return values;
     }
 
+    /// <summary>
+    /// Performs the csv escape step owned by this component.
+    /// </summary>
     private static string CsvEscape(string value) => value.ContainsAny(',', '"', '\n', '\r') ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : value;
+    /// <summary>
+    /// Performs the effective extension step owned by this component.
+    /// </summary>
     private static string EffectiveExtension(string path) => path.EndsWith(".haven-notes.json", StringComparison.OrdinalIgnoreCase) ? ".haven-notes.json" : Path.GetExtension(path).ToLowerInvariant();
 
+    /// <summary>
+    /// Performs write json async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteJsonAsync(string path, NotesDocument document, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
@@ -693,6 +807,9 @@ public sealed partial class NotesImportExportService(
         stream.Flush(true);
     }
 
+    /// <summary>
+    /// Performs write text durably async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task WriteTextDurablyAsync(string path, string content, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
@@ -703,37 +820,70 @@ public sealed partial class NotesImportExportService(
         stream.Flush(true);
     }
 
+    /// <summary>
+    /// Performs the replace file step owned by this component.
+    /// </summary>
     private static void ReplaceFile(string temporary, string destination)
     {
         if (File.Exists(destination)) File.Replace(temporary, destination, destination + ".bak", ignoreMetadataErrors: true);
         else File.Move(temporary, destination);
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Performs the script style pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("<script\\b[^>]*>[\\s\\S]*?</script>|<style\\b[^>]*>[\\s\\S]*?</style>", RegexOptions.IgnoreCase)]
     private static partial Regex ScriptStylePattern();
+    /// <summary>
+    /// Performs the tag pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("<[^>]+>")]
     private static partial Regex TagPattern();
+    /// <summary>
+    /// Performs the whitespace pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("\\s+")]
     private static partial Regex WhitespacePattern();
+    /// <summary>
+    /// Performs the inline markdown pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("(?:\\*\\*|__|\\*|_|~~|`)(.*?)(?:\\*\\*|__|\\*|_|~~|`)")]
     private static partial Regex InlineMarkdownPattern();
+    /// <summary>
+    /// Performs the rtf control pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex("\\\\[a-zA-Z]+-?\\d* ?|\\\\'[0-9a-fA-F]{2}")]
     private static partial Regex RtfControlPattern();
 }
 
+/// <summary>
+/// Represents string character extensions and keeps its related state and behavior together.
+/// </summary>
 internal static class StringCharacterExtensions
 {
+    /// <summary>
+    /// Performs the contains any step owned by this component.
+    /// </summary>
     public static bool ContainsAny(this string value, params char[] characters) => value.IndexOfAny(characters) >= 0;
 }
 
+/// <summary>
+/// Represents simple notes pdf writer and keeps its related state and behavior together.
+/// </summary>
 internal static class SimpleNotesPdfWriter
 {
+    /// <summary>
+    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task WriteAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {
         var lines = WrapLines(NotesDocumentText(document), 92).ToArray();
@@ -779,6 +929,9 @@ internal static class SimpleNotesPdfWriter
         stream.Flush(true);
     }
 
+    /// <summary>
+    /// Performs the notes document text step owned by this component.
+    /// </summary>
     private static string NotesDocumentText(NotesDocument document)
     {
         var builder = new StringBuilder().AppendLine(document.Title).AppendLine();
@@ -800,6 +953,9 @@ internal static class SimpleNotesPdfWriter
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the block lines step owned by this component.
+    /// </summary>
     private static IEnumerable<string> BlockLines(NotesBlock block)
     {
         if (block.Table is not null) return block.Table.Rows.Select(row => string.Join(" | ", row.Cells.Select(cell => cell.Text)));
@@ -812,6 +968,9 @@ internal static class SimpleNotesPdfWriter
         return [block.PlainText];
     }
 
+    /// <summary>
+    /// Performs the wrap lines step owned by this component.
+    /// </summary>
     private static IEnumerable<string> WrapLines(string text, int width)
     {
         foreach (var paragraph in text.ReplaceLineEndings("\n").Split('\n'))
@@ -829,5 +988,8 @@ internal static class SimpleNotesPdfWriter
         }
     }
 
+    /// <summary>
+    /// Performs the escape pdf step owned by this component.
+    /// </summary>
     private static string EscapePdf(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("(", "\\(", StringComparison.Ordinal).Replace(")", "\\)", StringComparison.Ordinal).Replace("\r", string.Empty, StringComparison.Ordinal);
 }

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/RetrievalServices.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns RetrievalSchema, LocalHashEmbeddingService, RetrievalIndexService, Segment, CandidateChunk, ScoredChunk. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,10 +17,19 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents retrieval schema and keeps its related state and behavior together.
+/// </summary>
 internal static class RetrievalSchema
 {
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    /// <summary>
+    /// Performs ensure async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public static async Task EnsureAsync(ISqliteConnectionFactory factory, CancellationToken cancellationToken)
     {
         await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -66,11 +84,23 @@ internal static class RetrievalSchema
     }
 }
 
+/// <summary>
+/// Represents local hash embedding service and keeps its related state and behavior together.
+/// </summary>
 public sealed class LocalHashEmbeddingService : ITextEmbeddingService
 {
+    /// <summary>
+    /// Stores token pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex TokenPattern = new("[\\p{L}\\p{N}_-]+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Gets or updates dimensions, the bindable or domain state represented by this property.
+    /// </summary>
     public int Dimensions => 384;
 
+    /// <summary>
+    /// Performs embed async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<float>> EmbedAsync(string text, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -94,6 +124,9 @@ public sealed class LocalHashEmbeddingService : ITextEmbeddingService
         return Task.FromResult<IReadOnlyList<float>>(vector);
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static void Normalize(float[] vector)
     {
         var sum = vector.Sum(value => value * value);
@@ -103,15 +136,33 @@ public sealed class LocalHashEmbeddingService : ITextEmbeddingService
     }
 }
 
+/// <summary>
+/// Represents retrieval index service and keeps its related state and behavior together.
+/// </summary>
 public sealed class RetrievalIndexService(
     ISqliteConnectionFactory factory,
     ITextEmbeddingService embeddings) : IRetrievalIndexService, IRetrievalSearchService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores token pattern locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex TokenPattern = new("[\\p{L}\\p{N}_-]+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores chunk target locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int ChunkTarget = 1_500;
+    /// <summary>
+    /// Stores chunk overlap locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int ChunkOverlap = 220;
 
+    /// <summary>
+    /// Performs index text async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<RetrievalDocument> IndexTextAsync(
         RetrievalScope scope,
         string sourceType,
@@ -184,6 +235,9 @@ public sealed class RetrievalIndexService(
         return document;
     }
 
+    /// <summary>
+    /// Performs remove source async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RemoveSourceAsync(RetrievalScope scope, string sourceType, string sourceId, CancellationToken cancellationToken)
     {
         await RetrievalSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -197,6 +251,9 @@ public sealed class RetrievalIndexService(
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves documents async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<RetrievalDocument>> GetDocumentsAsync(RetrievalScope scope, CancellationToken cancellationToken)
     {
         await RetrievalSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
@@ -208,6 +265,9 @@ public sealed class RetrievalIndexService(
         return await ReadDocumentsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<RetrievalResult> SearchAsync(RetrievalQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -274,6 +334,9 @@ public sealed class RetrievalIndexService(
         return new RetrievalResult(context, citations, estimatedTokens, method);
     }
 
+    /// <summary>
+    /// Performs find document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<RetrievalDocument?> FindDocumentAsync(RetrievalScope scope, string sourceType, string sourceId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -286,6 +349,9 @@ public sealed class RetrievalIndexService(
         return (await ReadDocumentsAsync(command, cancellationToken).ConfigureAwait(false)).FirstOrDefault();
     }
 
+    /// <summary>
+    /// Performs load candidates async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<CandidateChunk>> LoadCandidatesAsync(IReadOnlyList<RetrievalScope> scopes, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -323,6 +389,9 @@ public sealed class RetrievalIndexService(
         return result;
     }
 
+    /// <summary>
+    /// Performs read documents async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<RetrievalDocument>> ReadDocumentsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<RetrievalDocument>();
@@ -331,6 +400,9 @@ public sealed class RetrievalIndexService(
         return result;
     }
 
+    /// <summary>
+    /// Performs the read document step owned by this component.
+    /// </summary>
     private static RetrievalDocument ReadDocument(SqliteDataReader reader) => new(
         Guid.Parse(reader.GetString(reader.GetOrdinal("id"))),
         (RetrievalScopeKind)reader.GetInt32(reader.GetOrdinal("scope_kind")),
@@ -342,6 +414,9 @@ public sealed class RetrievalIndexService(
         DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at")), System.Globalization.CultureInfo.InvariantCulture),
         DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")), System.Globalization.CultureInfo.InvariantCulture));
 
+    /// <summary>
+    /// Performs the split step owned by this component.
+    /// </summary>
     private static IEnumerable<Segment> Split(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) yield break;
@@ -365,6 +440,9 @@ public sealed class RetrievalIndexService(
         }
     }
 
+    /// <summary>
+    /// Performs the count terms step owned by this component.
+    /// </summary>
     private static IReadOnlyDictionary<string, int> CountTerms(string text)
     {
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -377,6 +455,9 @@ public sealed class RetrievalIndexService(
         return result;
     }
 
+    /// <summary>
+    /// Performs the keyword score step owned by this component.
+    /// </summary>
     private static double KeywordScore(IReadOnlyDictionary<string, int> query, IReadOnlyDictionary<string, int> document, int corpusSize)
     {
         if (query.Count == 0 || document.Count == 0) return 0;
@@ -391,6 +472,9 @@ public sealed class RetrievalIndexService(
         return score / Math.Max(1, query.Count);
     }
 
+    /// <summary>
+    /// Performs the cosine step owned by this component.
+    /// </summary>
     private static double Cosine(IReadOnlyList<float> left, IReadOnlyList<float> right)
     {
         if (left.Count == 0 || right.Count == 0 || left.Count != right.Count) return 0;
@@ -399,6 +483,9 @@ public sealed class RetrievalIndexService(
         return dot;
     }
 
+    /// <summary>
+    /// Performs the add document parameters step owned by this component.
+    /// </summary>
     private static void AddDocumentParameters(SqliteCommand command, RetrievalDocument document)
     {
         command.Parameters.AddWithValue("$id", document.Id.ToString());
@@ -412,6 +499,9 @@ public sealed class RetrievalIndexService(
         command.Parameters.AddWithValue("$updatedAt", document.UpdatedAt.ToString("O"));
     }
 
+    /// <summary>
+    /// Validates source before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void ValidateSource(RetrievalScope scope, string sourceType, string sourceId, string title)
     {
         if (scope.Id == Guid.Empty) throw new ArgumentException("Retrieval scope identifier is required.", nameof(scope));
@@ -420,16 +510,37 @@ public sealed class RetrievalIndexService(
         if (string.IsNullOrWhiteSpace(title) || title.Length > 500) throw new ArgumentException("A source title is required.", nameof(title));
     }
 
+    /// <summary>
+    /// Performs the normalize text step owned by this component.
+    /// </summary>
     private static string NormalizeText(string value) => value.Replace("\0", string.Empty, StringComparison.Ordinal).ReplaceLineEndings("\n").Trim();
+    /// <summary>
+    /// Performs the estimate tokens step owned by this component.
+    /// </summary>
     private static int EstimateTokens(string value) => Math.Max(1, (int)Math.Ceiling(Encoding.UTF8.GetByteCount(value) / 4d));
+    /// <summary>
+    /// Performs the excerpt step owned by this component.
+    /// </summary>
     private static string Excerpt(string value, int maximum) => value.Length <= maximum ? value : value[..maximum].TrimEnd() + "…";
 
+    /// <summary>
+    /// Stores stop words locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "the", "and", "for", "that", "with", "this", "from", "have", "are", "was", "were", "into", "your", "you", "but", "not", "can", "will", "about", "what", "when", "where", "which"
     };
 
+    /// <summary>
+    /// Represents segment and keeps its related state and behavior together.
+    /// </summary>
     private sealed record Segment(int Ordinal, int Start, string Text);
+    /// <summary>
+    /// Represents candidate chunk and keeps its related state and behavior together.
+    /// </summary>
     private sealed record CandidateChunk(RetrievalDocument Document, RetrievalChunk Chunk);
+    /// <summary>
+    /// Represents scored chunk and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ScoredChunk(RetrievalDocument Document, RetrievalChunk Chunk, double Score);
 }

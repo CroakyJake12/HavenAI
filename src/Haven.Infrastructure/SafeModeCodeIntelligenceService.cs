@@ -1,12 +1,27 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/SafeModeCodeIntelligenceService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns SafeModeCodeIntelligenceService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents safe mode code intelligence service and keeps its related state and behavior together.
+/// </summary>
 public sealed class SafeModeCodeIntelligenceService(
     ProductionCodeIntelligenceService inner,
     IProductionDiagnostics diagnostics) : ICodeIntelligenceService
 {
+    /// <summary>
+    /// Retrieves status async for the current operation.
+    /// </summary>
     public async Task<CodeIntelligenceStatus> GetStatusAsync(
         string workspaceRoot,
         string relativePath,
@@ -23,6 +38,9 @@ public sealed class SafeModeCodeIntelligenceService(
             };
     }
 
+    /// <summary>
+    /// Retrieves diagnostics async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<CodeDiagnostic>> GetDiagnosticsAsync(
         string workspaceRoot,
         string relativePath,
@@ -30,6 +48,9 @@ public sealed class SafeModeCodeIntelligenceService(
         ? DeniedAsync<IReadOnlyList<CodeDiagnostic>>("diagnostics", cancellationToken)
         : inner.GetDiagnosticsAsync(workspaceRoot, relativePath, cancellationToken);
 
+    /// <summary>
+    /// Performs search symbols async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<CodeSymbol>> SearchSymbolsAsync(
         string workspaceRoot,
         string query,
@@ -37,6 +58,9 @@ public sealed class SafeModeCodeIntelligenceService(
         ? DeniedAsync<IReadOnlyList<CodeSymbol>>("symbol search", cancellationToken)
         : inner.SearchSymbolsAsync(workspaceRoot, query, cancellationToken);
 
+    /// <summary>
+    /// Performs preview format async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<CodeFormatPreview> PreviewFormatAsync(
         string workspaceRoot,
         string relativePath,
@@ -46,6 +70,9 @@ public sealed class SafeModeCodeIntelligenceService(
         ? DeniedAsync<CodeFormatPreview>("format preview", cancellationToken)
         : inner.PreviewFormatAsync(workspaceRoot, relativePath, tabSize, insertSpaces, cancellationToken);
 
+    /// <summary>
+    /// Performs apply format async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<CodeFormatApplyResult> ApplyFormatAsync(
         string workspaceRoot,
         CodeFormatPreview preview,

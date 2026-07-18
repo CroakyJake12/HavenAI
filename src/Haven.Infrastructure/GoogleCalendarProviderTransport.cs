@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/GoogleCalendarProviderTransport.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns GoogleCalendarProviderTransport, SyncCounts. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -8,6 +17,9 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents google calendar provider transport and keeps its related state and behavior together.
+/// </summary>
 public sealed class GoogleCalendarProviderTransport(
     CalendarProviderConfiguration configuration,
     IHttpClientFactory httpClientFactory,
@@ -16,7 +28,13 @@ public sealed class GoogleCalendarProviderTransport(
     ICalendarTokenStore tokenStore)
     : OAuthCalendarTransportBase(configuration, httpClientFactory, repository, store, tokenStore)
 {
+    /// <summary>
+    /// Gets or updates authorization endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override Uri AuthorizationEndpoint { get; } = new("https://accounts.google.com/o/oauth2/v2/auth");
+    /// <summary>
+    /// Gets or updates token endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override Uri TokenEndpoint { get; } = new("https://oauth2.googleapis.com/token");
 
     protected override async Task<(string Identifier, string DisplayName)> GetIdentityAsync(string accessToken, CancellationToken cancellationToken)
@@ -29,6 +47,9 @@ public sealed class GoogleCalendarProviderTransport(
         return (identifier, string.IsNullOrWhiteSpace(displayName) ? identifier : displayName);
     }
 
+    /// <summary>
+    /// Performs sync core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     protected override async Task<CalendarSyncResult> SyncCoreAsync(CalendarAccount account, CalendarTokenEnvelope token, CalendarSyncRequest request, CancellationToken cancellationToken)
     {
         await DrainOutboxAsync(account, token, ApplyOutboxAsync, cancellationToken).ConfigureAwait(false);
@@ -50,6 +71,9 @@ public sealed class GoogleCalendarProviderTransport(
         return new(conflicts == 0, CalendarSyncStatus.Ready, added, updated, deleted, conflicts, message);
     }
 
+    /// <summary>
+    /// Retrieves calendars async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<PlannerCalendar>> GetCalendarsAsync(CalendarAccount account, string accessToken, CancellationToken cancellationToken)
     {
         var result = new List<PlannerCalendar>();
@@ -80,6 +104,9 @@ public sealed class GoogleCalendarProviderTransport(
         return result;
     }
 
+    /// <summary>
+    /// Performs sync calendar async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<SyncCounts> SyncCalendarAsync(CalendarAccount account, PlannerCalendar calendar, string accessToken, CalendarSyncRequest request, CancellationToken cancellationToken)
     {
         var cursor = request.FullSync ? null : await Store.GetSyncCursorAsync(account.Id, calendar.Id, cancellationToken).ConfigureAwait(false);
@@ -90,6 +117,9 @@ public sealed class GoogleCalendarProviderTransport(
         }
     }
 
+    /// <summary>
+    /// Performs sync calendar page loop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<SyncCounts> SyncCalendarPageLoopAsync(CalendarAccount account, PlannerCalendar calendar, string accessToken, CalendarSyncRequest request,
         CalendarSyncCursor? cursor, CancellationToken cancellationToken)
     {
@@ -118,6 +148,9 @@ public sealed class GoogleCalendarProviderTransport(
         return counts;
     }
 
+    /// <summary>
+    /// Performs apply remote event async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyRemoteEventAsync(CalendarAccount account, PlannerCalendar calendar, CalendarSyncCursor? cursor, JsonElement remote, SyncCounts counts, CancellationToken cancellationToken)
     {
         var remoteId = RequiredString(remote, "id");
@@ -179,6 +212,9 @@ public sealed class GoogleCalendarProviderTransport(
         if (existing is null) counts.Added++; else counts.Updated++;
     }
 
+    /// <summary>
+    /// Performs apply outbox async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyOutboxAsync(CalendarOutboxItem outbox, PlannerEvent item, string accessToken, CancellationToken cancellationToken)
     {
         var calendar = await Store.GetCalendarAsync(item.CalendarId, cancellationToken).ConfigureAwait(false)
@@ -216,6 +252,9 @@ public sealed class GoogleCalendarProviderTransport(
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the google event body step owned by this component.
+    /// </summary>
     private static object GoogleEventBody(PlannerEvent item) => new
     {
         summary = item.Title,
@@ -231,6 +270,9 @@ public sealed class GoogleCalendarProviderTransport(
         }
     };
 
+    /// <summary>
+    /// Performs the parse date step owned by this component.
+    /// </summary>
     private static DateTimeOffset ParseDate(JsonElement value, out bool isAllDay)
     {
         if (value.TryGetProperty("dateTime", out var dateTime) && DateTimeOffset.TryParse(dateTime.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var result))
@@ -246,8 +288,14 @@ public sealed class GoogleCalendarProviderTransport(
         throw new JsonException("Google event contained an invalid date.");
     }
 
+    /// <summary>
+    /// Performs the required string step owned by this component.
+    /// </summary>
     private static string RequiredString(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) && !string.IsNullOrWhiteSpace(property.GetString()) ? property.GetString()! : throw new JsonException($"Google response omitted {name}.");
 
+    /// <summary>
+    /// Represents sync counts and keeps its related state and behavior together.
+    /// </summary>
     private sealed class SyncCounts { public int Added; public int Updated; public int Deleted; public int Conflicts; }
 }

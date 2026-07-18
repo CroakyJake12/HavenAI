@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.ModernChrome.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns WorkspaceChromeHost. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia;
@@ -12,10 +21,19 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
+/// <summary>
+/// Represents workspace chrome host and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class WorkspaceChromeHost
 {
+    /// <summary>
+    /// Stores action categories locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly string[] ActionCategories = ["File", "Edit", "View", "Chat", "Project", "Tools", "Help"];
 
+    /// <summary>
+    /// Stores modern tabs locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _modernTabs = new()
     {
         Orientation = Orientation.Horizontal,
@@ -23,6 +41,9 @@ public sealed partial class WorkspaceChromeHost
         VerticalAlignment = VerticalAlignment.Center
     };
 
+    /// <summary>
+    /// Stores model status text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _modelStatusText = new()
     {
         Text = "Connecting to Ollama",
@@ -32,6 +53,9 @@ public sealed partial class WorkspaceChromeHost
         VerticalAlignment = VerticalAlignment.Center
     };
 
+    /// <summary>
+    /// Stores model refresh icon locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly HavenIcon _modelRefreshIcon = new()
     {
         IconKey = "refresh",
@@ -41,30 +65,84 @@ public sealed partial class WorkspaceChromeHost
         VerticalAlignment = VerticalAlignment.Center
     };
 
+    /// <summary>
+    /// Stores actions search locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _actionsSearch = new()
     {
         PlaceholderText = "Search actions",
         MinHeight = 36
     };
 
+    /// <summary>
+    /// Stores actions sections locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _actionsSections = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores rail audit timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _railAuditTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    /// <summary>
+    /// Stores observed tabs locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly List<WorkspaceTabViewModel> _observedTabs = [];
+    /// <summary>
+    /// Stores direct rail buttons locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly HashSet<Button> _directRailButtons = [];
 
+    /// <summary>
+    /// Stores modern shell locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MainWindowViewModel? _modernShell;
+    /// <summary>
+    /// Stores actions button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Button? _actionsButton;
+    /// <summary>
+    /// Stores actions flyout locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Flyout? _actionsFlyout;
+    /// <summary>
+    /// Stores status debounce locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _statusDebounce;
+    /// <summary>
+    /// Stores tab drag candidate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private WorkspaceTabViewModel? _tabDragCandidate;
+    /// <summary>
+    /// Stores tab drag start locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Point _tabDragStart;
+    /// <summary>
+    /// Stores tab drag in progress locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _tabDragInProgress;
+    /// <summary>
+    /// Stores suppress palette redirect locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _suppressPaletteRedirect;
+    /// <summary>
+    /// Stores updating action search locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _updatingActionSearch;
+    /// <summary>
+    /// Stores actions rebuild queued locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _actionsRebuildQueued;
+    /// <summary>
+    /// Stores latest raw status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _latestRawStatus = string.Empty;
+    /// <summary>
+    /// Stores last confirmed model status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _lastConfirmedModelStatus = string.Empty;
 
+    /// <summary>
+    /// Builds modern top bar from the currently available inputs.
+    /// </summary>
     private Border BuildModernTopBar()
     {
         var grid = new Grid
@@ -167,6 +245,9 @@ public sealed partial class WorkspaceChromeHost
         };
     }
 
+    /// <summary>
+    /// Builds actions flyout from the currently available inputs.
+    /// </summary>
     private Flyout BuildActionsFlyout()
     {
         _actionsSearch.TextChanged += OnActionsSearchChanged;
@@ -229,6 +310,9 @@ public sealed partial class WorkspaceChromeHost
         };
     }
 
+    /// <summary>
+    /// Performs the initialize modern chrome step owned by this component.
+    /// </summary>
     private void InitializeModernChrome()
     {
         DataContextChanged += OnModernDataContextChanged;
@@ -238,6 +322,9 @@ public sealed partial class WorkspaceChromeHost
         AttachModernShell(DataContext as MainWindowViewModel);
     }
 
+    /// <summary>
+    /// Performs the dispose modern chrome step owned by this component.
+    /// </summary>
     private void DisposeModernChrome()
     {
         DataContextChanged -= OnModernDataContextChanged;
@@ -251,14 +338,26 @@ public sealed partial class WorkspaceChromeHost
         AttachModernShell(null);
     }
 
+    /// <summary>
+    /// Handles the modern attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnModernAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) =>
         Dispatcher.UIThread.Post(AuditRailButtons);
 
+    /// <summary>
+    /// Handles the rail audit timer tick event raised by the UI or runtime.
+    /// </summary>
     private void OnRailAuditTimerTick(object? sender, EventArgs e) => AuditRailButtons();
 
+    /// <summary>
+    /// Handles the modern data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnModernDataContextChanged(object? sender, EventArgs e) =>
         AttachModernShell(DataContext as MainWindowViewModel);
 
+    /// <summary>
+    /// Performs the attach modern shell step owned by this component.
+    /// </summary>
     private void AttachModernShell(MainWindowViewModel? shell)
     {
         if (_modernShell is not null)
@@ -292,6 +391,9 @@ public sealed partial class WorkspaceChromeHost
         Dispatcher.UIThread.Post(AuditRailButtons);
     }
 
+    /// <summary>
+    /// Handles the modern shell property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnModernShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_modernShell is null) return;
@@ -308,6 +410,9 @@ public sealed partial class WorkspaceChromeHost
             Dispatcher.UIThread.Post(AuditRailButtons);
     }
 
+    /// <summary>
+    /// Performs the redirect command palette to actions step owned by this component.
+    /// </summary>
     private void RedirectCommandPaletteToActions()
     {
         if (_modernShell is null || _actionsButton is null || _actionsFlyout is null) return;
@@ -327,12 +432,18 @@ public sealed partial class WorkspaceChromeHost
         Dispatcher.UIThread.Post(() => _actionsSearch.Focus());
     }
 
+    /// <summary>
+    /// Handles the open tabs changed event raised by the UI or runtime.
+    /// </summary>
     private void OnOpenTabsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         ObserveTabs();
         RebuildTabs();
     }
 
+    /// <summary>
+    /// Performs the observe tabs step owned by this component.
+    /// </summary>
     private void ObserveTabs()
     {
         UnobserveTabs();
@@ -345,6 +456,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Performs the unobserve tabs step owned by this component.
+    /// </summary>
     private void UnobserveTabs()
     {
         foreach (var tab in _observedTabs)
@@ -352,6 +466,9 @@ public sealed partial class WorkspaceChromeHost
         _observedTabs.Clear();
     }
 
+    /// <summary>
+    /// Handles the tab property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(WorkspaceTabViewModel.Title)
@@ -360,6 +477,9 @@ public sealed partial class WorkspaceChromeHost
             RebuildTabs();
     }
 
+    /// <summary>
+    /// Performs the rebuild tabs step owned by this component.
+    /// </summary>
     private void RebuildTabs()
     {
         _modernTabs.Children.Clear();
@@ -369,6 +489,9 @@ public sealed partial class WorkspaceChromeHost
             _modernTabs.Children.Add(BuildModernTab(tab));
     }
 
+    /// <summary>
+    /// Builds modern tab from the currently available inputs.
+    /// </summary>
     private Control BuildModernTab(WorkspaceTabViewModel tab)
     {
         var leftDropIndicator = DropIndicator();
@@ -460,6 +583,9 @@ public sealed partial class WorkspaceChromeHost
         return host;
     }
 
+    /// <summary>
+    /// Builds tab context menu from the currently available inputs.
+    /// </summary>
     private ContextMenu BuildTabContextMenu(WorkspaceTabViewModel tab)
     {
         var rename = new MenuItem { Header = "Rename tab" };
@@ -471,6 +597,9 @@ public sealed partial class WorkspaceChromeHost
         return new ContextMenu { ItemsSource = new object[] { rename, close } };
     }
 
+    /// <summary>
+    /// Performs rename tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RenameTabAsync(WorkspaceTabViewModel tab)
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
@@ -520,6 +649,9 @@ public sealed partial class WorkspaceChromeHost
             tab.Title = input.Text.Trim();
     }
 
+    /// <summary>
+    /// Performs the close modern tab step owned by this component.
+    /// </summary>
     private void CloseModernTab(WorkspaceTabViewModel tab)
     {
         if (_modernShell is null) return;
@@ -540,6 +672,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Performs open fresh home tab async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task OpenFreshHomeTabAsync()
     {
         if (_modernShell is null) return;
@@ -564,6 +699,9 @@ public sealed partial class WorkspaceChromeHost
         _modernShell.SelectedTab = fresh;
     }
 
+    /// <summary>
+    /// Performs the attach tab drag handlers step owned by this component.
+    /// </summary>
     private void AttachTabDragHandlers(
         Grid host,
         Button button,
@@ -643,6 +781,9 @@ public sealed partial class WorkspaceChromeHost
         });
     }
 
+    /// <summary>
+    /// Performs the move tab step owned by this component.
+    /// </summary>
     private void MoveTab(string sourceKey, WorkspaceTabViewModel target, bool insertAfter)
     {
         if (_modernShell is null) return;
@@ -659,6 +800,9 @@ public sealed partial class WorkspaceChromeHost
             _modernShell.OpenTabs.Move(sourceIndex, targetIndex);
     }
 
+    /// <summary>
+    /// Attempts to read tab transfer and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadTabTransfer(IDataTransfer transfer, out string key)
     {
         key = string.Empty;
@@ -668,6 +812,9 @@ public sealed partial class WorkspaceChromeHost
         return key.Length > 0;
     }
 
+    /// <summary>
+    /// Performs the drop indicator step owned by this component.
+    /// </summary>
     private static Border DropIndicator() => new()
     {
         Width = 2,
@@ -677,6 +824,9 @@ public sealed partial class WorkspaceChromeHost
         IsVisible = false
     };
 
+    /// <summary>
+    /// Performs the clear drop preview step owned by this component.
+    /// </summary>
     private static void ClearDropPreview(Grid host, Border left, Border rightDropIndicator)
     {
         left.IsVisible = false;
@@ -684,9 +834,15 @@ public sealed partial class WorkspaceChromeHost
         host.Opacity = 1;
     }
 
+    /// <summary>
+    /// Performs the estimate underline width step owned by this component.
+    /// </summary>
     private static double EstimateUnderlineWidth(string title) =>
         Math.Clamp(title.Length * 6.6 + 10, 28, 155);
 
+    /// <summary>
+    /// Performs the icon for tab step owned by this component.
+    /// </summary>
     private static string IconForTab(WorkspaceTabViewModel tab)
     {
         if (tab.Key.StartsWith("file-", StringComparison.OrdinalIgnoreCase)) return "file";
@@ -711,15 +867,24 @@ public sealed partial class WorkspaceChromeHost
         };
     }
 
+    /// <summary>
+    /// Handles the actions search changed event raised by the UI or runtime.
+    /// </summary>
     private void OnActionsSearchChanged(object? sender, TextChangedEventArgs e)
     {
         if (_updatingActionSearch || _modernShell is null) return;
         _modernShell.CommandSearch = _actionsSearch.Text ?? string.Empty;
     }
 
+    /// <summary>
+    /// Handles the command items changed event raised by the UI or runtime.
+    /// </summary>
     private void OnCommandItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         QueueActionsRebuild();
 
+    /// <summary>
+    /// Performs the queue actions rebuild step owned by this component.
+    /// </summary>
     private void QueueActionsRebuild()
     {
         if (_actionsRebuildQueued) return;
@@ -731,6 +896,9 @@ public sealed partial class WorkspaceChromeHost
         });
     }
 
+    /// <summary>
+    /// Performs the rebuild actions step owned by this component.
+    /// </summary>
     private void RebuildActions()
     {
         _actionsSections.Children.Clear();
@@ -777,6 +945,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Builds action row from the currently available inputs.
+    /// </summary>
     private Button BuildActionRow(CommandPaletteItemViewModel item)
     {
         var content = new Grid
@@ -835,6 +1006,9 @@ public sealed partial class WorkspaceChromeHost
         return button;
     }
 
+    /// <summary>
+    /// Performs the category for step owned by this component.
+    /// </summary>
     private static string CategoryFor(CommandPaletteItemViewModel item)
     {
         var name = item.Name.ToLowerInvariant();
@@ -847,6 +1021,9 @@ public sealed partial class WorkspaceChromeHost
         return "Help";
     }
 
+    /// <summary>
+    /// Performs the command icon step owned by this component.
+    /// </summary>
     private static string CommandIcon(string name)
     {
         var value = name.ToLowerInvariant();
@@ -865,6 +1042,9 @@ public sealed partial class WorkspaceChromeHost
         return "commands";
     }
 
+    /// <summary>
+    /// Performs the category icon step owned by this component.
+    /// </summary>
     private static string CategoryIcon(string category) => category switch
     {
         "File" => "file",
@@ -876,6 +1056,9 @@ public sealed partial class WorkspaceChromeHost
         _ => "info"
     };
 
+    /// <summary>
+    /// Performs the queue model status update step owned by this component.
+    /// </summary>
     private void QueueModelStatusUpdate()
     {
         if (_modernShell is null) return;
@@ -909,6 +1092,9 @@ public sealed partial class WorkspaceChromeHost
         _modelRefreshIcon.Opacity = 0.68;
     }
 
+    /// <summary>
+    /// Performs confirm failure status async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ConfirmFailureStatusAsync(string candidate, CancellationToken cancellationToken)
     {
         try
@@ -929,6 +1115,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Performs show model refresh pulse async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ShowModelRefreshPulseAsync()
     {
         _modelRefreshIcon.Opacity = 1;
@@ -937,11 +1126,17 @@ public sealed partial class WorkspaceChromeHost
             await Dispatcher.UIThread.InvokeAsync(() => _modelRefreshIcon.Opacity = 0.68);
     }
 
+    /// <summary>
+    /// Reports whether is transient model status is true for the current state.
+    /// </summary>
     private static bool IsTransientModelStatus(string status) =>
         status.Contains("connecting", StringComparison.OrdinalIgnoreCase)
         || status.Contains("refreshing", StringComparison.OrdinalIgnoreCase)
         || status.Contains("loading", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Reports whether is failure model status is true for the current state.
+    /// </summary>
     private static bool IsFailureModelStatus(string status) =>
         status.Contains("unavailable", StringComparison.OrdinalIgnoreCase)
         || status.Contains("disconnected", StringComparison.OrdinalIgnoreCase)
@@ -949,6 +1144,9 @@ public sealed partial class WorkspaceChromeHost
         || status.Contains("failed", StringComparison.OrdinalIgnoreCase)
         || status.Contains("error", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the audit rail buttons step owned by this component.
+    /// </summary>
     private void AuditRailButtons()
     {
         if (_modernShell is null) return;
@@ -976,6 +1174,9 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
+    /// <summary>
+    /// Performs the make rail button direct step owned by this component.
+    /// </summary>
     private void MakeRailButtonDirect(Button button)
     {
         button.Flyout = null;
@@ -996,6 +1197,9 @@ public sealed partial class WorkspaceChromeHost
         };
     }
 
+    /// <summary>
+    /// Performs the rail icon key step owned by this component.
+    /// </summary>
     private static string? RailIconKey(Button button)
     {
         var fixedKey = button.Name switch
@@ -1016,6 +1220,9 @@ public sealed partial class WorkspaceChromeHost
         return SemanticIconForText(ToolTip.GetTip(button)?.ToString());
     }
 
+    /// <summary>
+    /// Performs the semantic icon for text step owned by this component.
+    /// </summary>
     private static string SemanticIconForText(string? value)
     {
         var text = value?.ToLowerInvariant() ?? string.Empty;
@@ -1031,6 +1238,9 @@ public sealed partial class WorkspaceChromeHost
         return "info";
     }
 
+    /// <summary>
+    /// Performs the modern resource brush step owned by this component.
+    /// </summary>
     private static IBrush ModernResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 

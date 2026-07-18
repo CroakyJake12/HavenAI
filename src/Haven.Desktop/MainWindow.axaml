@@ -1,3 +1,14 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/MainWindow.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.MainWindow. Its visual vocabulary includes: Window.Resources, ControlTheme, Setter, Style, Grid, Border, StackPanel, Button, Image, TextBlock, HavenIcon, Button.Flyout, MenuFlyout, MenuItem, MenuItem.Header, Menu, Separator, ScrollViewer, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, ItemsControl.ItemTemplate, DataTemplate, Button.ContextMenu, ContextMenu, Flyout, TextBox, UniformGrid, ContentControl, WrapPanel.
+  Data flow: Binding expressions read or update these view-model paths: ProductName, NavigateHomeCommand, NavigateChatCommand, NavigateCallCommand, NavigateDoCommand, NavigateStudioCommand, NavigateBrowserCommand, NavigatePlanCommand, NavigateTrainingCommand, FileNewLabel, NewChatCommand, SupportsConversationCommands, FileNewContainerLabel, NewContainerCommand, CurrentChat.NewLessonCommand, IsTeach, NavigateArchiveCommand, NavigateSettingsCommand, SupportsEditingCommands, UndoCurrentCommand, RedoCurrentCommand, SaveCurrentCommand, CopyLastResponseCommand, DictateCommand, ToggleSidebarCommand, OpenCommandPaletteCommand, RefreshModelsCommand, NavigateTeachCommand, BranchCurrentCommand, ToggleTemporaryCommand, CompactCurrentCommand, ArchiveCurrentCommand, ConfigureModelCommand, ProjectMenuHeader, NavigateProjectHomeCommand, IsProjectOpen, NewProjectChatCommand, NavigateCurrentChatCommand, ContainerSettingsLabel, NavigateContainerSettingsCommand, NavigateAgentsCommand, NavigatePluginsCommand, NavigatePromptsCommand, NavigateAutomationsCommand, NavigateMacrosCommand, HasLiveCall, OpenLiveCallCommand, LiveCallLabel, EndLiveCallCommand, OllamaStatus, IsHorizontalTabsVisible, OpenTabs, IsSelected, Title, IsCloseable, AddNewTabCommand, HasFullSidebar, IsChatProduct, ChatTypeLabel, ActiveProjectName, ActiveProjectRoot, NewItemLabel, SearchQuery, CurrentChat.SelectQuickChatsCommand, ContainerHeading, CurrentChat.Containers, Name, Lessons, HasPinnedConversations, PinnedConversations, IsActive, OpenCommand, IsNormal, Meta, TogglePinCommand, BeginRenameCommand, BranchCommand, ArchiveCommand, DeleteCommand, IsRenaming, DraftTitle, SaveRenameCommand, CancelRenameCommand, IsDeleteConfirming, CancelDeleteCommand, ConfirmDeleteCommand, RecentHeading, HasRecentConversations, ShowNoProjectChats, RecentConversations, PinLabel, ActiveProjectPage.RefreshCommand, ActiveProjectPage.Files, Folder, ActiveProjectPage.BuildCommand, ActiveProjectPage.TestCommand, HasCompactSidebar, IsWorkspaceHeaderVisible, IsSidebarClosed, WorkspaceEyebrow, WorkspaceTitle, CurrentPage, IsCommandPaletteOpen, CloseCommandPaletteCommand, CommandSearch, CommandItems, RunCommand, Description, Shortcut, IsRenameOpen, CancelRenameCurrentCommand, RenameDraft, SaveRenameCurrentCommand, IsDeleteConfirmationOpen, CancelDeleteCurrentCommand, ConfirmDeleteCurrentCommand, Notifications, Id, Message, CompanionDock.HasCards, CompanionDock.ToggleExpandCommand, CompanionDock.CardCount, CompanionDock.Cards, CompanionDock.IsCollapsed, IsPinned, SurfaceIcon, CompanionDock.IsExpanded, SurfaceLabel.
+  Interaction: Direct event handlers in this file are: OnWindowKeyDown, OnExitClicked, OnAboutClicked.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:Haven.Desktop.Controls"
@@ -11,30 +22,47 @@
         TransparencyLevelHint="Mica, AcrylicBlur, Blur"
         TransparencyBackgroundFallback="#181818">
 
+ <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
 	<Window.Resources>
 
 		<!-- Modern rounded icons (24×24 view box) — closed filled shapes for Avalonia PathIcon -->
 
+  <!-- Section: Hosts the ControlTheme portion of this view at this position in the visual tree. -->
 		<ControlTheme x:Key="MenuItemTheme"
 					  TargetType="MenuItem"
 					  BasedOn="{StaticResource {x:Type MenuItem}}">
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="Background" Value="Transparent" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="BorderBrush" Value="Transparent" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="BorderThickness" Value="0" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="CornerRadius" Value="6" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="Margin" Value="2,2" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="Padding" Value="14,10" />
+   <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 			<Setter Property="MinHeight" Value="40" />
+   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
 			<Style Selector="^:pointerover">
+    <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 				<Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
 			</Style>
+   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
 			<Style Selector="^:selected">
+    <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 				<Setter Property="Background" Value="{DynamicResource HavenPanelHoverBrush}" />
 			</Style>
+   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
 			<Style Selector="^:pressed">
+    <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 				<Setter Property="Background" Value="{DynamicResource HavenPanel3Brush}" />
 			</Style>
+   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
 			<Style Selector="^:disabled">
+    <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
 				<Setter Property="Opacity" Value="0.45" />
 			</Style>
 		</ControlTheme>
@@ -43,10 +71,12 @@
 
 
 	<!-- Main window layout: translucent title bar, tab strip and content surfaces over Mica. -->
+ <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 	<Grid RowDefinitions="58,48,*"
 		  Background="Transparent">
 
 		<!-- A light tint preserves contrast without hiding the Windows backdrop. -->
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 		<Border Grid.RowSpan="3"
 				Background="{DynamicResource HavenBackgroundBrush}"
 				IsHitTestVisible="False" />
@@ -56,13 +86,16 @@
          Left: Product logo dropdown + main menu bar
          Right: Ollama status indicator + sidebar toggle
          ============================================================ -->
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 		<Border Margin="0,4,4,0"
 				Background="Transparent"
 				BorderBrush="Transparent"
 				BorderThickness="0"
 				CornerRadius="8" Grid.Row="1">
+   <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 			<Grid ColumnDefinitions="Auto,*,Auto" Margin="12,0">
 				<!-- LEFT: Product logo + menu bar -->
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
 				<StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
 					<!-- Product logo dropdown — opens a menu to switch between Haven modes -->
 					<Button Classes="product">
@@ -532,6 +565,7 @@
 					</Menu>
 				</StackPanel>
 				<!-- RIGHT: Ollama status -->
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
 				<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
 					<Border Classes="statusPill" IsVisible="{Binding HasLiveCall}">
 						<Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="4">
@@ -578,11 +612,14 @@
          Scrollable row of open workspace tabs. Each tab shows title + close button.
          Hidden when no tabs are open (IsHorizontalTabsVisible).
          ============================================================ -->
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 		<Border Grid.Row="0"
 				Margin="10,3,10,5"
 				ClipToBounds="False"
 				IsVisible="{Binding IsHorizontalTabsVisible}">
+   <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 			<Grid RowDefinitions="*,Auto">
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 				<Border Grid.Row="0"
 						Background="{DynamicResource HavenPanelBrush}"
 						BorderBrush="{DynamicResource HavenLineBrush}"
@@ -647,6 +684,7 @@
          Left: Sidebar (276px, collapsible)
          Right: Page content area with workspace header
          ============================================================ -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 		<Grid Grid.Row="2"
 			  Margin="10,4,10,10"
 			  ColumnDefinitions="Auto,Auto,*"
@@ -655,12 +693,14 @@
 			<!-- ============================================================
            FULL SIDEBAR (260px wide)
            ============================================================ -->
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Width="276"
 					Background="{DynamicResource HavenElevatedBrush}"
 					BorderBrush="Transparent"
 					BorderThickness="0"
 					CornerRadius="12"
 					IsVisible="{Binding HasFullSidebar}">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 				<Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12,13,12,11">
 
 					<!-- Row 0: Sidebar identity — product name or project name -->
@@ -1291,6 +1331,7 @@
            COMPACT SIDEBAR (56px wide, icon-only)
            Shown when sidebar is collapsed but not in browse/training mode
            ============================================================ -->
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Grid.Column="1"
 					Width="56"
 					Background="{DynamicResource HavenElevatedBrush}"
@@ -1298,6 +1339,7 @@
 					BorderThickness="0"
 					CornerRadius="12"
 					IsVisible="{Binding HasCompactSidebar}">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 				<Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="6,10,6,8">
 					<!-- Expand button -->
 					<Button Classes="icon"
@@ -1342,6 +1384,7 @@
            Top: workspace header with breadcrumbs + actions
            Bottom: current page content (bound to CurrentPage ViewModel)
            ============================================================ -->
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Grid.Column="2"
 					Background="{DynamicResource HavenPanelBrush}"
 					BorderBrush="{DynamicResource HavenLineBrush}"
@@ -1349,6 +1392,7 @@
 					CornerRadius="24"
 					ClipToBounds="True"
 					BoxShadow="0 12 34 0 #42000000">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 				<Grid RowDefinitions="Auto,*">
 					<!-- Workspace header bar — shown when in a workspace (not home) -->
 					<Border Height="72"
@@ -1397,16 +1441,20 @@
          ============================================================ -->
 
 		<!-- Command Palette overlay — search bar + scrollable command list -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 		<Grid Grid.RowSpan="3"
 			  IsVisible="{Binding IsCommandPaletteOpen}">
+   <!-- Section: Exposes an explicit user action through a command or event handler. -->
 			<Button Background="{DynamicResource HavenPanelBrush}"
 					BorderThickness="0"
 					Command="{Binding CloseCommandPaletteCommand}" />
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Classes="card"
 					Width="700"
 					MaxHeight="650"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Center">
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 				<Grid RowDefinitions="Auto,Auto,*"
 					  RowSpacing="14">
 					<Grid ColumnDefinitions="Auto,*,Auto"
@@ -1514,15 +1562,19 @@
 
 
 		<!-- Rename dialog overlay — text input + save/cancel -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 		<Grid Grid.RowSpan="3"
 			  IsVisible="{Binding IsRenameOpen}">
+   <!-- Section: Exposes an explicit user action through a command or event handler. -->
 			<Button Background="{DynamicResource HavenPanelBrush}"
 					BorderThickness="0"
 					Command="{Binding CancelRenameCurrentCommand}" />
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Classes="card"
 					Width="450"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Center">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
 				<StackPanel Spacing="15">
 					<Grid ColumnDefinitions="Auto,*"
 						  ColumnSpacing="11">
@@ -1580,15 +1632,19 @@
 		</Grid>
 
 		<!-- Delete confirmation overlay — warning message + confirm/cancel -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 		<Grid Grid.RowSpan="3"
 			  IsVisible="{Binding IsDeleteConfirmationOpen}">
+   <!-- Section: Exposes an explicit user action through a command or event handler. -->
 			<Button Background="{DynamicResource HavenPanelBrush}"
 					BorderThickness="0"
 					Command="{Binding CancelDeleteCurrentCommand}" />
+   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Classes="card"
 					Width="470"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Center">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
 				<StackPanel Spacing="15">
 					<Grid ColumnDefinitions="Auto,*"
 						  ColumnSpacing="11">
@@ -1657,13 +1713,16 @@
          IsHitTestVisible=False on the container so toasts don't block
          clicks on the main UI. Individual cards are hit-testable.
          ============================================================ -->
+  <!-- Section: Projects a bound collection into repeated UI without code-behind manually creating controls. -->
 		<ItemsControl Grid.RowSpan="3"
 					  ItemsSource="{Binding Notifications}"
 					  HorizontalAlignment="Right"
 					  VerticalAlignment="Bottom"
 					  Margin="0,0,22,22"
 					  IsHitTestVisible="False">
+   <!-- Section: Projects a bound collection into repeated UI without code-behind manually creating controls. -->
 			<ItemsControl.ItemTemplate>
+    <!-- Section: Describes how one bound item is rendered while keeping its data object independent of Avalonia controls. -->
 				<DataTemplate>
 					<Border Background="{DynamicResource HavenPanel2Brush}"
 							BorderBrush="{DynamicResource HavenLineStrongBrush}"
@@ -1736,6 +1795,7 @@
              Collapsed by default; expandable to show card list and active card content.
              Cards support pin, close, resize, and expand to full surface.
              ============================================================ -->
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 		<Border Grid.Row="2"
 				HorizontalAlignment="Right"
 				VerticalAlignment="Bottom"
@@ -1749,9 +1809,11 @@
 				MaxWidth="280"
 				MaxHeight="340"
 				BoxShadow="0 8 24 0 #55000000">
+   <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
 			<Grid RowDefinitions="40,Auto,*">
 
 				<!-- Dock header: toggle + card count -->
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 				<Border Grid.Row="0"
 						Background="{DynamicResource HavenPanel2Brush}"
 						CornerRadius="16,16,0,0">
@@ -1791,6 +1853,7 @@
 				</Border>
 
 				<!-- Collapsed card indicators (dot row) -->
+    <!-- Section: Projects a bound collection into repeated UI without code-behind manually creating controls. -->
 				<ItemsControl Grid.Row="1"
 							  ItemsSource="{Binding CompanionDock.Cards}"
 							  IsVisible="{Binding CompanionDock.IsCollapsed}"
@@ -1823,6 +1886,7 @@
 				</ItemsControl>
 
 				<!-- Expanded card list + active card content -->
+    <!-- Section: Keeps the region usable when content exceeds the available window size. -->
 				<ScrollViewer Grid.Row="2"
 							  IsVisible="{Binding CompanionDock.IsExpanded}"
 							  VerticalScrollBarVisibility="Auto"

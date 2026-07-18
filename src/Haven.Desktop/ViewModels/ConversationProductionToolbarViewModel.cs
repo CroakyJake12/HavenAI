@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/ConversationProductionToolbarViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns ConversationExportFormat, ConversationExportRequest, ConversationProductionToolbarViewModel, ConversationBranchItemViewModel, ProviderModelChoiceViewModel, ConversationSearchResultViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Haven.Application;
 using Haven.Core;
@@ -5,6 +14,9 @@ using Haven.Infrastructure;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Lists the supported conversation export format values used to make state explicit and type-safe.
+/// </summary>
 public enum ConversationExportFormat
 {
     Markdown,
@@ -12,24 +24,75 @@ public enum ConversationExportFormat
     PlainText
 }
 
+/// <summary>
+/// Represents conversation export request and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationExportRequest(ConversationExportFormat Format, string Content, string SuggestedFileName);
 
+/// <summary>
+/// Represents conversation production toolbar view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationProductionToolbarViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores production locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationProductionRepository _production;
+    /// <summary>
+    /// Stores exports locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationExportService _exports;
+    /// <summary>
+    /// Stores sharing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ILocalConversationShareService _sharing;
+    /// <summary>
+    /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModelProviderRegistry _providers;
+    /// <summary>
+    /// Stores routing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ProviderRoutingModelClient _routing;
+    /// <summary>
+    /// Stores conversation id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid _conversationId;
+    /// <summary>
+    /// Stores selected branch locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ConversationBranchItemViewModel? _selectedBranch;
+    /// <summary>
+    /// Stores search query locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _searchQuery = string.Empty;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = "Conversation tools ready.";
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
+    /// <summary>
+    /// Stores is expanded locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isExpanded;
+    /// <summary>
+    /// Stores has active share locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _hasActiveShare;
+    /// <summary>
+    /// Stores share address locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _shareAddress = string.Empty;
+    /// <summary>
+    /// Stores share expires at locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DateTimeOffset? _shareExpiresAt;
+    /// <summary>
+    /// Stores suppress branch selection locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _suppressBranchSelection;
 
     public ConversationProductionToolbarViewModel(
@@ -57,23 +120,74 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         ToggleExpandedCommand = new RelayCommand(() => IsExpanded = !IsExpanded);
     }
 
+    /// <summary>
+    /// Stores branch changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? BranchChanged;
+    /// <summary>
+    /// Stores model selected locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event Action<ModelDescriptor>? ModelSelected;
+    /// <summary>
+    /// Stores export requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event Action<ConversationExportRequest>? ExportRequested;
 
+    /// <summary>
+    /// Gets or updates branches, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ConversationBranchItemViewModel> Branches { get; } = [];
+    /// <summary>
+    /// Gets or updates cloud models, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ProviderModelChoiceViewModel> CloudModels { get; } = [];
+    /// <summary>
+    /// Gets or updates search results, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ConversationSearchResultViewModel> SearchResults { get; } = [];
+    /// <summary>
+    /// Gets or updates refresh command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>
+    /// Creates branch command with the invariants required by its callers.
+    /// </summary>
     public AsyncRelayCommand CreateBranchCommand { get; }
+    /// <summary>
+    /// Gets or updates search command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SearchCommand { get; }
+    /// <summary>
+    /// Gets or updates clear search command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ClearSearchCommand { get; }
+    /// <summary>
+    /// Gets or updates export markdown command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ExportMarkdownCommand { get; }
+    /// <summary>
+    /// Gets or updates export json command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ExportJsonCommand { get; }
+    /// <summary>
+    /// Gets or updates export text command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ExportTextCommand { get; }
+    /// <summary>
+    /// Gets or updates start share command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand StartShareCommand { get; }
+    /// <summary>
+    /// Gets or updates stop share command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand StopShareCommand { get; }
+    /// <summary>
+    /// Gets or updates select cloud model command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<ProviderModelChoiceViewModel> SelectCloudModelCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle expanded command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleExpandedCommand { get; }
 
     public Guid ConversationId
@@ -108,6 +222,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public bool IsBusy
     {
@@ -118,15 +235,42 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
             RaiseCommandStates();
         }
     }
+    /// <summary>
+    /// Reports whether is expanded is true for the current state.
+    /// </summary>
     public bool IsExpanded { get => _isExpanded; set { if (SetProperty(ref _isExpanded, value)) RaisePropertyChanged(nameof(ExpandLabel)); } }
+    /// <summary>
+    /// Gets or updates expand label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ExpandLabel => IsExpanded ? "Hide conversation tools" : "Conversation tools";
+    /// <summary>
+    /// Gets or updates share address, the bindable or domain state represented by this property.
+    /// </summary>
     public string ShareAddress { get => _shareAddress; private set => SetProperty(ref _shareAddress, value); }
+    /// <summary>
+    /// Gets or updates share expires at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset? ShareExpiresAt { get => _shareExpiresAt; private set { if (SetProperty(ref _shareExpiresAt, value)) RaisePropertyChanged(nameof(ShareExpiryLabel)); } }
+    /// <summary>
+    /// Reports whether has active share is true for the current state.
+    /// </summary>
     public bool HasActiveShare => _hasActiveShare;
+    /// <summary>
+    /// Gets or updates share expiry label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ShareExpiryLabel => ShareExpiresAt is null ? string.Empty : $"Expires {ShareExpiresAt.Value.LocalDateTime:g}";
+    /// <summary>
+    /// Reports whether has search results is true for the current state.
+    /// </summary>
     public bool HasSearchResults => SearchResults.Count > 0;
+    /// <summary>
+    /// Reports whether has cloud models is true for the current state.
+    /// </summary>
     public bool HasCloudModels => CloudModels.Count > 0;
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         ConversationId = conversationId;
@@ -134,8 +278,14 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         await RefreshAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
         if (ConversationId == Guid.Empty) return;
@@ -179,6 +329,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Creates branch async with the invariants required by its callers.
+    /// </summary>
     private async Task CreateBranchAsync()
     {
         if (SelectedBranch is null) return;
@@ -210,6 +363,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs switch branch async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SwitchBranchAsync(ConversationBranchItemViewModel branch)
     {
         try
@@ -230,6 +386,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SearchAsync()
     {
         try
@@ -253,6 +412,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs the clear search step owned by this component.
+    /// </summary>
     private void ClearSearch()
     {
         SearchQuery = string.Empty;
@@ -260,6 +422,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         RaisePropertyChanged(nameof(HasSearchResults));
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ExportAsync(ConversationExportFormat format)
     {
         try
@@ -293,6 +458,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs start share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StartShareAsync()
     {
         try
@@ -312,6 +480,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs stop share async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StopShareAsync()
     {
         try
@@ -331,6 +502,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs the set share state step owned by this component.
+    /// </summary>
     private void SetShareState(bool isActive, string address, DateTimeOffset? expiresAt)
     {
         _hasActiveShare = isActive;
@@ -340,6 +514,9 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         RaiseCommandStates();
     }
 
+    /// <summary>
+    /// Performs the select cloud model step owned by this component.
+    /// </summary>
     private void SelectCloudModel(ProviderModelChoiceViewModel? item)
     {
         if (item is null) return;
@@ -347,8 +524,14 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         Status = $"Selected {item.DisplayName} from {item.ProviderName}.";
     }
 
+    /// <summary>
+    /// Reports whether can use conversation is true for the current state.
+    /// </summary>
     private bool CanUseConversation() => ConversationId != Guid.Empty && !IsBusy;
 
+    /// <summary>
+    /// Performs the raise command states step owned by this component.
+    /// </summary>
     private void RaiseCommandStates()
     {
         CreateBranchCommand.RaiseCanExecuteChanged();
@@ -360,28 +543,79 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents conversation branch item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationBranchItemViewModel(ConversationBranch branch) : ObservableObject
 {
+    /// <summary>
+    /// Stores is current locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isCurrent = branch.IsCurrent;
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => branch.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => branch.Name;
+    /// <summary>
+    /// Gets or updates reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string Reason => branch.Reason.ToString();
+    /// <summary>
+    /// Creates d label with the invariants required by its callers.
+    /// </summary>
     public string CreatedLabel => branch.CreatedAt.LocalDateTime.ToString("g");
+    /// <summary>
+    /// Reports whether is current is true for the current state.
+    /// </summary>
     public bool IsCurrent { get => _isCurrent; set { if (SetProperty(ref _isCurrent, value)) RaisePropertyChanged(nameof(DisplayName)); } }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => IsCurrent ? Name + " · current" : Name;
 }
 
+/// <summary>
+/// Represents provider model choice view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProviderModelChoiceViewModel(ProviderModelDescriptor Descriptor, ModelDescriptor CompatibilityDescriptor)
 {
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Descriptor.DisplayName) ? Descriptor.Name : Descriptor.DisplayName;
+    /// <summary>
+    /// Gets or updates provider name, the bindable or domain state represented by this property.
+    /// </summary>
     public string ProviderName => Descriptor.ProviderId;
+    /// <summary>
+    /// Gets or updates context label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ContextLabel => Descriptor.ContextWindow is null ? "Context unknown" : $"{Descriptor.ContextWindow:N0} context";
+    /// <summary>
+    /// Gets or updates capabilities, the bindable or domain state represented by this property.
+    /// </summary>
     public string Capabilities => string.Join(", ", Descriptor.Capabilities.OrderBy(item => item));
 }
 
+/// <summary>
+/// Represents conversation search result view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record ConversationSearchResultViewModel(ConversationSearchResult Result)
 {
+    /// <summary>
+    /// Gets or updates message id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid? MessageId => Result.MessageId;
+    /// <summary>
+    /// Gets or updates snippet, the bindable or domain state represented by this property.
+    /// </summary>
     public string Snippet => Result.Snippet;
+    /// <summary>
+    /// Gets or updates time label, the bindable or domain state represented by this property.
+    /// </summary>
     public string TimeLabel => Result.Timestamp.LocalDateTime.ToString("g");
 }

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/App.axaml.cs, in the Desktop composition layer, which starts and wires the Avalonia application.
+ * What: This file owns App. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -11,16 +20,40 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop;
 
+/// <summary>
+/// Represents app and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class App : Avalonia.Application
 {
+    /// <summary>
+    /// Stores services locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ServiceProvider? _services;
+    /// <summary>
+    /// Stores startup recovery locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IStartupRecoveryCoordinator? _startupRecovery;
+    /// <summary>
+    /// Stores production diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IProductionDiagnostics? _productionDiagnostics;
+    /// <summary>
+    /// Stores exception hooks attached locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _exceptionHooksAttached;
+    /// <summary>
+    /// Gets or updates services, the bindable or domain state represented by this property.
+    /// </summary>
     internal static IServiceProvider? Services { get; private set; }
 
+    /// <summary>
+    /// Performs the initialize step owned by this component.
+    /// </summary>
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
+    /// <summary>
+    /// Handles the framework initialization completed event raised by the UI or runtime.
+    /// </summary>
     public override void OnFrameworkInitializationCompleted()
     {
         var collection = new ServiceCollection();
@@ -88,6 +121,9 @@ public sealed partial class App : Avalonia.Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    /// <summary>
+    /// Performs initialise async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task InitialiseAsync(MainWindowViewModel vm)
     {
         var correlationId = Guid.NewGuid().ToString("N");
@@ -139,6 +175,9 @@ public sealed partial class App : Avalonia.Application
         }
     }
 
+    /// <summary>
+    /// Handles the desktop exit event raised by the UI or runtime.
+    /// </summary>
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         var services = _services;
@@ -174,6 +213,9 @@ public sealed partial class App : Avalonia.Application
         }
     }
 
+    /// <summary>
+    /// Performs the attach exception hooks step owned by this component.
+    /// </summary>
     private void AttachExceptionHooks()
     {
         if (_exceptionHooksAttached) return;
@@ -182,6 +224,9 @@ public sealed partial class App : Avalonia.Application
         _exceptionHooksAttached = true;
     }
 
+    /// <summary>
+    /// Performs the detach exception hooks step owned by this component.
+    /// </summary>
     private void DetachExceptionHooks()
     {
         if (!_exceptionHooksAttached) return;
@@ -190,6 +235,9 @@ public sealed partial class App : Avalonia.Application
         _exceptionHooksAttached = false;
     }
 
+    /// <summary>
+    /// Handles the unhandled exception event raised by the UI or runtime.
+    /// </summary>
     private void OnUnhandledException(object sender, UnhandledExceptionEventArgs eventArgs)
     {
         var exception = eventArgs.ExceptionObject as Exception
@@ -204,6 +252,9 @@ public sealed partial class App : Avalonia.Application
         catch { }
     }
 
+    /// <summary>
+    /// Handles the unobserved task exception event raised by the UI or runtime.
+    /// </summary>
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs eventArgs)
     {
         try
@@ -217,6 +268,9 @@ public sealed partial class App : Avalonia.Application
         }
     }
 
+    /// <summary>
+    /// Performs log exception async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LogExceptionAsync(string eventName, Exception exception, string correlationId)
     {
         if (_productionDiagnostics is null) return;

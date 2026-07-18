@@ -1,12 +1,30 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/RecoverySafetyProbeTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns RecoverySafetyProbeTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents recovery safety probe tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class RecoverySafetyProbeTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the missing state allows background worker step owned by this component.
+    /// </summary>
     [Fact]
     public async Task MissingStateAllowsBackgroundWorker()
     {
@@ -19,6 +37,9 @@ public sealed class RecoverySafetyProbeTests : IDisposable
         Assert.Equal(0, result.RecentUncleanStarts);
     }
 
+    /// <summary>
+    /// Performs the repeated unclean desktop starts block background worker step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RepeatedUncleanDesktopStartsBlockBackgroundWorker()
     {
@@ -38,6 +59,9 @@ public sealed class RecoverySafetyProbeTests : IDisposable
         Assert.Contains("automation", result.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs the corrupt state fails closed without modifying the file step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CorruptStateFailsClosedWithoutModifyingTheFile()
     {
@@ -53,6 +77,9 @@ public sealed class RecoverySafetyProbeTests : IDisposable
         Assert.Equal(corrupt, await File.ReadAllTextAsync(statePath, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the confirmed clean shutdown removes cross process block step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConfirmedCleanShutdownRemovesCrossProcessBlock()
     {
@@ -74,12 +101,18 @@ public sealed class RecoverySafetyProbeTests : IDisposable
         Assert.Equal(0, result.RecentUncleanStarts);
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         RuntimeSafetyState.DisableSafeMode();
         _paths.Dispose();
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -94,13 +127,34 @@ public sealed class RecoverySafetyProbeTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

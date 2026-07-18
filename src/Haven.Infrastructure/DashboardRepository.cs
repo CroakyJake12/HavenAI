@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/DashboardRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns DashboardRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using Haven.Application;
 using Haven.Core;
@@ -11,6 +20,9 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDashboardRepository
 {
+    /// <summary>
+    /// Retrieves snapshot async for the current operation.
+    /// </summary>
     public async Task<DashboardSnapshot> GetSnapshotAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var localDayStart = new DateTimeOffset(now.Date, now.Offset);
@@ -41,6 +53,9 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
             recent);
     }
 
+    /// <summary>
+    /// Performs read counters async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<Counters> ReadCountersAsync(
         SqliteConnection connection,
         DateTimeOffset dayStart,
@@ -78,6 +93,9 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
             reader.GetInt32(10), reader.GetInt64(11));
     }
 
+    /// <summary>
+    /// Performs read agenda async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<DashboardAgendaItem>> ReadAgendaAsync(
         SqliteConnection connection,
         DateTimeOffset now,
@@ -111,6 +129,9 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
         return result;
     }
 
+    /// <summary>
+    /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<DashboardWorkItem>> ReadRecentAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -145,12 +166,21 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
         return result;
     }
 
+    /// <summary>
+    /// Performs the add step owned by this component.
+    /// </summary>
     private static void Add(SqliteCommand command, string name, DateTimeOffset value) =>
         command.Parameters.AddWithValue(name, value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
 
+    /// <summary>
+    /// Performs the parse date step owned by this component.
+    /// </summary>
     private static DateTimeOffset ParseDate(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
+    /// <summary>
+    /// Represents counters and keeps its related state and behavior together.
+    /// </summary>
     private readonly record struct Counters(
         int ConversationsToday,
         int MessagesThisWeek,

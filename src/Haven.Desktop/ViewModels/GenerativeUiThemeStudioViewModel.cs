@@ -1,40 +1,142 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/GenerativeUiThemeStudioViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns GenerativeUiThemeStudioViewModel, ThemeCardViewModel, ThemePlacementEditorViewModel, GeneratedPageEditorViewModel, ThemePaletteEditorViewModel, ThemeExportRequestedEventArgs, ObservableCollectionExtensions. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents generative ui theme studio view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores store locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IGenerativeThemeStore _store;
+    /// <summary>
+    /// Stores runtime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IGenerativeUiRuntime _runtime;
+    /// <summary>
+    /// Stores ai locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IGenerativeThemeAiService _ai;
+    /// <summary>
+    /// Stores validator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IGenerativeThemeValidator _validator;
+    /// <summary>
+    /// Stores models locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _models;
+    /// <summary>
+    /// Stores selected appearance locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private GenerativeThemeAppearance _selectedAppearance;
+    /// <summary>
+    /// Stores selected model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ModelDescriptor? _selectedModel;
+    /// <summary>
+    /// Stores ai prompt locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _aiPrompt = string.Empty;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = string.Empty;
+    /// <summary>
+    /// Stores proposal summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _proposalSummary = string.Empty;
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
+    /// <summary>
+    /// Stores is studio open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isStudioOpen;
+    /// <summary>
+    /// Stores studio tab index locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _studioTabIndex;
+    /// <summary>
+    /// Stores draft theme locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private GenerativeThemePack? _draftTheme;
+    /// <summary>
+    /// Stores rename candidate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ThemeCardViewModel? _renameCandidate;
+    /// <summary>
+    /// Stores delete candidate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ThemeCardViewModel? _deleteCandidate;
+    /// <summary>
+    /// Stores rename text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _renameText = string.Empty;
+    /// <summary>
+    /// Stores draft name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _draftName = string.Empty;
+    /// <summary>
+    /// Stores draft description locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _draftDescription = string.Empty;
+    /// <summary>
+    /// Stores draft author locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _draftAuthor = "Created with Haven Studio";
+    /// <summary>
+    /// Stores draft font family locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _draftFontFamily = "Segoe UI Variable, Segoe UI, Montserrat, sans-serif";
+    /// <summary>
+    /// Stores draft base font size locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftBaseFontSize = 14;
+    /// <summary>
+    /// Stores draft heading scale locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftHeadingScale = 1.35;
+    /// <summary>
+    /// Stores draft letter spacing locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftLetterSpacing;
+    /// <summary>
+    /// Stores draft control radius locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftControlRadius = 10;
+    /// <summary>
+    /// Stores draft card radius locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftCardRadius = 14;
+    /// <summary>
+    /// Stores draft surface radius locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftSurfaceRadius = 16;
+    /// <summary>
+    /// Stores draft spacing scale locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _draftSpacingScale = 1;
+    /// <summary>
+    /// Stores draft show card borders locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _draftShowCardBorders;
+    /// <summary>
+    /// Stores draft use acrylic locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _draftUseAcrylic = true;
 
     public GenerativeUiThemeStudioViewModel(
@@ -67,29 +169,101 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         DarkPalette = new ThemePaletteEditorViewModel();
     }
 
+    /// <summary>
+    /// Gets or updates themes, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ThemeCardViewModel> Themes { get; } = [];
+    /// <summary>
+    /// Gets or updates models, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ModelDescriptor> Models { get; } = [];
+    /// <summary>
+    /// Gets or updates placements, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ThemePlacementEditorViewModel> Placements { get; } = [];
+    /// <summary>
+    /// Gets or updates pages, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<GeneratedPageEditorViewModel> Pages { get; } = [];
+    /// <summary>
+    /// Gets or updates appearances, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<GenerativeThemeAppearance> Appearances { get; } = Enum.GetValues<GenerativeThemeAppearance>();
+    /// <summary>
+    /// Gets or updates presentations, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> Presentations { get; } = ["default", "compact", "labelled", "icon"];
+    /// <summary>
+    /// Gets or updates light palette, the bindable or domain state represented by this property.
+    /// </summary>
     public ThemePaletteEditorViewModel LightPalette { get; }
+    /// <summary>
+    /// Gets or updates dark palette, the bindable or domain state represented by this property.
+    /// </summary>
     public ThemePaletteEditorViewModel DarkPalette { get; }
+    /// <summary>
+    /// Gets or updates refresh command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshCommand { get; }
+    /// <summary>
+    /// Creates with studio command with the invariants required by its callers.
+    /// </summary>
     public RelayCommand CreateWithStudioCommand { get; }
+    /// <summary>
+    /// Gets or updates generate with ai command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand GenerateWithAiCommand { get; }
+    /// <summary>
+    /// Gets or updates preview manual command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand PreviewManualCommand { get; }
+    /// <summary>
+    /// Gets or updates save and apply command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SaveAndApplyCommand { get; }
+    /// <summary>
+    /// Reports whether cancel studio command is true for the current state.
+    /// </summary>
     public AsyncRelayCommand CancelStudioCommand { get; }
+    /// <summary>
+    /// Gets or updates confirm rename command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ConfirmRenameCommand { get; }
+    /// <summary>
+    /// Reports whether cancel rename command is true for the current state.
+    /// </summary>
     public RelayCommand CancelRenameCommand { get; }
+    /// <summary>
+    /// Gets or updates confirm delete command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ConfirmDeleteCommand { get; }
+    /// <summary>
+    /// Reports whether cancel delete command is true for the current state.
+    /// </summary>
     public RelayCommand CancelDeleteCommand { get; }
+    /// <summary>
+    /// Gets or updates add timer page command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand AddTimerPageCommand { get; }
+    /// <summary>
+    /// Gets or updates add shortcut page command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand AddShortcutPageCommand { get; }
+    /// <summary>
+    /// Gets or updates remove page command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<GeneratedPageEditorViewModel> RemovePageCommand { get; }
+    /// <summary>
+    /// Gets or updates import requested command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ImportRequestedCommand { get; }
+    /// <summary>
+    /// Stores export requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<ThemeExportRequestedEventArgs>? ExportRequested;
+    /// <summary>
+    /// Stores import requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? ImportRequested;
 
     public GenerativeThemeAppearance SelectedAppearance
@@ -119,9 +293,21 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
             GenerateWithAiCommand.RaiseCanExecuteChanged();
         }
     }
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Gets or updates proposal summary, the bindable or domain state represented by this property.
+    /// </summary>
     public string ProposalSummary { get => _proposalSummary; private set => SetProperty(ref _proposalSummary, value); }
+    /// <summary>
+    /// Gets or updates proposal changes, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<string> ProposalChanges { get; } = [];
+    /// <summary>
+    /// Gets or updates safety notes, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<string> SafetyNotes { get; } = [];
     public bool IsBusy
     {
@@ -141,7 +327,13 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
             RaiseCommandStates();
         }
     }
+    /// <summary>
+    /// Gets or updates studio tab index, the bindable or domain state represented by this property.
+    /// </summary>
     public int StudioTabIndex { get => _studioTabIndex; set => SetProperty(ref _studioTabIndex, value); }
+    /// <summary>
+    /// Reports whether is renaming is true for the current state.
+    /// </summary>
     public bool IsRenaming => RenameCandidate is not null;
     public ThemeCardViewModel? RenameCandidate
     {
@@ -162,6 +354,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
             ConfirmRenameCommand.RaiseCanExecuteChanged();
         }
     }
+    /// <summary>
+    /// Reports whether is delete confirming is true for the current state.
+    /// </summary>
     public bool IsDeleteConfirming => DeleteCandidate is not null;
     public ThemeCardViewModel? DeleteCandidate
     {
@@ -174,20 +369,62 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Gets or updates draft name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DraftName { get => _draftName; set => SetProperty(ref _draftName, value); }
+    /// <summary>
+    /// Gets or updates draft description, the bindable or domain state represented by this property.
+    /// </summary>
     public string DraftDescription { get => _draftDescription; set => SetProperty(ref _draftDescription, value); }
+    /// <summary>
+    /// Gets or updates draft author, the bindable or domain state represented by this property.
+    /// </summary>
     public string DraftAuthor { get => _draftAuthor; set => SetProperty(ref _draftAuthor, value); }
+    /// <summary>
+    /// Gets or updates draft font family, the bindable or domain state represented by this property.
+    /// </summary>
     public string DraftFontFamily { get => _draftFontFamily; set => SetProperty(ref _draftFontFamily, value); }
+    /// <summary>
+    /// Gets or updates draft base font size, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftBaseFontSize { get => _draftBaseFontSize; set => SetProperty(ref _draftBaseFontSize, value); }
+    /// <summary>
+    /// Gets or updates draft heading scale, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftHeadingScale { get => _draftHeadingScale; set => SetProperty(ref _draftHeadingScale, value); }
+    /// <summary>
+    /// Gets or updates draft letter spacing, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftLetterSpacing { get => _draftLetterSpacing; set => SetProperty(ref _draftLetterSpacing, value); }
+    /// <summary>
+    /// Gets or updates draft control radius, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftControlRadius { get => _draftControlRadius; set => SetProperty(ref _draftControlRadius, value); }
+    /// <summary>
+    /// Gets or updates draft card radius, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftCardRadius { get => _draftCardRadius; set => SetProperty(ref _draftCardRadius, value); }
+    /// <summary>
+    /// Gets or updates draft surface radius, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftSurfaceRadius { get => _draftSurfaceRadius; set => SetProperty(ref _draftSurfaceRadius, value); }
+    /// <summary>
+    /// Gets or updates draft spacing scale, the bindable or domain state represented by this property.
+    /// </summary>
     public double DraftSpacingScale { get => _draftSpacingScale; set => SetProperty(ref _draftSpacingScale, value); }
+    /// <summary>
+    /// Gets or updates draft show card borders, the bindable or domain state represented by this property.
+    /// </summary>
     public bool DraftShowCardBorders { get => _draftShowCardBorders; set => SetProperty(ref _draftShowCardBorders, value); }
+    /// <summary>
+    /// Gets or updates draft use acrylic, the bindable or domain state represented by this property.
+    /// </summary>
     public bool DraftUseAcrylic { get => _draftUseAcrylic; set => SetProperty(ref _draftUseAcrylic, value); }
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         if (!_runtime.ActiveTheme?.Equals(null) ?? false)
@@ -197,6 +434,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         await RefreshAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         try
@@ -214,6 +454,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ExportAsync(Guid themeId, string destinationDirectory, CancellationToken cancellationToken)
     {
         try
@@ -226,8 +469,14 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
+    /// <summary>
+    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
         try
@@ -267,6 +516,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs apply theme async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyThemeAsync(ThemeCardViewModel card)
     {
         try
@@ -280,6 +532,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs apply appearance async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyAppearanceAsync(GenerativeThemeAppearance appearance)
     {
         if (IsBusy) return;
@@ -294,6 +549,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Creates new theme with the invariants required by its callers.
+    /// </summary>
     private void CreateNewTheme()
     {
         var source = _runtime.ActiveTheme;
@@ -314,6 +572,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         Status = "Theme Studio opened. Generate with AI or configure the validated manifest manually.";
     }
 
+    /// <summary>
+    /// Performs the open edit studio step owned by this component.
+    /// </summary>
     private void OpenEditStudio(ThemeCardViewModel card)
     {
         SetDraft(card.Theme.IsBuiltIn
@@ -332,6 +593,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         Status = card.Theme.IsBuiltIn ? "Built-in themes are immutable, so Studio created an editable copy." : "Editing custom theme.";
     }
 
+    /// <summary>
+    /// Performs the duplicate theme step owned by this component.
+    /// </summary>
     private void DuplicateTheme(ThemeCardViewModel card)
     {
         SetDraft(card.Theme with
@@ -348,6 +612,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         Status = "Editable theme copy created. Save and apply after review.";
     }
 
+    /// <summary>
+    /// Performs the begin rename step owned by this component.
+    /// </summary>
     private void BeginRename(ThemeCardViewModel card)
     {
         if (card.Theme.IsBuiltIn) return;
@@ -355,6 +622,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         RenameText = card.Theme.Name;
     }
 
+    /// <summary>
+    /// Performs confirm rename async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ConfirmRenameAsync()
     {
         if (RenameCandidate is null) return;
@@ -370,17 +640,26 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Reports whether cancel rename is true for the current state.
+    /// </summary>
     private void CancelRename()
     {
         RenameCandidate = null;
         RenameText = string.Empty;
     }
 
+    /// <summary>
+    /// Performs the begin delete step owned by this component.
+    /// </summary>
     private void BeginDelete(ThemeCardViewModel card)
     {
         if (!card.Theme.IsBuiltIn) DeleteCandidate = card;
     }
 
+    /// <summary>
+    /// Performs confirm delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ConfirmDeleteAsync()
     {
         if (DeleteCandidate is null) return;
@@ -398,11 +677,20 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Reports whether cancel delete is true for the current state.
+    /// </summary>
     private void CancelDelete() => DeleteCandidate = null;
 
+    /// <summary>
+    /// Performs the request export step owned by this component.
+    /// </summary>
     private void RequestExport(ThemeCardViewModel card) =>
         ExportRequested?.Invoke(this, new ThemeExportRequestedEventArgs(card.Theme.Id, card.Theme.Name));
 
+    /// <summary>
+    /// Performs generate with ai async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task GenerateWithAiAsync()
     {
         if (SelectedModel is null) return;
@@ -427,6 +715,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs preview manual async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PreviewManualAsync()
     {
         try
@@ -448,6 +739,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs save and apply async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveAndApplyAsync()
     {
         try
@@ -471,6 +765,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Reports whether cancel studio async is true for the current state.
+    /// </summary>
     private async Task CancelStudioAsync()
     {
         try
@@ -487,6 +784,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs the add timer page step owned by this component.
+    /// </summary>
     private void AddTimerPage()
     {
         var pageNumber = Pages.Count + 1;
@@ -500,6 +800,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         Status = "Added a functional timer page to the draft.";
     }
 
+    /// <summary>
+    /// Performs the add shortcut page step owned by this component.
+    /// </summary>
     private void AddShortcutPage()
     {
         Pages.Add(new GeneratedPageEditorViewModel(new GeneratedPageDefinition(
@@ -512,11 +815,17 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         Status = "Added a functional shortcut page to the draft.";
     }
 
+    /// <summary>
+    /// Performs the remove page step owned by this component.
+    /// </summary>
     private void RemovePage(GeneratedPageEditorViewModel? page)
     {
         if (page is not null) Pages.Remove(page);
     }
 
+    /// <summary>
+    /// Performs the set draft step owned by this component.
+    /// </summary>
     private void SetDraft(GenerativeThemePack theme)
     {
         _draftTheme = theme;
@@ -546,6 +855,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         foreach (var page in theme.Pages) Pages.Add(new GeneratedPageEditorViewModel(page));
     }
 
+    /// <summary>
+    /// Attempts to build draft and reports the result without using failure for normal control flow.
+    /// </summary>
     private bool TryBuildDraft(out IReadOnlyList<string> issues)
     {
         try
@@ -561,6 +873,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Builds draft from the currently available inputs.
+    /// </summary>
     private GenerativeThemePack BuildDraft()
     {
         var source = _draftTheme ?? _runtime.ActiveTheme with
@@ -588,6 +903,9 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         };
     }
 
+    /// <summary>
+    /// Performs the raise command states step owned by this component.
+    /// </summary>
     private void RaiseCommandStates()
     {
         RefreshCommand.RaiseCanExecuteChanged();
@@ -599,8 +917,14 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents theme card view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ThemeCardViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isActive;
 
     public ThemeCardViewModel(
@@ -623,29 +947,92 @@ public sealed class ThemeCardViewModel : ObservableObject
         ExportCommand = new RelayCommand(() => export(this));
     }
 
+    /// <summary>
+    /// Gets or updates theme, the bindable or domain state represented by this property.
+    /// </summary>
     public GenerativeThemePack Theme { get; }
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => Theme.Name;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => Theme.Description;
+    /// <summary>
+    /// Gets or updates origin label, the bindable or domain state represented by this property.
+    /// </summary>
     public string OriginLabel => Theme.IsBuiltIn ? "Built in" : Theme.Origin.ToString();
+    /// <summary>
+    /// Gets or updates pages label, the bindable or domain state represented by this property.
+    /// </summary>
     public string PagesLabel => Theme.Pages.Count == 0 ? "No generated pages" : $"{Theme.Pages.Count} generated page{(Theme.Pages.Count == 1 ? string.Empty : "s")}";
+    /// <summary>
+    /// Gets or updates light preview, the bindable or domain state represented by this property.
+    /// </summary>
     public string LightPreview => Theme.Light.Background;
+    /// <summary>
+    /// Gets or updates dark preview, the bindable or domain state represented by this property.
+    /// </summary>
     public string DarkPreview => Theme.Dark.Background;
+    /// <summary>
+    /// Gets or updates accent preview, the bindable or domain state represented by this property.
+    /// </summary>
     public string AccentPreview => Theme.Dark.Accent;
+    /// <summary>
+    /// Reports whether is custom is true for the current state.
+    /// </summary>
     public bool IsCustom => !Theme.IsBuiltIn;
+    /// <summary>
+    /// Reports whether is active is true for the current state.
+    /// </summary>
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
+    /// <summary>
+    /// Gets or updates apply command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ApplyCommand { get; }
+    /// <summary>
+    /// Gets or updates edit command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand EditCommand { get; }
+    /// <summary>
+    /// Gets or updates duplicate command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DuplicateCommand { get; }
+    /// <summary>
+    /// Gets or updates rename command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand RenameCommand { get; }
+    /// <summary>
+    /// Gets or updates delete command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DeleteCommand { get; }
+    /// <summary>
+    /// Gets or updates export command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ExportCommand { get; }
 }
 
+/// <summary>
+/// Represents theme placement editor view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ThemePlacementEditorViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores region locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _region;
+    /// <summary>
+    /// Stores order locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _order;
+    /// <summary>
+    /// Stores is visible locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isVisible;
+    /// <summary>
+    /// Stores presentation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _presentation;
 
     public ThemePlacementEditorViewModel(GenerativeUiCatalogItem item, GenerativeUiPlacement placement)
@@ -657,23 +1044,68 @@ public sealed class ThemePlacementEditorViewModel : ObservableObject
         _presentation = placement.Presentation;
     }
 
+    /// <summary>
+    /// Gets or updates item, the bindable or domain state represented by this property.
+    /// </summary>
     public GenerativeUiCatalogItem Item { get; }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => Item.DisplayName;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => Item.Description;
+    /// <summary>
+    /// Gets or updates allowed regions, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> AllowedRegions => Item.AllowedRegions;
+    /// <summary>
+    /// Reports whether can hide is true for the current state.
+    /// </summary>
     public bool CanHide => Item.CanHide;
+    /// <summary>
+    /// Gets or updates region, the bindable or domain state represented by this property.
+    /// </summary>
     public string Region { get => _region; set => SetProperty(ref _region, value); }
+    /// <summary>
+    /// Gets or updates order, the bindable or domain state represented by this property.
+    /// </summary>
     public int Order { get => _order; set => SetProperty(ref _order, value); }
+    /// <summary>
+    /// Reports whether is visible is true for the current state.
+    /// </summary>
     public bool IsVisible { get => _isVisible; set => SetProperty(ref _isVisible, value); }
+    /// <summary>
+    /// Gets or updates presentation, the bindable or domain state represented by this property.
+    /// </summary>
     public string Presentation { get => _presentation; set => SetProperty(ref _presentation, value); }
+    /// <summary>
+    /// Performs the to placement step owned by this component.
+    /// </summary>
     public GenerativeUiPlacement ToPlacement() => new(Item.Id, Region, Order, IsVisible, Presentation);
 }
 
+/// <summary>
+/// Represents generated page editor view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class GeneratedPageEditorViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _title;
+    /// <summary>
+    /// Stores description locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _description;
+    /// <summary>
+    /// Stores icon key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _iconKey;
+    /// <summary>
+    /// Stores order locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _order;
 
     public GeneratedPageEditorViewModel(GeneratedPageDefinition definition)
@@ -685,47 +1117,158 @@ public sealed class GeneratedPageEditorViewModel : ObservableObject
         _order = definition.Order;
     }
 
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public GeneratedPageDefinition Definition { get; }
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public string Id => Definition.Id;
+    /// <summary>
+    /// Gets or updates title, the bindable or domain state represented by this property.
+    /// </summary>
     public string Title { get => _title; set => SetProperty(ref _title, value); }
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description { get => _description; set => SetProperty(ref _description, value); }
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey { get => _iconKey; set => SetProperty(ref _iconKey, value); }
+    /// <summary>
+    /// Gets or updates order, the bindable or domain state represented by this property.
+    /// </summary>
     public int Order { get => _order; set => SetProperty(ref _order, value); }
+    /// <summary>
+    /// Gets or updates widget summary, the bindable or domain state represented by this property.
+    /// </summary>
     public string WidgetSummary => string.Join(", ", Definition.Widgets.Select(widget => widget.Kind.ToString()));
+    /// <summary>
+    /// Performs the to definition step owned by this component.
+    /// </summary>
     public GeneratedPageDefinition ToDefinition() => Definition with { Title = Title, Description = Description, IconKey = IconKey, Order = Order };
 }
 
+/// <summary>
+/// Represents theme palette editor view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ThemePaletteEditorViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores values locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<string, string> _values = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets or updates background, the bindable or domain state represented by this property.
+    /// </summary>
     public string Background { get => Get(nameof(Background)); set => Set(nameof(Background), value); }
+    /// <summary>
+    /// Gets or updates elevated, the bindable or domain state represented by this property.
+    /// </summary>
     public string Elevated { get => Get(nameof(Elevated)); set => Set(nameof(Elevated), value); }
+    /// <summary>
+    /// Gets or updates panel, the bindable or domain state represented by this property.
+    /// </summary>
     public string Panel { get => Get(nameof(Panel)); set => Set(nameof(Panel), value); }
+    /// <summary>
+    /// Gets or updates panel2, the bindable or domain state represented by this property.
+    /// </summary>
     public string Panel2 { get => Get(nameof(Panel2)); set => Set(nameof(Panel2), value); }
+    /// <summary>
+    /// Gets or updates panel3, the bindable or domain state represented by this property.
+    /// </summary>
     public string Panel3 { get => Get(nameof(Panel3)); set => Set(nameof(Panel3), value); }
+    /// <summary>
+    /// Gets or updates panel hover, the bindable or domain state represented by this property.
+    /// </summary>
     public string PanelHover { get => Get(nameof(PanelHover)); set => Set(nameof(PanelHover), value); }
+    /// <summary>
+    /// Gets or updates text, the bindable or domain state represented by this property.
+    /// </summary>
     public string Text { get => Get(nameof(Text)); set => Set(nameof(Text), value); }
+    /// <summary>
+    /// Gets or updates text soft, the bindable or domain state represented by this property.
+    /// </summary>
     public string TextSoft { get => Get(nameof(TextSoft)); set => Set(nameof(TextSoft), value); }
+    /// <summary>
+    /// Gets or updates muted, the bindable or domain state represented by this property.
+    /// </summary>
     public string Muted { get => Get(nameof(Muted)); set => Set(nameof(Muted), value); }
+    /// <summary>
+    /// Gets or updates muted2, the bindable or domain state represented by this property.
+    /// </summary>
     public string Muted2 { get => Get(nameof(Muted2)); set => Set(nameof(Muted2), value); }
+    /// <summary>
+    /// Gets or updates accent, the bindable or domain state represented by this property.
+    /// </summary>
     public string Accent { get => Get(nameof(Accent)); set => Set(nameof(Accent), value); }
+    /// <summary>
+    /// Gets or updates accent ink, the bindable or domain state represented by this property.
+    /// </summary>
     public string AccentInk { get => Get(nameof(AccentInk)); set => Set(nameof(AccentInk), value); }
+    /// <summary>
+    /// Gets or updates accent soft, the bindable or domain state represented by this property.
+    /// </summary>
     public string AccentSoft { get => Get(nameof(AccentSoft)); set => Set(nameof(AccentSoft), value); }
+    /// <summary>
+    /// Gets or updates blue, the bindable or domain state represented by this property.
+    /// </summary>
     public string Blue { get => Get(nameof(Blue)); set => Set(nameof(Blue), value); }
+    /// <summary>
+    /// Gets or updates blue soft, the bindable or domain state represented by this property.
+    /// </summary>
     public string BlueSoft { get => Get(nameof(BlueSoft)); set => Set(nameof(BlueSoft), value); }
+    /// <summary>
+    /// Gets or updates danger, the bindable or domain state represented by this property.
+    /// </summary>
     public string Danger { get => Get(nameof(Danger)); set => Set(nameof(Danger), value); }
+    /// <summary>
+    /// Gets or updates warning, the bindable or domain state represented by this property.
+    /// </summary>
     public string Warning { get => Get(nameof(Warning)); set => Set(nameof(Warning), value); }
+    /// <summary>
+    /// Gets or updates line, the bindable or domain state represented by this property.
+    /// </summary>
     public string Line { get => Get(nameof(Line)); set => Set(nameof(Line), value); }
+    /// <summary>
+    /// Gets or updates line strong, the bindable or domain state represented by this property.
+    /// </summary>
     public string LineStrong { get => Get(nameof(LineStrong)); set => Set(nameof(LineStrong), value); }
+    /// <summary>
+    /// Gets or updates nub, the bindable or domain state represented by this property.
+    /// </summary>
     public string Nub { get => Get(nameof(Nub)); set => Set(nameof(Nub), value); }
+    /// <summary>
+    /// Gets or updates acrylic tint, the bindable or domain state represented by this property.
+    /// </summary>
     public string AcrylicTint { get => Get(nameof(AcrylicTint)); set => Set(nameof(AcrylicTint), value); }
+    /// <summary>
+    /// Gets or updates acrylic fallback, the bindable or domain state represented by this property.
+    /// </summary>
     public string AcrylicFallback { get => Get(nameof(AcrylicFallback)); set => Set(nameof(AcrylicFallback), value); }
+    /// <summary>
+    /// Gets or updates button, the bindable or domain state represented by this property.
+    /// </summary>
     public string Button { get => Get(nameof(Button)); set => Set(nameof(Button), value); }
+    /// <summary>
+    /// Gets or updates button hover, the bindable or domain state represented by this property.
+    /// </summary>
     public string ButtonHover { get => Get(nameof(ButtonHover)); set => Set(nameof(ButtonHover), value); }
+    /// <summary>
+    /// Gets or updates button pressed, the bindable or domain state represented by this property.
+    /// </summary>
     public string ButtonPressed { get => Get(nameof(ButtonPressed)); set => Set(nameof(ButtonPressed), value); }
+    /// <summary>
+    /// Gets or updates focus, the bindable or domain state represented by this property.
+    /// </summary>
     public string Focus { get => Get(nameof(Focus)); set => Set(nameof(Focus), value); }
 
+    /// <summary>
+    /// Performs the load step owned by this component.
+    /// </summary>
     public void Load(GenerativeThemePalette palette)
     {
         _values[nameof(Background)] = palette.Background;
@@ -757,12 +1300,21 @@ public sealed class ThemePaletteEditorViewModel : ObservableObject
         foreach (var key in _values.Keys.ToArray()) RaisePropertyChanged(key);
     }
 
+    /// <summary>
+    /// Performs the to palette step owned by this component.
+    /// </summary>
     public GenerativeThemePalette ToPalette() => new(
         Background, Elevated, Panel, Panel2, Panel3, PanelHover, Text, TextSoft, Muted, Muted2,
         Accent, AccentInk, AccentSoft, Blue, BlueSoft, Danger, Warning, Line, LineStrong, Nub,
         AcrylicTint, AcrylicFallback, Button, ButtonHover, ButtonPressed, Focus);
 
+    /// <summary>
+    /// Retrieves this member for the current operation.
+    /// </summary>
     private string Get(string key) => _values.TryGetValue(key, out var value) ? value : "#FF000000";
+    /// <summary>
+    /// Performs the set step owned by this component.
+    /// </summary>
     private void Set(string key, string value)
     {
         if (_values.TryGetValue(key, out var current) && current == value) return;
@@ -771,8 +1323,14 @@ public sealed class ThemePaletteEditorViewModel : ObservableObject
     }
 }
 
+/// <summary>
+/// Represents theme export requested event args and keeps its related state and behavior together.
+/// </summary>
 public sealed record ThemeExportRequestedEventArgs(Guid ThemeId, string ThemeName);
 
+/// <summary>
+/// Represents observable collection extensions and keeps its related state and behavior together.
+/// </summary>
 internal static class ObservableCollectionExtensions
 {
     public static void ReplaceWith<T>(this ObservableCollection<T> collection, IEnumerable<T> items)

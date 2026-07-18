@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/NotesMediaAiReviewTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesMediaAiReviewTests, RecordingNotesAiService, FakeModelClient, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
@@ -6,10 +15,19 @@ using Haven.Infrastructure;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents notes media ai review tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesMediaAiReviewTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the alt text proposal does not mutate until approved and uses only text evidence step owned by this component.
+    /// </summary>
     [Fact]
     public async Task AltTextProposalDoesNotMutateUntilApprovedAndUsesOnlyTextEvidence()
     {
@@ -62,6 +80,9 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         workspace.Dispose();
     }
 
+    /// <summary>
+    /// Performs the transcript proposal can be rejected without changing existing transcript step owned by this component.
+    /// </summary>
     [Fact]
     public async Task TranscriptProposalCanBeRejectedWithoutChangingExistingTranscript()
     {
@@ -100,6 +121,9 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         workspace.Dispose();
     }
 
+    /// <summary>
+    /// Performs the new proposal archives older unreviewed proposal for same media target step owned by this component.
+    /// </summary>
     [Fact]
     public async Task NewProposalArchivesOlderUnreviewedProposalForSameMediaTarget()
     {
@@ -142,8 +166,14 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         workspace.Dispose();
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Creates workspace with the invariants required by its callers.
+    /// </summary>
     private NotesWorkspaceViewModel CreateWorkspace(
         IProductionDiagnostics diagnostics,
         IOllamaClient model)
@@ -162,6 +192,9 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             diagnostics);
     }
 
+    /// <summary>
+    /// Performs the image block step owned by this component.
+    /// </summary>
     private static NotesBlock ImageBlock() => new()
     {
         Kind = NotesBlockKind.Image,
@@ -178,6 +211,9 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         }
     };
 
+    /// <summary>
+    /// Performs the video block step owned by this component.
+    /// </summary>
     private static NotesBlock VideoBlock() => new()
     {
         Kind = NotesBlockKind.Video,
@@ -194,11 +230,23 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         }
     };
 
+    /// <summary>
+    /// Represents recording notes ai service and keeps its related state and behavior together.
+    /// </summary>
     private sealed class RecordingNotesAiService(string proposedContent) : INotesAiService
     {
+        /// <summary>
+        /// Gets or updates proposed content, the bindable or domain state represented by this property.
+        /// </summary>
         public string ProposedContent { get; set; } = proposedContent;
+        /// <summary>
+        /// Gets or updates last request, the bindable or domain state represented by this property.
+        /// </summary>
         public NotesAiProposalRequest? LastRequest { get; private set; }
 
+        /// <summary>
+        /// Performs propose async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<NotesAiProposalResult> ProposeAsync(
             NotesAiProposalRequest request,
             CancellationToken cancellationToken)
@@ -213,11 +261,23 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Represents fake model client and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeModelClient : IOllamaClient
     {
+        /// <summary>
+        /// Reports whether is available async is true for the current state.
+        /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
+        /// <summary>
+        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -225,14 +285,29 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             await Task.CompletedTask;
             yield break;
         }
+        /// <summary>
+        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(string.Empty);
+        /// <summary>
+        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Empty, []));
+        /// <summary>
+        /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -247,13 +322,34 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             Directory.CreateDirectory(LogsDirectory);
         }
 
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
 
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose()
         {
             try { Directory.Delete(DataDirectory, recursive: true); }

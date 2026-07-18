@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/CallCompletionController.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns CallCompletionController. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
@@ -12,12 +21,33 @@ namespace Haven.Desktop.Services;
 /// </summary>
 public sealed class CallCompletionController : IAsyncDisposable
 {
+    /// <summary>
+    /// Stores coordinator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICallCoordinator _coordinator;
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores models locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _models;
+    /// <summary>
+    /// Stores diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProductionDiagnostics _diagnostics;
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores completed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, byte> _completed = new();
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public CallCompletionController(
@@ -33,6 +63,9 @@ public sealed class CallCompletionController : IAsyncDisposable
         _coordinator.StateChanged += OnStateChanged;
     }
 
+    /// <summary>
+    /// Handles the state changed event raised by the UI or runtime.
+    /// </summary>
     private void OnStateChanged(object? sender, CallStateChangedEventArgs e)
     {
         var session = _coordinator.CurrentSession;
@@ -40,9 +73,15 @@ public sealed class CallCompletionController : IAsyncDisposable
         _ = PersistCompletedSessionAsync(session, _coordinator.CurrentConversation);
     }
 
+    /// <summary>
+    /// Performs persist completed session async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     internal Task PersistCompletedSessionAsync(CallSession session, Conversation? conversation) =>
         PersistSummarySafelyAsync(session, conversation);
 
+    /// <summary>
+    /// Performs persist summary safely async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PersistSummarySafelyAsync(CallSession session, Conversation? conversation)
     {
         if (conversation is null || !_completed.TryAdd(session.Id, 0)) return;
@@ -119,6 +158,9 @@ public sealed class CallCompletionController : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Creates summary async with the invariants required by its callers.
+    /// </summary>
     private async Task<string> CreateSummaryAsync(string modelName, IReadOnlyList<ChatMessage> messages)
     {
         var transcript = new StringBuilder();
@@ -148,6 +190,9 @@ public sealed class CallCompletionController : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Reports whether is summary message is true for the current state.
+    /// </summary>
     private static bool IsSummaryMessage(ChatMessage message)
     {
         if (string.IsNullOrWhiteSpace(message.MetadataJson)) return false;
@@ -164,9 +209,15 @@ public sealed class CallCompletionController : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the truncate step owned by this component.
+    /// </summary>
     private static string Truncate(string value, int maximum) =>
         value.Length <= maximum ? value : value[..maximum] + "…";
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

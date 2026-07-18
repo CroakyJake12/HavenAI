@@ -1,17 +1,35 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesProductivityServices.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns NotesTemplateDescriptor, NotesTemplateCatalog, NotesReplaceResult, NotesFindReplace, NotesLanguageIssue, NotesLanguageChecks, NotesProductivityText. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents notes template descriptor and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesTemplateDescriptor(
     string Id,
     string Name,
     string Description,
     string Category);
 
+/// <summary>
+/// Represents notes template catalog and keeps its related state and behavior together.
+/// </summary>
 public static class NotesTemplateCatalog
 {
+    /// <summary>
+    /// Gets or updates templates, the bindable or domain state represented by this property.
+    /// </summary>
     public static IReadOnlyList<NotesTemplateDescriptor> Templates { get; } =
     [
         new("blank", "Blank document", "A clean document with one page and paragraph.", "General"),
@@ -22,6 +40,9 @@ public static class NotesTemplateCatalog
         new("meeting", "Meeting notes", "Agenda, attendees, decisions and follow-up actions.", "Planning")
     ];
 
+    /// <summary>
+    /// Creates this member with the invariants required by its callers.
+    /// </summary>
     public static NotesDocument Create(string templateId, string? title = null)
     {
         var normalized = templateId?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -104,6 +125,9 @@ public static class NotesTemplateCatalog
         return document;
     }
 
+    /// <summary>
+    /// Performs the heading step owned by this component.
+    /// </summary>
     private static NotesBlock Heading(string text, int order, int level = 1)
     {
         var block = NotesBlock.Heading(text);
@@ -121,6 +145,9 @@ public static class NotesTemplateCatalog
         return block;
     }
 
+    /// <summary>
+    /// Performs the paragraph step owned by this component.
+    /// </summary>
     private static NotesBlock Paragraph(string text, int order)
     {
         var block = NotesBlock.CreateParagraph(text);
@@ -129,6 +156,9 @@ public static class NotesTemplateCatalog
         return block;
     }
 
+    /// <summary>
+    /// Performs the list step owned by this component.
+    /// </summary>
     private static NotesBlock List(int order, params string[] values) => new()
     {
         Kind = NotesBlockKind.List,
@@ -140,6 +170,9 @@ public static class NotesTemplateCatalog
         }
     };
 
+    /// <summary>
+    /// Performs the table step owned by this component.
+    /// </summary>
     private static NotesBlock Table(int rows, int columns, int order, IReadOnlyList<string> headers)
     {
         var table = NotesTableData.Create(rows, columns);
@@ -149,6 +182,9 @@ public static class NotesTemplateCatalog
         return new NotesBlock { Kind = NotesBlockKind.Table, Order = order, Table = table };
     }
 
+    /// <summary>
+    /// Performs the add sections step owned by this component.
+    /// </summary>
     private static void AddSections(NotesPage page, params (string Text, NotesBlockKind Kind)[] items)
     {
         foreach (var item in items)
@@ -159,11 +195,17 @@ public static class NotesTemplateCatalog
         }
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static void Normalize(NotesPage page)
     {
         for (var index = 0; index < page.Blocks.Count; index++) page.Blocks[index].Order = index;
     }
 
+    /// <summary>
+    /// Performs the with order step owned by this component.
+    /// </summary>
     private static NotesBlock WithOrder(NotesBlock block, int order)
     {
         block.Order = order;
@@ -171,13 +213,22 @@ public static class NotesTemplateCatalog
     }
 }
 
+/// <summary>
+/// Represents notes replace result and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesReplaceResult(
     int DocumentsChanged,
     int BlocksChanged,
     int Replacements);
 
+/// <summary>
+/// Represents notes find replace and keeps its related state and behavior together.
+/// </summary>
 public static class NotesFindReplace
 {
+    /// <summary>
+    /// Performs the replace step owned by this component.
+    /// </summary>
     public static NotesReplaceResult Replace(
         NotesDocument document,
         string find,
@@ -267,6 +318,9 @@ public static class NotesFindReplace
         return new NotesReplaceResult(replacements > 0 ? 1 : 0, blocksChanged, replacements);
     }
 
+    /// <summary>
+    /// Performs the replace string step owned by this component.
+    /// </summary>
     private static int ReplaceString(
         Regex regex,
         string value,
@@ -282,6 +336,9 @@ public static class NotesFindReplace
     }
 }
 
+/// <summary>
+/// Represents notes language issue and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesLanguageIssue(
     Guid BlockId,
     int Start,
@@ -290,21 +347,36 @@ public sealed record NotesLanguageIssue(
     string Message,
     IReadOnlyList<string> Suggestions);
 
+/// <summary>
+/// Represents notes language checks and keeps its related state and behavior together.
+/// </summary>
 public static class NotesLanguageChecks
 {
+    /// <summary>
+    /// Stores repeated word locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex RepeatedWord = new(
         @"\b(?<word>[\p{L}\p{N}']+)\s+\k<word>\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
+    /// <summary>
+    /// Stores spacing before punctuation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex SpacingBeforePunctuation = new(
         @"\s+([,.;:!?])",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
+    /// <summary>
+    /// Stores sentence start locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex SentenceStart = new(
         @"(?:^|[.!?]\s+)(?<letter>[a-z])",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
 
+    /// <summary>
+    /// Performs the check step owned by this component.
+    /// </summary>
     public static IReadOnlyList<NotesLanguageIssue> Check(NotesDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -352,8 +424,14 @@ public static class NotesLanguageChecks
     }
 }
 
+/// <summary>
+/// Represents notes productivity text and keeps its related state and behavior together.
+/// </summary>
 internal static class NotesProductivityText
 {
+    /// <summary>
+    /// Performs the enumerate step owned by this component.
+    /// </summary>
     public static IEnumerable<string> Enumerate(NotesBlock block)
     {
         var text = block.Runs.Count > 0

@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/NotesWorkspaceView.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns NotesWorkspaceView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Automation;
@@ -14,27 +23,90 @@ using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents notes workspace view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesWorkspaceView : UserControl, IDisposable
 {
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly NotesWorkspaceViewModel _viewModel;
+    /// <summary>
+    /// Stores documents panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _documentsPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores sections panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _sectionsPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores pages panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _pagesPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores search panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _searchPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores blocks panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _blocksPanel = new() { Spacing = 12 };
+    /// <summary>
+    /// Stores ai panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _aiPanel = new() { Spacing = 10 };
+    /// <summary>
+    /// Stores review panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _reviewPanel = new() { Spacing = 10 };
+    /// <summary>
+    /// Stores versions panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _versionsPanel = new() { Spacing = 7 };
+    /// <summary>
+    /// Stores information panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _informationPanel = new() { Spacing = 9 };
+    /// <summary>
+    /// Stores document title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _documentTitle = new() { FontSize = 24, FontWeight = FontWeight.SemiBold, MinWidth = 280 };
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _status = new() { Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 10 };
+    /// <summary>
+    /// Stores save state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _saveState = new() { Classes = { "muted2" }, FontSize = 10 };
+    /// <summary>
+    /// Stores statistics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _statistics = new() { Classes = { "muted" }, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+    /// <summary>
+    /// Stores search box locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBox _searchBox = new() { PlaceholderText = "Search every Notes document" };
+    /// <summary>
+    /// Stores delete confirmation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Grid _deleteConfirmation = new() { IsVisible = false, ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 7 };
+    /// <summary>
+    /// Stores initialized locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _initialized;
+    /// <summary>
+    /// Stores refresh queued locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _refreshQueued;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
+    /// <summary>
+    /// Stores active edit block id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid? _activeEditBlockId;
 
     public NotesWorkspaceView(NotesWorkspaceViewModel viewModel)
@@ -50,6 +122,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _viewModel.SearchNavigationRequested += OnSearchNavigationRequested;
     }
 
+    /// <summary>
+    /// Builds layout from the currently available inputs.
+    /// </summary>
     private Control BuildLayout()
     {
         var root = new Grid
@@ -73,6 +148,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return root;
     }
 
+    /// <summary>
+    /// Builds top bar from the currently available inputs.
+    /// </summary>
     private Control BuildTopBar()
     {
         var panel = new Grid
@@ -104,6 +182,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return panel;
     }
 
+    /// <summary>
+    /// Builds library pane from the currently available inputs.
+    /// </summary>
     private Control BuildLibraryPane()
     {
         var searchButton = ActionButton("Search", SearchFromBoxAsync, "Search all local Notes documents");
@@ -159,6 +240,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return Card(content);
     }
 
+    /// <summary>
+    /// Builds editor pane from the currently available inputs.
+    /// </summary>
     private Control BuildEditorPane()
     {
         var titleBar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
@@ -207,6 +291,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// Builds inspector pane from the currently available inputs.
+    /// </summary>
     private Control BuildInspectorPane()
     {
         var tabs = new TabControl
@@ -223,12 +310,18 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return Card(tabs);
     }
 
+    /// <summary>
+    /// Performs the inspector scroll step owned by this component.
+    /// </summary>
     private static ScrollViewer InspectorScroll(Control content) => new()
     {
         VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         Content = content
     };
 
+    /// <summary>
+    /// Handles the attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         if (_initialized) return;
@@ -244,6 +337,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         }
     }
 
+    /// <summary>
+    /// Handles the detached from visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         if (_activeEditBlockId is { } id && _viewModel.Blocks.FirstOrDefault(block => block.Id == id) is { } block)
@@ -251,6 +347,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _activeEditBlockId = null;
     }
 
+    /// <summary>
+    /// Handles the document changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDocumentChanged(object? sender, EventArgs e)
     {
         if (_activeEditBlockId is not null)
@@ -261,6 +360,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         QueueRefresh();
     }
 
+    /// <summary>
+    /// Handles the view model property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(NotesWorkspaceViewModel.Status)
@@ -270,8 +372,14 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             QueueRefresh();
     }
 
+    /// <summary>
+    /// Handles the search navigation requested event raised by the UI or runtime.
+    /// </summary>
     private void OnSearchNavigationRequested(object? sender, NotesSearchHit e) => QueueRefresh();
 
+    /// <summary>
+    /// Performs the queue refresh step owned by this component.
+    /// </summary>
     private void QueueRefresh()
     {
         if (_disposed || _refreshQueued) return;
@@ -283,6 +391,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         }, DispatcherPriority.Background);
     }
 
+    /// <summary>
+    /// Performs the refresh all step owned by this component.
+    /// </summary>
     private void RefreshAll()
     {
         RefreshStatusOnly();
@@ -295,6 +406,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         RefreshDeleteConfirmation();
     }
 
+    /// <summary>
+    /// Performs the refresh status only step owned by this component.
+    /// </summary>
     private void RefreshStatusOnly()
     {
         _status.Text = _viewModel.Status;
@@ -304,6 +418,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             _documentTitle.Text = _viewModel.Document.Title;
     }
 
+    /// <summary>
+    /// Performs the refresh documents step owned by this component.
+    /// </summary>
     private void RefreshDocuments()
     {
         _documentsPanel.Children.Clear();
@@ -332,6 +449,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the refresh search results step owned by this component.
+    /// </summary>
     private void RefreshSearchResults()
     {
         _searchPanel.Children.Clear();
@@ -358,6 +478,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             _searchPanel.Children.Add(new TextBlock { Text = "Search results appear here.", Classes = { "muted2" }, FontSize = 9, Margin = new Thickness(4) });
     }
 
+    /// <summary>
+    /// Performs the refresh structure step owned by this component.
+    /// </summary>
     private void RefreshStructure()
     {
         _sectionsPanel.Children.Clear();
@@ -378,6 +501,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the refresh blocks step owned by this component.
+    /// </summary>
     private void RefreshBlocks()
     {
         foreach (var preview in _blocksPanel.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
@@ -388,6 +514,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             _blocksPanel.Children.Add(new TextBlock { Text = "Use the block toolbar to add content.", Classes = { "muted" }, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20) });
     }
 
+    /// <summary>
+    /// Performs search from box async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SearchFromBoxAsync()
     {
         _viewModel.SearchQuery = _searchBox.Text ?? string.Empty;
@@ -395,6 +524,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         RefreshSearchResults();
     }
 
+    /// <summary>
+    /// Performs the begin editing step owned by this component.
+    /// </summary>
     private void BeginEditing(NotesBlock block)
     {
         if (_activeEditBlockId == block.Id) return;
@@ -405,6 +537,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _viewModel.BeginBlockEdit(block);
     }
 
+    /// <summary>
+    /// Performs the end editing step owned by this component.
+    /// </summary>
     private void EndEditing(NotesBlock block, string summary)
     {
         _viewModel.CommitBlockEdit(block, summary);
@@ -412,12 +547,18 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         QueueRefresh();
     }
 
+    /// <summary>
+    /// Performs the begin document metadata edit step owned by this component.
+    /// </summary>
     private void BeginDocumentMetadataEdit()
     {
         var anchor = _viewModel.SelectedBlock ?? _viewModel.Blocks.FirstOrDefault();
         if (anchor is not null) BeginEditing(anchor);
     }
 
+    /// <summary>
+    /// Performs the commit metadata edit step owned by this component.
+    /// </summary>
     private void CommitMetadataEdit(string summary)
     {
         var anchor = _activeEditBlockId is { } id
@@ -426,6 +567,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         if (anchor is not null) EndEditing(anchor, summary);
     }
 
+    /// <summary>
+    /// Performs the commit document title step owned by this component.
+    /// </summary>
     private void CommitDocumentTitle()
     {
         if (_viewModel.Document is null) return;
@@ -440,6 +584,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         CommitMetadataEdit("Renamed document");
     }
 
+    /// <summary>
+    /// Performs import document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ImportDocumentAsync()
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -462,6 +609,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         catch (Exception ex) { _status.Text = "Import failed: " + ex.Message; }
     }
 
+    /// <summary>
+    /// Performs export document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ExportDocumentAsync()
     {
         if (_viewModel.Document is null) return;
@@ -490,6 +640,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         catch (Exception ex) { _status.Text = "Export failed: " + ex.Message; }
     }
 
+    /// <summary>
+    /// Performs import media async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ImportMediaAsync()
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -512,8 +665,14 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         catch (Exception ex) { _status.Text = "Media import failed: " + ex.Message; }
     }
 
+    /// <summary>
+    /// Performs the refresh delete confirmation step owned by this component.
+    /// </summary>
     private void RefreshDeleteConfirmation() => _deleteConfirmation.IsVisible = _viewModel.IsDeleteConfirming;
 
+    /// <summary>
+    /// Performs the add block button step owned by this component.
+    /// </summary>
     private Button AddBlockButton(string label, System.Windows.Input.ICommand command)
     {
         var button = new Button { Content = label, Command = command, Margin = new Thickness(2) };
@@ -522,6 +681,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the command button step owned by this component.
+    /// </summary>
     private static Button CommandButton(string label, System.Windows.Input.ICommand command) => new()
     {
         Content = label,
@@ -529,6 +691,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         Margin = new Thickness(2)
     };
 
+    /// <summary>
+    /// Performs the action button step owned by this component.
+    /// </summary>
     private static Button ActionButton(string label, Func<Task> action, string tooltip, bool danger = false)
     {
         var button = new Button { Content = label };
@@ -539,6 +704,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Performs the card step owned by this component.
+    /// </summary>
     private static Border Card(Control child) => new()
     {
         Background = ResourceBrush("HavenPanelBrush", Color.FromRgb(30, 30, 34)),
@@ -549,6 +717,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         Child = child
     };
 
+    /// <summary>
+    /// Performs the labeled step owned by this component.
+    /// </summary>
     private static Control Labeled(string label, Control control) => new StackPanel
     {
         Spacing = 3,
@@ -559,6 +730,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         }
     };
 
+    /// <summary>
+    /// Performs the splitter step owned by this component.
+    /// </summary>
     private static GridSplitter Splitter() => new()
     {
         Width = 6,
@@ -567,6 +741,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         ResizeDirection = GridResizeDirection.Columns
     };
 
+    /// <summary>
+    /// Performs the resource brush step owned by this component.
+    /// </summary>
     private static IBrush ResourceBrush(string key, Color fallback) =>
         Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
@@ -582,6 +759,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return control;
     }
 
+    /// <summary>
+    /// Performs the safe file name step owned by this component.
+    /// </summary>
     private static string SafeFileName(string value)
     {
         var invalid = Path.GetInvalidFileNameChars().ToHashSet();
@@ -589,9 +769,15 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         return string.IsNullOrWhiteSpace(normalized) ? "Haven Note" : normalized;
     }
 
+    /// <summary>
+    /// Performs the short hash step owned by this component.
+    /// </summary>
     private static string ShortHash(string value) =>
         string.IsNullOrWhiteSpace(value) ? "not saved yet" : value[..Math.Min(16, value.Length)] + "…";
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;

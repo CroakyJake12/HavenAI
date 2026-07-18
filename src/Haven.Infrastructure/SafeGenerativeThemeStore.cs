@@ -1,15 +1,33 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/SafeGenerativeThemeStore.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns SafeGenerativeThemeStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents safe generative theme store and keeps its related state and behavior together.
+/// </summary>
 public sealed class SafeGenerativeThemeStore(
     GenerativeThemeStore inner,
     IProductionDiagnostics diagnostics) : IGenerativeThemeStore
 {
+    /// <summary>
+    /// Retrieves themes async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<GenerativeThemePack>> GetThemesAsync(CancellationToken cancellationToken) =>
         inner.GetThemesAsync(cancellationToken);
 
+    /// <summary>
+    /// Retrieves selection async for the current operation.
+    /// </summary>
     public async Task<GenerativeThemeSelection> GetSelectionAsync(CancellationToken cancellationToken)
     {
         var selection = await inner.GetSelectionAsync(cancellationToken).ConfigureAwait(false);
@@ -56,6 +74,9 @@ public sealed class SafeGenerativeThemeStore(
         };
     }
 
+    /// <summary>
+    /// Retrieves active theme async for the current operation.
+    /// </summary>
     public async Task<GenerativeThemePack> GetActiveThemeAsync(CancellationToken cancellationToken)
     {
         // Do not bypass the safe selection boundary: startup commonly asks for the active
@@ -71,15 +92,27 @@ public sealed class SafeGenerativeThemeStore(
         throw new InvalidDataException("The active Generative UI theme could not be resolved after selection recovery.");
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SaveAsync(GenerativeThemePack theme, CancellationToken cancellationToken) =>
         inner.SaveAsync(theme, cancellationToken);
 
+    /// <summary>
+    /// Performs rename async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken) =>
         inner.RenameAsync(themeId, name, cancellationToken);
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(Guid themeId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(themeId, cancellationToken);
 
+    /// <summary>
+    /// Performs select async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SelectAsync(
         Guid themeId,
         GenerativeThemeAppearance appearance,
@@ -89,6 +122,9 @@ public sealed class SafeGenerativeThemeStore(
         return inner.SelectAsync(themeId, appearance, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetAppearanceAsync(
         GenerativeThemeAppearance appearance,
         CancellationToken cancellationToken)
@@ -97,17 +133,26 @@ public sealed class SafeGenerativeThemeStore(
         return inner.SetAppearanceAsync(appearance, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ExportAsync(
         Guid themeId,
         string destinationDirectory,
         CancellationToken cancellationToken) =>
         inner.ExportAsync(themeId, destinationDirectory, cancellationToken);
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<GenerativeThemePack> ImportAsync(
         string sourcePath,
         CancellationToken cancellationToken) =>
         inner.ImportAsync(sourcePath, cancellationToken);
 
+    /// <summary>
+    /// Performs the ensure appearance step owned by this component.
+    /// </summary>
     private static void EnsureAppearance(GenerativeThemeAppearance appearance)
     {
         if (!Enum.IsDefined(appearance))

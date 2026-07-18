@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ModeRegistry.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ModeRegistry. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents mode registry and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegistry
 {
+    /// <summary>
+    /// Retrieves modes async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModeDefinition>> GetModesAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -17,6 +32,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         return results;
     }
 
+    /// <summary>
+    /// Retrieves mode by key async for the current operation.
+    /// </summary>
     public async Task<ModeDefinition?> GetModeByKeyAsync(string key, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -27,6 +45,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadMode(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves mode by id async for the current operation.
+    /// </summary>
     public async Task<ModeDefinition?> GetModeByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -37,6 +58,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadMode(reader) : null;
     }
 
+    /// <summary>
+    /// Performs upsert mode async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertModeAsync(ModeDefinition mode, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -78,6 +102,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModeVersion>> GetVersionsAsync(Guid modeId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -99,6 +126,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         return results;
     }
 
+    /// <summary>
+    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddVersionAsync(ModeVersion version, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -118,6 +148,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves grants async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModePermissionGrant>> GetGrantsAsync(Guid modeId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -139,6 +172,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         return results;
     }
 
+    /// <summary>
+    /// Performs upsert grant async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertGrantAsync(ModePermissionGrant grant, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -164,6 +200,9 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the read mode step owned by this component.
+    /// </summary>
     private static ModeDefinition ReadMode(Microsoft.Data.Sqlite.SqliteDataReader reader) => new(
         Guid.Parse(reader.String("id")),
         reader.String("key"),

@@ -1,7 +1,19 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/CallAbstractions.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns CallStartOptions, CallCapabilities, SpeechInputEventKind, SpeechInputEvent, SpeechInputOptions, ScreenShareSnapshot, ScreenShareSource, ScreenShareSnapshotEventArgs, CallStateChangedEventArgs, CallTranscriptEventArgs, CallAudioLevelEventArgs, ICallRepository, ISpeechInputService, ISpeechOutputService, IScreenShareService, ISpeechModelManager, ICallCoordinator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents call start options and keeps its related state and behavior together.
+/// </summary>
 public sealed record CallStartOptions(
     ModelDescriptor Model,
     CallInputMode InputMode = CallInputMode.HandsFree,
@@ -12,6 +24,9 @@ public sealed record CallStartOptions(
     EffortLevel Effort = EffortLevel.Medium,
     string? SystemPrompt = null);
 
+/// <summary>
+/// Represents call capabilities and keeps its related state and behavior together.
+/// </summary>
 public sealed record CallCapabilities(
     bool HasSpeechInput,
     bool HasSpeechOutput,
@@ -23,6 +38,9 @@ public sealed record CallCapabilities(
     IReadOnlyList<CallAudioDevice> OutputDevices,
     IReadOnlyList<CallVoice> Voices);
 
+/// <summary>
+/// Lists the supported speech input event kind values used to make state explicit and type-safe.
+/// </summary>
 public enum SpeechInputEventKind
 {
     SpeechStarted,
@@ -44,30 +62,57 @@ public sealed record SpeechInputEvent(
     double AudioLevel = 0,
     string? Error = null);
 
+/// <summary>
+/// Represents speech input options and keeps its related state and behavior together.
+/// </summary>
 public sealed record SpeechInputOptions(
     string? DeviceId,
     SpeechModelInfo? Model,
     CallInputMode InputMode);
 
+/// <summary>
+/// Represents screen share snapshot and keeps its related state and behavior together.
+/// </summary>
 public sealed record ScreenShareSnapshot(
     string Base64Jpeg,
     int Width,
     int Height,
     DateTimeOffset CapturedAt);
 
+/// <summary>
+/// Represents screen share source and keeps its related state and behavior together.
+/// </summary>
 public sealed record ScreenShareSource(string Id, string Name, bool IsWindow);
 
+/// <summary>
+/// Represents screen share snapshot event args and keeps its related state and behavior together.
+/// </summary>
 public sealed class ScreenShareSnapshotEventArgs(ScreenShareSnapshot snapshot) : EventArgs
 {
+    /// <summary>
+    /// Gets or updates snapshot, the bindable or domain state represented by this property.
+    /// </summary>
     public ScreenShareSnapshot Snapshot { get; } = snapshot;
 }
 
+/// <summary>
+/// Represents call state changed event args and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallStateChangedEventArgs(CallState state, string status) : EventArgs
 {
+    /// <summary>
+    /// Gets or updates state, the bindable or domain state represented by this property.
+    /// </summary>
     public CallState State { get; } = state;
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get; } = status;
 }
 
+/// <summary>
+/// Represents call transcript event args and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallTranscriptEventArgs(
     Guid messageId,
     MessageRole role,
@@ -76,19 +121,46 @@ public sealed class CallTranscriptEventArgs(
     bool isFinal,
     bool wasInterrupted = false) : EventArgs
 {
+    /// <summary>
+    /// Gets or updates message id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid MessageId { get; } = messageId;
+    /// <summary>
+    /// Gets or updates role, the bindable or domain state represented by this property.
+    /// </summary>
     public MessageRole Role { get; } = role;
+    /// <summary>
+    /// Gets or updates text, the bindable or domain state represented by this property.
+    /// </summary>
     public string Text { get; } = text;
+    /// <summary>
+    /// Reports whether is delta is true for the current state.
+    /// </summary>
     public bool IsDelta { get; } = isDelta;
+    /// <summary>
+    /// Reports whether is final is true for the current state.
+    /// </summary>
     public bool IsFinal { get; } = isFinal;
+    /// <summary>
+    /// Gets or updates was interrupted, the bindable or domain state represented by this property.
+    /// </summary>
     public bool WasInterrupted { get; } = wasInterrupted;
 }
 
+/// <summary>
+/// Represents call audio level event args and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallAudioLevelEventArgs(double level) : EventArgs
 {
+    /// <summary>
+    /// Gets or updates level, the bindable or domain state represented by this property.
+    /// </summary>
     public double Level { get; } = level;
 }
 
+/// <summary>
+/// Defines the i call repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICallRepository
 {
     Task UpsertAsync(CallSession session, CancellationToken cancellationToken);
@@ -96,6 +168,9 @@ public interface ICallRepository
     Task<IReadOnlyList<CallSession>> GetRecentAsync(int limit, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i speech input service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ISpeechInputService
 {
     bool IsAvailable { get; }
@@ -110,6 +185,9 @@ public interface ISpeechInputService
     Task StopAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i speech output service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ISpeechOutputService
 {
     bool IsAvailable { get; }
@@ -120,6 +198,9 @@ public interface ISpeechOutputService
     Task StopAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i screen share service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IScreenShareService
 {
     bool IsSupported { get; }
@@ -133,6 +214,9 @@ public interface IScreenShareService
     Task StopAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i speech model manager contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ISpeechModelManager
 {
     Task<IReadOnlyList<SpeechModelInfo>> GetModelsAsync(CancellationToken cancellationToken);
@@ -143,6 +227,9 @@ public interface ISpeechModelManager
     Task DeleteAsync(SpeechModelSize size, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the i call coordinator contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICallCoordinator : IAsyncDisposable
 {
     CallState State { get; }

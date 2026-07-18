@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/ChatView.axaml.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns ChatView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text;
@@ -17,20 +26,62 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents chat view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class ChatView : UserControl
 {
+    /// <summary>
+    /// Stores production toolbar locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ConversationProductionToolbarView _productionToolbar;
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository? _conversations;
+    /// <summary>
+    /// Stores production locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationProductionRepository? _production;
+    /// <summary>
+    /// Stores attachment service locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IMessageAttachmentService? _attachmentService;
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppPaths? _paths;
+    /// <summary>
+    /// Stores attachment ids by path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<string, Guid> _attachmentIdsByPath = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores pending attachment ids locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly HashSet<Guid> _pendingAttachmentIds = [];
+    /// <summary>
+    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ChatPageViewModel? _viewModel;
+    /// <summary>
+    /// Stores draft debounce locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _draftDebounce;
+    /// <summary>
+    /// Stores enter debounce locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _enterDebounce;
+    /// <summary>
+    /// Stores loading draft locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _loadingDraft;
+    /// <summary>
+    /// Stores suppress attachment cleanup locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _suppressAttachmentCleanup;
+    /// <summary>
+    /// Stores attachment conversation id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Guid _attachmentConversationId;
 
     public ChatView()
@@ -56,6 +107,9 @@ public sealed partial class ChatView : UserControl
         AttachViewModel(DataContext as ChatPageViewModel);
     }
 
+    /// <summary>
+    /// Performs the attach production toolbar step owned by this component.
+    /// </summary>
     private void AttachProductionToolbar()
     {
         if (Content is not Grid root) return;
@@ -68,8 +122,14 @@ public sealed partial class ChatView : UserControl
         root.Children.Add(_productionToolbar);
     }
 
+    /// <summary>
+    /// Handles the data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDataContextChanged(object? sender, EventArgs e) => AttachViewModel(DataContext as ChatPageViewModel);
 
+    /// <summary>
+    /// Performs the attach view model step owned by this component.
+    /// </summary>
     private void AttachViewModel(ChatPageViewModel? viewModel)
     {
         if (ReferenceEquals(_viewModel, viewModel)) return;
@@ -82,6 +142,9 @@ public sealed partial class ChatView : UserControl
         _ = LoadProductionStateAsync(_viewModel, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the detach view model step owned by this component.
+    /// </summary>
     private void DetachViewModel()
     {
         if (_viewModel is not null)
@@ -99,6 +162,9 @@ public sealed partial class ChatView : UserControl
         _enterDebounce = null;
     }
 
+    /// <summary>
+    /// Handles the conversation changed event raised by the UI or runtime.
+    /// </summary>
     private async void OnConversationChanged(object? sender, EventArgs e)
     {
         if (_viewModel is null) return;
@@ -118,6 +184,9 @@ public sealed partial class ChatView : UserControl
         }
     }
 
+    /// <summary>
+    /// Performs load production state async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LoadProductionStateAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
         await _productionToolbar.LoadAsync(viewModel.ConversationId, cancellationToken);
@@ -137,12 +206,18 @@ public sealed partial class ChatView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the view model property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ChatPageViewModel.Composer) && !_loadingDraft)
             ScheduleDraftSave();
     }
 
+    /// <summary>
+    /// Performs the schedule draft save step owned by this component.
+    /// </summary>
     private void ScheduleDraftSave()
     {
         _draftDebounce?.Cancel();
@@ -151,6 +226,9 @@ public sealed partial class ChatView : UserControl
         _ = SaveDraftAfterDelayAsync(_draftDebounce.Token);
     }
 
+    /// <summary>
+    /// Performs save draft after delay async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveDraftAfterDelayAsync(CancellationToken cancellationToken)
     {
         try
@@ -179,6 +257,9 @@ public sealed partial class ChatView : UserControl
         }
     }
 
+    /// <summary>
+    /// Performs ensure conversation saved async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EnsureConversationSavedAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
         if (_conversations is null || viewModel.IsTemporary) return;
@@ -206,12 +287,18 @@ public sealed partial class ChatView : UserControl
             now), cancellationToken);
     }
 
+    /// <summary>
+    /// Handles the branch changed event raised by the UI or runtime.
+    /// </summary>
     private async void OnBranchChanged(object? sender, EventArgs e)
     {
         if (_viewModel is null) return;
         await _viewModel.LoadConversationAsync(_viewModel.ConversationId, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Handles the production model selected event raised by the UI or runtime.
+    /// </summary>
     private void OnProductionModelSelected(ModelDescriptor model)
     {
         if (_viewModel is null) return;
@@ -224,6 +311,9 @@ public sealed partial class ChatView : UserControl
         _viewModel.SelectedModel = existing;
     }
 
+    /// <summary>
+    /// Handles the attach clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnAttachClicked(object? sender, RoutedEventArgs e)
     {
         if (_viewModel is null) return;
@@ -238,6 +328,9 @@ public sealed partial class ChatView : UserControl
         await ImportAttachmentsAsync(files.Select(item => item.TryGetLocalPath()).OfType<string>());
     }
 
+    /// <summary>
+    /// Handles the drag over event raised by the UI or runtime.
+    /// </summary>
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         var files = e.DataTransfer.TryGetFiles();
@@ -247,6 +340,9 @@ public sealed partial class ChatView : UserControl
         e.Handled = true;
     }
 
+    /// <summary>
+    /// Handles the drop event raised by the UI or runtime.
+    /// </summary>
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         var paths = e.DataTransfer.TryGetFiles()?.OfType<IStorageFile>().Select(item => item.TryGetLocalPath()).OfType<string>().ToArray() ?? [];
@@ -255,6 +351,9 @@ public sealed partial class ChatView : UserControl
         if (paths.Length > 0) await ImportAttachmentsAsync(paths);
     }
 
+    /// <summary>
+    /// Performs import attachments async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ImportAttachmentsAsync(IEnumerable<string> sourcePaths)
     {
         if (_viewModel is null) return;
@@ -286,6 +385,9 @@ public sealed partial class ChatView : UserControl
         ScheduleDraftSave();
     }
 
+    /// <summary>
+    /// Performs add attachment representations async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task AddAttachmentRepresentationsAsync(ChatPageViewModel viewModel, MessageAttachment attachment, CancellationToken cancellationToken)
     {
         if (_paths is null) return;
@@ -322,6 +424,9 @@ public sealed partial class ChatView : UserControl
         }
     }
 
+    /// <summary>
+    /// Performs the add mapped attachment step owned by this component.
+    /// </summary>
     private void AddMappedAttachment(ChatPageViewModel viewModel, string path, Guid attachmentId)
     {
         if (viewModel.Attachments.Any(item => item.Path.Equals(path, StringComparison.OrdinalIgnoreCase))) return;
@@ -329,6 +434,9 @@ public sealed partial class ChatView : UserControl
         viewModel.AddAttachment(path);
     }
 
+    /// <summary>
+    /// Handles the attachment collection changed event raised by the UI or runtime.
+    /// </summary>
     private async void OnAttachmentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (_suppressAttachmentCleanup || _viewModel is null || _viewModel.IsSending || _attachmentService is null || e.OldItems is null) return;
@@ -363,6 +471,9 @@ public sealed partial class ChatView : UserControl
         }
     }
 
+    /// <summary>
+    /// Performs associate pending attachments async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task AssociatePendingAttachmentsAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
         if (_production is null || _conversations is null || _pendingAttachmentIds.Count == 0 || viewModel.IsTemporary || viewModel.Attachments.Count > 0) return;
@@ -378,6 +489,9 @@ public sealed partial class ChatView : UserControl
         await _production.DeleteDraftAsync(viewModel.ConversationId, branch?.Id, cancellationToken);
     }
 
+    /// <summary>
+    /// Handles the composer key down event raised by the UI or runtime.
+    /// </summary>
     private async void OnComposerKeyDown(object? sender, KeyEventArgs e)
     {
         if (_viewModel is null || sender is not TextBox textBox) return;
@@ -407,6 +521,9 @@ public sealed partial class ChatView : UserControl
         catch (OperationCanceledException) { }
     }
 
+    /// <summary>
+    /// Performs paste into composer async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PasteIntoComposerAsync(TextBox textBox)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -448,6 +565,9 @@ public sealed partial class ChatView : UserControl
         textBox.CaretIndex = start + text.Length;
     }
 
+    /// <summary>
+    /// Handles the copy message clicked event raised by the UI or runtime.
+    /// </summary>
     private async void OnCopyMessageClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { DataContext: MessageBubbleViewModel message }) return;
@@ -455,6 +575,9 @@ public sealed partial class ChatView : UserControl
         if (clipboard is not null) await clipboard.SetTextAsync(message.Content);
     }
 
+    /// <summary>
+    /// Performs the read sampled frames step owned by this component.
+    /// </summary>
     private static IReadOnlyList<string> ReadSampledFrames(string metadataJson)
     {
         try
@@ -466,6 +589,9 @@ public sealed partial class ChatView : UserControl
         catch (JsonException) { return []; }
     }
 
+    /// <summary>
+    /// Performs the read processing notice step owned by this component.
+    /// </summary>
     private static string ReadProcessingNotice(string metadataJson)
     {
         try
@@ -477,6 +603,9 @@ public sealed partial class ChatView : UserControl
         return "No additional processing notice was recorded.";
     }
 
+    /// <summary>
+    /// Reports whether is inside is true for the current state.
+    /// </summary>
     private static bool IsInside(string path, string root)
     {
         var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;

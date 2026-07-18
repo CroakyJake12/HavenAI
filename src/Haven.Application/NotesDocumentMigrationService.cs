@@ -1,30 +1,57 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesDocumentMigrationService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns NotesMigrationResult, INotesDocumentMigrator, NotesDocumentMigrator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents notes migration result and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesMigrationResult(
     NotesDocument Document,
     int SourceSchemaVersion,
     int TargetSchemaVersion,
     IReadOnlyList<string> Changes);
 
+/// <summary>
+/// Defines the i notes document migrator contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface INotesDocumentMigrator
 {
     Task<NotesMigrationResult> ReadAndMigrateAsync(string path, CancellationToken cancellationToken);
     NotesMigrationResult Migrate(NotesDocument document, int sourceSchemaVersion);
 }
 
+/// <summary>
+/// Represents notes document migrator and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesDocumentMigrator : INotesDocumentMigrator
 {
+    /// <summary>
+    /// Stores maximum native document bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const long MaximumNativeDocumentBytes = 256L * 1024 * 1024;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
 
+    /// <summary>
+    /// Performs read and migrate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesMigrationResult> ReadAndMigrateAsync(
         string path,
         CancellationToken cancellationToken)
@@ -79,6 +106,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         return result with { Changes = changes.Concat(result.Changes).Distinct(StringComparer.Ordinal).ToArray() };
     }
 
+    /// <summary>
+    /// Performs the migrate step owned by this component.
+    /// </summary>
     public NotesMigrationResult Migrate(NotesDocument document, int sourceSchemaVersion)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -94,6 +124,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
             changes);
     }
 
+    /// <summary>
+    /// Performs the read schema version step owned by this component.
+    /// </summary>
     private static int ReadSchemaVersion(JsonObject root)
     {
         if (!root.TryGetPropertyValue("schemaVersion", out var value) || value is null) return 0;
@@ -104,12 +137,18 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         }
     }
 
+    /// <summary>
+    /// Performs the read original schema version step owned by this component.
+    /// </summary>
     private static int ReadOriginalSchemaVersion(JsonObject root, IReadOnlyCollection<string> changes)
     {
         if (changes.Any(change => change.StartsWith("Migrated schema 0", StringComparison.Ordinal))) return 0;
         return ReadSchemaVersion(root);
     }
 
+    /// <summary>
+    /// Performs the migrate zero to one step owned by this component.
+    /// </summary>
     private static int MigrateZeroToOne(JsonObject root, ICollection<string> changes)
     {
         root["schemaVersion"] = 1;
@@ -125,6 +164,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         return 1;
     }
 
+    /// <summary>
+    /// Performs the normalize document step owned by this component.
+    /// </summary>
     private static void NormalizeDocument(NotesDocument document, ICollection<string> changes)
     {
         var usedIds = new HashSet<Guid>();
@@ -226,6 +268,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         foreach (var conflict in document.Collaboration.Conflicts) conflict.Id = Unique(conflict.Id, usedIds, changes, "conflict");
     }
 
+    /// <summary>
+    /// Performs the normalize block step owned by this component.
+    /// </summary>
     private static void NormalizeBlock(NotesBlock block, HashSet<Guid> usedIds, ICollection<string> changes)
     {
         block.StyleId = string.IsNullOrWhiteSpace(block.StyleId) ? "normal" : block.StyleId.Trim();
@@ -323,6 +368,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         }
     }
 
+    /// <summary>
+    /// Performs the normalize run step owned by this component.
+    /// </summary>
     private static void NormalizeRun(NotesTextRun run, HashSet<Guid> usedIds, ICollection<string> changes)
     {
         run.Id = Unique(run.Id, usedIds, changes, "text run");
@@ -333,6 +381,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         run.Background = ValidColour(run.Background) ? run.Background : "#00000000";
     }
 
+    /// <summary>
+    /// Performs the normalize canvas object step owned by this component.
+    /// </summary>
     private static void NormalizeCanvasObject(NotesCanvasObject value)
     {
         value.Text ??= string.Empty;
@@ -344,6 +395,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         value.StyleJson = string.IsNullOrWhiteSpace(value.StyleJson) ? "{}" : value.StyleJson;
     }
 
+    /// <summary>
+    /// Performs the normalize stroke step owned by this component.
+    /// </summary>
     private static void NormalizeStroke(NotesInkStroke stroke, HashSet<Guid> usedIds, ICollection<string> changes)
     {
         stroke.Id = Unique(stroke.Id, usedIds, changes, "ink stroke");
@@ -364,6 +418,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         }
     }
 
+    /// <summary>
+    /// Performs the unique step owned by this component.
+    /// </summary>
     private static Guid Unique(Guid candidate, ISet<Guid> used, ICollection<string> changes, string kind)
     {
         if (candidate != Guid.Empty && used.Add(candidate)) return candidate;
@@ -373,9 +430,15 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         return replacement;
     }
 
+    /// <summary>
+    /// Performs the clamp finite step owned by this component.
+    /// </summary>
     private static double ClampFinite(double value, double fallback, double minimum, double maximum) =>
         double.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : fallback;
 
+    /// <summary>
+    /// Performs the valid colour step owned by this component.
+    /// </summary>
     private static bool ValidColour(string? value) =>
         value is { Length: 7 or 9 }
         && value[0] == '#'

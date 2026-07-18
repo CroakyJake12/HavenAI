@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/CallSingletonIntegrationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns CallSingletonIntegrationTests, FakeSpeechOutput, RecordingDiagnostics. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
@@ -5,8 +14,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents call singleton integration tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallSingletonIntegrationTests
 {
+    /// <summary>
+    /// Performs the desktop registration shares one speech output across call and preview step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DesktopRegistrationSharesOneSpeechOutputAcrossCallAndPreview()
     {
@@ -24,6 +39,9 @@ public sealed class CallSingletonIntegrationTests
         Assert.Same(preview, provider.GetRequiredService<CallVoicePreviewController>());
     }
 
+    /// <summary>
+    /// Performs the preview uses selected voice and fixed local text step owned by this component.
+    /// </summary>
     [Fact]
     public async Task PreviewUsesSelectedVoiceAndFixedLocalText()
     {
@@ -41,6 +59,9 @@ public sealed class CallSingletonIntegrationTests
         Assert.Contains(diagnostics.Events, item => item.EventName == "voice-preview-completed");
     }
 
+    /// <summary>
+    /// Performs the stop cancels an active preview without waiting for playback step owned by this component.
+    /// </summary>
     [Fact]
     public async Task StopCancelsAnActivePreviewWithoutWaitingForPlayback()
     {
@@ -60,6 +81,9 @@ public sealed class CallSingletonIntegrationTests
         Assert.Contains(diagnostics.Events, item => item.EventName == "voice-preview-cancelled");
     }
 
+    /// <summary>
+    /// Performs the unavailable speech fails before playback and reports nothing sensitive step owned by this component.
+    /// </summary>
     [Fact]
     public async Task UnavailableSpeechFailsBeforePlaybackAndReportsNothingSensitive()
     {
@@ -77,19 +101,55 @@ public sealed class CallSingletonIntegrationTests
         Assert.Empty(diagnostics.Events);
     }
 
+    /// <summary>
+    /// Represents fake speech output and keeps its related state and behavior together.
+    /// </summary>
     private sealed class FakeSpeechOutput : ISpeechOutputService
     {
+        /// <summary>
+        /// Reports whether is available is true for the current state.
+        /// </summary>
         public bool IsAvailable { get; set; } = true;
+        /// <summary>
+        /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+        /// </summary>
         public string? UnavailableReason { get; set; }
+        /// <summary>
+        /// Gets or updates devices, the bindable or domain state represented by this property.
+        /// </summary>
         public IReadOnlyList<CallAudioDevice> Devices { get; } = [new("default", "Default", true)];
+        /// <summary>
+        /// Gets or updates voices, the bindable or domain state represented by this property.
+        /// </summary>
         public IReadOnlyList<CallVoice> Voices { get; } = [new("voice-id", "Test voice", "en-GB", true)];
+        /// <summary>
+        /// Gets or updates last text, the bindable or domain state represented by this property.
+        /// </summary>
         public string? LastText { get; private set; }
+        /// <summary>
+        /// Gets or updates last voice, the bindable or domain state represented by this property.
+        /// </summary>
         public string? LastVoice { get; private set; }
+        /// <summary>
+        /// Gets or updates last device, the bindable or domain state represented by this property.
+        /// </summary>
         public string? LastDevice { get; private set; }
+        /// <summary>
+        /// Gets or updates block playback, the bindable or domain state represented by this property.
+        /// </summary>
         public bool BlockPlayback { get; set; }
+        /// <summary>
+        /// Gets or updates stop count, the bindable or domain state represented by this property.
+        /// </summary>
         public int StopCount { get; private set; }
+        /// <summary>
+        /// Gets or updates started, the bindable or domain state represented by this property.
+        /// </summary>
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        /// <summary>
+        /// Performs speak async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public async Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken)
         {
             LastText = text;
@@ -99,6 +159,9 @@ public sealed class CallSingletonIntegrationTests
             if (BlockPlayback) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
 
+        /// <summary>
+        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {
             StopCount++;
@@ -106,10 +169,19 @@ public sealed class CallSingletonIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Represents recording diagnostics and keeps its related state and behavior together.
+    /// </summary>
     private sealed class RecordingDiagnostics : IProductionDiagnostics
     {
+        /// <summary>
+        /// Gets or updates events, the bindable or domain state represented by this property.
+        /// </summary>
         public List<ReliabilityEvent> Events { get; } = [];
 
+        /// <summary>
+        /// Performs write async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public ValueTask WriteAsync(
             ReliabilitySeverity severity,
             string component,
@@ -131,9 +203,15 @@ public sealed class CallSingletonIntegrationTests
             return ValueTask.CompletedTask;
         }
 
+        /// <summary>
+        /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ReliabilityEvent>>(Events.Take(limit).ToArray());
 
+        /// <summary>
+        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

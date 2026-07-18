@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/app.manifest, embedded into the Windows desktop executable.
+  What: Declares the process identity, least-privilege launch level, supported Windows versions, DPI behavior, long-path support, and Common Controls dependency.
+  Why: Windows reads these declarations before managed startup, so platform compatibility settings belong here rather than in C# runtime code.
+  Security: asInvoker deliberately prevents silent elevation; uiAccess=false prevents privileged cross-process UI automation.
+  Display: PerMonitorV2 allows Avalonia to respond correctly when a window moves between displays with different scaling factors.
+-->
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="1.0.0.0" name="Haven.LocalAI.Desktop" />
 

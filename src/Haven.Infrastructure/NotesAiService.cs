@@ -1,13 +1,28 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/NotesAiService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns NotesAiService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents notes ai service and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesAiService(
     IOllamaClient models,
     IProductionDiagnostics diagnostics) : INotesAiService
 {
+    /// <summary>
+    /// Performs propose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesAiProposalResult> ProposeAsync(NotesAiProposalRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -108,6 +123,9 @@ public sealed class NotesAiService(
         }
     }
 
+    /// <summary>
+    /// Performs the parse step owned by this component.
+    /// </summary>
     private static NotesAiProposalResult Parse(string response, IReadOnlyList<NotesCitation> citations)
     {
         var json = ExtractJson(response);
@@ -139,6 +157,9 @@ public sealed class NotesAiService(
         return new NotesAiProposalResult(proposed, explanation, cited, string.Empty, string.Empty);
     }
 
+    /// <summary>
+    /// Performs the extract json step owned by this component.
+    /// </summary>
     private static string ExtractJson(string response)
     {
         var value = response.Trim();
@@ -154,12 +175,18 @@ public sealed class NotesAiService(
         return value[start..(end + 1)];
     }
 
+    /// <summary>
+    /// Performs the limit step owned by this component.
+    /// </summary>
     private static string Limit(string? value, int maximum)
     {
         var normalized = value ?? string.Empty;
         return normalized.Length <= maximum ? normalized : normalized[..maximum];
     }
 
+    /// <summary>
+    /// Performs the provider id step owned by this component.
+    /// </summary>
     private static string ProviderId(string modelName)
     {
         var separator = modelName.IndexOf(':');

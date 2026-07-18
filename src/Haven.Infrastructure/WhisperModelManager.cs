@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WhisperModelManager.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WhisperModelManager, ModelDefinition. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
@@ -10,6 +19,9 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) : ISpeechModelManager
 {
+    /// <summary>
+    /// Stores definitions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<SpeechModelSize, ModelDefinition> Definitions =
         new Dictionary<SpeechModelSize, ModelDefinition>
         {
@@ -24,9 +36,18 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin")
         };
 
+    /// <summary>
+    /// Stores models directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _modelsDirectory = Path.Combine(paths.DataDirectory, "SpeechModels");
+    /// <summary>
+    /// Stores download gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _downloadGate = new(1, 1);
 
+    /// <summary>
+    /// Retrieves models async for the current operation.
+    /// </summary>
     public Task<IReadOnlyList<SpeechModelInfo>> GetModelsAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -37,6 +58,9 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
         return Task.FromResult(result);
     }
 
+    /// <summary>
+    /// Performs download async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SpeechModelInfo> DownloadAsync(
         SpeechModelSize size,
         IProgress<double>? progress,
@@ -98,6 +122,9 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
         }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteAsync(SpeechModelSize size, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -108,6 +135,9 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Creates info with the invariants required by its callers.
+    /// </summary>
     private SpeechModelInfo CreateInfo(SpeechModelSize size, ModelDefinition definition)
     {
         var localPath = Path.Combine(_modelsDirectory, definition.FileName);
@@ -120,6 +150,9 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
             localPath);
     }
 
+    /// <summary>
+    /// Represents model definition and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ModelDefinition(
         string DisplayName,
         string FileName,

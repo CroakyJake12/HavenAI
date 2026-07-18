@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/NotesWorkspaceView.Productivity.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns NotesWorkspaceView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,30 +19,84 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents notes workspace view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesWorkspaceView
 {
+    /// <summary>
+    /// Stores notes copy json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions NotesCopyJsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
 
+    /// <summary>
+    /// Stores local find results panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _localFindResultsPanel = new() { Spacing = 4 };
+    /// <summary>
+    /// Stores language issues panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _languageIssuesPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores bookmarks panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _bookmarksPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores fields panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _fieldsPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores styles panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _stylesPanel = new() { Spacing = 5 };
+    /// <summary>
+    /// Stores version comparison panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _versionComparisonPanel = new() { Spacing = 3 };
+    /// <summary>
+    /// Stores local find text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _localFindText = string.Empty;
+    /// <summary>
+    /// Stores local replace text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _localReplaceText = string.Empty;
+    /// <summary>
+    /// Stores local find regex locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _localFindRegex;
+    /// <summary>
+    /// Stores local find match case locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _localFindMatchCase;
+    /// <summary>
+    /// Stores local find whole word locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _localFindWholeWord;
+    /// <summary>
+    /// Stores local find scope locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _localFindScope = "Document";
+    /// <summary>
+    /// Stores local find matches locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IReadOnlyList<NotesFindMatch> _localFindMatches = [];
+    /// <summary>
+    /// Stores language issues locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private IReadOnlyList<NotesLanguageIssue> _languageIssues = [];
+    /// <summary>
+    /// Stores version comparison locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private NotesVersionComparison? _versionComparison;
 
+    /// <summary>
+    /// Builds productivity inspector from the currently available inputs.
+    /// </summary>
     private void BuildProductivityInspector()
     {
         if (_viewModel.Document is not { } document) return;
@@ -51,6 +114,9 @@ public sealed partial class NotesWorkspaceView
         BuildStudyAndCanvasProductivity(document);
     }
 
+    /// <summary>
+    /// Builds template and file tools from the currently available inputs.
+    /// </summary>
     private Control BuildTemplateAndFileTools(NotesDocument document)
     {
         var templates = NotesTemplateCatalog.Templates.ToArray();
@@ -100,6 +166,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds local find replace from the currently available inputs.
+    /// </summary>
     private Control BuildLocalFindReplace(NotesDocument document)
     {
         var find = new TextBox { Text = _localFindText, PlaceholderText = "Find in this document" };
@@ -190,6 +259,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds language tools from the currently available inputs.
+    /// </summary>
     private Control BuildLanguageTools(NotesDocument document)
     {
         var actions = new WrapPanel();
@@ -235,6 +307,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds header footer tools from the currently available inputs.
+    /// </summary>
     private Control BuildHeaderFooterTools(NotesDocument document)
     {
         var section = _viewModel.CurrentSection;
@@ -298,6 +373,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds field tools from the currently available inputs.
+    /// </summary>
     private Control BuildFieldTools(NotesDocument document)
     {
         var names = new[]
@@ -345,6 +423,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds bookmark tools from the currently available inputs.
+    /// </summary>
     private Control BuildBookmarkTools(NotesDocument document)
     {
         var name = new TextBox { PlaceholderText = "Bookmark name" };
@@ -367,6 +448,9 @@ public sealed partial class NotesWorkspaceView
         return ToolCard("Bookmarks", new StackPanel { Spacing = 6, Children = { name, add, _bookmarksPanel } });
     }
 
+    /// <summary>
+    /// Builds style tools from the currently available inputs.
+    /// </summary>
     private Control BuildStyleTools(NotesDocument document)
     {
         var name = new TextBox { PlaceholderText = "New style name" };
@@ -400,6 +484,9 @@ public sealed partial class NotesWorkspaceView
         return ToolCard("Styles", new StackPanel { Spacing = 6, Children = { name, actions, _stylesPanel } });
     }
 
+    /// <summary>
+    /// Builds extended layout tools from the currently available inputs.
+    /// </summary>
     private Control BuildExtendedLayoutTools(NotesDocument document)
     {
         var state = LoadAdvancedState(document);
@@ -466,6 +553,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds privacy tools from the currently available inputs.
+    /// </summary>
     private Control BuildPrivacyTools(NotesDocument document)
     {
         var state = LoadAdvancedState(document);
@@ -515,6 +605,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Builds version comparison tools from the currently available inputs.
+    /// </summary>
     private Control BuildVersionComparisonTools()
     {
         var compare = ActionButton("Compare selected version", async () =>
@@ -560,6 +653,9 @@ public sealed partial class NotesWorkspaceView
         });
     }
 
+    /// <summary>
+    /// Performs the refresh local find results step owned by this component.
+    /// </summary>
     private void RefreshLocalFindResults()
     {
         _localFindResultsPanel.Children.Clear();
@@ -588,6 +684,9 @@ public sealed partial class NotesWorkspaceView
             _localFindResultsPanel.Children.Add(new TextBlock { Text = $"Showing 200 of {_localFindMatches.Count} matches.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh language issues step owned by this component.
+    /// </summary>
     private void RefreshLanguageIssues()
     {
         _languageIssuesPanel.Children.Clear();
@@ -630,6 +729,9 @@ public sealed partial class NotesWorkspaceView
             _languageIssuesPanel.Children.Add(new TextBlock { Text = "Run a local language check to review suggestions.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh fields panel step owned by this component.
+    /// </summary>
     private void RefreshFieldsPanel(NotesDocument document)
     {
         _fieldsPanel.Children.Clear();
@@ -658,6 +760,9 @@ public sealed partial class NotesWorkspaceView
             _fieldsPanel.Children.Add(new TextBlock { Text = "No document fields.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh bookmarks panel step owned by this component.
+    /// </summary>
     private void RefreshBookmarksPanel(NotesDocument document)
     {
         _bookmarksPanel.Children.Clear();
@@ -683,6 +788,9 @@ public sealed partial class NotesWorkspaceView
             _bookmarksPanel.Children.Add(new TextBlock { Text = "No bookmarks.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the refresh styles panel step owned by this component.
+    /// </summary>
     private void RefreshStylesPanel(NotesDocument document)
     {
         _stylesPanel.Children.Clear();
@@ -728,6 +836,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the refresh version comparison step owned by this component.
+    /// </summary>
     private void RefreshVersionComparison()
     {
         _versionComparisonPanel.Children.Clear();
@@ -762,6 +873,9 @@ public sealed partial class NotesWorkspaceView
             _versionComparisonPanel.Children.Add(new TextBlock { Text = $"Showing 500 of {_versionComparison.Lines.Count} diff lines.", Classes = { "muted2" }, FontSize = 9 });
     }
 
+    /// <summary>
+    /// Performs the current find options step owned by this component.
+    /// </summary>
     private NotesFindOptions CurrentFindOptions() => _localFindScope switch
     {
         "Current section" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, SectionId: _viewModel.CurrentSection?.Id),
@@ -770,6 +884,9 @@ public sealed partial class NotesWorkspaceView
         _ => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord)
     };
 
+    /// <summary>
+    /// Performs import managed document async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ImportManagedDocumentAsync(NotesDocument document, string reason)
     {
         var temporary = Path.Combine(Path.GetTempPath(), "haven-notes-import-" + Guid.NewGuid().ToString("N") + ".haven-notes.json");
@@ -794,6 +911,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the clone for duplicate step owned by this component.
+    /// </summary>
     private static NotesDocument CloneForDuplicate(NotesDocument source)
     {
         var json = JsonSerializer.Serialize(source, NotesCopyJsonOptions);
@@ -822,6 +942,9 @@ public sealed partial class NotesWorkspaceView
         return clone;
     }
 
+    /// <summary>
+    /// Performs save native copy async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveNativeCopyAsync()
     {
         if (_viewModel.Document is null) return;
@@ -839,6 +962,9 @@ public sealed partial class NotesWorkspaceView
         RefreshStatusOnly();
     }
 
+    /// <summary>
+    /// Performs export style set async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ExportStyleSetAsync(NotesDocument document)
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -855,6 +981,9 @@ public sealed partial class NotesWorkspaceView
         _status.Text = "Exported Notes style set.";
     }
 
+    /// <summary>
+    /// Performs import style set async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ImportStyleSetAsync(NotesDocument document)
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -884,6 +1013,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the navigate to block step owned by this component.
+    /// </summary>
     private void NavigateToBlock(Guid sectionId, Guid pageId, Guid blockId)
     {
         if (_viewModel.Document is not { } document) return;
@@ -897,6 +1029,9 @@ public sealed partial class NotesWorkspaceView
         QueueRefresh();
     }
 
+    /// <summary>
+    /// Performs the navigate to block step owned by this component.
+    /// </summary>
     private void NavigateToBlock(Guid blockId)
     {
         if (_viewModel.Document is not { } document) return;
@@ -910,6 +1045,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the begin whole document edit step owned by this component.
+    /// </summary>
     private NotesBlock? BeginWholeDocumentEdit()
     {
         var anchor = _viewModel.SelectedBlock ?? _viewModel.Blocks.FirstOrDefault();
@@ -917,6 +1055,9 @@ public sealed partial class NotesWorkspaceView
         return anchor;
     }
 
+    /// <summary>
+    /// Performs the complete whole document edit step owned by this component.
+    /// </summary>
     private void CompleteWholeDocumentEdit(NotesBlock anchor, bool changed, string summary)
     {
         if (changed) EndEditing(anchor, summary);
@@ -927,12 +1068,18 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the remove service revisions step owned by this component.
+    /// </summary>
     private static void RemoveServiceRevisions(NotesDocument document, int countBefore)
     {
         if (document.Revisions.Count > countBefore)
             document.Revisions.RemoveRange(countBefore, document.Revisions.Count - countBefore);
     }
 
+    /// <summary>
+    /// Performs the mutate advanced state step owned by this component.
+    /// </summary>
     private void MutateAdvancedState(
         NotesDocument document,
         Action<NotesAdvancedDocumentState> mutation,
@@ -954,6 +1101,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the load advanced state step owned by this component.
+    /// </summary>
     private static NotesAdvancedDocumentState LoadAdvancedState(NotesDocument document)
     {
         try { return NotesAdvancedStateStore.Load(document); }
@@ -964,6 +1114,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the metadata box step owned by this component.
+    /// </summary>
     private static TextBox MetadataBox(string value, string watermark) => new()
     {
         Text = value,
@@ -973,6 +1126,9 @@ public sealed partial class NotesWorkspaceView
         TextWrapping = TextWrapping.Wrap
     };
 
+    /// <summary>
+    /// Performs the section heading step owned by this component.
+    /// </summary>
     private static Control SectionHeading(string text) => new TextBlock
     {
         Text = text,
@@ -980,6 +1136,9 @@ public sealed partial class NotesWorkspaceView
         Margin = new Thickness(0, 10, 0, 0)
     };
 
+    /// <summary>
+    /// Performs the tool card step owned by this component.
+    /// </summary>
     private static Control ToolCard(string title, Control content) => Card(new StackPanel
     {
         Spacing = 6,
@@ -990,6 +1149,9 @@ public sealed partial class NotesWorkspaceView
         }
     });
 
+    /// <summary>
+    /// Performs the unique style id step owned by this component.
+    /// </summary>
     private static string UniqueStyleId(NotesDocument document, string name)
     {
         var baseId = new string(name.ToLowerInvariant().Select(character => char.IsLetterOrDigit(character) ? character : '-').ToArray()).Trim('-');
@@ -1007,6 +1169,9 @@ public sealed partial class NotesWorkspaceView
                ?? throw new InvalidDataException("A Notes formatting value could not be copied.");
     }
 
+    /// <summary>
+    /// Performs the apply character style step owned by this component.
+    /// </summary>
     private static void ApplyCharacterStyle(NotesTextRun target, NotesTextRun source)
     {
         target.FontFamily = source.FontFamily;

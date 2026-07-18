@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Views/NotesWorkspaceView.BlockInspector.cs, in the Desktop view layer, where Avalonia controls connect XAML interaction to view models.
+ * What: This file owns NotesWorkspaceView. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -11,14 +20,35 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
 
+/// <summary>
+/// Represents notes workspace view and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class NotesWorkspaceView
 {
+    /// <summary>
+    /// Stores code language key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string CodeLanguageKey = "haven.notes.code.language";
+    /// <summary>
+    /// Stores code wrap key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string CodeWrapKey = "haven.notes.code.wrap";
+    /// <summary>
+    /// Stores code line numbers key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string CodeLineNumbersKey = "haven.notes.code.line-numbers";
+    /// <summary>
+    /// Stores code tab size key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string CodeTabSizeKey = "haven.notes.code.tab-size";
+    /// <summary>
+    /// Stores block panel locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _blockPanel = new() { Spacing = 9 };
 
+    /// <summary>
+    /// Builds selected block inspector from the currently available inputs.
+    /// </summary>
     private void BuildSelectedBlockInspector()
     {
         _blockPanel.Children.Clear();
@@ -62,6 +92,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Builds dictation inspector from the currently available inputs.
+    /// </summary>
     private void BuildDictationInspector(NotesBlock block)
     {
         var status = new TextBlock
@@ -162,6 +195,9 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(status);
     }
 
+    /// <summary>
+    /// Builds code inspector from the currently available inputs.
+    /// </summary>
     private void BuildCodeInspector(NotesBlock block)
     {
         block.Metadata.TryGetValue(CodeLanguageKey, out var savedLanguage);
@@ -288,6 +324,9 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(preview);
     }
 
+    /// <summary>
+    /// Builds table inspector from the currently available inputs.
+    /// </summary>
     private void BuildTableInspector(NotesBlock block)
     {
         var table = block.Table!;
@@ -354,6 +393,9 @@ public sealed partial class NotesWorkspaceView
         }, "Replace the selected table with the tab-separated data above"));
     }
 
+    /// <summary>
+    /// Builds media inspector from the currently available inputs.
+    /// </summary>
     private void BuildMediaInspector(NotesBlock block)
     {
         var media = block.Media!;
@@ -442,10 +484,16 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(Labeled("Captions", captions));
     }
 
+    /// <summary>
+    /// Performs the resolve media service step owned by this component.
+    /// </summary>
     private INotesMediaAssetService ResolveMediaService() =>
         App.Services?.GetRequiredService<INotesMediaAssetService>()
         ?? throw new InvalidOperationException("The verified Notes media service is unavailable.");
 
+    /// <summary>
+    /// Performs replace selected media async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ReplaceSelectedMediaAsync(NotesBlock block)
     {
         if (block.Media is null) return;
@@ -479,6 +527,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs save selected media copy async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveSelectedMediaCopyAsync(NotesMediaData media)
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
@@ -501,6 +552,9 @@ public sealed partial class NotesWorkspaceView
         }
     }
 
+    /// <summary>
+    /// Performs the format bytes step owned by this component.
+    /// </summary>
     private static string FormatBytes(long value) => value switch
     {
         >= 1024L * 1024 * 1024 => $"{value / (1024d * 1024 * 1024):0.00} GB",

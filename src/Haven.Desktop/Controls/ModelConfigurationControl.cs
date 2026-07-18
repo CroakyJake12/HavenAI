@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/ModelConfigurationControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns ModelConfigurationControl. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
@@ -20,37 +29,94 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed class ModelConfigurationControl : UserControl, IDisposable
 {
+    /// <summary>
+    /// Stores provider prefix locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex ProviderPrefix = new(
         "^(openai|openrouter|anthropic|gemini|openai-compatible):",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores qwen name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex QwenName = new(
         "(?i)\\bqwen\\s*([0-9]+(?:\\.[0-9]+)?)(?:\\s*(?:vl|vision))?\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores parameter size locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex ParameterSize = new(
         "(?i)(?:^|\\s)[0-9]+(?:\\.[0-9]+)?b(?:\\s|$)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores quantisation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex Quantisation = new(
         "(?i)\\bq[2-8](?:\\s+[kms]){0,2}(?:\\s+[a-z0-9]+)?\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores model fluff locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex ModelFluff = new(
         "(?i)\\b(latest|preview|instruct|instruction|chat|base|thinking|reasoning|fp16|fp32)\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    /// <summary>
+    /// Stores repeated whitespace locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly Regex RepeatedWhitespace = new(
         "\\s+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>
+    /// Stores button locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Button _button;
+    /// <summary>
+    /// Stores summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _summary;
+    /// <summary>
+    /// Stores capabilities locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly StackPanel _capabilities;
+    /// <summary>
+    /// Stores main flyout locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Flyout _mainFlyout;
+    /// <summary>
+    /// Stores effort slider locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Slider _effortSlider;
+    /// <summary>
+    /// Stores effort description locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TextBlock _effortDescription;
+    /// <summary>
+    /// Stores chat locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ChatPageViewModel? _chat;
+    /// <summary>
+    /// Stores shell locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private MainWindowViewModel? _shell;
+    /// <summary>
+    /// Stores subscribed source locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private INotifyPropertyChanged? _subscribedSource;
+    /// <summary>
+    /// Stores subscribed models locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private INotifyCollectionChanged? _subscribedModels;
+    /// <summary>
+    /// Stores effort percent locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _effortPercent = 60;
+    /// <summary>
+    /// Stores updating effort locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _updatingEffort;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
     public ModelConfigurationControl(string presentation = "default")
@@ -128,6 +194,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -142,6 +211,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Performs the simplify model name step owned by this component.
+    /// </summary>
     internal static string SimplifyModelName(string? modelName)
     {
         if (string.IsNullOrWhiteSpace(modelName)) return "Choose model";
@@ -160,6 +232,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         return string.IsNullOrWhiteSpace(value) ? modelName.Trim() : value;
     }
 
+    /// <summary>
+    /// Builds main panel from the currently available inputs.
+    /// </summary>
     private Control BuildMainPanel()
     {
         var advanced = CreateSubmenuButton(
@@ -213,6 +288,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// Creates submenu button with the invariants required by its callers.
+    /// </summary>
     private static Button CreateSubmenuButton(
         string glyph,
         string title,
@@ -241,6 +319,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Builds advanced panel from the currently available inputs.
+    /// </summary>
     private Control BuildAdvancedPanel()
     {
         var preferences = App.Services?.GetService<UserPreferencesService>();
@@ -300,6 +381,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// Builds recovery panel from the currently available inputs.
+    /// </summary>
     private Control BuildRecoveryPanel()
     {
         var panel = new StackPanel { Width = 330, Spacing = 6 };
@@ -335,6 +419,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         return panel;
     }
 
+    /// <summary>
+    /// Performs the recovery button step owned by this component.
+    /// </summary>
     private Button RecoveryButton(string glyph, string title, string instruction)
     {
         var button = new Button
@@ -357,6 +444,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         return button;
     }
 
+    /// <summary>
+    /// Builds model panel from the currently available inputs.
+    /// </summary>
     private Control BuildModelPanel()
     {
         var search = new TextBox { PlaceholderText = "Search configured models" };
@@ -452,6 +542,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// Performs recover behaviour async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RecoverBehaviourAsync(string instruction)
     {
         var chat = ResolveChat();
@@ -469,11 +562,26 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _mainFlyout.Hide();
     }
 
+    /// <summary>
+    /// Handles the data context changed event raised by the UI or runtime.
+    /// </summary>
     private void OnDataContextChanged(object? sender, EventArgs e) => AttachContext();
+    /// <summary>
+    /// Handles the attached to visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => AttachContext();
+    /// <summary>
+    /// Handles the detached from visual tree event raised by the UI or runtime.
+    /// </summary>
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => DetachContext();
+    /// <summary>
+    /// Handles the flyout opened event raised by the UI or runtime.
+    /// </summary>
     private void OnFlyoutOpened(object? sender, EventArgs e) => RefreshFromContext();
 
+    /// <summary>
+    /// Performs the attach context step owned by this component.
+    /// </summary>
     private void AttachContext()
     {
         DetachContext();
@@ -493,6 +601,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         RefreshFromContext();
     }
 
+    /// <summary>
+    /// Performs the detach context step owned by this component.
+    /// </summary>
     private void DetachContext()
     {
         if (_subscribedSource is not null) _subscribedSource.PropertyChanged -= OnSourcePropertyChanged;
@@ -503,6 +614,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _shell = null;
     }
 
+    /// <summary>
+    /// Handles the source property changed event raised by the UI or runtime.
+    /// </summary>
     private void OnSourcePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is MainWindowViewModel && e.PropertyName == nameof(MainWindowViewModel.CurrentChat))
@@ -517,8 +631,14 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         RefreshSummary();
     }
 
+    /// <summary>
+    /// Handles the models changed event raised by the UI or runtime.
+    /// </summary>
     private void OnModelsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshSummary();
 
+    /// <summary>
+    /// Performs the subscribe to models step owned by this component.
+    /// </summary>
     private void SubscribeToModels()
     {
         if (_subscribedModels is not null) _subscribedModels.CollectionChanged -= OnModelsChanged;
@@ -526,6 +646,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         if (_subscribedModels is not null) _subscribedModels.CollectionChanged += OnModelsChanged;
     }
 
+    /// <summary>
+    /// Performs the resolve chat step owned by this component.
+    /// </summary>
     private ChatPageViewModel? ResolveChat()
     {
         if (_shell is not null && !ReferenceEquals(_chat, _shell.CurrentChat))
@@ -536,6 +659,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         return _chat;
     }
 
+    /// <summary>
+    /// Performs the refresh from context step owned by this component.
+    /// </summary>
     private void RefreshFromContext()
     {
         var chat = ResolveChat();
@@ -546,6 +672,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         RefreshSummary();
     }
 
+    /// <summary>
+    /// Performs the refresh summary step owned by this component.
+    /// </summary>
     private void RefreshSummary()
     {
         var chat = ResolveChat();
@@ -561,6 +690,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             "Audio");
     }
 
+    /// <summary>
+    /// Performs the add capability step owned by this component.
+    /// </summary>
     private void AddCapability(bool supported, string glyph, string label)
     {
         if (!supported) return;
@@ -574,6 +706,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _capabilities.Children.Add(icon);
     }
 
+    /// <summary>
+    /// Handles the effort value changed event raised by the UI or runtime.
+    /// </summary>
     private void OnEffortValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         var snapped = Math.Clamp((int)Math.Round(e.NewValue / 20d) * 20, 20, 100);
@@ -591,6 +726,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         RefreshSummary();
     }
 
+    /// <summary>
+    /// Performs the effort for percentage step owned by this component.
+    /// </summary>
     private static EffortLevel EffortForPercentage(int percentage) => percentage switch
     {
         <= 20 => EffortLevel.Low,
@@ -599,6 +737,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _ => EffortLevel.Max
     };
 
+    /// <summary>
+    /// Performs the percentage for effort step owned by this component.
+    /// </summary>
     private static int PercentageForEffort(EffortLevel effort) => effort switch
     {
         EffortLevel.Low => 20,
@@ -608,6 +749,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _ => 60
     };
 
+    /// <summary>
+    /// Performs the effort description step owned by this component.
+    /// </summary>
     private static string EffortDescription(int percentage) => percentage switch
     {
         20 => "Fastest responses, least accurate",
@@ -617,6 +761,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _ => "Balanced responses"
     };
 
+    /// <summary>
+    /// Performs the labelled step owned by this component.
+    /// </summary>
     private static StackPanel Labelled(string label, Control control, string description) => new()
     {
         Spacing = 3,

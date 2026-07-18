@@ -1,8 +1,20 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/NotesReadAloudController.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns NotesReadAloudStatus, NotesReadAloudController. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Represents notes read aloud status and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesReadAloudStatus(
     bool IsActive,
     string Message,
@@ -17,14 +29,35 @@ public sealed class NotesReadAloudController(
     ICallCoordinator calls,
     IProductionDiagnostics diagnostics) : IAsyncDisposable
 {
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores active cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _activeCancellation;
+    /// <summary>
+    /// Stores active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _active;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
+    /// <summary>
+    /// Reports whether is active is true for the current state.
+    /// </summary>
     public bool IsActive => Volatile.Read(ref _active) == 1;
+    /// <summary>
+    /// Stores status changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler<NotesReadAloudStatus>? StatusChanged;
 
+    /// <summary>
+    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ReadAsync(
         string text,
         string? language,
@@ -98,6 +131,9 @@ public sealed class NotesReadAloudController(
         }
     }
 
+    /// <summary>
+    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -125,6 +161,9 @@ public sealed class NotesReadAloudController(
         }
     }
 
+    /// <summary>
+    /// Performs complete read async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CompleteReadAsync(CancellationTokenSource owner)
     {
         await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -142,6 +181,9 @@ public sealed class NotesReadAloudController(
         }
     }
 
+    /// <summary>
+    /// Performs the select voice step owned by this component.
+    /// </summary>
     private static CallVoice? SelectVoice(
         IReadOnlyList<CallVoice> voices,
         string? language)
@@ -161,9 +203,15 @@ public sealed class NotesReadAloudController(
         return voices.FirstOrDefault(value => value.IsDefault) ?? voices[0];
     }
 
+    /// <summary>
+    /// Performs the raise status step owned by this component.
+    /// </summary>
     private void RaiseStatus(string message, bool isError = false) =>
         StatusChanged?.Invoke(this, new NotesReadAloudStatus(IsActive, message, isError));
 
+    /// <summary>
+    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

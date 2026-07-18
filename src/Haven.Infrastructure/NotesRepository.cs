@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/NotesRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns NotesRepository, NotesVersionManifest, NotesAttachmentStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,21 +15,42 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents notes repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesRepository(
     IAppPaths paths,
     INotesDocumentValidator validator,
     IProductionDiagnostics diagnostics) : INotesRepository
 {
+    /// <summary>
+    /// Stores maximum versions per document locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumVersionsPerDocument = 100;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Documents");
+    /// <summary>
+    /// Stores trash locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _trash = Path.Combine(paths.DataDirectory, "Notes", "Trash");
 
+    /// <summary>
+    /// Performs list async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -60,6 +90,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> LoadAsync(Guid documentId, CancellationToken cancellationToken)
     {
         if (documentId == Guid.Empty) throw new ArgumentException("Document ID cannot be empty.", nameof(documentId));
@@ -68,6 +101,9 @@ public sealed class NotesRepository(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesSaveResult> SaveAsync(NotesDocument document, string reason, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -154,6 +190,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(Guid documentId, CancellationToken cancellationToken)
     {
         if (documentId == Guid.Empty) throw new ArgumentException("Document ID cannot be empty.", nameof(documentId));
@@ -180,6 +219,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Retrieves versions async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<NotesVersionInfo>> GetVersionsAsync(Guid documentId, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -187,6 +229,9 @@ public sealed class NotesRepository(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs load version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> LoadVersionAsync(Guid documentId, string versionId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(versionId) || versionId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || versionId.Contains("..", StringComparison.Ordinal))
@@ -205,6 +250,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs recover latest async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesDocument?> RecoverLatestAsync(Guid documentId, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -212,6 +260,9 @@ public sealed class NotesRepository(
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<IReadOnlyList<NotesSearchHit>> SearchAsync(string query, CancellationToken cancellationToken)
     {
         var normalized = string.IsNullOrWhiteSpace(query) ? string.Empty : query.Trim();
@@ -256,6 +307,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs load core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<NotesDocument?> LoadCoreAsync(Guid documentId, bool allowRecovery, CancellationToken cancellationToken)
     {
         var path = CurrentPath(documentId);
@@ -280,6 +334,9 @@ public sealed class NotesRepository(
         }
     }
 
+    /// <summary>
+    /// Performs recover core async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<NotesDocument?> RecoverCoreAsync(Guid documentId, CancellationToken cancellationToken)
     {
         var candidates = new List<string>();
@@ -312,6 +369,9 @@ public sealed class NotesRepository(
         return null;
     }
 
+    /// <summary>
+    /// Performs read and validate async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<NotesDocument> ReadAndValidateAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -323,6 +383,9 @@ public sealed class NotesRepository(
         return document;
     }
 
+    /// <summary>
+    /// Performs preserve previous version async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PreservePreviousVersionAsync(Guid documentId, string currentPath, long version, string reason, CancellationToken cancellationToken)
     {
         if (version <= 0 || !File.Exists(currentPath)) return;
@@ -336,6 +399,9 @@ public sealed class NotesRepository(
             await WriteJsonDurablyAsync(meta, new NotesVersionManifest(version, createdAt, NormalizeReason(reason), new FileInfo(path).Length, hash), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves versions core async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<NotesVersionInfo>> GetVersionsCoreAsync(Guid documentId, CancellationToken cancellationToken)
     {
         var directory = VersionsDirectory(documentId);
@@ -356,6 +422,9 @@ public sealed class NotesRepository(
         return result;
     }
 
+    /// <summary>
+    /// Performs the apply retention step owned by this component.
+    /// </summary>
     private void ApplyRetention(string versionsDirectory)
     {
         var files = Directory.EnumerateFiles(versionsDirectory, "*.haven-notes.json", SearchOption.TopDirectoryOnly)
@@ -369,6 +438,9 @@ public sealed class NotesRepository(
         foreach (var temporary in Directory.EnumerateFiles(versionsDirectory, "*.tmp-*", SearchOption.TopDirectoryOnly)) TryDelete(temporary);
     }
 
+    /// <summary>
+    /// Performs the summarize step owned by this component.
+    /// </summary>
     private static NotesDocumentSummary Summarize(NotesDocument document)
     {
         var blocks = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).ToArray();
@@ -383,6 +455,9 @@ public sealed class NotesRepository(
             document.Recovery.HasUnsavedRecovery);
     }
 
+    /// <summary>
+    /// Performs the block search text step owned by this component.
+    /// </summary>
     private static string BlockSearchText(NotesBlock block)
     {
         var builder = new StringBuilder(block.PlainText);
@@ -395,6 +470,9 @@ public sealed class NotesRepository(
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the snippet step owned by this component.
+    /// </summary>
     private static string Snippet(string text, int offset, int length)
     {
         var start = Math.Max(0, offset - 70);
@@ -402,11 +480,29 @@ public sealed class NotesRepository(
         return (start > 0 ? "…" : string.Empty) + text[start..end].ReplaceLineEndings(" ") + (end < text.Length ? "…" : string.Empty);
     }
 
+    /// <summary>
+    /// Performs the document directory step owned by this component.
+    /// </summary>
     private string DocumentDirectory(Guid id) => Path.Combine(_root, id.ToString("D"));
+    /// <summary>
+    /// Performs the current path step owned by this component.
+    /// </summary>
     private string CurrentPath(Guid id) => Path.Combine(DocumentDirectory(id), "current.haven-notes.json");
+    /// <summary>
+    /// Performs the backup path step owned by this component.
+    /// </summary>
     private string BackupPath(Guid id) => Path.Combine(DocumentDirectory(id), "backup.haven-notes.json");
+    /// <summary>
+    /// Performs the versions directory step owned by this component.
+    /// </summary>
     private string VersionsDirectory(Guid id) => Path.Combine(DocumentDirectory(id), "Versions");
+    /// <summary>
+    /// Performs the version file name step owned by this component.
+    /// </summary>
     private static string VersionFileName(long version, DateTimeOffset createdAt) => $"v{version:D10}-{createdAt.UtcDateTime:yyyyMMdd-HHmmssfff}";
+    /// <summary>
+    /// Performs the normalize reason step owned by this component.
+    /// </summary>
     private static string NormalizeReason(string reason) => string.IsNullOrWhiteSpace(reason) ? "Save" : reason.Trim()[..Math.Min(reason.Trim().Length, 160)];
 
     private static async Task WriteJsonDurablyAsync<T>(string path, T value, CancellationToken cancellationToken, bool overwrite = false)
@@ -418,6 +514,9 @@ public sealed class NotesRepository(
         stream.Flush(flushToDisk: true);
     }
 
+    /// <summary>
+    /// Performs copy durably async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task CopyDurablyAsync(string source, string destination, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
@@ -428,12 +527,18 @@ public sealed class NotesRepository(
         output.Flush(flushToDisk: true);
     }
 
+    /// <summary>
+    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Performs the quarantine step owned by this component.
+    /// </summary>
     private static void Quarantine(string path, string reason)
     {
         if (!File.Exists(path)) return;
@@ -442,20 +547,38 @@ public sealed class NotesRepository(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Represents notes version manifest and keeps its related state and behavior together.
+    /// </summary>
     private sealed record NotesVersionManifest(long Version, DateTimeOffset CreatedAt, string Reason, long SizeBytes, string Sha256);
 }
 
+/// <summary>
+/// Represents notes attachment store and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesAttachmentStore(IAppPaths paths, IProductionDiagnostics diagnostics) : INotesAttachmentStore
 {
+    /// <summary>
+    /// Stores root locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Attachments");
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    /// <summary>
+    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<NotesMediaData> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath)) throw new FileNotFoundException("The selected attachment does not exist.", sourcePath);
@@ -500,6 +623,9 @@ public sealed class NotesAttachmentStore(IAppPaths paths, IProductionDiagnostics
         }
     }
 
+    /// <summary>
+    /// Performs resolve path async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ResolvePathAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -509,6 +635,9 @@ public sealed class NotesAttachmentStore(IAppPaths paths, IProductionDiagnostics
         return match is null ? throw new FileNotFoundException("The Notes attachment was not found.") : Task.FromResult(match);
     }
 
+    /// <summary>
+    /// Performs delete unreferenced async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteUnreferencedAsync(IReadOnlyCollection<Guid> referencedAttachmentIds, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -534,12 +663,18 @@ public sealed class NotesAttachmentStore(IAppPaths paths, IProductionDiagnostics
         }
     }
 
+    /// <summary>
+    /// Performs compute async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ComputeAsync(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Performs the guess media type step owned by this component.
+    /// </summary>
     private static string GuessMediaType(string extension) => extension.ToLowerInvariant() switch
     {
         ".png" => "image/png",

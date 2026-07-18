@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/GenerativeUiThemeRuntime.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns GenerativeUiThemeRuntime. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -10,18 +19,42 @@ using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Represents generative ui theme runtime and keeps its related state and behavior together.
+/// </summary>
 public sealed class GenerativeUiThemeRuntime(
     IGenerativeThemeStore store,
     IProductionDiagnostics diagnostics) : IGenerativeUiRuntime
 {
+    /// <summary>
+    /// Stores gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>
+    /// Stores generated styles locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly List<IStyle> _generatedStyles = [];
+    /// <summary>
+    /// Stores initialized locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _initialized;
 
+    /// <summary>
+    /// Gets or updates active theme, the bindable or domain state represented by this property.
+    /// </summary>
     public GenerativeThemePack ActiveTheme { get; private set; } = null!;
+    /// <summary>
+    /// Gets or updates appearance, the bindable or domain state represented by this property.
+    /// </summary>
     public GenerativeThemeAppearance Appearance { get; private set; } = GenerativeThemeAppearance.Dark;
+    /// <summary>
+    /// Stores theme changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? ThemeChanged;
 
+    /// <summary>
+    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -41,6 +74,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ApplyAsync(
         Guid themeId,
         GenerativeThemeAppearance appearance,
@@ -116,6 +152,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Performs preview async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task PreviewAsync(
         GenerativeThemePack theme,
         GenerativeThemeAppearance appearance,
@@ -153,6 +192,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Performs revert preview async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RevertPreviewAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -172,6 +214,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Retrieves placements for the current operation.
+    /// </summary>
     public IReadOnlyList<GenerativeUiPlacement> GetPlacements(string region)
     {
         if (string.IsNullOrWhiteSpace(region) || ActiveTheme is null) return [];
@@ -181,6 +226,9 @@ public sealed class GenerativeUiThemeRuntime(
             .ToArray();
     }
 
+    /// <summary>
+    /// Retrieves pages for the current operation.
+    /// </summary>
     public IReadOnlyList<GeneratedPageDefinition> GetPages()
     {
         if (ActiveTheme is null) return [];
@@ -191,6 +239,9 @@ public sealed class GenerativeUiThemeRuntime(
             .ToArray();
     }
 
+    /// <summary>
+    /// Performs apply visuals async asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyVisualsAsync(
         GenerativeThemePack theme,
         GenerativeThemeAppearance appearance,
@@ -240,6 +291,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Attempts to write diagnostic async and reports the result without using failure for normal control flow.
+    /// </summary>
     private async ValueTask TryWriteDiagnosticAsync(
         ReliabilitySeverity severity,
         string eventName,
@@ -263,6 +317,9 @@ public sealed class GenerativeUiThemeRuntime(
         }
     }
 
+    /// <summary>
+    /// Performs the apply palette step owned by this component.
+    /// </summary>
     private static void ApplyPalette(
         Avalonia.Application application,
         GenerativeThemePalette palette,
@@ -303,6 +360,9 @@ public sealed class GenerativeUiThemeRuntime(
         application.Resources["HavenAcrylicFallbackColor"] = Color.Parse(acrylicFallback);
     }
 
+    /// <summary>
+    /// Performs the apply generated styles step owned by this component.
+    /// </summary>
     private void ApplyGeneratedStyles(
         Avalonia.Application application,
         GenerativeThemePack theme,
@@ -356,6 +416,9 @@ public sealed class GenerativeUiThemeRuntime(
         foreach (var style in _generatedStyles) application.Styles.Add(style);
     }
 
+    /// <summary>
+    /// Performs the choose readable ink step owned by this component.
+    /// </summary>
     private static string ChooseReadableInk(string background, string requested)
     {
         if (ContrastRatio(background, requested) >= 4.5d) return requested;
@@ -364,6 +427,9 @@ public sealed class GenerativeUiThemeRuntime(
         return ContrastRatio(background, black) >= ContrastRatio(background, white) ? black : white;
     }
 
+    /// <summary>
+    /// Performs the contrast ratio step owned by this component.
+    /// </summary>
     private static double ContrastRatio(string first, string second)
     {
         var firstLuminance = RelativeLuminance(Color.Parse(first));
@@ -373,6 +439,9 @@ public sealed class GenerativeUiThemeRuntime(
         return (lighter + 0.05d) / (darker + 0.05d);
     }
 
+    /// <summary>
+    /// Performs the relative luminance step owned by this component.
+    /// </summary>
     private static double RelativeLuminance(Color colour)
     {
         static double Linear(byte channel)
@@ -388,6 +457,9 @@ public sealed class GenerativeUiThemeRuntime(
                + 0.0722d * Linear(colour.B);
     }
 
+    /// <summary>
+    /// Performs the set brush step owned by this component.
+    /// </summary>
     private static void SetBrush(Avalonia.Application application, string key, string colour) =>
         application.Resources[key] = new SolidColorBrush(Color.Parse(colour));
 }

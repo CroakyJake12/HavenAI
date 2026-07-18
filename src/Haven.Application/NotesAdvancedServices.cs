@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/NotesAdvancedServices.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns NotesAdvancedDocumentState, NotesDocumentViewState, NotesExtendedPageLayout, NotesSectionHeaderFooterState, NotesAutocorrectEntry, NotesEquationLibraryEntry, NotesCanvasBookmarkEntry, NotesStudyAttempt, NotesCrossReference, NotesTrackedChange, NotesPrivacyState, NotesStudyPreferences, NotesAdvancedStateStore, NotesFindOptions, NotesFindMatch, NotesDocumentSearch, NotesFieldEvaluator, NotesDiffKind, NotesDiffLine, NotesVersionComparison, NotesVersionComparer, NotesStyleSetService, NotesTableOperations, NaturalStringComparer, NotesEquationTemplate, NotesEquationSymbol, NotesEquationTools, NotesCanvasOperations, RectD, NotesStudyTools, NotesCollaborationTools. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -6,169 +15,526 @@ using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents notes advanced document state and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesAdvancedDocumentState
 {
+    /// <summary>
+    /// Stores current schema version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const int CurrentSchemaVersion = 1;
+    /// <summary>
+    /// Gets or updates schema version, the bindable or domain state represented by this property.
+    /// </summary>
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+    /// <summary>
+    /// Gets or updates view, the bindable or domain state represented by this property.
+    /// </summary>
     public NotesDocumentViewState View { get; set; } = new();
+    /// <summary>
+    /// Gets or updates page layout, the bindable or domain state represented by this property.
+    /// </summary>
     public NotesExtendedPageLayout PageLayout { get; set; } = new();
+    /// <summary>
+    /// Gets or updates section headers, the bindable or domain state represented by this property.
+    /// </summary>
     public Dictionary<Guid, NotesSectionHeaderFooterState> SectionHeaders { get; set; } = [];
+    /// <summary>
+    /// Gets or updates autocorrect entries, the bindable or domain state represented by this property.
+    /// </summary>
     public List<NotesAutocorrectEntry> AutocorrectEntries { get; set; } = [];
+    /// <summary>
+    /// Gets or updates equation library, the bindable or domain state represented by this property.
+    /// </summary>
     public List<NotesEquationLibraryEntry> EquationLibrary { get; set; } = [];
+    /// <summary>
+    /// Reports whether canvas bookmarks is true for the current state.
+    /// </summary>
     public List<NotesCanvasBookmarkEntry> CanvasBookmarks { get; set; } = [];
+    /// <summary>
+    /// Gets or updates study attempts, the bindable or domain state represented by this property.
+    /// </summary>
     public List<NotesStudyAttempt> StudyAttempts { get; set; } = [];
+    /// <summary>
+    /// Gets or updates cross references, the bindable or domain state represented by this property.
+    /// </summary>
     public List<NotesCrossReference> CrossReferences { get; set; } = [];
+    /// <summary>
+    /// Gets or updates tracked changes, the bindable or domain state represented by this property.
+    /// </summary>
     public List<NotesTrackedChange> TrackedChanges { get; set; } = [];
+    /// <summary>
+    /// Gets or updates privacy, the bindable or domain state represented by this property.
+    /// </summary>
     public NotesPrivacyState Privacy { get; set; } = new();
+    /// <summary>
+    /// Gets or updates study, the bindable or domain state represented by this property.
+    /// </summary>
     public NotesStudyPreferences Study { get; set; } = new();
 }
 
+/// <summary>
+/// Represents notes document view state and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesDocumentViewState
 {
+    /// <summary>
+    /// Reports whether is pinned is true for the current state.
+    /// </summary>
     public bool IsPinned { get; set; }
+    /// <summary>
+    /// Gets or updates last opened at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset? LastOpenedAt { get; set; }
+    /// <summary>
+    /// Reports whether is focus mode is true for the current state.
+    /// </summary>
     public bool IsFocusMode { get; set; }
+    /// <summary>
+    /// Reports whether is fullscreen is true for the current state.
+    /// </summary>
     public bool IsFullscreen { get; set; }
+    /// <summary>
+    /// Gets or updates show library, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowLibrary { get; set; } = true;
+    /// <summary>
+    /// Gets or updates show outline, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowOutline { get; set; } = true;
+    /// <summary>
+    /// Gets or updates show formatting sidebar, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowFormattingSidebar { get; set; } = true;
+    /// <summary>
+    /// Gets or updates show status bar, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowStatusBar { get; set; } = true;
+    /// <summary>
+    /// Gets or updates show formatting marks, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowFormattingMarks { get; set; }
+    /// <summary>
+    /// Gets or updates interface scale, the bindable or domain state represented by this property.
+    /// </summary>
     public double InterfaceScale { get; set; } = 1;
+    /// <summary>
+    /// Gets or updates toolbar items, the bindable or domain state represented by this property.
+    /// </summary>
     public List<string> ToolbarItems { get; set; } =
     [
         "new", "save", "undo", "redo", "import", "export", "print"
     ];
 }
 
+/// <summary>
+/// Represents notes extended page layout and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesExtendedPageLayout
 {
+    /// <summary>
+    /// Gets or updates mirror margins, the bindable or domain state represented by this property.
+    /// </summary>
     public bool MirrorMargins { get; set; }
+    /// <summary>
+    /// Gets or updates gutter points, the bindable or domain state represented by this property.
+    /// </summary>
     public double GutterPoints { get; set; }
+    /// <summary>
+    /// Gets or updates columns, the bindable or domain state represented by this property.
+    /// </summary>
     public int Columns { get; set; } = 1;
+    /// <summary>
+    /// Gets or updates column spacing points, the bindable or domain state represented by this property.
+    /// </summary>
     public double ColumnSpacingPoints { get; set; } = 18;
+    /// <summary>
+    /// Gets or updates page border, the bindable or domain state represented by this property.
+    /// </summary>
     public string PageBorder { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates watermark, the bindable or domain state represented by this property.
+    /// </summary>
     public string Watermark { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates line numbering, the bindable or domain state represented by this property.
+    /// </summary>
     public bool LineNumbering { get; set; }
+    /// <summary>
+    /// Gets or updates hyphenation, the bindable or domain state represented by this property.
+    /// </summary>
     public bool Hyphenation { get; set; }
+    /// <summary>
+    /// Gets or updates vertical alignment, the bindable or domain state represented by this property.
+    /// </summary>
     public string VerticalAlignment { get; set; } = "Top";
+    /// <summary>
+    /// Gets or updates different first page, the bindable or domain state represented by this property.
+    /// </summary>
     public bool DifferentFirstPage { get; set; }
+    /// <summary>
+    /// Gets or updates different odd even pages, the bindable or domain state represented by this property.
+    /// </summary>
     public bool DifferentOddEvenPages { get; set; }
+    /// <summary>
+    /// Gets or updates page number format, the bindable or domain state represented by this property.
+    /// </summary>
     public string PageNumberFormat { get; set; } = "1, 2, 3";
+    /// <summary>
+    /// Gets or updates page number start, the bindable or domain state represented by this property.
+    /// </summary>
     public int PageNumberStart { get; set; } = 1;
 }
 
+/// <summary>
+/// Represents notes section header footer state and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesSectionHeaderFooterState
 {
+    /// <summary>
+    /// Gets or updates first page header, the bindable or domain state represented by this property.
+    /// </summary>
     public string FirstPageHeader { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates first page footer, the bindable or domain state represented by this property.
+    /// </summary>
     public string FirstPageFooter { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates odd page header, the bindable or domain state represented by this property.
+    /// </summary>
     public string OddPageHeader { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates odd page footer, the bindable or domain state represented by this property.
+    /// </summary>
     public string OddPageFooter { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates even page header, the bindable or domain state represented by this property.
+    /// </summary>
     public string EvenPageHeader { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates even page footer, the bindable or domain state represented by this property.
+    /// </summary>
     public string EvenPageFooter { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates restart page number at, the bindable or domain state represented by this property.
+    /// </summary>
     public int? RestartPageNumberAt { get; set; }
 }
 
+/// <summary>
+/// Represents notes autocorrect entry and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesAutocorrectEntry
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates input, the bindable or domain state represented by this property.
+    /// </summary>
     public string Input { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates replacement, the bindable or domain state represented by this property.
+    /// </summary>
     public string Replacement { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates match case, the bindable or domain state represented by this property.
+    /// </summary>
     public bool MatchCase { get; set; }
+    /// <summary>
+    /// Reports whether is enabled is true for the current state.
+    /// </summary>
     public bool IsEnabled { get; set; } = true;
 }
 
+/// <summary>
+/// Represents notes equation library entry and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesEquationLibraryEntry
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates category, the bindable or domain state represented by this property.
+    /// </summary>
     public string Category { get; set; } = "General";
+    /// <summary>
+    /// Gets or updates latex, the bindable or domain state represented by this property.
+    /// </summary>
     public string Latex { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates tags, the bindable or domain state represented by this property.
+    /// </summary>
     public List<string> Tags { get; set; } = [];
+    /// <summary>
+    /// Reports whether is favourite is true for the current state.
+    /// </summary>
     public bool IsFavourite { get; set; }
+    /// <summary>
+    /// Creates d at with the invariants required by its callers.
+    /// </summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+/// <summary>
+/// Represents notes canvas bookmark entry and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesCanvasBookmarkEntry
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates page id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid PageId { get; set; }
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates x, the bindable or domain state represented by this property.
+    /// </summary>
     public double X { get; set; }
+    /// <summary>
+    /// Gets or updates y, the bindable or domain state represented by this property.
+    /// </summary>
     public double Y { get; set; }
+    /// <summary>
+    /// Gets or updates zoom, the bindable or domain state represented by this property.
+    /// </summary>
     public double Zoom { get; set; } = 1;
 }
 
+/// <summary>
+/// Represents notes study attempt and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesStudyAttempt
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates card id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid CardId { get; set; }
+    /// <summary>
+    /// Gets or updates source block id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid? SourceBlockId { get; set; }
+    /// <summary>
+    /// Gets or updates attempt text, the bindable or domain state represented by this property.
+    /// </summary>
     public string AttemptText { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates correctness, the bindable or domain state represented by this property.
+    /// </summary>
     public string Correctness { get; set; } = "Unmarked";
+    /// <summary>
+    /// Gets or updates confidence, the bindable or domain state represented by this property.
+    /// </summary>
     public double Confidence { get; set; }
+    /// <summary>
+    /// Gets or updates hints used, the bindable or domain state represented by this property.
+    /// </summary>
     public int HintsUsed { get; set; }
+    /// <summary>
+    /// Gets or updates response time, the bindable or domain state represented by this property.
+    /// </summary>
     public TimeSpan ResponseTime { get; set; }
+    /// <summary>
+    /// Gets or updates started at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>
+    /// Gets or updates completed at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset? CompletedAt { get; set; }
 }
 
+/// <summary>
+/// Represents notes cross reference and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesCrossReference
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates source block id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid SourceBlockId { get; set; }
+    /// <summary>
+    /// Gets or updates target block id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid TargetBlockId { get; set; }
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public string Kind { get; set; } = "Reference";
+    /// <summary>
+    /// Gets or updates label, the bindable or domain state represented by this property.
+    /// </summary>
     public string Label { get; set; } = string.Empty;
+    /// <summary>
+    /// Reports whether is broken is true for the current state.
+    /// </summary>
     public bool IsBroken { get; set; }
 }
 
+/// <summary>
+/// Represents notes tracked change and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesTrackedChange
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Gets or updates block id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid BlockId { get; set; }
+    /// <summary>
+    /// Gets or updates author, the bindable or domain state represented by this property.
+    /// </summary>
     public string Author { get; set; } = Environment.UserName;
+    /// <summary>
+    /// Gets or updates kind, the bindable or domain state represented by this property.
+    /// </summary>
     public string Kind { get; set; } = "Edit";
+    /// <summary>
+    /// Gets or updates before, the bindable or domain state represented by this property.
+    /// </summary>
     public string Before { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates after, the bindable or domain state represented by this property.
+    /// </summary>
     public string After { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates state, the bindable or domain state represented by this property.
+    /// </summary>
     public string State { get; set; } = "Pending";
+    /// <summary>
+    /// Creates d at with the invariants required by its callers.
+    /// </summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>
+    /// Gets or updates reviewed at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset? ReviewedAt { get; set; }
 }
 
+/// <summary>
+/// Represents notes privacy state and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesPrivacyState
 {
+    /// <summary>
+    /// Gets or updates ai enabled, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AiEnabled { get; set; } = true;
+    /// <summary>
+    /// Gets or updates allow external providers, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AllowExternalProviders { get; set; }
+    /// <summary>
+    /// Gets or updates allow document context, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AllowDocumentContext { get; set; }
+    /// <summary>
+    /// Gets or updates allow workspace context, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AllowWorkspaceContext { get; set; }
+    /// <summary>
+    /// Gets or updates allow web research, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AllowWebResearch { get; set; }
+    /// <summary>
+    /// Gets or updates store ai provenance, the bindable or domain state represented by this property.
+    /// </summary>
     public bool StoreAiProvenance { get; set; } = true;
+    /// <summary>
+    /// Gets or updates store research sources, the bindable or domain state represented by this property.
+    /// </summary>
     public bool StoreResearchSources { get; set; } = true;
 }
 
+/// <summary>
+/// Represents notes study preferences and keeps its related state and behavior together.
+/// </summary>
 public sealed class NotesStudyPreferences
 {
+    /// <summary>
+    /// Gets or updates daily target, the bindable or domain state represented by this property.
+    /// </summary>
     public int DailyTarget { get; set; } = 20;
+    /// <summary>
+    /// Gets or updates new card limit, the bindable or domain state represented by this property.
+    /// </summary>
     public int NewCardLimit { get; set; } = 10;
+    /// <summary>
+    /// Gets or updates maximum cards per session, the bindable or domain state represented by this property.
+    /// </summary>
     public int MaximumCardsPerSession { get; set; } = 50;
+    /// <summary>
+    /// Gets or updates shuffle, the bindable or domain state represented by this property.
+    /// </summary>
     public bool Shuffle { get; set; }
+    /// <summary>
+    /// Gets or updates review mistakes only, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ReviewMistakesOnly { get; set; }
+    /// <summary>
+    /// Gets or updates cram mode, the bindable or domain state represented by this property.
+    /// </summary>
     public bool CramMode { get; set; }
+    /// <summary>
+    /// Gets or updates exam date, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset? ExamDate { get; set; }
 }
 
+/// <summary>
+/// Represents notes advanced state store and keeps its related state and behavior together.
+/// </summary>
 public static class NotesAdvancedStateStore
 {
+    /// <summary>
+    /// Stores metadata key locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const string MetadataKey = "haven.notes.advanced.v1";
+    /// <summary>
+    /// Stores maximum serialized bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumSerializedBytes = 4 * 1024 * 1024;
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = false
     };
 
+    /// <summary>
+    /// Performs the load step owned by this component.
+    /// </summary>
     public static NotesAdvancedDocumentState Load(NotesDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -184,6 +550,9 @@ public static class NotesAdvancedStateStore
         return state;
     }
 
+    /// <summary>
+    /// Performs the save step owned by this component.
+    /// </summary>
     public static void Save(NotesDocument document, NotesAdvancedDocumentState state)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -196,6 +565,9 @@ public static class NotesAdvancedStateStore
         document.Metadata[MetadataKey] = json;
     }
 
+    /// <summary>
+    /// Performs the normalize step owned by this component.
+    /// </summary>
     private static void Normalize(NotesAdvancedDocumentState state)
     {
         state.View.InterfaceScale = Math.Clamp(state.View.InterfaceScale, 0.5, 3);
@@ -210,6 +582,9 @@ public static class NotesAdvancedStateStore
     }
 }
 
+/// <summary>
+/// Represents notes find options and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesFindOptions(
     bool UseRegularExpression = false,
     bool MatchCase = false,
@@ -218,6 +593,9 @@ public sealed record NotesFindOptions(
     Guid? PageId = null,
     Guid? BlockId = null);
 
+/// <summary>
+/// Represents notes find match and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesFindMatch(
     Guid SectionId,
     Guid PageId,
@@ -228,8 +606,14 @@ public sealed record NotesFindMatch(
     string Value,
     string Context);
 
+/// <summary>
+/// Represents notes document search and keeps its related state and behavior together.
+/// </summary>
 public static class NotesDocumentSearch
 {
+    /// <summary>
+    /// Performs the find step owned by this component.
+    /// </summary>
     public static IReadOnlyList<NotesFindMatch> Find(
         NotesDocument document,
         string query,
@@ -270,6 +654,9 @@ public static class NotesDocumentSearch
         return results;
     }
 
+    /// <summary>
+    /// Performs the replace step owned by this component.
+    /// </summary>
     public static NotesReplaceResult Replace(
         NotesDocument document,
         string query,
@@ -330,6 +717,9 @@ public static class NotesDocumentSearch
         return new NotesReplaceResult(replacements > 0 ? 1 : 0, blocksChanged, replacements);
     }
 
+    /// <summary>
+    /// Creates regex with the invariants required by its callers.
+    /// </summary>
     private static Regex CreateRegex(string query, NotesFindOptions options)
     {
         var pattern = options.UseRegularExpression ? query : Regex.Escape(query);
@@ -340,6 +730,9 @@ public static class NotesDocumentSearch
         catch (ArgumentException ex) { throw new InvalidDataException("The search expression is invalid: " + ex.Message, ex); }
     }
 
+    /// <summary>
+    /// Performs the replace runs step owned by this component.
+    /// </summary>
     private static int ReplaceRuns(NotesBlock block, Regex regex, string replacement, ref bool changed)
     {
         var total = 0;
@@ -354,6 +747,9 @@ public static class NotesDocumentSearch
         return total;
     }
 
+    /// <summary>
+    /// Performs the replace value step owned by this component.
+    /// </summary>
     private static int ReplaceValue(
         string value,
         Action<string> assign,
@@ -368,8 +764,14 @@ public static class NotesDocumentSearch
         return count;
     }
 
+    /// <summary>
+    /// Performs the searchable text step owned by this component.
+    /// </summary>
     private static string SearchableText(NotesBlock block) => string.Join("\n", NotesProductivityText.Enumerate(block));
 
+    /// <summary>
+    /// Performs the context step owned by this component.
+    /// </summary>
     private static string Context(string text, int start, int length)
     {
         var from = Math.Max(0, start - 48);
@@ -380,8 +782,14 @@ public static class NotesDocumentSearch
     }
 }
 
+/// <summary>
+/// Represents notes field evaluator and keeps its related state and behavior together.
+/// </summary>
 public static class NotesFieldEvaluator
 {
+    /// <summary>
+    /// Performs the refresh step owned by this component.
+    /// </summary>
     public static void Refresh(NotesDocument document, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -406,8 +814,17 @@ public static class NotesFieldEvaluator
     }
 }
 
+/// <summary>
+/// Lists the supported notes diff kind values used to make state explicit and type-safe.
+/// </summary>
 public enum NotesDiffKind { Unchanged = 0, Added = 1, Removed = 2 }
+/// <summary>
+/// Represents notes diff line and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesDiffLine(NotesDiffKind Kind, string Text, int? OldLine, int? NewLine);
+/// <summary>
+/// Represents notes version comparison and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesVersionComparison(
     long CurrentVersion,
     long ComparedVersion,
@@ -415,8 +832,14 @@ public sealed record NotesVersionComparison(
     int Added,
     int Removed);
 
+/// <summary>
+/// Represents notes version comparer and keeps its related state and behavior together.
+/// </summary>
 public static class NotesVersionComparer
 {
+    /// <summary>
+    /// Performs the compare step owned by this component.
+    /// </summary>
     public static NotesVersionComparison Compare(NotesDocument current, NotesDocument previous)
     {
         ArgumentNullException.ThrowIfNull(current);
@@ -432,6 +855,9 @@ public static class NotesVersionComparer
             lines.Count(line => line.Kind == NotesDiffKind.Removed));
     }
 
+    /// <summary>
+    /// Performs the diff step owned by this component.
+    /// </summary>
     private static IReadOnlyList<NotesDiffLine> Diff(IReadOnlyList<string> left, IReadOnlyList<string> right)
     {
         if ((long)left.Count * right.Count > 4_000_000)
@@ -468,6 +894,9 @@ public static class NotesVersionComparer
         return result;
     }
 
+    /// <summary>
+    /// Performs the fallback diff step owned by this component.
+    /// </summary>
     private static IReadOnlyList<NotesDiffLine> FallbackDiff(IReadOnlyList<string> left, IReadOnlyList<string> right)
     {
         var result = new List<NotesDiffLine>();
@@ -487,6 +916,9 @@ public static class NotesVersionComparer
         return result;
     }
 
+    /// <summary>
+    /// Performs the document lines step owned by this component.
+    /// </summary>
     private static IEnumerable<string> DocumentLines(NotesDocument document)
     {
         yield return "# " + document.Title;
@@ -504,13 +936,25 @@ public static class NotesVersionComparer
     }
 }
 
+/// <summary>
+/// Represents notes style set service and keeps its related state and behavior together.
+/// </summary>
 public static class NotesStyleSetService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Performs the export step owned by this component.
+    /// </summary>
     public static string Export(IReadOnlyCollection<NotesNamedStyle> styles) =>
         JsonSerializer.Serialize(styles, JsonOptions);
 
+    /// <summary>
+    /// Performs the import step owned by this component.
+    /// </summary>
     public static IReadOnlyList<NotesNamedStyle> Import(string json)
     {
         if (string.IsNullOrWhiteSpace(json)) throw new InvalidDataException("The style set is empty.");
@@ -525,8 +969,14 @@ public static class NotesStyleSetService
     }
 }
 
+/// <summary>
+/// Represents notes table operations and keeps its related state and behavior together.
+/// </summary>
 public static class NotesTableOperations
 {
+    /// <summary>
+    /// Performs the sort step owned by this component.
+    /// </summary>
     public static void Sort(NotesTableData table, int column, bool descending)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -541,6 +991,9 @@ public static class NotesTableOperations
         table.Rows = header is null ? data : [header, .. data];
     }
 
+    /// <summary>
+    /// Performs the sum step owned by this component.
+    /// </summary>
     public static decimal Sum(NotesTableData table, int column)
     {
         ArgumentNullException.ThrowIfNull(table);
@@ -550,12 +1003,18 @@ public static class NotesTableOperations
             .Sum();
     }
 
+    /// <summary>
+    /// Performs the to delimited text step owned by this component.
+    /// </summary>
     public static string ToDelimitedText(NotesTableData table, char delimiter = '\t')
     {
         ArgumentNullException.ThrowIfNull(table);
         return string.Join(Environment.NewLine, table.Rows.Select(row => string.Join(delimiter, row.Cells.Select(cell => cell.Text))));
     }
 
+    /// <summary>
+    /// Performs the from delimited text step owned by this component.
+    /// </summary>
     public static NotesTableData FromDelimitedText(string text, char delimiter = '\t')
     {
         var rows = text.ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -569,9 +1028,18 @@ public static class NotesTableOperations
         return table;
     }
 
+    /// <summary>
+    /// Represents natural string comparer and keeps its related state and behavior together.
+    /// </summary>
     private sealed class NaturalStringComparer : IComparer<string>
     {
+        /// <summary>
+        /// Gets or updates instance, the bindable or domain state represented by this property.
+        /// </summary>
         public static NaturalStringComparer Instance { get; } = new();
+        /// <summary>
+        /// Performs the compare step owned by this component.
+        /// </summary>
         public int Compare(string? left, string? right)
         {
             if (decimal.TryParse(left, NumberStyles.Number, CultureInfo.CurrentCulture, out var leftNumber)
@@ -582,11 +1050,23 @@ public static class NotesTableOperations
     }
 }
 
+/// <summary>
+/// Represents notes equation template and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesEquationTemplate(string Id, string Name, string Category, string Latex, string Description);
+/// <summary>
+/// Represents notes equation symbol and keeps its related state and behavior together.
+/// </summary>
 public sealed record NotesEquationSymbol(string Name, string Command, string Glyph, string Category);
 
+/// <summary>
+/// Represents notes equation tools and keeps its related state and behavior together.
+/// </summary>
 public static class NotesEquationTools
 {
+    /// <summary>
+    /// Gets or updates templates, the bindable or domain state represented by this property.
+    /// </summary>
     public static IReadOnlyList<NotesEquationTemplate> Templates { get; } =
     [
         new("fraction", "Fraction", "Algebra", @"\frac{numerator}{denominator}", "A numerator over a denominator."),
@@ -603,6 +1083,9 @@ public static class NotesEquationTools
         new("vector", "Vector", "Geometry", @"\vec{v}", "A vector accent.")
     ];
 
+    /// <summary>
+    /// Gets or updates symbols, the bindable or domain state represented by this property.
+    /// </summary>
     public static IReadOnlyList<NotesEquationSymbol> Symbols { get; } =
     [
         new("alpha", @"\alpha", "α", "Greek"), new("beta", @"\beta", "β", "Greek"),
@@ -616,6 +1099,9 @@ public static class NotesEquationTools
         new("implies", @"\Rightarrow", "⇒", "Logic"), new("if and only if", @"\Leftrightarrow", "⇔", "Logic")
     ];
 
+    /// <summary>
+    /// Performs the search symbols step owned by this component.
+    /// </summary>
     public static IReadOnlyList<NotesEquationSymbol> SearchSymbols(string query) =>
         Symbols.Where(symbol => string.IsNullOrWhiteSpace(query)
                                 || symbol.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -623,6 +1109,9 @@ public static class NotesEquationTools
                                 || symbol.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
+    /// <summary>
+    /// Performs the expand intelligent input step owned by this component.
+    /// </summary>
     public static string ExpandIntelligentInput(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
@@ -641,6 +1130,9 @@ public static class NotesEquationTools
         return replacements.TryGetValue(trimmed, out var expansion) ? expansion : value;
     }
 
+    /// <summary>
+    /// Validates macros before it crosses the next trust or persistence boundary.
+    /// </summary>
     public static IReadOnlyList<string> ValidateMacros(IReadOnlyDictionary<string, string> macros)
     {
         var errors = new List<string>();
@@ -654,6 +1146,9 @@ public static class NotesEquationTools
         return errors;
     }
 
+    /// <summary>
+    /// Performs the to math ml step owned by this component.
+    /// </summary>
     public static string ToMathMl(NotesEquationData equation)
     {
         ArgumentNullException.ThrowIfNull(equation);
@@ -663,6 +1158,9 @@ public static class NotesEquationTools
         return $"<math xmlns=\"http://www.w3.org/1998/Math/MathML\" aria-label=\"{Xml(spoken)}\"><semantics><mtext>{Xml(equation.RenderedText)}</mtext><annotation encoding=\"application/x-tex\">{Xml(equation.Source)}</annotation></semantics></math>";
     }
 
+    /// <summary>
+    /// Performs the to svg step owned by this component.
+    /// </summary>
     public static string ToSvg(NotesEquationData equation)
     {
         ArgumentNullException.ThrowIfNull(equation);
@@ -671,11 +1169,20 @@ public static class NotesEquationTools
         return $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"64\" role=\"img\" aria-label=\"{Xml(equation.AccessibleAlternative)}\"><rect width=\"100%\" height=\"100%\" fill=\"white\"/><text x=\"16\" y=\"40\" font-family=\"serif\" font-size=\"24\" fill=\"black\">{Xml(text)}</text></svg>";
     }
 
+    /// <summary>
+    /// Performs the xml step owned by this component.
+    /// </summary>
     private static string Xml(string value) => System.Security.SecurityElement.Escape(value) ?? string.Empty;
 }
 
+/// <summary>
+/// Represents notes canvas operations and keeps its related state and behavior together.
+/// </summary>
 public static class NotesCanvasOperations
 {
+    /// <summary>
+    /// Performs the move step owned by this component.
+    /// </summary>
     public static void Move(NotesCanvasObject value, double x, double y, double gridSize = 0)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -684,6 +1191,9 @@ public static class NotesCanvasOperations
         value.Y = Snap(y, gridSize);
     }
 
+    /// <summary>
+    /// Performs the resize step owned by this component.
+    /// </summary>
     public static void Resize(NotesCanvasObject value, double width, double height, double gridSize = 0)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -692,12 +1202,18 @@ public static class NotesCanvasOperations
         value.Height = Math.Max(8, Snap(height, gridSize));
     }
 
+    /// <summary>
+    /// Performs the rotate step owned by this component.
+    /// </summary>
     public static void Rotate(NotesCanvasObject value, double degrees)
     {
         ArgumentNullException.ThrowIfNull(value);
         if (!value.Locked) value.Rotation = NormalizeDegrees(degrees);
     }
 
+    /// <summary>
+    /// Performs the group step owned by this component.
+    /// </summary>
     public static Guid Group(IEnumerable<NotesCanvasObject> values)
     {
         var group = Guid.NewGuid();
@@ -705,11 +1221,17 @@ public static class NotesCanvasOperations
         return group;
     }
 
+    /// <summary>
+    /// Performs the ungroup step owned by this component.
+    /// </summary>
     public static void Ungroup(IEnumerable<NotesCanvasObject> values)
     {
         foreach (var value in values.Where(value => !value.Locked)) value.GroupId = null;
     }
 
+    /// <summary>
+    /// Performs the connect step owned by this component.
+    /// </summary>
     public static NotesCanvasObject Connect(NotesCanvasObject from, NotesCanvasObject to, string label = "")
     {
         ArgumentNullException.ThrowIfNull(from);
@@ -728,6 +1250,9 @@ public static class NotesCanvasOperations
         };
     }
 
+    /// <summary>
+    /// Performs the transform stroke step owned by this component.
+    /// </summary>
     public static void TransformStroke(
         NotesInkStroke stroke,
         double translateX,
@@ -750,6 +1275,9 @@ public static class NotesCanvasOperations
         stroke.BaseWidth = Math.Clamp(stroke.BaseWidth * scale, 0.1, 500);
     }
 
+    /// <summary>
+    /// Performs the bounds step owned by this component.
+    /// </summary>
     public static RectD Bounds(IEnumerable<NotesCanvasObject> objects)
     {
         var values = objects.ToArray();
@@ -761,14 +1289,29 @@ public static class NotesCanvasOperations
         return new RectD(left, top, right - left, bottom - top);
     }
 
+    /// <summary>
+    /// Performs the snap step owned by this component.
+    /// </summary>
     private static double Snap(double value, double gridSize) => gridSize > 0 ? Math.Round(value / gridSize) * gridSize : value;
+    /// <summary>
+    /// Performs the normalize degrees step owned by this component.
+    /// </summary>
     private static double NormalizeDegrees(double value) => ((value % 360) + 360) % 360;
 }
 
+/// <summary>
+/// Represents rect d and keeps its related state and behavior together.
+/// </summary>
 public sealed record RectD(double X, double Y, double Width, double Height);
 
+/// <summary>
+/// Represents notes study tools and keeps its related state and behavior together.
+/// </summary>
 public static class NotesStudyTools
 {
+    /// <summary>
+    /// Performs the begin attempt step owned by this component.
+    /// </summary>
     public static NotesStudyAttempt BeginAttempt(
         NotesAdvancedDocumentState state,
         NotesFlashcardData card,
@@ -787,6 +1330,9 @@ public static class NotesStudyTools
         return attempt;
     }
 
+    /// <summary>
+    /// Performs the complete attempt step owned by this component.
+    /// </summary>
     public static void CompleteAttempt(
         NotesStudyAttempt attempt,
         string answer,
@@ -804,6 +1350,9 @@ public static class NotesStudyTools
         attempt.ResponseTime = completedAt >= attempt.StartedAt ? completedAt - attempt.StartedAt : TimeSpan.Zero;
     }
 
+    /// <summary>
+    /// Performs the explain due reason step owned by this component.
+    /// </summary>
     public static string ExplainDueReason(NotesFlashcardData card, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(card);
@@ -813,8 +1362,14 @@ public static class NotesStudyTools
     }
 }
 
+/// <summary>
+/// Represents notes collaboration tools and keeps its related state and behavior together.
+/// </summary>
 public static class NotesCollaborationTools
 {
+    /// <summary>
+    /// Performs the resolve conflict step owned by this component.
+    /// </summary>
     public static void ResolveConflict(NotesDocument document, NotesConflict conflict, string resolution)
     {
         ArgumentNullException.ThrowIfNull(document);
