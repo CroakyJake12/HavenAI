@@ -70,7 +70,7 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         var changes = JsonSerializer.Serialize(new[]
         {
             new { path = "one.txt", content = "after", expectedSha256 = new string('0', 64) },
-            new { path = "two.txt", content = "created" }
+            new { path = "two.txt", content = "created", expectedSha256 = (string?)null }
         });
 
         var result = await runtime.ExecuteAsync(_root, Call("apply_change_set", new { changes_json = changes }), CancellationToken.None);
