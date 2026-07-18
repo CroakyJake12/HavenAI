@@ -128,13 +128,13 @@ public sealed partial class WorkspaceChromeHost
             button.PointerReleased -= state.ReleasedHandler;
     }
 
-    // In a lambda declared as (_, args), `out _` binds to the sender parameter named `_`
-    // instead of acting as a discard. This overload gives that object-typed variable an exact
-    // match while preserving the original string parser.
-    private static bool TryReadTabTransfer(IDataTransfer transfer, out object key)
+    // In a lambda declared as (_, args), `out _` binds to the object-typed sender parameter
+    // rather than acting as a discard. A generic fallback accepts that existing variable,
+    // while calls using `out var` continue to select the concrete string overload.
+    private static bool TryReadTabTransfer<T>(IDataTransfer transfer, out T key)
     {
         var succeeded = TryReadTabTransfer(transfer, out string stringKey);
-        key = stringKey;
+        key = stringKey is T typedKey ? typedKey : default!;
         return succeeded;
     }
 
