@@ -257,7 +257,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         IWorkspaceStateRepository workspaceState,
         IWorkspaceToolService workspaceTools,
         IProjectIntelligenceService projectIntelligence,
-        IOllamaClient ollama,
+        IProviderModelClient ollama,
         ChatSessionService sessions,
         CapabilityPreflightService preflight,
         BrowserSessionService browser,
@@ -733,11 +733,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets or updates workspace eyebrow, the bindable or domain state represented by this property.
     /// </summary>
-    public string WorkspaceEyebrow => CurrentMode switch { HavenMode.Teach => "Lesson", HavenMode.Do => "Task Group", HavenMode.Studio => "Project", _ => "Haven" };
+    public string WorkspaceEyebrow => CurrentMode switch
+    {
+        HavenMode.Chat => CurrentChat.SelectedContainer?.Name ?? "Chat",
+        HavenMode.Teach => "Lesson",
+        HavenMode.Do => "Task Group",
+        HavenMode.Studio => "Project",
+        _ => "Haven"
+    };
     /// <summary>
     /// Gets or updates workspace title, the bindable or domain state represented by this property.
     /// </summary>
-    public string WorkspaceTitle => CurrentChat.SelectedLesson?.Name ?? CurrentChat.SelectedContainer?.Name ?? (CurrentMode == HavenMode.Chat ? "Private local conversation" : "Local workspace");
+    public string WorkspaceTitle => CurrentMode == HavenMode.Chat
+        ? CurrentChat.ConversationTitle
+        : CurrentChat.SelectedLesson?.Name ?? CurrentChat.SelectedContainer?.Name ?? "Local workspace";
+    /// <summary>Forwards the empty-chat setup state to the shell header.</summary>
+    public bool ShowTemporaryHeaderAction => CurrentMode == HavenMode.Chat && CurrentChat.ShowTemporaryHeaderAction;
+    /// <summary>Forwards context state to the shell after a conversation starts.</summary>
+    public bool ShowContextHeaderWidget => CurrentMode == HavenMode.Chat && CurrentChat.ShowContextHeaderWidget;
+    public string TemporaryHeaderActionLabel => CurrentChat.TemporaryHeaderActionLabel;
+    public int ContextPercent => CurrentChat.ContextPercent;
+    public int ContextRemainingPercent => CurrentChat.ContextRemainingPercent;
+    public string ContextLabel => CurrentChat.ContextLabel;
+    public string ContextRemainingLabel => CurrentChat.ContextRemainingLabel;
     /// <summary>
     /// Gets or updates recent heading, the bindable or domain state represented by this property.
     /// </summary>
@@ -2001,7 +2019,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnChatPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ChatPageViewModel.Status) or nameof(ChatPageViewModel.SelectedContainer) or nameof(ChatPageViewModel.SelectedLesson) or nameof(ChatPageViewModel.SelectedDuo))
+        if (e.PropertyName is nameof(ChatPageViewModel.Status)
+            or nameof(ChatPageViewModel.SelectedContainer)
+            or nameof(ChatPageViewModel.SelectedLesson)
+            or nameof(ChatPageViewModel.SelectedDuo)
+            or nameof(ChatPageViewModel.ConversationTitle)
+            or nameof(ChatPageViewModel.HasMessages)
+            or nameof(ChatPageViewModel.IsTemporary)
+            or nameof(ChatPageViewModel.ContextPercent)
+            or nameof(ChatPageViewModel.ContextRemainingPercent))
             RaiseShellProperties();
     }
     /// <summary>
@@ -2040,6 +2066,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(ProjectMenuHeader));
         RaisePropertyChanged(nameof(WorkspaceEyebrow));
         RaisePropertyChanged(nameof(WorkspaceTitle));
+        RaisePropertyChanged(nameof(ShowTemporaryHeaderAction));
+        RaisePropertyChanged(nameof(ShowContextHeaderWidget));
+        RaisePropertyChanged(nameof(TemporaryHeaderActionLabel));
+        RaisePropertyChanged(nameof(ContextPercent));
+        RaisePropertyChanged(nameof(ContextRemainingPercent));
+        RaisePropertyChanged(nameof(ContextLabel));
+        RaisePropertyChanged(nameof(ContextRemainingLabel));
         RaisePropertyChanged(nameof(RecentHeading));
         RaisePropertyChanged(nameof(ContainerSettingsLabel));
         RaisePropertyChanged(nameof(OllamaStatus));
@@ -2096,6 +2129,10 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
     private bool _isHovered;
     private string _key;
     private bool _isCloseable;
+    private Guid? _groupId;
+    private string _groupName = string.Empty;
+    private bool _isGroupCollapsed;
+    private bool _isMarkedForGrouping;
     private readonly Stack<WorkspaceTabState> _backHistory = new();
     private readonly Stack<WorkspaceTabState> _forwardHistory = new();
 
@@ -2135,6 +2172,14 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
     /// Reports whether hovered applies to the current state.
     /// </summary>
     public bool IsHovered { get => _isHovered; set => SetProperty(ref _isHovered, value); }
+    /// <summary>Identifies the optional Chrome-style visual group containing this tab.</summary>
+    public Guid? GroupId { get => _groupId; set => SetProperty(ref _groupId, value); }
+    /// <summary>Stores the shared, user-editable label rendered before a group of tabs.</summary>
+    public string GroupName { get => _groupName; set => SetProperty(ref _groupName, value); }
+    /// <summary>Collapses every member behind the group's label without closing its pages.</summary>
+    public bool IsGroupCollapsed { get => _isGroupCollapsed; set => SetProperty(ref _isGroupCollapsed, value); }
+    /// <summary>Marks a tab during Ctrl-click multi-selection before creating a group.</summary>
+    public bool IsMarkedForGrouping { get => _isMarkedForGrouping; set => SetProperty(ref _isMarkedForGrouping, value); }
     /// <summary>
     /// Indicates whether the universal Back command has an earlier screen to restore.
     /// </summary>

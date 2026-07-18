@@ -521,6 +521,18 @@
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
       <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
+    </Style>
+
+    <!-- Native editors inherit Haven's rounded, translucent surface instead of
+         falling back to Avalonia's black/default focus chrome. -->
+    <Style Selector="NumericUpDown,DatePicker,TimePicker">
+      <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
+      <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="MinHeight" Value="36" />
     </Style>
 
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
@@ -537,7 +549,8 @@
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="CornerRadius" Value="7" />
-      <Setter Property="Padding" Value="10,6" />
+      <!-- Reserve the left inset for the overlaid search glyph. -->
+      <Setter Property="Padding" Value="38,6,10,6" />
       <Setter Property="FontSize" Value="12" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->

@@ -410,18 +410,50 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     public async Task OpenDeveloperToolsAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var targets = new List<object> { _webView };
-        var adapter = _webView.GetType().GetProperty("Adapter")?.GetValue(_webView);
-        if (adapter is not null) targets.Add(adapter);
-        foreach (var target in targets)
+        // Avalonia intentionally hides the platform adapter behind its native-control
+        // implementation. Walk only the known WebView wrapper/adapter members until
+        // WebView2's CoreWebView2 is found; this works across the compositor and HWND
+        // adapters instead of assuming a public `Adapter` property exists.
+        var queue = new Queue<object>();
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        queue.Enqueue(_webView);
+        while (queue.Count > 0)
         {
-            var method = target.GetType().GetMethods().FirstOrDefault(candidate => candidate.GetParameters().Length == 0 && candidate.Name is "OpenDevToolsWindow" or "OpenDeveloperTools" or "ShowDevTools");
-            if (method is null) continue;
-            if (method.Invoke(target, null) is Task task) await task.ConfigureAwait(false);
-            return;
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = queue.Dequeue();
+            if (!visited.Add(target)) continue;
+            var type = target.GetType();
+            var method = type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                .FirstOrDefault(candidate => candidate.GetParameters().Length == 0 && candidate.Name is "OpenDevToolsWindow" or "OpenDeveloperTools" or "ShowDevTools");
+            if (method is not null)
+            {
+                if (method.Invoke(target, null) is Task task) await task.ConfigureAwait(false);
+                return;
+            }
+
+            foreach (var property in type.GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                         .Where(item => IsWebViewBridgeMember(item.Name) && item.GetIndexParameters().Length == 0))
+            {
+                try { if (property.GetValue(target) is { } value) queue.Enqueue(value); }
+                catch (Exception ex) when (ex is System.Reflection.TargetInvocationException or MethodAccessException) { }
+            }
+            foreach (var field in type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                         .Where(item => IsWebViewBridgeMember(item.Name)))
+            {
+                if (field.GetValue(target) is { } value) queue.Enqueue(value);
+            }
         }
         throw new InvalidOperationException("Developer tools are not exposed by the installed native WebView adapter.");
     }
+
+    private static bool IsWebViewBridgeMember(string name) =>
+        name.Contains("adapter", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("platform", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("webview", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("native", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("control", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("host", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("handler", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Handles the navigation started event raised by the UI or runtime.

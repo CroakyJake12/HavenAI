@@ -92,6 +92,7 @@ public sealed partial class App : Avalonia.Application
             provider.GetRequiredService<BrowserToolRuntime>(),
             provider.GetRequiredService<AutomationToolRuntime>()));
         collection.AddSingleton<UserPreferencesService>();
+        collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
         collection.AddSingleton<AutomationDeliveryController>();

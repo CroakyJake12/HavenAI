@@ -46,6 +46,7 @@ public sealed record HavenPreferenceSnapshot(
     int CompactAtPercent,
     bool AdaptiveHelp,
     bool BrowserSideAssistant,
+    bool AutoWakeOllama,
     double Temperature,
     int ContextLimit,
     int ActionLimit,
@@ -158,6 +159,8 @@ public sealed class UserPreferencesService
     /// Gets or updates browser side assistant, the bindable or domain state represented by this property.
     /// </summary>
     public bool BrowserSideAssistant => _preferences.BrowserSideAssistant;
+    /// <summary>Reports whether Haven should start Ollama when a local-model send finds it offline.</summary>
+    public bool AutoWakeOllama => _preferences.AutoWakeOllama;
     /// <summary>
     /// Gets or updates generation options, the bindable or domain state represented by this property.
     /// </summary>
@@ -182,7 +185,7 @@ public sealed class UserPreferencesService
     /// Gets or updates snapshot, the bindable or domain state represented by this property.
     /// </summary>
     public HavenPreferenceSnapshot Snapshot => new(AutoSwitchCompatibleModels, ShowAgenticInChat, VerticalTabs, ConfidenceMeter,
-        AutoCompactContext, CompactAtPercent, AdaptiveHelp, BrowserSideAssistant, GenerationOptions.Temperature,
+        AutoCompactContext, CompactAtPercent, AdaptiveHelp, BrowserSideAssistant, AutoWakeOllama, GenerationOptions.Temperature,
         GenerationOptions.ContextLimit, GenerationOptions.ActionLimit, FilePermission, CommandPermission, BrowserPermission, ComputerPermission);
 
     /// <summary>
@@ -321,7 +324,7 @@ public sealed class UserPreferencesService
     /// Performs the set feature options step owned by this component.
     /// </summary>
     public void SetFeatureOptions(bool autoSwitch, bool showAgenticInChat, bool verticalTabs, bool confidenceMeter,
-        bool autoCompact, int compactAtPercent, bool adaptiveHelp, bool browserSideAssistant)
+        bool autoCompact, int compactAtPercent, bool adaptiveHelp, bool browserSideAssistant, bool autoWakeOllama)
     {
         _preferences = _preferences with
         {
@@ -332,7 +335,8 @@ public sealed class UserPreferencesService
             AutoCompactContext = autoCompact,
             CompactAtPercent = Math.Clamp(compactAtPercent, 50, 95),
             AdaptiveHelp = adaptiveHelp,
-            BrowserSideAssistant = browserSideAssistant
+            BrowserSideAssistant = browserSideAssistant,
+            AutoWakeOllama = autoWakeOllama
         };
         Save();
     }
@@ -480,6 +484,8 @@ public sealed class UserPreferencesService
         /// Gets or updates browser side assistant, the bindable or domain state represented by this property.
         /// </summary>
         public bool BrowserSideAssistant { get; init; } = true;
+        /// <summary>Gets whether local-model sends may launch Ollama automatically.</summary>
+        public bool AutoWakeOllama { get; init; } = true;
         /// <summary>
         /// Gets or updates temperature, the bindable or domain state represented by this property.
         /// </summary>

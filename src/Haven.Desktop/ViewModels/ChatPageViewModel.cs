@@ -16,6 +16,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.ViewModels;
 
@@ -88,6 +90,8 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private string _status = "Connecting to Ollama…";
+    /// <summary>Stores whether the composer should display the local-model offline warning.</summary>
+    private bool _isOllamaOfflineWarningVisible;
     /// <summary>
     /// Stores selected model locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -578,6 +582,12 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Reports whether missing plugin notice applies to the current state.
     /// </summary>
     public bool HasMissingPluginNotice => !string.IsNullOrWhiteSpace(MissingPluginName);
+    /// <summary>Reports whether a local model is selected but Ollama cannot currently be reached.</summary>
+    public bool IsOllamaOfflineWarningVisible
+    {
+        get => _isOllamaOfflineWarningVisible;
+        private set => SetProperty(ref _isOllamaOfflineWarningVisible, value);
+    }
     /// <summary>
     /// Reports whether tool permission pending applies to the current state.
     /// </summary>
@@ -606,10 +616,14 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates context percent, the bindable or domain state represented by this property.
     /// </summary>
     public int ContextPercent => Math.Clamp((int)Math.Round(ContextTokens * 100d / Math.Max(1, ContextLimit)), 0, 100);
+    /// <summary>Shows the more useful remaining-capacity value in the compact header widget.</summary>
+    public int ContextRemainingPercent => 100 - ContextPercent;
     /// <summary>
     /// Gets or updates context label, the bindable or domain state represented by this property.
     /// </summary>
     public string ContextLabel => $"{ContextTokens:N0} / {ContextLimit:N0} tokens · {ContextPercent}%";
+    /// <summary>Explains the compact value without making the header itself verbose.</summary>
+    public string ContextRemainingLabel => $"{ContextRemainingPercent}% context remaining";
     /// <summary>
     /// Gets or updates context sweep, the bindable or domain state represented by this property.
     /// </summary>
@@ -735,6 +749,7 @@ public sealed class ChatPageViewModel : ObservableObject
         {
             if (!SetProperty(ref _isTemporary, value)) return;
             RaisePropertyChanged(nameof(TemporaryLabel));
+            RaisePropertyChanged(nameof(TemporaryHeaderActionLabel));
             _conversation = _conversation with { IsTemporary = value };
         }
     }
@@ -743,6 +758,8 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates temporary label, the bindable or domain state represented by this property.
     /// </summary>
     public string TemporaryLabel => IsTemporary ? "Temporary · history off" : "Saved locally";
+    /// <summary>Labels the empty-chat header action according to what clicking it will do.</summary>
+    public string TemporaryHeaderActionLabel => IsTemporary ? "Make permanent" : "Temporary chat";
     /// <summary>
     /// Gets or updates send command, the bindable or domain state represented by this property.
     /// </summary>
@@ -1052,7 +1069,10 @@ public sealed class ChatPageViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            SelectedModel = null;
+            SelectedModel = string.IsNullOrWhiteSpace(selectedName) || selectedName.Contains(':', StringComparison.Ordinal)
+                ? null
+                : new ModelDescriptor(selectedName, 0, "Ollama", string.Empty, string.Empty,
+                    new HashSet<ToolCapability>(), DateTimeOffset.MinValue);
             Status = $"Ollama unavailable: {ex.Message}";
         }
     }
@@ -1063,6 +1083,7 @@ public sealed class ChatPageViewModel : ObservableObject
     private async Task SendAsync()
     {
         if (SelectedModel is null || string.IsNullOrWhiteSpace(Composer)) return;
+        if (!await EnsureSelectedModelAvailableAsync()) return;
         var permissionApproved = _approvedToolPermissionOnce;
         _approvedToolPermissionOnce = false;
         var originalPrompt = Composer.Trim();
@@ -1198,6 +1219,73 @@ public sealed class ChatPageViewModel : ObservableObject
             IsSending = false;
             _sendCancellation.Dispose();
             _sendCancellation = null;
+        }
+    }
+
+    /// <summary>
+    /// Makes a local model usable immediately before a send. Provider-qualified
+    /// names (for example, <c>openai:gpt-4.1</c>) are cloud models and therefore
+    /// bypass this local Ollama check entirely.
+    /// </summary>
+    private async Task<bool> EnsureSelectedModelAvailableAsync()
+    {
+        var selectedName = SelectedModel?.Name;
+        if (string.IsNullOrWhiteSpace(selectedName) || selectedName.Contains(':', StringComparison.Ordinal))
+        {
+            IsOllamaOfflineWarningVisible = false;
+            return true;
+        }
+
+        var wake = App.Services?.GetService<OllamaWakeService>();
+        if (wake is null) return true;
+
+        try
+        {
+            using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            if (await wake.IsAvailableAsync(probe.Token))
+            {
+                IsOllamaOfflineWarningVisible = false;
+                return true;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A timed-out probe is the same user-facing state as an offline endpoint.
+        }
+
+        if (!_preferences.AutoWakeOllama)
+        {
+            IsOllamaOfflineWarningVisible = true;
+            Status = "Ollama is offline. Start Ollama or enable automatic wake in Settings.";
+            return false;
+        }
+
+        Messages.Add(MessageBubbleViewModel.SystemNotice("Waking Up Model"));
+        RaiseMessageStateChanged();
+        Status = "Waking up Ollama...";
+
+        try
+        {
+            using var wakeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18));
+            if (!await wake.EnsureAvailableAsync(wakeTimeout.Token))
+            {
+                IsOllamaOfflineWarningVisible = true;
+                Status = "Ollama could not be started. Open Ollama, then try again.";
+                return false;
+            }
+
+            await RefreshModelsAsync();
+            SelectedModel = Models.FirstOrDefault(model =>
+                model.Name.Equals(selectedName, StringComparison.OrdinalIgnoreCase)) ?? SelectedModel;
+            IsOllamaOfflineWarningVisible = false;
+            Status = "Ollama is ready.";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            IsOllamaOfflineWarningVisible = true;
+            Status = "Ollama did not become ready in time. Open Ollama, then try again.";
+            return false;
         }
     }
 
@@ -2004,7 +2092,9 @@ public sealed class ChatPageViewModel : ObservableObject
     {
         RaisePropertyChanged(nameof(ContextLimit));
         RaisePropertyChanged(nameof(ContextPercent));
+        RaisePropertyChanged(nameof(ContextRemainingPercent));
         RaisePropertyChanged(nameof(ContextLabel));
+        RaisePropertyChanged(nameof(ContextRemainingLabel));
         RaisePropertyChanged(nameof(ContextSweep));
     }
 
@@ -2308,7 +2398,15 @@ public sealed class ChatPageViewModel : ObservableObject
     {
         RaisePropertyChanged(nameof(HasMessages));
         RaisePropertyChanged(nameof(IsEmpty));
+        RaisePropertyChanged(nameof(ShowTemporaryHeaderAction));
+        RaisePropertyChanged(nameof(ShowContextHeaderWidget));
     }
+
+    /// <summary>Temporary-chat is a setup action and therefore appears only before the first turn.</summary>
+    public bool ShowTemporaryHeaderAction => !HasMessages;
+
+    /// <summary>Context usage becomes meaningful after the conversation contains at least one turn.</summary>
+    public bool ShowContextHeaderWidget => HasMessages;
 
     /// <summary>
     /// Builds title from the currently available inputs.
@@ -2483,8 +2581,8 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// as a speech bubble without introducing decorative tails that steal space.
     /// </summary>
     public CornerRadius BubbleCornerRadius => Role == MessageRole.User
-        ? new CornerRadius(16, 16, 5, 16)
-        : new CornerRadius(16, 16, 16, 5);
+        ? new CornerRadius(16, 5, 16, 16)
+        : new CornerRadius(5, 16, 16, 16);
     public string Content
     {
         get => _content;

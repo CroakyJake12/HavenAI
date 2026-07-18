@@ -51,7 +51,7 @@
                 <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="{Binding Alignment}" MaxWidth="{Binding MaxBubbleWidth}">
                   <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><Border Grid.Column="1" Background="{DynamicResource HavenBlueSoftBrush}" CornerRadius="999" Padding="7,2" IsVisible="{Binding HasModelLabel}"><TextBlock Text="{Binding ModelLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" /></Border><Button Grid.Column="3" Classes="chrome" Click="OnMessageActionsClicked" ToolTip.Tip="Message actions" Padding="5,2"><controls:HavenIcon IconKey="more" Width="13" Height="13" /></Button><TextBlock Grid.Column="4" Text="{Binding TimeLabel}" Classes="muted2" FontSize="10" VerticalAlignment="Center" /></Grid>
                   <Border Background="{Binding BubbleBackground}" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="{Binding BubbleCornerRadius}" Padding="15,12">
-                    <controls:MarkdownView Markdown="{Binding Content}"><controls:MarkdownView.ContextMenu><ContextMenu><MenuItem Header="Copy message" Click="OnCopyMessageClicked" /></ContextMenu></controls:MarkdownView.ContextMenu></controls:MarkdownView>
+                    <controls:MarkdownView Markdown="{Binding Content}"><controls:MarkdownView.ContextMenu><ContextMenu><MenuItem Header="Copy message" Click="OnCopyMessageClicked" /><MenuItem Header="Message actions..." Click="OnMessageActionsMenuClicked" /></ContextMenu></controls:MarkdownView.ContextMenu></controls:MarkdownView>
                   </Border>
                   <ItemsControl ItemsSource="{Binding Activities}" IsVisible="{Binding HasActivities}">
                     <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource HavenPanel2Brush}" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="9" Padding="10,8" Margin="0,2"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><StackPanel Spacing="2"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="11" /><TextBlock Text="{Binding Detail}" Classes="muted" FontFamily="Cascadia Code, Consolas" FontSize="9" MaxLines="4" TextTrimming="CharacterEllipsis" /></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{Binding Duration}" Classes="muted2" FontSize="9" HorizontalAlignment="Right" /><TextBlock Text="{Binding ChangeLabel}" Foreground="{DynamicResource HavenAccentBrush}" FontSize="9" IsVisible="{Binding HasChanges}" /></StackPanel></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
@@ -72,28 +72,35 @@
     <Button Classes="popupDismissLayer" Background="Transparent" BorderThickness="0" IsVisible="{Binding IsPromptPickerOpen}" Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
-    <Grid Margin="24,0,24,14" MaxWidth="920" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-      <Border Classes="permission" Margin="0,0,0,8" IsVisible="{Binding HasMissingPluginNotice}">
+    <Grid Margin="24,0,24,14" MaxWidth="920" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+      <Border Classes="permission" BorderBrush="#D94A4A" Margin="0,0,0,8" IsVisible="{Binding IsOllamaOfflineWarningVisible}">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+          <controls:HavenIcon IconKey="warning" Width="18" Height="18" Foreground="#FF6B6B" />
+          <TextBlock Grid.Column="1" Text="Ollama not connected - connect to your installation of Ollama to use this local model." Foreground="#FF6B6B" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="1" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding HasMissingPluginNotice}">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><StackPanel><TextBlock Text="{Binding MissingPluginName, StringFormat='Missing plugin: @{0}'}" FontWeight="SemiBold" /><TextBlock Text="{Binding MissingPluginReason}" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissMissingPluginCommand}" /><Button Grid.Column="2" Content="Enable and retry" Classes="accent" Command="{Binding RetryWithPluginCommand}" /></Grid>
       </Border>
 
-      <Border Grid.Row="1" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding IsComputerPermissionPending}">
+      <Border Grid.Row="2" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding IsComputerPermissionPending}">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9"><Border Width="36" Height="36" CornerRadius="10" Background="{DynamicResource HavenAccentSoftBrush}"><TextBlock Text="▣" Foreground="{DynamicResource HavenAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><StackPanel Grid.Column="1"><TextBlock Text="Enable Computer Use" FontWeight="SemiBold" /><TextBlock Text="Target-bound Windows controls for this pass, with inspection and action limits." Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="2" Content="Remove" Command="{Binding DismissComputerUseCommand}" /><Button Grid.Column="3" Content="Enable for this pass" Classes="accent" Command="{Binding EnableComputerUseCommand}" /></Grid>
       </Border>
 
-      <Border Grid.Row="2" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding IsToolPermissionPending}">
+      <Border Grid.Row="3" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding IsToolPermissionPending}">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><StackPanel><TextBlock Text="Tool permission" FontWeight="SemiBold" /><TextBlock Text="{Binding ToolPermissionRequest}" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Content="Deny" Command="{Binding DismissToolPermissionCommand}" /><Button Grid.Column="2" Content="Allow once" Classes="accent" Command="{Binding ApproveToolPermissionCommand}" /></Grid>
       </Border>
 
-      <Border Grid.Row="3" Classes="card" Margin="0,0,0,8" IsVisible="{Binding HasInlineQuestion}" Padding="12">
+      <Border Grid.Row="4" Classes="card" Margin="0,0,0,8" IsVisible="{Binding HasInlineQuestion}" Padding="12">
         <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="7"><TextBlock Text="{Binding InlineQuestion.Question}" FontWeight="SemiBold" /><ItemsControl ItemsSource="{Binding InlineQuestion.Options}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Classes="chip" Margin="0,0,6,4" Command="{Binding $parent[UserControl].DataContext.AnswerInlineQuestionCommand}" CommandParameter="{Binding}" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel><Button Grid.Column="1" Classes="chrome" Command="{Binding DismissInlineQuestionCommand}" ToolTip.Tip="Dismiss"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button></Grid>
       </Border>
 
-      <Border Grid.Row="4" Classes="card" Padding="10" Margin="0,0,0,8" IsVisible="{Binding IsEditProgressVisible}">
+      <Border Grid.Row="5" Classes="card" Padding="10" Margin="0,0,0,8" IsVisible="{Binding IsEditProgressVisible}">
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9"><TextBlock Text="Editing" Foreground="{DynamicResource HavenAccentBrush}" FontWeight="SemiBold" /><ProgressBar Grid.Column="1" IsIndeterminate="True" Height="4" VerticalAlignment="Center" /><TextBlock Grid.Column="2" Text="{Binding EditProgressLabel}" Classes="muted" FontSize="10" /></Grid>
       </Border>
 
-      <Border Grid.Row="5" Classes="composer" ClipToBounds="True">
+      <Border Grid.Row="6" Classes="composer" ClipToBounds="True">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <Border Background="{DynamicResource PopupTintBrush}" BorderBrush="Transparent" BorderThickness="0,0,0,1" Padding="10" IsVisible="{Binding IsPluginPickerOpen}" CornerRadius="12">
             <StackPanel Spacing="5"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="PLUGINS" Classes="eyebrow" /><Button Grid.Column="1" Classes="chrome" Command="{Binding ClosePickersCommand}" ToolTip.Tip="Close"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button></Grid><ItemsControl ItemsSource="{Binding PluginSuggestions}"><ItemsControl.ItemTemplate><DataTemplate><Button Classes="sidebar" HorizontalAlignment="Stretch" IsVisible="{Binding IsVisibleInPicker}" Command="{Binding $parent[UserControl].DataContext.SelectPluginCommand}" CommandParameter="{Binding}"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9"><controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding AllowedModesLabel}" Classes="muted2" FontSize="9" /></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>

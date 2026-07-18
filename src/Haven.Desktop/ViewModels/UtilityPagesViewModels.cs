@@ -759,6 +759,8 @@ public sealed class SettingsPageViewModel : ObservableObject
     /// Stores browser side assistant locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private bool _browserSideAssistant;
+    /// <summary>Stores the user's on-send Ollama wake preference.</summary>
+    private bool _autoWakeOllama;
     /// <summary>
     /// Stores file permission locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -848,6 +850,7 @@ public sealed class SettingsPageViewModel : ObservableObject
         _compactAtPercent = snapshot.CompactAtPercent;
         _adaptiveHelp = snapshot.AdaptiveHelp;
         _browserSideAssistant = snapshot.BrowserSideAssistant;
+        _autoWakeOllama = snapshot.AutoWakeOllama;
         _filePermission = snapshot.FilePermission;
         _commandPermission = snapshot.CommandPermission;
         _browserPermission = snapshot.BrowserPermission;
@@ -963,6 +966,8 @@ public sealed class SettingsPageViewModel : ObservableObject
     /// Gets or updates browser side assistant, the bindable or domain state represented by this property.
     /// </summary>
     public bool BrowserSideAssistant { get => _browserSideAssistant; set => SetProperty(ref _browserSideAssistant, value); }
+    /// <summary>Gets or sets whether Haven may wake Ollama for an offline local-model send.</summary>
+    public bool AutoWakeOllama { get => _autoWakeOllama; set => SetProperty(ref _autoWakeOllama, value); }
     /// <summary>
     /// Gets or updates file permission, the bindable or domain state represented by this property.
     /// </summary>
@@ -1124,7 +1129,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     private void SaveFeatures()
     {
         _preferences.SetFeatureOptions(AutoSwitch, ShowAgenticInChat, VerticalTabs, ConfidenceMeter, AutoCompact,
-            CompactAtPercent, AdaptiveHelp, BrowserSideAssistant);
+            CompactAtPercent, AdaptiveHelp, BrowserSideAssistant, AutoWakeOllama);
         Status = "Feature preferences saved. Reopen a surface to apply layout-only changes.";
     }
 

@@ -520,7 +520,11 @@ public sealed partial class WorkspaceChromeHost
     {
         if (e.PropertyName is nameof(WorkspaceTabViewModel.Title)
             or nameof(WorkspaceTabViewModel.IsSelected)
-            or nameof(WorkspaceTabViewModel.Surface))
+            or nameof(WorkspaceTabViewModel.Surface)
+            or nameof(WorkspaceTabViewModel.GroupId)
+            or nameof(WorkspaceTabViewModel.GroupName)
+            or nameof(WorkspaceTabViewModel.IsGroupCollapsed)
+            or nameof(WorkspaceTabViewModel.IsMarkedForGrouping))
             RebuildTabs();
     }
 
@@ -533,8 +537,16 @@ public sealed partial class WorkspaceChromeHost
         UpdateNavigationButtons();
         if (_modernShell is null) return;
 
+        var renderedGroups = new HashSet<Guid>();
         foreach (var tab in _modernShell.OpenTabs)
+        {
+            if (tab.GroupId is { } groupId)
+            {
+                if (renderedGroups.Add(groupId)) _modernTabs.Children.Add(BuildTabGroupLabel(groupId));
+                if (tab.IsGroupCollapsed) continue;
+            }
             _modernTabs.Children.Add(BuildModernTab(tab));
+        }
     }
 
     private void UpdateNavigationButtons()
@@ -609,6 +621,11 @@ public sealed partial class WorkspaceChromeHost
         };
         button.Classes.Add("workspaceTab");
         if (tab.IsSelected) button.Classes.Add("active");
+        if (tab.IsMarkedForGrouping)
+        {
+            button.BorderBrush = ModernResourceBrush("HavenAccentBrush", Colors.DodgerBlue);
+            button.BorderThickness = new Thickness(1);
+        }
         ToolTip.SetTip(button, tab.Title);
         button.Click += (_, _) =>
         {
@@ -616,6 +633,12 @@ public sealed partial class WorkspaceChromeHost
                 _modernShell.SelectedTab = tab;
         };
         button.ContextMenu = BuildTabContextMenu(tab);
+        button.PointerPressed += (_, e) =>
+        {
+            if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+            tab.IsMarkedForGrouping = !tab.IsMarkedForGrouping;
+            e.Handled = true;
+        };
 
         var host = new Grid
         {
@@ -666,10 +689,128 @@ public sealed partial class WorkspaceChromeHost
         };
         close.Click += (_, _) => CloseModernTab(tab);
 
+        var markedCount = _modernShell?.OpenTabs.Count(item => item.IsMarkedForGrouping) ?? 0;
+        var groupSelected = new MenuItem { Header = "Group selected tabs...", IsVisible = markedCount >= 2 };
+        groupSelected.Click += async (_, _) => await CreateGroupFromMarkedTabsAsync();
+        var removeFromGroup = new MenuItem { Header = "Remove from group", IsVisible = tab.GroupId is not null };
+        removeFromGroup.Click += (_, _) => RemoveTabFromGroup(tab);
+
         return new ContextMenu
         {
-            ItemsSource = new object[] { refresh, rename, new Separator(), closeRight, closeLeft, new Separator(), close }
+            ItemsSource = new object[] { refresh, rename, new Separator(), groupSelected, removeFromGroup, new Separator(), closeRight, closeLeft, new Separator(), close }
         };
+    }
+
+    /// <summary>Creates the compact label that owns group-wide actions and collapse state.</summary>
+    private Control BuildTabGroupLabel(Guid groupId)
+    {
+        var members = _modernShell!.OpenTabs.Where(tab => tab.GroupId == groupId).ToArray();
+        var first = members[0];
+        var button = new Button
+        {
+            Content = $"{(first.IsGroupCollapsed ? "›" : "⌄")}  {first.GroupName}",
+            Margin = new Thickness(5, 0, 2, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        button.Classes.Add("chip");
+        ToolTip.SetTip(button, "Collapse or expand tab group");
+        button.Click += (_, _) => SetGroupCollapsed(groupId, !first.IsGroupCollapsed);
+        button.ContextMenu = BuildGroupContextMenu(groupId);
+        return button;
+    }
+
+    private ContextMenu BuildGroupContextMenu(Guid groupId)
+    {
+        var rename = new MenuItem { Header = "Rename group..." };
+        rename.Click += async (_, _) => await RenameGroupAsync(groupId);
+        var refresh = new MenuItem { Header = "Refresh group" };
+        refresh.Click += async (_, _) =>
+        {
+            foreach (var tab in _modernShell!.OpenTabs.Where(item => item.GroupId == groupId).ToArray())
+                await RefreshTabAsync(tab);
+        };
+        var ungroup = new MenuItem { Header = "Ungroup" };
+        ungroup.Click += (_, _) => Ungroup(groupId);
+        var closeGroup = new MenuItem { Header = "Close group" };
+        closeGroup.Click += (_, _) => CloseGroup(groupId, outside: false);
+        var closeOutside = new MenuItem { Header = "Close tabs outside group" };
+        closeOutside.Click += (_, _) => CloseGroup(groupId, outside: true);
+        return new ContextMenu { ItemsSource = new object[] { rename, refresh, ungroup, new Separator(), closeGroup, closeOutside } };
+    }
+
+    private async Task CreateGroupFromMarkedTabsAsync()
+    {
+        if (_modernShell is null) return;
+        var selected = _modernShell.OpenTabs.Where(tab => tab.IsMarkedForGrouping).ToArray();
+        if (selected.Length < 2) return;
+        var name = await PromptForNameAsync("Create tab group", "Group name", "Tab group");
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var id = Guid.NewGuid();
+        foreach (var tab in selected)
+        {
+            tab.GroupId = id;
+            tab.GroupName = name;
+            tab.IsGroupCollapsed = false;
+            tab.IsMarkedForGrouping = false;
+        }
+    }
+
+    private async Task RenameGroupAsync(Guid groupId)
+    {
+        if (_modernShell is null) return;
+        var members = _modernShell.OpenTabs.Where(tab => tab.GroupId == groupId).ToArray();
+        if (members.Length == 0) return;
+        var name = await PromptForNameAsync("Rename tab group", "Group name", members[0].GroupName);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        foreach (var tab in members) tab.GroupName = name;
+    }
+
+    private async Task<string?> PromptForNameAsync(string title, string label, string initial)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return null;
+        var input = new TextBox { Text = initial, MinWidth = 320 };
+        string? result = null;
+        var dialog = new Window { Title = title, Width = 420, Height = 185, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var save = new Button { Content = "Save" };
+        save.Classes.Add("accent");
+        var cancel = new Button { Content = "Cancel" };
+        save.Click += (_, _) => { result = input.Text?.Trim(); dialog.Close(); };
+        cancel.Click += (_, _) => dialog.Close();
+        dialog.Content = new StackPanel
+        {
+            Margin = new Thickness(20), Spacing = 12,
+            Children =
+            {
+                new TextBlock { Text = label, FontSize = 18, FontWeight = FontWeight.SemiBold }, input,
+                new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, save } }
+            }
+        };
+        dialog.Opened += (_, _) => input.Focus();
+        await dialog.ShowDialog(owner);
+        return result;
+    }
+
+    private void SetGroupCollapsed(Guid groupId, bool collapsed)
+    {
+        foreach (var tab in _modernShell!.OpenTabs.Where(tab => tab.GroupId == groupId)) tab.IsGroupCollapsed = collapsed;
+    }
+
+    private void RemoveTabFromGroup(WorkspaceTabViewModel tab)
+    {
+        tab.GroupId = null;
+        tab.GroupName = string.Empty;
+        tab.IsGroupCollapsed = false;
+    }
+
+    private void Ungroup(Guid groupId)
+    {
+        foreach (var tab in _modernShell!.OpenTabs.Where(tab => tab.GroupId == groupId).ToArray()) RemoveTabFromGroup(tab);
+    }
+
+    private void CloseGroup(Guid groupId, bool outside)
+    {
+        var targets = _modernShell!.OpenTabs.Where(tab => (tab.GroupId == groupId) != outside && tab.IsCloseable).ToArray();
+        foreach (var tab in targets) CloseModernTab(tab);
     }
 
     private async Task RefreshTabAsync(WorkspaceTabViewModel tab)

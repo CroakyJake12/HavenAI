@@ -96,7 +96,9 @@ public sealed partial class ChatView : UserControl
         _messageTools.BranchChanged += OnBranchChanged;
         _messageTools.RegenerationRequested += OnMessageRegenerationRequested;
         _messageToolsFlyout = new Flyout { Content = _messageTools };
-        AttachProductionToolbar();
+        // Conversation-wide tools are intentionally no longer inserted above every
+        // chat. Their message-specific actions live in the floating message menu,
+        // while context usage is exposed by the main chat header.
 
         if (App.Services is { } services)
         {
@@ -582,6 +584,14 @@ public sealed partial class ChatView : UserControl
         if (sender is not MenuItem { DataContext: MessageBubbleViewModel message }) return;
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard is not null) await clipboard.SetTextAsync(message.Content);
+    }
+
+    /// <summary>Opens the same complete action surface from a message's right-click menu.</summary>
+    private void OnMessageActionsMenuClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: MessageBubbleViewModel message } item) return;
+        _messageTools.SelectMessage(message.Id);
+        _messageToolsFlyout.ShowAt(item);
     }
 
     /// <summary>Opens message-specific actions next to the message instead of in a global toolbar.</summary>

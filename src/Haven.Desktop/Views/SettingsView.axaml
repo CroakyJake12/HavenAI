@@ -107,6 +107,7 @@
             </Grid>
             <CheckBox Content="Adaptive project help" IsChecked="{Binding AdaptiveHelp}" />
             <CheckBox Content="Browser side assistant" IsChecked="{Binding BrowserSideAssistant}" />
+            <CheckBox Content="Wake Ollama automatically when a local model is offline" IsChecked="{Binding AutoWakeOllama}" />
             <Separator Margin="0,5" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
               <StackPanel Spacing="2">

@@ -1425,6 +1425,40 @@
 										   FontSize="18"
 										   FontWeight="SemiBold" />
 							</StackPanel>
+
+							<!-- Empty chats expose the temporary-mode choice here; once a
+							     conversation starts this location becomes its context meter. -->
+							<Button Grid.Column="2"
+									Classes="chip"
+									Command="{Binding CurrentChat.ToggleTemporaryCommand}"
+									IsVisible="{Binding ShowTemporaryHeaderAction}"
+									ToolTip.Tip="Keep this chat out of local history">
+								<StackPanel Orientation="Horizontal" Spacing="7">
+									<controls:HavenIcon IconKey="chat" Width="14" Height="14" Opacity="0.72" />
+									<TextBlock Text="{Binding TemporaryHeaderActionLabel}" VerticalAlignment="Center" />
+								</StackPanel>
+							</Button>
+
+							<Button Grid.Column="2"
+									Classes="chip"
+									IsVisible="{Binding ShowContextHeaderWidget}"
+									ToolTip.Tip="{Binding ContextLabel}">
+								<StackPanel Orientation="Horizontal" Spacing="8">
+									<TextBlock Text="{Binding ContextRemainingPercent, StringFormat='{}{0}%'}" FontWeight="SemiBold" />
+									<ProgressBar Width="64" Height="4" Minimum="0" Maximum="100" Value="{Binding ContextPercent}" VerticalAlignment="Center" />
+								</StackPanel>
+								<Button.Flyout>
+									<Flyout>
+										<StackPanel Width="280" Spacing="8">
+											<TextBlock Text="Conversation context" FontWeight="SemiBold" />
+											<TextBlock Text="{Binding ContextRemainingLabel}" Classes="muted" />
+											<ProgressBar Minimum="0" Maximum="100" Value="{Binding ContextPercent}" />
+											<TextBlock Text="{Binding ContextLabel}" Classes="muted" FontSize="11" />
+											<Button Content="Compact context now" Command="{Binding CompactCurrentCommand}" HorizontalAlignment="Stretch" />
+										</StackPanel>
+									</Flyout>
+								</Button.Flyout>
+							</Button>
 						</Grid>
 					</Border>
 
