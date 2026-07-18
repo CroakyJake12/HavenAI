@@ -356,8 +356,10 @@ internal static class NotesProductivityText
 {
     public static IEnumerable<string> Enumerate(NotesBlock block)
     {
-        if (!string.IsNullOrWhiteSpace(block.PlainText)) yield return block.PlainText;
-        if (block.Runs.Count > 0) yield return string.Concat(block.Runs.Select(run => run.Text));
+        var text = block.Runs.Count > 0
+            ? string.Concat(block.Runs.Select(run => run.Text))
+            : block.PlainText;
+        if (!string.IsNullOrWhiteSpace(text)) yield return text;
         if (block.List is not null)
             foreach (var item in block.List.Items) yield return item.Text;
         if (block.Table is not null)
