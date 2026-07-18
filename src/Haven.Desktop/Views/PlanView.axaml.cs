@@ -27,10 +27,10 @@ public sealed partial class PlanView : UserControl
         if (_automationControl is not null || Content is not Grid root) return;
         _automationControl = new PlanAutomationControl
         {
-            Margin = new Thickness(0, 22, 22, 0)
+            Margin = new Thickness(0, 22, 22, 0),
+            ZIndex = 20
         };
         Grid.SetColumn(_automationControl, 2);
-        Panel.SetZIndex(_automationControl, 20);
         root.Children.Add(_automationControl);
     }
 
