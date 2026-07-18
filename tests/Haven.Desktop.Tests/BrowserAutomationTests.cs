@@ -37,7 +37,7 @@ public sealed class BrowserAutomationTests : IDisposable
         }
 
         var path = Path.Combine(_paths.DataDirectory, "browser-automation.json");
-        await File.WriteAllTextAsync(path, "{ invalid json");
+        await File.WriteAllTextAsync(path, "{ invalid json", TestContext.Current.CancellationToken);
         using var recovered = new BrowserAutomationStore(_paths);
         Assert.Empty(await recovered.GetAuditAsync(10, CancellationToken.None));
         Assert.NotEmpty(Directory.EnumerateFiles(_paths.DataDirectory, "browser-automation.json.corrupt-*.json"));

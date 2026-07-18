@@ -21,7 +21,7 @@ public sealed class NotesMediaAiReviewTests : IDisposable
         workspace.SelectedModelName = "ollama:qwen-test";
         var page = Assert.IsType<NotesPage>(workspace.CurrentPage);
         page.Blocks.Clear();
-        page.Blocks.Add(NotesBlock.Paragraph("The surrounding paragraph describes energy moving from the Sun to a plant."));
+        page.Blocks.Add(NotesBlock.CreateParagraph("The surrounding paragraph describes energy moving from the Sun to a plant."));
         var media = ImageBlock();
         media.Order = 1;
         page.Blocks.Add(media);

@@ -51,7 +51,7 @@ public sealed class CallSingletonIntegrationTests
             new CallVoice("voice-id", "Test voice", "en-GB", true),
             "default",
             CancellationToken.None);
-        await output.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await output.Started.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         await controller.StopAsync(CancellationToken.None);
 

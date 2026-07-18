@@ -32,7 +32,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
         Assert.Equal("_CON.txt", record.FileName);
         Assert.Equal(body.LongLength, record.SizeBytes);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant(), record.Sha256);
-        Assert.Equal(body, await File.ReadAllBytesAsync(record.StoredPath));
+        Assert.Equal(body, await File.ReadAllBytesAsync(record.StoredPath, TestContext.Current.CancellationToken));
         Assert.StartsWith(Path.GetFullPath(_directory) + Path.DirectorySeparatorChar, Path.GetFullPath(record.StoredPath), StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(Directory.EnumerateFiles(_directory), path => path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
     }
@@ -41,9 +41,9 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
     public async Task ApprovedDownloadRemovesStalePartialBeforeSavingAndAllocatesCollisionName()
     {
         var existing = Path.Combine(_directory, "report.txt");
-        await File.WriteAllTextAsync(existing, "existing");
+        await File.WriteAllTextAsync(existing, "existing", TestContext.Current.CancellationToken);
         var stale = BrowserDownloadFilePolicy.CreatePartialPath(existing);
-        await File.WriteAllTextAsync(stale, "partial");
+        await File.WriteAllTextAsync(stale, "partial", TestContext.Current.CancellationToken);
         File.SetLastWriteTimeUtc(stale, DateTime.UtcNow - BrowserDownloadFilePolicy.PartialFileRetention - TimeSpan.FromMinutes(2));
 
         using var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -59,8 +59,8 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
 
         Assert.False(File.Exists(stale));
         Assert.Equal("report (2).txt", record.FileName);
-        Assert.Equal("existing", await File.ReadAllTextAsync(existing));
-        Assert.Equal("replacement", await File.ReadAllTextAsync(record.StoredPath));
+        Assert.Equal("existing", await File.ReadAllTextAsync(existing, TestContext.Current.CancellationToken));
+        Assert.Equal("replacement", await File.ReadAllTextAsync(record.StoredPath, TestContext.Current.CancellationToken));
     }
 
     private static BrowserPendingAction CreateDownloadAction(Uri target)

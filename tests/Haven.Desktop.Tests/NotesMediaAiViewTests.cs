@@ -24,7 +24,7 @@ public sealed class NotesMediaAiViewTests : IDisposable
         workspace.SelectedModelName = "ollama:qwen-test";
         var page = Assert.IsType<NotesPage>(workspace.CurrentPage);
         page.Blocks.Clear();
-        page.Blocks.Add(NotesBlock.Paragraph("The note identifies this as a labelled plant-energy diagram."));
+        page.Blocks.Add(NotesBlock.CreateParagraph("The note identifies this as a labelled plant-energy diagram."));
         var media = new NotesBlock
         {
             Kind = NotesBlockKind.Image,

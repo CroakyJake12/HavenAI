@@ -72,10 +72,10 @@ public sealed class NotesReadAloudControllerTests
         try
         {
             var read = controller.ReadAsync("A deliberately long passage.", "en-GB", CancellationToken.None);
-            await speech.SpeakStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await speech.SpeakStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
-            await controller.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2));
-            await read.WaitAsync(TimeSpan.FromSeconds(2));
+            await controller.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await read.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
             Assert.True(speech.StopCalls >= 1);
             Assert.True(speech.LastSpeakCancellation.IsCancellationRequested);

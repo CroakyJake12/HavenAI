@@ -54,10 +54,10 @@ public sealed class CallCompletionControllerTests
         public bool IsActive => false;
         public bool IsMuted => false;
         public bool IsScreenSharing => false;
-        public event EventHandler<CallStateChangedEventArgs>? StateChanged;
-        public event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;
-        public event EventHandler<CallAudioLevelEventArgs>? AudioLevelChanged;
-        public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
+        public event EventHandler<CallStateChangedEventArgs>? StateChanged { add { } remove { } }
+        public event EventHandler<CallTranscriptEventArgs>? TranscriptChanged { add { } remove { } }
+        public event EventHandler<CallAudioLevelEventArgs>? AudioLevelChanged { add { } remove { } }
+        public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged { add { } remove { } }
         public Task<CallSession> StartAsync(CallStartOptions options, SpeechModelInfo? speechModel, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SubmitTextAsync(string text, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task BeginPushToTalkAsync(CancellationToken cancellationToken) => Task.CompletedTask;

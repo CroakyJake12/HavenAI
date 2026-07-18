@@ -26,7 +26,7 @@ public sealed class GenerativeUiThemeRuntimeTests
 
         await runtime.InitializeAsync(CancellationToken.None);
 
-        Assert.Equal(ThemeVariant.Light, Application.Current!.RequestedThemeVariant);
+        Assert.Equal(ThemeVariant.Light, Avalonia.Application.Current!.RequestedThemeVariant);
         Assert.Equal(Color.Parse(theme.Light.Background), BrushColour("HavenBackgroundBrush"));
         Assert.Equal(Color.Parse(theme.Light.Text), BrushColour("HavenTextBrush"));
         Assert.Equal(Color.Parse(theme.Light.Accent), BrushColour("HavenAccentBrush"));
@@ -36,7 +36,7 @@ public sealed class GenerativeUiThemeRuntimeTests
             GenerativeThemeAppearance.Dark,
             CancellationToken.None);
 
-        Assert.Equal(ThemeVariant.Dark, Application.Current.RequestedThemeVariant);
+        Assert.Equal(ThemeVariant.Dark, Avalonia.Application.Current.RequestedThemeVariant);
         Assert.Equal(Color.Parse(theme.Dark.Background), BrushColour("HavenBackgroundBrush"));
         Assert.Equal(Color.Parse(theme.Dark.Text), BrushColour("HavenTextBrush"));
         Assert.Equal(Color.Parse(theme.Dark.Accent), BrushColour("HavenAccentBrush"));
@@ -83,7 +83,7 @@ public sealed class GenerativeUiThemeRuntimeTests
 
     private static Color BrushColour(string key)
     {
-        Assert.True(Application.Current!.Resources.TryGetValue(key, out var value));
+        Assert.True(Avalonia.Application.Current!.Resources.TryGetValue(key, out var value));
         return Assert.IsType<SolidColorBrush>(value).Color;
     }
 

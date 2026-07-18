@@ -53,7 +53,7 @@ public sealed class GenerativeUiThemeRollbackTests
 
     private static Color BrushColour(string key)
     {
-        Assert.True(Application.Current!.Resources.TryGetValue(key, out var value));
+        Assert.True(Avalonia.Application.Current!.Resources.TryGetValue(key, out var value));
         return Assert.IsType<SolidColorBrush>(value).Color;
     }
 

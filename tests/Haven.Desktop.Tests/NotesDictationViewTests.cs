@@ -20,7 +20,7 @@ public sealed class NotesDictationViewTests : IDisposable
         await using var diagnostics = new ProductionDiagnostics(_paths);
         var viewModel = CreateViewModel(diagnostics);
         await viewModel.InitializeAsync(CancellationToken.None);
-        var paragraph = NotesBlock.Paragraph("Existing sentence.");
+        var paragraph = NotesBlock.CreateParagraph("Existing sentence.");
         var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
         page.Blocks.Clear();
         page.Blocks.Add(paragraph);
