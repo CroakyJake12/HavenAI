@@ -30,6 +30,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
         Children.Add(_experienceShell);
 
         InitializeModernChrome();
+        InitializeActionsBridge();
     }
 
     private static void ExtractLegacyChrome(Control existingShell)
@@ -70,6 +71,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        DisposeActionsBridge();
         DisposeModernChrome();
         _experienceShell.Dispose();
         GC.SuppressFinalize(this);
