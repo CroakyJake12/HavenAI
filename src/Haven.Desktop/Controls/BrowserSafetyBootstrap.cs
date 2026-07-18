@@ -41,7 +41,7 @@ internal static class BrowserSafetyBootstrap
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            if (Avalonia.Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
                 {
                     MainWindow: { } window
                 }) return;
@@ -86,12 +86,12 @@ internal static class BrowserSafetyBootstrap
                 Margin = new Thickness(0, 0, 470, 0),
                 Padding = new Thickness(9, 4),
                 FontSize = 10,
-                Flyout = new Flyout { Content = new BrowserSafetyView() }
+                Flyout = new Flyout { Content = new BrowserSafetyView() },
+                ZIndex = 20
             };
             ToolTip.SetTip(button, "Review model-requested form submissions and downloads");
             button.Classes.Add("ghost");
             Grid.SetRow(button, 3);
-            Panel.SetZIndex(button, 20);
             grid.Children.Add(button);
             Attached.Add(browserView, new AttachmentMarker());
         }
