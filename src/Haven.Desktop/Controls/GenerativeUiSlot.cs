@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Layout;
+using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
@@ -60,7 +61,8 @@ public sealed class GenerativeUiSlot : StackPanel
         DisposeChildren();
     }
 
-    private void OnThemeChanged(object? sender, EventArgs e) => Rebuild();
+    private void OnThemeChanged(object? sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(Rebuild, DispatcherPriority.Background);
 
     private void Rebuild()
     {
