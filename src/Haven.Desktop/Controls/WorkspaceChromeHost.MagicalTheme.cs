@@ -4,7 +4,6 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
-using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Desktop.Services;
@@ -205,12 +204,8 @@ public sealed partial class WorkspaceChromeHost
             _hostWindow.PropertyChanged += OnHostWindowPropertyChanged;
         }
 
-        // Keep the native resize border, but remove the native title bar so the floating rail
-        // becomes the only chrome visible to the user.
+        // BorderOnly removes the native title bar while preserving the platform resize frame.
         window.SystemDecorations = SystemDecorations.BorderOnly;
-        window.ExtendClientAreaToDecorationsHint = true;
-        window.ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
-        window.ExtendClientAreaTitleBarHeightHint = 0;
         UpdateMaximizeVisual(window);
     }
 
