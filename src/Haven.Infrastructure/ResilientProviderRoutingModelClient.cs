@@ -23,19 +23,29 @@ public sealed class ResilientProviderRoutingModelClient(
         foreach (var model in await GetCandidatesAsync(request.Model, RequiredCapabilities(request), cancellationToken).ConfigureAwait(false))
         {
             var routedRequest = request with { Model = model };
-            try
+            var failedBeforeOutput = false;
+            await using var enumerator = primary.StreamChatAsync(routedRequest, cancellationToken)
+                .GetAsyncEnumerator(cancellationToken);
+            while (true)
             {
-                await foreach (var chunk in primary.StreamChatAsync(routedRequest, cancellationToken).ConfigureAwait(false))
+                bool movedNext;
+                try
                 {
-                    emitted = true;
-                    yield return chunk;
+                    movedNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
                 }
-                yield break;
+                catch (Exception ex) when (!emitted && IsRecoverable(ex, cancellationToken))
+                {
+                    firstFailure ??= ex;
+                    failedBeforeOutput = true;
+                    break;
+                }
+
+                if (!movedNext) break;
+                emitted = true;
+                yield return enumerator.Current;
             }
-            catch (Exception ex) when (!emitted && IsRecoverable(ex, cancellationToken))
-            {
-                firstFailure ??= ex;
-            }
+
+            if (!failedBeforeOutput) yield break;
         }
         throw new InvalidOperationException("Every compatible model failed before producing output.", firstFailure);
     }
