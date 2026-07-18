@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
@@ -65,7 +66,7 @@ public sealed partial class WorkspaceChromeHost
         }
     }
 
-    private void AttachTabDragCompatibility(Button button, ViewModels.WorkspaceTabViewModel tab)
+    private void AttachTabDragCompatibility(Button button, WorkspaceTabViewModel tab)
     {
         var state = new TabDragCompatibilityState(tab);
 
@@ -137,9 +138,9 @@ public sealed partial class WorkspaceChromeHost
         return succeeded;
     }
 
-    private sealed class TabDragCompatibilityState(ViewModels.WorkspaceTabViewModel tab)
+    private sealed class TabDragCompatibilityState(WorkspaceTabViewModel tab)
     {
-        public ViewModels.WorkspaceTabViewModel Tab { get; } = tab;
+        public WorkspaceTabViewModel Tab { get; } = tab;
         public PointerPressedEventArgs? PressedArgs { get; set; }
         public Point Start { get; set; }
         public bool IsDragging { get; set; }
