@@ -10,6 +10,10 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
     private const uint CredentialTypeGeneric = 1;
     private const uint PersistLocalMachine = 2;
     private const int MaxCredentialBlobBytes = 2560;
+    private static readonly UnicodeEncoding StrictUnicode = new(
+        bigEndian: false,
+        byteOrderMark: false,
+        throwOnInvalidBytes: true);
 
     public Task SetAsync(string providerId, string secretName, string secret, CancellationToken cancellationToken)
     {
@@ -17,10 +21,8 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
         EnsureWindows();
         ValidateName(providerId, nameof(providerId));
         ValidateName(secretName, nameof(secretName));
-        if (string.IsNullOrEmpty(secret)) throw new ArgumentException("Secret value is required.", nameof(secret));
 
-        var bytes = Encoding.Unicode.GetBytes(secret);
-        if (bytes.Length > MaxCredentialBlobBytes) throw new ArgumentException("Provider credential exceeds Windows Credential Manager's generic credential limit.", nameof(secret));
+        var bytes = EncodeSecret(secret);
         var blob = Marshal.AllocCoTaskMem(bytes.Length);
         try
         {
@@ -63,9 +65,18 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
         try
         {
             var credential = Marshal.PtrToStructure<Credential>(pointer);
-            return Task.FromResult(credential.CredentialBlob == IntPtr.Zero
-                ? null
-                : Marshal.PtrToStringUni(credential.CredentialBlob, checked((int)credential.CredentialBlobSize / 2)));
+            if (credential.CredentialBlob == IntPtr.Zero) return Task.FromResult<string?>(null);
+            var size = checked((int)credential.CredentialBlobSize);
+            var bytes = new byte[size];
+            try
+            {
+                Marshal.Copy(credential.CredentialBlob, bytes, 0, size);
+                return Task.FromResult<string?>(DecodeSecret(bytes));
+            }
+            finally
+            {
+                Array.Clear(bytes);
+            }
         }
         finally { CredFree(pointer); }
     }
@@ -82,6 +93,56 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
             if (error != 1168) throw new Win32Exception(error);
         }
         return Task.CompletedTask;
+    }
+
+    public static byte[] EncodeSecret(string secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new ArgumentException("Secret value is required and cannot be only whitespace.", nameof(secret));
+        if (secret.Contains('\0', StringComparison.Ordinal))
+            throw new ArgumentException("Secret value cannot contain an embedded null character.", nameof(secret));
+
+        byte[] bytes;
+        try
+        {
+            bytes = StrictUnicode.GetBytes(secret);
+        }
+        catch (EncoderFallbackException ex)
+        {
+            throw new ArgumentException("Secret value contains invalid UTF-16 text.", nameof(secret), ex);
+        }
+
+        if (bytes.Length > MaxCredentialBlobBytes)
+        {
+            Array.Clear(bytes);
+            throw new ArgumentException(
+                $"Provider credential exceeds Windows Credential Manager's {MaxCredentialBlobBytes} bytes generic credential limit.",
+                nameof(secret));
+        }
+        return bytes;
+    }
+
+    public static string DecodeSecret(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        if (bytes.Length == 0 || bytes.Length > MaxCredentialBlobBytes || bytes.Length % 2 != 0)
+            throw new InvalidDataException("The Windows credential blob has an invalid UTF-16 byte length.");
+
+        string secret;
+        try
+        {
+            secret = StrictUnicode.GetString(bytes);
+        }
+        catch (DecoderFallbackException ex)
+        {
+            throw new InvalidDataException("The Windows credential blob contains invalid UTF-16 text.", ex);
+        }
+
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new InvalidDataException("The Windows credential blob decoded to an empty or whitespace-only secret.");
+        if (secret.Contains('\0', StringComparison.Ordinal))
+            throw new InvalidDataException("The Windows credential blob contains an embedded null character.");
+        return secret;
     }
 
     private static string Target(string providerId, string secretName) => $"Haven.ModelProvider|{providerId.ToLowerInvariant()}|{secretName.ToLowerInvariant()}";
