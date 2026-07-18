@@ -270,7 +270,7 @@ public static class NotesFindReplace
     private static int ReplaceString(
         Regex regex,
         string value,
-        string replacement,
+        string? replacement,
         Action<string> assign,
         ref bool changed)
     {
