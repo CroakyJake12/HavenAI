@@ -150,12 +150,12 @@ public sealed class NotesReadAloudController(
         if (!string.IsNullOrWhiteSpace(language))
         {
             var exact = voices.FirstOrDefault(value =>
-                value.Culture.Equals(language, StringComparison.OrdinalIgnoreCase));
+                string.Equals(value.Culture, language, StringComparison.OrdinalIgnoreCase));
             if (exact is not null) return exact;
             var prefix = language.Split('-', StringSplitOptions.RemoveEmptyEntries)[0];
             var matching = voices.FirstOrDefault(value =>
-                value.Culture.StartsWith(prefix + "-", StringComparison.OrdinalIgnoreCase)
-                || value.Culture.Equals(prefix, StringComparison.OrdinalIgnoreCase));
+                value.Culture?.StartsWith(prefix + "-", StringComparison.OrdinalIgnoreCase) == true
+                || string.Equals(value.Culture, prefix, StringComparison.OrdinalIgnoreCase));
             if (matching is not null) return matching;
         }
         return voices.FirstOrDefault(value => value.IsDefault) ?? voices[0];
