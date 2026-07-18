@@ -1,7 +1,7 @@
 using System.Text;
 using Avalonia.Controls;
-using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Controls;
 
