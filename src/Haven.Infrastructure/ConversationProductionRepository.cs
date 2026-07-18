@@ -160,8 +160,8 @@ public sealed class ConversationProductionRepository(
             await using var reader = await turns.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                var userId = reader.IsDBNull(1) ? null : Guid.Parse(reader.GetString(1));
-                var assistantId = reader.IsDBNull(2) ? null : Guid.Parse(reader.GetString(2));
+                Guid? userId = reader.IsDBNull(1) ? null : Guid.Parse(reader.GetString(1));
+                Guid? assistantId = reader.IsDBNull(2) ? null : Guid.Parse(reader.GetString(2));
                 if (forkedFromMessageId is not null && userId != forkedFromMessageId && assistantId != forkedFromMessageId)
                 {
                     var included = await AreTurnMessagesMappedAsync(connection, transaction, branch.Id, userId, assistantId, cancellationToken).ConfigureAwait(false);
