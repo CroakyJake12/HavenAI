@@ -10,6 +10,7 @@ public sealed partial class WorkspaceChromeHost
     private void InitializeActionsBridge()
     {
         _actionsSearch.Padding = new Thickness(36, 9, 12, 9);
+        InitializeTabDragCompatibility();
         if (_actionsButton is null) return;
 
         // The button must use the same command path as Ctrl+K so the view model builds and
@@ -33,6 +34,7 @@ public sealed partial class WorkspaceChromeHost
 
     private void DisposeActionsBridge()
     {
+        DisposeTabDragCompatibility();
         if (_actionsButton is not null && _actionsBridgeHandler is not null)
             _actionsButton.Click -= _actionsBridgeHandler;
         _actionsBridgeHandler = null;
