@@ -1,8 +1,7 @@
-@"
 .vs/
 bin/
 obj/
 TestResults/
 *.user
 *.suo
-"@ | Set-Content ".gitignore"
+haven-build.log
