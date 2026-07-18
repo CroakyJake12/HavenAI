@@ -25,7 +25,10 @@ public sealed class OdsAwareMessageAttachmentService(
 
         try
         {
-            var storedPath = Path.GetFullPath(Path.Combine(paths.AttachmentsDirectory, attachment.StoredRelativePath));
+            var storedPath = Path.GetFullPath(Path.Combine(
+                paths.AttachmentsDirectory,
+                attachment.ConversationId.ToString("N"),
+                attachment.StoredName));
             var attachmentRoot = Path.GetFullPath(paths.AttachmentsDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!storedPath.StartsWith(attachmentRoot, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("The stored attachment path escaped Haven's attachment directory.");
@@ -36,13 +39,14 @@ public sealed class OdsAwareMessageAttachmentService(
             {
                 ["format"] = "OpenDocument Spreadsheet",
                 ["entry"] = "content.xml",
-                ["extractedCharacters"] = text.Length
+                ["extractedCharacters"] = text.Length,
+                ["processingNotice"] = "OpenDocument XML cell text was extracted locally."
             });
             var updated = attachment with
             {
                 ExtractedText = text,
                 ProcessingState = AttachmentProcessingState.Ready,
-                AnalysisMethod = "OpenDocument XML cell text extraction",
+                AnalysisMethod = AttachmentAnalysisMethod.TextExtracted,
                 MetadataJson = metadata
             };
             await UpdateRecordAsync(updated, cancellationToken).ConfigureAwait(false);
@@ -59,13 +63,14 @@ public sealed class OdsAwareMessageAttachmentService(
             var metadata = MergeMetadata(attachment.MetadataJson, new Dictionary<string, object?>
             {
                 ["format"] = "OpenDocument Spreadsheet",
-                ["error"] = ex.Message
+                ["error"] = ex.Message,
+                ["processingNotice"] = "OpenDocument extraction failed: " + ex.Message
             });
             var failed = attachment with
             {
                 ExtractedText = string.Empty,
                 ProcessingState = AttachmentProcessingState.Failed,
-                AnalysisMethod = "OpenDocument extraction failed: " + ex.Message,
+                AnalysisMethod = AttachmentAnalysisMethod.None,
                 MetadataJson = metadata
             };
             await UpdateRecordAsync(failed, cancellationToken).ConfigureAwait(false);
@@ -119,7 +124,7 @@ public sealed class OdsAwareMessageAttachmentService(
             """;
         command.Parameters.AddWithValue("$text", attachment.ExtractedText);
         command.Parameters.AddWithValue("$state", (int)attachment.ProcessingState);
-        command.Parameters.AddWithValue("$method", attachment.AnalysisMethod);
+        command.Parameters.AddWithValue("$method", (int)attachment.AnalysisMethod);
         command.Parameters.AddWithValue("$metadata", attachment.MetadataJson);
         command.Parameters.AddWithValue("$id", attachment.Id.ToString());
         if (await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
