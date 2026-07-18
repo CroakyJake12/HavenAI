@@ -92,8 +92,8 @@
                FontSize="10"
                MinHeight="70"
                MaxHeight="260"
-               HorizontalScrollBarVisibility="Auto"
-               VerticalScrollBarVisibility="Auto"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
                IsVisible="{Binding HasFormatPreview}" />
 
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
