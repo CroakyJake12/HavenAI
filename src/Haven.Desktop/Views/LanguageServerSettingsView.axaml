@@ -61,8 +61,8 @@
                            FontFamily="Cascadia Mono, Consolas, monospace"
                            MinHeight="52"
                            MaxHeight="140"
-                           HorizontalScrollBarVisibility="Auto"
-                           VerticalScrollBarVisibility="Auto" />
+                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                           ScrollViewer.VerticalScrollBarVisibility="Auto" />
                 </StackPanel>
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="7">
                   <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" VerticalAlignment="Center" TextWrapping="Wrap" />
