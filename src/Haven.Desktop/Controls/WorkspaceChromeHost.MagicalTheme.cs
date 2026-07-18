@@ -107,9 +107,9 @@ public sealed partial class WorkspaceChromeHost
         {
             if (_magicalStylesLoaded || Avalonia.Application.Current is not { } application) return;
 
-            application.Styles.Add(new StyleInclude(new Uri("avares://Haven.Desktop/"))
+            application.Styles.Add(new StyleInclude(new Uri("avares://Haven/"))
             {
-                Source = new Uri("avares://Haven.Desktop/Styles/MagicalTheme.axaml")
+                Source = new Uri("avares://Haven/Styles/MagicalTheme.axaml")
             });
             _magicalStylesLoaded = true;
         }
