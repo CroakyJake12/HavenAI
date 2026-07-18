@@ -99,7 +99,7 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
     {
         if (string.IsNullOrWhiteSpace(secret))
             throw new ArgumentException("Secret value is required and cannot be only whitespace.", nameof(secret));
-        if (secret.Contains('\0', StringComparison.Ordinal))
+        if (secret.Contains('\0'))
             throw new ArgumentException("Secret value cannot contain an embedded null character.", nameof(secret));
 
         byte[] bytes;
@@ -140,7 +140,7 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
 
         if (string.IsNullOrWhiteSpace(secret))
             throw new InvalidDataException("The Windows credential blob decoded to an empty or whitespace-only secret.");
-        if (secret.Contains('\0', StringComparison.Ordinal))
+        if (secret.Contains('\0'))
             throw new InvalidDataException("The Windows credential blob contains an embedded null character.");
         return secret;
     }
