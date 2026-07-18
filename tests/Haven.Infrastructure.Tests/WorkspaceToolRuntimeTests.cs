@@ -69,7 +69,7 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         var runtime = new WorkspaceToolRuntime(new WorkspaceToolService());
         var changes = JsonSerializer.Serialize(new[]
         {
-            new { path = "one.txt", content = "after", expectedSha256 = new string('0', 64) },
+            new { path = "one.txt", content = "after", expectedSha256 = (string?)new string('0', 64) },
             new { path = "two.txt", content = "created", expectedSha256 = (string?)null }
         });
 
