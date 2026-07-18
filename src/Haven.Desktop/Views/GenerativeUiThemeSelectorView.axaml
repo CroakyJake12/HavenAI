@@ -176,7 +176,7 @@
                           <StackPanel><TextBlock Text="Title" Classes="muted" /><TextBox Text="{Binding Title}" /></StackPanel>
                           <StackPanel Grid.Column="1"><TextBlock Text="Description" Classes="muted" /><TextBox Text="{Binding Description}" /></StackPanel>
                           <StackPanel Grid.Column="2"><TextBlock Text="Order" Classes="muted" /><NumericUpDown Value="{Binding Order}" Minimum="0" Maximum="10000" /></StackPanel>
-                          <Button Grid.Column="3" Content="Remove" Classes="danger" VerticalAlignment="End" Command="{Binding $parent[UserControl].DataContext.RemovePageCommand}" CommandParameter="{Binding}" />
+                          <Button Grid.Column="3" Content="Remove" Classes="danger" VerticalAlignment="Bottom" Command="{Binding $parent[UserControl].DataContext.RemovePageCommand}" CommandParameter="{Binding}" />
                           <TextBlock Grid.ColumnSpan="3" Margin="0,52,0,0" Text="{Binding WidgetSummary}" Classes="muted2" FontSize="9" />
                         </Grid>
                       </Border>
