@@ -1,9 +1,38 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:Haven.Desktop.Controls">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!-- Floating glass rails. The live Gaussian backdrop blur is supplied by AcrylicSurface;
-       these hosts add edge-light, separation and a quiet coloured glow. -->
+  <!-- Keep this file lightweight: app-wide visual defaults live here, while the moving
+       aurora is drawn by MagicalBackdrop. Avoid shell-wide descendant selectors so page
+       switches do not restyle every control in Chat and Settings. -->
+
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="#94101A2D" />
+    <Setter Property="BorderBrush" Value="#3E8CF7EA" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="BoxShadow" Value="0 14 34 0 #48000000" />
+  </Style>
+
+  <Style Selector="Border.dashboardTile">
+    <Setter Property="Background" Value="#86101A2D" />
+    <Setter Property="BorderBrush" Value="#3A8CF7EA" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="BoxShadow" Value="0 12 30 0 #40000000" />
+  </Style>
+
+  <Style Selector="Border.permission">
+    <Setter Property="Background" Value="#50386CFF" />
+    <Setter Property="BorderBrush" Value="#66A45CFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+  </Style>
+
+  <Style Selector="Border.composer">
+    <Setter Property="Background" Value="#9510192B" />
+    <Setter Property="BorderBrush" Value="#408CF7EA" />
+  </Style>
+
   <Style Selector="Border.magicalFloatingRail">
     <Setter Property="Background" Value="#080A1120" />
     <Setter Property="BorderBrush" Value="#5A86F7EA" />
@@ -12,12 +41,22 @@
     <Setter Property="BoxShadow" Value="0 18 52 0 #76000000" />
   </Style>
 
+  <Style Selector="Button">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.12" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+
   <Style Selector="Button.captionButton">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="10" />
     <Setter Property="Foreground" Value="{DynamicResource HavenTextSoftBrush}" />
+    <Setter Property="Transitions" Value="{x:Null}" />
   </Style>
 
   <Style Selector="Button.captionButton:pointerover /template/ ContentPresenter">
@@ -32,53 +71,23 @@
     <Setter Property="Foreground" Value="White" />
   </Style>
 
-  <!-- Motion is opt-in through the shell's motionEnabled class. Removing that class makes
-       every state change below immediate and also stops the animated aurora. -->
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Button">
-    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
-    <Setter Property="Transitions">
-      <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.20" />
-        <BrushTransition Property="BorderBrush" Duration="0:0:0.20" />
-        <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
-        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.20" Easing="CubicEaseOut" />
-      </Transitions>
-    </Setter>
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="#9A0D182B" />
+    <Setter Property="BorderBrush" Value="#3C8CF7EA" />
   </Style>
 
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Button:pointerover">
-    <Setter Property="RenderTransform" Value="scale(1.018)" />
+  <Style Selector="ComboBox">
+    <Setter Property="Background" Value="#9A0D182B" />
+    <Setter Property="BorderBrush" Value="#3C8CF7EA" />
   </Style>
 
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Button:pressed">
-    <Setter Property="RenderTransform" Value="scale(0.975)" />
+  <Style Selector="FlyoutPresenter">
+    <Setter Property="Background" Value="#E0101A2D" />
+    <Setter Property="BorderBrush" Value="#5A86F7EA" />
   </Style>
 
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Button.workspaceTab:pointerover">
-    <Setter Property="RenderTransform" Value="scale(1.025)" />
-  </Style>
-
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Button.captionButton:pointerover">
-    <Setter Property="RenderTransform" Value="scale(1)" />
-  </Style>
-
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled Border.card">
-    <Setter Property="Transitions">
-      <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.24" />
-        <BrushTransition Property="BorderBrush" Duration="0:0:0.24" />
-        <DoubleTransition Property="Opacity" Duration="0:0:0.20" />
-      </Transitions>
-    </Setter>
-  </Style>
-
-  <Style Selector="controls|WorkspaceChromeHost.motionEnabled TextBox">
-    <Setter Property="Transitions">
-      <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.18" />
-        <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
-        <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
-      </Transitions>
-    </Setter>
+  <Style Selector="MenuFlyoutPresenter">
+    <Setter Property="Background" Value="#E0101A2D" />
+    <Setter Property="BorderBrush" Value="#5A86F7EA" />
   </Style>
 </Styles>
