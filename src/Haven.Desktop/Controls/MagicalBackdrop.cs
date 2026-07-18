@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Controls;
 
@@ -22,6 +23,8 @@ public sealed class MagicalBackdrop : Grid, IDisposable
 
     public MagicalBackdrop()
     {
+        MagicalPalette.Apply();
+
         IsHitTestVisible = false;
         ClipToBounds = true;
         Background = new LinearGradientBrush
