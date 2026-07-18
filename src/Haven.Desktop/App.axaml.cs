@@ -61,7 +61,11 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
         collection.AddTransient<ProviderConnectionsViewModel>();
         collection.AddSingleton<MainWindowViewModel>();
-        _services = collection.BuildServiceProvider();
+        _services = collection.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
         Services = _services;
         _startupRecovery = _services.GetRequiredService<IStartupRecoveryCoordinator>();
         _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();
