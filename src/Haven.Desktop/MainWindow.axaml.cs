@@ -71,8 +71,18 @@ public sealed partial class MainWindow : Window
     {
         if (Content is not Control existingShell || existingShell is ExperienceShellHost) return;
         HideLegacyProductSwitcher(existingShell);
-        _experienceShell = new ExperienceShellHost(existingShell);
-        Content = _experienceShell;
+
+        Content = null;
+        try
+        {
+            _experienceShell = new ExperienceShellHost(existingShell);
+            Content = _experienceShell;
+        }
+        catch
+        {
+            Content = existingShell;
+            throw;
+        }
     }
 
     private static void HideLegacyProductSwitcher(Control shell)
