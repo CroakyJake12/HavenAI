@@ -36,7 +36,12 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<IBrowserAutomationStore>(provider => provider.GetRequiredService<BrowserAutomationStore>());
         collection.AddSingleton<BrowserDownloadTransport>();
         collection.AddSingleton<BrowserBackgroundPageLoader>();
-        collection.AddSingleton<BrowserAutomationService>();
+        collection.AddSingleton(provider => new BrowserAutomationService(
+            provider.GetRequiredService<BrowserSessionService>(),
+            provider.GetRequiredService<IBrowserNavigationPolicy>(),
+            provider.GetRequiredService<IBrowserAutomationStore>(),
+            provider.GetRequiredService<BrowserDownloadTransport>(),
+            provider.GetRequiredService<BrowserBackgroundPageLoader>()));
         collection.AddSingleton<SafeModeBrowserAutomationService>();
         collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
