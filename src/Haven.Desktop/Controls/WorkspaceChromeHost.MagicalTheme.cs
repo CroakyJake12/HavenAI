@@ -206,7 +206,7 @@ public sealed partial class WorkspaceChromeHost
         }
 
         // BorderOnly removes the native title bar while preserving the platform resize frame.
-        window.SystemDecorations = SystemDecorations.BorderOnly;
+        window.WindowDecorations = WindowDecorations.BorderOnly;
         UpdateMaximizeVisual(window);
     }
 
