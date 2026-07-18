@@ -28,7 +28,7 @@ public sealed class NotesInkCanvasControl : Control
     public string Tool { get; set; } = "pen";
     public string Colour { get; set; } = "#FF2F80ED";
     public double StrokeWidth { get; set; } = 2.5;
-    public double Opacity { get; set; } = 1;
+    public new double Opacity { get; set; } = 1;
     public Guid? ActiveGhostLayerId { get; set; }
     public event EventHandler<NotesInkStroke>? StrokeCompleted;
     public event EventHandler<Guid>? StrokeErased;
