@@ -51,7 +51,7 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
             "OCR law revision context", "Use the current specification", now, now, false);
         var lessons = new[]
         {
-            new Lesson(Guid.NewGuid(), subject.Id, "Causation", "Criminal Law", "{\"topics\":[\"but for\",\"legal causation\"]}", now, now)
+            new Lesson(Guid.NewGuid(), subject.Id, "Causation", "Criminal Law", "{\"topics\":[\"but for\",\"legal causation\"]}", 0, now, now)
         };
 
         await indexer.IndexSubjectAsync(subject, lessons, CancellationToken.None);
