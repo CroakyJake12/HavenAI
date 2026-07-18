@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.ObjectModel;
-using System.Reflection;
 using Haven.Application;
 using Haven.Core;
 using Haven.Infrastructure;
@@ -160,30 +158,8 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
         InsertCommand.RaiseCanExecuteChanged();
     }
 
-    private async Task<IReadOnlyList<LessonDefinition>> ReadLessonsAsync(Guid subjectId, CancellationToken cancellationToken)
-    {
-        var method = _containers.GetType().GetMethod(
-            "GetLessonsAsync",
-            BindingFlags.Instance | BindingFlags.Public,
-            binder: null,
-            types: [typeof(Guid), typeof(CancellationToken)],
-            modifiers: null)
-            ?? typeof(IContainerRepository).GetMethod(
-                "GetLessonsAsync",
-                BindingFlags.Instance | BindingFlags.Public,
-                binder: null,
-                types: [typeof(Guid), typeof(CancellationToken)],
-                modifiers: null)
-            ?? throw new InvalidOperationException("The container repository does not expose lesson retrieval.");
-        var invocation = method.Invoke(_containers, [subjectId, cancellationToken])
-                         ?? throw new InvalidOperationException("Lesson retrieval returned no task.");
-        if (invocation is not Task task) throw new InvalidOperationException("Lesson retrieval did not return a task.");
-        await task.ConfigureAwait(false);
-        var result = task.GetType().GetProperty("Result")?.GetValue(task);
-        return result is IEnumerable values
-            ? values.Cast<object>().OfType<LessonDefinition>().ToArray()
-            : [];
-    }
+    private Task<IReadOnlyList<Lesson>> ReadLessonsAsync(Guid subjectId, CancellationToken cancellationToken) =>
+        _containers.GetLessonsAsync(subjectId, cancellationToken);
 
     private void RaiseCommandStates()
     {
