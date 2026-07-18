@@ -96,6 +96,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(endpoint, UriKind.Absolute);
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
+        services.AddSingleton<IOllamaClient>(provider => provider.GetRequiredService<OllamaClient>());
         services.AddSingleton<ILocalOllamaClient, LocalOllamaClientAdapter>();
 
         services.AddHttpClient("Haven.ModelProvider.openai");
