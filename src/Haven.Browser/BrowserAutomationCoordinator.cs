@@ -91,7 +91,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
         var snapshot = await RequireInteractiveSnapshotAsync(cancellationToken).ConfigureAwait(false);
         var element = FindElement(snapshot, reference);
         if (element.IsSensitive) throw new UnauthorizedAccessException("Sensitive page controls cannot be clicked by browser automation.");
-        if (element.Address is { Length: > 0 } target && Uri.TryCreate(snapshot.Address, target, out var targetUri))
+        if (element.Address is { Length: > 0 } elementTarget && Uri.TryCreate(snapshot.Address, elementTarget, out var targetUri))
         {
             var assessment = await _policy.AssessAsync(targetUri, cancellationToken).ConfigureAwait(false);
             if (!assessment.IsAllowed) throw new UnauthorizedAccessException("The element points to a blocked destination: " + assessment.Reason);
@@ -275,7 +275,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
                     }
                     catch
                     {
-                        if (TryDeleteDownloadedFile(download.LocalPath)) sideEffectCompleted = false;
+                        if (TryDeleteDownloadedFile(download.StoredPath)) sideEffectCompleted = false;
                         throw;
                     }
                     message = $"Downloaded {download.FileName} ({download.SizeBytes:N0} bytes) to Haven's Downloads folder.";
