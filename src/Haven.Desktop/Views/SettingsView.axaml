@@ -94,6 +94,18 @@
             </Grid>
             <CheckBox Content="Adaptive project help" IsChecked="{Binding AdaptiveHelp}" />
             <CheckBox Content="Browser side assistant" IsChecked="{Binding BrowserSideAssistant}" />
+            <Separator Margin="0,5" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Reduce animations" FontWeight="SemiBold" />
+                <TextBlock Text="Freeze the animated aurora and make interface transitions immediate."
+                           Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch x:Name="ReduceAnimationsToggle"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Click="OnReduceAnimationsToggleClicked" />
+            </Grid>
             <Button Content="Save feature settings" Command="{Binding SaveFeaturesCommand}" />
           </StackPanel>
         </Border>
