@@ -66,15 +66,17 @@ public sealed class GenerativeUiSlot : StackPanel
     {
         DisposeChildren();
         Children.Clear();
-        if (_runtime is null || string.IsNullOrWhiteSpace(Region)) return;
-        Spacing = 6 * _runtime.ActiveTheme.Shape.SpacingScale;
-        foreach (var placement in _runtime.GetPlacements(Region))
+        var runtime = _runtime;
+        var activeTheme = runtime?.ActiveTheme;
+        if (runtime is null || activeTheme is null || string.IsNullOrWhiteSpace(Region)) return;
+        Spacing = 6 * activeTheme.Shape.SpacingScale;
+        foreach (var placement in runtime.GetPlacements(Region))
         {
             var control = CreateItem(placement.ItemId, placement.Presentation);
             if (control is not null) Children.Add(control);
         }
         if (Region.Equals(GenerativeUiCatalog.ShellHeaderRight, StringComparison.OrdinalIgnoreCase)
-            && _runtime.GetPages().Count > 0)
+            && runtime.GetPages().Count > 0)
             Children.Add(CreateGeneratedPagesLauncher());
     }
 
