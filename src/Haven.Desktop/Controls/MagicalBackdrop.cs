@@ -7,14 +7,13 @@ using Avalonia.Threading;
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// A compositor-friendly aurora backdrop made from a dark gradient and a small number of
-/// softly blurred colour blooms. It deliberately animates at 25fps and stops completely when
-/// reduced motion is enabled, keeping the effect calm and inexpensive on laptops.
+/// Lightweight animated aurora backdrop. This intentionally avoids BlurEffect: large blurred
+/// surfaces are expensive in Skia and made heavy pages hitch while entering the visual tree.
 /// </summary>
 public sealed class MagicalBackdrop : Grid, IDisposable
 {
     private readonly Canvas _bloomCanvas = new() { IsHitTestVisible = false };
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(40) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(90) };
     private readonly List<AuroraBloom> _blooms = [];
     private bool _reduceMotion;
     private bool _disposed;
@@ -31,17 +30,17 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
             GradientStops =
             [
-                new GradientStop(Color.Parse("#07101F"), 0),
-                new GradientStop(Color.Parse("#0A1329"), 0.32),
-                new GradientStop(Color.Parse("#071A1B"), 0.7),
-                new GradientStop(Color.Parse("#120D20"), 1)
+                new GradientStop(Color.Parse("#050B18"), 0),
+                new GradientStop(Color.Parse("#09162D"), 0.34),
+                new GradientStop(Color.Parse("#051B1F"), 0.72),
+                new GradientStop(Color.Parse("#150D24"), 1)
             ]
         };
 
         Children.Add(new Border
         {
             IsHitTestVisible = false,
-            Opacity = 0.38,
+            Opacity = 0.42,
             Background = new LinearGradientBrush
             {
                 StartPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
@@ -49,19 +48,19 @@ public sealed class MagicalBackdrop : Grid, IDisposable
                 GradientStops =
                 [
                     new GradientStop(Color.Parse("#001BE7C8"), 0),
-                    new GradientStop(Color.Parse("#332D7CFF"), 0.45),
-                    new GradientStop(Color.Parse("#00FF77C8"), 1)
+                    new GradientStop(Color.Parse("#2A2D7CFF"), 0.42),
+                    new GradientStop(Color.Parse("#1FFF5FA2"), 0.72),
+                    new GradientStop(Color.Parse("#0053E56B"), 1)
                 ]
             }
         });
         Children.Add(_bloomCanvas);
 
-        AddBloom("#2BE7C8", 540, 0.17, 0.35, 0.19, 0.11, 0.00);
-        AddBloom("#2D7CFF", 620, 0.20, 0.28, 0.13, 0.16, 1.10);
-        AddBloom("#A45CFF", 510, 0.13, 0.24, 0.17, 0.12, 2.15);
-        AddBloom("#FF5FA2", 430, 0.10, 0.20, 0.16, 0.10, 3.05);
-        AddBloom("#FFCB5C", 360, 0.075, 0.17, 0.11, 0.09, 4.20);
-        AddBloom("#53E56B", 470, 0.095, 0.22, 0.15, 0.13, 5.05);
+        AddBloom("#2BE7C8", 440, 0.105, 0.19, 0.16, 0.09, 0.00);
+        AddBloom("#2D7CFF", 500, 0.120, 0.15, 0.11, 0.13, 1.10);
+        AddBloom("#A45CFF", 400, 0.090, 0.13, 0.14, 0.10, 2.15);
+        AddBloom("#FF5FA2", 340, 0.070, 0.10, 0.13, 0.08, 3.05);
+        AddBloom("#53E56B", 390, 0.065, 0.12, 0.12, 0.10, 5.05);
 
         _timer.Tick += OnAnimationTick;
         AttachedToVisualTree += OnAttachedToVisualTree;
@@ -97,7 +96,6 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             Height = size,
             Opacity = opacity,
             Fill = new SolidColorBrush(Color.Parse(colour)),
-            Effect = new BlurEffect { Radius = 86 },
             IsHitTestVisible = false
         };
         _blooms.Add(new AuroraBloom(ellipse, opacity, speed, driftX, driftY, phase));
@@ -122,7 +120,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
 
     private void OnAnimationTick(object? sender, EventArgs e)
     {
-        _phase += 0.04;
+        _phase += 0.05;
         ArrangeBlooms(_phase, snap: false);
     }
 
@@ -138,20 +136,18 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             var angle = phase * bloom.Speed + bloom.Phase;
             var anchorX = index switch
             {
-                0 => 0.12,
-                1 => 0.72,
-                2 => 0.42,
+                0 => 0.14,
+                1 => 0.74,
+                2 => 0.43,
                 3 => 0.86,
-                4 => 0.57,
                 _ => 0.22
             };
             var anchorY = index switch
             {
-                0 => 0.16,
-                1 => 0.14,
-                2 => 0.70,
+                0 => 0.17,
+                1 => 0.16,
+                2 => 0.72,
                 3 => 0.62,
-                4 => 0.86,
                 _ => 0.54
             };
 
@@ -166,18 +162,16 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             }
             else
             {
-                // Resizing changes the normalized target substantially. Ease toward that target
-                // instead of applying it in one frame, which previously made the aurora jump.
-                bloom.X += (targetX - bloom.X) * 0.12;
-                bloom.Y += (targetY - bloom.Y) * 0.12;
+                bloom.X += (targetX - bloom.X) * 0.08;
+                bloom.Y += (targetY - bloom.Y) * 0.08;
             }
 
             Canvas.SetLeft(bloom.Shape, bloom.X);
             Canvas.SetTop(bloom.Shape, bloom.Y);
 
             bloom.Shape.Opacity = _reduceMotion
-                ? bloom.BaseOpacity * 0.86
-                : bloom.BaseOpacity * (0.82 + 0.18 * Math.Sin(angle * 1.7 + index));
+                ? bloom.BaseOpacity * 0.78
+                : bloom.BaseOpacity * (0.80 + 0.20 * Math.Sin(angle * 1.45 + index));
         }
 
         _hasArranged = true;
