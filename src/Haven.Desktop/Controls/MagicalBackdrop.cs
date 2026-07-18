@@ -18,6 +18,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
     private readonly List<AuroraBloom> _blooms = [];
     private bool _reduceMotion;
     private bool _disposed;
+    private bool _hasArranged;
     private double _phase;
 
     public MagicalBackdrop()
@@ -65,7 +66,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         _timer.Tick += OnAnimationTick;
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
-        ArrangeBlooms(0);
+        SizeChanged += OnSizeChanged;
     }
 
     public bool ReduceMotion
@@ -78,10 +79,11 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             if (value)
             {
                 _timer.Stop();
-                ArrangeBlooms(0);
+                ArrangeBlooms(0, snap: true);
             }
             else if (!_disposed)
             {
+                ArrangeBlooms(_phase, snap: !_hasArranged);
                 _timer.Start();
             }
         }
@@ -104,21 +106,31 @@ public sealed class MagicalBackdrop : Grid, IDisposable
 
     private void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
     {
+        ArrangeBlooms(_reduceMotion ? 0 : _phase, snap: true);
         if (!_reduceMotion && !_disposed) _timer.Start();
     }
 
     private void OnDetachedFromVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e) => _timer.Stop();
 
+    private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_reduceMotion)
+            ArrangeBlooms(0, snap: true);
+        else if (!_hasArranged)
+            ArrangeBlooms(_phase, snap: true);
+    }
+
     private void OnAnimationTick(object? sender, EventArgs e)
     {
         _phase += 0.04;
-        ArrangeBlooms(_phase);
+        ArrangeBlooms(_phase, snap: false);
     }
 
-    private void ArrangeBlooms(double phase)
+    private void ArrangeBlooms(double phase, bool snap)
     {
-        var width = Math.Max(Bounds.Width, 1100);
-        var height = Math.Max(Bounds.Height, 720);
+        var width = Math.Max(Bounds.Width, 1);
+        var height = Math.Max(Bounds.Height, 1);
+        if (width <= 1 || height <= 1) return;
 
         for (var index = 0; index < _blooms.Count; index++)
         {
@@ -143,16 +155,32 @@ public sealed class MagicalBackdrop : Grid, IDisposable
                 _ => 0.54
             };
 
-            var x = width * (anchorX + Math.Sin(angle) * bloom.DriftX) - bloom.Shape.Width / 2;
-            var y = height * (anchorY + Math.Cos(angle * 0.82) * bloom.DriftY) - bloom.Shape.Height / 2;
-            Canvas.SetLeft(bloom.Shape, x);
-            Canvas.SetTop(bloom.Shape, y);
+            var targetX = width * (anchorX + Math.Sin(angle) * bloom.DriftX) - bloom.Shape.Width / 2;
+            var targetY = height * (anchorY + Math.Cos(angle * 0.82) * bloom.DriftY) - bloom.Shape.Height / 2;
 
-            if (!_reduceMotion)
-                bloom.Shape.Opacity = bloom.BaseOpacity * (0.82 + 0.18 * Math.Sin(angle * 1.7 + index));
+            if (snap || !bloom.HasPosition)
+            {
+                bloom.X = targetX;
+                bloom.Y = targetY;
+                bloom.HasPosition = true;
+            }
             else
-                bloom.Shape.Opacity = bloom.BaseOpacity * 0.86;
+            {
+                // Resizing changes the normalized target substantially. Ease toward that target
+                // instead of applying it in one frame, which previously made the aurora jump.
+                bloom.X += (targetX - bloom.X) * 0.12;
+                bloom.Y += (targetY - bloom.Y) * 0.12;
+            }
+
+            Canvas.SetLeft(bloom.Shape, bloom.X);
+            Canvas.SetTop(bloom.Shape, bloom.Y);
+
+            bloom.Shape.Opacity = _reduceMotion
+                ? bloom.BaseOpacity * 0.86
+                : bloom.BaseOpacity * (0.82 + 0.18 * Math.Sin(angle * 1.7 + index));
         }
+
+        _hasArranged = true;
     }
 
     public void Dispose()
@@ -163,14 +191,26 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         _timer.Tick -= OnAnimationTick;
         AttachedToVisualTree -= OnAttachedToVisualTree;
         DetachedFromVisualTree -= OnDetachedFromVisualTree;
+        SizeChanged -= OnSizeChanged;
         GC.SuppressFinalize(this);
     }
 
-    private sealed record AuroraBloom(
-        Ellipse Shape,
-        double BaseOpacity,
-        double Speed,
-        double DriftX,
-        double DriftY,
-        double Phase);
+    private sealed class AuroraBloom(
+        Ellipse shape,
+        double baseOpacity,
+        double speed,
+        double driftX,
+        double driftY,
+        double phase)
+    {
+        public Ellipse Shape { get; } = shape;
+        public double BaseOpacity { get; } = baseOpacity;
+        public double Speed { get; } = speed;
+        public double DriftX { get; } = driftX;
+        public double DriftY { get; } = driftY;
+        public double Phase { get; } = phase;
+        public double X { get; set; }
+        public double Y { get; set; }
+        public bool HasPosition { get; set; }
+    }
 }
