@@ -171,7 +171,7 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                     ValidateHtml(block);
                     break;
                 case NotesBlockKind.Canvas:
-                    ValidateCanvas(block);
+                    ValidateCanvas(block, pageId);
                     break;
                 case NotesBlockKind.Flashcard:
                     ValidateFlashcard(block);
@@ -233,7 +233,7 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                 Error($"blocks[{block.Id}].html.dimensions", "Widget dimensions must be between 64 and 10,000 pixels.");
         }
 
-        void ValidateCanvas(NotesBlock block)
+        void ValidateCanvas(NotesBlock block, Guid pageId)
         {
             if (block.Canvas is null) { Error($"blocks[{block.Id}].canvas", "Canvas blocks require canvas data."); return; }
             if (block.Canvas.Width is < 100 or > 1_000_000 || block.Canvas.Height is < 100 or > 1_000_000)
