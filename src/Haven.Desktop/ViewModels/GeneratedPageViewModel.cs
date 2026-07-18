@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
+using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
