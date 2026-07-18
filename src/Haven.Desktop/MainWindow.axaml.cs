@@ -21,7 +21,7 @@ namespace Haven.Desktop;
 public sealed partial class MainWindow : Window
 {
     private MainWindowViewModel? _viewModel;
-    private ExperienceShellHost? _experienceShell;
+    private WorkspaceChromeHost? _experienceShell;
     private Button? _studioExperienceButton;
     private Button? _notesExperienceButton;
 
@@ -69,13 +69,12 @@ public sealed partial class MainWindow : Window
 
     private void InstallExperienceShell()
     {
-        if (Content is not Control existingShell || existingShell is ExperienceShellHost) return;
-        HideLegacyProductSwitcher(existingShell);
+        if (Content is not Control existingShell || existingShell is WorkspaceChromeHost) return;
 
         Content = null;
         try
         {
-            _experienceShell = new ExperienceShellHost(existingShell);
+            _experienceShell = new WorkspaceChromeHost(existingShell);
             Content = _experienceShell;
         }
         catch
@@ -85,25 +84,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static void HideLegacyProductSwitcher(Control shell)
-    {
-        if (shell is not Grid root) return;
-        var headerBorder = root.Children
-            .OfType<Border>()
-            .FirstOrDefault(border => Grid.GetRow(border) == 1 && border.Child is Grid);
-        if (headerBorder?.Child is not Grid headerGrid) return;
-        var leftHeader = headerGrid.Children
-            .OfType<StackPanel>()
-            .FirstOrDefault(panel => Grid.GetColumn(panel) == 0);
-        var legacySwitcher = leftHeader?.Children
-            .OfType<Button>()
-            .FirstOrDefault(button => button.Classes.Contains("product"));
-        if (legacySwitcher is not null) legacySwitcher.IsVisible = false;
-    }
-
     private void RefineExperienceRail()
     {
         if (_experienceShell is null) return;
+        HideSecondaryFixedModes();
         EnsureNotesExperienceButton();
         var currentStudioButton = _experienceShell.GetVisualDescendants()
             .OfType<Button>()
@@ -123,6 +107,18 @@ public sealed partial class MainWindow : Window
         UpdateExperienceFamilyState();
     }
 
+    private void HideSecondaryFixedModes()
+    {
+        if (_experienceShell is null) return;
+        foreach (var name in new[] { "ExperienceCallButton", "ExperiencePlanButton", "ExperienceBrowseButton" })
+        {
+            var button = _experienceShell.GetVisualDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(candidate => candidate.Name == name);
+            if (button is not null) button.IsVisible = false;
+        }
+    }
+
     private void EnsureNotesExperienceButton()
     {
         if (_experienceShell is null) return;
@@ -134,10 +130,14 @@ public sealed partial class MainWindow : Window
             _notesExperienceButton = current;
             return;
         }
+        var studio = _experienceShell.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Name == "ExperienceStudioButton");
         var chat = _experienceShell.GetVisualDescendants()
             .OfType<Button>()
             .FirstOrDefault(button => button.Name == "ExperienceChatButton");
-        if (chat?.Parent is not StackPanel experiencePanel) return;
+        var anchor = studio ?? chat;
+        if (anchor?.Parent is not StackPanel experiencePanel) return;
 
         var notes = new Button
         {
@@ -155,7 +155,7 @@ public sealed partial class MainWindow : Window
         foreach (var kind in Enum.GetValues<NotesExperienceKind>())
             menu.Children.Add(NotesEntry(kind));
         notes.Flyout = new Flyout { Placement = PlacementMode.Right, Content = menu };
-        var index = experiencePanel.Children.IndexOf(chat);
+        var index = experiencePanel.Children.IndexOf(anchor);
         experiencePanel.Children.Insert(Math.Min(index + 1, experiencePanel.Children.Count), notes);
         _notesExperienceButton = notes;
     }
@@ -229,17 +229,6 @@ public sealed partial class MainWindow : Window
     private void UpdateExperienceFamilyState()
     {
         if (_experienceShell is null || _viewModel is null) return;
-        var plan = _experienceShell.GetVisualDescendants()
-            .OfType<Button>()
-            .FirstOrDefault(button => button.Name == "ExperiencePlanButton");
-        if (plan is not null)
-        {
-            var active = _viewModel.CurrentSurface == HavenSurface.Plan
-                         || _viewModel.CurrentPage is AutomationsPageViewModel;
-            plan.Background = active
-                ? ResourceBrush("HavenAccentSoftBrush", Color.FromArgb(72, 0, 120, 212))
-                : Brushes.Transparent;
-        }
         if (_notesExperienceButton is not null)
         {
             var active = _viewModel.CurrentPage is NotesWorkspaceView or BlankNotesExperienceView;
