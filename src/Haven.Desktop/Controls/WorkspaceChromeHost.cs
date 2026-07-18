@@ -19,7 +19,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
     {
         ArgumentNullException.ThrowIfNull(existingShell);
 
-        RowDefinitions = new RowDefinitions("74,*");
+        RowDefinitions = new RowDefinitions("66,*");
         Background = Brushes.Transparent;
         ClipToBounds = true;
 
