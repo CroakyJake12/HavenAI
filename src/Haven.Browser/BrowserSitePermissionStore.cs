@@ -290,8 +290,8 @@ public sealed class BrowserSitePermissionStore : IDisposable
 
     private sealed record PermissionData(
         int SchemaVersion,
-        IReadOnlyList<BrowserSitePermission>? Permissions,
-        IReadOnlyList<BrowserSitePermissionAudit>? Audit)
+        IReadOnlyList<BrowserSitePermission> Permissions,
+        IReadOnlyList<BrowserSitePermissionAudit> Audit)
     {
         public static PermissionData Empty { get; } = new(CurrentSchemaVersion, [], []);
     }
