@@ -40,7 +40,7 @@ public sealed partial class NotesWorkspaceView
         var instruction = new TextBox
         {
             Text = _viewModel.AiInstruction,
-            Watermark = "Explain, rewrite, plan, check consistency, create revision cards…",
+            PlaceholderText = "Explain, rewrite, plan, check consistency, create revision cards…",
             AcceptsReturn = true,
             MinHeight = 90,
             TextWrapping = TextWrapping.Wrap
@@ -164,7 +164,7 @@ public sealed partial class NotesWorkspaceView
         };
         var mediaInstruction = new TextBox
         {
-            Watermark = "Optional extra instruction for this media field",
+            PlaceholderText = "Optional extra instruction for this media field",
             AcceptsReturn = true,
             MinHeight = 65,
             TextWrapping = TextWrapping.Wrap
@@ -258,7 +258,7 @@ public sealed partial class NotesWorkspaceView
         _reviewPanel.Children.Add(new TextBlock { Text = "COMMENTS", Classes = { "eyebrow" } });
         var commentBox = new TextBox
         {
-            Watermark = "Comment on the selected block",
+            PlaceholderText = "Comment on the selected block",
             AcceptsReturn = true,
             MinHeight = 60,
             TextWrapping = TextWrapping.Wrap
@@ -335,13 +335,13 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildCitationEditor(NotesCitation citation)
     {
-        var title = new TextBox { Text = citation.Title, Watermark = "Source title" };
-        var authors = new TextBox { Text = citation.Authors, Watermark = "Authors" };
-        var url = new TextBox { Text = citation.Url, Watermark = "https://…" };
+        var title = new TextBox { Text = citation.Title, PlaceholderText = "Source title" };
+        var authors = new TextBox { Text = citation.Authors, PlaceholderText = "Authors" };
+        var url = new TextBox { Text = citation.Url, PlaceholderText = "https://…" };
         var evidence = new TextBox
         {
             Text = citation.EvidenceExcerpt,
-            Watermark = "Evidence excerpt",
+            PlaceholderText = "Evidence excerpt",
             AcceptsReturn = true,
             MinHeight = 55,
             TextWrapping = TextWrapping.Wrap
@@ -427,7 +427,7 @@ public sealed partial class NotesWorkspaceView
             Classes = { "muted" },
             FontSize = 10
         });
-        var language = new TextBox { Text = document.Language, Watermark = "Language, e.g. en-GB" };
+        var language = new TextBox { Text = document.Language, PlaceholderText = "Language, e.g. en-GB" };
         language.GotFocus += (_, _) => BeginDocumentMetadataEdit();
         language.LostFocus += (_, _) =>
         {

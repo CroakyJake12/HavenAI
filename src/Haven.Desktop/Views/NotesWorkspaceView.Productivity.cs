@@ -102,8 +102,8 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildLocalFindReplace(NotesDocument document)
     {
-        var find = new TextBox { Text = _localFindText, Watermark = "Find in this document" };
-        var replace = new TextBox { Text = _localReplaceText, Watermark = "Replacement" };
+        var find = new TextBox { Text = _localFindText, PlaceholderText = "Find in this document" };
+        var replace = new TextBox { Text = _localReplaceText, PlaceholderText = "Replacement" };
         var regex = new CheckBox { Content = "Regular expression", IsChecked = _localFindRegex };
         var matchCase = new CheckBox { Content = "Match case", IsChecked = _localFindMatchCase };
         var wholeWord = new CheckBox { Content = "Whole word", IsChecked = _localFindWholeWord };
@@ -254,7 +254,7 @@ public sealed partial class NotesWorkspaceView
             Minimum = 1,
             Maximum = 1_000_000,
             Value = variants.RestartPageNumberAt,
-            Watermark = "Continue numbering"
+            PlaceholderText = "Continue numbering"
         };
         var ready = false;
         void Commit()
@@ -305,7 +305,7 @@ public sealed partial class NotesWorkspaceView
             "title", "author", "date", "time", "page-count", "word-count", "character-count", "file-name"
         };
         var name = new ComboBox { ItemsSource = names, SelectedIndex = 0 };
-        var format = new TextBox { Watermark = "Optional .NET date/time format" };
+        var format = new TextBox { PlaceholderText = "Optional .NET date/time format" };
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Add field", () =>
         {
@@ -347,7 +347,7 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildBookmarkTools(NotesDocument document)
     {
-        var name = new TextBox { Watermark = "Bookmark name" };
+        var name = new TextBox { PlaceholderText = "Bookmark name" };
         var add = ActionButton("Add bookmark", () =>
         {
             if (_viewModel.SelectedBlock is not { } block) return Task.CompletedTask;
@@ -369,7 +369,7 @@ public sealed partial class NotesWorkspaceView
 
     private Control BuildStyleTools(NotesDocument document)
     {
-        var name = new TextBox { Watermark = "New style name" };
+        var name = new TextBox { PlaceholderText = "New style name" };
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Create from selection", () =>
         {
@@ -407,7 +407,7 @@ public sealed partial class NotesWorkspaceView
         var columns = new NumericUpDown { Minimum = 1, Maximum = 12, Value = layout.Columns };
         var gutter = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)layout.GutterPoints };
         var spacing = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)layout.ColumnSpacingPoints };
-        var watermark = new TextBox { Text = layout.Watermark, Watermark = "Optional watermark" };
+        var watermark = new TextBox { Text = layout.Watermark, PlaceholderText = "Optional watermark" };
         var pageNumberFormat = new ComboBox
         {
             ItemsSource = new[] { "1, 2, 3", "i, ii, iii", "I, II, III", "a, b, c", "A, B, C" },
@@ -427,7 +427,7 @@ public sealed partial class NotesWorkspaceView
                 value.PageLayout.Columns = (int)(columns.Value ?? 1);
                 value.PageLayout.GutterPoints = (double)(gutter.Value ?? 0);
                 value.PageLayout.ColumnSpacingPoints = (double)(spacing.Value ?? 18);
-                value.PageLayout.Watermark = watermark.Text ?? string.Empty;
+                value.PageLayout.PlaceholderText = watermark.Text ?? string.Empty;
                 value.PageLayout.PageNumberFormat = pageNumberFormat.SelectedItem as string ?? "1, 2, 3";
                 value.PageLayout.MirrorMargins = mirror.IsChecked == true;
                 value.PageLayout.LineNumbering = lineNumbers.IsChecked == true;
@@ -967,7 +967,7 @@ public sealed partial class NotesWorkspaceView
     private static TextBox MetadataBox(string value, string watermark) => new()
     {
         Text = value,
-        Watermark = watermark,
+        PlaceholderText = watermark,
         AcceptsReturn = true,
         MinHeight = 46,
         TextWrapping = TextWrapping.Wrap

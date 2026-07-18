@@ -79,7 +79,7 @@ public sealed partial class NotesWorkspaceView
             ItemsSource = new[] { "Reference", "Equation", "Table", "Figure", "Heading", "Bookmark" },
             SelectedIndex = 0
         };
-        var label = new TextBox { Watermark = "Displayed label" };
+        var label = new TextBox { PlaceholderText = "Displayed label" };
         var add = ActionButton("Add cross-reference", () =>
         {
             if (_viewModel.SelectedBlock is not { } source
@@ -121,7 +121,7 @@ public sealed partial class NotesWorkspaceView
             SelectedIndex = 0,
             IsEnabled = equation is not null
         };
-        var symbolSearch = new TextBox { Text = _equationSymbolQuery, Watermark = "Search symbols or LaTeX commands" };
+        var symbolSearch = new TextBox { Text = _equationSymbolQuery, PlaceholderText = "Search symbols or LaTeX commands" };
         var symbols = new WrapPanel();
         void RebuildSymbols()
         {
@@ -192,8 +192,8 @@ public sealed partial class NotesWorkspaceView
         }, "Save the selected editable equation in this document's library"));
         actions.Children.Add(ActionButton("Export equation", ExportSelectedEquationAsync, "Export selected equation as LaTeX, MathML, SVG or text"));
 
-        var macroName = new TextBox { Watermark = @"Macro name, e.g. \R", IsEnabled = equation is not null };
-        var macroValue = new TextBox { Watermark = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
+        var macroName = new TextBox { PlaceholderText = @"Macro name, e.g. \R", IsEnabled = equation is not null };
+        var macroValue = new TextBox { PlaceholderText = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
         var addMacro = ActionButton("Add macro", () =>
         {
             if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
@@ -308,7 +308,7 @@ public sealed partial class NotesWorkspaceView
 
         var from = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
         var to = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
-        var connectorLabel = new TextBox { Watermark = "Connector label" };
+        var connectorLabel = new TextBox { PlaceholderText = "Connector label" };
         var connect = ActionButton("Connect objects", () =>
         {
             if (selectedBlock is null
@@ -329,7 +329,7 @@ public sealed partial class NotesWorkspaceView
             return Task.CompletedTask;
         }, "Create a validator-safe editable connector");
 
-        var bookmarkName = new TextBox { Watermark = "Spatial bookmark name" };
+        var bookmarkName = new TextBox { PlaceholderText = "Spatial bookmark name" };
         var addBookmark = ActionButton("Add canvas bookmark", () =>
         {
             MutateAdvancedState(document, state => state.CanvasBookmarks.Add(new NotesCanvasBookmarkEntry
@@ -457,7 +457,7 @@ public sealed partial class NotesWorkspaceView
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 9
             });
-            var answer = new TextBox { Watermark = "Answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
+            var answer = new TextBox { PlaceholderText = "Answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
             var confidence = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, TickFrequency = 0.1 };
             var hints = new NumericUpDown { Minimum = 0, Maximum = 100, Value = 0 };
             var mark = new ComboBox { ItemsSource = new[] { "Correct", "Partly correct", "Incorrect" }, SelectedIndex = 0 };

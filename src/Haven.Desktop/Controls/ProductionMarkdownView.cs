@@ -362,7 +362,7 @@ public sealed class ProductionMarkdownView : UserControl
         return control;
     }
 
-    private static IBrush? Brush(string key) => Application.Current?.TryFindResource(key, out var value) == true ? value as IBrush : null;
+    private static IBrush? Brush(string key) => Avalonia.Application.Current?.TryFindResource(key, out var value) == true ? value as IBrush : null;
 
     private sealed class TextObserver(ProductionMarkdownView owner) : IObserver<string>
     {

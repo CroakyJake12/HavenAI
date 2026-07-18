@@ -244,7 +244,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     private Control BuildAdvancedPanel()
     {
         var preferences = App.Services?.GetService<UserPreferencesService>();
-        var options = preferences?.GenerationOptions ?? new GenerationOptions(0.7, 32768, 20);
+        var options = preferences?.GenerationOptions ?? new Haven.Application.GenerationOptions(0.7, 32768, 20);
         var temperature = new NumericUpDown
         {
             Minimum = 0,

@@ -1004,7 +1004,7 @@ public sealed class ArchivePageViewModel : ObservableObject
     {
         Items.Clear();
         foreach (var item in await _conversations.GetArchivedAsync(_mode, 500, CancellationToken.None)) Items.Add(ArchiveItemViewModel.ForConversation(item));
-        foreach (var item in await _containers.GetArchivedByModeAsync(_mode, CancellationToken.None)) Items.Add(ArchiveItemViewModel.ForContainer(item));
+        foreach (var item in await _containers.GetArchivedByModeAsync(_mode, 500, CancellationToken.None)) Items.Add(ArchiveItemViewModel.ForContainer(item));
         Status = Items.Count == 0 ? "Archive is empty." : $"{Items.Count} archived item{(Items.Count == 1 ? string.Empty : "s")}.";
     }
 

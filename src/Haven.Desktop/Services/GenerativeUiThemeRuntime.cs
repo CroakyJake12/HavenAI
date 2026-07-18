@@ -200,7 +200,7 @@ public sealed class GenerativeUiThemeRuntime(
         var handlerFailures = new List<Exception>();
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var application = Application.Current
+            var application = Avalonia.Application.Current
                               ?? throw new InvalidOperationException("Avalonia application resources are unavailable.");
             application.RequestedThemeVariant = appearance switch
             {

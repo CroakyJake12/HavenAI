@@ -30,7 +30,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     private readonly TextBlock _status = new() { Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 10 };
     private readonly TextBlock _saveState = new() { Classes = { "muted2" }, FontSize = 10 };
     private readonly TextBlock _statistics = new() { Classes = { "muted" }, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBox _searchBox = new() { Watermark = "Search every Notes document" };
+    private readonly TextBox _searchBox = new() { PlaceholderText = "Search every Notes document" };
     private readonly Grid _deleteConfirmation = new() { IsVisible = false, ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 7 };
     private bool _initialized;
     private bool _refreshQueued;
@@ -568,7 +568,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     };
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private static T WithColumn<T>(T control, int column) where T : Control
     {

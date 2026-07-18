@@ -96,7 +96,7 @@ public sealed class BlankNotesExperienceView : UserControl
                         {
                             Text = NotesExperienceNavigation.Description(kind),
                             FontSize = 15,
-                            Foreground = Application.Current?.Resources["HavenMutedBrush"] as IBrush ?? Brushes.Gray,
+                            Foreground = Avalonia.Application.Current?.Resources["HavenMutedBrush"] as IBrush ?? Brushes.Gray,
                             HorizontalAlignment = HorizontalAlignment.Center
                         },
                         new TextBlock
@@ -104,7 +104,7 @@ public sealed class BlankNotesExperienceView : UserControl
                             Text = "This is a real routed Haven workspace and is intentionally blank in this Notes build. It contains no invented editor controls.",
                             TextWrapping = TextWrapping.Wrap,
                             TextAlignment = TextAlignment.Center,
-                            Foreground = Application.Current?.Resources["HavenMuted2Brush"] as IBrush ?? Brushes.Gray
+                            Foreground = Avalonia.Application.Current?.Resources["HavenMuted2Brush"] as IBrush ?? Brushes.Gray
                         }
                     }
                 }

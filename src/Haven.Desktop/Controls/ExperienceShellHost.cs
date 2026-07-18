@@ -683,7 +683,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private static T WithRow<T>(T control, int row) where T : Control
     {

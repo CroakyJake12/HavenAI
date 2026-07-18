@@ -240,7 +240,7 @@ public sealed partial class MainWindow : Window
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private async void OnCopyRequested(object? sender, string content)
     {

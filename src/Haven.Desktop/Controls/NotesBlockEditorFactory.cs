@@ -184,11 +184,11 @@ public static class NotesBlockEditorFactory
         var italic = FormatToggle("I", run.Italic, value => run.Italic = value, beginEdit, endEdit, block, fontStyle: FontStyle.Italic);
         var underline = FormatToggle("U", run.Underline, value => run.Underline = value, beginEdit, endEdit, block);
         var strike = FormatToggle("S", run.StrikeThrough, value => run.StrikeThrough = value, beginEdit, endEdit, block);
-        var font = new TextBox { Text = run.FontFamily, MinWidth = 110, Watermark = "Font" };
+        var font = new TextBox { Text = run.FontFamily, MinWidth = 110, PlaceholderText = "Font" };
         var size = new NumericUpDown { Minimum = 4, Maximum = 300, Value = (decimal)run.FontSize, Width = 76 };
-        var foreground = new TextBox { Text = run.Foreground, MinWidth = 105, Watermark = "#AARRGGBB" };
-        var background = new TextBox { Text = run.Background, MinWidth = 105, Watermark = "#AARRGGBB" };
-        var link = new TextBox { Text = run.Link ?? string.Empty, MinWidth = 150, Watermark = "Optional link" };
+        var foreground = new TextBox { Text = run.Foreground, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
+        var background = new TextBox { Text = run.Background, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
+        var link = new TextBox { Text = run.Link ?? string.Empty, MinWidth = 150, PlaceholderText = "Optional link" };
         foreach (var input in new[] { font, foreground, background, link }) input.GotFocus += (_, _) => beginEdit(block);
         font.LostFocus += (_, _) => { run.FontFamily = string.IsNullOrWhiteSpace(font.Text) ? "Inter" : font.Text.Trim(); endEdit(block, "Changed font"); };
         foreground.LostFocus += (_, _) => { run.Foreground = foreground.Text?.Trim() ?? run.Foreground; endEdit(block, "Changed text colour"); };
@@ -367,8 +367,8 @@ public static class NotesBlockEditorFactory
     {
         if (block.Media is null) return new TextBlock { Text = "Media metadata is missing.", Classes = { "muted" } };
         var media = block.Media;
-        var alt = new TextBox { Text = media.AltText, Watermark = "Accessible alternative text" };
-        var caption = new TextBox { Text = media.Caption, Watermark = "Caption", AcceptsReturn = true };
+        var alt = new TextBox { Text = media.AltText, PlaceholderText = "Accessible alternative text" };
+        var caption = new TextBox { Text = media.Caption, PlaceholderText = "Caption", AcceptsReturn = true };
         var wrapping = new ComboBox
         {
             ItemsSource = new[] { "Inline", "Square", "Tight", "Behind text", "In front of text" },
@@ -421,14 +421,14 @@ public static class NotesBlockEditorFactory
         var alternative = new TextBox
         {
             Text = equation.AccessibleAlternative,
-            Watermark = "Accessible spoken or textual alternative",
+            PlaceholderText = "Accessible spoken or textual alternative",
             AcceptsReturn = true,
             MinHeight = 55
         };
         var rendered = new TextBlock { Text = equation.RenderedText, FontSize = 24, TextWrapping = TextWrapping.Wrap };
         var error = new TextBlock { Text = equation.Error, Foreground = ResourceBrush("HavenDangerBrush", Colors.IndianRed), TextWrapping = TextWrapping.Wrap };
         var numbered = new CheckBox { Content = "Number equation", IsChecked = equation.Numbered };
-        var label = new TextBox { Text = equation.Label, Watermark = "Equation label" };
+        var label = new TextBox { Text = equation.Label, PlaceholderText = "Equation label" };
         var ready = false;
         void Apply()
         {
@@ -708,7 +708,7 @@ public static class NotesBlockEditorFactory
         var card = block.Flashcard;
         var front = new TextBox { Text = card.Front, AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
         var back = new TextBox { Text = card.Back, AcceptsReturn = true, MinHeight = 90, TextWrapping = TextWrapping.Wrap };
-        var hint = new TextBox { Text = card.Hint, Watermark = "Optional hint" };
+        var hint = new TextBox { Text = card.Hint, PlaceholderText = "Optional hint" };
         foreach (var input in new[] { front, back, hint }) input.GotFocus += (_, _) => beginEdit(block);
         front.TextChanged += (_, _) => card.Front = front.Text ?? string.Empty;
         back.TextChanged += (_, _) => card.Back = back.Text ?? string.Empty;
@@ -768,7 +768,7 @@ public static class NotesBlockEditorFactory
         FontFamily = new FontFamily("Cascadia Mono"),
         FontSize = 12,
         TextWrapping = TextWrapping.NoWrap,
-        Watermark = name + " source"
+        PlaceholderText = name + " source"
     };
 
     private static void SyncPlainText(NotesBlock block) =>
@@ -795,7 +795,7 @@ public static class NotesBlockEditorFactory
     };
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private static T WithColumn<T>(T control, int column) where T : Control
     {

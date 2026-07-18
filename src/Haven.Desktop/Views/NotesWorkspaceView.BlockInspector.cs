@@ -338,7 +338,7 @@ public sealed partial class NotesWorkspaceView
             AcceptsReturn = true,
             MinHeight = 120,
             TextWrapping = TextWrapping.NoWrap,
-            Watermark = "Tab-separated table data"
+            PlaceholderText = "Tab-separated table data"
         };
         _blockPanel.Children.Add(Labeled("Tab-separated data", delimited));
         _blockPanel.Children.Add(ActionButton("Apply table data", () =>
@@ -409,7 +409,7 @@ public sealed partial class NotesWorkspaceView
             AcceptsReturn = true,
             MinHeight = 75,
             TextWrapping = TextWrapping.Wrap,
-            Watermark = "Accessible transcript for audio or video"
+            PlaceholderText = "Accessible transcript for audio or video"
         };
         transcript.GotFocus += (_, _) => BeginEditing(block);
         transcript.LostFocus += (_, _) =>
@@ -426,7 +426,7 @@ public sealed partial class NotesWorkspaceView
             AcceptsReturn = true,
             MinHeight = 60,
             TextWrapping = TextWrapping.Wrap,
-            Watermark = "Captions or subtitle text"
+            PlaceholderText = "Captions or subtitle text"
         };
         captions.GotFocus += (_, _) => BeginEditing(block);
         captions.LostFocus += (_, _) =>

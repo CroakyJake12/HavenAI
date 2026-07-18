@@ -65,7 +65,7 @@ internal static class VisualBootstrapHost
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            if (Avalonia.Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
                 {
                     MainWindow: { } mainWindow
                 }) return;

@@ -32,7 +32,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     };
     private readonly ComboBox _mode = new() { ItemsSource = Enum.GetValues<HavenMode>() };
     private readonly ComboBox _kind = new() { ItemsSource = Enum.GetValues<AutomationScheduleKind>() };
-    private readonly CalendarDatePicker _onceDate = new() { Watermark = "Run date" };
+    private readonly CalendarDatePicker _onceDate = new() { PlaceholderText = "Run date" };
     private readonly TimePicker _time = new() { ClockIdentifier = "24HourClock" };
     private readonly ComboBox _day = new() { ItemsSource = Enum.GetValues<DayOfWeek>() };
     private readonly NumericUpDown _intervalHours = new()
@@ -594,7 +594,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     };
 
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     private static T WithRow<T>(T control, int row) where T : Control
     {
