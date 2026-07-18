@@ -105,7 +105,7 @@ public sealed partial class WorkspaceChromeHost
     {
         lock (MagicalStylesGate)
         {
-            if (_magicalStylesLoaded || Application.Current is not { } application) return;
+            if (_magicalStylesLoaded || Avalonia.Application.Current is not { } application) return;
 
             application.Styles.Add(new StyleInclude(new Uri("avares://Haven.Desktop/"))
             {
