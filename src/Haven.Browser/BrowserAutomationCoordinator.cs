@@ -89,7 +89,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs capture page async asynchronously so I/O does not block the caller's thread.
+    /// Performs capture page asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken)
     {
@@ -102,7 +102,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> NavigateAsync(string address, CancellationToken cancellationToken)
     {
@@ -134,7 +134,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs click reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
@@ -174,7 +174,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs fill reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
@@ -193,7 +193,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs request download async asynchronously so I/O does not block the caller's thread.
+    /// Performs request download asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPendingAction> RequestDownloadAsync(string address, string? suggestedFileName, CancellationToken cancellationToken)
     {
@@ -232,7 +232,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs approve async asynchronously so I/O does not block the caller's thread.
+    /// Performs approve asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken)
     {
@@ -247,7 +247,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs reject async asynchronously so I/O does not block the caller's thread.
+    /// Performs reject asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken)
     {
@@ -301,7 +301,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs approve core async asynchronously so I/O does not block the caller's thread.
+    /// Performs approve core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<BrowserActionExecutionResult> ApproveCoreAsync(Guid actionId, CancellationToken cancellationToken)
     {
@@ -416,7 +416,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs require interactive snapshot async asynchronously so I/O does not block the caller's thread.
+    /// Performs require interactive snapshot asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<BrowserPageSnapshot> RequireInteractiveSnapshotAsync(CancellationToken cancellationToken)
     {
@@ -465,7 +465,7 @@ public sealed class BrowserAutomationService : IBrowserAutomationService, IDispo
     }
 
     /// <summary>
-    /// Performs audit async asynchronously so I/O does not block the caller's thread.
+    /// Performs audit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AuditAsync(
         BrowserActionKind? kind,

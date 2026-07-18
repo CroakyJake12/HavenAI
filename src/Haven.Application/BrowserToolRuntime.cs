@@ -90,7 +90,7 @@ public sealed class BrowserToolRuntime
     /// </summary>
     public IReadOnlyList<OllamaToolDefinition> Definitions => [.. BackgroundToolDefinitions, .. InteractiveToolDefinitions];
     /// <summary>
-    /// Reports whether is interactive available is true for the current state.
+    /// Reports whether interactive available applies to the current state.
     /// </summary>
     public bool IsInteractiveAvailable => _browser.IsInteractiveAvailable;
 

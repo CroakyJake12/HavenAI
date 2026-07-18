@@ -27,7 +27,7 @@ public sealed class SettingsExportService
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SettingsExportResult> ExportAsync(
         IReadOnlyDictionary<string, string> settings,
@@ -58,7 +58,7 @@ public sealed class SettingsExportService
     }
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SettingsImportResult> ImportAsync(
         string data,

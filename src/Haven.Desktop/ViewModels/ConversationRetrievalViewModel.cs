@@ -116,7 +116,7 @@ public sealed class ConversationRetrievalViewModel : ObservableObject
         }
     }
     /// <summary>
-    /// Reports whether has results is true for the current state.
+    /// Reports whether results applies to the current state.
     /// </summary>
     public bool HasResults => Citations.Count > 0;
 
@@ -131,7 +131,7 @@ public sealed class ConversationRetrievalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchAsync()
     {

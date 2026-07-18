@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i notes document validator contract so callers depend on a capability rather than one implementation.
+/// Defines the notes document validator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesDocumentValidator
 {
@@ -20,7 +20,7 @@ public interface INotesDocumentValidator
 }
 
 /// <summary>
-/// Defines the i notes repository contract so callers depend on a capability rather than one implementation.
+/// Defines the notes repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesRepository
 {
@@ -35,7 +35,7 @@ public interface INotesRepository
 }
 
 /// <summary>
-/// Defines the i notes import export service contract so callers depend on a capability rather than one implementation.
+/// Defines the notes import export service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesImportExportService
 {
@@ -47,7 +47,7 @@ public interface INotesImportExportService
 }
 
 /// <summary>
-/// Defines the i notes ai service contract so callers depend on a capability rather than one implementation.
+/// Defines the notes ai service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesAiService
 {
@@ -55,7 +55,7 @@ public interface INotesAiService
 }
 
 /// <summary>
-/// Defines the i notes attachment store contract so callers depend on a capability rather than one implementation.
+/// Defines the notes attachment store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesAttachmentStore
 {

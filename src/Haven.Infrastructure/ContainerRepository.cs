@@ -50,7 +50,7 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
     }
 
     /// <summary>
-    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAsync(ContainerDefinition item, CancellationToken cancellationToken)
     {
@@ -114,12 +114,12 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken) => DeleteAndDetachConversationsAsync(id, cancellationToken);
 
     /// <summary>
-    /// Performs delete and detach conversations async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete and detach conversations asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAndDetachConversationsAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -191,7 +191,7 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
     }
 
     /// <summary>
-    /// Performs upsert lesson async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert lesson asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertLessonAsync(Lesson lesson, CancellationToken cancellationToken)
     {
@@ -215,7 +215,7 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
     }
 
     /// <summary>
-    /// Performs delete lesson async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete lesson asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteLessonAsync(Guid id, CancellationToken cancellationToken)
     {

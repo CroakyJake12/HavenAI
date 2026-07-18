@@ -501,11 +501,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Reports whether is chat visible is true for the current state.
+    /// Reports whether chat visible applies to the current state.
     /// </summary>
     public bool IsChatVisible => ReferenceEquals(CurrentPage, CurrentChat);
     /// <summary>
-    /// Reports whether is page visible is true for the current state.
+    /// Reports whether page visible applies to the current state.
     /// </summary>
     public bool IsPageVisible => !IsChatVisible;
     /// <summary>
@@ -513,23 +513,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     public HavenSurface CurrentSurface => SelectedTab?.Surface ?? HavenSurface.Chat;
     /// <summary>
-    /// Reports whether is browse mode is true for the current state.
+    /// Reports whether browse mode applies to the current state.
     /// </summary>
     public bool IsBrowseMode => CurrentSurface == HavenSurface.Browse;
     /// <summary>
-    /// Reports whether is training mode is true for the current state.
+    /// Reports whether training mode applies to the current state.
     /// </summary>
     public bool IsTrainingMode => CurrentSurface == HavenSurface.Training;
     /// <summary>
-    /// Reports whether is project open is true for the current state.
+    /// Reports whether project open applies to the current state.
     /// </summary>
     public bool IsProjectOpen => CurrentSurface == HavenSurface.Studio && ActiveProject is not null;
     /// <summary>
-    /// Reports whether is workspace header visible is true for the current state.
+    /// Reports whether workspace header visible applies to the current state.
     /// </summary>
     public bool IsWorkspaceHeaderVisible => IsChatVisible;
     /// <summary>
-    /// Reports whether is horizontal tabs visible is true for the current state.
+    /// Reports whether horizontal tabs visible applies to the current state.
     /// </summary>
     public bool IsHorizontalTabsVisible => OpenTabs.Count > 0;
     public ContainerDefinition? ActiveProject
@@ -579,15 +579,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Reports whether is command palette open is true for the current state.
+    /// Reports whether command palette open applies to the current state.
     /// </summary>
     public bool IsCommandPaletteOpen { get => _isCommandPaletteOpen; private set => SetProperty(ref _isCommandPaletteOpen, value); }
     /// <summary>
-    /// Reports whether is rename open is true for the current state.
+    /// Reports whether rename open applies to the current state.
     /// </summary>
     public bool IsRenameOpen { get => _isRenameOpen; private set => SetProperty(ref _isRenameOpen, value); }
     /// <summary>
-    /// Reports whether is delete confirmation open is true for the current state.
+    /// Reports whether delete confirmation open applies to the current state.
     /// </summary>
     public bool IsDeleteConfirmationOpen { get => _isDeleteConfirmationOpen; private set => SetProperty(ref _isDeleteConfirmationOpen, value); }
     /// <summary>
@@ -607,7 +607,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
     /// <summary>
-    /// Reports whether is sidebar closed is true for the current state.
+    /// Reports whether sidebar closed applies to the current state.
     /// </summary>
     public bool IsSidebarClosed => !IsSidebarOpen;
     /// <summary>
@@ -623,23 +623,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     public bool SupportsEditingCommands => SupportsConversationCommands || CurrentPage is WorkspaceEditorPageViewModel;
     /// <summary>
-    /// Reports whether is sidebar visible is true for the current state.
+    /// Reports whether sidebar visible applies to the current state.
     /// </summary>
     public bool IsSidebarVisible => SupportsConversationSidebar;
     /// <summary>
-    /// Reports whether has full sidebar is true for the current state.
+    /// Reports whether full sidebar applies to the current state.
     /// </summary>
     public bool HasFullSidebar => IsSidebarOpen && SupportsConversationSidebar;
     /// <summary>
-    /// Reports whether has compact sidebar is true for the current state.
+    /// Reports whether compact sidebar applies to the current state.
     /// </summary>
     public bool HasCompactSidebar => !IsSidebarOpen && SupportsConversationSidebar;
     /// <summary>
-    /// Reports whether has pinned conversations is true for the current state.
+    /// Reports whether pinned conversations applies to the current state.
     /// </summary>
     public bool HasPinnedConversations => PinnedConversations.Count > 0;
     /// <summary>
-    /// Reports whether has recent conversations is true for the current state.
+    /// Reports whether recent conversations applies to the current state.
     /// </summary>
     public bool HasRecentConversations => RecentConversations.Count > 0;
     /// <summary>
@@ -651,19 +651,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     public HavenMode CurrentMode => CurrentChat.Mode;
     /// <summary>
-    /// Reports whether is teach is true for the current state.
+    /// Reports whether teach applies to the current state.
     /// </summary>
     public bool IsTeach => CurrentSurface == HavenSurface.Teach;
     /// <summary>
-    /// Reports whether is chat product is true for the current state.
+    /// Reports whether chat product applies to the current state.
     /// </summary>
     public bool IsChatProduct => CurrentSurface is HavenSurface.Chat or HavenSurface.Teach;
     /// <summary>
-    /// Reports whether has containers is true for the current state.
+    /// Reports whether containers applies to the current state.
     /// </summary>
     public bool HasContainers => CurrentChat.HasContainers;
     /// <summary>
-    /// Reports whether has any containers is true for the current state.
+    /// Reports whether any containers applies to the current state.
     /// </summary>
     public bool HasAnyContainers => CurrentChat.HasAnyContainers;
     /// <summary>
@@ -747,7 +747,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// </summary>
     public string DuoLabel => CurrentChat.IsDuoPluginActive ? CurrentChat.SelectedDuo.ToString() : "Solo";
     /// <summary>
-    /// Reports whether has live call is true for the current state.
+    /// Reports whether live call applies to the current state.
     /// </summary>
     public bool HasLiveCall => _callCoordinator.IsActive;
     /// <summary>
@@ -977,7 +977,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public RelayCommand NavigateModeLibraryCommand { get; }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(LegacyMigrationResult migration, CancellationToken cancellationToken)
     {
@@ -997,7 +997,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public void SetStartupError(string message) => StartupStatus = $"Startup problem: {message}";
 
     /// <summary>
-    /// Performs poll planner reminders async asynchronously so I/O does not block the caller's thread.
+    /// Performs poll planner reminders asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PollPlannerRemindersAsync()
     {
@@ -1030,7 +1030,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open home async asynchronously so I/O does not block the caller's thread.
+    /// Performs open home asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task OpenHomeAsync()
     {
@@ -1056,7 +1056,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open call async asynchronously so I/O does not block the caller's thread.
+    /// Performs open call asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenCallAsync()
     {
@@ -1075,7 +1075,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs navigate mode async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate mode asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task NavigateModeAsync(HavenMode mode, bool showHome)
     {
@@ -1104,7 +1104,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open mode home async asynchronously so I/O does not block the caller's thread.
+    /// Performs open mode home asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenModeHomeAsync()
     {
@@ -1142,7 +1142,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open project creator async asynchronously so I/O does not block the caller's thread.
+    /// Performs open project creator asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task OpenProjectCreatorAsync()
     {
@@ -1152,7 +1152,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open created project async asynchronously so I/O does not block the caller's thread.
+    /// Performs open created project asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenCreatedProjectAsync(ContainerDefinition definition)
     {
@@ -1218,7 +1218,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open chat group async asynchronously so I/O does not block the caller's thread.
+    /// Performs open chat group asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenChatGroupAsync(ContainerDefinition definition)
     {
@@ -1228,7 +1228,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs start group chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs start group chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartGroupChatAsync(ContainerDefinition definition)
     {
@@ -1240,7 +1240,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open grouped conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs open grouped conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenGroupedConversationAsync(Conversation conversation)
     {
@@ -1256,7 +1256,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open group settings async asynchronously so I/O does not block the caller's thread.
+    /// Performs open group settings asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task OpenGroupSettingsAsync(ContainerDefinition definition)
     {
@@ -1275,7 +1275,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs close group page async asynchronously so I/O does not block the caller's thread.
+    /// Performs close group page asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task CloseGroupPageAsync(Guid groupId)
     {
@@ -1386,7 +1386,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs invoke macro async asynchronously so I/O does not block the caller's thread.
+    /// Performs invoke macro asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InvokeMacroAsync(string instruction)
     {
@@ -1426,7 +1426,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs navigate current chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate current chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task NavigateCurrentChatAsync()
     {
@@ -1444,7 +1444,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs switch surface async asynchronously so I/O does not block the caller's thread.
+    /// Performs switch surface asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SwitchSurfaceAsync(string? surfaceName)
     {
@@ -1517,7 +1517,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs select container async asynchronously so I/O does not block the caller's thread.
+    /// Performs select container asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SelectContainerAsync(ContainerItemViewModel? item)
     {
@@ -1535,7 +1535,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open container definition async asynchronously so I/O does not block the caller's thread.
+    /// Performs open container definition asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenContainerDefinitionAsync(ContainerDefinition definition)
     {
@@ -1567,7 +1567,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs start project chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs start project chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartProjectChatAsync(string prompt)
     {
@@ -1581,7 +1581,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open file async asynchronously so I/O does not block the caller's thread.
+    /// Performs open file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task OpenFileAsync(ContainerDefinition container, WorkspaceFileItemViewModel file)
     {
@@ -1609,7 +1609,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh after settings async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh after settings asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAfterSettingsAsync()
     {
@@ -1636,7 +1636,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs open conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenConversationAsync(RecentConversationViewModel? item)
     {
@@ -1666,7 +1666,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs rename conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs rename conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RenameConversationAsync(RecentConversationViewModel? item)
     {
@@ -1678,7 +1678,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs toggle pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TogglePinAsync(RecentConversationViewModel? item)
     {
@@ -1688,7 +1688,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs branch conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs branch conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task BranchConversationAsync(RecentConversationViewModel? item)
     {
@@ -1699,7 +1699,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs archive conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveConversationAsync(RecentConversationViewModel? item)
     {
@@ -1710,7 +1710,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteConversationAsync(RecentConversationViewModel? item)
     {
@@ -1721,7 +1721,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh recents async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh recents asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshRecentsAsync(CancellationToken cancellationToken)
     {
@@ -1757,7 +1757,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs toggle pin current async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle pin current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TogglePinCurrentAsync()
     {
@@ -1777,7 +1777,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save rename current async asynchronously so I/O does not block the caller's thread.
+    /// Performs save rename current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveRenameCurrentAsync()
     {
@@ -1790,7 +1790,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs delete current async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteCurrentAsync()
     {
@@ -2058,7 +2058,7 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     /// </summary>
     public object Page { get; private set; }
     /// <summary>
-    /// Reports whether is closeable is true for the current state.
+    /// Reports whether closeable applies to the current state.
     /// </summary>
     public bool IsCloseable { get; }
     /// <summary>
@@ -2066,11 +2066,11 @@ public sealed class WorkspaceTabViewModel : ObservableObject
     /// </summary>
     public HavenSurface Surface { get; private set; }
     /// <summary>
-    /// Reports whether is selected is true for the current state.
+    /// Reports whether selected applies to the current state.
     /// </summary>
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
     /// <summary>
-    /// Reports whether is hovered is true for the current state.
+    /// Reports whether hovered applies to the current state.
     /// </summary>
     public bool IsHovered { get => _isHovered; set => SetProperty(ref _isHovered, value); }
     /// <summary>
@@ -2157,7 +2157,7 @@ public sealed class RecentConversationViewModel : ObservableObject
     /// </summary>
     public string Meta => Definition.UpdatedAt.LocalDateTime.ToString("g");
     /// <summary>
-    /// Reports whether is pinned is true for the current state.
+    /// Reports whether pinned applies to the current state.
     /// </summary>
     public bool IsPinned => Definition.IsPinned;
     /// <summary>
@@ -2165,19 +2165,19 @@ public sealed class RecentConversationViewModel : ObservableObject
     /// </summary>
     public string PinLabel => IsPinned ? "Unpin" : "Pin";
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
     /// <summary>
-    /// Reports whether is renaming is true for the current state.
+    /// Reports whether renaming applies to the current state.
     /// </summary>
     public bool IsRenaming { get => _isRenaming; set { if (SetProperty(ref _isRenaming, value)) RaisePropertyChanged(nameof(IsNormal)); } }
     /// <summary>
-    /// Reports whether is delete confirming is true for the current state.
+    /// Reports whether delete confirming applies to the current state.
     /// </summary>
     public bool IsDeleteConfirming { get => _isDeleteConfirming; set { if (SetProperty(ref _isDeleteConfirming, value)) RaisePropertyChanged(nameof(IsNormal)); } }
     /// <summary>
-    /// Reports whether is normal is true for the current state.
+    /// Reports whether normal applies to the current state.
     /// </summary>
     public bool IsNormal => !IsRenaming && !IsDeleteConfirming;
     /// <summary>

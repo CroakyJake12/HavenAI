@@ -91,7 +91,7 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
     }
 
     /// <summary>
-    /// Performs serve redirect and page async asynchronously so I/O does not block the caller's thread.
+    /// Performs serve redirect and page asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ServeRedirectAndPageAsync(TcpListener listener, CancellationToken cancellationToken)
     {
@@ -119,7 +119,7 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
     }
 
     /// <summary>
-    /// Performs read request line async asynchronously so I/O does not block the caller's thread.
+    /// Performs read request line asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ReadRequestLineAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
@@ -136,7 +136,7 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
     }
 
     /// <summary>
-    /// Performs drain headers async asynchronously so I/O does not block the caller's thread.
+    /// Performs drain headers asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task DrainHeadersAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
@@ -166,7 +166,7 @@ public sealed class BrowserTransportAndRecoveryTests : IDisposable
         /// </summary>
         public List<Uri> Assessed { get; } = [];
         /// <summary>
-        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
         {

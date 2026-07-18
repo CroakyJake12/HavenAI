@@ -22,7 +22,7 @@ public sealed class NotesMediaAssetService(
     IProductionDiagnostics diagnostics) : INotesMediaAssetService
 {
     /// <summary>
-    /// Performs verify async asynchronously so I/O does not block the caller's thread.
+    /// Performs verify asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesMediaVerification> VerifyAsync(
         NotesMediaData media,
@@ -66,7 +66,7 @@ public sealed class NotesMediaAssetService(
     }
 
     /// <summary>
-    /// Performs replace async asynchronously so I/O does not block the caller's thread.
+    /// Performs replace asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesMediaData> ReplaceAsync(
         NotesMediaData current,
@@ -100,7 +100,7 @@ public sealed class NotesMediaAssetService(
     }
 
     /// <summary>
-    /// Performs save copy async asynchronously so I/O does not block the caller's thread.
+    /// Performs save copy asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> SaveCopyAsync(
         NotesMediaData media,
@@ -149,7 +149,7 @@ public sealed class NotesMediaAssetService(
     }
 
     /// <summary>
-    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task OpenAsync(NotesMediaData media, CancellationToken cancellationToken)
     {
@@ -172,7 +172,7 @@ public sealed class NotesMediaAssetService(
     }
 
     /// <summary>
-    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// Performs compute sha256 asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ComputeSha256Async(
         string path,

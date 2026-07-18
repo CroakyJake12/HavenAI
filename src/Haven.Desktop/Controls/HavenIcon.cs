@@ -50,7 +50,7 @@ public sealed class HavenIcon : PathIcon
     }
 
     /// <summary>
-    /// Reports whether is known is true for the current state.
+    /// Reports whether known applies to the current state.
     /// </summary>
     public static bool IsKnown(string? key) => !string.IsNullOrWhiteSpace(key) && Icons.ContainsKey(key);
 

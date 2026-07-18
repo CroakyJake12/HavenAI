@@ -49,7 +49,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Performs read text async asynchronously so I/O does not block the caller's thread.
+    /// Performs read text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Performs write text atomic async asynchronously so I/O does not block the caller's thread.
+    /// Performs write text atomic asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
     {
@@ -77,7 +77,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Performs search files async asynchronously so I/O does not block the caller's thread.
+    /// Performs search files asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken)
     {
@@ -152,7 +152,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Reports whether is within root is true for the current state.
+    /// Reports whether within root applies to the current state.
     /// </summary>
     private static bool IsWithinRoot(string root, string candidate, StringComparison comparison)
     {
@@ -162,7 +162,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Performs read limited async asynchronously so I/O does not block the caller's thread.
+    /// Performs read limited asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ReadLimitedAsync(StreamReader reader, CancellationToken cancellationToken)
     {
@@ -182,7 +182,7 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
     }
 
     /// <summary>
-    /// Performs safe result async asynchronously so I/O does not block the caller's thread.
+    /// Performs safe result asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> SafeResultAsync(Task<string> task)
     {

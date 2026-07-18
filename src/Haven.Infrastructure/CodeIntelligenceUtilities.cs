@@ -156,7 +156,7 @@ internal static class UnifiedDiffBuilder
 internal static class ExecutableLocator
 {
     /// <summary>
-    /// Reports whether is available is true for the current state.
+    /// Reports whether available applies to the current state.
     /// </summary>
     public static bool IsAvailable(string command)
     {

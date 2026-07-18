@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i dashboard repository contract so callers depend on a capability rather than one implementation.
+/// Defines the dashboard repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDashboardRepository
 {
@@ -20,7 +20,7 @@ public interface IDashboardRepository
 }
 
 /// <summary>
-/// Defines the i dashboard layout repository contract so callers depend on a capability rather than one implementation.
+/// Defines the dashboard layout repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDashboardLayoutRepository
 {
@@ -39,7 +39,7 @@ public interface IDashboardTileProvider
 }
 
 /// <summary>
-/// Defines the i dashboard tile provider registry contract so callers depend on a capability rather than one implementation.
+/// Defines the dashboard tile provider registry contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDashboardTileProviderRegistry
 {
@@ -85,7 +85,7 @@ public static class DashboardTileManifestPolicy
         { "new-chat", "call", "plan", "browse", "studio", "teaching", "groups", "automations" };
 
     /// <summary>
-    /// Reports whether is approved is true for the current state.
+    /// Reports whether approved applies to the current state.
     /// </summary>
     public static bool IsApproved(DashboardPluginTileManifest manifest, bool rejectReservedKey = true) =>
         !string.IsNullOrWhiteSpace(manifest.Key) && manifest.Key.Trim().Length <= 100 &&

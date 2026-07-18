@@ -21,14 +21,14 @@ public sealed class ConversationVersioningService(
     IConversationProductionRepository production) : IConversationVersioningService
 {
     /// <summary>
-    /// Performs ensure current branch async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure current branch asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ConversationBranch> EnsureCurrentBranchAsync(Guid conversationId, CancellationToken cancellationToken) =>
         await production.GetCurrentBranchAsync(conversationId, cancellationToken).ConfigureAwait(false)
         ?? await production.EnsureRootBranchAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
-    /// Performs edit user message async asynchronously so I/O does not block the caller's thread.
+    /// Performs edit user message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ConversationBranch> EditUserMessageAsync(
         Guid conversationId,
@@ -86,7 +86,7 @@ public sealed class ConversationVersioningService(
     }
 
     /// <summary>
-    /// Performs prepare regeneration async asynchronously so I/O does not block the caller's thread.
+    /// Performs prepare regeneration asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ConversationBranch> PrepareRegenerationAsync(
         Guid conversationId,
@@ -151,7 +151,7 @@ public sealed class ConversationExportService(IConversationProductionRepository 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>
-    /// Performs export markdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs export markdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportMarkdownAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -181,7 +181,7 @@ public sealed class ConversationExportService(IConversationProductionRepository 
     }
 
     /// <summary>
-    /// Performs export plain text async asynchronously so I/O does not block the caller's thread.
+    /// Performs export plain text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportPlainTextAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -196,7 +196,7 @@ public sealed class ConversationExportService(IConversationProductionRepository 
     }
 
     /// <summary>
-    /// Performs export json async asynchronously so I/O does not block the caller's thread.
+    /// Performs export json asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportJsonAsync(Guid conversationId, CancellationToken cancellationToken) =>
         JsonSerializer.Serialize(await production.BuildExportAsync(conversationId, cancellationToken).ConfigureAwait(false), JsonOptions);

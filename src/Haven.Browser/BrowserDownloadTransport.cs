@@ -45,7 +45,7 @@ public sealed class BrowserDownloadTransport
     }
 
     /// <summary>
-    /// Performs download async asynchronously so I/O does not block the caller's thread.
+    /// Performs download asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserDownloadRecord> DownloadAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
@@ -69,7 +69,7 @@ public sealed class BrowserDownloadTransport
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<BrowserDownloadRecord> SaveAsync(
         BrowserPendingAction action,

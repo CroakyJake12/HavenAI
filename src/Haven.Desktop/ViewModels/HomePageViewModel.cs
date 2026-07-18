@@ -146,23 +146,23 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public string LastUpdatedLabel => _lastUpdated is null ? "Not refreshed yet" : $"Updated {_lastUpdated.Value.LocalDateTime:t}";
     /// <summary>
-    /// Reports whether has agenda is true for the current state.
+    /// Reports whether agenda applies to the current state.
     /// </summary>
     public bool HasAgenda => Agenda.Count > 0;
     /// <summary>
-    /// Reports whether has recent work is true for the current state.
+    /// Reports whether recent work applies to the current state.
     /// </summary>
     public bool HasRecentWork => RecentWork.Count > 0;
     /// <summary>
-    /// Reports whether has hidden tiles is true for the current state.
+    /// Reports whether hidden tiles applies to the current state.
     /// </summary>
     public bool HasHiddenTiles => HiddenTiles.Count > 0;
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set { if (SetProperty(ref _isBusy, value)) RefreshCommand.RaiseCanExecuteChanged(); } }
     /// <summary>
-    /// Reports whether is customizing is true for the current state.
+    /// Reports whether customizing applies to the current state.
     /// </summary>
     public bool IsCustomizing { get => _isCustomizing; set => SetProperty(ref _isCustomizing, value); }
 
@@ -200,7 +200,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     public AsyncRelayCommand<DashboardWorkItemViewModel> OpenRecentItemCommand { get; }
 
     /// <summary>
-    /// Performs activate async asynchronously so I/O does not block the caller's thread.
+    /// Performs activate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ActivateAsync(CancellationToken cancellationToken)
     {
@@ -214,7 +214,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     public void Deactivate() => _timer.Stop();
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -258,7 +258,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs populate tiles async asynchronously so I/O does not block the caller's thread.
+    /// Performs populate tiles asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PopulateTilesAsync(DashboardSnapshot snapshot, IReadOnlyList<DashboardTileLayout> stored,
         IReadOnlyList<IDashboardTileProvider> providers, CancellationToken token)
@@ -324,7 +324,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs open tile async asynchronously so I/O does not block the caller's thread.
+    /// Performs open tile asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenTileAsync(DashboardTileViewModel? item) => await RunActionAsync(item?.ActionKey);
 
@@ -339,7 +339,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs move async asynchronously so I/O does not block the caller's thread.
+    /// Performs move asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MoveAsync(DashboardTileViewModel? item, int offset)
     {
@@ -352,7 +352,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs move to index async asynchronously so I/O does not block the caller's thread.
+    /// Performs move to index asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MoveToIndexAsync(DashboardTileViewModel item, int index)
     {
@@ -365,7 +365,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs toggle tile async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle tile asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleTileAsync(DashboardTileViewModel? item)
     {
@@ -386,7 +386,7 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs save layout async asynchronously so I/O does not block the caller's thread.
+    /// Performs save layout asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task SaveLayoutAsync()
     {
@@ -506,11 +506,11 @@ public sealed class DashboardTileViewModel : ObservableObject
     /// </summary>
     public string? Badge => Data.Badge;
     /// <summary>
-    /// Reports whether has badge is true for the current state.
+    /// Reports whether badge applies to the current state.
     /// </summary>
     public bool HasBadge => !string.IsNullOrWhiteSpace(Badge);
     /// <summary>
-    /// Reports whether has warning is true for the current state.
+    /// Reports whether warning applies to the current state.
     /// </summary>
     public bool HasWarning => Data.HasWarning;
     /// <summary>
@@ -522,11 +522,11 @@ public sealed class DashboardTileViewModel : ObservableObject
     /// </summary>
     public DashboardTileSize Size { get; }
     /// <summary>
-    /// Reports whether is wide is true for the current state.
+    /// Reports whether wide applies to the current state.
     /// </summary>
     public bool IsWide => Size == DashboardTileSize.Wide;
     /// <summary>
-    /// Reports whether is visible is true for the current state.
+    /// Reports whether visible applies to the current state.
     /// </summary>
     public bool IsVisible { get => _isVisible; set => SetProperty(ref _isVisible, value); }
 }
@@ -553,7 +553,7 @@ public sealed record DashboardAgendaItemViewModel(DashboardAgendaItem Item)
     /// </summary>
     public string ActionKey => Item.ActionKey;
     /// <summary>
-    /// Reports whether is overdue is true for the current state.
+    /// Reports whether overdue applies to the current state.
     /// </summary>
     public bool IsOverdue => Item.IsOverdue;
     /// <summary>

@@ -48,7 +48,7 @@ public sealed partial class NotesImportExportService(
         [".haven-notes.json", ".txt", ".md", ".html", ".csv", ".rtf", ".docx", ".odt", ".pdf"];
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -95,7 +95,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportAsync(NotesDocument document, string destinationPath, CancellationToken cancellationToken)
     {
@@ -163,7 +163,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// Performs print asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PrintAsync(NotesDocument document, CancellationToken cancellationToken)
     {
@@ -197,7 +197,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs import native async asynchronously so I/O does not block the caller's thread.
+    /// Performs import native asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<NotesDocument> ImportNativeAsync(string path, CancellationToken cancellationToken)
     {
@@ -317,7 +317,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs import docx async asynchronously so I/O does not block the caller's thread.
+    /// Performs import docx asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<NotesDocument> ImportDocxAsync(string path, CancellationToken cancellationToken)
     {
@@ -362,7 +362,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs import odt async asynchronously so I/O does not block the caller's thread.
+    /// Performs import odt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<NotesDocument> ImportOdtAsync(string path, CancellationToken cancellationToken)
     {
@@ -533,7 +533,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs export docx async asynchronously so I/O does not block the caller's thread.
+    /// Performs export docx asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ExportDocxAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {
@@ -562,7 +562,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs export odt async asynchronously so I/O does not block the caller's thread.
+    /// Performs export odt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ExportOdtAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {
@@ -629,7 +629,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs write zip entry async asynchronously so I/O does not block the caller's thread.
+    /// Performs write zip entry asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteZipEntryAsync(ZipArchive archive, string name, string content, CancellationToken cancellationToken)
     {
@@ -797,7 +797,7 @@ public sealed partial class NotesImportExportService(
     private static string EffectiveExtension(string path) => path.EndsWith(".haven-notes.json", StringComparison.OrdinalIgnoreCase) ? ".haven-notes.json" : Path.GetExtension(path).ToLowerInvariant();
 
     /// <summary>
-    /// Performs write json async asynchronously so I/O does not block the caller's thread.
+    /// Performs write json asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteJsonAsync(string path, NotesDocument document, CancellationToken cancellationToken)
     {
@@ -808,7 +808,7 @@ public sealed partial class NotesImportExportService(
     }
 
     /// <summary>
-    /// Performs write text durably async asynchronously so I/O does not block the caller's thread.
+    /// Performs write text durably asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteTextDurablyAsync(string path, string content, CancellationToken cancellationToken)
     {
@@ -882,7 +882,7 @@ internal static class StringCharacterExtensions
 internal static class SimpleNotesPdfWriter
 {
     /// <summary>
-    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// Performs write asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task WriteAsync(NotesDocument document, string path, CancellationToken cancellationToken)
     {

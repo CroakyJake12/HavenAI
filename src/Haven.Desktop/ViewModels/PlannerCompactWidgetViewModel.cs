@@ -99,19 +99,19 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reports whether has today tasks is true for the current state.
+    /// Reports whether today tasks applies to the current state.
     /// </summary>
     public bool HasTodayTasks => TodayTasks.Count > 0;
     /// <summary>
-    /// Reports whether has overdue tasks is true for the current state.
+    /// Reports whether overdue tasks applies to the current state.
     /// </summary>
     public bool HasOverdueTasks => OverdueTasks.Count > 0;
     /// <summary>
-    /// Reports whether has proposals is true for the current state.
+    /// Reports whether proposals applies to the current state.
     /// </summary>
     public bool HasProposals => PendingProposals.Count > 0;
     /// <summary>
-    /// Reports whether has any content is true for the current state.
+    /// Reports whether any content applies to the current state.
     /// </summary>
     public bool HasAnyContent => HasTodayTasks || HasOverdueTasks || HasProposals;
 
@@ -142,7 +142,7 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
     public event EventHandler? OpenFullPlannerRequested;
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshAsync()
     {
@@ -172,7 +172,7 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs quick capture async asynchronously so I/O does not block the caller's thread.
+    /// Performs quick capture asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task QuickCaptureAsync()
     {
@@ -196,7 +196,7 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply proposal async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply proposal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyProposalAsync(PlannerChangeProposal? proposal)
     {

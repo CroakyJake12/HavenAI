@@ -119,7 +119,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     /// </summary>
     private bool _isRunning;
     /// <summary>
-    /// Reports whether is running is true for the current state.
+    /// Reports whether running applies to the current state.
     /// </summary>
     public bool IsRunning { get => _isRunning; set { if (SetProperty(ref _isRunning, value)) RaisePropertyChanged(nameof(CanEditSettings)); } }
 
@@ -128,7 +128,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     /// </summary>
     private bool _isAwaitingFeedback;
     /// <summary>
-    /// Reports whether is awaiting feedback is true for the current state.
+    /// Reports whether awaiting feedback applies to the current state.
     /// </summary>
     public bool IsAwaitingFeedback { get => _isAwaitingFeedback; set => SetProperty(ref _isAwaitingFeedback, value); }
 
@@ -169,7 +169,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
         set { if (SetProperty(ref _liveReasoning, value)) RaisePropertyChanged(nameof(HasLiveReasoning)); }
     }
     /// <summary>
-    /// Reports whether has live reasoning is true for the current state.
+    /// Reports whether live reasoning applies to the current state.
     /// </summary>
     public bool HasLiveReasoning => !string.IsNullOrEmpty(_liveReasoning);
 
@@ -255,7 +255,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     public bool AllowFileSystemWrites { get => _allowFileSystemWrites; set => SetProperty(ref _allowFileSystemWrites, value); }
 
     /// <summary>
-    /// Reports whether can edit settings is true for the current state.
+    /// Reports whether edit settings applies to the current state.
     /// </summary>
     public bool CanEditSettings => !IsRunning;
 
@@ -331,7 +331,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs load models async asynchronously so I/O does not block the caller's thread.
+    /// Performs load models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadModelsAsync()
     {
@@ -346,7 +346,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs start session async asynchronously so I/O does not block the caller's thread.
+    /// Performs start session asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartSessionAsync()
     {
@@ -509,7 +509,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save feedback async asynchronously so I/O does not block the caller's thread.
+    /// Performs save feedback asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveFeedbackAsync(TrainingAttemptResult attempt, string feedback)
     {

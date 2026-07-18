@@ -17,7 +17,7 @@ namespace Haven.Infrastructure;
 public sealed class PlatformShellService : IPlatformShellService
 {
     /// <summary>
-    /// Performs open external async asynchronously so I/O does not block the caller's thread.
+    /// Performs open external asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task OpenExternalAsync(string url, CancellationToken cancellationToken)
     {
@@ -42,7 +42,7 @@ public sealed class PlatformShellService : IPlatformShellService
         Task.FromResult(string.Empty);
 
     /// <summary>
-    /// Performs set clipboard text async asynchronously so I/O does not block the caller's thread.
+    /// Performs set clipboard text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetClipboardTextAsync(string text, CancellationToken cancellationToken) =>
         Task.CompletedTask;

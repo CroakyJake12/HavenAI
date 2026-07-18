@@ -37,7 +37,7 @@ public sealed class PinRepository(ISqliteConnectionFactory factory) : IPinReposi
     }
 
     /// <summary>
-    /// Performs upsert pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertPinAsync(ModePin pin, CancellationToken cancellationToken)
     {
@@ -56,7 +56,7 @@ public sealed class PinRepository(ISqliteConnectionFactory factory) : IPinReposi
     }
 
     /// <summary>
-    /// Performs delete pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeletePinAsync(Guid modeId, CancellationToken cancellationToken)
     {

@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i mode package validator contract so callers depend on a capability rather than one implementation.
+/// Defines the mode package validator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModePackageValidator
 {
@@ -20,7 +20,7 @@ public interface IModePackageValidator
 }
 
 /// <summary>
-/// Defines the i mode package installer contract so callers depend on a capability rather than one implementation.
+/// Defines the mode package installer contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModePackageInstaller
 {
@@ -61,7 +61,7 @@ public sealed class InstalledModeInfo
     /// </summary>
     public DateTimeOffset InstalledAt { get; init; }
     /// <summary>
-    /// Reports whether is enabled is true for the current state.
+    /// Reports whether enabled applies to the current state.
     /// </summary>
     public bool IsEnabled { get; init; }
 }

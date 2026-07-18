@@ -90,7 +90,7 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
     }
 
     /// <summary>
-    /// Performs speak async asynchronously so I/O does not block the caller's thread.
+    /// Performs speak asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SpeakAsync(
         string text,
@@ -172,7 +172,7 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
@@ -197,7 +197,7 @@ public sealed class WindowsNaturalSpeechOutputService : ISpeechOutputService, IA
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

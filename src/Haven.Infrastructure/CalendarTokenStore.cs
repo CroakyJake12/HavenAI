@@ -28,7 +28,7 @@ public sealed class WindowsCalendarTokenStore : ICalendarTokenStore
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SaveAsync(Guid accountId, CalendarTokenEnvelope token, CancellationToken cancellationToken)
     {
@@ -68,7 +68,7 @@ public sealed class WindowsCalendarTokenStore : ICalendarTokenStore
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid accountId, CancellationToken cancellationToken)
     {

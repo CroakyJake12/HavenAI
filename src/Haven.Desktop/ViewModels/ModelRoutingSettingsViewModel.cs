@@ -57,12 +57,12 @@ public sealed class ModelRoutingSettingsViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -86,7 +86,7 @@ public sealed class ModelRoutingSettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync(ProviderRoutingSettingsItemViewModel? item)
     {
@@ -232,7 +232,7 @@ public sealed class ProviderRoutingSettingsItemViewModel : ObservableObject
     /// </summary>
     public string ProviderType => Configuration.Kind.ToString();
     /// <summary>
-    /// Reports whether is local is true for the current state.
+    /// Reports whether local applies to the current state.
     /// </summary>
     public bool IsLocal => Configuration.IsLocal;
     /// <summary>
@@ -268,7 +268,7 @@ public sealed class ProviderRoutingSettingsItemViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
 

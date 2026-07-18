@@ -21,7 +21,7 @@ namespace Haven.Infrastructure;
 public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlannerRepository, ICalendarSyncStore
 {
     /// <summary>
-    /// Performs ensure defaults async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure defaults asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task EnsureDefaultsAsync(CancellationToken cancellationToken)
     {
@@ -64,7 +64,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertCollectionAsync(PlannerCollection collection, CancellationToken cancellationToken)
     {
@@ -86,7 +86,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs archive collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ArchiveCollectionAsync(Guid id, bool archived, CancellationToken cancellationToken)
     {
@@ -143,7 +143,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert task async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertTaskAsync(PlannerTask task, CancellationToken cancellationToken)
     {
@@ -156,7 +156,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs complete task async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task CompleteTaskAsync(Guid id, DateTimeOffset completedAt, CancellationToken cancellationToken)
     {
@@ -169,7 +169,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs delete task async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteTaskAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -211,7 +211,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert calendar async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert calendar asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertCalendarAsync(PlannerCalendar calendar, CancellationToken cancellationToken)
     {
@@ -275,7 +275,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert event async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertEventAsync(PlannerEvent plannerEvent, CancellationToken cancellationToken)
     {
@@ -291,7 +291,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs delete event async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteEventAsync(Guid id, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
@@ -320,7 +320,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert calendar account async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert calendar account asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertCalendarAccountAsync(CalendarAccount account, CancellationToken cancellationToken)
     {
@@ -360,7 +360,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs resolve conflict async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve conflict asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ResolveConflictAsync(Guid id, CalendarConflictResolution resolution, DateTimeOffset resolvedAt, CancellationToken cancellationToken)
     {
@@ -483,7 +483,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs mark reminder delivered async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark reminder delivered asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkReminderDeliveredAsync(PlannerReminder reminder, DateTimeOffset deliveredAt, CancellationToken cancellationToken)
     {
@@ -539,7 +539,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert provider event async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert provider event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertProviderEventAsync(PlannerEvent plannerEvent, CancellationToken cancellationToken)
     {
@@ -552,7 +552,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs delete provider event async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete provider event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteProviderEventAsync(Guid calendarId, string providerEventId, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
@@ -582,7 +582,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert sync cursor async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert sync cursor asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertSyncCursorAsync(CalendarSyncCursor cursor, CancellationToken cancellationToken)
     {
@@ -624,7 +624,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs complete outbox async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete outbox asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task CompleteOutboxAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -636,7 +636,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs fail outbox async asynchronously so I/O does not block the caller's thread.
+    /// Performs fail outbox asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task FailOutboxAsync(Guid id, string error, DateTimeOffset nextAttemptAt, CancellationToken cancellationToken)
     {
@@ -650,7 +650,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs add conflict async asynchronously so I/O does not block the caller's thread.
+    /// Performs add conflict asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddConflictAsync(CalendarConflict conflict, CancellationToken cancellationToken)
     {
@@ -672,7 +672,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Reports whether has unresolved conflict async is true for the current state.
+    /// Reports whether unresolved conflict async applies to the current state.
     /// </summary>
     public async Task<bool> HasUnresolvedConflictAsync(Guid eventId, CancellationToken cancellationToken)
     {
@@ -684,7 +684,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs apply proposal async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply proposal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ApplyProposalAsync(PlannerChangeProposal proposal, CancellationToken cancellationToken)
     {
@@ -700,7 +700,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs apply change async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply change asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ApplyChangeAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerProposedChange change, JsonElement payload, CancellationToken cancellationToken)
     {
@@ -913,7 +913,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs complete task async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task CompleteTaskAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerTask task, DateTimeOffset completedAt, CancellationToken cancellationToken)
     {
@@ -976,7 +976,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs ensure calendar writable async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure calendar writable asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task EnsureCalendarWritableAsync(SqliteConnection connection, SqliteTransaction transaction, Guid calendarId, CancellationToken cancellationToken)
     {
@@ -991,7 +991,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert task async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task UpsertTaskAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerTask task, CancellationToken cancellationToken)
     {
@@ -1027,7 +1027,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs upsert event async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task UpsertEventAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerEvent item, CancellationToken cancellationToken)
     {
@@ -1062,7 +1062,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs soft delete event async asynchronously so I/O does not block the caller's thread.
+    /// Performs soft delete event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task SoftDeleteEventAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
@@ -1071,7 +1071,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs queue outbox if remote async asynchronously so I/O does not block the caller's thread.
+    /// Performs queue outbox if remote asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task QueueOutboxIfRemoteAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerEvent item, string operation, CancellationToken cancellationToken)
     {
@@ -1135,7 +1135,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     }
 
     /// <summary>
-    /// Performs insert default collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs insert default collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task InsertDefaultCollectionAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, string name, int sortOrder, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -1214,7 +1214,7 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     /// </summary>
     private static Guid RequiredId(PlannerProposedChange change) => change.EntityId ?? throw new InvalidOperationException($"{change.Kind} requires an entity ID.");
     /// <summary>
-    /// Reports whether has property is true for the current state.
+    /// Reports whether property applies to the current state.
     /// </summary>
     private static bool HasProperty(JsonElement value, string name) => value.TryGetProperty(name, out _);
     /// <summary>

@@ -37,7 +37,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     }
 
     /// <summary>
-    /// Performs upsert macro async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert macro asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken)
     {
@@ -61,7 +61,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     }
 
     /// <summary>
-    /// Performs delete macro async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete macro asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -99,7 +99,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     }
 
     /// <summary>
-    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// Performs add version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddVersionAsync(WorkspaceVersion version, CancellationToken cancellationToken)
     {
@@ -143,7 +143,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     }
 
     /// <summary>
-    /// Performs upsert decision async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert decision asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertDecisionAsync(DecisionRecord decision, CancellationToken cancellationToken)
     {
@@ -169,7 +169,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     }
 
     /// <summary>
-    /// Performs delete decision async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete decision asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteDecisionAsync(Guid id, CancellationToken cancellationToken) => ExecuteDeleteAsync("decisions", id, cancellationToken);
 

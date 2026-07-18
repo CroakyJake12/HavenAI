@@ -24,7 +24,7 @@ public static class GenerativeModeStudioHandoff
     private static readonly TimeSpan NavigationTimeout = TimeSpan.FromSeconds(8);
 
     /// <summary>
-    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task OpenAsync(
         MainWindowViewModel shell,

@@ -111,7 +111,7 @@ public sealed record RecoverySafetyAssessment(
     DateTimeOffset AssessedAt);
 
 /// <summary>
-/// Defines the i production diagnostics contract so callers depend on a capability rather than one implementation.
+/// Defines the production diagnostics contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IProductionDiagnostics : IAsyncDisposable
 {
@@ -128,7 +128,7 @@ public interface IProductionDiagnostics : IAsyncDisposable
 }
 
 /// <summary>
-/// Defines the i database maintenance contract so callers depend on a capability rather than one implementation.
+/// Defines the database maintenance contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDatabaseMaintenance
 {
@@ -137,7 +137,7 @@ public interface IDatabaseMaintenance
 }
 
 /// <summary>
-/// Defines the i database restore service contract so callers depend on a capability rather than one implementation.
+/// Defines the database restore service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDatabaseRestoreService
 {
@@ -149,7 +149,7 @@ public interface IDatabaseRestoreService
 }
 
 /// <summary>
-/// Defines the i startup recovery coordinator contract so callers depend on a capability rather than one implementation.
+/// Defines the startup recovery coordinator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IStartupRecoveryCoordinator
 {
@@ -160,7 +160,7 @@ public interface IStartupRecoveryCoordinator
 }
 
 /// <summary>
-/// Defines the i recovery safety probe contract so callers depend on a capability rather than one implementation.
+/// Defines the recovery safety probe contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IRecoverySafetyProbe
 {
@@ -168,7 +168,7 @@ public interface IRecoverySafetyProbe
 }
 
 /// <summary>
-/// Defines the i diagnostics bundle service contract so callers depend on a capability rather than one implementation.
+/// Defines the diagnostics bundle service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IDiagnosticsBundleService
 {
@@ -191,7 +191,7 @@ public static class RuntimeSafetyState
     private static string _reason = string.Empty;
 
     /// <summary>
-    /// Reports whether is safe mode is true for the current state.
+    /// Reports whether safe mode applies to the current state.
     /// </summary>
     public static bool IsSafeMode => Volatile.Read(ref _safeMode) == 1;
     /// <summary>

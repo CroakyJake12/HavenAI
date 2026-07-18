@@ -27,7 +27,7 @@ public sealed class ModeSeedService
     }
 
     /// <summary>
-    /// Performs seed built in modes async asynchronously so I/O does not block the caller's thread.
+    /// Performs seed built in modes asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SeedBuiltInModesAsync(CancellationToken cancellationToken)
     {

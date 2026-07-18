@@ -38,7 +38,7 @@ public sealed class RecoverySafetyProbe(IAppPaths paths) : IRecoverySafetyProbe
     private readonly string _statePath = Path.Combine(paths.DataDirectory, "startup-recovery.json");
 
     /// <summary>
-    /// Performs assess async asynchronously so I/O does not block the caller's thread.
+    /// Performs assess asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<RecoverySafetyAssessment> AssessAsync(CancellationToken cancellationToken)
     {

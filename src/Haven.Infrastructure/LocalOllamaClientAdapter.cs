@@ -18,7 +18,7 @@ namespace Haven.Infrastructure;
 internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllamaClient
 {
     /// <summary>
-    /// Reports whether is available async is true for the current state.
+    /// Reports whether available async applies to the current state.
     /// </summary>
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) =>
         inner.IsAvailableAsync(cancellationToken);
@@ -30,7 +30,7 @@ internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllam
         inner.GetModelsAsync(cancellationToken);
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
@@ -38,7 +38,7 @@ internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllam
         inner.StreamChatAsync(request, cancellationToken);
 
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> CompleteAsync(
         OllamaChatRequest request,
@@ -46,7 +46,7 @@ internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllam
         inner.CompleteAsync(request, cancellationToken);
 
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<OllamaToolResponse> ChatWithToolsAsync(
         OllamaToolRequest request,
@@ -54,7 +54,7 @@ internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllam
         inner.ChatWithToolsAsync(request, cancellationToken);
 
     /// <summary>
-    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// Performs pull model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task PullModelAsync(
         string model,
@@ -63,7 +63,7 @@ internal sealed class LocalOllamaClientAdapter(OllamaClient inner) : ILocalOllam
         inner.PullModelAsync(model, progress, cancellationToken);
 
     /// <summary>
-    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteModelAsync(string model, CancellationToken cancellationToken) =>
         inner.DeleteModelAsync(model, cancellationToken);

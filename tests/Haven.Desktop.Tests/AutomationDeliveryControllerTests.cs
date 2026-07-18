@@ -82,7 +82,7 @@ public sealed class AutomationDeliveryControllerTests
         public int DrainCalls { get; private set; }
 
         /// <summary>
-        /// Performs enqueue async asynchronously so I/O does not block the caller's thread.
+        /// Performs enqueue asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EnqueueAsync(AutomationDelivery delivery, CancellationToken cancellationToken)
         {
@@ -93,7 +93,7 @@ public sealed class AutomationDeliveryControllerTests
         }
 
         /// <summary>
-        /// Performs drain async asynchronously so I/O does not block the caller's thread.
+        /// Performs drain asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<AutomationDelivery>> DrainAsync(CancellationToken cancellationToken)
         {

@@ -93,7 +93,7 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
     private int _processingFrame;
 
     /// <summary>
-    /// Reports whether is supported is true for the current state.
+    /// Reports whether supported applies to the current state.
     /// </summary>
     public bool IsSupported =>
         OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)
@@ -128,7 +128,7 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
     public event EventHandler<ScreenShareSnapshotEventArgs>? SnapshotAvailable;
 
     /// <summary>
-    /// Performs start with system picker async asynchronously so I/O does not block the caller's thread.
+    /// Performs start with system picker asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken)
     {
@@ -188,7 +188,7 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
@@ -412,7 +412,7 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
         out nint graphicsDevice);
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync() =>
         await StopAsync(CancellationToken.None).ConfigureAwait(false);

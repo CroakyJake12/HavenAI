@@ -39,7 +39,7 @@ public sealed class CallVoicePreviewController(
     private bool _disposed;
 
     /// <summary>
-    /// Performs preview async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PreviewAsync(CallVoice? voice, string? outputDeviceId, CancellationToken cancellationToken)
     {
@@ -129,7 +129,7 @@ public sealed class CallVoicePreviewController(
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -143,7 +143,7 @@ public sealed class CallVoicePreviewController(
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

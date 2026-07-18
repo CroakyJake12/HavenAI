@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i automation delivery outbox contract so callers depend on a capability rather than one implementation.
+/// Defines the automation delivery outbox contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAutomationDeliveryOutbox
 {

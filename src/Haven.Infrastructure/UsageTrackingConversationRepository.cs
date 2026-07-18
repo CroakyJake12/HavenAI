@@ -61,12 +61,12 @@ public sealed class UsageTrackingConversationRepository(
     /// </summary>
     public Task<IReadOnlyList<ChatMessage>> GetContextMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => inner.GetContextMessagesAsync(conversationId, cancellationToken);
     /// <summary>
-    /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken) => inner.UpsertConversationAsync(conversation, cancellationToken);
 
     /// <summary>
-    /// Performs add message async asynchronously so I/O does not block the caller's thread.
+    /// Performs add message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
     {
@@ -130,7 +130,7 @@ public sealed class UsageTrackingConversationRepository(
     }
 
     /// <summary>
-    /// Performs mark messages compacted async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark messages compacted asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken) =>
         inner.MarkMessagesCompactedAsync(conversationId, messageIds, cancellationToken);
@@ -142,11 +142,11 @@ public sealed class UsageTrackingConversationRepository(
         inner.GetContextEntriesAsync(conversationId, cancellationToken);
 
     /// <summary>
-    /// Performs add context entry async asynchronously so I/O does not block the caller's thread.
+    /// Performs add context entry asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken) => inner.AddContextEntryAsync(entry, cancellationToken);
     /// <summary>
-    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => inner.DeleteConversationAsync(id, cancellationToken);
 

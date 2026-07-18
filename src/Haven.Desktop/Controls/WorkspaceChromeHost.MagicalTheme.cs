@@ -307,7 +307,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Reports whether is inside button is true for the current state.
+    /// Reports whether inside button applies to the current state.
     /// </summary>
     private static bool IsInsideButton(object? source)
     {

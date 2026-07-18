@@ -41,7 +41,7 @@ public sealed class ActivityLogRepository(ISqliteConnectionFactory factory) : IA
     }
 
     /// <summary>
-    /// Performs add event async asynchronously so I/O does not block the caller's thread.
+    /// Performs add event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddEventAsync(ActivityEvent activityEvent, CancellationToken cancellationToken)
     {

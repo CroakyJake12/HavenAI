@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i model usage capture contract so callers depend on a capability rather than one implementation.
+/// Defines the model usage capture contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModelUsageCapture
 {
@@ -20,7 +20,7 @@ public interface IModelUsageCapture
 }
 
 /// <summary>
-/// Defines the i model usage repository contract so callers depend on a capability rather than one implementation.
+/// Defines the model usage repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModelUsageRepository
 {
@@ -31,7 +31,7 @@ public interface IModelUsageRepository
 }
 
 /// <summary>
-/// Defines the i provider pricing service contract so callers depend on a capability rather than one implementation.
+/// Defines the provider pricing service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IProviderPricingService
 {

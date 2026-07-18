@@ -85,12 +85,12 @@ public sealed class ActivityLogPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync() => await LoadAsync();
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadAsync()
     {

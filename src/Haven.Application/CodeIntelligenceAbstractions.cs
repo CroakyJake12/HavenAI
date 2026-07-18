@@ -13,7 +13,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i language server configuration store contract so callers depend on a capability rather than one implementation.
+/// Defines the language server configuration store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILanguageServerConfigurationStore
 {
@@ -24,7 +24,7 @@ public interface ILanguageServerConfigurationStore
 }
 
 /// <summary>
-/// Defines the i language server client factory contract so callers depend on a capability rather than one implementation.
+/// Defines the language server client factory contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILanguageServerClientFactory
 {
@@ -35,7 +35,7 @@ public interface ILanguageServerClientFactory
 }
 
 /// <summary>
-/// Defines the i language server client contract so callers depend on a capability rather than one implementation.
+/// Defines the language server client contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILanguageServerClient : IAsyncDisposable
 {
@@ -69,7 +69,7 @@ public interface ILanguageServerClient : IAsyncDisposable
 public sealed record LanguageServerTextEdit(CodeRange Range, string NewText);
 
 /// <summary>
-/// Defines the i code intelligence service contract so callers depend on a capability rather than one implementation.
+/// Defines the code intelligence service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICodeIntelligenceService
 {

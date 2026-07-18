@@ -17,11 +17,11 @@ namespace Haven.Desktop.ViewModels;
 public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) : ICommand
 {
     /// <summary>
-    /// Reports whether can execute changed is true for the current state.
+    /// Reports whether execute changed applies to the current state.
     /// </summary>
     public event EventHandler? CanExecuteChanged;
     /// <summary>
-    /// Reports whether can execute is true for the current state.
+    /// Reports whether execute applies to the current state.
     /// </summary>
     public bool CanExecute(object? parameter) => canExecute?.Invoke() ?? true;
     /// <summary>
@@ -40,11 +40,11 @@ public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) 
 public sealed class RelayCommand<T>(Action<T?> execute, Func<T?, bool>? canExecute = null) : ICommand
 {
     /// <summary>
-    /// Reports whether can execute changed is true for the current state.
+    /// Reports whether execute changed applies to the current state.
     /// </summary>
     public event EventHandler? CanExecuteChanged;
     /// <summary>
-    /// Reports whether can execute is true for the current state.
+    /// Reports whether execute applies to the current state.
     /// </summary>
     public bool CanExecute(object? parameter) => canExecute?.Invoke((T?)parameter) ?? true;
     /// <summary>
@@ -67,11 +67,11 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
     /// </summary>
     private bool _running;
     /// <summary>
-    /// Reports whether can execute changed is true for the current state.
+    /// Reports whether execute changed applies to the current state.
     /// </summary>
     public event EventHandler? CanExecuteChanged;
     /// <summary>
-    /// Reports whether can execute is true for the current state.
+    /// Reports whether execute applies to the current state.
     /// </summary>
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 
@@ -108,11 +108,11 @@ public sealed class AsyncRelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>?
     /// </summary>
     private bool _running;
     /// <summary>
-    /// Reports whether can execute changed is true for the current state.
+    /// Reports whether execute changed applies to the current state.
     /// </summary>
     public event EventHandler? CanExecuteChanged;
     /// <summary>
-    /// Reports whether can execute is true for the current state.
+    /// Reports whether execute applies to the current state.
     /// </summary>
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke((T?)parameter) ?? true);
 

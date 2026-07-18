@@ -30,7 +30,7 @@ public enum ResponseRegenerationMode
 }
 
 /// <summary>
-/// Defines the i conversation production repository contract so callers depend on a capability rather than one implementation.
+/// Defines the conversation production repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IConversationProductionRepository
 {
@@ -81,7 +81,7 @@ public interface IConversationProductionRepository
 }
 
 /// <summary>
-/// Defines the i conversation versioning service contract so callers depend on a capability rather than one implementation.
+/// Defines the conversation versioning service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IConversationVersioningService
 {
@@ -101,7 +101,7 @@ public interface IConversationVersioningService
 }
 
 /// <summary>
-/// Defines the i conversation export service contract so callers depend on a capability rather than one implementation.
+/// Defines the conversation export service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IConversationExportService
 {

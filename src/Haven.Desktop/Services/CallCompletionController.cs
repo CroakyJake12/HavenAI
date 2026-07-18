@@ -74,13 +74,13 @@ public sealed class CallCompletionController : IAsyncDisposable
     }
 
     /// <summary>
-    /// Performs persist completed session async asynchronously so I/O does not block the caller's thread.
+    /// Performs persist completed session asynchronously so I/O does not block the caller's thread.
     /// </summary>
     internal Task PersistCompletedSessionAsync(CallSession session, Conversation? conversation) =>
         PersistSummarySafelyAsync(session, conversation);
 
     /// <summary>
-    /// Performs persist summary safely async asynchronously so I/O does not block the caller's thread.
+    /// Performs persist summary safely asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PersistSummarySafelyAsync(CallSession session, Conversation? conversation)
     {
@@ -191,7 +191,7 @@ public sealed class CallCompletionController : IAsyncDisposable
     }
 
     /// <summary>
-    /// Reports whether is summary message is true for the current state.
+    /// Reports whether summary message applies to the current state.
     /// </summary>
     private static bool IsSummaryMessage(ChatMessage message)
     {
@@ -216,7 +216,7 @@ public sealed class CallCompletionController : IAsyncDisposable
         value.Length <= maximum ? value : value[..maximum] + "…";
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

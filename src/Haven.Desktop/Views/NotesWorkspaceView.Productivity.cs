@@ -885,7 +885,7 @@ public sealed partial class NotesWorkspaceView
     };
 
     /// <summary>
-    /// Performs import managed document async asynchronously so I/O does not block the caller's thread.
+    /// Performs import managed document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ImportManagedDocumentAsync(NotesDocument document, string reason)
     {
@@ -943,7 +943,7 @@ public sealed partial class NotesWorkspaceView
     }
 
     /// <summary>
-    /// Performs save native copy async asynchronously so I/O does not block the caller's thread.
+    /// Performs save native copy asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveNativeCopyAsync()
     {
@@ -963,7 +963,7 @@ public sealed partial class NotesWorkspaceView
     }
 
     /// <summary>
-    /// Performs export style set async asynchronously so I/O does not block the caller's thread.
+    /// Performs export style set asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ExportStyleSetAsync(NotesDocument document)
     {
@@ -982,7 +982,7 @@ public sealed partial class NotesWorkspaceView
     }
 
     /// <summary>
-    /// Performs import style set async asynchronously so I/O does not block the caller's thread.
+    /// Performs import style set asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ImportStyleSetAsync(NotesDocument document)
     {

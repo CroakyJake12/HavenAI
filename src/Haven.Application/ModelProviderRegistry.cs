@@ -65,7 +65,7 @@ public sealed class ModelProviderRegistry(IEnumerable<IModelProvider> providers)
 public sealed class ModelRouter(IModelProviderRegistry providers) : IModelRouter
 {
     /// <summary>
-    /// Performs route async asynchronously so I/O does not block the caller's thread.
+    /// Performs route asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ModelRoutingDecision> RouteAsync(ModelRoutingRequest request, CancellationToken cancellationToken)
     {

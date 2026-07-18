@@ -166,11 +166,11 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     /// </summary>
     public string Formatter { get => _formatter; private set => SetProperty(ref _formatter, value); }
     /// <summary>
-    /// Reports whether has format preview is true for the current state.
+    /// Reports whether format preview applies to the current state.
     /// </summary>
     public bool HasFormatPreview => !string.IsNullOrWhiteSpace(FormatDiff);
     /// <summary>
-    /// Reports whether has workspace is true for the current state.
+    /// Reports whether workspace applies to the current state.
     /// </summary>
     public bool HasWorkspace => !string.IsNullOrWhiteSpace(_workspaceRoot) && Directory.Exists(_workspaceRoot);
     public bool IsBusy
@@ -208,7 +208,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs inspect async asynchronously so I/O does not block the caller's thread.
+    /// Performs inspect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InspectAsync()
     {
@@ -223,7 +223,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load diagnostics async asynchronously so I/O does not block the caller's thread.
+    /// Performs load diagnostics asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadDiagnosticsAsync()
     {
@@ -240,7 +240,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs search symbols async asynchronously so I/O does not block the caller's thread.
+    /// Performs search symbols asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchSymbolsAsync()
     {
@@ -257,7 +257,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs preview format async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PreviewFormatAsync()
     {
@@ -279,7 +279,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply format async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyFormatAsync()
     {
@@ -335,7 +335,7 @@ public sealed class CodeIntelligenceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reports whether can use file is true for the current state.
+    /// Reports whether use file applies to the current state.
     /// </summary>
     private bool CanUseFile() => HasWorkspace && !string.IsNullOrWhiteSpace(RelativePath) && !IsBusy;
 

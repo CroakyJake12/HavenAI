@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i text embedding service contract so callers depend on a capability rather than one implementation.
+/// Defines the text embedding service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ITextEmbeddingService
 {
@@ -21,7 +21,7 @@ public interface ITextEmbeddingService
 }
 
 /// <summary>
-/// Defines the i retrieval index service contract so callers depend on a capability rather than one implementation.
+/// Defines the retrieval index service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IRetrievalIndexService
 {
@@ -38,7 +38,7 @@ public interface IRetrievalIndexService
 }
 
 /// <summary>
-/// Defines the i retrieval search service contract so callers depend on a capability rather than one implementation.
+/// Defines the retrieval search service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IRetrievalSearchService
 {

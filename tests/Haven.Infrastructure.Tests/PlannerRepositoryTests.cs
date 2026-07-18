@@ -360,7 +360,7 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// Performs insert provider event async asynchronously so I/O does not block the caller's thread.
+    /// Performs insert provider event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InsertProviderEventAsync(PlannerEvent item)
     {

@@ -136,27 +136,27 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     /// </summary>
     public string CurrentOrigin { get => _currentOrigin; private set => SetProperty(ref _currentOrigin, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
     /// <summary>
-    /// Reports whether has pending is true for the current state.
+    /// Reports whether pending applies to the current state.
     /// </summary>
     public bool HasPending => Pending.Count > 0;
     /// <summary>
-    /// Reports whether has no pending is true for the current state.
+    /// Reports whether no pending applies to the current state.
     /// </summary>
     public bool HasNoPending => !HasPending;
     /// <summary>
-    /// Reports whether has permissions is true for the current state.
+    /// Reports whether permissions applies to the current state.
     /// </summary>
     public bool HasPermissions => Permissions.Count > 0;
     /// <summary>
-    /// Reports whether has no permissions is true for the current state.
+    /// Reports whether no permissions applies to the current state.
     /// </summary>
     public bool HasNoPermissions => !HasPermissions;
     /// <summary>
-    /// Reports whether can manage origin is true for the current state.
+    /// Reports whether manage origin applies to the current state.
     /// </summary>
     public bool CanManageOrigin => TryGetCurrentOrigin(out _);
 
@@ -177,7 +177,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -208,7 +208,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs approve async asynchronously so I/O does not block the caller's thread.
+    /// Performs approve asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApproveAsync(BrowserPendingActionViewModel? item)
     {
@@ -232,7 +232,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs reject async asynchronously so I/O does not block the caller's thread.
+    /// Performs reject asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RejectAsync(BrowserPendingActionViewModel? item)
     {
@@ -256,7 +256,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save permission async asynchronously so I/O does not block the caller's thread.
+    /// Performs save permission asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SavePermissionAsync()
     {
@@ -284,7 +284,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs revoke origin async asynchronously so I/O does not block the caller's thread.
+    /// Performs revoke origin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RevokeOriginAsync()
     {

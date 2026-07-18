@@ -95,7 +95,7 @@ public sealed record NotesMediaVerification(
     DateTimeOffset VerifiedAt);
 
 /// <summary>
-/// Defines the i notes media asset service contract so callers depend on a capability rather than one implementation.
+/// Defines the notes media asset service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesMediaAssetService
 {

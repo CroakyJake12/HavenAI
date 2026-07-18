@@ -598,7 +598,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs rename tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs rename tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RenameTabAsync(WorkspaceTabViewModel tab)
     {
@@ -673,7 +673,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs open fresh home tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs open fresh home tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenFreshHomeTabAsync()
     {
@@ -1093,7 +1093,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs confirm failure status async asynchronously so I/O does not block the caller's thread.
+    /// Performs confirm failure status asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConfirmFailureStatusAsync(string candidate, CancellationToken cancellationToken)
     {
@@ -1116,7 +1116,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs show model refresh pulse async asynchronously so I/O does not block the caller's thread.
+    /// Performs show model refresh pulse asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ShowModelRefreshPulseAsync()
     {
@@ -1127,7 +1127,7 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Reports whether is transient model status is true for the current state.
+    /// Reports whether transient model status applies to the current state.
     /// </summary>
     private static bool IsTransientModelStatus(string status) =>
         status.Contains("connecting", StringComparison.OrdinalIgnoreCase)
@@ -1135,7 +1135,7 @@ public sealed partial class WorkspaceChromeHost
         || status.Contains("loading", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Reports whether is failure model status is true for the current state.
+    /// Reports whether failure model status applies to the current state.
     /// </summary>
     private static bool IsFailureModelStatus(string status) =>
         status.Contains("unavailable", StringComparison.OrdinalIgnoreCase)

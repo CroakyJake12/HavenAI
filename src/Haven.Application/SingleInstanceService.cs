@@ -13,7 +13,7 @@ using System.IO.Pipes;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i single instance service contract so callers depend on a capability rather than one implementation.
+/// Defines the single instance service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISingleInstanceService
 {
@@ -56,7 +56,7 @@ public sealed class SingleInstanceService : ISingleInstanceService, IDisposable
     }
 
     /// <summary>
-    /// Reports whether is first instance is true for the current state.
+    /// Reports whether first instance applies to the current state.
     /// </summary>
     public bool IsFirstInstance => _isFirstInstance;
 
@@ -79,7 +79,7 @@ public sealed class SingleInstanceService : ISingleInstanceService, IDisposable
     }
 
     /// <summary>
-    /// Performs send signal async asynchronously so I/O does not block the caller's thread.
+    /// Performs send signal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SendSignalAsync(string[] args)
     {
@@ -95,7 +95,7 @@ public sealed class SingleInstanceService : ISingleInstanceService, IDisposable
     }
 
     /// <summary>
-    /// Performs wait for signal async asynchronously so I/O does not block the caller's thread.
+    /// Performs wait for signal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task WaitForSignalAsync(Action<string[]> onSignal, CancellationToken cancellationToken)
     {

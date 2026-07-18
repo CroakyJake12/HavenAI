@@ -89,11 +89,11 @@ public sealed class ProjectCreatorPageViewModel : ObservableObject
         }
     }
     /// <summary>
-    /// Reports whether is dot net project is true for the current state.
+    /// Reports whether dot net project applies to the current state.
     /// </summary>
     public bool IsDotNetProject => Kind == ProjectCreationKind.DotNetProject;
     /// <summary>
-    /// Reports whether is nu get package is true for the current state.
+    /// Reports whether nu get package applies to the current state.
     /// </summary>
     public bool IsNuGetPackage => Kind == ProjectCreationKind.NuGetPackage;
     /// <summary>
@@ -121,7 +121,7 @@ public sealed class ProjectCreatorPageViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set { if (SetProperty(ref _isBusy, value)) CreateCommand.RaiseCanExecuteChanged(); } }
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class ProjectCreatorPageViewModel : ObservableObject
     public void SetDestination(string path) => DestinationFolder = path;
 
     /// <summary>
-    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ConnectAsync(string path)
     {

@@ -47,7 +47,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
     }
 
     /// <summary>
-    /// Performs install async asynchronously so I/O does not block the caller's thread.
+    /// Performs install asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ModePackageInstallResult> InstallAsync(ModePackageManifest manifest, CancellationToken cancellationToken)
     {
@@ -114,7 +114,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
     }
 
     /// <summary>
-    /// Performs update async asynchronously so I/O does not block the caller's thread.
+    /// Performs update asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ModePackageInstallResult> UpdateAsync(Guid modeId, ModePackageManifest manifest, CancellationToken cancellationToken)
     {
@@ -154,7 +154,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
     }
 
     /// <summary>
-    /// Performs rollback async asynchronously so I/O does not block the caller's thread.
+    /// Performs rollback asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<bool> RollbackAsync(Guid modeId, CancellationToken cancellationToken)
     {
@@ -179,7 +179,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
     }
 
     /// <summary>
-    /// Performs uninstall async asynchronously so I/O does not block the caller's thread.
+    /// Performs uninstall asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<bool> UninstallAsync(Guid modeId, CancellationToken cancellationToken)
     {
@@ -214,7 +214,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
     }
 
     /// <summary>
-    /// Performs save manifest async asynchronously so I/O does not block the caller's thread.
+    /// Performs save manifest asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveManifestAsync(Guid modeId, ModePackageManifest manifest, CancellationToken cancellationToken)
     {

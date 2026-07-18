@@ -59,7 +59,7 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
     }
 
     /// <summary>
-    /// Performs download async asynchronously so I/O does not block the caller's thread.
+    /// Performs download asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SpeechModelInfo> DownloadAsync(
         SpeechModelSize size,
@@ -123,7 +123,7 @@ public sealed class WhisperModelManager(HttpClient httpClient, IAppPaths paths) 
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(SpeechModelSize size, CancellationToken cancellationToken)
     {

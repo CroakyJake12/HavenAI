@@ -27,7 +27,7 @@ internal static class ProviderHttp
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     /// <summary>
-    /// Performs require enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs require enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task<ProviderConfiguration> RequireEnabledAsync(
         IProviderConfigurationStore configurations,
@@ -56,14 +56,14 @@ internal static class ProviderHttp
     }
 
     /// <summary>
-    /// Performs require secret async asynchronously so I/O does not block the caller's thread.
+    /// Performs require secret asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task<string> RequireSecretAsync(IProviderSecretStore secrets, string providerId, CancellationToken cancellationToken) =>
         await secrets.GetAsync(providerId, "api-key", cancellationToken).ConfigureAwait(false)
         ?? throw new InvalidOperationException($"No API key is stored for {providerId}.");
 
     /// <summary>
-    /// Performs ensure success async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure success asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task EnsureSuccessAsync(HttpResponseMessage response, string providerName, CancellationToken cancellationToken)
     {
@@ -111,7 +111,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
     /// </summary>
     protected abstract string DefaultEndpoint { get; }
     /// <summary>
-    /// Reports whether is open router is true for the current state.
+    /// Reports whether open router applies to the current state.
     /// </summary>
     protected virtual bool IsOpenRouter => false;
 
@@ -128,16 +128,16 @@ public abstract class OpenAiCompatibleModelProviderBase(
     /// </summary>
     public abstract ModelProviderKind Kind { get; }
     /// <summary>
-    /// Reports whether is local is true for the current state.
+    /// Reports whether local applies to the current state.
     /// </summary>
     public bool IsLocal => false;
     /// <summary>
-    /// Reports whether can manage models is true for the current state.
+    /// Reports whether manage models applies to the current state.
     /// </summary>
     public bool CanManageModels => false;
 
     /// <summary>
-    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// Performs check health asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -187,7 +187,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
     }
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -216,7 +216,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
     }
 
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
@@ -229,7 +229,7 @@ public abstract class OpenAiCompatibleModelProviderBase(
     }
 
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
@@ -559,7 +559,7 @@ public sealed class OpenRouterModelProvider(
     /// </summary>
     protected override string DefaultEndpoint => "https://openrouter.ai/api/v1/";
     /// <summary>
-    /// Reports whether is open router is true for the current state.
+    /// Reports whether open router applies to the current state.
     /// </summary>
     protected override bool IsOpenRouter => true;
 }

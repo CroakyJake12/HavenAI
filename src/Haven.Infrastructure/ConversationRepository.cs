@@ -110,7 +110,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         => await ReadMessagesAsync(conversationId, includeCompacted: false, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
-    /// Performs read messages async asynchronously so I/O does not block the caller's thread.
+    /// Performs read messages asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(Guid conversationId, bool includeCompacted, CancellationToken cancellationToken)
     {
@@ -153,7 +153,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs read messages from reader async asynchronously so I/O does not block the caller's thread.
+    /// Performs read messages from reader asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesFromReaderAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
@@ -170,7 +170,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken)
     {
@@ -201,7 +201,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs add message async asynchronously so I/O does not block the caller's thread.
+    /// Performs add message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
     {
@@ -258,7 +258,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs mark messages compacted async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark messages compacted asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken)
     {
@@ -295,7 +295,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs add context entry async asynchronously so I/O does not block the caller's thread.
+    /// Performs add context entry asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken)
     {
@@ -316,7 +316,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -328,7 +328,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs ensure current branch core async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure current branch core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<Guid> EnsureCurrentBranchCoreAsync(
         SqliteConnection connection,
@@ -398,7 +398,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs update turns for message async asynchronously so I/O does not block the caller's thread.
+    /// Performs update turns for message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task UpdateTurnsForMessageAsync(
         SqliteConnection connection,
@@ -446,7 +446,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
-    /// Performs read conversations async asynchronously so I/O does not block the caller's thread.
+    /// Performs read conversations asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<Conversation>> ReadConversationsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {

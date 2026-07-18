@@ -21,7 +21,7 @@ public sealed class NotesAiService(
     IProductionDiagnostics diagnostics) : INotesAiService
 {
     /// <summary>
-    /// Performs propose async asynchronously so I/O does not block the caller's thread.
+    /// Performs propose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesAiProposalResult> ProposeAsync(NotesAiProposalRequest request, CancellationToken cancellationToken)
     {

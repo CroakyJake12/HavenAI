@@ -32,7 +32,7 @@ public sealed record AttachmentPromptContext(
     IReadOnlyList<MessageAttachment> Attachments);
 
 /// <summary>
-/// Defines the i message attachment service contract so callers depend on a capability rather than one implementation.
+/// Defines the message attachment service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IMessageAttachmentService
 {
@@ -54,7 +54,7 @@ public interface IMessageAttachmentService
 }
 
 /// <summary>
-/// Defines the i local media tool locator contract so callers depend on a capability rather than one implementation.
+/// Defines the local media tool locator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILocalMediaToolLocator
 {

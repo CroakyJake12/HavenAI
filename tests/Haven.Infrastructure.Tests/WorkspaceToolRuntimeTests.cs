@@ -195,11 +195,11 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         /// </summary>
         public string ResolveWorkspacePath(string workspaceRoot, string relativePath) => inner.ResolveWorkspacePath(workspaceRoot, relativePath);
         /// <summary>
-        /// Performs read text async asynchronously so I/O does not block the caller's thread.
+        /// Performs read text asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken) => inner.ReadTextAsync(workspaceRoot, relativePath, cancellationToken);
         /// <summary>
-        /// Performs search files async asynchronously so I/O does not block the caller's thread.
+        /// Performs search files asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken) => inner.SearchFilesAsync(workspaceRoot, searchPattern, cancellationToken);
         /// <summary>
@@ -207,7 +207,7 @@ public sealed class WorkspaceToolRuntimeTests : IDisposable
         /// </summary>
         public Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken) => inner.RunProcessAsync(request, cancellationToken);
         /// <summary>
-        /// Performs write text atomic async asynchronously so I/O does not block the caller's thread.
+        /// Performs write text atomic asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
         {

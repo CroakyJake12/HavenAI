@@ -27,7 +27,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>
-    /// Reports whether is available async is true for the current state.
+    /// Reports whether available async applies to the current state.
     /// </summary>
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
@@ -52,7 +52,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     }
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -93,7 +93,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     }
 
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
@@ -109,7 +109,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     }
 
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
@@ -159,7 +159,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     }
 
     /// <summary>
-    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// Performs pull model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken)
     {
@@ -191,7 +191,7 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     }
 
     /// <summary>
-    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteModelAsync(string model, CancellationToken cancellationToken)
     {

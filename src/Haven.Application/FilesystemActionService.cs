@@ -32,7 +32,7 @@ public sealed class FilesystemActionService
     }
 
     /// <summary>
-    /// Performs read file async asynchronously so I/O does not block the caller's thread.
+    /// Performs read file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<FilesystemActionResult> ReadFileAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken)
     {
@@ -55,7 +55,7 @@ public sealed class FilesystemActionService
     }
 
     /// <summary>
-    /// Performs write file async asynchronously so I/O does not block the caller's thread.
+    /// Performs write file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<FilesystemActionResult> WriteFileAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
     {
@@ -78,7 +78,7 @@ public sealed class FilesystemActionService
     }
 
     /// <summary>
-    /// Performs search files async asynchronously so I/O does not block the caller's thread.
+    /// Performs search files asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<FilesystemActionResult> SearchFilesAsync(string workspaceRoot, string pattern, CancellationToken cancellationToken)
     {

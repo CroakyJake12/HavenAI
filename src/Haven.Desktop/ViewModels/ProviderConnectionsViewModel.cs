@@ -77,7 +77,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -130,7 +130,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConnectAsync(ProviderConnectionItemViewModel? item)
     {
@@ -186,7 +186,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs test async asynchronously so I/O does not block the caller's thread.
+    /// Performs test asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TestAsync(ProviderConnectionItemViewModel? item)
     {
@@ -211,7 +211,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs test core async asynchronously so I/O does not block the caller's thread.
+    /// Performs test core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TestCoreAsync(ProviderConnectionItemViewModel item)
     {
@@ -235,7 +235,7 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs disconnect async asynchronously so I/O does not block the caller's thread.
+    /// Performs disconnect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DisconnectAsync(ProviderConnectionItemViewModel? item)
     {
@@ -394,15 +394,15 @@ public sealed class ProviderConnectionItemViewModel : ObservableObject
     /// </summary>
     public string ApiKeyHint => IsConnected ? "Leave blank to keep the saved API key" : "API key";
     /// <summary>
-    /// Reports whether can connect is true for the current state.
+    /// Reports whether connect applies to the current state.
     /// </summary>
     public bool CanConnect => !IsBusy;
     /// <summary>
-    /// Reports whether can test is true for the current state.
+    /// Reports whether test applies to the current state.
     /// </summary>
     public bool CanTest => IsConnected && !IsBusy;
     /// <summary>
-    /// Reports whether can disconnect is true for the current state.
+    /// Reports whether disconnect applies to the current state.
     /// </summary>
     public bool CanDisconnect => IsConnected && !IsBusy;
 

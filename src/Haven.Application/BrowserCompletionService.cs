@@ -37,7 +37,7 @@ public sealed class BrowserCompletionService
     }
 
     /// <summary>
-    /// Performs check completion async asynchronously so I/O does not block the caller's thread.
+    /// Performs check completion asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserCompletionResult> CheckCompletionAsync(CancellationToken cancellationToken)
     {
@@ -61,7 +61,7 @@ public sealed class BrowserCompletionService
     }
 
     /// <summary>
-    /// Performs wait for navigation async asynchronously so I/O does not block the caller's thread.
+    /// Performs wait for navigation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserCompletionResult> WaitForNavigationAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {

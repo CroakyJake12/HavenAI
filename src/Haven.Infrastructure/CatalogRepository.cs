@@ -79,7 +79,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert agent async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert agent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
@@ -97,7 +97,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert plugin async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert plugin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
     {
@@ -116,7 +116,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert prompt async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert prompt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
@@ -134,32 +134,32 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs set agent enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs set agent enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("agents", id, enabled, cancellationToken);
     /// <summary>
-    /// Performs set plugin enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs set plugin enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetPluginEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("plugins", id, enabled, cancellationToken);
     /// <summary>
-    /// Performs set prompt enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs set prompt enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("prompts", id, enabled, cancellationToken);
     /// <summary>
-    /// Performs delete custom agent async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete custom agent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("agents", id, cancellationToken);
     /// <summary>
-    /// Performs delete custom plugin async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete custom plugin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteCustomPluginAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("plugins", id, cancellationToken);
     /// <summary>
-    /// Performs delete custom prompt async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete custom prompt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("prompts", id, cancellationToken);
 
     /// <summary>
-    /// Performs seed async asynchronously so I/O does not block the caller's thread.
+    /// Performs seed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SeedAsync(CancellationToken cancellationToken)
     {
@@ -170,7 +170,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert built in agent async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert built in agent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpsertBuiltInAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
@@ -187,7 +187,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert built in plugin async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert built in plugin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpsertBuiltInPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
     {
@@ -205,7 +205,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs upsert built in prompt async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert built in prompt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpsertBuiltInPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
@@ -223,7 +223,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs disable retired built ins async asynchronously so I/O does not block the caller's thread.
+    /// Performs disable retired built ins asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DisableRetiredBuiltInsAsync(CancellationToken cancellationToken)
     {
@@ -238,7 +238,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs set enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs set enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SetEnabledAsync(string table, Guid id, bool enabled, CancellationToken cancellationToken)
     {
@@ -253,7 +253,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
     }
 
     /// <summary>
-    /// Performs delete custom async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete custom asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteCustomAsync(string table, Guid id, CancellationToken cancellationToken)
     {

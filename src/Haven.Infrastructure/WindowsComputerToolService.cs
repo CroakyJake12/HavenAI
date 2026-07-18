@@ -20,7 +20,7 @@ namespace Haven.Infrastructure;
 public sealed partial class WindowsComputerToolService(IWorkspaceToolService processes) : IComputerToolService
 {
     /// <summary>
-    /// Performs snapshot async asynchronously so I/O does not block the caller's thread.
+    /// Performs snapshot asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> SnapshotAsync(CancellationToken cancellationToken) => RunPowerShellAsync(
         """
@@ -57,14 +57,14 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         """, TimeSpan.FromSeconds(45), cancellationToken);
 
     /// <summary>
-    /// Performs list windows async asynchronously so I/O does not block the caller's thread.
+    /// Performs list windows asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ListWindowsAsync(CancellationToken cancellationToken) => RunPowerShellAsync(
         "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Select-Object Id,ProcessName,MainWindowTitle | ConvertTo-Json -Depth 3 -Compress",
         TimeSpan.FromSeconds(20), cancellationToken);
 
     /// <summary>
-    /// Performs launch app async asynchronously so I/O does not block the caller's thread.
+    /// Performs launch app asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken)
     {
@@ -100,7 +100,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs focus window async asynchronously so I/O does not block the caller's thread.
+    /// Performs focus window asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken)
     {
@@ -122,7 +122,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs invoke async asynchronously so I/O does not block the caller's thread.
+    /// Performs invoke asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken)
     {
@@ -162,7 +162,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs click async asynchronously so I/O does not block the caller's thread.
+    /// Performs click asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken)
     {
@@ -204,7 +204,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs type async asynchronously so I/O does not block the caller's thread.
+    /// Performs type asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken)
     {
@@ -226,7 +226,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs press async asynchronously so I/O does not block the caller's thread.
+    /// Performs press asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken)
     {
@@ -246,7 +246,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs close window async asynchronously so I/O does not block the caller's thread.
+    /// Performs close window asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken)
     {

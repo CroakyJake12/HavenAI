@@ -48,7 +48,7 @@ public sealed class GoogleCalendarProviderTransport(
     }
 
     /// <summary>
-    /// Performs sync core async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     protected override async Task<CalendarSyncResult> SyncCoreAsync(CalendarAccount account, CalendarTokenEnvelope token, CalendarSyncRequest request, CancellationToken cancellationToken)
     {
@@ -105,7 +105,7 @@ public sealed class GoogleCalendarProviderTransport(
     }
 
     /// <summary>
-    /// Performs sync calendar async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync calendar asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<SyncCounts> SyncCalendarAsync(CalendarAccount account, PlannerCalendar calendar, string accessToken, CalendarSyncRequest request, CancellationToken cancellationToken)
     {
@@ -118,7 +118,7 @@ public sealed class GoogleCalendarProviderTransport(
     }
 
     /// <summary>
-    /// Performs sync calendar page loop async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync calendar page loop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<SyncCounts> SyncCalendarPageLoopAsync(CalendarAccount account, PlannerCalendar calendar, string accessToken, CalendarSyncRequest request,
         CalendarSyncCursor? cursor, CancellationToken cancellationToken)
@@ -149,7 +149,7 @@ public sealed class GoogleCalendarProviderTransport(
     }
 
     /// <summary>
-    /// Performs apply remote event async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply remote event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyRemoteEventAsync(CalendarAccount account, PlannerCalendar calendar, CalendarSyncCursor? cursor, JsonElement remote, SyncCounts counts, CancellationToken cancellationToken)
     {
@@ -213,7 +213,7 @@ public sealed class GoogleCalendarProviderTransport(
     }
 
     /// <summary>
-    /// Performs apply outbox async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply outbox asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyOutboxAsync(CalendarOutboxItem outbox, PlannerEvent item, string accessToken, CancellationToken cancellationToken)
     {

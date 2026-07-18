@@ -49,7 +49,7 @@ public sealed class SafeModeCodeIntelligenceService(
         : inner.GetDiagnosticsAsync(workspaceRoot, relativePath, cancellationToken);
 
     /// <summary>
-    /// Performs search symbols async asynchronously so I/O does not block the caller's thread.
+    /// Performs search symbols asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<CodeSymbol>> SearchSymbolsAsync(
         string workspaceRoot,
@@ -59,7 +59,7 @@ public sealed class SafeModeCodeIntelligenceService(
         : inner.SearchSymbolsAsync(workspaceRoot, query, cancellationToken);
 
     /// <summary>
-    /// Performs preview format async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<CodeFormatPreview> PreviewFormatAsync(
         string workspaceRoot,
@@ -71,7 +71,7 @@ public sealed class SafeModeCodeIntelligenceService(
         : inner.PreviewFormatAsync(workspaceRoot, relativePath, tabSize, insertSpaces, cancellationToken);
 
     /// <summary>
-    /// Performs apply format async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<CodeFormatApplyResult> ApplyFormatAsync(
         string workspaceRoot,

@@ -215,7 +215,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public Bitmap? ScreenPreview => _screenPreview;
     /// <summary>
-    /// Reports whether has screen preview is true for the current state.
+    /// Reports whether screen preview applies to the current state.
     /// </summary>
     public bool HasScreenPreview => _screenPreview is not null;
 
@@ -254,47 +254,47 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     public IReadOnlyList<CallInputMode> InputModes { get; } = Enum.GetValues<CallInputMode>();
 
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive => _coordinator.IsActive;
     /// <summary>
-    /// Reports whether is not active is true for the current state.
+    /// Reports whether not active applies to the current state.
     /// </summary>
     public bool IsNotActive => !IsActive;
     /// <summary>
-    /// Reports whether is paused is true for the current state.
+    /// Reports whether paused applies to the current state.
     /// </summary>
     public bool IsPaused => CallState == CallState.Paused;
     /// <summary>
-    /// Reports whether is muted is true for the current state.
+    /// Reports whether muted applies to the current state.
     /// </summary>
     public bool IsMuted => _coordinator.IsMuted;
     /// <summary>
-    /// Reports whether is sharing is true for the current state.
+    /// Reports whether sharing applies to the current state.
     /// </summary>
     public bool IsSharing => _coordinator.IsScreenSharing;
     /// <summary>
-    /// Reports whether has speech input is true for the current state.
+    /// Reports whether speech input applies to the current state.
     /// </summary>
     public bool HasSpeechInput => _coordinator.Capabilities.HasSpeechInput;
     /// <summary>
-    /// Reports whether has speech output is true for the current state.
+    /// Reports whether speech output applies to the current state.
     /// </summary>
     public bool HasSpeechOutput => _coordinator.Capabilities.HasSpeechOutput;
     /// <summary>
-    /// Reports whether can share screen is true for the current state.
+    /// Reports whether share screen applies to the current state.
     /// </summary>
     public bool CanShareScreen => _coordinator.Capabilities.CanShareScreen;
     /// <summary>
-    /// Reports whether has transcript is true for the current state.
+    /// Reports whether transcript applies to the current state.
     /// </summary>
     public bool HasTranscript => Transcript.Count > 0;
     /// <summary>
-    /// Reports whether can start is true for the current state.
+    /// Reports whether start applies to the current state.
     /// </summary>
     public bool CanStart => !IsActive && SelectedModel is not null;
     /// <summary>
-    /// Reports whether can send text is true for the current state.
+    /// Reports whether send text applies to the current state.
     /// </summary>
     public bool CanSendText => IsActive && !string.IsNullOrWhiteSpace(TypedTranscript);
     /// <summary>
@@ -413,7 +413,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -452,7 +452,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task BeginPushToTalkAsync()
     {
@@ -469,7 +469,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task EndPushToTalkAsync()
     {
@@ -486,7 +486,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs load ollama models async asynchronously so I/O does not block the caller's thread.
+    /// Performs load ollama models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<ModelDescriptor>> LoadOllamaModelsAsync()
     {
@@ -501,7 +501,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs start call async asynchronously so I/O does not block the caller's thread.
+    /// Performs start call asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartCallAsync()
     {
@@ -531,7 +531,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs end call async asynchronously so I/O does not block the caller's thread.
+    /// Performs end call asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EndCallAsync()
     {
@@ -541,7 +541,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs pause resume async asynchronously so I/O does not block the caller's thread.
+    /// Performs pause resume asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task PauseResumeAsync() => RunCoordinatorActionAsync(
         IsPaused
@@ -549,13 +549,13 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
             : () => _coordinator.PauseAsync(CancellationToken.None));
 
     /// <summary>
-    /// Performs toggle mute async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle mute asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task ToggleMuteAsync() => RunCoordinatorActionAsync(
         () => _coordinator.SetMutedAsync(!IsMuted, CancellationToken.None));
 
     /// <summary>
-    /// Performs toggle screen share async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle screen share asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task ToggleScreenShareAsync() => RunCoordinatorActionAsync(
         IsSharing
@@ -573,7 +573,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs send transcript async asynchronously so I/O does not block the caller's thread.
+    /// Performs send transcript asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SendTranscriptAsync()
     {
@@ -585,7 +585,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs download speech model async asynchronously so I/O does not block the caller's thread.
+    /// Performs download speech model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DownloadSpeechModelAsync()
     {
@@ -843,7 +843,7 @@ public sealed class CallTranscriptItemViewModel(
     /// </summary>
     public MessageRole Role { get; } = role;
     /// <summary>
-    /// Reports whether is user is true for the current state.
+    /// Reports whether user applies to the current state.
     /// </summary>
     public bool IsUser => Role == MessageRole.User;
     /// <summary>
@@ -859,7 +859,7 @@ public sealed class CallTranscriptItemViewModel(
     /// </summary>
     public string Text { get => _text; set => SetProperty(ref _text, value); }
     /// <summary>
-    /// Reports whether is partial is true for the current state.
+    /// Reports whether partial applies to the current state.
     /// </summary>
     public bool IsPartial { get => _isPartial; set => SetProperty(ref _isPartial, value); }
     /// <summary>

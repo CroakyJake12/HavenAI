@@ -12,7 +12,7 @@ using System.Text.Json;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i versioned settings store contract so callers depend on a capability rather than one implementation.
+/// Defines the versioned settings store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IVersionedSettingsStore
 {
@@ -91,7 +91,7 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
     }
 
     /// <summary>
-    /// Performs remove async asynchronously so I/O does not block the caller's thread.
+    /// Performs remove asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RemoveAsync(string key, CancellationToken cancellationToken)
     {
@@ -109,7 +109,7 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SettingsExportManifest> ExportAsync(CancellationToken cancellationToken)
     {
@@ -118,7 +118,7 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
     }
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SettingsImportResult> ImportAsync(SettingsExportManifest manifest, CancellationToken cancellationToken)
     {
@@ -144,7 +144,7 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
     }
 
     /// <summary>
-    /// Performs ensure loaded async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure loaded asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
@@ -185,7 +185,7 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
     }
 
     /// <summary>
-    /// Performs persist async asynchronously so I/O does not block the caller's thread.
+    /// Performs persist asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PersistAsync(CancellationToken cancellationToken)
     {

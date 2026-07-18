@@ -457,7 +457,7 @@ public sealed class NotesProductionTests : IDisposable
         /// </summary>
         public int CompleteCalls { get; private set; }
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -466,7 +466,7 @@ public sealed class NotesProductionTests : IDisposable
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
@@ -476,7 +476,7 @@ public sealed class NotesProductionTests : IDisposable
             yield break;
         }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
         {
@@ -484,17 +484,17 @@ public sealed class NotesProductionTests : IDisposable
             return Task.FromResult(response);
         }
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Empty, []));
         /// <summary>
-        /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+        /// Performs pull model asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
             Task.CompletedTask;
         /// <summary>
-        /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete model asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
     }

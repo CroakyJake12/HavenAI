@@ -80,7 +80,7 @@ public sealed class NotesAdvancedDocumentState
 public sealed class NotesDocumentViewState
 {
     /// <summary>
-    /// Reports whether is pinned is true for the current state.
+    /// Reports whether pinned applies to the current state.
     /// </summary>
     public bool IsPinned { get; set; }
     /// <summary>
@@ -88,11 +88,11 @@ public sealed class NotesDocumentViewState
     /// </summary>
     public DateTimeOffset? LastOpenedAt { get; set; }
     /// <summary>
-    /// Reports whether is focus mode is true for the current state.
+    /// Reports whether focus mode applies to the current state.
     /// </summary>
     public bool IsFocusMode { get; set; }
     /// <summary>
-    /// Reports whether is fullscreen is true for the current state.
+    /// Reports whether fullscreen applies to the current state.
     /// </summary>
     public bool IsFullscreen { get; set; }
     /// <summary>
@@ -244,7 +244,7 @@ public sealed class NotesAutocorrectEntry
     /// </summary>
     public bool MatchCase { get; set; }
     /// <summary>
-    /// Reports whether is enabled is true for the current state.
+    /// Reports whether enabled applies to the current state.
     /// </summary>
     public bool IsEnabled { get; set; } = true;
 }
@@ -279,7 +279,7 @@ public sealed class NotesEquationLibraryEntry
     /// </summary>
     public List<string> Tags { get; set; } = [];
     /// <summary>
-    /// Reports whether is favourite is true for the current state.
+    /// Reports whether favourite applies to the current state.
     /// </summary>
     public bool IsFavourite { get; set; }
     /// <summary>
@@ -392,7 +392,7 @@ public sealed class NotesCrossReference
     /// </summary>
     public string Label { get; set; } = string.Empty;
     /// <summary>
-    /// Reports whether is broken is true for the current state.
+    /// Reports whether broken applies to the current state.
     /// </summary>
     public bool IsBroken { get; set; }
 }

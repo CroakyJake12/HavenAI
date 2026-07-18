@@ -26,7 +26,7 @@ public sealed class CalendarSyncProvider(
     /// </summary>
     public CalendarProviderKind Kind => configuration.Provider;
     /// <summary>
-    /// Reports whether is configured is true for the current state.
+    /// Reports whether configured applies to the current state.
     /// </summary>
     public bool IsConfigured => configuration.IsConfigured;
     /// <summary>
@@ -39,7 +39,7 @@ public sealed class CalendarSyncProvider(
             : $"{Kind} Calendar is ready to connect.";
 
     /// <summary>
-    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<CalendarAuthorizationResult> ConnectAsync(CancellationToken cancellationToken)
     {
@@ -49,7 +49,7 @@ public sealed class CalendarSyncProvider(
     }
 
     /// <summary>
-    /// Performs sync async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<CalendarSyncResult> SyncAsync(CalendarSyncRequest request, CancellationToken cancellationToken)
     {
@@ -59,7 +59,7 @@ public sealed class CalendarSyncProvider(
     }
 
     /// <summary>
-    /// Performs disconnect async asynchronously so I/O does not block the caller's thread.
+    /// Performs disconnect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DisconnectAsync(Guid accountId, CancellationToken cancellationToken) =>
         transport?.DisconnectAsync(accountId, cancellationToken) ?? Task.CompletedTask;

@@ -131,7 +131,7 @@ public sealed class AutomationDeliveryTests : IDisposable
         /// </summary>
         public List<AutomationDelivery> Items { get; } = [];
         /// <summary>
-        /// Performs enqueue async asynchronously so I/O does not block the caller's thread.
+        /// Performs enqueue asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EnqueueAsync(AutomationDelivery delivery, CancellationToken cancellationToken)
         {
@@ -140,7 +140,7 @@ public sealed class AutomationDeliveryTests : IDisposable
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs drain async asynchronously so I/O does not block the caller's thread.
+        /// Performs drain asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<AutomationDelivery>> DrainAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AutomationDelivery>>([]);
@@ -160,7 +160,7 @@ public sealed class AutomationDeliveryTests : IDisposable
         /// </summary>
         public int CompleteCount { get; private set; }
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -172,7 +172,7 @@ public sealed class AutomationDeliveryTests : IDisposable
                 new HashSet<ToolCapability> { ToolCapability.Text },
                 DateTimeOffset.UtcNow)]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -180,7 +180,7 @@ public sealed class AutomationDeliveryTests : IDisposable
             yield return response;
         }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
         {
@@ -188,7 +188,7 @@ public sealed class AutomationDeliveryTests : IDisposable
             return Failure is null ? Task.FromResult(response) : Task.FromException<string>(Failure);
         }
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(response, []));
@@ -225,7 +225,7 @@ public sealed class AutomationDeliveryTests : IDisposable
                 .Where(item => item.IsEnabled && item.NextRunAt <= now)
                 .ToArray());
         /// <summary>
-        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertAsync(AutomationDefinition automation, CancellationToken cancellationToken)
         {
@@ -233,7 +233,7 @@ public sealed class AutomationDeliveryTests : IDisposable
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
@@ -246,7 +246,7 @@ public sealed class AutomationDeliveryTests : IDisposable
         public Task<bool> TryAcquireLeaseAsync(Guid automationId, string leaseToken, DateTimeOffset leaseUntil, CancellationToken cancellationToken) =>
             Task.FromResult(_leases.Add(automationId));
         /// <summary>
-        /// Performs complete run async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete run asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task CompleteRunAsync(AutomationRun run, DateTimeOffset? nextRunAt, CancellationToken cancellationToken)
         {

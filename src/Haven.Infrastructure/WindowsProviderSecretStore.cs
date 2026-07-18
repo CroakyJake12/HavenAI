@@ -40,7 +40,7 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
         throwOnInvalidBytes: true);
 
     /// <summary>
-    /// Performs set async asynchronously so I/O does not block the caller's thread.
+    /// Performs set asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetAsync(string providerId, string secretName, string secret, CancellationToken cancellationToken)
     {
@@ -112,7 +112,7 @@ public sealed class WindowsProviderSecretStore : IProviderSecretStore
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(string providerId, string secretName, CancellationToken cancellationToken)
     {

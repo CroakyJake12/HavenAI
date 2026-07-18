@@ -41,7 +41,7 @@ public enum BrowserPopupDisposition
 public sealed record BrowserPopupAssessment(BrowserPopupDisposition Disposition, string Reason)
 {
     /// <summary>
-    /// Reports whether is allowed is true for the current state.
+    /// Reports whether allowed applies to the current state.
     /// </summary>
     public bool IsAllowed => Disposition == BrowserPopupDisposition.OpenInCurrentTab;
 }

@@ -287,7 +287,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         /// </summary>
         public double Y { get; set; }
         /// <summary>
-        /// Reports whether has position is true for the current state.
+        /// Reports whether position applies to the current state.
         /// </summary>
         public bool HasPosition { get; set; }
     }

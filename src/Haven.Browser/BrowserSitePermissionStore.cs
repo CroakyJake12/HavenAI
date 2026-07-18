@@ -150,7 +150,7 @@ public sealed class BrowserSitePermissionStore : IDisposable
     }
 
     /// <summary>
-    /// Performs set decision async asynchronously so I/O does not block the caller's thread.
+    /// Performs set decision asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetDecisionAsync(Uri origin, BrowserSitePermissionKind kind, BrowserSitePermissionDecision decision, CancellationToken cancellationToken)
     {
@@ -180,7 +180,7 @@ public sealed class BrowserSitePermissionStore : IDisposable
     }
 
     /// <summary>
-    /// Performs revoke origin async asynchronously so I/O does not block the caller's thread.
+    /// Performs revoke origin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RevokeOriginAsync(Uri origin, CancellationToken cancellationToken)
     {
@@ -318,7 +318,7 @@ public sealed class BrowserSitePermissionStore : IDisposable
     }
 
     /// <summary>
-    /// Performs mutate and save async asynchronously so I/O does not block the caller's thread.
+    /// Performs mutate and save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MutateAndSaveAsync(Func<PermissionData, PermissionData> mutation, CancellationToken cancellationToken)
     {
@@ -345,7 +345,7 @@ public sealed class BrowserSitePermissionStore : IDisposable
     }
 
     /// <summary>
-    /// Performs save core async asynchronously so I/O does not block the caller's thread.
+    /// Performs save core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveCoreAsync(PermissionData candidate, CancellationToken cancellationToken)
     {

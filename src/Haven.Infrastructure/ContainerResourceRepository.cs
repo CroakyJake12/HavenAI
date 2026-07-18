@@ -66,7 +66,7 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
     }
 
     /// <summary>
-    /// Performs add async asynchronously so I/O does not block the caller's thread.
+    /// Performs add asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ContainerResource> AddAsync(Guid containerId, string sourcePath, CancellationToken cancellationToken)
     {
@@ -127,7 +127,7 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -187,7 +187,7 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
     }
 
     /// <summary>
-    /// Performs read docx text async asynchronously so I/O does not block the caller's thread.
+    /// Performs read docx text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ReadDocxTextAsync(string path, CancellationToken cancellationToken)
     {
@@ -212,7 +212,7 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
     }
 
     /// <summary>
-    /// Performs find by hash async asynchronously so I/O does not block the caller's thread.
+    /// Performs find by hash asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<ContainerResource?> FindByHashAsync(Guid containerId, string hash, CancellationToken cancellationToken)
     {
@@ -225,7 +225,7 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
     }
 
     /// <summary>
-    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// Performs read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<ContainerResource>> ReadAsync(SqliteCommand command, CancellationToken cancellationToken)
     {

@@ -24,7 +24,7 @@ public sealed record WorkspaceTransactionResult(
     int RemovedCharacters);
 
 /// <summary>
-/// Defines the i workspace transaction service contract so callers depend on a capability rather than one implementation.
+/// Defines the workspace transaction service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IWorkspaceTransactionService
 {

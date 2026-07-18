@@ -31,7 +31,7 @@ public sealed class LocalConversationShareService(
     private readonly ConcurrentDictionary<Guid, ShareRuntime> _active = new();
 
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<LocalShareHandle> StartAsync(Guid conversationId, TimeSpan duration, CancellationToken cancellationToken)
     {
@@ -76,7 +76,7 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -105,7 +105,7 @@ public sealed class LocalConversationShareService(
         conversations.GetActiveShareAsync(conversationId, cancellationToken);
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -144,7 +144,7 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Performs handle client async asynchronously so I/O does not block the caller's thread.
+    /// Performs handle client asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task HandleClientAsync(ShareRuntime runtime, TcpClient client)
     {
@@ -200,7 +200,7 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Performs expire async asynchronously so I/O does not block the caller's thread.
+    /// Performs expire asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ExpireAsync(ShareRuntime runtime)
     {
@@ -254,12 +254,12 @@ public sealed class LocalConversationShareService(
         .FirstOrDefault();
 
     /// <summary>
-    /// Reports whether is private or loopback is true for the current state.
+    /// Reports whether private or loopback applies to the current state.
     /// </summary>
     private static bool IsPrivateOrLoopback(IPAddress address) => IPAddress.IsLoopback(address) || IsPrivate(address) || address.IsIPv6LinkLocal || IsUniqueLocalIpv6(address);
 
     /// <summary>
-    /// Reports whether is private is true for the current state.
+    /// Reports whether private applies to the current state.
     /// </summary>
     private static bool IsPrivate(IPAddress address)
     {
@@ -272,7 +272,7 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Reports whether is unique local ipv6 is true for the current state.
+    /// Reports whether unique local ipv6 applies to the current state.
     /// </summary>
     private static bool IsUniqueLocalIpv6(IPAddress address)
     {
@@ -298,7 +298,7 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Performs read bounded line async asynchronously so I/O does not block the caller's thread.
+    /// Performs read bounded line asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string?> ReadBoundedLineAsync(StreamReader reader, int maximumLength, CancellationToken cancellationToken)
     {
@@ -308,13 +308,13 @@ public sealed class LocalConversationShareService(
     }
 
     /// <summary>
-    /// Performs write response async asynchronously so I/O does not block the caller's thread.
+    /// Performs write response asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static Task WriteResponseAsync(TcpClient client, int status, string reason, string content, string contentType, CancellationToken cancellationToken) =>
         WriteResponseAsync(client.GetStream(), status, reason, content, contentType, cancellationToken);
 
     /// <summary>
-    /// Performs write response async asynchronously so I/O does not block the caller's thread.
+    /// Performs write response asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteResponseAsync(Stream stream, int status, string reason, string content, string contentType, CancellationToken cancellationToken)
     {

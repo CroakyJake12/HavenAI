@@ -359,43 +359,43 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public string NewContainerLabel => "+ " + ContainerLabel;
     /// <summary>
-    /// Reports whether is teach is true for the current state.
+    /// Reports whether teach applies to the current state.
     /// </summary>
     public bool IsTeach => Mode == HavenMode.Teach;
     /// <summary>
-    /// Reports whether is do is true for the current state.
+    /// Reports whether do applies to the current state.
     /// </summary>
     public bool IsDo => Mode == HavenMode.Do;
     /// <summary>
-    /// Reports whether is studio is true for the current state.
+    /// Reports whether studio applies to the current state.
     /// </summary>
     public bool IsStudio => Mode == HavenMode.Studio;
     /// <summary>
-    /// Reports whether has containers is true for the current state.
+    /// Reports whether containers applies to the current state.
     /// </summary>
     public bool HasContainers => Mode is HavenMode.Chat or HavenMode.Teach or HavenMode.Do or HavenMode.Studio;
     /// <summary>
-    /// Reports whether has any containers is true for the current state.
+    /// Reports whether any containers applies to the current state.
     /// </summary>
     public bool HasAnyContainers => Containers.Count > 0;
     /// <summary>
-    /// Reports whether has subjects is true for the current state.
+    /// Reports whether subjects applies to the current state.
     /// </summary>
     public bool HasSubjects => IsTeach && Containers.Count > 0;
     /// <summary>
-    /// Reports whether has no subjects is true for the current state.
+    /// Reports whether no subjects applies to the current state.
     /// </summary>
     public bool HasNoSubjects => IsTeach && Containers.Count == 0;
     /// <summary>
-    /// Reports whether has selected subject is true for the current state.
+    /// Reports whether selected subject applies to the current state.
     /// </summary>
     public bool HasSelectedSubject => IsTeach && SelectedContainer is not null;
     /// <summary>
-    /// Reports whether has lessons is true for the current state.
+    /// Reports whether lessons applies to the current state.
     /// </summary>
     public bool HasLessons => IsTeach && Lessons.Count > 0;
     /// <summary>
-    /// Reports whether has no lessons is true for the current state.
+    /// Reports whether no lessons applies to the current state.
     /// </summary>
     public bool HasNoLessons => IsTeach && SelectedContainer is not null && Lessons.Count == 0;
     /// <summary>
@@ -419,31 +419,31 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public bool SupportsDuo => Mode is HavenMode.Do or HavenMode.Studio;
     /// <summary>
-    /// Reports whether has workspace root is true for the current state.
+    /// Reports whether workspace root applies to the current state.
     /// </summary>
     public bool HasWorkspaceRoot => HasContainers && !string.IsNullOrWhiteSpace(SelectedContainer?.RootPath);
     /// <summary>
-    /// Reports whether is workspace tools ready is true for the current state.
+    /// Reports whether workspace tools ready applies to the current state.
     /// </summary>
     public bool IsWorkspaceToolsReady => Mode is HavenMode.Do or HavenMode.Studio && HasWorkspaceRoot;
     /// <summary>
-    /// Reports whether is agent plugin active is true for the current state.
+    /// Reports whether agent plugin active applies to the current state.
     /// </summary>
     public bool IsAgentPluginActive => Plugins.Any(x => x.Name == "Agent" && x.IsActive);
     /// <summary>
-    /// Reports whether is duo plugin active is true for the current state.
+    /// Reports whether duo plugin active applies to the current state.
     /// </summary>
     public bool IsDuoPluginActive => Plugins.Any(x => x.Name == "DuoMode" && x.IsActive);
     /// <summary>
-    /// Reports whether has messages is true for the current state.
+    /// Reports whether messages applies to the current state.
     /// </summary>
     public bool HasMessages => Messages.Count > 0;
     /// <summary>
-    /// Reports whether is empty is true for the current state.
+    /// Reports whether empty applies to the current state.
     /// </summary>
     public bool IsEmpty => !HasMessages;
     /// <summary>
-    /// Reports whether is not sending is true for the current state.
+    /// Reports whether not sending applies to the current state.
     /// </summary>
     public bool IsNotSending => !IsSending;
     /// <summary>
@@ -537,23 +537,23 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public string AttachmentSummary { get => _attachmentSummary; private set => SetProperty(ref _attachmentSummary, value); }
     /// <summary>
-    /// Reports whether has attachment is true for the current state.
+    /// Reports whether attachment applies to the current state.
     /// </summary>
     public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentSummary);
     /// <summary>
-    /// Reports whether is plugin picker open is true for the current state.
+    /// Reports whether plugin picker open applies to the current state.
     /// </summary>
     public bool IsPluginPickerOpen { get => _isPluginPickerOpen; private set { if (SetProperty(ref _isPluginPickerOpen, value)) RaisePropertyChanged(nameof(IsPickerOverlayVisible)); } }
     /// <summary>
-    /// Reports whether is prompt picker open is true for the current state.
+    /// Reports whether prompt picker open applies to the current state.
     /// </summary>
     public bool IsPromptPickerOpen { get => _isPromptPickerOpen; private set { if (SetProperty(ref _isPromptPickerOpen, value)) RaisePropertyChanged(nameof(IsPickerOverlayVisible)); } }
     /// <summary>
-    /// Reports whether is picker overlay visible is true for the current state.
+    /// Reports whether picker overlay visible applies to the current state.
     /// </summary>
     public bool IsPickerOverlayVisible => IsPluginPickerOpen || IsPromptPickerOpen;
     /// <summary>
-    /// Reports whether is model picker open is true for the current state.
+    /// Reports whether model picker open applies to the current state.
     /// </summary>
     public bool IsModelPickerOpen { get => _isModelPickerOpen; set => SetProperty(ref _isModelPickerOpen, value); }
     /// <summary>
@@ -561,7 +561,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public string ModelSearch { get => _modelSearch; set { if (SetProperty(ref _modelSearch, value)) RaisePropertyChanged(nameof(FilteredModels)); } }
     /// <summary>
-    /// Reports whether is computer permission pending is true for the current state.
+    /// Reports whether computer permission pending applies to the current state.
     /// </summary>
     public bool IsComputerPermissionPending { get => _isComputerPermissionPending; private set => SetProperty(ref _isComputerPermissionPending, value); }
     /// <summary>
@@ -573,11 +573,11 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public string MissingPluginReason { get => _missingPluginReason; private set => SetProperty(ref _missingPluginReason, value); }
     /// <summary>
-    /// Reports whether has missing plugin notice is true for the current state.
+    /// Reports whether missing plugin notice applies to the current state.
     /// </summary>
     public bool HasMissingPluginNotice => !string.IsNullOrWhiteSpace(MissingPluginName);
     /// <summary>
-    /// Reports whether is tool permission pending is true for the current state.
+    /// Reports whether tool permission pending applies to the current state.
     /// </summary>
     public bool IsToolPermissionPending { get => _isToolPermissionPending; private set => SetProperty(ref _isToolPermissionPending, value); }
     /// <summary>
@@ -589,7 +589,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public InlineQuestionViewModel? InlineQuestion { get => _inlineQuestion; private set { if (SetProperty(ref _inlineQuestion, value)) RaisePropertyChanged(nameof(HasInlineQuestion)); } }
     /// <summary>
-    /// Reports whether has inline question is true for the current state.
+    /// Reports whether inline question applies to the current state.
     /// </summary>
     public bool HasInlineQuestion => InlineQuestion is not null;
     /// <summary>
@@ -617,7 +617,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public bool ShowConfidence => _preferences.ConfidenceMeter;
     /// <summary>
-    /// Reports whether is edit progress visible is true for the current state.
+    /// Reports whether edit progress visible applies to the current state.
     /// </summary>
     public bool IsEditProgressVisible => IsSending && IsWorkspaceToolsReady;
     /// <summary>
@@ -883,7 +883,7 @@ public sealed class ChatPageViewModel : ObservableObject
     public RelayCommand<string> UseStarterCommand { get; }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -895,7 +895,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh catalog async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh catalog asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
@@ -923,7 +923,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh containers async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh containers asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshContainersAsync(CancellationToken cancellationToken)
     {
@@ -984,7 +984,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load conversation async asynchronously so I/O does not block the caller's thread.
+    /// Performs load conversation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LoadConversationAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -1031,12 +1031,12 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh models async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshModelsAsync() => await RefreshModelsAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh models async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshModelsAsync(CancellationToken cancellationToken)
     {
@@ -1056,7 +1056,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs send async asynchronously so I/O does not block the caller's thread.
+    /// Performs send asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SendAsync()
     {
@@ -1200,7 +1200,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs prepare attachment async asynchronously so I/O does not block the caller's thread.
+    /// Performs prepare attachment asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<PreparedAttachment> PrepareAttachmentAsync(string prompt, CancellationToken cancellationToken)
     {
@@ -1228,7 +1228,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs add group resource images async asynchronously so I/O does not block the caller's thread.
+    /// Performs add group resource images asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<PreparedAttachment> AddGroupResourceImagesAsync(PreparedAttachment prepared, CancellationToken cancellationToken)
     {
@@ -1519,7 +1519,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reports whether is runtime plugin is true for the current state.
+    /// Reports whether runtime plugin applies to the current state.
     /// </summary>
     private static bool IsRuntimePlugin(string name) => name.Equals("BrowserUse", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("WebSearch", StringComparison.OrdinalIgnoreCase) || name.Equals("ComputerUse", StringComparison.OrdinalIgnoreCase) ||
@@ -1611,7 +1611,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete container async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete container asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteContainerAsync(ContainerItemViewModel? item)
     {
@@ -1643,7 +1643,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete lesson async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete lesson asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteLessonAsync(LessonItemViewModel? item)
     {
@@ -1657,7 +1657,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs move lesson async asynchronously so I/O does not block the caller's thread.
+    /// Performs move lesson asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MoveLessonAsync(LessonItemViewModel? item, int direction)
     {
@@ -1694,7 +1694,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load lessons safely async asynchronously so I/O does not block the caller's thread.
+    /// Performs load lessons safely asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadLessonsSafelyAsync(Guid subjectId, CancellationToken cancellationToken)
     {
@@ -1712,7 +1712,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load lessons async asynchronously so I/O does not block the caller's thread.
+    /// Performs load lessons asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadLessonsAsync(Guid subjectId, CancellationToken cancellationToken)
     {
@@ -1806,7 +1806,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs branch current async asynchronously so I/O does not block the caller's thread.
+    /// Performs branch current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task BranchCurrentAsync()
     {
@@ -1850,7 +1850,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs archive current async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ArchiveCurrentAsync()
     {
@@ -1870,7 +1870,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs invoke async asynchronously so I/O does not block the caller's thread.
+    /// Performs invoke asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InvokeAsync(string instruction, string? pluginName = null)
     {
@@ -1884,7 +1884,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs register context async asynchronously so I/O does not block the caller's thread.
+    /// Performs register context asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RegisterContextAsync(string content)
     {
@@ -1918,12 +1918,12 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs compact context async asynchronously so I/O does not block the caller's thread.
+    /// Performs compact context asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task CompactContextAsync() => CompactContextAsync(false);
 
     /// <summary>
-    /// Performs compact context async asynchronously so I/O does not block the caller's thread.
+    /// Performs compact context asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CompactContextAsync(bool automatic)
     {
@@ -1974,7 +1974,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs update context usage async asynchronously so I/O does not block the caller's thread.
+    /// Performs update context usage asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpdateContextUsageAsync(CancellationToken cancellationToken)
     {
@@ -2088,7 +2088,7 @@ public sealed class ChatPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs register error genome signal async asynchronously so I/O does not block the caller's thread.
+    /// Performs register error genome signal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RegisterErrorGenomeSignalAsync(string prompt, CancellationToken cancellationToken)
     {
@@ -2418,7 +2418,7 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// </summary>
     public string ModelLabel => Role == MessageRole.Assistant && !string.IsNullOrWhiteSpace(ModelName) ? ModelName : string.Empty;
     /// <summary>
-    /// Reports whether has model label is true for the current state.
+    /// Reports whether model label applies to the current state.
     /// </summary>
     public bool HasModelLabel => !string.IsNullOrWhiteSpace(ModelLabel);
     /// <summary>
@@ -2426,7 +2426,7 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// </summary>
     public string RenderedContent => Content;
     /// <summary>
-    /// Reports whether has state is true for the current state.
+    /// Reports whether state applies to the current state.
     /// </summary>
     public bool HasState => !string.IsNullOrWhiteSpace(State);
     /// <summary>
@@ -2434,7 +2434,7 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<ToolActivityViewModel> Activities { get; } = [];
     /// <summary>
-    /// Reports whether has activities is true for the current state.
+    /// Reports whether activities applies to the current state.
     /// </summary>
     public bool HasActivities => Activities.Count > 0;
     /// <summary>
@@ -2442,7 +2442,7 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// </summary>
     public int? ConfidenceScore => _confidenceScore;
     /// <summary>
-    /// Reports whether has confidence is true for the current state.
+    /// Reports whether confidence applies to the current state.
     /// </summary>
     public bool HasConfidence => _confidenceScore is not null;
     /// <summary>
@@ -2454,7 +2454,7 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// </summary>
     public double ConfidenceWidth => (_confidenceScore ?? 0) * 1.6;
     /// <summary>
-    /// Reports whether is compacted is true for the current state.
+    /// Reports whether compacted applies to the current state.
     /// </summary>
     public bool IsCompacted => _isCompacted;
     /// <summary>
@@ -2620,11 +2620,11 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
     /// </summary>
     public bool Persists => definition.Persists;
     /// <summary>
-    /// Reports whether is agentic is true for the current state.
+    /// Reports whether agentic applies to the current state.
     /// </summary>
     public bool IsAgentic => definition.IsAgentic;
     /// <summary>
-    /// Reports whether is available in mode is true for the current state.
+    /// Reports whether available in mode applies to the current state.
     /// </summary>
     public bool IsAvailableInMode => CatalogVisibility.IsAllowed(definition.AllowedModesJson, mode);
     /// <summary>
@@ -2632,7 +2632,7 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
     /// </summary>
     public string AllowedModesLabel => CatalogVisibility.Label(definition.AllowedModesJson);
     /// <summary>
-    /// Reports whether is runtime available is true for the current state.
+    /// Reports whether runtime available applies to the current state.
     /// </summary>
     public bool IsRuntimeAvailable => _isRuntimeAvailable;
     /// <summary>
@@ -2640,7 +2640,7 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
     /// </summary>
     public string AvailabilityReason => _availabilityReason;
     /// <summary>
-    /// Reports whether is visible in picker is true for the current state.
+    /// Reports whether visible in picker applies to the current state.
     /// </summary>
     public bool IsVisibleInPicker => IsAvailableInMode && IsRuntimeAvailable && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
     public IReadOnlyList<string> Conflicts
@@ -2652,7 +2652,7 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
         }
     }
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; set { if (SetProperty(ref _isActive, value)) RaisePropertyChanged(nameof(DisplayName)); } }
     /// <summary>
@@ -2707,11 +2707,11 @@ public sealed class PromptItemViewModel(PromptDefinition definition, HavenMode m
     /// </summary>
     public bool Persists => definition.Persists;
     /// <summary>
-    /// Reports whether is agentic is true for the current state.
+    /// Reports whether agentic applies to the current state.
     /// </summary>
     public bool IsAgentic => definition.IsAgentic;
     /// <summary>
-    /// Reports whether is available in mode is true for the current state.
+    /// Reports whether available in mode applies to the current state.
     /// </summary>
     public bool IsAvailableInMode => CatalogVisibility.IsAllowed(definition.AllowedModesJson, mode);
     /// <summary>
@@ -2719,11 +2719,11 @@ public sealed class PromptItemViewModel(PromptDefinition definition, HavenMode m
     /// </summary>
     public string AllowedModesLabel => CatalogVisibility.Label(definition.AllowedModesJson);
     /// <summary>
-    /// Reports whether is visible in picker is true for the current state.
+    /// Reports whether visible in picker applies to the current state.
     /// </summary>
     public bool IsVisibleInPicker => IsAvailableInMode && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; set { if (SetProperty(ref _isActive, value)) RaisePropertyChanged(nameof(DisplayName)); } }
     /// <summary>
@@ -2738,7 +2738,7 @@ public sealed class PromptItemViewModel(PromptDefinition definition, HavenMode m
 internal static class CatalogVisibility
 {
     /// <summary>
-    /// Reports whether is allowed is true for the current state.
+    /// Reports whether allowed applies to the current state.
     /// </summary>
     public static bool IsAllowed(string json, HavenMode mode)
     {
@@ -2847,7 +2847,7 @@ public sealed record ToolActivityViewModel(string Title, string Detail, bool Suc
     /// </summary>
     public string ChangeLabel => LinesAdded == 0 && LinesRemoved == 0 ? string.Empty : $"+{LinesAdded}/-{LinesRemoved}";
     /// <summary>
-    /// Reports whether has changes is true for the current state.
+    /// Reports whether changes applies to the current state.
     /// </summary>
     public bool HasChanges => LinesAdded != 0 || LinesRemoved != 0;
 }
@@ -2871,7 +2871,7 @@ public sealed class AttachmentItemViewModel(string path)
     /// </summary>
     public string Name => System.IO.Path.GetFileName(path);
     /// <summary>
-    /// Reports whether is image is true for the current state.
+    /// Reports whether image applies to the current state.
     /// </summary>
     public bool IsImage => new[] { ".png", ".jpg", ".jpeg", ".webp", ".gif" }.Contains(System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
     /// <summary>

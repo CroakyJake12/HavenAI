@@ -71,7 +71,7 @@ public sealed partial class PlanView : UserControl
     }
 
     /// <summary>
-    /// Performs start drag async asynchronously so I/O does not block the caller's thread.
+    /// Performs start drag asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task StartDragAsync(PointerPressedEventArgs e, string value)
     {

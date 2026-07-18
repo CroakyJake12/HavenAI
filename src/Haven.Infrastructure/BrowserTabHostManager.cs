@@ -13,7 +13,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i browser tab session contract so callers depend on a capability rather than one implementation.
+/// Defines the browser tab session contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserTabSession : IDisposable
 {
@@ -102,11 +102,11 @@ public sealed class BrowserTabSession : IBrowserTabSession
     /// </summary>
     public BrowserTabPrivacy Privacy { get; }
     /// <summary>
-    /// Reports whether is loading is true for the current state.
+    /// Reports whether loading applies to the current state.
     /// </summary>
     public bool IsLoading { get => _isLoading; set => _isLoading = value; }
     /// <summary>
-    /// Reports whether is suspended is true for the current state.
+    /// Reports whether suspended applies to the current state.
     /// </summary>
     public bool IsSuspended { get => _isSuspended; private set => _isSuspended = value; }
     /// <summary>
@@ -118,16 +118,16 @@ public sealed class BrowserTabSession : IBrowserTabSession
     /// </summary>
     public IReadOnlyList<string> History => _history;
     /// <summary>
-    /// Reports whether can go back is true for the current state.
+    /// Reports whether go back applies to the current state.
     /// </summary>
     public bool CanGoBack => _historyIndex > 0;
     /// <summary>
-    /// Reports whether can go forward is true for the current state.
+    /// Reports whether go forward applies to the current state.
     /// </summary>
     public bool CanGoForward => _historyIndex < _history.Count - 1;
 
     /// <summary>
-    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task NavigateAsync(string url, CancellationToken cancellationToken)
     {
@@ -142,7 +142,7 @@ public sealed class BrowserTabSession : IBrowserTabSession
     }
 
     /// <summary>
-    /// Performs back async asynchronously so I/O does not block the caller's thread.
+    /// Performs back asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task BackAsync(CancellationToken cancellationToken)
     {
@@ -156,7 +156,7 @@ public sealed class BrowserTabSession : IBrowserTabSession
     }
 
     /// <summary>
-    /// Performs forward async asynchronously so I/O does not block the caller's thread.
+    /// Performs forward asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ForwardAsync(CancellationToken cancellationToken)
     {
@@ -170,7 +170,7 @@ public sealed class BrowserTabSession : IBrowserTabSession
     }
 
     /// <summary>
-    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// Performs reload asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ReloadAsync(CancellationToken cancellationToken)
     {
@@ -198,7 +198,7 @@ public sealed class BrowserTabSession : IBrowserTabSession
     }
 
     /// <summary>
-    /// Performs suspend async asynchronously so I/O does not block the caller's thread.
+    /// Performs suspend asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SuspendAsync()
     {
@@ -207,7 +207,7 @@ public sealed class BrowserTabSession : IBrowserTabSession
     }
 
     /// <summary>
-    /// Performs resume async asynchronously so I/O does not block the caller's thread.
+    /// Performs resume asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ResumeAsync()
     {
@@ -327,7 +327,7 @@ public sealed class BrowserTabHostManager : IBrowserTabHostManager
     }
 
     /// <summary>
-    /// Reports whether can complete async is true for the current state.
+    /// Reports whether complete async applies to the current state.
     /// </summary>
     public Task<bool> CanCompleteAsync(CancellationToken cancellationToken)
     {

@@ -46,7 +46,7 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
     }
 
     /// <summary>
-    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAsync(AutomationDefinition automation, CancellationToken cancellationToken)
     {
@@ -75,7 +75,7 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
 
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -105,7 +105,7 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
     }
 
     /// <summary>
-    /// Performs complete run async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete run asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task CompleteRunAsync(AutomationRun run, DateTimeOffset? nextRunAt, CancellationToken cancellationToken)
     {
@@ -164,7 +164,7 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
     }
 
     /// <summary>
-    /// Performs read automations async asynchronously so I/O does not block the caller's thread.
+    /// Performs read automations asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<AutomationDefinition>> ReadAutomationsAsync(Microsoft.Data.Sqlite.SqliteCommand command, CancellationToken cancellationToken)
     {

@@ -59,7 +59,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
     }
 
     /// <summary>
-    /// Performs upsert mode async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert mode asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertModeAsync(ModeDefinition mode, CancellationToken cancellationToken)
     {
@@ -127,7 +127,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
     }
 
     /// <summary>
-    /// Performs add version async asynchronously so I/O does not block the caller's thread.
+    /// Performs add version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddVersionAsync(ModeVersion version, CancellationToken cancellationToken)
     {
@@ -173,7 +173,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
     }
 
     /// <summary>
-    /// Performs upsert grant async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert grant asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertGrantAsync(ModePermissionGrant grant, CancellationToken cancellationToken)
     {

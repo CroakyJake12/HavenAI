@@ -28,7 +28,7 @@ internal static class RetrievalSchema
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     /// <summary>
-    /// Performs ensure async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task EnsureAsync(ISqliteConnectionFactory factory, CancellationToken cancellationToken)
     {
@@ -99,7 +99,7 @@ public sealed class LocalHashEmbeddingService : ITextEmbeddingService
     public int Dimensions => 384;
 
     /// <summary>
-    /// Performs embed async asynchronously so I/O does not block the caller's thread.
+    /// Performs embed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<float>> EmbedAsync(string text, CancellationToken cancellationToken)
     {
@@ -161,7 +161,7 @@ public sealed class RetrievalIndexService(
     private const int ChunkOverlap = 220;
 
     /// <summary>
-    /// Performs index text async asynchronously so I/O does not block the caller's thread.
+    /// Performs index text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<RetrievalDocument> IndexTextAsync(
         RetrievalScope scope,
@@ -236,7 +236,7 @@ public sealed class RetrievalIndexService(
     }
 
     /// <summary>
-    /// Performs remove source async asynchronously so I/O does not block the caller's thread.
+    /// Performs remove source asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RemoveSourceAsync(RetrievalScope scope, string sourceType, string sourceId, CancellationToken cancellationToken)
     {
@@ -266,7 +266,7 @@ public sealed class RetrievalIndexService(
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<RetrievalResult> SearchAsync(RetrievalQuery query, CancellationToken cancellationToken)
     {
@@ -335,7 +335,7 @@ public sealed class RetrievalIndexService(
     }
 
     /// <summary>
-    /// Performs find document async asynchronously so I/O does not block the caller's thread.
+    /// Performs find document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<RetrievalDocument?> FindDocumentAsync(RetrievalScope scope, string sourceType, string sourceId, CancellationToken cancellationToken)
     {
@@ -350,7 +350,7 @@ public sealed class RetrievalIndexService(
     }
 
     /// <summary>
-    /// Performs load candidates async asynchronously so I/O does not block the caller's thread.
+    /// Performs load candidates asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<CandidateChunk>> LoadCandidatesAsync(IReadOnlyList<RetrievalScope> scopes, CancellationToken cancellationToken)
     {
@@ -390,7 +390,7 @@ public sealed class RetrievalIndexService(
     }
 
     /// <summary>
-    /// Performs read documents async asynchronously so I/O does not block the caller's thread.
+    /// Performs read documents asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<RetrievalDocument>> ReadDocumentsAsync(SqliteCommand command, CancellationToken cancellationToken)
     {

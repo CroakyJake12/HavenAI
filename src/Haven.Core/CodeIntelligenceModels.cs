@@ -101,7 +101,7 @@ public sealed record CodeFormatPreview(
     DateTimeOffset CreatedAt)
 {
     /// <summary>
-    /// Reports whether has changes is true for the current state.
+    /// Reports whether changes applies to the current state.
     /// </summary>
     public bool HasChanges => !string.Equals(OriginalContent, FormattedContent, StringComparison.Ordinal);
 }

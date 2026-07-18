@@ -32,11 +32,11 @@ public sealed record ToolAvailabilityContext(
     bool AutomationHostAvailable)
 {
     /// <summary>
-    /// Reports whether has existing workspace is true for the current state.
+    /// Reports whether existing workspace applies to the current state.
     /// </summary>
     public bool HasExistingWorkspace => !string.IsNullOrWhiteSpace(WorkspaceRoot) && Directory.Exists(WorkspaceRoot);
     /// <summary>
-    /// Reports whether is plugin active is true for the current state.
+    /// Reports whether plugin active applies to the current state.
     /// </summary>
     public bool IsPluginActive(string name) => Plugins.Any(plugin => plugin.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 }
@@ -91,7 +91,7 @@ public sealed class ToolAvailabilityPlan
     /// </summary>
     public IReadOnlyList<OllamaToolDefinition> Definitions { get; }
     /// <summary>
-    /// Reports whether has runtime is true for the current state.
+    /// Reports whether runtime applies to the current state.
     /// </summary>
     public bool HasRuntime(ToolRuntimeKind runtime) => _routes.Values.Contains(runtime);
     /// <summary>
@@ -99,7 +99,7 @@ public sealed class ToolAvailabilityPlan
     /// </summary>
     public bool TryGetRuntime(string toolName, out ToolRuntimeKind runtime) => _routes.TryGetValue(toolName, out runtime);
     /// <summary>
-    /// Reports whether is plugin available is true for the current state.
+    /// Reports whether plugin available applies to the current state.
     /// </summary>
     public bool IsPluginAvailable(string pluginName) => !ContextualPluginNames.Contains(pluginName) || _availableContextualPlugins.Contains(pluginName);
     /// <summary>

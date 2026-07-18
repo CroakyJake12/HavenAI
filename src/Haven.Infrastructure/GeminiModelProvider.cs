@@ -42,16 +42,16 @@ public sealed class GeminiModelProvider(
     /// </summary>
     public ModelProviderKind Kind => ModelProviderKind.Gemini;
     /// <summary>
-    /// Reports whether is local is true for the current state.
+    /// Reports whether local applies to the current state.
     /// </summary>
     public bool IsLocal => false;
     /// <summary>
-    /// Reports whether can manage models is true for the current state.
+    /// Reports whether manage models applies to the current state.
     /// </summary>
     public bool CanManageModels => false;
 
     /// <summary>
-    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// Performs check health asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -123,7 +123,7 @@ public sealed class GeminiModelProvider(
     }
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
@@ -154,7 +154,7 @@ public sealed class GeminiModelProvider(
     }
 
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
@@ -171,7 +171,7 @@ public sealed class GeminiModelProvider(
     }
 
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {

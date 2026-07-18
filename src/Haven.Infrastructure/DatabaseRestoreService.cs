@@ -63,7 +63,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs request restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs request restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<PendingDatabaseRestore> RequestRestoreAsync(string backupFileName, CancellationToken cancellationToken)
     {
@@ -122,7 +122,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs apply pending restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply pending restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<DatabaseRestoreResult?> ApplyPendingRestoreAsync(CancellationToken cancellationToken)
     {
@@ -302,7 +302,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs read pending core async asynchronously so I/O does not block the caller's thread.
+    /// Performs read pending core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<PendingDatabaseRestore?> ReadPendingCoreAsync(CancellationToken cancellationToken)
     {
@@ -313,7 +313,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs read pending file core async asynchronously so I/O does not block the caller's thread.
+    /// Performs read pending file core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<PendingRestoreFile?> ReadPendingFileCoreAsync(CancellationToken cancellationToken)
     {
@@ -386,7 +386,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs checkpoint current database async asynchronously so I/O does not block the caller's thread.
+    /// Performs checkpoint current database asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CheckpointCurrentDatabaseAsync(CancellationToken cancellationToken)
     {
@@ -400,7 +400,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs verify database async asynchronously so I/O does not block the caller's thread.
+    /// Performs verify database asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<DatabaseHealthReport> VerifyDatabaseAsync(string path, CancellationToken cancellationToken)
     {
@@ -439,7 +439,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// Performs read schema version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
@@ -452,7 +452,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs read strings async asynchronously so I/O does not block the caller's thread.
+    /// Performs read strings asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<string>> ReadStringsAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
@@ -465,7 +465,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs read foreign keys async asynchronously so I/O does not block the caller's thread.
+    /// Performs read foreign keys asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<string>> ReadForeignKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
@@ -505,7 +505,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs quarantine pending async asynchronously so I/O does not block the caller's thread.
+    /// Performs quarantine pending asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task QuarantinePendingAsync(string reason, CancellationToken cancellationToken)
     {
@@ -527,7 +527,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs copy durably async asynchronously so I/O does not block the caller's thread.
+    /// Performs copy durably asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task CopyDurablyAsync(string source, string destination, CancellationToken cancellationToken)
     {
@@ -539,7 +539,7 @@ public sealed class DatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// Performs compute sha256 asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {

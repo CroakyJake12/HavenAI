@@ -19,7 +19,7 @@ namespace Haven.Infrastructure;
 public sealed class CallRepository(ISqliteConnectionFactory factory) : ICallRepository
 {
     /// <summary>
-    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAsync(CallSession session, CancellationToken cancellationToken)
     {
@@ -86,7 +86,7 @@ public sealed class CallRepository(ISqliteConnectionFactory factory) : ICallRepo
     }
 
     /// <summary>
-    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// Performs read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<CallSession>> ReadAsync(
         SqliteCommand command,

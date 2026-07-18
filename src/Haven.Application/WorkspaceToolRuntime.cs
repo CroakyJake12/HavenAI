@@ -138,7 +138,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs preview change set async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview change set asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<string> PreviewChangeSetAsync(string root, string json, CancellationToken cancellationToken)
     {
@@ -157,7 +157,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs list files async asynchronously so I/O does not block the caller's thread.
+    /// Performs list files asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<string> ListFilesAsync(string root, string relativePath, int maxDepth, CancellationToken cancellationToken)
     {
@@ -193,7 +193,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs read file async asynchronously so I/O does not block the caller's thread.
+    /// Performs read file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<string> ReadFileAsync(string root, string path, CancellationToken cancellationToken)
     {
@@ -207,7 +207,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs search files async asynchronously so I/O does not block the caller's thread.
+    /// Performs search files asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<string> SearchFilesAsync(string root, string relativePath, string query, int maxResults, CancellationToken cancellationToken)
     {
@@ -236,7 +236,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs write file async asynchronously so I/O does not block the caller's thread.
+    /// Performs write file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<WorkspaceMutation> WriteFileAsync(string root, string path, string content, CancellationToken cancellationToken)
     {
@@ -249,7 +249,7 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     }
 
     /// <summary>
-    /// Performs replace in file async asynchronously so I/O does not block the caller's thread.
+    /// Performs replace in file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<WorkspaceMutation> ReplaceInFileAsync(string root, string path, string oldText, string newText, bool replaceAll, CancellationToken cancellationToken)
     {

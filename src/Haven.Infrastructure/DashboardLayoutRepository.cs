@@ -50,7 +50,7 @@ public sealed class DashboardLayoutRepository(ISqliteConnectionFactory factory) 
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SaveAsync(IReadOnlyList<DashboardTileLayout> layout, CancellationToken cancellationToken)
     {
@@ -69,7 +69,7 @@ public sealed class DashboardLayoutRepository(ISqliteConnectionFactory factory) 
     }
 
     /// <summary>
-    /// Reports whether is valid is true for the current state.
+    /// Reports whether valid applies to the current state.
     /// </summary>
     private static bool IsValid(DashboardTileLayout item) =>
         item.Version == 1 && !string.IsNullOrWhiteSpace(item.Key) && item.Key.Length <= 100 &&

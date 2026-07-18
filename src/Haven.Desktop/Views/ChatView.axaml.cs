@@ -185,7 +185,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs load production state async asynchronously so I/O does not block the caller's thread.
+    /// Performs load production state asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadProductionStateAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
@@ -227,7 +227,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs save draft after delay async asynchronously so I/O does not block the caller's thread.
+    /// Performs save draft after delay asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveDraftAfterDelayAsync(CancellationToken cancellationToken)
     {
@@ -258,7 +258,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs ensure conversation saved async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure conversation saved asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EnsureConversationSavedAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
@@ -352,7 +352,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs import attachments async asynchronously so I/O does not block the caller's thread.
+    /// Performs import attachments asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ImportAttachmentsAsync(IEnumerable<string> sourcePaths)
     {
@@ -386,7 +386,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs add attachment representations async asynchronously so I/O does not block the caller's thread.
+    /// Performs add attachment representations asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AddAttachmentRepresentationsAsync(ChatPageViewModel viewModel, MessageAttachment attachment, CancellationToken cancellationToken)
     {
@@ -472,7 +472,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs associate pending attachments async asynchronously so I/O does not block the caller's thread.
+    /// Performs associate pending attachments asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AssociatePendingAttachmentsAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
     {
@@ -522,7 +522,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Performs paste into composer async asynchronously so I/O does not block the caller's thread.
+    /// Performs paste into composer asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PasteIntoComposerAsync(TextBox textBox)
     {
@@ -604,7 +604,7 @@ public sealed partial class ChatView : UserControl
     }
 
     /// <summary>
-    /// Reports whether is inside is true for the current state.
+    /// Reports whether inside applies to the current state.
     /// </summary>
     private static bool IsInside(string path, string root)
     {

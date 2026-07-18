@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i generative theme validator contract so callers depend on a capability rather than one implementation.
+/// Defines the generative theme validator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IGenerativeThemeValidator
 {
@@ -20,7 +20,7 @@ public interface IGenerativeThemeValidator
 }
 
 /// <summary>
-/// Defines the i generative theme store contract so callers depend on a capability rather than one implementation.
+/// Defines the generative theme store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IGenerativeThemeStore
 {
@@ -37,7 +37,7 @@ public interface IGenerativeThemeStore
 }
 
 /// <summary>
-/// Defines the i generative theme ai service contract so callers depend on a capability rather than one implementation.
+/// Defines the generative theme ai service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IGenerativeThemeAiService
 {
@@ -49,7 +49,7 @@ public interface IGenerativeThemeAiService
 }
 
 /// <summary>
-/// Defines the i generative ui runtime contract so callers depend on a capability rather than one implementation.
+/// Defines the generative ui runtime contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IGenerativeUiRuntime
 {

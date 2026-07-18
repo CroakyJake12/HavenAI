@@ -135,7 +135,7 @@ public sealed partial class BrowserView : UserControl
     private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs args) => _ = CleanupPrivateProfilesAsync();
 
     /// <summary>
-    /// Performs cleanup private profiles async asynchronously so I/O does not block the caller's thread.
+    /// Performs cleanup private profiles asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CleanupPrivateProfilesAsync()
     {
@@ -204,7 +204,7 @@ public sealed partial class BrowserView : UserControl
     }
 
     /// <summary>
-    /// Performs mount selected tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs mount selected tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MountSelectedTabAsync()
     {
@@ -371,7 +371,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     public BrowserSnapshot State => _state;
 
     /// <summary>
-    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task NavigateAsync(Uri address, CancellationToken cancellationToken)
     {
@@ -384,19 +384,19 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     }
 
     /// <summary>
-    /// Performs go back async asynchronously so I/O does not block the caller's thread.
+    /// Performs go back asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task GoBackAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoBack) _webView.GoBack(); return Task.CompletedTask; }
     /// <summary>
-    /// Performs go forward async asynchronously so I/O does not block the caller's thread.
+    /// Performs go forward asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task GoForwardAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); if (_webView.CanGoForward) _webView.GoForward(); return Task.CompletedTask; }
     /// <summary>
-    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// Performs reload asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ReloadAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Refresh(); return Task.CompletedTask; }
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); _webView.Stop(); return Task.CompletedTask; }
     /// <summary>
@@ -405,7 +405,7 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     public Task<string?> ExecuteScriptAsync(string script, CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return _webView.InvokeScript(script); }
 
     /// <summary>
-    /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs open developer tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task OpenDeveloperToolsAsync(CancellationToken cancellationToken)
     {

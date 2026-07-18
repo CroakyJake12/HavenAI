@@ -236,7 +236,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
         }
     }
     /// <summary>
-    /// Reports whether is expanded is true for the current state.
+    /// Reports whether expanded applies to the current state.
     /// </summary>
     public bool IsExpanded { get => _isExpanded; set { if (SetProperty(ref _isExpanded, value)) RaisePropertyChanged(nameof(ExpandLabel)); } }
     /// <summary>
@@ -252,7 +252,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     /// </summary>
     public DateTimeOffset? ShareExpiresAt { get => _shareExpiresAt; private set { if (SetProperty(ref _shareExpiresAt, value)) RaisePropertyChanged(nameof(ShareExpiryLabel)); } }
     /// <summary>
-    /// Reports whether has active share is true for the current state.
+    /// Reports whether active share applies to the current state.
     /// </summary>
     public bool HasActiveShare => _hasActiveShare;
     /// <summary>
@@ -260,16 +260,16 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     /// </summary>
     public string ShareExpiryLabel => ShareExpiresAt is null ? string.Empty : $"Expires {ShareExpiresAt.Value.LocalDateTime:g}";
     /// <summary>
-    /// Reports whether has search results is true for the current state.
+    /// Reports whether search results applies to the current state.
     /// </summary>
     public bool HasSearchResults => SearchResults.Count > 0;
     /// <summary>
-    /// Reports whether has cloud models is true for the current state.
+    /// Reports whether cloud models applies to the current state.
     /// </summary>
     public bool HasCloudModels => CloudModels.Count > 0;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -279,12 +279,12 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -364,7 +364,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs switch branch async asynchronously so I/O does not block the caller's thread.
+    /// Performs switch branch asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SwitchBranchAsync(ConversationBranchItemViewModel branch)
     {
@@ -387,7 +387,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchAsync()
     {
@@ -423,7 +423,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ExportAsync(ConversationExportFormat format)
     {
@@ -459,7 +459,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs start share async asynchronously so I/O does not block the caller's thread.
+    /// Performs start share asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartShareAsync()
     {
@@ -481,7 +481,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs stop share async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop share asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StopShareAsync()
     {
@@ -525,7 +525,7 @@ public sealed class ConversationProductionToolbarViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reports whether can use conversation is true for the current state.
+    /// Reports whether use conversation applies to the current state.
     /// </summary>
     private bool CanUseConversation() => ConversationId != Guid.Empty && !IsBusy;
 
@@ -569,7 +569,7 @@ public sealed class ConversationBranchItemViewModel(ConversationBranch branch) :
     /// </summary>
     public string CreatedLabel => branch.CreatedAt.LocalDateTime.ToString("g");
     /// <summary>
-    /// Reports whether is current is true for the current state.
+    /// Reports whether current applies to the current state.
     /// </summary>
     public bool IsCurrent { get => _isCurrent; set { if (SetProperty(ref _isCurrent, value)) RaisePropertyChanged(nameof(DisplayName)); } }
     /// <summary>

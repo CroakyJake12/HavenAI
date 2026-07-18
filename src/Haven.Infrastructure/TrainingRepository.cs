@@ -18,7 +18,7 @@ namespace Haven.Infrastructure;
 public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrainingRepository
 {
     /// <summary>
-    /// Performs upsert run async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert run asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertRunAsync(TrainingRun run, CancellationToken cancellationToken)
     {
@@ -81,7 +81,7 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
     }
 
     /// <summary>
-    /// Performs delete run async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete run asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteRunAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -93,7 +93,7 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
     }
 
     /// <summary>
-    /// Performs upsert attempt async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert attempt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAttemptAsync(TrainingAttempt attempt, CancellationToken cancellationToken)
     {

@@ -515,7 +515,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Performs search from box async asynchronously so I/O does not block the caller's thread.
+    /// Performs search from box asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchFromBoxAsync()
     {
@@ -585,7 +585,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Performs import document async asynchronously so I/O does not block the caller's thread.
+    /// Performs import document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ImportDocumentAsync()
     {
@@ -610,7 +610,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Performs export document async asynchronously so I/O does not block the caller's thread.
+    /// Performs export document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ExportDocumentAsync()
     {
@@ -641,7 +641,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Performs import media async asynchronously so I/O does not block the caller's thread.
+    /// Performs import media asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ImportMediaAsync()
     {

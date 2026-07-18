@@ -20,7 +20,7 @@ public sealed class RegenerationReplayService(
     ISqliteConnectionFactory factory)
 {
     /// <summary>
-    /// Performs prepare user replay async asynchronously so I/O does not block the caller's thread.
+    /// Performs prepare user replay asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PrepareUserReplayAsync(Guid conversationId, string userContent, CancellationToken cancellationToken)
     {

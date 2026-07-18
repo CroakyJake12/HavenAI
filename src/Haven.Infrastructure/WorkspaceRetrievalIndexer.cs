@@ -38,7 +38,7 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
     };
 
     /// <summary>
-    /// Performs index project async asynchronously so I/O does not block the caller's thread.
+    /// Performs index project asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<RetrievalIndexReport> IndexProjectAsync(Guid projectId, string rootPath, CancellationToken cancellationToken)
     {
@@ -95,7 +95,7 @@ public sealed class WorkspaceRetrievalIndexer(IRetrievalIndexService retrieval) 
     }
 
     /// <summary>
-    /// Performs index subject async asynchronously so I/O does not block the caller's thread.
+    /// Performs index subject asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<RetrievalIndexReport> IndexSubjectAsync(
         ContainerDefinition subject,

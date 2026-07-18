@@ -122,7 +122,7 @@ public sealed partial class App : Avalonia.Application
     }
 
     /// <summary>
-    /// Performs initialise async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialise asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InitialiseAsync(MainWindowViewModel vm)
     {
@@ -269,7 +269,7 @@ public sealed partial class App : Avalonia.Application
     }
 
     /// <summary>
-    /// Performs log exception async asynchronously so I/O does not block the caller's thread.
+    /// Performs log exception asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LogExceptionAsync(string eventName, Exception exception, string correlationId)
     {

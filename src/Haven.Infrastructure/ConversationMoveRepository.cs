@@ -18,7 +18,7 @@ namespace Haven.Infrastructure;
 public sealed class ConversationMoveRepository(ISqliteConnectionFactory factory) : IConversationMoveRepository
 {
     /// <summary>
-    /// Performs record move async asynchronously so I/O does not block the caller's thread.
+    /// Performs record move asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RecordMoveAsync(ConversationMove move, CancellationToken cancellationToken)
     {

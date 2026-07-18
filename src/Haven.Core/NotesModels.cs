@@ -622,7 +622,7 @@ public sealed class NotesTableRow
     /// </summary>
     public List<NotesTableCell> Cells { get; set; } = [];
     /// <summary>
-    /// Reports whether is header is true for the current state.
+    /// Reports whether header applies to the current state.
     /// </summary>
     public bool IsHeader { get; set; }
 }
@@ -975,7 +975,7 @@ public sealed class NotesInkStroke
     /// </summary>
     public double Opacity { get; set; } = 1;
     /// <summary>
-    /// Reports whether is ghost is true for the current state.
+    /// Reports whether ghost applies to the current state.
     /// </summary>
     public bool IsGhost { get; set; }
     /// <summary>
@@ -1045,7 +1045,7 @@ public sealed class NotesGhostLayer
     /// </summary>
     public NotesGhostRevealMode RevealMode { get; set; } = NotesGhostRevealMode.Tap;
     /// <summary>
-    /// Reports whether is revealed is true for the current state.
+    /// Reports whether revealed applies to the current state.
     /// </summary>
     public bool IsRevealed { get; set; }
     /// <summary>
@@ -1287,7 +1287,7 @@ public sealed class NotesField
     /// </summary>
     public string Format { get; set; } = string.Empty;
     /// <summary>
-    /// Reports whether is computed is true for the current state.
+    /// Reports whether computed applies to the current state.
     /// </summary>
     public bool IsComputed { get; set; }
 }
@@ -1657,7 +1657,7 @@ public sealed class NotesRecoveryState
     /// </summary>
     public string LastValidSha256 { get; set; } = string.Empty;
     /// <summary>
-    /// Reports whether has unsaved recovery is true for the current state.
+    /// Reports whether unsaved recovery applies to the current state.
     /// </summary>
     public bool HasUnsavedRecovery { get; set; }
     /// <summary>

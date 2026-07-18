@@ -22,7 +22,7 @@ namespace Haven.Browser;
 public sealed record BrowserSnapshot(Uri? Address, string Title, bool CanGoBack, bool CanGoForward, bool IsLoading, string Status);
 
 /// <summary>
-/// Defines the i embedded browser host contract so callers depend on a capability rather than one implementation.
+/// Defines the embedded browser host contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IEmbeddedBrowserHost
 {
@@ -79,7 +79,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     /// </summary>
     public string ProfileDirectory => paths.BrowserProfileDirectory;
     /// <summary>
-    /// Reports whether is interactive available is true for the current state.
+    /// Reports whether interactive available applies to the current state.
     /// </summary>
     public bool IsInteractiveAvailable => _host is not null;
     /// <summary>
@@ -114,7 +114,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> NavigateAsync(string value, CancellationToken cancellationToken)
     {
@@ -149,7 +149,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs back async asynchronously so I/O does not block the caller's thread.
+    /// Performs back asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> BackAsync(CancellationToken cancellationToken)
     {
@@ -158,7 +158,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs forward async asynchronously so I/O does not block the caller's thread.
+    /// Performs forward asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ForwardAsync(CancellationToken cancellationToken)
     {
@@ -167,16 +167,16 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// Performs reload asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ReloadAsync(CancellationToken cancellationToken) => RequireHost(x => x.ReloadAsync(cancellationToken));
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => RequireHost(x => x.StopAsync(cancellationToken));
 
     /// <summary>
-    /// Performs reload async asynchronously so I/O does not block the caller's thread.
+    /// Performs reload asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ReloadAsync(bool clearSiteCache, CancellationToken cancellationToken)
     {
@@ -190,7 +190,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs extract visible text async asynchronously so I/O does not block the caller's thread.
+    /// Performs extract visible text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExtractVisibleTextAsync(CancellationToken cancellationToken)
     {
@@ -200,12 +200,12 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs read visible text async asynchronously so I/O does not block the caller's thread.
+    /// Performs read visible text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ReadVisibleTextAsync(CancellationToken cancellationToken) => ExtractVisibleTextAsync(cancellationToken);
 
     /// <summary>
-    /// Performs capture structured page async asynchronously so I/O does not block the caller's thread.
+    /// Performs capture structured page asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPageSnapshot> CaptureStructuredPageAsync(CancellationToken cancellationToken)
     {
@@ -282,7 +282,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs click reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken)
     {
@@ -301,7 +301,7 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs fill reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken)
     {
@@ -332,37 +332,37 @@ public sealed class BrowserSessionService(IAppPaths paths) : IBrowserToolService
     }
 
     /// <summary>
-    /// Performs click async asynchronously so I/O does not block the caller's thread.
+    /// Performs click asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ClickAsync(string selector, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const e = document.querySelector({JavaScriptString(selector)}); if (!e) return 'not-found'; e.click(); return 'clicked'; }})()", cancellationToken)).ConfigureAwait(false));
 
     /// <summary>
-    /// Performs click text async asynchronously so I/O does not block the caller's thread.
+    /// Performs click text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ClickTextAsync(string text, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const wanted={JavaScriptString(text)}.toLowerCase(); const e=[...document.querySelectorAll('a,button,[role=button],input[type=submit]')].find(x=>(x.innerText||x.value||'').trim().toLowerCase().includes(wanted)); if(!e)return 'not-found'; e.scrollIntoView({{block:'center'}}); e.click(); return 'clicked '+(e.innerText||e.value||'').trim(); }})()", cancellationToken)).ConfigureAwait(false));
 
     /// <summary>
-    /// Performs fill async asynchronously so I/O does not block the caller's thread.
+    /// Performs fill asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> FillAsync(string selector, string value, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(x => x.ExecuteScriptAsync($"(() => {{ const e = document.querySelector({JavaScriptString(selector)}); if (!e) return 'not-found'; e.focus(); e.value = {JavaScriptString(value)}; e.dispatchEvent(new Event('input', {{bubbles:true}})); e.dispatchEvent(new Event('change', {{bubbles:true}})); return 'filled'; }})()", cancellationToken)).ConfigureAwait(false));
 
     /// <summary>
-    /// Performs scroll async asynchronously so I/O does not block the caller's thread.
+    /// Performs scroll asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ScrollAsync(double x, double y, CancellationToken cancellationToken) =>
         UnwrapJavaScriptString(await RequireHost(xHost => xHost.ExecuteScriptAsync($"window.scrollBy({x.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {y.ToString(System.Globalization.CultureInfo.InvariantCulture)}); 'scrolled'", cancellationToken)).ConfigureAwait(false));
 
     /// <summary>
-    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// Performs print asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PrintAsync(CancellationToken cancellationToken) =>
         _ = await RequireHost(x => x.ExecuteScriptAsync("window.print(); 'print-opened'", cancellationToken)).ConfigureAwait(false);
 
     /// <summary>
-    /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs open developer tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task OpenDeveloperToolsAsync(CancellationToken cancellationToken) => RequireHost(x => x.OpenDeveloperToolsAsync(cancellationToken));
 

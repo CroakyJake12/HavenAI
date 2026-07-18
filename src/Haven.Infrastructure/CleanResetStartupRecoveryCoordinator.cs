@@ -26,19 +26,19 @@ public sealed class CleanResetStartupRecoveryCoordinator(
     public StartupRecoveryState Current => inner.Current;
 
     /// <summary>
-    /// Performs begin startup async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin startup asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<StartupRecoveryState> BeginStartupAsync(CancellationToken cancellationToken) =>
         inner.BeginStartupAsync(cancellationToken);
 
     /// <summary>
-    /// Performs mark startup completed async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark startup completed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task MarkStartupCompletedAsync(CancellationToken cancellationToken) =>
         inner.MarkStartupCompletedAsync(cancellationToken);
 
     /// <summary>
-    /// Performs mark clean shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark clean shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task MarkCleanShutdownAsync(CancellationToken cancellationToken)
     {

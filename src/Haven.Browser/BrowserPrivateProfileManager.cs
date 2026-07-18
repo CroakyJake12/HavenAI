@@ -96,7 +96,7 @@ public sealed class BrowserPrivateProfileManager
     }
 
     /// <summary>
-    /// Performs cleanup async asynchronously so I/O does not block the caller's thread.
+    /// Performs cleanup asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task CleanupAsync(Guid tabId, CancellationToken cancellationToken)
     {
@@ -118,7 +118,7 @@ public sealed class BrowserPrivateProfileManager
     }
 
     /// <summary>
-    /// Performs cleanup orphans async asynchronously so I/O does not block the caller's thread.
+    /// Performs cleanup orphans asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<int> CleanupOrphansAsync(IReadOnlySet<Guid> activeTabIds, CancellationToken cancellationToken)
     {
@@ -163,7 +163,7 @@ public sealed class BrowserPrivateProfileManager
     }
 
     /// <summary>
-    /// Performs quarantine and delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs quarantine and delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task QuarantineAndDeleteAsync(string path, CancellationToken cancellationToken)
     {
@@ -194,7 +194,7 @@ public sealed class BrowserPrivateProfileManager
     }
 
     /// <summary>
-    /// Performs delete pending tombstones async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete pending tombstones asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeletePendingTombstonesAsync(
         CancellationToken cancellationToken,
@@ -250,7 +250,7 @@ public sealed class BrowserPrivateProfileManager
     }
 
     /// <summary>
-    /// Performs delete directory if present async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete directory if present asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task DeleteDirectoryIfPresentAsync(string path, CancellationToken cancellationToken)
     {

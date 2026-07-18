@@ -135,7 +135,7 @@ public sealed class ProductionCodeIntelligenceService(
     }
 
     /// <summary>
-    /// Performs search symbols async asynchronously so I/O does not block the caller's thread.
+    /// Performs search symbols asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<CodeSymbol>> SearchSymbolsAsync(
         string workspaceRoot,
@@ -178,7 +178,7 @@ public sealed class ProductionCodeIntelligenceService(
     }
 
     /// <summary>
-    /// Performs preview format async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<CodeFormatPreview> PreviewFormatAsync(
         string workspaceRoot,
@@ -222,7 +222,7 @@ public sealed class ProductionCodeIntelligenceService(
     }
 
     /// <summary>
-    /// Performs apply format async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply format asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<CodeFormatApplyResult> ApplyFormatAsync(
         string workspaceRoot,
@@ -343,7 +343,7 @@ public sealed class ProductionCodeIntelligenceService(
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
 
     /// <summary>
-    /// Reports whether is within root is true for the current state.
+    /// Reports whether within root applies to the current state.
     /// </summary>
     private static bool IsWithinRoot(string root, string path)
     {

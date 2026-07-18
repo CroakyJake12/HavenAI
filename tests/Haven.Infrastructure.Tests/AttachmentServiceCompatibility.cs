@@ -23,7 +23,7 @@ internal sealed class SafeMessageAttachmentService(
     MessageAttachmentService inner) : IMessageAttachmentService
 {
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<MessageAttachment> ImportAsync(
         Guid conversationId,
@@ -45,7 +45,7 @@ internal sealed class SafeMessageAttachmentService(
         inner.BuildPromptContextAsync(conversationId, attachmentIds, options, cancellationToken);
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(attachmentId, cancellationToken);

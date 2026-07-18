@@ -23,7 +23,7 @@ public sealed partial class ChatView
     private Guid _recoveredDraftAttachmentConversationId;
 
     /// <summary>
-    /// Performs recover draft attachments async asynchronously so I/O does not block the caller's thread.
+    /// Performs recover draft attachments asynchronously so I/O does not block the caller's thread.
     /// </summary>
     internal async Task RecoverDraftAttachmentsAsync(CancellationToken cancellationToken)
     {

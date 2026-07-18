@@ -107,7 +107,7 @@ public sealed class AppDiagnostics : IAppDiagnostics
     }
 
     /// <summary>
-    /// Performs record error async asynchronously so I/O does not block the caller's thread.
+    /// Performs record error asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RecordErrorAsync(string component, string error, string? detail, CancellationToken cancellationToken)
     {

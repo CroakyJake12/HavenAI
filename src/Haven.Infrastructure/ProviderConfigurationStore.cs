@@ -112,7 +112,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAsync(ProviderConfiguration configuration, CancellationToken cancellationToken)
     {
@@ -136,7 +136,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(string providerId, CancellationToken cancellationToken)
     {
@@ -157,7 +157,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Performs load unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs load unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<ProviderConfiguration>> LoadUnsafeAsync(CancellationToken cancellationToken)
     {
@@ -171,7 +171,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Performs read and normalize async asynchronously so I/O does not block the caller's thread.
+    /// Performs read and normalize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<ProviderConfiguration>?> ReadAndNormalizeAsync(
         string path,
@@ -241,7 +241,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Performs save unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs save unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveUnsafeAsync(
         IReadOnlyList<ProviderConfiguration> configurations,
@@ -358,7 +358,7 @@ public sealed class ProviderConfigurationStore : IProviderConfigurationStore, ID
     }
 
     /// <summary>
-    /// Reports whether is local network host is true for the current state.
+    /// Reports whether local network host applies to the current state.
     /// </summary>
     private static bool IsLocalNetworkHost(string host)
     {

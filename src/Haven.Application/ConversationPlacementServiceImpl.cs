@@ -46,7 +46,7 @@ public sealed class ConversationPlacementService : IConversationPlacementService
     }
 
     /// <summary>
-    /// Performs move async asynchronously so I/O does not block the caller's thread.
+    /// Performs move asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ConversationPlacementResult> MoveAsync(
         Guid conversationId,
@@ -109,7 +109,7 @@ public sealed class ConversationPlacementService : IConversationPlacementService
     }
 
     /// <summary>
-    /// Performs undo async asynchronously so I/O does not block the caller's thread.
+    /// Performs undo asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ConversationPlacementResult> UndoAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -178,7 +178,7 @@ public sealed class ConversationPlacementService : IConversationPlacementService
     }
 
     /// <summary>
-    /// Performs find mode id async asynchronously so I/O does not block the caller's thread.
+    /// Performs find mode id asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<Guid?> FindModeIdAsync(HavenMode mode, CancellationToken cancellationToken)
     {

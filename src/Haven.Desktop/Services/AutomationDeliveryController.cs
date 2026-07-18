@@ -42,7 +42,7 @@ public sealed class AutomationDeliveryController(
     private bool _disposed;
 
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -73,7 +73,7 @@ public sealed class AutomationDeliveryController(
     }
 
     /// <summary>
-    /// Performs drain async asynchronously so I/O does not block the caller's thread.
+    /// Performs drain asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DrainAsync(CancellationToken cancellationToken)
     {
@@ -119,7 +119,7 @@ public sealed class AutomationDeliveryController(
     }
 
     /// <summary>
-    /// Performs requeue async asynchronously so I/O does not block the caller's thread.
+    /// Performs requeue asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RequeueAsync(
         IReadOnlyList<AutomationDelivery> deliveries,
@@ -164,7 +164,7 @@ public sealed class AutomationDeliveryController(
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

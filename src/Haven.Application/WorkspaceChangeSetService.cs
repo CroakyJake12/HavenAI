@@ -45,7 +45,7 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
     private const int MaxContentCharacters = 2_000_000;
 
     /// <summary>
-    /// Performs preview async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<WorkspaceChangePreview>> PreviewAsync(
         string workspaceRoot,
@@ -63,7 +63,7 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
     }
 
     /// <summary>
-    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<WorkspaceChangeSetResult> ApplyAsync(
         string workspaceRoot,
@@ -100,7 +100,7 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
     }
 
     /// <summary>
-    /// Performs prepare async asynchronously so I/O does not block the caller's thread.
+    /// Performs prepare asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<PreparedChange>> PrepareAsync(
         string workspaceRoot,
@@ -144,7 +144,7 @@ public sealed class WorkspaceChangeSetService(IWorkspaceToolService tools)
     }
 
     /// <summary>
-    /// Performs roll back async asynchronously so I/O does not block the caller's thread.
+    /// Performs roll back asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RollBackAsync(string workspaceRoot, IReadOnlyList<PreparedChange> applied)
     {

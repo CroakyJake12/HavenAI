@@ -43,7 +43,7 @@ public sealed partial class ConversationMessageToolsView : UserControl
     public event Action<string>? RegenerationRequested;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task LoadAsync(Guid conversationId, CancellationToken cancellationToken) =>
         _viewModel?.LoadAsync(conversationId, cancellationToken) ?? Task.CompletedTask;

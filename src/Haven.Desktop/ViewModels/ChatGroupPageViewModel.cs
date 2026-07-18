@@ -152,11 +152,11 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     /// </summary>
     public string LastActivityLabel => LastActivity is null ? "No activity yet" : $"Active {LastActivity.Value.LocalDateTime:g}";
     /// <summary>
-    /// Reports whether has recent chats is true for the current state.
+    /// Reports whether recent chats applies to the current state.
     /// </summary>
     public bool HasRecentChats => RecentChats.Count > 0;
     /// <summary>
-    /// Reports whether has resources is true for the current state.
+    /// Reports whether resources applies to the current state.
     /// </summary>
     public bool HasResources => Resources.Count > 0;
 
@@ -194,17 +194,17 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     public AsyncRelayCommand<ContainerResourceItemViewModel> RemoveResourceCommand { get; }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken) => await RefreshAsync(cancellationToken);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshAsync() => await RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -235,7 +235,7 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs add references async asynchronously so I/O does not block the caller's thread.
+    /// Performs add references asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddReferencesAsync(IEnumerable<string> paths, CancellationToken cancellationToken)
     {
@@ -263,7 +263,7 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete permanently async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete permanently asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeletePermanentlyAsync(CancellationToken cancellationToken)
     {
@@ -275,7 +275,7 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs remove resource async asynchronously so I/O does not block the caller's thread.
+    /// Performs remove resource asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RemoveResourceAsync(ContainerResourceItemViewModel? item)
     {
@@ -287,7 +287,7 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs archive async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveAsync()
     {
@@ -317,7 +317,7 @@ public sealed record ChatGroupConversationViewModel(Conversation Definition)
     /// </summary>
     public string UpdatedLabel => Definition.UpdatedAt.LocalDateTime.ToString("g");
     /// <summary>
-    /// Reports whether is pinned is true for the current state.
+    /// Reports whether pinned applies to the current state.
     /// </summary>
     public bool IsPinned => Definition.IsPinned;
 }

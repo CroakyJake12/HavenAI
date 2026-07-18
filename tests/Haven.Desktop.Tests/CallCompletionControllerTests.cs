@@ -85,15 +85,15 @@ public sealed class CallCompletionControllerTests
         /// </summary>
         public CallCapabilities Capabilities { get; } = new(false, false, false, null, null, null, [], [], []);
         /// <summary>
-        /// Reports whether is active is true for the current state.
+        /// Reports whether active applies to the current state.
         /// </summary>
         public bool IsActive => false;
         /// <summary>
-        /// Reports whether is muted is true for the current state.
+        /// Reports whether muted applies to the current state.
         /// </summary>
         public bool IsMuted => false;
         /// <summary>
-        /// Reports whether is screen sharing is true for the current state.
+        /// Reports whether screen sharing applies to the current state.
         /// </summary>
         public bool IsScreenSharing => false;
         /// <summary>
@@ -113,51 +113,51 @@ public sealed class CallCompletionControllerTests
         /// </summary>
         public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged { add { } remove { } }
         /// <summary>
-        /// Performs start async asynchronously so I/O does not block the caller's thread.
+        /// Performs start asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<CallSession> StartAsync(CallStartOptions options, SpeechModelInfo? speechModel, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs submit text async asynchronously so I/O does not block the caller's thread.
+        /// Performs submit text asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SubmitTextAsync(string text, CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+        /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task BeginPushToTalkAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+        /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EndPushToTalkAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs set muted async asynchronously so I/O does not block the caller's thread.
+        /// Performs set muted asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SetMutedAsync(bool muted, CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs pause async asynchronously so I/O does not block the caller's thread.
+        /// Performs pause asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task PauseAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs resume async asynchronously so I/O does not block the caller's thread.
+        /// Performs resume asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task ResumeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs start screen share async asynchronously so I/O does not block the caller's thread.
+        /// Performs start screen share asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StartScreenShareAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs stop screen share async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop screen share asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopScreenShareAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs interrupt async asynchronously so I/O does not block the caller's thread.
+        /// Performs interrupt asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task InterruptAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs end async asynchronously so I/O does not block the caller's thread.
+        /// Performs end asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EndAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// Performs dispose asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
@@ -191,7 +191,7 @@ public sealed class CallCompletionControllerTests
         public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ChatMessage>>(Messages.Where(item => item.ConversationId == conversationId).ToArray());
         /// <summary>
-        /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertConversationAsync(Conversation value, CancellationToken cancellationToken)
         {
@@ -199,7 +199,7 @@ public sealed class CallCompletionControllerTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs add message async asynchronously so I/O does not block the caller's thread.
+        /// Performs add message asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
         {
@@ -207,7 +207,7 @@ public sealed class CallCompletionControllerTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -226,7 +226,7 @@ public sealed class CallCompletionControllerTests
         /// </summary>
         public OllamaChatRequest? LastRequest { get; private set; }
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -235,7 +235,7 @@ public sealed class CallCompletionControllerTests
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -243,7 +243,7 @@ public sealed class CallCompletionControllerTests
             yield return response;
         }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
         {
@@ -252,7 +252,7 @@ public sealed class CallCompletionControllerTests
             return Task.FromResult(response);
         }
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(response, []));
@@ -268,7 +268,7 @@ public sealed class CallCompletionControllerTests
         /// </summary>
         public List<ReliabilityEvent> Events { get; } = [];
         /// <summary>
-        /// Performs write async asynchronously so I/O does not block the caller's thread.
+        /// Performs write asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask WriteAsync(
             ReliabilitySeverity severity,
@@ -285,12 +285,12 @@ public sealed class CallCompletionControllerTests
             return ValueTask.CompletedTask;
         }
         /// <summary>
-        /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+        /// Performs read recent asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ReliabilityEvent>>(Events.Take(limit).ToArray());
         /// <summary>
-        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// Performs dispose asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

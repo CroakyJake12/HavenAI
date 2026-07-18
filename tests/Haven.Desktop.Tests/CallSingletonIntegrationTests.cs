@@ -107,7 +107,7 @@ public sealed class CallSingletonIntegrationTests
     private sealed class FakeSpeechOutput : ISpeechOutputService
     {
         /// <summary>
-        /// Reports whether is available is true for the current state.
+        /// Reports whether available applies to the current state.
         /// </summary>
         public bool IsAvailable { get; set; } = true;
         /// <summary>
@@ -148,7 +148,7 @@ public sealed class CallSingletonIntegrationTests
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
-        /// Performs speak async asynchronously so I/O does not block the caller's thread.
+        /// Performs speak asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken)
         {
@@ -160,7 +160,7 @@ public sealed class CallSingletonIntegrationTests
         }
 
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -180,7 +180,7 @@ public sealed class CallSingletonIntegrationTests
         public List<ReliabilityEvent> Events { get; } = [];
 
         /// <summary>
-        /// Performs write async asynchronously so I/O does not block the caller's thread.
+        /// Performs write asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask WriteAsync(
             ReliabilitySeverity severity,
@@ -204,13 +204,13 @@ public sealed class CallSingletonIntegrationTests
         }
 
         /// <summary>
-        /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+        /// Performs read recent asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ReliabilityEvent>>(Events.Take(limit).ToArray());
 
         /// <summary>
-        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// Performs dispose asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

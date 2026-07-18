@@ -23,7 +23,7 @@ public sealed record NotesMigrationResult(
     IReadOnlyList<string> Changes);
 
 /// <summary>
-/// Defines the i notes document migrator contract so callers depend on a capability rather than one implementation.
+/// Defines the notes document migrator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface INotesDocumentMigrator
 {
@@ -50,7 +50,7 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
     };
 
     /// <summary>
-    /// Performs read and migrate async asynchronously so I/O does not block the caller's thread.
+    /// Performs read and migrate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesMigrationResult> ReadAndMigrateAsync(
         string path,

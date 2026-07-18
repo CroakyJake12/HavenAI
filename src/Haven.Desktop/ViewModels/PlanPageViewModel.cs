@@ -307,7 +307,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
     /// <summary>
@@ -351,7 +351,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public string SelectedCollectionName { get => _selectedCollectionName; set { if (SetProperty(ref _selectedCollectionName, value)) RenameCollectionCommand.RaiseCanExecuteChanged(); } }
     /// <summary>
-    /// Reports whether is archive collection confirming is true for the current state.
+    /// Reports whether archive collection confirming applies to the current state.
     /// </summary>
     public bool IsArchiveCollectionConfirming { get => _isArchiveCollectionConfirming; private set => SetProperty(ref _isArchiveCollectionConfirming, value); }
     /// <summary>
@@ -359,7 +359,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public PlannerTaskEditorViewModel? TaskEditor { get => _taskEditor; private set { if (SetProperty(ref _taskEditor, value)) RaisePropertyChanged(nameof(HasTaskEditor)); } }
     /// <summary>
-    /// Reports whether has task editor is true for the current state.
+    /// Reports whether task editor applies to the current state.
     /// </summary>
     public bool HasTaskEditor => TaskEditor is not null;
     /// <summary>
@@ -367,7 +367,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public PlannerEventEditorViewModel? EventEditor { get => _eventEditor; private set { if (SetProperty(ref _eventEditor, value)) RaisePropertyChanged(nameof(HasEventEditor)); } }
     /// <summary>
-    /// Reports whether has event editor is true for the current state.
+    /// Reports whether event editor applies to the current state.
     /// </summary>
     public bool HasEventEditor => EventEditor is not null;
     public PlannerChangeProposal? PendingProposal
@@ -382,7 +382,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         }
     }
     /// <summary>
-    /// Reports whether has pending proposal is true for the current state.
+    /// Reports whether pending proposal applies to the current state.
     /// </summary>
     public bool HasPendingProposal => PendingProposal is not null;
     /// <summary>
@@ -390,7 +390,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// </summary>
     public string PendingProposalSummary => PendingProposal?.Summary ?? string.Empty;
     /// <summary>
-    /// Reports whether has conflicts is true for the current state.
+    /// Reports whether conflicts applies to the current state.
     /// </summary>
     public bool HasConflicts => Conflicts.Count > 0;
 
@@ -524,13 +524,13 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     public RelayCommand CloseEventEditorCommand { get; }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshAsync()
         => await RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs activate async asynchronously so I/O does not block the caller's thread.
+    /// Performs activate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ActivateAsync(CancellationToken cancellationToken)
     {
@@ -552,7 +552,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync(CancellationToken outerCancellationToken)
     {
@@ -656,7 +656,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs complete task async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CompleteTaskAsync(PlannerTaskItemViewModel? item)
     {
@@ -666,7 +666,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs start task async asynchronously so I/O does not block the caller's thread.
+    /// Performs start task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartTaskAsync(PlannerTaskItemViewModel? item)
     {
@@ -680,7 +680,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs move task to status async asynchronously so I/O does not block the caller's thread.
+    /// Performs move task to status asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MoveTaskToStatusAsync(Guid taskId, PlannerTaskStatus status)
     {
@@ -696,7 +696,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs reschedule task async asynchronously so I/O does not block the caller's thread.
+    /// Performs reschedule task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RescheduleTaskAsync(Guid taskId, DateTimeOffset day)
     {
@@ -716,7 +716,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs reschedule event async asynchronously so I/O does not block the caller's thread.
+    /// Performs reschedule event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RescheduleEventAsync(Guid eventId, DateTimeOffset day)
     {
@@ -734,7 +734,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs delete task async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete task asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteTaskAsync(PlannerTaskItemViewModel? item)
     {
@@ -744,7 +744,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Reports whether can create event is true for the current state.
+    /// Reports whether create event applies to the current state.
     /// </summary>
     private bool CanCreateEvent() => SelectedCalendar is not null && !string.IsNullOrWhiteSpace(NewEventTitle) && NewEventDate is not null && NewEventStart is not null && NewEventEnd is not null && NewEventEnd > NewEventStart;
 
@@ -769,7 +769,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs delete event async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteEventAsync(PlannerEventItemViewModel? item)
     {
@@ -779,7 +779,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs ask ai async asynchronously so I/O does not block the caller's thread.
+    /// Performs ask ai asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AskAiAsync()
     {
@@ -817,7 +817,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs apply proposal async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply proposal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyProposalAsync()
     {
@@ -844,7 +844,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs connect provider async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect provider asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConnectProviderAsync(CalendarProviderItemViewModel? item)
     {
@@ -871,7 +871,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs sync provider async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync provider asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SyncProviderAsync(CalendarProviderItemViewModel? item)
     {
@@ -886,7 +886,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs disconnect provider async asynchronously so I/O does not block the caller's thread.
+    /// Performs disconnect provider asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DisconnectProviderAsync(CalendarProviderItemViewModel? item)
     {
@@ -904,7 +904,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs sync connected calendars async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync connected calendars asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SyncConnectedCalendarsAsync()
     {
@@ -941,7 +941,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs resolve conflict async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve conflict asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ResolveConflictAsync(CalendarConflictItemViewModel? item, CalendarConflictResolution resolution)
     {
@@ -979,7 +979,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs rename collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs rename collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RenameCollectionAsync()
     {
@@ -994,7 +994,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs archive collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveCollectionAsync()
     {
@@ -1012,7 +1012,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs move collection async asynchronously so I/O does not block the caller's thread.
+    /// Performs move collection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MoveCollectionAsync(PlannerCollectionItemViewModel? item, int direction)
     {
@@ -1042,7 +1042,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     }
 
     /// <summary>
-    /// Performs add subtask async asynchronously so I/O does not block the caller's thread.
+    /// Performs add subtask asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AddSubtaskAsync(PlannerTaskItemViewModel? parent)
     {
@@ -1223,7 +1223,7 @@ public sealed class PlannerTaskItemViewModel(PlannerTask definition, string coll
         definition.EstimatedMinutes is null ? null : $"{definition.EstimatedMinutes} min"
     }.Where(value => value is not null));
     /// <summary>
-    /// Reports whether is recurring is true for the current state.
+    /// Reports whether recurring applies to the current state.
     /// </summary>
     public bool IsRecurring => !string.IsNullOrWhiteSpace(definition.RecurrenceRule);
 }
@@ -1393,7 +1393,7 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
     public RelayCommand ClearParentCommand { get; }
 
     /// <summary>
-    /// Performs load parents async asynchronously so I/O does not block the caller's thread.
+    /// Performs load parents asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadParentsAsync()
     {
@@ -1409,7 +1409,7 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -1492,11 +1492,11 @@ public sealed class PlannerEventItemViewModel(PlannerEvent definition)
     /// </summary>
     public string Detail => string.IsNullOrWhiteSpace(definition.Location) ? Time : $"{Time} · {definition.Location}";
     /// <summary>
-    /// Reports whether is read only is true for the current state.
+    /// Reports whether read only applies to the current state.
     /// </summary>
     public bool IsReadOnly => definition.IsReadOnly;
     /// <summary>
-    /// Reports whether can delete is true for the current state.
+    /// Reports whether delete applies to the current state.
     /// </summary>
     public bool CanDelete => !definition.IsReadOnly;
 }
@@ -1583,11 +1583,11 @@ public sealed class PlannerEventEditorViewModel : ObservableObject
     /// </summary>
     public PlannerEvent Definition { get; }
     /// <summary>
-    /// Reports whether is read only is true for the current state.
+    /// Reports whether read only applies to the current state.
     /// </summary>
     public bool IsReadOnly => Definition.IsReadOnly;
     /// <summary>
-    /// Reports whether can save is true for the current state.
+    /// Reports whether save applies to the current state.
     /// </summary>
     public bool CanSave => !Definition.IsReadOnly;
     /// <summary>
@@ -1615,7 +1615,7 @@ public sealed class PlannerEventEditorViewModel : ObservableObject
     /// </summary>
     public TimeSpan? EndTime { get => _endTime; set => SetProperty(ref _endTime, value); }
     /// <summary>
-    /// Reports whether is all day is true for the current state.
+    /// Reports whether all day applies to the current state.
     /// </summary>
     public bool IsAllDay { get => _isAllDay; set => SetProperty(ref _isAllDay, value); }
     /// <summary>
@@ -1640,7 +1640,7 @@ public sealed class PlannerEventEditorViewModel : ObservableObject
     public AsyncRelayCommand SaveCommand { get; }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -1728,11 +1728,11 @@ public sealed class PlannerCalendarDayViewModel(DateTimeOffset date, bool isCurr
     /// </summary>
     public string DayNumber => date.Day.ToString(System.Globalization.CultureInfo.InvariantCulture);
     /// <summary>
-    /// Reports whether is current month is true for the current state.
+    /// Reports whether current month applies to the current state.
     /// </summary>
     public bool IsCurrentMonth => isCurrentMonth;
     /// <summary>
-    /// Reports whether is today is true for the current state.
+    /// Reports whether today applies to the current state.
     /// </summary>
     public bool IsToday => date.Date == DateTimeOffset.Now.Date;
     /// <summary>
@@ -1784,7 +1784,7 @@ public sealed class CalendarProviderItemViewModel : ObservableObject
     /// </summary>
     public CalendarSyncStatus SyncStatus { get => _syncStatus; private set => SetProperty(ref _syncStatus, value); }
     /// <summary>
-    /// Reports whether is configured is true for the current state.
+    /// Reports whether configured applies to the current state.
     /// </summary>
     public bool IsConfigured => Provider.IsConfigured;
 

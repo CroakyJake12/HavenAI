@@ -444,7 +444,7 @@ public sealed partial class MarkdownView : UserControl
     }
 
     /// <summary>
-    /// Reports whether is rule is true for the current state.
+    /// Reports whether rule applies to the current state.
     /// </summary>
     private static bool IsRule(string line)
     {
@@ -453,7 +453,7 @@ public sealed partial class MarkdownView : UserControl
     }
 
     /// <summary>
-    /// Reports whether is table header is true for the current state.
+    /// Reports whether table header applies to the current state.
     /// </summary>
     private static bool IsTableHeader(string[] lines, int index) =>
         index + 1 < lines.Length && lines[index].Contains('|') && TableDividerPattern().IsMatch(lines[index + 1]);

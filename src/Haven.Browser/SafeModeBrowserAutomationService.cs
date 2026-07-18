@@ -20,31 +20,31 @@ public sealed class SafeModeBrowserAutomationService(
     IProductionDiagnostics diagnostics) : IBrowserAutomationService
 {
     /// <summary>
-    /// Performs capture page async asynchronously so I/O does not block the caller's thread.
+    /// Performs capture page asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken) =>
         ExecuteAsync("capture", token => inner.CapturePageAsync(token), cancellationToken);
 
     /// <summary>
-    /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> NavigateAsync(string address, CancellationToken cancellationToken) =>
         ExecuteAsync("navigate", token => inner.NavigateAsync(address, token), cancellationToken);
 
     /// <summary>
-    /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs click reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken) =>
         ExecuteAsync("click", token => inner.ClickReferenceAsync(reference, token), cancellationToken);
 
     /// <summary>
-    /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+    /// Performs fill reference asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken) =>
         ExecuteAsync("fill", token => inner.FillReferenceAsync(reference, value, token), cancellationToken);
 
     /// <summary>
-    /// Performs request download async asynchronously so I/O does not block the caller's thread.
+    /// Performs request download asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<BrowserPendingAction> RequestDownloadAsync(
         string address,
@@ -53,7 +53,7 @@ public sealed class SafeModeBrowserAutomationService(
         ExecuteAsync("download-request", token => inner.RequestDownloadAsync(address, suggestedFileName, token), cancellationToken);
 
     /// <summary>
-    /// Performs approve async asynchronously so I/O does not block the caller's thread.
+    /// Performs approve asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken) =>
         ExecuteAsync("approve", token => inner.ApproveAsync(actionId, token), cancellationToken);
@@ -61,7 +61,7 @@ public sealed class SafeModeBrowserAutomationService(
     // Rejecting an old pending action is deliberately allowed in safe mode. It cannot
     // create a browser/network side effect and lets the user clean up interrupted work.
     /// <summary>
-    /// Performs reject async asynchronously so I/O does not block the caller's thread.
+    /// Performs reject asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken) =>
         inner.RejectAsync(actionId, cancellationToken);

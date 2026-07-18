@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i browser navigation policy contract so callers depend on a capability rather than one implementation.
+/// Defines the browser navigation policy contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserNavigationPolicy
 {
@@ -20,7 +20,7 @@ public interface IBrowserNavigationPolicy
 }
 
 /// <summary>
-/// Defines the i browser automation store contract so callers depend on a capability rather than one implementation.
+/// Defines the browser automation store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserAutomationStore
 {
@@ -35,7 +35,7 @@ public interface IBrowserAutomationStore
 }
 
 /// <summary>
-/// Defines the i browser automation service contract so callers depend on a capability rather than one implementation.
+/// Defines the browser automation service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserAutomationService
 {

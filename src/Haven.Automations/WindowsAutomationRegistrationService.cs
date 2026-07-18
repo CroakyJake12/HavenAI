@@ -27,7 +27,7 @@ public sealed class WindowsAutomationRegistrationService
     public const string TaskName = "Haven Background Automations";
 
     /// <summary>
-    /// Performs register async asynchronously so I/O does not block the caller's thread.
+    /// Performs register asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<AutomationRegistrationResult> RegisterAsync(string workerExecutablePath, CancellationToken cancellationToken)
     {
@@ -43,7 +43,7 @@ public sealed class WindowsAutomationRegistrationService
     }
 
     /// <summary>
-    /// Performs unregister async asynchronously so I/O does not block the caller's thread.
+    /// Performs unregister asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<AutomationRegistrationResult> UnregisterAsync(CancellationToken cancellationToken)
     {

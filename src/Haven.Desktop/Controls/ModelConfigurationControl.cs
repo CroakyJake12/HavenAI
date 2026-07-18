@@ -543,7 +543,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     }
 
     /// <summary>
-    /// Performs recover behaviour async asynchronously so I/O does not block the caller's thread.
+    /// Performs recover behaviour asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RecoverBehaviourAsync(string instruction)
     {

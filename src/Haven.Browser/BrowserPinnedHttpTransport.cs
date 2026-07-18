@@ -19,7 +19,7 @@ namespace Haven.Browser;
 internal static class BrowserPinnedHttpTransport
 {
     /// <summary>
-    /// Performs send async asynchronously so I/O does not block the caller's thread.
+    /// Performs send asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task<BrowserPinnedHttpResponse> SendAsync(
         IBrowserNavigationPolicy policy,
@@ -116,7 +116,7 @@ internal sealed class BrowserPinnedHttpResponse(
     public HttpResponseMessage Response { get; } = response;
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public ValueTask DisposeAsync()
     {

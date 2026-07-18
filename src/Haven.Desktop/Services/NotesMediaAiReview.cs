@@ -46,7 +46,7 @@ public static class NotesMediaAiReview
     };
 
     /// <summary>
-    /// Performs propose async asynchronously so I/O does not block the caller's thread.
+    /// Performs propose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task<NotesAiChange> ProposeAsync(
         INotesAiService ai,
@@ -113,7 +113,7 @@ public static class NotesMediaAiReview
     }
 
     /// <summary>
-    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task ApplyAsync(
         NotesWorkspaceViewModel workspace,

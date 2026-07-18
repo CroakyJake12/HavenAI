@@ -105,39 +105,39 @@ public sealed class ComputerToolRuntimeTests
         /// </summary>
         public int WindowListCalls { get; private set; }
         /// <summary>
-        /// Performs snapshot async asynchronously so I/O does not block the caller's thread.
+        /// Performs snapshot asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> SnapshotAsync(CancellationToken cancellationToken) => Task.FromResult(SnapshotOutput);
         /// <summary>
-        /// Performs list windows async asynchronously so I/O does not block the caller's thread.
+        /// Performs list windows asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ListWindowsAsync(CancellationToken cancellationToken) { WindowListCalls++; return Task.FromResult("[]"); }
         /// <summary>
-        /// Performs launch app async asynchronously so I/O does not block the caller's thread.
+        /// Performs launch app asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken) { LaunchedName = name; return Task.FromResult($"opened {name}"); }
         /// <summary>
-        /// Performs focus window async asynchronously so I/O does not block the caller's thread.
+        /// Performs focus window asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult($"focused {title}");
         /// <summary>
-        /// Performs invoke async asynchronously so I/O does not block the caller's thread.
+        /// Performs invoke asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken) => Task.FromResult("invoked");
         /// <summary>
-        /// Performs click async asynchronously so I/O does not block the caller's thread.
+        /// Performs click asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken) => Task.FromResult("clicked");
         /// <summary>
-        /// Performs type async asynchronously so I/O does not block the caller's thread.
+        /// Performs type asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken) => Task.FromResult("typed");
         /// <summary>
-        /// Performs press async asynchronously so I/O does not block the caller's thread.
+        /// Performs press asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken) => Task.FromResult("pressed");
         /// <summary>
-        /// Performs close window async asynchronously so I/O does not block the caller's thread.
+        /// Performs close window asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult("closed");
     }

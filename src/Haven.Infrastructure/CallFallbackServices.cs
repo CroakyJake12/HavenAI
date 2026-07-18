@@ -21,7 +21,7 @@ namespace Haven.Infrastructure;
 public sealed class UnavailableSpeechInputService : ISpeechInputService
 {
     /// <summary>
-    /// Reports whether is available is true for the current state.
+    /// Reports whether available applies to the current state.
     /// </summary>
     public bool IsAvailable => false;
     /// <summary>
@@ -35,7 +35,7 @@ public sealed class UnavailableSpeechInputService : ISpeechInputService
     public IReadOnlyList<CallAudioDevice> Devices { get; } = [];
 
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StartAsync(
         SpeechInputOptions options,
@@ -43,19 +43,19 @@ public sealed class UnavailableSpeechInputService : ISpeechInputService
         CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>
-    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task BeginPushToTalkAsync(CancellationToken cancellationToken) =>
         Task.FromException(new NotSupportedException(UnavailableReason));
 
     /// <summary>
-    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task EndPushToTalkAsync(CancellationToken cancellationToken) =>
         Task.FromException(new NotSupportedException(UnavailableReason));
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
@@ -67,11 +67,11 @@ public sealed class UnavailableSpeechInputService : ISpeechInputService
 public sealed class UnsupportedScreenShareService : IScreenShareService
 {
     /// <summary>
-    /// Reports whether is supported is true for the current state.
+    /// Reports whether supported applies to the current state.
     /// </summary>
     public bool IsSupported => false;
     /// <summary>
-    /// Reports whether is sharing is true for the current state.
+    /// Reports whether sharing applies to the current state.
     /// </summary>
     public bool IsSharing => false;
     /// <summary>
@@ -95,7 +95,7 @@ public sealed class UnsupportedScreenShareService : IScreenShareService
     public event EventHandler<ScreenShareSnapshotEventArgs>? SnapshotAvailable { add { } remove { } }
 
     /// <summary>
-    /// Performs start with system picker async asynchronously so I/O does not block the caller's thread.
+    /// Performs start with system picker asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken) =>
         Task.FromException<ScreenShareSource>(new PlatformNotSupportedException(UnavailableReason));
@@ -107,7 +107,7 @@ public sealed class UnsupportedScreenShareService : IScreenShareService
         Task.FromResult<ScreenShareSnapshot?>(null);
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
@@ -127,7 +127,7 @@ public sealed class SystemSpeechOutputService : ISpeechOutputService
     private SpeechSynthesizer? _activeSynthesizer;
 
     /// <summary>
-    /// Reports whether is available is true for the current state.
+    /// Reports whether available applies to the current state.
     /// </summary>
     public bool IsAvailable => OperatingSystem.IsWindows();
     /// <summary>
@@ -149,7 +149,7 @@ public sealed class SystemSpeechOutputService : ISpeechOutputService
     public IReadOnlyList<CallVoice> Voices => OperatingSystem.IsWindows() ? ReadVoices() : [];
 
     /// <summary>
-    /// Performs speak async asynchronously so I/O does not block the caller's thread.
+    /// Performs speak asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SpeakAsync(
         string text,
@@ -196,7 +196,7 @@ public sealed class SystemSpeechOutputService : ISpeechOutputService
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {

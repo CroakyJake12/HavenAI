@@ -46,7 +46,7 @@ public sealed class SurfaceOrchestrationService
     }
 
     /// <summary>
-    /// Performs resolve async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SurfaceResolutionResult> ResolveAsync(
         string prompt,
@@ -79,7 +79,7 @@ public sealed class SurfaceOrchestrationService
     }
 
     /// <summary>
-    /// Performs classify intent async asynchronously so I/O does not block the caller's thread.
+    /// Performs classify intent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task<IntentClassification> ClassifyIntentAsync(
         string prompt,

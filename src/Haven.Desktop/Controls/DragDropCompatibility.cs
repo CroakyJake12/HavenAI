@@ -71,7 +71,7 @@ internal static class HavenDragDropCompatibility
         Avalonia.Input.DragDrop.AddDropHandler(element, handler);
 
     /// <summary>
-    /// Performs do drag drop async asynchronously so I/O does not block the caller's thread.
+    /// Performs do drag drop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static Task<DragDropEffects> DoDragDropAsync(
         PointerPressedEventArgs triggerEvent,
@@ -80,7 +80,7 @@ internal static class HavenDragDropCompatibility
         Avalonia.Input.DragDrop.DoDragDropAsync(triggerEvent, dataTransfer, allowedEffects);
 
     /// <summary>
-    /// Performs do drag drop async asynchronously so I/O does not block the caller's thread.
+    /// Performs do drag drop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static Task<DragDropEffects> DoDragDropAsync(
         PointerEventArgs triggerEvent,

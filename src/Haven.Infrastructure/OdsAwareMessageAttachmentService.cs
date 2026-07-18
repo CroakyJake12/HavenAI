@@ -25,7 +25,7 @@ public sealed class OdsAwareMessageAttachmentService(
     IRetrievalIndexService retrieval) : IMessageAttachmentService
 {
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<MessageAttachment> ImportAsync(
         Guid conversationId,
@@ -104,12 +104,12 @@ public sealed class OdsAwareMessageAttachmentService(
         inner.BuildPromptContextAsync(conversationId, attachmentIds, options, cancellationToken);
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken) => inner.DeleteAsync(attachmentId, cancellationToken);
 
     /// <summary>
-    /// Performs extract ods text async asynchronously so I/O does not block the caller's thread.
+    /// Performs extract ods text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ExtractOdsTextAsync(string path, CancellationToken cancellationToken)
     {
@@ -137,7 +137,7 @@ public sealed class OdsAwareMessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs update record async asynchronously so I/O does not block the caller's thread.
+    /// Performs update record asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpdateRecordAsync(MessageAttachment attachment, CancellationToken cancellationToken)
     {

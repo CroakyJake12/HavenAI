@@ -134,11 +134,11 @@ public sealed class CallTranscriptEventArgs(
     /// </summary>
     public string Text { get; } = text;
     /// <summary>
-    /// Reports whether is delta is true for the current state.
+    /// Reports whether delta applies to the current state.
     /// </summary>
     public bool IsDelta { get; } = isDelta;
     /// <summary>
-    /// Reports whether is final is true for the current state.
+    /// Reports whether final applies to the current state.
     /// </summary>
     public bool IsFinal { get; } = isFinal;
     /// <summary>
@@ -159,7 +159,7 @@ public sealed class CallAudioLevelEventArgs(double level) : EventArgs
 }
 
 /// <summary>
-/// Defines the i call repository contract so callers depend on a capability rather than one implementation.
+/// Defines the call repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICallRepository
 {
@@ -169,7 +169,7 @@ public interface ICallRepository
 }
 
 /// <summary>
-/// Defines the i speech input service contract so callers depend on a capability rather than one implementation.
+/// Defines the speech input service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISpeechInputService
 {
@@ -186,7 +186,7 @@ public interface ISpeechInputService
 }
 
 /// <summary>
-/// Defines the i speech output service contract so callers depend on a capability rather than one implementation.
+/// Defines the speech output service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISpeechOutputService
 {
@@ -199,7 +199,7 @@ public interface ISpeechOutputService
 }
 
 /// <summary>
-/// Defines the i screen share service contract so callers depend on a capability rather than one implementation.
+/// Defines the screen share service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IScreenShareService
 {
@@ -215,7 +215,7 @@ public interface IScreenShareService
 }
 
 /// <summary>
-/// Defines the i speech model manager contract so callers depend on a capability rather than one implementation.
+/// Defines the speech model manager contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISpeechModelManager
 {
@@ -228,7 +228,7 @@ public interface ISpeechModelManager
 }
 
 /// <summary>
-/// Defines the i call coordinator contract so callers depend on a capability rather than one implementation.
+/// Defines the call coordinator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICallCoordinator : IAsyncDisposable
 {

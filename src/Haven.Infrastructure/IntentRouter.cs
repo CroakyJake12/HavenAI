@@ -28,7 +28,7 @@ public sealed class IntentRouter : IModeIntentRouter
     }
 
     /// <summary>
-    /// Performs classify async asynchronously so I/O does not block the caller's thread.
+    /// Performs classify asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IntentClassification> ClassifyAsync(string prompt, HavenMode currentMode, string? workspaceRoot, CancellationToken cancellationToken)
     {
@@ -56,7 +56,7 @@ public sealed class IntentRouter : IModeIntentRouter
     }
 
     /// <summary>
-    /// Performs resolve mode async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve mode asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ModeSlot?> ResolveModeAsync(string prompt, HavenMode currentMode, string? workspaceRoot, CancellationToken cancellationToken)
     {

@@ -77,7 +77,7 @@ public sealed class BrowserSecretAndLiveStateTests : IDisposable
     private sealed class AllowPolicy : IBrowserNavigationPolicy
     {
         /// <summary>
-        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken) =>
             Task.FromResult(new BrowserNavigationAssessment(address, true, "test", ["8.8.8.8"]));
@@ -113,7 +113,7 @@ public sealed class BrowserSecretAndLiveStateTests : IDisposable
         /// </summary>
         public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserDownloadRecord>>(Downloads.TakeLast(limit).Reverse().ToArray());
         /// <summary>
-        /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+        /// Performs add pending asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> AddPendingAsync(BrowserPendingAction action, CancellationToken cancellationToken) { Actions.Add(action); return Task.FromResult(action); }
         /// <summary>
@@ -121,15 +121,15 @@ public sealed class BrowserSecretAndLiveStateTests : IDisposable
         /// </summary>
         public Task<BrowserPendingAction?> GetActionAsync(Guid actionId, CancellationToken cancellationToken) => Task.FromResult(Actions.FirstOrDefault(item => item.Id == actionId));
         /// <summary>
-        /// Performs update action async asynchronously so I/O does not block the caller's thread.
+        /// Performs update action asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> UpdateActionAsync(BrowserPendingAction action, CancellationToken cancellationToken) { Actions[Actions.FindIndex(item => item.Id == action.Id)] = action; return Task.FromResult(action); }
         /// <summary>
-        /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+        /// Performs add audit asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken) { Audit.Add(entry); return Task.CompletedTask; }
         /// <summary>
-        /// Performs add download async asynchronously so I/O does not block the caller's thread.
+        /// Performs add download asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken) { Downloads.Add(download); return Task.CompletedTask; }
     }

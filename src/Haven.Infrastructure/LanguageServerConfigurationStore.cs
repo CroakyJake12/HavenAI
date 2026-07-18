@@ -69,7 +69,7 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
     }
 
     /// <summary>
-    /// Performs find for path async asynchronously so I/O does not block the caller's thread.
+    /// Performs find for path asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<LanguageServerDefinition?> FindForPathAsync(string path, CancellationToken cancellationToken)
     {
@@ -82,7 +82,7 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
     }
 
     /// <summary>
-    /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UpsertAsync(LanguageServerDefinition definition, CancellationToken cancellationToken)
     {
@@ -104,7 +104,7 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(string id, CancellationToken cancellationToken)
     {
@@ -128,7 +128,7 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
     private string ConfigurationPath => Path.Combine(paths.DataDirectory, "language-servers.json");
 
     /// <summary>
-    /// Performs read unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs read unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<List<LanguageServerDefinition>> ReadUnsafeAsync(CancellationToken cancellationToken)
     {
@@ -138,7 +138,7 @@ public sealed class LanguageServerConfigurationStore(IAppPaths paths) : ILanguag
     }
 
     /// <summary>
-    /// Performs write unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs write unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task WriteUnsafeAsync(IReadOnlyList<LanguageServerDefinition> definitions, CancellationToken cancellationToken)
     {

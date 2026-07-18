@@ -22,7 +22,7 @@ public sealed record RetrievalIndexReport(
     IReadOnlyList<string> Notices);
 
 /// <summary>
-/// Defines the i workspace retrieval indexer contract so callers depend on a capability rather than one implementation.
+/// Defines the workspace retrieval indexer contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IWorkspaceRetrievalIndexer
 {

@@ -78,7 +78,7 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
     }
 
     /// <summary>
-    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ProjectCreationResult> ConnectAsync(string path, CancellationToken cancellationToken)
     {
@@ -92,7 +92,7 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
     }
 
     /// <summary>
-    /// Performs register async asynchronously so I/O does not block the caller's thread.
+    /// Performs register asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<ContainerDefinition> RegisterAsync(string name, string root, CancellationToken cancellationToken)
     {
@@ -136,7 +136,7 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
     }
 
     /// <summary>
-    /// Reports whether is direct child is true for the current state.
+    /// Reports whether direct child applies to the current state.
     /// </summary>
     private static bool IsDirectChild(string target, string parent) =>
         string.Equals(Path.GetDirectoryName(target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),

@@ -226,11 +226,11 @@ public sealed class ComputerToolPass(
     }
 
     /// <summary>
-    /// Reports whether is inspection is true for the current state.
+    /// Reports whether inspection applies to the current state.
     /// </summary>
     private static bool IsInspection(string name) => name is "computer_snapshot" or "computer_list_windows";
     /// <summary>
-    /// Reports whether is mutation is true for the current state.
+    /// Reports whether mutation applies to the current state.
     /// </summary>
     private static bool IsMutation(string name) => name is "computer_launch_app" or "computer_invoke" or "computer_click" or "computer_type" or "computer_press" or "computer_close_window";
 

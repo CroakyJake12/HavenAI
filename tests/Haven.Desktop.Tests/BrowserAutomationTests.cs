@@ -198,27 +198,27 @@ public sealed class BrowserAutomationTests : IDisposable
         /// </summary>
         public BrowserSnapshot State { get; private set; } = new(new Uri("https://example.test/page"), "Example", false, false, false, "Ready");
         /// <summary>
-        /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+        /// Performs navigate asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task NavigateAsync(Uri address, CancellationToken cancellationToken) { State = State with { Address = address }; StateChanged?.Invoke(this, State); return Task.CompletedTask; }
         /// <summary>
-        /// Performs go back async asynchronously so I/O does not block the caller's thread.
+        /// Performs go back asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task GoBackAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs go forward async asynchronously so I/O does not block the caller's thread.
+        /// Performs go forward asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task GoForwardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs reload async asynchronously so I/O does not block the caller's thread.
+        /// Performs reload asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task ReloadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs open developer tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task OpenDeveloperToolsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -267,7 +267,7 @@ public sealed class BrowserAutomationTests : IDisposable
     private sealed class AllowPolicy : IBrowserNavigationPolicy
     {
         /// <summary>
-        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken) =>
             Task.FromResult(new BrowserNavigationAssessment(address, true, "test", ["8.8.8.8"]));
@@ -303,7 +303,7 @@ public sealed class BrowserAutomationTests : IDisposable
         /// </summary>
         public Task<IReadOnlyList<BrowserDownloadRecord>> GetDownloadsAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BrowserDownloadRecord>>(Downloads.TakeLast(limit).Reverse().ToArray());
         /// <summary>
-        /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+        /// Performs add pending asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> AddPendingAsync(BrowserPendingAction action, CancellationToken cancellationToken) { Actions.Add(action); return Task.FromResult(action); }
         /// <summary>
@@ -311,15 +311,15 @@ public sealed class BrowserAutomationTests : IDisposable
         /// </summary>
         public Task<BrowserPendingAction?> GetActionAsync(Guid actionId, CancellationToken cancellationToken) => Task.FromResult(Actions.FirstOrDefault(item => item.Id == actionId));
         /// <summary>
-        /// Performs update action async asynchronously so I/O does not block the caller's thread.
+        /// Performs update action asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> UpdateActionAsync(BrowserPendingAction action, CancellationToken cancellationToken) { var index = Actions.FindIndex(item => item.Id == action.Id); Actions[index] = action; return Task.FromResult(action); }
         /// <summary>
-        /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+        /// Performs add audit asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken) { Audit.Add(entry); return Task.CompletedTask; }
         /// <summary>
-        /// Performs add download async asynchronously so I/O does not block the caller's thread.
+        /// Performs add download asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken) { Downloads.Add(download); return Task.CompletedTask; }
     }
@@ -330,31 +330,31 @@ public sealed class BrowserAutomationTests : IDisposable
     private sealed class StubAutomationService : IBrowserAutomationService
     {
         /// <summary>
-        /// Performs capture page async asynchronously so I/O does not block the caller's thread.
+        /// Performs capture page asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPageSnapshot> CapturePageAsync(CancellationToken cancellationToken) => Task.FromResult(new BrowserPageSnapshot(null, "", "", [], [], DateTimeOffset.UtcNow, false, false));
         /// <summary>
-        /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+        /// Performs navigate asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> NavigateAsync(string address, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
         /// <summary>
-        /// Performs click reference async asynchronously so I/O does not block the caller's thread.
+        /// Performs click reference asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ClickReferenceAsync(string reference, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
         /// <summary>
-        /// Performs fill reference async asynchronously so I/O does not block the caller's thread.
+        /// Performs fill reference asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> FillReferenceAsync(string reference, string value, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
         /// <summary>
-        /// Performs request download async asynchronously so I/O does not block the caller's thread.
+        /// Performs request download asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> RequestDownloadAsync(string address, string? suggestedFileName, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs approve async asynchronously so I/O does not block the caller's thread.
+        /// Performs approve asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserActionExecutionResult> ApproveAsync(Guid actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs reject async asynchronously so I/O does not block the caller's thread.
+        /// Performs reject asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserActionExecutionResult> RejectAsync(Guid actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>

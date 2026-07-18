@@ -20,7 +20,7 @@ public interface IProviderModelClient : IOllamaClient
 }
 
 /// <summary>
-/// Defines the i model provider contract so callers depend on a capability rather than one implementation.
+/// Defines the model provider contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModelProvider
 {
@@ -39,7 +39,7 @@ public interface IModelProvider
 }
 
 /// <summary>
-/// Defines the i model provider registry contract so callers depend on a capability rather than one implementation.
+/// Defines the model provider registry contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModelProviderRegistry
 {
@@ -50,7 +50,7 @@ public interface IModelProviderRegistry
 }
 
 /// <summary>
-/// Defines the i model router contract so callers depend on a capability rather than one implementation.
+/// Defines the model router contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModelRouter
 {
@@ -58,7 +58,7 @@ public interface IModelRouter
 }
 
 /// <summary>
-/// Defines the i provider configuration store contract so callers depend on a capability rather than one implementation.
+/// Defines the provider configuration store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IProviderConfigurationStore
 {
@@ -69,7 +69,7 @@ public interface IProviderConfigurationStore
 }
 
 /// <summary>
-/// Defines the i provider secret store contract so callers depend on a capability rather than one implementation.
+/// Defines the provider secret store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IProviderSecretStore
 {

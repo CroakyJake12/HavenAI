@@ -123,7 +123,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     private long _lastAudioLevelTimestamp;
 
     /// <summary>
-    /// Reports whether is available is true for the current state.
+    /// Reports whether available applies to the current state.
     /// </summary>
     public bool IsAvailable => !_disposed && OperatingSystem.IsWindows() && TryGetDeviceCount() > 0;
     /// <summary>
@@ -159,7 +159,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StartAsync(
         SpeechInputOptions options,
@@ -247,7 +247,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task BeginPushToTalkAsync(CancellationToken cancellationToken)
     {
@@ -268,7 +268,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task EndPushToTalkAsync(CancellationToken cancellationToken)
     {
@@ -285,7 +285,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -430,7 +430,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs process work async asynchronously so I/O does not block the caller's thread.
+    /// Performs process work asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ProcessWorkAsync(
         ChannelReader<SpeechWorkItem> reader,
@@ -478,7 +478,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs transcribe async asynchronously so I/O does not block the caller's thread.
+    /// Performs transcribe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TranscribeAsync(
         byte[] pcm,
@@ -523,7 +523,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs observe final callback async asynchronously so I/O does not block the caller's thread.
+    /// Performs observe final callback asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ObserveFinalCallbackAsync(Task callbackTask)
     {
@@ -627,7 +627,7 @@ public sealed class WindowsSpeechInputService : ISpeechInputService, IAsyncDispo
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

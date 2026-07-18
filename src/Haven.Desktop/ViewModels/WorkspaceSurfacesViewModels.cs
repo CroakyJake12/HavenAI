@@ -94,23 +94,23 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
     /// </summary>
     public string CreateLabel => _mode == HavenMode.Studio ? "New project" : "New Task Group";
     /// <summary>
-    /// Reports whether is studio is true for the current state.
+    /// Reports whether studio applies to the current state.
     /// </summary>
     public bool IsStudio => _mode == HavenMode.Studio;
     /// <summary>
-    /// Reports whether is do is true for the current state.
+    /// Reports whether do applies to the current state.
     /// </summary>
     public bool IsDo => _mode == HavenMode.Do;
     /// <summary>
-    /// Reports whether has automations is true for the current state.
+    /// Reports whether automations applies to the current state.
     /// </summary>
     public bool HasAutomations => ActiveAutomations.Count > 0;
     /// <summary>
-    /// Reports whether has items is true for the current state.
+    /// Reports whether items applies to the current state.
     /// </summary>
     public bool HasItems => Items.Count > 0;
     /// <summary>
-    /// Reports whether has macros is true for the current state.
+    /// Reports whether macros applies to the current state.
     /// </summary>
     public bool HasMacros => Macros.Count > 0;
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
     public AsyncRelayCommand<WorkspaceHomeCardViewModel> ArchiveCommand { get; }
 
     /// <summary>
-    /// Performs add path async asynchronously so I/O does not block the caller's thread.
+    /// Performs add path asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddPathAsync(string path)
     {
@@ -171,7 +171,7 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -222,7 +222,7 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs archive async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveAsync(WorkspaceHomeCardViewModel? item)
     {
@@ -508,7 +508,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     /// </summary>
     public string RootPath => _project.RootPath ?? string.Empty;
     /// <summary>
-    /// Reports whether has root is true for the current state.
+    /// Reports whether root applies to the current state.
     /// </summary>
     public bool HasRoot => Directory.Exists(RootPath);
     /// <summary>
@@ -738,15 +738,15 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     /// </summary>
     public RelayCommand CancelCreationCommand { get; }
     /// <summary>
-    /// Reports whether is in create mode is true for the current state.
+    /// Reports whether in create mode applies to the current state.
     /// </summary>
     public bool IsInCreateMode { get => _isInCreateMode; set { if (SetProperty(ref _isInCreateMode, value)) { RaisePropertyChanged(nameof(IsInOverview)); RaisePropertyChanged(nameof(CreationTitle)); RaisePropertyChanged(nameof(CreationHint)); } } }
     /// <summary>
-    /// Reports whether is in configure mode is true for the current state.
+    /// Reports whether in configure mode applies to the current state.
     /// </summary>
     public bool IsInConfigureMode { get => _isInConfigureMode; set => SetProperty(ref _isInConfigureMode, value); }
     /// <summary>
-    /// Reports whether is in overview is true for the current state.
+    /// Reports whether in overview applies to the current state.
     /// </summary>
     public bool IsInOverview => !IsInCreateMode && !IsInConfigureMode;
     /// <summary>
@@ -762,23 +762,23 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     /// </summary>
     public string CreationHint => CreationKind switch { StudioCreationKind.Mode => "Define a new Haven mode with custom surfaces, tools, and system prompt.", StudioCreationKind.Plugin => "Create a functional plugin with capabilities and constraints.", StudioCreationKind.Agent => "Define a specialised assistant with instructions and model preferences.", StudioCreationKind.Prompt => "Create a reusable instruction prompt.", _ => "Choose what to create." };
     /// <summary>
-    /// Reports whether is creating mode is true for the current state.
+    /// Reports whether creating mode applies to the current state.
     /// </summary>
     public bool IsCreatingMode => CreationKind == StudioCreationKind.Mode;
     /// <summary>
-    /// Reports whether is creating plugin is true for the current state.
+    /// Reports whether creating plugin applies to the current state.
     /// </summary>
     public bool IsCreatingPlugin => CreationKind == StudioCreationKind.Plugin;
     /// <summary>
-    /// Reports whether is creating agent is true for the current state.
+    /// Reports whether creating agent applies to the current state.
     /// </summary>
     public bool IsCreatingAgent => CreationKind == StudioCreationKind.Agent;
     /// <summary>
-    /// Reports whether is creating prompt is true for the current state.
+    /// Reports whether creating prompt applies to the current state.
     /// </summary>
     public bool IsCreatingPrompt => CreationKind == StudioCreationKind.Prompt;
     /// <summary>
-    /// Reports whether has creation kind is true for the current state.
+    /// Reports whether creation kind applies to the current state.
     /// </summary>
     public bool HasCreationKind => CreationKind != StudioCreationKind.None;
     /// <summary>
@@ -803,7 +803,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     public string ConfigureStatus { get => _configureStatus; private set => SetProperty(ref _configureStatus, value); }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -842,7 +842,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs forecast risk async asynchronously so I/O does not block the caller's thread.
+    /// Performs forecast risk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ForecastRiskAsync()
     {
@@ -854,7 +854,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs test async asynchronously so I/O does not block the caller's thread.
+    /// Performs test asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task TestAsync()
     {
@@ -871,7 +871,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs initialize git async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize git asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InitializeGitAsync()
     {
@@ -886,7 +886,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs connect git async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect git asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConnectGitAsync()
     {
@@ -902,7 +902,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs intent search async asynchronously so I/O does not block the caller's thread.
+    /// Performs intent search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task IntentSearchAsync()
     {
@@ -911,7 +911,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs bug time machine async asynchronously so I/O does not block the caller's thread.
+    /// Performs bug time machine asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task BugTimeMachineAsync()
     {
@@ -936,7 +936,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs save decision async asynchronously so I/O does not block the caller's thread.
+    /// Performs save decision asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveDecisionAsync()
     {
@@ -949,7 +949,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete decision async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete decision asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteDecisionAsync(DecisionItemViewModel? item)
     {
@@ -959,7 +959,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh decisions async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh decisions asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshDecisionsAsync()
     {
@@ -968,7 +968,7 @@ public sealed class StudioProjectPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs archive project async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive project asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveProjectAsync()
     {
@@ -1327,7 +1327,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public string Content { get => _content; set { if (!SetProperty(ref _content, value)) return; RaiseDirtyProperties(); } }
     /// <summary>
-    /// Reports whether is dirty is true for the current state.
+    /// Reports whether dirty applies to the current state.
     /// </summary>
     public bool IsDirty => !string.Equals(Content, _savedContent, StringComparison.Ordinal);
     /// <summary>
@@ -1343,11 +1343,11 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public bool RequiresBranchAfterRollback { get => _requiresBranchAfterRollback; private set { if (!SetProperty(ref _requiresBranchAfterRollback, value)) return; RaisePropertyChanged(nameof(CanEdit)); BranchAfterRollbackCommand.RaiseCanExecuteChanged(); SaveCommand.RaiseCanExecuteChanged(); } }
     /// <summary>
-    /// Reports whether can edit is true for the current state.
+    /// Reports whether edit applies to the current state.
     /// </summary>
     public bool CanEdit => !RequiresBranchAfterRollback;
     /// <summary>
-    /// Reports whether can rollforward is true for the current state.
+    /// Reports whether rollforward applies to the current state.
     /// </summary>
     public bool CanRollforward => !string.IsNullOrEmpty(_rollforwardContent);
     /// <summary>
@@ -1429,7 +1429,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     public void SetSelection(string text) => SelectedSnippet = text;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadAsync()
     {
@@ -1448,7 +1448,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -1470,7 +1470,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs undo async asynchronously so I/O does not block the caller's thread.
+    /// Performs undo asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UndoAsync()
     {
@@ -1482,7 +1482,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs redo async asynchronously so I/O does not block the caller's thread.
+    /// Performs redo asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RedoAsync()
     {
@@ -1494,7 +1494,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs rollback async asynchronously so I/O does not block the caller's thread.
+    /// Performs rollback asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RollbackAsync()
     {
@@ -1509,7 +1509,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs rollforward async asynchronously so I/O does not block the caller's thread.
+    /// Performs rollforward asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RollforwardAsync()
     {
@@ -1523,7 +1523,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs branch after rollback async asynchronously so I/O does not block the caller's thread.
+    /// Performs branch after rollback asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task BranchAfterRollbackAsync()
     {
@@ -1533,7 +1533,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs write history state async asynchronously so I/O does not block the caller's thread.
+    /// Performs write history state asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task WriteHistoryStateAsync(string target, WorkspaceVersionKind kind, string summary)
     {
@@ -1550,7 +1550,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs add comment async asynchronously so I/O does not block the caller's thread.
+    /// Performs add comment asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AddCommentAsync()
     {
@@ -1564,7 +1564,7 @@ public sealed class WorkspaceEditorPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh versions async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh versions asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshVersionsAsync()
     {
@@ -1803,7 +1803,7 @@ public sealed class MacrosPageViewModel : ObservableObject
     public AsyncRelayCommand RefreshCommand { get; }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -1824,7 +1824,7 @@ public sealed class MacrosPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync(MacroItemViewModel? item)
     {
@@ -1916,7 +1916,7 @@ public sealed class ArchivePageViewModel : ObservableObject
     public AsyncRelayCommand RefreshCommand { get; }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -1927,7 +1927,7 @@ public sealed class ArchivePageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RestoreAsync(ArchiveItemViewModel? item)
     {
@@ -1937,7 +1937,7 @@ public sealed class ArchivePageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete forever async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete forever asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteForeverAsync(ArchiveItemViewModel? item)
     {
@@ -1988,11 +1988,11 @@ public sealed class ArchiveItemViewModel : ObservableObject
     /// </summary>
     public ContainerDefinition? Container { get; }
     /// <summary>
-    /// Reports whether is delete confirming is true for the current state.
+    /// Reports whether delete confirming applies to the current state.
     /// </summary>
     public bool IsDeleteConfirming { get => _isDeleteConfirming; set { if (SetProperty(ref _isDeleteConfirming, value)) RaisePropertyChanged(nameof(IsNormal)); } }
     /// <summary>
-    /// Reports whether is normal is true for the current state.
+    /// Reports whether normal applies to the current state.
     /// </summary>
     public bool IsNormal => !IsDeleteConfirming;
     /// <summary>

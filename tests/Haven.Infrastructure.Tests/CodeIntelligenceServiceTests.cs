@@ -182,17 +182,17 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
             Task.FromResult<IReadOnlyList<LanguageServerDefinition>>([definition]);
 
         /// <summary>
-        /// Performs find for path async asynchronously so I/O does not block the caller's thread.
+        /// Performs find for path asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<LanguageServerDefinition?> FindForPathAsync(string path, CancellationToken cancellationToken) =>
             Task.FromResult<LanguageServerDefinition?>(Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase) ? definition : null);
 
         /// <summary>
-        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertAsync(LanguageServerDefinition value, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(string id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
@@ -224,7 +224,7 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
         public FakeLanguageServerClient? LastClient { get; private set; }
 
         /// <summary>
-        /// Performs start async asynchronously so I/O does not block the caller's thread.
+        /// Performs start asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<ILanguageServerClient> StartAsync(LanguageServerDefinition definition, string workspaceRoot, CancellationToken cancellationToken)
         {
@@ -257,7 +257,7 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
         public bool ShutdownCalled { get; private set; }
 
         /// <summary>
-        /// Performs open document async asynchronously so I/O does not block the caller's thread.
+        /// Performs open document asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task OpenDocumentAsync(string documentUri, string languageId, string text, int version, CancellationToken cancellationToken)
         {
@@ -272,19 +272,19 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
             Task.FromResult(diagnostics);
 
         /// <summary>
-        /// Performs search workspace symbols async asynchronously so I/O does not block the caller's thread.
+        /// Performs search workspace symbols asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<CodeSymbol>> SearchWorkspaceSymbolsAsync(string query, string workspaceRoot, CancellationToken cancellationToken) =>
             Task.FromResult(symbols);
 
         /// <summary>
-        /// Performs format document async asynchronously so I/O does not block the caller's thread.
+        /// Performs format document asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<LanguageServerTextEdit>> FormatDocumentAsync(string documentUri, int tabSize, bool insertSpaces, CancellationToken cancellationToken) =>
             Task.FromResult(formatEdits);
 
         /// <summary>
-        /// Performs shutdown async asynchronously so I/O does not block the caller's thread.
+        /// Performs shutdown asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task ShutdownAsync(CancellationToken cancellationToken)
         {
@@ -293,7 +293,7 @@ public sealed class CodeIntelligenceServiceTests : IDisposable
         }
 
         /// <summary>
-        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// Performs dispose asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

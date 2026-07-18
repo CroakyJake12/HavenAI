@@ -461,7 +461,7 @@ public sealed class ModePackageManifest
 public sealed class ModePackageValidationResult
 {
     /// <summary>
-    /// Reports whether is valid is true for the current state.
+    /// Reports whether valid applies to the current state.
     /// </summary>
     public bool IsValid { get; init; }
     /// <summary>

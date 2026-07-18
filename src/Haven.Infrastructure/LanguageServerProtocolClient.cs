@@ -23,7 +23,7 @@ namespace Haven.Infrastructure;
 public sealed class LanguageServerClientFactory : ILanguageServerClientFactory
 {
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ILanguageServerClient> StartAsync(
         LanguageServerDefinition definition,
@@ -165,7 +165,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     public string ServerId => _definition.Id;
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -205,7 +205,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs open document async asynchronously so I/O does not block the caller's thread.
+    /// Performs open document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task OpenDocumentAsync(
         string documentUri,
@@ -262,7 +262,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs search workspace symbols async asynchronously so I/O does not block the caller's thread.
+    /// Performs search workspace symbols asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<CodeSymbol>> SearchWorkspaceSymbolsAsync(
         string query,
@@ -289,7 +289,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs format document async asynchronously so I/O does not block the caller's thread.
+    /// Performs format document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<LanguageServerTextEdit>> FormatDocumentAsync(
         string documentUri,
@@ -315,7 +315,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ShutdownAsync(CancellationToken cancellationToken)
     {
@@ -343,7 +343,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -359,7 +359,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs request async asynchronously so I/O does not block the caller's thread.
+    /// Performs request asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<JsonElement> RequestAsync(
         string method,
@@ -394,13 +394,13 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs notify async asynchronously so I/O does not block the caller's thread.
+    /// Performs notify asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task NotifyAsync(string method, object? parameters, CancellationToken cancellationToken) =>
         WriteMessageAsync(new { jsonrpc = "2.0", method, @params = parameters }, cancellationToken);
 
     /// <summary>
-    /// Performs notify cancellation async asynchronously so I/O does not block the caller's thread.
+    /// Performs notify cancellation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task NotifyCancellationAsync(long id)
     {
@@ -409,7 +409,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs write message async asynchronously so I/O does not block the caller's thread.
+    /// Performs write message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task WriteMessageAsync(object payload, CancellationToken cancellationToken)
     {
@@ -429,7 +429,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs read loop async asynchronously so I/O does not block the caller's thread.
+    /// Performs read loop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
@@ -450,7 +450,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
     }
 
     /// <summary>
-    /// Performs read stderr async asynchronously so I/O does not block the caller's thread.
+    /// Performs read stderr asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ReadStderrAsync(CancellationToken cancellationToken)
     {
@@ -646,7 +646,7 @@ internal sealed class StdioLanguageServerClient : ILanguageServerClient
 internal static class LanguageServerProtocolCodec
 {
     /// <summary>
-    /// Performs read message async asynchronously so I/O does not block the caller's thread.
+    /// Performs read message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task<JsonElement?> ReadMessageAsync(Stream stream, CancellationToken cancellationToken)
     {
@@ -680,7 +680,7 @@ internal static class LanguageServerProtocolCodec
     }
 
     /// <summary>
-    /// Performs write message async asynchronously so I/O does not block the caller's thread.
+    /// Performs write message asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task WriteMessageAsync(Stream stream, JsonElement message, CancellationToken cancellationToken)
     {
@@ -692,7 +692,7 @@ internal static class LanguageServerProtocolCodec
     }
 
     /// <summary>
-    /// Performs read ascii line async asynchronously so I/O does not block the caller's thread.
+    /// Performs read ascii line asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string?> ReadAsciiLineAsync(Stream stream, CancellationToken cancellationToken)
     {

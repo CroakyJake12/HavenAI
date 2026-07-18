@@ -43,7 +43,7 @@ public sealed class ChatSessionService(
     }
 
     /// <summary>
-    /// Reports whether can activate plugin is true for the current state.
+    /// Reports whether activate plugin applies to the current state.
     /// </summary>
     public bool CanActivatePlugin(
         string pluginName,
@@ -56,7 +56,7 @@ public sealed class ChatSessionService(
             Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
 
     /// <summary>
-    /// Performs send async asynchronously so I/O does not block the caller's thread.
+    /// Performs send asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> SendAsync(
         Conversation conversation,
@@ -330,7 +330,7 @@ public sealed class ChatSessionService(
     }
 
     /// <summary>
-    /// Reports whether is unsupported tool schema is true for the current state.
+    /// Reports whether unsupported tool schema applies to the current state.
     /// </summary>
     private static bool IsUnsupportedToolSchema(HttpRequestException exception) =>
         exception.Message.Contains("does not support tools", StringComparison.OrdinalIgnoreCase) ||

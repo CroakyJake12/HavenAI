@@ -28,7 +28,7 @@ public static class MainWindowModeNavigationExtensions
     private static readonly ConditionalWeakTable<ChatPageViewModel, ModeActivationSnapshot> Snapshots = new();
 
     /// <summary>
-    /// Performs open mode definition async asynchronously so I/O does not block the caller's thread.
+    /// Performs open mode definition asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task OpenModeDefinitionAsync(this MainWindowViewModel shell, ModeDefinition mode)
     {
@@ -132,7 +132,7 @@ public static class MainWindowModeNavigationExtensions
     }
 
     /// <summary>
-    /// Performs navigate to base workspace async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate to base workspace asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task NavigateToBaseWorkspaceAsync(MainWindowViewModel shell, HavenMode baseMode)
     {

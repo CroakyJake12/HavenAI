@@ -64,7 +64,7 @@ public sealed partial class ConversationProductionToolbarView : UserControl
     public event Action<ModelDescriptor>? ModelSelected;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {

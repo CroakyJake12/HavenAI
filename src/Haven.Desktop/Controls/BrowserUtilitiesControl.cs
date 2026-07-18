@@ -306,7 +306,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     }
 
     /// <summary>
-    /// Performs apply zoom async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply zoom asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyZoomAsync(int value, TextBlock status)
     {
@@ -332,7 +332,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh policy async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh policy asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshPolicyAsync()
     {

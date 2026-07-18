@@ -24,7 +24,7 @@ public sealed class CompanionDockService : ICompanionDockService
     private readonly ConcurrentDictionary<SurfaceKind, List<Guid>> _docked = new();
 
     /// <summary>
-    /// Reports whether is docked async is true for the current state.
+    /// Reports whether docked async applies to the current state.
     /// </summary>
     public Task<bool> IsDockedAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -33,7 +33,7 @@ public sealed class CompanionDockService : ICompanionDockService
     }
 
     /// <summary>
-    /// Performs dock async asynchronously so I/O does not block the caller's thread.
+    /// Performs dock asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DockAsync(Guid conversationId, SurfaceKind surface, CancellationToken cancellationToken)
     {
@@ -47,7 +47,7 @@ public sealed class CompanionDockService : ICompanionDockService
     }
 
     /// <summary>
-    /// Performs undock async asynchronously so I/O does not block the caller's thread.
+    /// Performs undock asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task UndockAsync(Guid conversationId, CancellationToken cancellationToken)
     {

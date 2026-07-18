@@ -26,7 +26,7 @@ namespace Haven.Desktop.Services;
 public static class NotesExperienceNavigation
 {
     /// <summary>
-    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static Task OpenAsync(MainWindowViewModel shell, NotesExperienceKind kind)
     {

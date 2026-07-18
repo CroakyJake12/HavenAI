@@ -30,7 +30,7 @@ public sealed class BrowserBackgroundPageLoader(IBrowserNavigationPolicy policy)
     private const int MaximumTextCharacters = 120_000;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPageSnapshot> LoadAsync(Uri address, CancellationToken cancellationToken)
     {

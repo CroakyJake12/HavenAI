@@ -36,7 +36,7 @@ public sealed class AccessibilityService
     public AccessibilitySettings Current => _settings;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
@@ -54,7 +54,7 @@ public sealed class AccessibilityService
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SaveAsync(CancellationToken cancellationToken)
     {

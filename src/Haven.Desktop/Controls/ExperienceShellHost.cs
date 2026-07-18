@@ -288,7 +288,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -450,7 +450,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs show mode library async asynchronously so I/O does not block the caller's thread.
+    /// Performs show mode library asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ShowModeLibraryAsync()
     {
@@ -555,7 +555,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs open mode async asynchronously so I/O does not block the caller's thread.
+    /// Performs open mode asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenModeAsync(ModeDefinition mode)
     {
@@ -565,7 +565,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PinAsync(Guid modeId)
     {
@@ -582,7 +582,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs unpin async asynchronously so I/O does not block the caller's thread.
+    /// Performs unpin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UnpinAsync(Guid modeId)
     {
@@ -598,7 +598,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs move pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs move pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MovePinAsync(Guid draggedModeId, Guid targetModeId)
     {
@@ -613,7 +613,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Performs persist pin order async asynchronously so I/O does not block the caller's thread.
+    /// Performs persist pin order asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PersistPinOrderAsync()
     {
@@ -687,7 +687,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     }
 
     /// <summary>
-    /// Reports whether is pinned mode active is true for the current state.
+    /// Reports whether pinned mode active applies to the current state.
     /// </summary>
     private bool IsPinnedModeActive(string compactId)
     {
@@ -827,7 +827,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     };
 
     /// <summary>
-    /// Reports whether is pin transfer is true for the current state.
+    /// Reports whether pin transfer applies to the current state.
     /// </summary>
     private static bool IsPinTransfer(IDataTransfer transfer) =>
         transfer.TryGetText()?.StartsWith("haven-mode-pin:", StringComparison.Ordinal) == true;

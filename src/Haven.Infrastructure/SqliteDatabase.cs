@@ -13,7 +13,7 @@ using Microsoft.Data.Sqlite;
 namespace Haven.Infrastructure;
 
 /// <summary>
-/// Defines the i sqlite connection factory contract so callers depend on a capability rather than one implementation.
+/// Defines the sqlite connection factory contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISqliteConnectionFactory
 {
@@ -44,7 +44,7 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
     }
 
     /// <summary>
-    /// Performs open async asynchronously so I/O does not block the caller's thread.
+    /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
@@ -57,7 +57,7 @@ public sealed class SqliteDatabase : IAppDatabase, ISqliteConnectionFactory
     }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {

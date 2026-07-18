@@ -138,7 +138,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is restore confirming is true for the current state.
+    /// Reports whether restore confirming applies to the current state.
     /// </summary>
     public bool IsRestoreConfirming { get => _isRestoreConfirming; private set => SetProperty(ref _isRestoreConfirming, value); }
     public DatabaseBackupViewModel? RestoreCandidate
@@ -151,7 +151,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
         }
     }
     /// <summary>
-    /// Reports whether has pending restore is true for the current state.
+    /// Reports whether pending restore applies to the current state.
     /// </summary>
     public bool HasPendingRestore { get; private set; }
     public bool IsBusy
@@ -167,7 +167,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
@@ -197,12 +197,12 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -254,7 +254,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs confirm restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs confirm restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConfirmRestoreAsync()
     {
@@ -319,7 +319,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load backups and restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs load backups and restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadBackupsAndRestoreAsync(CancellationToken cancellationToken)
     {
@@ -340,7 +340,7 @@ public sealed class ReliabilityStatusViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load events async asynchronously so I/O does not block the caller's thread.
+    /// Performs load events asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadEventsAsync(CancellationToken cancellationToken)
     {
@@ -401,7 +401,7 @@ public sealed record DatabaseBackupViewModel(ManagedDatabaseBackup Backup)
         _ => Backup.SizeBytes + " B"
     };
     /// <summary>
-    /// Reports whether is verified is true for the current state.
+    /// Reports whether verified applies to the current state.
     /// </summary>
     public bool IsVerified => Backup.IsVerified;
     /// <summary>

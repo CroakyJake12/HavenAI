@@ -24,7 +24,7 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
     private const string MigrationKey = "legacy-localcode-state-v1";
 
     /// <summary>
-    /// Performs migrate if needed async asynchronously so I/O does not block the caller's thread.
+    /// Performs migrate if needed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<LegacyMigrationResult> MigrateIfNeededAsync(CancellationToken cancellationToken)
     {
@@ -97,7 +97,7 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
     }
 
     /// <summary>
-    /// Reports whether has completed async is true for the current state.
+    /// Reports whether completed async applies to the current state.
     /// </summary>
     private async Task<bool> HasCompletedAsync(CancellationToken cancellationToken)
     {
@@ -109,7 +109,7 @@ public sealed class LegacyStateMigrator(IAppPaths paths, ISqliteConnectionFactor
     }
 
     /// <summary>
-    /// Performs mark completed async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark completed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MarkCompletedAsync(string note, CancellationToken cancellationToken)
     {

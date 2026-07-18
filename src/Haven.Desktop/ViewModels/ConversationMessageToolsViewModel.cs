@@ -177,11 +177,11 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether can edit is true for the current state.
+    /// Reports whether edit applies to the current state.
     /// </summary>
     public bool CanEdit => SelectedMessage?.Role == MessageRole.User;
     /// <summary>
-    /// Reports whether can regenerate is true for the current state.
+    /// Reports whether regenerate applies to the current state.
     /// </summary>
     public bool CanRegenerate => SelectedMessage?.Role == MessageRole.Assistant;
     public bool IsBookmarked
@@ -215,16 +215,16 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     /// </summary>
     public string VersionLabel => Versions.Count == 0 || VersionIndex < 0 ? "No saved versions" : $"Version {VersionIndex + 1} of {Versions.Count}";
     /// <summary>
-    /// Reports whether can previous version is true for the current state.
+    /// Reports whether previous version applies to the current state.
     /// </summary>
     public bool CanPreviousVersion => VersionIndex > 0;
     /// <summary>
-    /// Reports whether can next version is true for the current state.
+    /// Reports whether next version applies to the current state.
     /// </summary>
     public bool CanNextVersion => VersionIndex >= 0 && VersionIndex < Versions.Count - 1;
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LoadAsync(Guid conversationId, CancellationToken cancellationToken)
     {
@@ -233,12 +233,12 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -269,7 +269,7 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs load selected message state async asynchronously so I/O does not block the caller's thread.
+    /// Performs load selected message state asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadSelectedMessageStateAsync()
     {
@@ -301,7 +301,7 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply edit async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply edit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyEditAsync()
     {
@@ -332,7 +332,7 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs regenerate async asynchronously so I/O does not block the caller's thread.
+    /// Performs regenerate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RegenerateAsync()
     {
@@ -370,7 +370,7 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs toggle bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleBookmarkAsync()
     {
@@ -410,7 +410,7 @@ public sealed class ConversationMessageToolsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs restore version async asynchronously so I/O does not block the caller's thread.
+    /// Performs restore version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RestoreVersionAsync(int offset)
     {
@@ -508,7 +508,7 @@ public sealed record ConversationMessageChoiceViewModel(ChatMessage Message)
 public sealed record MessageVersionItemViewModel(MessageVersion Definition)
 {
     /// <summary>
-    /// Reports whether is current is true for the current state.
+    /// Reports whether current applies to the current state.
     /// </summary>
     public bool IsCurrent => Definition.IsCurrent;
     /// <summary>

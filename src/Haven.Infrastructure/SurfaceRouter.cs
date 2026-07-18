@@ -32,7 +32,7 @@ public sealed class SurfaceRouter : ISurfaceRouter
     }
 
     /// <summary>
-    /// Performs resolve surface async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve surface asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<SurfaceKind> ResolveSurfaceAsync(string intent, HavenMode currentMode, CancellationToken cancellationToken)
     {
@@ -70,7 +70,7 @@ public sealed class SurfaceRouter : ISurfaceRouter
     }
 
     /// <summary>
-    /// Performs record run async asynchronously so I/O does not block the caller's thread.
+    /// Performs record run asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RecordRunAsync(SurfaceRun run, CancellationToken cancellationToken)
     {

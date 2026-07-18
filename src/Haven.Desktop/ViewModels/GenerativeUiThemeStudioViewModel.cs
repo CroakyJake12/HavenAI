@@ -332,7 +332,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     /// </summary>
     public int StudioTabIndex { get => _studioTabIndex; set => SetProperty(ref _studioTabIndex, value); }
     /// <summary>
-    /// Reports whether is renaming is true for the current state.
+    /// Reports whether renaming applies to the current state.
     /// </summary>
     public bool IsRenaming => RenameCandidate is not null;
     public ThemeCardViewModel? RenameCandidate
@@ -355,7 +355,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         }
     }
     /// <summary>
-    /// Reports whether is delete confirming is true for the current state.
+    /// Reports whether delete confirming applies to the current state.
     /// </summary>
     public bool IsDeleteConfirming => DeleteCandidate is not null;
     public ThemeCardViewModel? DeleteCandidate
@@ -423,7 +423,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     public bool DraftUseAcrylic { get => _draftUseAcrylic; set => SetProperty(ref _draftUseAcrylic, value); }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -435,7 +435,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -455,7 +455,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportAsync(Guid themeId, string destinationDirectory, CancellationToken cancellationToken)
     {
@@ -470,12 +470,12 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RefreshAsync() => RefreshAsync(CancellationToken.None);
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -517,7 +517,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply theme async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply theme asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyThemeAsync(ThemeCardViewModel card)
     {
@@ -533,7 +533,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply appearance async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply appearance asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyAppearanceAsync(GenerativeThemeAppearance appearance)
     {
@@ -623,7 +623,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs confirm rename async asynchronously so I/O does not block the caller's thread.
+    /// Performs confirm rename asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConfirmRenameAsync()
     {
@@ -658,7 +658,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs confirm delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs confirm delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ConfirmDeleteAsync()
     {
@@ -689,7 +689,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
         ExportRequested?.Invoke(this, new ThemeExportRequestedEventArgs(card.Theme.Id, card.Theme.Name));
 
     /// <summary>
-    /// Performs generate with ai async asynchronously so I/O does not block the caller's thread.
+    /// Performs generate with ai asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task GenerateWithAiAsync()
     {
@@ -716,7 +716,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs preview manual async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview manual asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PreviewManualAsync()
     {
@@ -740,7 +740,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs save and apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs save and apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAndApplyAsync()
     {
@@ -980,11 +980,11 @@ public sealed class ThemeCardViewModel : ObservableObject
     /// </summary>
     public string AccentPreview => Theme.Dark.Accent;
     /// <summary>
-    /// Reports whether is custom is true for the current state.
+    /// Reports whether custom applies to the current state.
     /// </summary>
     public bool IsCustom => !Theme.IsBuiltIn;
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
     /// <summary>
@@ -1061,7 +1061,7 @@ public sealed class ThemePlacementEditorViewModel : ObservableObject
     /// </summary>
     public IReadOnlyList<string> AllowedRegions => Item.AllowedRegions;
     /// <summary>
-    /// Reports whether can hide is true for the current state.
+    /// Reports whether hide applies to the current state.
     /// </summary>
     public bool CanHide => Item.CanHide;
     /// <summary>
@@ -1073,7 +1073,7 @@ public sealed class ThemePlacementEditorViewModel : ObservableObject
     /// </summary>
     public int Order { get => _order; set => SetProperty(ref _order, value); }
     /// <summary>
-    /// Reports whether is visible is true for the current state.
+    /// Reports whether visible applies to the current state.
     /// </summary>
     public bool IsVisible { get => _isVisible; set => SetProperty(ref _isVisible, value); }
     /// <summary>

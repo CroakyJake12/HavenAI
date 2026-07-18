@@ -66,7 +66,7 @@ public sealed partial class ProjectCreatorView : UserControl
     }
 
     /// <summary>
-    /// Performs pick folder async asynchronously so I/O does not block the caller's thread.
+    /// Performs pick folder asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<IStorageFolder>> PickFolderAsync(string title)
     {

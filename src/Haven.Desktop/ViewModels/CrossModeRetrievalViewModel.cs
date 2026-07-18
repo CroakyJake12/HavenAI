@@ -161,7 +161,7 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs index async asynchronously so I/O does not block the caller's thread.
+    /// Performs index asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task IndexAsync()
     {
@@ -195,7 +195,7 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchAsync()
     {
@@ -243,7 +243,7 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs read lessons async asynchronously so I/O does not block the caller's thread.
+    /// Performs read lessons asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task<IReadOnlyList<Lesson>> ReadLessonsAsync(Guid subjectId, CancellationToken cancellationToken) =>
         _containers.GetLessonsAsync(subjectId, cancellationToken);

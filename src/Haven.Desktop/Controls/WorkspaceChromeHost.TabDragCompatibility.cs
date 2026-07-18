@@ -192,7 +192,7 @@ public sealed partial class WorkspaceChromeHost
         /// </summary>
         public Point Start { get; set; }
         /// <summary>
-        /// Reports whether is dragging is true for the current state.
+        /// Reports whether dragging applies to the current state.
         /// </summary>
         public bool IsDragging { get; set; }
         /// <summary>

@@ -45,7 +45,7 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
     }
 
     /// <summary>
-    /// Performs enqueue async asynchronously so I/O does not block the caller's thread.
+    /// Performs enqueue asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task EnqueueAsync(
         AutomationDelivery delivery,
@@ -62,7 +62,7 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
     }
 
     /// <summary>
-    /// Performs drain async asynchronously so I/O does not block the caller's thread.
+    /// Performs drain asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<AutomationDelivery>> DrainAsync(
         CancellationToken cancellationToken)
@@ -75,7 +75,7 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
     }
 
     /// <summary>
-    /// Performs acquire lock async asynchronously so I/O does not block the caller's thread.
+    /// Performs acquire lock asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<FileStream> AcquireLockAsync(CancellationToken cancellationToken)
     {
@@ -103,7 +103,7 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
     }
 
     /// <summary>
-    /// Performs read unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs read unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<List<AutomationDelivery>> ReadUnsafeAsync(
         CancellationToken cancellationToken)
@@ -132,7 +132,7 @@ public sealed class AutomationDeliveryOutbox : IAutomationDeliveryOutbox
     }
 
     /// <summary>
-    /// Performs write unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs write unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task WriteUnsafeAsync(
         IReadOnlyList<AutomationDelivery> deliveries,

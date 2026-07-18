@@ -22,7 +22,7 @@ public sealed class ResilientProviderRoutingModelClient(
     IProviderConfigurationStore configurations) : IProviderModelClient
 {
     /// <summary>
-    /// Reports whether is available async is true for the current state.
+    /// Reports whether available async applies to the current state.
     /// </summary>
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => primary.IsAvailableAsync(cancellationToken);
     /// <summary>
@@ -30,16 +30,16 @@ public sealed class ResilientProviderRoutingModelClient(
     /// </summary>
     public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => primary.GetModelsAsync(cancellationToken);
     /// <summary>
-    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// Performs pull model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => primary.PullModelAsync(model, progress, cancellationToken);
     /// <summary>
-    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => primary.DeleteModelAsync(model, cancellationToken);
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async IAsyncEnumerable<string> StreamChatAsync(
         OllamaChatRequest request,
@@ -78,7 +78,7 @@ public sealed class ResilientProviderRoutingModelClient(
     }
 
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
     {
@@ -92,7 +92,7 @@ public sealed class ResilientProviderRoutingModelClient(
     }
 
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
     {
@@ -178,7 +178,7 @@ public sealed class ResilientProviderRoutingModelClient(
     }
 
     /// <summary>
-    /// Reports whether is recoverable is true for the current state.
+    /// Reports whether recoverable applies to the current state.
     /// </summary>
     private static bool IsRecoverable(Exception exception, CancellationToken cancellationToken) => exception switch
     {

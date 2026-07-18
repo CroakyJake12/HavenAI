@@ -36,13 +36,13 @@ public sealed class VerifiedNotesRepository(
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Documents");
 
     /// <summary>
-    /// Performs list async asynchronously so I/O does not block the caller's thread.
+    /// Performs list asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken) =>
         inner.ListAsync(cancellationToken);
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument?> LoadAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -103,7 +103,7 @@ public sealed class VerifiedNotesRepository(
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesSaveResult> SaveAsync(
         NotesDocument document,
@@ -133,7 +133,7 @@ public sealed class VerifiedNotesRepository(
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(documentId, cancellationToken);
@@ -147,7 +147,7 @@ public sealed class VerifiedNotesRepository(
         inner.GetVersionsAsync(documentId, cancellationToken);
 
     /// <summary>
-    /// Performs load version async asynchronously so I/O does not block the caller's thread.
+    /// Performs load version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<NotesDocument?> LoadVersionAsync(
         Guid documentId,
@@ -156,13 +156,13 @@ public sealed class VerifiedNotesRepository(
         inner.LoadVersionAsync(documentId, versionId, cancellationToken);
 
     /// <summary>
-    /// Performs recover latest async asynchronously so I/O does not block the caller's thread.
+    /// Performs recover latest asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<NotesDocument?> RecoverLatestAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.RecoverLatestAsync(documentId, cancellationToken);
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<NotesSearchHit>> SearchAsync(
         string query,
@@ -176,7 +176,7 @@ public sealed class VerifiedNotesRepository(
         Path.Combine(_root, documentId.ToString("D"), "current.integrity.json");
 
     /// <summary>
-    /// Performs read manifest async asynchronously so I/O does not block the caller's thread.
+    /// Performs read manifest asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<NotesIntegrityManifest?> ReadManifestAsync(
         string path,
@@ -196,7 +196,7 @@ public sealed class VerifiedNotesRepository(
     }
 
     /// <summary>
-    /// Performs write manifest atomic async asynchronously so I/O does not block the caller's thread.
+    /// Performs write manifest atomic asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteManifestAtomicAsync(
         string path,
@@ -233,7 +233,7 @@ public sealed class VerifiedNotesRepository(
     }
 
     /// <summary>
-    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// Performs compute sha256 asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ComputeSha256Async(
         string path,
@@ -297,7 +297,7 @@ public sealed class SecureNotesAttachmentStore(
         Path.Combine(paths.DataDirectory, "Notes", "Attachments"));
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<NotesMediaData> ImportAsync(
         string sourcePath,
@@ -305,7 +305,7 @@ public sealed class SecureNotesAttachmentStore(
         inner.ImportAsync(sourcePath, cancellationToken);
 
     /// <summary>
-    /// Performs resolve path async asynchronously so I/O does not block the caller's thread.
+    /// Performs resolve path asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ResolvePathAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
@@ -328,7 +328,7 @@ public sealed class SecureNotesAttachmentStore(
     }
 
     /// <summary>
-    /// Performs delete unreferenced async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete unreferenced asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteUnreferencedAsync(
         IReadOnlyCollection<Guid> referencedAttachmentIds,

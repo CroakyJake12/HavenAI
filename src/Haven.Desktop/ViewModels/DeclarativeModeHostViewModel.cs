@@ -101,7 +101,7 @@ public sealed class DeclarativeModeHostViewModel : ObservableObject, IDisposable
     /// </summary>
     public string ModeIcon => _modeDefinition.IconKey;
     /// <summary>
-    /// Reports whether is loading is true for the current state.
+    /// Reports whether loading applies to the current state.
     /// </summary>
     public bool IsLoading { get => _isLoading; private set => SetProperty(ref _isLoading, value); }
     /// <summary>
@@ -109,7 +109,7 @@ public sealed class DeclarativeModeHostViewModel : ObservableObject, IDisposable
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is expanded is true for the current state.
+    /// Reports whether expanded applies to the current state.
     /// </summary>
     public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
     /// <summary>
@@ -117,15 +117,15 @@ public sealed class DeclarativeModeHostViewModel : ObservableObject, IDisposable
     /// </summary>
     public string SelectedStep { get => _selectedStep; set => SetProperty(ref _selectedStep, value); }
     /// <summary>
-    /// Reports whether has steps is true for the current state.
+    /// Reports whether steps applies to the current state.
     /// </summary>
     public bool HasSteps => Steps.Count > 0;
     /// <summary>
-    /// Reports whether has cards is true for the current state.
+    /// Reports whether cards applies to the current state.
     /// </summary>
     public bool HasCards => Cards.Count > 0;
     /// <summary>
-    /// Reports whether has commands is true for the current state.
+    /// Reports whether commands applies to the current state.
     /// </summary>
     public bool HasCommands => Commands.Count > 0;
     /// <summary>
@@ -162,7 +162,7 @@ public sealed class DeclarativeModeHostViewModel : ObservableObject, IDisposable
 #pragma warning restore CS0067
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LoadAsync()
     {
@@ -275,15 +275,15 @@ public sealed class DeclarativeStepViewModel : ObservableObject
     /// </summary>
     public string[]? RequiredCapabilities => _step.RequiredCapabilities;
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
     /// <summary>
-    /// Reports whether is completed is true for the current state.
+    /// Reports whether completed applies to the current state.
     /// </summary>
     public bool IsCompleted { get => _isCompleted; set => SetProperty(ref _isCompleted, value); }
     /// <summary>
-    /// Reports whether has error is true for the current state.
+    /// Reports whether error applies to the current state.
     /// </summary>
     public bool HasError { get => _hasError; set => SetProperty(ref _hasError, value); }
     /// <summary>

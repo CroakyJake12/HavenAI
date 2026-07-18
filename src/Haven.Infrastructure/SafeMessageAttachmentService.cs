@@ -20,7 +20,7 @@ public sealed class SafeMessageAttachmentService(
     IAppPaths paths) : IMessageAttachmentService
 {
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<MessageAttachment> ImportAsync(
         Guid conversationId,
@@ -40,7 +40,7 @@ public sealed class SafeMessageAttachmentService(
         CancellationToken cancellationToken) => inner.BuildPromptContextAsync(conversationId, attachmentIds, options, cancellationToken);
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
@@ -60,7 +60,7 @@ public sealed class SafeMessageAttachmentService(
     }
 
     /// <summary>
-    /// Reports whether is direct child is true for the current state.
+    /// Reports whether direct child applies to the current state.
     /// </summary>
     private static bool IsDirectChild(string path, string parent)
     {

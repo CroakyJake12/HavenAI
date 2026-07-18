@@ -175,7 +175,7 @@ public sealed class GenerativeUiThemeRollbackTests
             Task.FromResult(_themes[Selection.ActiveThemeId]);
 
         /// <summary>
-        /// Performs save async asynchronously so I/O does not block the caller's thread.
+        /// Performs save asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SaveAsync(GenerativeThemePack theme, CancellationToken cancellationToken)
         {
@@ -184,19 +184,19 @@ public sealed class GenerativeUiThemeRollbackTests
         }
 
         /// <summary>
-        /// Performs rename async asynchronously so I/O does not block the caller's thread.
+        /// Performs rename asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(Guid themeId, CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
         /// <summary>
-        /// Performs select async asynchronously so I/O does not block the caller's thread.
+        /// Performs select asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SelectAsync(
             Guid themeId,
@@ -215,7 +215,7 @@ public sealed class GenerativeUiThemeRollbackTests
         }
 
         /// <summary>
-        /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+        /// Performs set appearance asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SetAppearanceAsync(
             GenerativeThemeAppearance appearance,
@@ -226,7 +226,7 @@ public sealed class GenerativeUiThemeRollbackTests
         }
 
         /// <summary>
-        /// Performs export async asynchronously so I/O does not block the caller's thread.
+        /// Performs export asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ExportAsync(
             Guid themeId,
@@ -235,7 +235,7 @@ public sealed class GenerativeUiThemeRollbackTests
             Task.FromResult(Path.Combine(destinationDirectory, "theme.haven-theme.json"));
 
         /// <summary>
-        /// Performs import async asynchronously so I/O does not block the caller's thread.
+        /// Performs import asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<GenerativeThemePack> ImportAsync(
             string sourcePath,
@@ -254,7 +254,7 @@ public sealed class GenerativeUiThemeRollbackTests
         public List<ReliabilityEvent> Events { get; } = [];
 
         /// <summary>
-        /// Performs write async asynchronously so I/O does not block the caller's thread.
+        /// Performs write asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask WriteAsync(
             ReliabilitySeverity severity,
@@ -277,7 +277,7 @@ public sealed class GenerativeUiThemeRollbackTests
         }
 
         /// <summary>
-        /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+        /// Performs read recent asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(
             int limit,
@@ -285,7 +285,7 @@ public sealed class GenerativeUiThemeRollbackTests
             Task.FromResult<IReadOnlyList<ReliabilityEvent>>(Events.TakeLast(limit).ToArray());
 
         /// <summary>
-        /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+        /// Performs dispose asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

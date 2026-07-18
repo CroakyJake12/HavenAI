@@ -41,7 +41,7 @@ public sealed class SecureDatabaseRestoreService(
         inner.GetPendingAsync(cancellationToken);
 
     /// <summary>
-    /// Performs request restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs request restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<PendingDatabaseRestore> RequestRestoreAsync(string backupFileName, CancellationToken cancellationToken)
     {
@@ -63,7 +63,7 @@ public sealed class SecureDatabaseRestoreService(
         inner.CancelPendingAsync(cancellationToken);
 
     /// <summary>
-    /// Performs apply pending restore async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply pending restore asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<DatabaseRestoreResult?> ApplyPendingRestoreAsync(CancellationToken cancellationToken)
     {
@@ -118,7 +118,7 @@ public sealed class SecureDatabaseRestoreService(
     }
 
     /// <summary>
-    /// Performs log blocked async asynchronously so I/O does not block the caller's thread.
+    /// Performs log blocked asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task LogBlockedAsync(ManagedDatabaseBackup backup, string phase, CancellationToken cancellationToken)
     {
@@ -137,7 +137,7 @@ public sealed class SecureDatabaseRestoreService(
     }
 
     /// <summary>
-    /// Reports whether is reparse point is true for the current state.
+    /// Reports whether reparse point applies to the current state.
     /// </summary>
     private static bool IsReparsePoint(string path) =>
         File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;

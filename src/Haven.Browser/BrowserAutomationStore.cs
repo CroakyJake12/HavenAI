@@ -105,7 +105,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+    /// Performs add pending asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPendingAction> AddPendingAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
@@ -144,7 +144,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs update action async asynchronously so I/O does not block the caller's thread.
+    /// Performs update action asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserPendingAction> UpdateActionAsync(BrowserPendingAction action, CancellationToken cancellationToken)
     {
@@ -168,7 +168,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+    /// Performs add audit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken)
     {
@@ -186,7 +186,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs add download async asynchronously so I/O does not block the caller's thread.
+    /// Performs add download asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken)
     {
@@ -299,7 +299,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs persist recovery and expiry async asynchronously so I/O does not block the caller's thread.
+    /// Performs persist recovery and expiry asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PersistRecoveryAndExpiryAsync(CancellationToken cancellationToken)
     {
@@ -309,7 +309,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs commit async asynchronously so I/O does not block the caller's thread.
+    /// Performs commit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CommitAsync(BrowserAutomationData candidate, CancellationToken cancellationToken)
     {
@@ -319,7 +319,7 @@ public sealed class BrowserAutomationStore : IBrowserAutomationStore, IDisposabl
     }
 
     /// <summary>
-    /// Performs save unsafe async asynchronously so I/O does not block the caller's thread.
+    /// Performs save unsafe asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveUnsafeAsync(BrowserAutomationData data, CancellationToken cancellationToken)
     {

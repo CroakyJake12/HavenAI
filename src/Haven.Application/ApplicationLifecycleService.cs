@@ -13,7 +13,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i application lifecycle contract so callers depend on a capability rather than one implementation.
+/// Defines the application lifecycle contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IApplicationLifecycle
 {
@@ -63,16 +63,16 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
     }
 
     /// <summary>
-    /// Reports whether is startup complete is true for the current state.
+    /// Reports whether startup complete applies to the current state.
     /// </summary>
     public bool IsStartupComplete => Volatile.Read(ref _isStartupComplete) == 1;
     /// <summary>
-    /// Reports whether is safe mode is true for the current state.
+    /// Reports whether safe mode applies to the current state.
     /// </summary>
     public bool IsSafeMode => Volatile.Read(ref _isSafeMode) == 1;
 
     /// <summary>
-    /// Performs startup async asynchronously so I/O does not block the caller's thread.
+    /// Performs startup asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StartupAsync(CancellationToken cancellationToken)
     {
@@ -97,7 +97,7 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
     }
 
     /// <summary>
-    /// Performs shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ShutdownAsync(CancellationToken cancellationToken)
     {
@@ -113,7 +113,7 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
     }
 
     /// <summary>
-    /// Performs crash recovery async asynchronously so I/O does not block the caller's thread.
+    /// Performs crash recovery asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task CrashRecoveryAsync(CancellationToken cancellationToken)
     {
@@ -131,7 +131,7 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
     }
 
     /// <summary>
-    /// Performs mark clean shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark clean shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkCleanShutdownAsync()
     {
@@ -157,7 +157,7 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
     }
 
     /// <summary>
-    /// Performs check previous shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs check previous shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CheckPreviousShutdownAsync(CancellationToken cancellationToken)
     {

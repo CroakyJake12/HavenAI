@@ -109,7 +109,7 @@ public sealed class PlannerProposalService(IPlannerRepository repository) : IPla
     }
 
     /// <summary>
-    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ApplyAsync(PlannerChangeProposal proposal, CancellationToken cancellationToken)
     {

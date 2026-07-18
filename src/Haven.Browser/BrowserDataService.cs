@@ -115,7 +115,7 @@ public sealed class BrowserDataService : IDisposable
     public BrowserSettings Settings => _data.Settings;
 
     /// <summary>
-    /// Performs add bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs add bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task AddBookmarkAsync(string title, string address, string group, CancellationToken cancellationToken)
     {
@@ -132,13 +132,13 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs remove bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs remove bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RemoveBookmarkAsync(Guid id, CancellationToken cancellationToken) =>
         MutateAndSaveAsync(data => data with { Bookmarks = data.Bookmarks.Where(item => item.Id != id).ToArray() }, cancellationToken);
 
     /// <summary>
-    /// Performs record visit async asynchronously so I/O does not block the caller's thread.
+    /// Performs record visit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RecordVisitAsync(string title, string address, bool isPrivate, CancellationToken cancellationToken)
     {
@@ -151,13 +151,13 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs clear history async asynchronously so I/O does not block the caller's thread.
+    /// Performs clear history asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ClearHistoryAsync(CancellationToken cancellationToken) =>
         MutateAndSaveAsync(data => data with { History = [] }, cancellationToken);
 
     /// <summary>
-    /// Performs save tabs async asynchronously so I/O does not block the caller's thread.
+    /// Performs save tabs asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SaveTabsAsync(IEnumerable<BrowserTabState> tabs, CancellationToken cancellationToken)
     {
@@ -173,7 +173,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs save settings async asynchronously so I/O does not block the caller's thread.
+    /// Performs save settings asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SaveSettingsAsync(BrowserSettings settings, CancellationToken cancellationToken)
     {
@@ -185,7 +185,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs save login async asynchronously so I/O does not block the caller's thread.
+    /// Performs save login asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SaveLoginAsync(string origin, string username, string password, CancellationToken cancellationToken)
     {
@@ -216,7 +216,7 @@ public sealed class BrowserDataService : IDisposable
     public string? ReadPassword(SavedLogin login) => OperatingSystem.IsWindows() ? WindowsCredentialVault.Read(Target(login)) : null;
 
     /// <summary>
-    /// Performs delete login async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete login asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteLoginAsync(SavedLogin login, CancellationToken cancellationToken)
     {
@@ -237,7 +237,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs import haven extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs import haven extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserExtensionDefinition> ImportHavenExtensionAsync(string manifestPath, CancellationToken cancellationToken)
     {
@@ -256,7 +256,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs convert chrome extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs convert chrome extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserExtensionDefinition> ConvertChromeExtensionAsync(string manifestPath, CancellationToken cancellationToken)
     {
@@ -290,7 +290,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs set extension enabled async asynchronously so I/O does not block the caller's thread.
+    /// Performs set extension enabled asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetExtensionEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) =>
         MutateAndSaveAsync(data => data with
@@ -299,7 +299,7 @@ public sealed class BrowserDataService : IDisposable
         }, cancellationToken);
 
     /// <summary>
-    /// Performs delete extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteExtensionAsync(Guid id, CancellationToken cancellationToken) =>
         MutateAndSaveAsync(data => data with { Extensions = data.Extensions.Where(item => item.Id != id).ToArray() }, cancellationToken);
@@ -314,7 +314,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs save extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs save extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<BrowserExtensionDefinition> SaveExtensionAsync(BrowserExtensionDefinition extension, CancellationToken cancellationToken)
     {
@@ -371,7 +371,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Reports whether is recoverable load failure is true for the current state.
+    /// Reports whether recoverable load failure applies to the current state.
     /// </summary>
     private static bool IsRecoverableLoadFailure(Exception exception) =>
         exception is IOException or UnauthorizedAccessException or JsonException or NotSupportedException;
@@ -404,7 +404,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs mutate and save async asynchronously so I/O does not block the caller's thread.
+    /// Performs mutate and save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task MutateAndSaveAsync(Func<BrowserData, BrowserData> mutation, CancellationToken cancellationToken)
     {
@@ -429,7 +429,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs save core async asynchronously so I/O does not block the caller's thread.
+    /// Performs save core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveCoreAsync(BrowserData candidate, CancellationToken cancellationToken)
     {
@@ -461,7 +461,7 @@ public sealed class BrowserDataService : IDisposable
     }
 
     /// <summary>
-    /// Performs read inside async asynchronously so I/O does not block the caller's thread.
+    /// Performs read inside asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ReadInsideAsync(string root, string relative, CancellationToken cancellationToken)
     {

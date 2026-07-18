@@ -39,7 +39,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     private readonly Dictionary<string, string> _buildResults = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Performs scan async asynchronously so I/O does not block the caller's thread.
+    /// Performs scan asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<ProjectDiscoveryItem>> ScanAsync(string root, CancellationToken cancellationToken) => Task.Run<IReadOnlyList<ProjectDiscoveryItem>>(() =>
     {
@@ -110,7 +110,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs forecast release risk async asynchronously so I/O does not block the caller's thread.
+    /// Performs forecast release risk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ReleaseRiskReport> ForecastReleaseRiskAsync(string root, CancellationToken cancellationToken)
     {
@@ -157,7 +157,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs find intent matches async asynchronously so I/O does not block the caller's thread.
+    /// Performs find intent matches asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> FindIntentMatchesAsync(string root, string intent, CancellationToken cancellationToken) => Task.Run(() =>
     {
@@ -210,13 +210,13 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs initialize git async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize git asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<ProcessResult> InitializeGitAsync(string root, CancellationToken cancellationToken) =>
         RunGitAsync(root, "init", TimeSpan.FromMinutes(2), cancellationToken);
 
     /// <summary>
-    /// Performs connect git remote async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect git remote asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ProcessResult> ConnectGitRemoteAsync(string root, string remoteUrl, CancellationToken cancellationToken)
     {
@@ -281,7 +281,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs launch editor async asynchronously so I/O does not block the caller's thread.
+    /// Performs launch editor asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LaunchEditorAsync(string root, CancellationToken cancellationToken)
     {
@@ -302,7 +302,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs launch terminal async asynchronously so I/O does not block the caller's thread.
+    /// Performs launch terminal asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LaunchTerminalAsync(string root, CancellationToken cancellationToken)
     {
@@ -315,7 +315,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Performs launch local server async asynchronously so I/O does not block the caller's thread.
+    /// Performs launch local server asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task LaunchLocalServerAsync(string root, CancellationToken cancellationToken)
     {
@@ -331,7 +331,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
         processes.RunProcessAsync(new ProcessRequest("git.exe", arguments, root, timeout), cancellationToken);
 
     /// <summary>
-    /// Performs git text async asynchronously so I/O does not block the caller's thread.
+    /// Performs git text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<string> GitTextAsync(string root, string arguments, CancellationToken cancellationToken)
     {
@@ -383,7 +383,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Reports whether is text extension is true for the current state.
+    /// Reports whether text extension applies to the current state.
     /// </summary>
     private static bool IsTextExtension(string extension) => new[]
     {
@@ -411,7 +411,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Reports whether is unsafe link is true for the current state.
+    /// Reports whether unsafe link applies to the current state.
     /// </summary>
     private static bool IsUnsafeLink(DirectoryInfo info)
     {
@@ -420,7 +420,7 @@ public sealed partial class ProjectIntelligenceService(IWorkspaceToolService pro
     }
 
     /// <summary>
-    /// Reports whether is within is true for the current state.
+    /// Reports whether within applies to the current state.
     /// </summary>
     private static bool IsWithin(string path, string root)
     {

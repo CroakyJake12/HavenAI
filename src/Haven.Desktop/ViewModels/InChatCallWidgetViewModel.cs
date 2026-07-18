@@ -83,15 +83,15 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     /// </summary>
     public string Transcript { get => _transcript; private set => SetProperty(ref _transcript, value); }
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive { get => _isActive; private set { if (SetProperty(ref _isActive, value)) { RaisePropertyChanged(nameof(CallButtonLabel)); RaisePropertyChanged(nameof(IsReady)); } } }
     /// <summary>
-    /// Reports whether is muted is true for the current state.
+    /// Reports whether muted applies to the current state.
     /// </summary>
     public bool IsMuted { get => _isMuted; private set => SetProperty(ref _isMuted, value); }
     /// <summary>
-    /// Reports whether is ready is true for the current state.
+    /// Reports whether ready applies to the current state.
     /// </summary>
     public bool IsReady => !IsActive;
     /// <summary>
@@ -134,7 +134,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public event EventHandler? CallEnded;
 
     /// <summary>
-    /// Performs start call async asynchronously so I/O does not block the caller's thread.
+    /// Performs start call asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StartCallAsync()
     {
@@ -165,7 +165,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs end call async asynchronously so I/O does not block the caller's thread.
+    /// Performs end call asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EndCallAsync()
     {
@@ -186,7 +186,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs toggle mute async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle mute asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleMuteAsync()
     {

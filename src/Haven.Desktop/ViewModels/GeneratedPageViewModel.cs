@@ -121,23 +121,23 @@ public sealed class GeneratedWidgetViewModel : ObservableObject, IDisposable
     /// </summary>
     public string CommandButtonLabel { get; }
     /// <summary>
-    /// Reports whether is text is true for the current state.
+    /// Reports whether text applies to the current state.
     /// </summary>
     public bool IsText { get; }
     /// <summary>
-    /// Reports whether is shortcut grid is true for the current state.
+    /// Reports whether shortcut grid applies to the current state.
     /// </summary>
     public bool IsShortcutGrid { get; }
     /// <summary>
-    /// Reports whether is timer is true for the current state.
+    /// Reports whether timer applies to the current state.
     /// </summary>
     public bool IsTimer { get; }
     /// <summary>
-    /// Reports whether is command button is true for the current state.
+    /// Reports whether command button applies to the current state.
     /// </summary>
     public bool IsCommandButton { get; }
     /// <summary>
-    /// Reports whether is divider is true for the current state.
+    /// Reports whether divider applies to the current state.
     /// </summary>
     public bool IsDivider { get; }
     /// <summary>
@@ -178,7 +178,7 @@ public sealed class GeneratedWidgetViewModel : ObservableObject, IDisposable
         }
     }
     /// <summary>
-    /// Reports whether is timer complete is true for the current state.
+    /// Reports whether timer complete applies to the current state.
     /// </summary>
     public bool IsTimerComplete => IsTimer && RemainingSeconds == 0;
     /// <summary>

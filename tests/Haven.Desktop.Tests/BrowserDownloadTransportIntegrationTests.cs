@@ -97,7 +97,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
     }
 
     /// <summary>
-    /// Performs serve file async asynchronously so I/O does not block the caller's thread.
+    /// Performs serve file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ServeFileAsync(TcpListener listener, byte[] body, string contentDispositionParameter, CancellationToken cancellationToken)
     {
@@ -116,7 +116,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
     }
 
     /// <summary>
-    /// Performs drain request async asynchronously so I/O does not block the caller's thread.
+    /// Performs drain request asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task DrainRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
@@ -137,7 +137,7 @@ public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
     private sealed class LoopbackTestPolicy : IBrowserNavigationPolicy
     {
         /// <summary>
-        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
         {

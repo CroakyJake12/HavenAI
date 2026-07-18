@@ -194,7 +194,7 @@ public sealed class ProviderToolIdRoundTripTests
     private sealed class StaticHandler(Func<HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
         /// <summary>
-        /// Performs send async asynchronously so I/O does not block the caller's thread.
+        /// Performs send asynchronously so I/O does not block the caller's thread.
         /// </summary>
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -250,14 +250,14 @@ public sealed class ProviderToolIdRoundTripTests
         }
 
         /// <summary>
-        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertAsync(
             ProviderConfiguration configuration,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(
             string requestedProviderId,
@@ -270,7 +270,7 @@ public sealed class ProviderToolIdRoundTripTests
     private sealed class SecretStore : IProviderSecretStore
     {
         /// <summary>
-        /// Performs set async asynchronously so I/O does not block the caller's thread.
+        /// Performs set asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SetAsync(
             string providerId,
@@ -291,7 +291,7 @@ public sealed class ProviderToolIdRoundTripTests
         }
 
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(
             string providerId,

@@ -54,7 +54,7 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
     private bool _disposed;
 
     /// <summary>
-    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// Performs write asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask WriteAsync(
         ReliabilitySeverity severity,
@@ -101,7 +101,7 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
     }
 
     /// <summary>
-    /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+    /// Performs read recent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<ReliabilityEvent>> ReadRecentAsync(int limit, CancellationToken cancellationToken)
     {
@@ -139,7 +139,7 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public ValueTask DisposeAsync()
     {
@@ -274,7 +274,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     public StartupRecoveryState Current { get; private set; } = new(false, 0, string.Empty, "Startup recovery has not run.", DateTimeOffset.MinValue);
 
     /// <summary>
-    /// Performs begin startup async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin startup asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<StartupRecoveryState> BeginStartupAsync(CancellationToken cancellationToken)
     {
@@ -323,7 +323,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs mark startup completed async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark startup completed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkStartupCompletedAsync(CancellationToken cancellationToken)
     {
@@ -331,7 +331,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs mark clean shutdown async asynchronously so I/O does not block the caller's thread.
+    /// Performs mark clean shutdown asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkCleanShutdownAsync(CancellationToken cancellationToken)
     {
@@ -340,7 +340,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs update current async asynchronously so I/O does not block the caller's thread.
+    /// Performs update current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UpdateCurrentAsync(Func<StartupRun, StartupRun> update, string eventName, CancellationToken cancellationToken)
     {
@@ -367,7 +367,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// Performs read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<StartupState> ReadAsync(CancellationToken cancellationToken)
     {
@@ -389,7 +389,7 @@ public sealed class StartupRecoveryCoordinator(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs write async asynchronously so I/O does not block the caller's thread.
+    /// Performs write asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task WriteAsync(StartupState state, CancellationToken cancellationToken)
     {

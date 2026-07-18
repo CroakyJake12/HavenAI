@@ -10,7 +10,7 @@
 namespace Haven.Desktop.ViewModels;
 
 /// <summary>
-/// Defines the i activatable page contract so callers depend on a capability rather than one implementation.
+/// Defines the activatable page contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IActivatablePage
 {

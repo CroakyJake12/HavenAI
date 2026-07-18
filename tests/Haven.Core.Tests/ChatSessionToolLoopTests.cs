@@ -144,7 +144,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// </summary>
         public int ToolRequests { get; private set; }
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -152,15 +152,15 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([model]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
         {
@@ -186,7 +186,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     private sealed class UnsupportedToolsOllama(ModelDescriptor model) : IOllamaClient
     {
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -194,16 +194,16 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([model]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) =>
             Task.FromResult("{\"name\":\"computer_snapshot\",\"arguments\":{}}");
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromException<OllamaToolResponse>(new HttpRequestException(
@@ -228,15 +228,15 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// </summary>
         public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ChatMessage>>([]);
         /// <summary>
-        /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs add message async asynchronously so I/O does not block the caller's thread.
+        /// Performs add message asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -258,11 +258,11 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         }
 
         /// <summary>
-        /// Performs read text async asynchronously so I/O does not block the caller's thread.
+        /// Performs read text asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken) => File.ReadAllTextAsync(ResolveWorkspacePath(workspaceRoot, relativePath), cancellationToken);
         /// <summary>
-        /// Performs write text atomic async asynchronously so I/O does not block the caller's thread.
+        /// Performs write text atomic asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
         {
@@ -271,7 +271,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
             await File.WriteAllTextAsync(path, content, cancellationToken);
         }
         /// <summary>
-        /// Performs search files async asynchronously so I/O does not block the caller's thread.
+        /// Performs search files asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
         /// <summary>
@@ -290,39 +290,39 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// </summary>
         public string? LaunchedName { get; private set; }
         /// <summary>
-        /// Performs snapshot async asynchronously so I/O does not block the caller's thread.
+        /// Performs snapshot asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> SnapshotAsync(CancellationToken cancellationToken) => Task.FromResult("snapshot");
         /// <summary>
-        /// Performs list windows async asynchronously so I/O does not block the caller's thread.
+        /// Performs list windows asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ListWindowsAsync(CancellationToken cancellationToken) => Task.FromResult("[]");
         /// <summary>
-        /// Performs launch app async asynchronously so I/O does not block the caller's thread.
+        /// Performs launch app asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken) { LaunchedName = name; return Task.FromResult($"opened {name}"); }
         /// <summary>
-        /// Performs focus window async asynchronously so I/O does not block the caller's thread.
+        /// Performs focus window asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult($"focused {title}");
         /// <summary>
-        /// Performs invoke async asynchronously so I/O does not block the caller's thread.
+        /// Performs invoke asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken) => Task.FromResult("invoked");
         /// <summary>
-        /// Performs click async asynchronously so I/O does not block the caller's thread.
+        /// Performs click asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken) => Task.FromResult("clicked");
         /// <summary>
-        /// Performs type async asynchronously so I/O does not block the caller's thread.
+        /// Performs type asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken) => Task.FromResult("typed");
         /// <summary>
-        /// Performs press async asynchronously so I/O does not block the caller's thread.
+        /// Performs press asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken) => Task.FromResult("pressed");
         /// <summary>
-        /// Performs close window async asynchronously so I/O does not block the caller's thread.
+        /// Performs close window asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken) => Task.FromResult("closed");
     }

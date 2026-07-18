@@ -159,7 +159,7 @@ public sealed class ProviderPricingService : IProviderPricingService
 public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IModelUsageRepository
 {
     /// <summary>
-    /// Performs record async asynchronously so I/O does not block the caller's thread.
+    /// Performs record asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RecordAsync(ResponseUsageEntry entry, CancellationToken cancellationToken)
     {
@@ -239,7 +239,7 @@ public sealed class ModelUsageRepository(ISqliteConnectionFactory factory) : IMo
     }
 
     /// <summary>
-    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// Performs read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<ResponseUsageEntry>> ReadAsync(Microsoft.Data.Sqlite.SqliteCommand command, CancellationToken cancellationToken)
     {

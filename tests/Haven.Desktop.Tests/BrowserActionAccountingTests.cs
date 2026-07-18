@@ -100,7 +100,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
             "Ready");
 
         /// <summary>
-        /// Performs navigate async asynchronously so I/O does not block the caller's thread.
+        /// Performs navigate asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task NavigateAsync(Uri address, CancellationToken cancellationToken)
         {
@@ -110,23 +110,23 @@ public sealed class BrowserActionAccountingTests : IDisposable
         }
 
         /// <summary>
-        /// Performs go back async asynchronously so I/O does not block the caller's thread.
+        /// Performs go back asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task GoBackAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs go forward async asynchronously so I/O does not block the caller's thread.
+        /// Performs go forward asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task GoForwardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs reload async asynchronously so I/O does not block the caller's thread.
+        /// Performs reload asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task ReloadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs open developer tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs open developer tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task OpenDeveloperToolsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -178,7 +178,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
     private sealed class AllowPolicy : IBrowserNavigationPolicy
     {
         /// <summary>
-        /// Performs assess async asynchronously so I/O does not block the caller's thread.
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserNavigationAssessment> AssessAsync(
             Uri address,
@@ -233,7 +233,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
             Task.FromResult<IReadOnlyList<BrowserDownloadRecord>>([]);
 
         /// <summary>
-        /// Performs add pending async asynchronously so I/O does not block the caller's thread.
+        /// Performs add pending asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> AddPendingAsync(
             BrowserPendingAction action,
@@ -250,7 +250,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
             Task.FromResult(Actions.FirstOrDefault(item => item.Id == actionId));
 
         /// <summary>
-        /// Performs update action async asynchronously so I/O does not block the caller's thread.
+        /// Performs update action asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<BrowserPendingAction> UpdateActionAsync(
             BrowserPendingAction action,
@@ -265,7 +265,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
         }
 
         /// <summary>
-        /// Performs add audit async asynchronously so I/O does not block the caller's thread.
+        /// Performs add audit asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddAuditAsync(BrowserAuditEntry entry, CancellationToken cancellationToken)
         {
@@ -275,7 +275,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
         }
 
         /// <summary>
-        /// Performs add download async asynchronously so I/O does not block the caller's thread.
+        /// Performs add download asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddDownloadAsync(BrowserDownloadRecord download, CancellationToken cancellationToken) =>
             Task.CompletedTask;

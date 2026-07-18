@@ -31,16 +31,16 @@ public sealed class OllamaModelProvider(IOllamaClient client, IProviderConfigura
     /// </summary>
     public ModelProviderKind Kind => ModelProviderKind.Ollama;
     /// <summary>
-    /// Reports whether is local is true for the current state.
+    /// Reports whether local applies to the current state.
     /// </summary>
     public bool IsLocal => true;
     /// <summary>
-    /// Reports whether can manage models is true for the current state.
+    /// Reports whether manage models applies to the current state.
     /// </summary>
     public bool CanManageModels => true;
 
     /// <summary>
-    /// Performs check health async asynchronously so I/O does not block the caller's thread.
+    /// Performs check health asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken)
     {
@@ -78,23 +78,23 @@ public sealed class OllamaModelProvider(IOllamaClient client, IProviderConfigura
     }
 
     /// <summary>
-    /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+    /// Performs stream chat asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, CancellationToken cancellationToken) => client.StreamChatAsync(request, cancellationToken);
     /// <summary>
-    /// Performs complete async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) => client.CompleteAsync(request, cancellationToken);
     /// <summary>
-    /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+    /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) => client.ChatWithToolsAsync(request, cancellationToken);
     /// <summary>
-    /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+    /// Performs pull model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => client.PullModelAsync(model, progress, cancellationToken);
     /// <summary>
-    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => client.DeleteModelAsync(model, cancellationToken);
 }

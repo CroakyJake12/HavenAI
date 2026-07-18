@@ -54,7 +54,7 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
     }
 
     /// <summary>
-    /// Performs read counters async asynchronously so I/O does not block the caller's thread.
+    /// Performs read counters asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<Counters> ReadCountersAsync(
         SqliteConnection connection,
@@ -94,7 +94,7 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
     }
 
     /// <summary>
-    /// Performs read agenda async asynchronously so I/O does not block the caller's thread.
+    /// Performs read agenda asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<DashboardAgendaItem>> ReadAgendaAsync(
         SqliteConnection connection,
@@ -130,7 +130,7 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
     }
 
     /// <summary>
-    /// Performs read recent async asynchronously so I/O does not block the caller's thread.
+    /// Performs read recent asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<IReadOnlyList<DashboardWorkItem>> ReadRecentAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {

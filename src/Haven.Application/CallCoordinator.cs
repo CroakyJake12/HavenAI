@@ -127,15 +127,15 @@ public sealed class CallCoordinator : ICallCoordinator
     /// </summary>
     public Conversation? CurrentConversation { get; private set; }
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive => CurrentSession?.Status == CallSessionStatus.Active;
     /// <summary>
-    /// Reports whether is muted is true for the current state.
+    /// Reports whether muted applies to the current state.
     /// </summary>
     public bool IsMuted { get; private set; }
     /// <summary>
-    /// Reports whether is screen sharing is true for the current state.
+    /// Reports whether screen sharing applies to the current state.
     /// </summary>
     public bool IsScreenSharing => _screenShare.IsSharing;
 
@@ -171,7 +171,7 @@ public sealed class CallCoordinator : ICallCoordinator
     public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
 
     /// <summary>
-    /// Performs start async asynchronously so I/O does not block the caller's thread.
+    /// Performs start asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<CallSession> StartAsync(
         CallStartOptions options,
@@ -244,13 +244,13 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs submit text async asynchronously so I/O does not block the caller's thread.
+    /// Performs submit text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SubmitTextAsync(string text, CancellationToken cancellationToken) =>
         RunTurnAsync(text, fromSpeech: false, Guid.NewGuid(), cancellationToken);
 
     /// <summary>
-    /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task BeginPushToTalkAsync(CancellationToken cancellationToken)
     {
@@ -273,7 +273,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task EndPushToTalkAsync(CancellationToken cancellationToken)
     {
@@ -284,7 +284,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs set muted async asynchronously so I/O does not block the caller's thread.
+    /// Performs set muted asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SetMutedAsync(bool muted, CancellationToken cancellationToken)
     {
@@ -304,7 +304,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs pause async asynchronously so I/O does not block the caller's thread.
+    /// Performs pause asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PauseAsync(CancellationToken cancellationToken)
     {
@@ -315,7 +315,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs resume async asynchronously so I/O does not block the caller's thread.
+    /// Performs resume asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ResumeAsync(CancellationToken cancellationToken)
     {
@@ -327,7 +327,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs start screen share async asynchronously so I/O does not block the caller's thread.
+    /// Performs start screen share asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StartScreenShareAsync(CancellationToken cancellationToken)
     {
@@ -360,7 +360,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs stop screen share async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop screen share asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopScreenShareAsync(CancellationToken cancellationToken)
     {
@@ -370,7 +370,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs interrupt async asynchronously so I/O does not block the caller's thread.
+    /// Performs interrupt asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InterruptAsync(CancellationToken cancellationToken)
     {
@@ -383,7 +383,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs end async asynchronously so I/O does not block the caller's thread.
+    /// Performs end asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task EndAsync(CancellationToken cancellationToken)
     {
@@ -547,7 +547,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs speak queued async asynchronously so I/O does not block the caller's thread.
+    /// Performs speak queued asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SpeakQueuedAsync(ChannelReader<string> reader, CancellationToken cancellationToken)
     {
@@ -574,7 +574,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs handle speech input event async asynchronously so I/O does not block the caller's thread.
+    /// Performs handle speech input event asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task HandleSpeechInputEventAsync(SpeechInputEvent inputEvent, CancellationToken cancellationToken)
     {
@@ -615,7 +615,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs start speech input async asynchronously so I/O does not block the caller's thread.
+    /// Performs start speech input asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task StartSpeechInputAsync(CancellationToken cancellationToken) =>
         _speechInput.StartAsync(
@@ -624,7 +624,7 @@ public sealed class CallCoordinator : ICallCoordinator
             cancellationToken);
 
     /// <summary>
-    /// Performs fail async asynchronously so I/O does not block the caller's thread.
+    /// Performs fail asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task FailAsync(string error)
     {
@@ -642,7 +642,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs end core async asynchronously so I/O does not block the caller's thread.
+    /// Performs end core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EndCoreAsync(
         CallSessionStatus status,
@@ -677,7 +677,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs stop media input and output async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop media input and output asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StopMediaInputAndOutputAsync(CancellationToken cancellationToken)
     {
@@ -686,7 +686,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs cleanup media async asynchronously so I/O does not block the caller's thread.
+    /// Performs cleanup media asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CleanupMediaAsync(CancellationToken cancellationToken)
     {
@@ -695,7 +695,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs best effort async asynchronously so I/O does not block the caller's thread.
+    /// Performs best effort asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task BestEffortAsync(Func<Task> action)
     {
@@ -734,7 +734,7 @@ public sealed class CallCoordinator : ICallCoordinator
         _ = HandleScreenShareSourceClosedAsync();
 
     /// <summary>
-    /// Performs handle screen share source closed async asynchronously so I/O does not block the caller's thread.
+    /// Performs handle screen share source closed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task HandleScreenShareSourceClosedAsync()
     {
@@ -743,7 +743,7 @@ public sealed class CallCoordinator : ICallCoordinator
     }
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

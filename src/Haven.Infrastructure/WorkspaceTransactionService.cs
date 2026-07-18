@@ -18,7 +18,7 @@ namespace Haven.Infrastructure;
 public sealed class WorkspaceTransactionService(IWorkspaceToolService workspaceTools) : IWorkspaceTransactionService
 {
     /// <summary>
-    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<WorkspaceTransactionResult> ApplyAsync(
         string workspaceRoot,

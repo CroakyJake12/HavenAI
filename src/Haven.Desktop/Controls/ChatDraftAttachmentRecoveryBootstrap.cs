@@ -45,7 +45,7 @@ internal static class ChatDraftAttachmentRecoveryBootstrap
     }
 
     /// <summary>
-    /// Performs recover async asynchronously so I/O does not block the caller's thread.
+    /// Performs recover asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task RecoverAsync(ChatView chat, RecoveryState state)
     {

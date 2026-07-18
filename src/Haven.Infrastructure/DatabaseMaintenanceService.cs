@@ -41,7 +41,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     private int _highestPreparedTarget;
 
     /// <summary>
-    /// Performs prepare for migration async asynchronously so I/O does not block the caller's thread.
+    /// Performs prepare for migration asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<DatabaseBackupInfo?> PrepareForMigrationAsync(int targetVersion, CancellationToken cancellationToken)
     {
@@ -162,7 +162,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs verify integrity async asynchronously so I/O does not block the caller's thread.
+    /// Performs verify integrity asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<DatabaseHealthReport> VerifyIntegrityAsync(CancellationToken cancellationToken)
     {
@@ -208,7 +208,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs verify file async asynchronously so I/O does not block the caller's thread.
+    /// Performs verify file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<DatabaseHealthReport> VerifyFileAsync(string path, CancellationToken cancellationToken)
     {
@@ -243,7 +243,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs configure connection async asynchronously so I/O does not block the caller's thread.
+    /// Performs configure connection asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task ConfigureConnectionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
@@ -253,7 +253,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// Performs read schema version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
@@ -300,7 +300,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs compute sha256 async asynchronously so I/O does not block the caller's thread.
+    /// Performs compute sha256 asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
@@ -310,7 +310,7 @@ public sealed class DatabaseMaintenanceService(IAppPaths paths, IProductionDiagn
     }
 
     /// <summary>
-    /// Performs write manifest async asynchronously so I/O does not block the caller's thread.
+    /// Performs write manifest asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WriteManifestAsync(string path, DatabaseBackupManifest manifest, CancellationToken cancellationToken)
     {

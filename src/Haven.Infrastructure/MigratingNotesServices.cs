@@ -33,7 +33,7 @@ public sealed class MigratingNotesRepository(
     private readonly string _root = Path.Combine(paths.DataDirectory, "Notes", "Documents");
 
     /// <summary>
-    /// Performs list async asynchronously so I/O does not block the caller's thread.
+    /// Performs list asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<IReadOnlyList<NotesDocumentSummary>> ListAsync(CancellationToken cancellationToken)
     {
@@ -42,7 +42,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs load async asynchronously so I/O does not block the caller's thread.
+    /// Performs load asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument?> LoadAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -51,7 +51,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<NotesSaveResult> SaveAsync(
         NotesDocument document,
@@ -60,7 +60,7 @@ public sealed class MigratingNotesRepository(
         inner.SaveAsync(document, reason, cancellationToken);
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid documentId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(documentId, cancellationToken);
@@ -74,7 +74,7 @@ public sealed class MigratingNotesRepository(
         inner.GetVersionsAsync(documentId, cancellationToken);
 
     /// <summary>
-    /// Performs load version async asynchronously so I/O does not block the caller's thread.
+    /// Performs load version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument?> LoadVersionAsync(
         Guid documentId,
@@ -96,7 +96,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs recover latest async asynchronously so I/O does not block the caller's thread.
+    /// Performs recover latest asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument?> RecoverLatestAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -130,7 +130,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<IReadOnlyList<NotesSearchHit>> SearchAsync(
         string query,
@@ -138,7 +138,7 @@ public sealed class MigratingNotesRepository(
         SearchMigratedAsync(query, cancellationToken);
 
     /// <summary>
-    /// Performs search migrated async asynchronously so I/O does not block the caller's thread.
+    /// Performs search migrated asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<IReadOnlyList<NotesSearchHit>> SearchMigratedAsync(
         string query,
@@ -149,7 +149,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs ensure all current documents migrated async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure all current documents migrated asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EnsureAllCurrentDocumentsMigratedAsync(CancellationToken cancellationToken)
     {
@@ -180,7 +180,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs ensure current document migrated async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure current document migrated asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task EnsureCurrentDocumentMigratedAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -220,7 +220,7 @@ public sealed class MigratingNotesRepository(
     }
 
     /// <summary>
-    /// Performs read schema version async asynchronously so I/O does not block the caller's thread.
+    /// Performs read schema version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<int> ReadSchemaVersionAsync(string path, CancellationToken cancellationToken)
     {
@@ -280,7 +280,7 @@ public sealed class MigratingNotesImportExportService(
     public IReadOnlyList<string> ExportExtensions => inner.ExportExtensions;
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesDocument> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -334,7 +334,7 @@ public sealed class MigratingNotesImportExportService(
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ExportAsync(
         NotesDocument document,
@@ -343,7 +343,7 @@ public sealed class MigratingNotesImportExportService(
         inner.ExportAsync(document, destinationPath, cancellationToken);
 
     /// <summary>
-    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// Performs print asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task PrintAsync(NotesDocument document, CancellationToken cancellationToken) =>
         inner.PrintAsync(document, cancellationToken);

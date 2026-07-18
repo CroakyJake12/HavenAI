@@ -53,7 +53,7 @@ public sealed class NotesDictationController(
     private bool _disposed;
 
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive => Volatile.Read(ref _active) == 1;
     /// <summary>
@@ -62,7 +62,7 @@ public sealed class NotesDictationController(
     public event EventHandler<NotesDictationStatus>? StatusChanged;
 
     /// <summary>
-    /// Performs start one utterance async asynchronously so I/O does not block the caller's thread.
+    /// Performs start one utterance asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StartOneUtteranceAsync(
         Func<string, CancellationToken, Task> applyFinalTranscript,
@@ -170,7 +170,7 @@ public sealed class NotesDictationController(
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -186,7 +186,7 @@ public sealed class NotesDictationController(
     }
 
     /// <summary>
-    /// Performs stop core async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task StopCoreAsync(CancellationToken cancellationToken, bool publishStatus)
     {
@@ -229,7 +229,7 @@ public sealed class NotesDictationController(
         value.Length <= maximum ? value : value[..maximum] + "…";
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

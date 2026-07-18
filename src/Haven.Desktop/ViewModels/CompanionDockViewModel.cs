@@ -108,7 +108,7 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Reports whether has cards is true for the current state.
+    /// Reports whether cards applies to the current state.
     /// </summary>
     public bool HasCards => Cards.Count > 0;
     /// <summary>
@@ -143,7 +143,7 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     public void Stop() => _refreshTimer.Stop();
 
     /// <summary>
-    /// Performs dock async asynchronously so I/O does not block the caller's thread.
+    /// Performs dock asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DockAsync(Guid conversationId, SurfaceKind surface, string title, CancellationToken cancellationToken)
     {
@@ -161,7 +161,7 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs undock async asynchronously so I/O does not block the caller's thread.
+    /// Performs undock asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task UndockAsync(Guid conversationId, CancellationToken cancellationToken = default)
     {
@@ -177,7 +177,7 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs close card async asynchronously so I/O does not block the caller's thread.
+    /// Performs close card asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CloseCardAsync(CompanionCardViewModel? card, CancellationToken cancellationToken)
     {
@@ -219,7 +219,7 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh cards async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh cards asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshCardsAsync()
     {

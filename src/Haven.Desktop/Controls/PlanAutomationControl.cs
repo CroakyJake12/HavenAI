@@ -327,7 +327,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -383,7 +383,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -550,7 +550,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs toggle async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleAsync(AutomationDefinition definition)
     {
@@ -594,7 +594,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs show history async asynchronously so I/O does not block the caller's thread.
+    /// Performs show history asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ShowHistoryAsync(AutomationDefinition definition)
     {
@@ -620,7 +620,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync(AutomationDefinition definition)
     {
@@ -632,7 +632,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs register worker async asynchronously so I/O does not block the caller's thread.
+    /// Performs register worker asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RegisterWorkerAsync()
     {
@@ -650,7 +650,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     }
 
     /// <summary>
-    /// Performs unregister worker async asynchronously so I/O does not block the caller's thread.
+    /// Performs unregister worker asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task UnregisterWorkerAsync()
     {

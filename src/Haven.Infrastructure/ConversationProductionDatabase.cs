@@ -57,7 +57,7 @@ public sealed class ConversationProductionDatabase : IAppDatabase
     }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -97,7 +97,7 @@ internal static class ConversationProductionSchema
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     /// <summary>
-    /// Performs ensure async asynchronously so I/O does not block the caller's thread.
+    /// Performs ensure asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task EnsureAsync(ISqliteConnectionFactory factory, CancellationToken cancellationToken)
     {

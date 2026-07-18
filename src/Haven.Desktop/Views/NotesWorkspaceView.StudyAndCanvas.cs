@@ -760,7 +760,7 @@ public sealed partial class NotesWorkspaceView
     }
 
     /// <summary>
-    /// Performs export selected equation async asynchronously so I/O does not block the caller's thread.
+    /// Performs export selected equation asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ExportSelectedEquationAsync()
     {

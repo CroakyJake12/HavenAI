@@ -341,7 +341,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     /// </summary>
     public bool AllowDocumentContext { get => _allowDocumentContext; set => SetProperty(ref _allowDocumentContext, value); }
     /// <summary>
-    /// Reports whether is delete confirming is true for the current state.
+    /// Reports whether delete confirming applies to the current state.
     /// </summary>
     public bool IsDeleteConfirming { get => _isDeleteConfirming; set { if (SetProperty(ref _isDeleteConfirming, value)) DeleteDocumentCommand.RaiseCanExecuteChanged(); } }
     public bool IsDirty
@@ -389,23 +389,23 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     /// </summary>
     public IReadOnlyList<NotesAiChange> AiHistory => Document?.AiChanges ?? [];
     /// <summary>
-    /// Reports whether has document is true for the current state.
+    /// Reports whether document applies to the current state.
     /// </summary>
     public bool HasDocument => Document is not null;
     /// <summary>
-    /// Reports whether has selected block is true for the current state.
+    /// Reports whether selected block applies to the current state.
     /// </summary>
     public bool HasSelectedBlock => SelectedBlock is not null;
     /// <summary>
-    /// Reports whether has pending ai change is true for the current state.
+    /// Reports whether pending ai change applies to the current state.
     /// </summary>
     public bool HasPendingAiChange => PendingAiChange is not null;
     /// <summary>
-    /// Reports whether is selected flashcard is true for the current state.
+    /// Reports whether selected flashcard applies to the current state.
     /// </summary>
     public bool IsSelectedFlashcard => SelectedBlock?.Flashcard is not null;
     /// <summary>
-    /// Reports whether is selected canvas is true for the current state.
+    /// Reports whether selected canvas applies to the current state.
     /// </summary>
     public bool IsSelectedCanvas => SelectedBlock?.Canvas is not null;
     /// <summary>
@@ -569,7 +569,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     public RelayCommand ReviewEasyCommand { get; }
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -592,7 +592,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh documents async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh documents asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RefreshDocumentsAsync(CancellationToken cancellationToken)
     {
@@ -602,7 +602,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open document async asynchronously so I/O does not block the caller's thread.
+    /// Performs open document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task OpenDocumentAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -856,7 +856,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs import media async asynchronously so I/O does not block the caller's thread.
+    /// Performs import media asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<NotesMediaData> ImportMediaAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -875,7 +875,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs import document async asynchronously so I/O does not block the caller's thread.
+    /// Performs import document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ImportDocumentAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -896,7 +896,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs export document async asynchronously so I/O does not block the caller's thread.
+    /// Performs export document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ExportDocumentAsync(string destinationPath, CancellationToken cancellationToken)
     {
@@ -915,7 +915,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs print async asynchronously so I/O does not block the caller's thread.
+    /// Performs print asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PrintAsync(CancellationToken cancellationToken)
     {
@@ -934,7 +934,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs new document async asynchronously so I/O does not block the caller's thread.
+    /// Performs new document asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task NewDocumentAsync()
     {
@@ -956,7 +956,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync(string reason)
     {
@@ -992,7 +992,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs delete current async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete current asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteCurrentAsync()
     {
@@ -1097,7 +1097,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs search async asynchronously so I/O does not block the caller's thread.
+    /// Performs search asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SearchAsync()
     {
@@ -1126,7 +1126,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs navigate to search hit async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate to search hit asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task NavigateToSearchHitAsync(NotesSearchHit hit)
     {
@@ -1143,7 +1143,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh versions async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh versions asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshVersionsAsync(CancellationToken cancellationToken)
     {
@@ -1154,7 +1154,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs restore selected version async asynchronously so I/O does not block the caller's thread.
+    /// Performs restore selected version asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RestoreSelectedVersionAsync()
     {
@@ -1178,7 +1178,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs propose ai async asynchronously so I/O does not block the caller's thread.
+    /// Performs propose ai asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ProposeAiAsync()
     {
@@ -1238,7 +1238,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs approve ai async asynchronously so I/O does not block the caller's thread.
+    /// Performs approve ai asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApproveAiAsync()
     {
@@ -1463,7 +1463,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs refresh models async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshModelsAsync(CancellationToken cancellationToken)
     {

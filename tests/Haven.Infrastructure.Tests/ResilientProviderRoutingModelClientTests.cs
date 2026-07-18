@@ -145,11 +145,11 @@ public sealed class ResilientProviderRoutingModelClientTests
         public Task<ProviderConfiguration?> GetAsync(string providerId, CancellationToken cancellationToken) =>
             Task.FromResult(values.TryGetValue(providerId, out var value) ? value : null);
         /// <summary>
-        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertAsync(ProviderConfiguration configuration, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs delete async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteAsync(string providerId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
@@ -160,7 +160,7 @@ public sealed class ResilientProviderRoutingModelClientTests
     private sealed class FakeLocalClient : IOllamaClient
     {
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(false);
         /// <summary>
@@ -168,23 +168,23 @@ public sealed class ResilientProviderRoutingModelClientTests
         /// </summary>
         public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) => throw new HttpRequestException("local unavailable");
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) => throw new HttpRequestException("local unavailable");
         /// <summary>
-        /// Performs pull model async asynchronously so I/O does not block the caller's thread.
+        /// Performs pull model asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => throw new NotSupportedException();
         /// <summary>
-        /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete model asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
@@ -255,16 +255,16 @@ public sealed class ResilientProviderRoutingModelClientTests
         /// </summary>
         public ModelProviderKind Kind => Id == "ollama" ? ModelProviderKind.Ollama : ModelProviderKind.OpenAICompatible;
         /// <summary>
-        /// Reports whether is local is true for the current state.
+        /// Reports whether local applies to the current state.
         /// </summary>
         public bool IsLocal { get; }
         /// <summary>
-        /// Reports whether can manage models is true for the current state.
+        /// Reports whether manage models applies to the current state.
         /// </summary>
         public bool CanManageModels => false;
 
         /// <summary>
-        /// Performs check health async asynchronously so I/O does not block the caller's thread.
+        /// Performs check health asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<ProviderHealthStatus> CheckHealthAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new ProviderHealthStatus(Id, !_fail, _fail ? "unavailable" : "ready", TimeSpan.Zero, DateTimeOffset.UtcNow));
@@ -280,7 +280,7 @@ public sealed class ResilientProviderRoutingModelClientTests
         }
 
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
@@ -294,7 +294,7 @@ public sealed class ResilientProviderRoutingModelClientTests
         }
 
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken)
         {
@@ -304,7 +304,7 @@ public sealed class ResilientProviderRoutingModelClientTests
         }
 
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

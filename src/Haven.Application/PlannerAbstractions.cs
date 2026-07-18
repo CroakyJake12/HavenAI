@@ -23,7 +23,7 @@ public sealed record PlannerTaskQuery(
     string? Search = null);
 
 /// <summary>
-/// Defines the i planner repository contract so callers depend on a capability rather than one implementation.
+/// Defines the planner repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPlannerRepository
 {
@@ -69,7 +69,7 @@ public sealed record PlannerProposalValidation(bool IsValid, IReadOnlyList<strin
 }
 
 /// <summary>
-/// Defines the i planner proposal service contract so callers depend on a capability rather than one implementation.
+/// Defines the planner proposal service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPlannerProposalService
 {
@@ -89,7 +89,7 @@ public sealed record CalendarProviderConfiguration(
     IReadOnlyList<string> Scopes)
 {
     /// <summary>
-    /// Reports whether is configured is true for the current state.
+    /// Reports whether configured applies to the current state.
     /// </summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
 }
@@ -108,7 +108,7 @@ public sealed record CalendarSyncRequest(Guid AccountId, bool FullSync, DateTime
 public sealed record CalendarSyncResult(bool Succeeded, CalendarSyncStatus Status, int Added, int Updated, int Deleted, int Conflicts, string Message);
 
 /// <summary>
-/// Defines the i calendar sync provider contract so callers depend on a capability rather than one implementation.
+/// Defines the calendar sync provider contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICalendarSyncProvider
 {
@@ -121,7 +121,7 @@ public interface ICalendarSyncProvider
 }
 
 /// <summary>
-/// Defines the i calendar sync provider registry contract so callers depend on a capability rather than one implementation.
+/// Defines the calendar sync provider registry contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICalendarSyncProviderRegistry
 {
@@ -135,7 +135,7 @@ public interface ICalendarSyncProviderRegistry
 public sealed record CalendarTokenEnvelope(string AccessToken, string? RefreshToken, DateTimeOffset ExpiresAt, string Scope);
 
 /// <summary>
-/// Defines the i calendar token store contract so callers depend on a capability rather than one implementation.
+/// Defines the calendar token store contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICalendarTokenStore
 {

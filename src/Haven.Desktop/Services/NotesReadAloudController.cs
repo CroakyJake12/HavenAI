@@ -47,7 +47,7 @@ public sealed class NotesReadAloudController(
     private bool _disposed;
 
     /// <summary>
-    /// Reports whether is active is true for the current state.
+    /// Reports whether active applies to the current state.
     /// </summary>
     public bool IsActive => Volatile.Read(ref _active) == 1;
     /// <summary>
@@ -56,7 +56,7 @@ public sealed class NotesReadAloudController(
     public event EventHandler<NotesReadAloudStatus>? StatusChanged;
 
     /// <summary>
-    /// Performs read async asynchronously so I/O does not block the caller's thread.
+    /// Performs read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ReadAsync(
         string text,
@@ -132,7 +132,7 @@ public sealed class NotesReadAloudController(
     }
 
     /// <summary>
-    /// Performs stop async asynchronously so I/O does not block the caller's thread.
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -162,7 +162,7 @@ public sealed class NotesReadAloudController(
     }
 
     /// <summary>
-    /// Performs complete read async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete read asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CompleteReadAsync(CancellationTokenSource owner)
     {
@@ -210,7 +210,7 @@ public sealed class NotesReadAloudController(
         StatusChanged?.Invoke(this, new NotesReadAloudStatus(IsActive, message, isError));
 
     /// <summary>
-    /// Performs dispose async asynchronously so I/O does not block the caller's thread.
+    /// Performs dispose asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

@@ -66,12 +66,12 @@ public sealed class LanguageServerSettingsViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -114,7 +114,7 @@ public sealed class LanguageServerSettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync(LanguageServerSettingsItemViewModel? item)
     {
@@ -152,7 +152,7 @@ public sealed class LanguageServerSettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync(LanguageServerSettingsItemViewModel? item)
     {
@@ -273,7 +273,7 @@ public sealed class LanguageServerSettingsItemViewModel : ObservableObject
     /// </summary>
     public string ExtensionsText { get => _extensionsText; set => SetProperty(ref _extensionsText, value); }
     /// <summary>
-    /// Reports whether is enabled is true for the current state.
+    /// Reports whether enabled applies to the current state.
     /// </summary>
     public bool IsEnabled { get => _isEnabled; set => SetProperty(ref _isEnabled, value); }
     /// <summary>
@@ -289,7 +289,7 @@ public sealed class LanguageServerSettingsItemViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is busy is true for the current state.
+    /// Reports whether busy applies to the current state.
     /// </summary>
     public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
 }

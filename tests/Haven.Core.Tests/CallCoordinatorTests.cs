@@ -265,7 +265,7 @@ public sealed class CallCoordinatorTests
     }
 
     /// <summary>
-    /// Performs wait until async asynchronously so I/O does not block the caller's thread.
+    /// Performs wait until asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
@@ -299,7 +299,7 @@ public sealed class CallCoordinatorTests
         /// </summary>
         public Dictionary<Guid, CallSession> Items { get; } = [];
         /// <summary>
-        /// Performs upsert async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertAsync(CallSession session, CancellationToken cancellationToken)
         {
@@ -348,7 +348,7 @@ public sealed class CallCoordinatorTests
         public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ChatMessage>>(Messages.GetValueOrDefault(conversationId) ?? []);
         /// <summary>
-        /// Performs upsert conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken)
         {
@@ -357,7 +357,7 @@ public sealed class CallCoordinatorTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs add message async asynchronously so I/O does not block the caller's thread.
+        /// Performs add message asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
         {
@@ -366,7 +366,7 @@ public sealed class CallCoordinatorTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs delete conversation async asynchronously so I/O does not block the caller's thread.
+        /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken)
         {
@@ -395,7 +395,7 @@ public sealed class CallCoordinatorTests
         public TaskCompletionSource FirstChunk { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
-        /// Reports whether is available async is true for the current state.
+        /// Reports whether available async applies to the current state.
         /// </summary>
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
         /// <summary>
@@ -405,7 +405,7 @@ public sealed class CallCoordinatorTests
             Task.FromResult<IReadOnlyList<ModelDescriptor>>([Model()]);
 
         /// <summary>
-        /// Performs stream chat async asynchronously so I/O does not block the caller's thread.
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public async IAsyncEnumerable<string> StreamChatAsync(
             OllamaChatRequest request,
@@ -426,12 +426,12 @@ public sealed class CallCoordinatorTests
         }
 
         /// <summary>
-        /// Performs complete async asynchronously so I/O does not block the caller's thread.
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(string.Concat(chunks));
         /// <summary>
-        /// Performs chat with tools async asynchronously so I/O does not block the caller's thread.
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new OllamaToolResponse(string.Concat(chunks), []));
@@ -451,7 +451,7 @@ public sealed class CallCoordinatorTests
         /// </summary>
         private CancellationToken _callbackToken;
         /// <summary>
-        /// Reports whether is available is true for the current state.
+        /// Reports whether available applies to the current state.
         /// </summary>
         public bool IsAvailable => true;
         /// <summary>
@@ -468,7 +468,7 @@ public sealed class CallCoordinatorTests
         public int StopCount { get; private set; }
 
         /// <summary>
-        /// Performs start async asynchronously so I/O does not block the caller's thread.
+        /// Performs start asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StartAsync(
             SpeechInputOptions options,
@@ -480,15 +480,15 @@ public sealed class CallCoordinatorTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs begin push to talk async asynchronously so I/O does not block the caller's thread.
+        /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task BeginPushToTalkAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs end push to talk async asynchronously so I/O does not block the caller's thread.
+        /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EndPushToTalkAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -496,7 +496,7 @@ public sealed class CallCoordinatorTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs emit async asynchronously so I/O does not block the caller's thread.
+        /// Performs emit asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task EmitAsync(SpeechInputEvent value) =>
             _callback?.Invoke(value, _callbackToken) ?? Task.CompletedTask;
@@ -508,7 +508,7 @@ public sealed class CallCoordinatorTests
     private sealed class FakeSpeechOutput : ISpeechOutputService
     {
         /// <summary>
-        /// Reports whether is available is true for the current state.
+        /// Reports whether available applies to the current state.
         /// </summary>
         public bool IsAvailable => true;
         /// <summary>
@@ -532,7 +532,7 @@ public sealed class CallCoordinatorTests
         /// </summary>
         public int StopCount { get; private set; }
         /// <summary>
-        /// Performs speak async asynchronously so I/O does not block the caller's thread.
+        /// Performs speak asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken)
         {
@@ -540,7 +540,7 @@ public sealed class CallCoordinatorTests
             return Task.CompletedTask;
         }
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -559,11 +559,11 @@ public sealed class CallCoordinatorTests
         /// </summary>
         public const string FrameData = "PRIVATE_FRAME_BASE64";
         /// <summary>
-        /// Reports whether is supported is true for the current state.
+        /// Reports whether supported applies to the current state.
         /// </summary>
         public bool IsSupported => true;
         /// <summary>
-        /// Reports whether is sharing is true for the current state.
+        /// Reports whether sharing applies to the current state.
         /// </summary>
         public bool IsSharing { get; private set; }
         /// <summary>
@@ -591,7 +591,7 @@ public sealed class CallCoordinatorTests
         /// </summary>
         public int GetSnapshotCount { get; private set; }
         /// <summary>
-        /// Performs start with system picker async asynchronously so I/O does not block the caller's thread.
+        /// Performs start with system picker asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken)
         {
@@ -608,7 +608,7 @@ public sealed class CallCoordinatorTests
             return Task.FromResult<ScreenShareSnapshot?>(new(FrameData, 1280, 720, DateTimeOffset.UtcNow));
         }
         /// <summary>
-        /// Performs stop async asynchronously so I/O does not block the caller's thread.
+        /// Performs stop asynchronously so I/O does not block the caller's thread.
         /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {

@@ -86,7 +86,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SaveAsync(GenerativeThemePack theme, CancellationToken cancellationToken)
     {
@@ -124,7 +124,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs rename async asynchronously so I/O does not block the caller's thread.
+    /// Performs rename asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken)
     {
@@ -145,7 +145,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(Guid themeId, CancellationToken cancellationToken)
     {
@@ -174,7 +174,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs select async asynchronously so I/O does not block the caller's thread.
+    /// Performs select asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SelectAsync(Guid themeId, GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
     {
@@ -193,7 +193,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+    /// Performs set appearance asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task SetAppearanceAsync(GenerativeThemeAppearance appearance, CancellationToken cancellationToken)
     {
@@ -211,7 +211,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<string> ExportAsync(Guid themeId, string destinationDirectory, CancellationToken cancellationToken)
     {
@@ -233,7 +233,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<GenerativeThemePack> ImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
@@ -345,7 +345,7 @@ public sealed class GenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs read theme file async asynchronously so I/O does not block the caller's thread.
+    /// Performs read theme file asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<GenerativeThemePack?> ReadThemeFileAsync(string path, CancellationToken cancellationToken)
     {

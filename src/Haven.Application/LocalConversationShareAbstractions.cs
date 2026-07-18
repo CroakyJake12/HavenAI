@@ -21,7 +21,7 @@ public sealed record LocalShareHandle(
     string Notice);
 
 /// <summary>
-/// Defines the i local conversation share service contract so callers depend on a capability rather than one implementation.
+/// Defines the local conversation share service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILocalConversationShareService : IAsyncDisposable
 {

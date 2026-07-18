@@ -93,25 +93,25 @@ public sealed class SafeGenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SaveAsync(GenerativeThemePack theme, CancellationToken cancellationToken) =>
         inner.SaveAsync(theme, cancellationToken);
 
     /// <summary>
-    /// Performs rename async asynchronously so I/O does not block the caller's thread.
+    /// Performs rename asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task RenameAsync(Guid themeId, string name, CancellationToken cancellationToken) =>
         inner.RenameAsync(themeId, name, cancellationToken);
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task DeleteAsync(Guid themeId, CancellationToken cancellationToken) =>
         inner.DeleteAsync(themeId, cancellationToken);
 
     /// <summary>
-    /// Performs select async asynchronously so I/O does not block the caller's thread.
+    /// Performs select asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SelectAsync(
         Guid themeId,
@@ -123,7 +123,7 @@ public sealed class SafeGenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs set appearance async asynchronously so I/O does not block the caller's thread.
+    /// Performs set appearance asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task SetAppearanceAsync(
         GenerativeThemeAppearance appearance,
@@ -134,7 +134,7 @@ public sealed class SafeGenerativeThemeStore(
     }
 
     /// <summary>
-    /// Performs export async asynchronously so I/O does not block the caller's thread.
+    /// Performs export asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<string> ExportAsync(
         Guid themeId,
@@ -143,7 +143,7 @@ public sealed class SafeGenerativeThemeStore(
         inner.ExportAsync(themeId, destinationDirectory, cancellationToken);
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<GenerativeThemePack> ImportAsync(
         string sourcePath,

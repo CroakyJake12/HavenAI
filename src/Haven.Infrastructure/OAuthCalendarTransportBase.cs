@@ -60,12 +60,12 @@ public abstract class OAuthCalendarTransportBase(
     protected abstract Uri TokenEndpoint { get; }
     protected abstract Task<(string Identifier, string DisplayName)> GetIdentityAsync(string accessToken, CancellationToken cancellationToken);
     /// <summary>
-    /// Performs sync core async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync core asynchronously so I/O does not block the caller's thread.
     /// </summary>
     protected abstract Task<CalendarSyncResult> SyncCoreAsync(CalendarAccount account, CalendarTokenEnvelope token, CalendarSyncRequest request, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Performs connect async asynchronously so I/O does not block the caller's thread.
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<CalendarAuthorizationResult> ConnectAsync(CalendarProviderConfiguration suppliedConfiguration, CancellationToken cancellationToken)
     {
@@ -119,7 +119,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs sync async asynchronously so I/O does not block the caller's thread.
+    /// Performs sync asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<CalendarSyncResult> SyncAsync(CalendarSyncRequest request, CancellationToken cancellationToken)
     {
@@ -173,7 +173,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs disconnect async asynchronously so I/O does not block the caller's thread.
+    /// Performs disconnect asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DisconnectAsync(Guid accountId, CancellationToken cancellationToken)
     {
@@ -194,7 +194,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs send json async asynchronously so I/O does not block the caller's thread.
+    /// Performs send json asynchronously so I/O does not block the caller's thread.
     /// </summary>
     protected async Task<JsonDocument> SendJsonAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -206,7 +206,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs drain outbox async asynchronously so I/O does not block the caller's thread.
+    /// Performs drain outbox asynchronously so I/O does not block the caller's thread.
     /// </summary>
     protected async Task DrainOutboxAsync(CalendarAccount account, CalendarTokenEnvelope token, Func<CalendarOutboxItem, PlannerEvent, string, CancellationToken, Task> apply,
         CancellationToken cancellationToken)
@@ -251,7 +251,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs exchange code async asynchronously so I/O does not block the caller's thread.
+    /// Performs exchange code asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<CalendarTokenEnvelope> ExchangeCodeAsync(string code, string verifier, CancellationToken cancellationToken)
     {
@@ -264,7 +264,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs refresh if needed async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh if needed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<CalendarTokenEnvelope> RefreshIfNeededAsync(Guid accountId, CalendarTokenEnvelope token, CancellationToken cancellationToken)
     {
@@ -280,7 +280,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs request token async asynchronously so I/O does not block the caller's thread.
+    /// Performs request token asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<CalendarTokenEnvelope> RequestTokenAsync(Dictionary<string, string> values, string? existingRefreshToken, CancellationToken cancellationToken)
     {
@@ -295,7 +295,7 @@ public abstract class OAuthCalendarTransportBase(
     }
 
     /// <summary>
-    /// Performs complete browser response async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete browser response asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task CompleteBrowserResponseAsync(HttpListenerResponse response, bool success, CancellationToken cancellationToken)
     {

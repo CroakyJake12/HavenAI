@@ -12,7 +12,7 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Defines the i conversation repository contract so callers depend on a capability rather than one implementation.
+/// Defines the conversation repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IConversationRepository
 {
@@ -35,7 +35,7 @@ public interface IConversationRepository
 }
 
 /// <summary>
-/// Defines the i container repository contract so callers depend on a capability rather than one implementation.
+/// Defines the container repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IContainerRepository
 {
@@ -51,7 +51,7 @@ public interface IContainerRepository
 }
 
 /// <summary>
-/// Defines the i container resource repository contract so callers depend on a capability rather than one implementation.
+/// Defines the container resource repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IContainerResourceRepository
 {
@@ -63,7 +63,7 @@ public interface IContainerResourceRepository
 }
 
 /// <summary>
-/// Defines the i catalog repository contract so callers depend on a capability rather than one implementation.
+/// Defines the catalog repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICatalogRepository
 {
@@ -82,7 +82,7 @@ public interface ICatalogRepository
 }
 
 /// <summary>
-/// Defines the i workspace state repository contract so callers depend on a capability rather than one implementation.
+/// Defines the workspace state repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IWorkspaceStateRepository
 {
@@ -97,7 +97,7 @@ public interface IWorkspaceStateRepository
 }
 
 /// <summary>
-/// Defines the i project intelligence service contract so callers depend on a capability rather than one implementation.
+/// Defines the project intelligence service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IProjectIntelligenceService
 {
@@ -121,7 +121,7 @@ public interface IProjectIntelligenceService
 public sealed record ProjectDiscoveryItem(string Name, string RootPath, string EntryPath, string Kind, string Category);
 
 /// <summary>
-/// Defines the i automation repository contract so callers depend on a capability rather than one implementation.
+/// Defines the automation repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAutomationRepository
 {
@@ -135,7 +135,7 @@ public interface IAutomationRepository
 }
 
 /// <summary>
-/// Defines the i training repository contract so callers depend on a capability rather than one implementation.
+/// Defines the training repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ITrainingRepository
 {
@@ -148,7 +148,7 @@ public interface ITrainingRepository
 }
 
 /// <summary>
-/// Defines the i ollama client contract so callers depend on a capability rather than one implementation.
+/// Defines the ollama client contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IOllamaClient
 {
@@ -226,7 +226,7 @@ public sealed record OllamaToolRequest(
 public sealed record OllamaToolResponse(string Content, IReadOnlyList<OllamaToolCall> ToolCalls);
 
 /// <summary>
-/// Defines the i workspace tool service contract so callers depend on a capability rather than one implementation.
+/// Defines the workspace tool service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IWorkspaceToolService
 {
@@ -238,7 +238,7 @@ public interface IWorkspaceToolService
 }
 
 /// <summary>
-/// Defines the i computer tool service contract so callers depend on a capability rather than one implementation.
+/// Defines the computer tool service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IComputerToolService
 {
@@ -254,7 +254,7 @@ public interface IComputerToolService
 }
 
 /// <summary>
-/// Defines the i browser tool service contract so callers depend on a capability rather than one implementation.
+/// Defines the browser tool service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserToolService
 {
@@ -280,7 +280,7 @@ public sealed record ProcessRequest(string FileName, string Arguments, string Wo
 public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError, TimeSpan Duration, bool TimedOut);
 
 /// <summary>
-/// Defines the i legacy state migrator contract so callers depend on a capability rather than one implementation.
+/// Defines the legacy state migrator contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ILegacyStateMigrator
 {
@@ -293,7 +293,7 @@ public interface ILegacyStateMigrator
 public sealed record LegacyMigrationResult(bool Attempted, bool Imported, int ConversationCount, int MessageCount, string? Note);
 
 /// <summary>
-/// Defines the i mode registry contract so callers depend on a capability rather than one implementation.
+/// Defines the mode registry contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModeRegistry
 {
@@ -308,7 +308,7 @@ public interface IModeRegistry
 }
 
 /// <summary>
-/// Defines the i mode usage repository contract so callers depend on a capability rather than one implementation.
+/// Defines the mode usage repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModeUsageRepository
 {
@@ -319,7 +319,7 @@ public interface IModeUsageRepository
 }
 
 /// <summary>
-/// Defines the i pin repository contract so callers depend on a capability rather than one implementation.
+/// Defines the pin repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPinRepository
 {
@@ -329,7 +329,7 @@ public interface IPinRepository
 }
 
 /// <summary>
-/// Defines the i surface router contract so callers depend on a capability rather than one implementation.
+/// Defines the surface router contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ISurfaceRouter
 {
@@ -339,7 +339,7 @@ public interface ISurfaceRouter
 }
 
 /// <summary>
-/// Defines the i mode intent router contract so callers depend on a capability rather than one implementation.
+/// Defines the mode intent router contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IModeIntentRouter
 {
@@ -348,7 +348,7 @@ public interface IModeIntentRouter
 }
 
 /// <summary>
-/// Defines the i activity log repository contract so callers depend on a capability rather than one implementation.
+/// Defines the activity log repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IActivityLogRepository
 {
@@ -357,7 +357,7 @@ public interface IActivityLogRepository
 }
 
 /// <summary>
-/// Defines the i conversation move repository contract so callers depend on a capability rather than one implementation.
+/// Defines the conversation move repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IConversationMoveRepository
 {
@@ -366,7 +366,7 @@ public interface IConversationMoveRepository
 }
 
 /// <summary>
-/// Defines the i companion dock service contract so callers depend on a capability rather than one implementation.
+/// Defines the companion dock service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICompanionDockService
 {
@@ -377,7 +377,7 @@ public interface ICompanionDockService
 }
 
 /// <summary>
-/// Defines the i browser tab host manager contract so callers depend on a capability rather than one implementation.
+/// Defines the browser tab host manager contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IBrowserTabHostManager
 {
@@ -387,7 +387,7 @@ public interface IBrowserTabHostManager
 }
 
 /// <summary>
-/// Defines the i platform shell service contract so callers depend on a capability rather than one implementation.
+/// Defines the platform shell service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPlatformShellService
 {
@@ -397,7 +397,7 @@ public interface IPlatformShellService
 }
 
 /// <summary>
-/// Defines the i app diagnostics contract so callers depend on a capability rather than one implementation.
+/// Defines the app diagnostics contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAppDiagnostics
 {
@@ -407,7 +407,7 @@ public interface IAppDiagnostics
 }
 
 /// <summary>
-/// Defines the i app command registry contract so callers depend on a capability rather than one implementation.
+/// Defines the app command registry contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAppCommandRegistry
 {
@@ -416,7 +416,7 @@ public interface IAppCommandRegistry
 }
 
 /// <summary>
-/// Defines the i app database contract so callers depend on a capability rather than one implementation.
+/// Defines the app database contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAppDatabase
 {
@@ -424,7 +424,7 @@ public interface IAppDatabase
 }
 
 /// <summary>
-/// Defines the i app paths contract so callers depend on a capability rather than one implementation.
+/// Defines the app paths contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IAppPaths
 {

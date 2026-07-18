@@ -53,7 +53,7 @@ public sealed class GenerativeUiThemeRuntime(
     public event EventHandler? ThemeChanged;
 
     /// <summary>
-    /// Performs initialize async asynchronously so I/O does not block the caller's thread.
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -75,7 +75,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     /// <summary>
-    /// Performs apply async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ApplyAsync(
         Guid themeId,
@@ -153,7 +153,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     /// <summary>
-    /// Performs preview async asynchronously so I/O does not block the caller's thread.
+    /// Performs preview asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task PreviewAsync(
         GenerativeThemePack theme,
@@ -193,7 +193,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     /// <summary>
-    /// Performs revert preview async asynchronously so I/O does not block the caller's thread.
+    /// Performs revert preview asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task RevertPreviewAsync(CancellationToken cancellationToken)
     {
@@ -240,7 +240,7 @@ public sealed class GenerativeUiThemeRuntime(
     }
 
     /// <summary>
-    /// Performs apply visuals async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply visuals asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyVisualsAsync(
         GenerativeThemePack theme,

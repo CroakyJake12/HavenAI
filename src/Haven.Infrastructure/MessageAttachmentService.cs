@@ -100,7 +100,7 @@ public sealed class MessageAttachmentService(
     };
 
     /// <summary>
-    /// Performs import async asynchronously so I/O does not block the caller's thread.
+    /// Performs import asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<MessageAttachment> ImportAsync(
         Guid conversationId,
@@ -248,7 +248,7 @@ public sealed class MessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task DeleteAsync(Guid attachmentId, CancellationToken cancellationToken)
     {
@@ -388,7 +388,7 @@ public sealed class MessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs add probe metadata async asynchronously so I/O does not block the caller's thread.
+    /// Performs add probe metadata asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AddProbeMetadataAsync(string path, Dictionary<string, object?> metadata, CancellationToken cancellationToken)
     {
@@ -417,7 +417,7 @@ public sealed class MessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs extract open xml text async asynchronously so I/O does not block the caller's thread.
+    /// Performs extract open xml text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ExtractOpenXmlTextAsync(
         string path,
@@ -463,7 +463,7 @@ public sealed class MessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs read bounded text async asynchronously so I/O does not block the caller's thread.
+    /// Performs read bounded text asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task<string> ReadBoundedTextAsync(string path, int maxCharacters, CancellationToken cancellationToken)
     {
@@ -558,7 +558,7 @@ public sealed class MessageAttachmentService(
     }
 
     /// <summary>
-    /// Performs copy atomically async asynchronously so I/O does not block the caller's thread.
+    /// Performs copy atomically asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private static async Task CopyAtomicallyAsync(string source, string destination, CancellationToken cancellationToken)
     {
@@ -630,7 +630,7 @@ public sealed class MessageAttachmentService(
     /// </summary>
     private static string FormatBytes(long bytes) => bytes >= 1024L * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.#} GB" : bytes >= 1024L * 1024 ? $"{bytes / (1024d * 1024):0.#} MB" : $"{bytes / 1024d:0.#} KB";
     /// <summary>
-    /// Reports whether is inside is true for the current state.
+    /// Reports whether inside applies to the current state.
     /// </summary>
     private static bool IsInside(string path, string root) => path.StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     /// <summary>

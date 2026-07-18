@@ -96,7 +96,7 @@ public sealed class AutomationRunner(
     }
 
     /// <summary>
-    /// Performs complete leased run async asynchronously so I/O does not block the caller's thread.
+    /// Performs complete leased run asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task<AutomationRun> CompleteLeasedRunAsync(
         AutomationDefinition automation,

@@ -256,11 +256,11 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public string BookmarkGroup { get => _bookmarkGroup; set => SetProperty(ref _bookmarkGroup, value); }
     /// <summary>
-    /// Reports whether has bookmarks is true for the current state.
+    /// Reports whether bookmarks applies to the current state.
     /// </summary>
     public bool HasBookmarks => Bookmarks.Count > 0;
     /// <summary>
-    /// Reports whether has no bookmarks is true for the current state.
+    /// Reports whether no bookmarks applies to the current state.
     /// </summary>
     public bool HasNoBookmarks => !HasBookmarks;
     /// <summary>
@@ -280,35 +280,35 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     /// </summary>
     public string AssistantOutput { get => _assistantOutput; private set => SetProperty(ref _assistantOutput, value); }
     /// <summary>
-    /// Reports whether is bookmarks open is true for the current state.
+    /// Reports whether bookmarks open applies to the current state.
     /// </summary>
     public bool IsBookmarksOpen { get => _isBookmarksOpen; private set => SetProperty(ref _isBookmarksOpen, value); }
     /// <summary>
-    /// Reports whether is history open is true for the current state.
+    /// Reports whether history open applies to the current state.
     /// </summary>
     public bool IsHistoryOpen { get => _isHistoryOpen; private set => SetProperty(ref _isHistoryOpen, value); }
     /// <summary>
-    /// Reports whether is settings open is true for the current state.
+    /// Reports whether settings open applies to the current state.
     /// </summary>
     public bool IsSettingsOpen { get => _isSettingsOpen; private set => SetProperty(ref _isSettingsOpen, value); }
     /// <summary>
-    /// Reports whether is extensions open is true for the current state.
+    /// Reports whether extensions open applies to the current state.
     /// </summary>
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
     /// <summary>
-    /// Reports whether is logins open is true for the current state.
+    /// Reports whether logins open applies to the current state.
     /// </summary>
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
     /// <summary>
-    /// Reports whether is assistant open is true for the current state.
+    /// Reports whether assistant open applies to the current state.
     /// </summary>
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
     /// <summary>
-    /// Reports whether is any panel open is true for the current state.
+    /// Reports whether any panel open applies to the current state.
     /// </summary>
     public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen;
     /// <summary>
-    /// Reports whether is private is true for the current state.
+    /// Reports whether private applies to the current state.
     /// </summary>
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
     /// <summary>
@@ -507,7 +507,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     public RelayCommand ConvertChromeExtensionRequestedCommand { get; }
 
     /// <summary>
-    /// Performs navigate safely async asynchronously so I/O does not block the caller's thread.
+    /// Performs navigate safely asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task NavigateSafelyAsync() => RunSafelyAsync(async () =>
     {
@@ -515,7 +515,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs import extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs import extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task ImportExtensionAsync(string path, bool convertChrome) => RunSafelyAsync(async () =>
     {
@@ -547,7 +547,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs add tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs add tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task AddTabAsync(bool isPrivate)
     {
@@ -558,7 +558,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs close tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs close tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task CloseTabAsync(BrowserTabViewModel? tab)
     {
@@ -571,7 +571,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs select tab async asynchronously so I/O does not block the caller's thread.
+    /// Performs select tab asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task SelectTabAsync(BrowserTabViewModel? tab)
     {
@@ -580,7 +580,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs add bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs add bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task AddBookmarkAsync() => RunSafelyAsync(async () =>
     {
@@ -590,7 +590,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs remove bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs remove bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task RemoveBookmarkAsync(BrowserBookmark? bookmark)
     {
@@ -604,7 +604,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open bookmark async asynchronously so I/O does not block the caller's thread.
+    /// Performs open bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenBookmarkAsync(BrowserBookmark? bookmark)
     {
@@ -614,7 +614,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs open history async asynchronously so I/O does not block the caller's thread.
+    /// Performs open history asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task OpenHistoryAsync(BrowserHistoryEntry? entry)
     {
@@ -624,7 +624,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs clear history async asynchronously so I/O does not block the caller's thread.
+    /// Performs clear history asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ClearHistoryAsync()
     {
@@ -646,12 +646,12 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs ask assistant async asynchronously so I/O does not block the caller's thread.
+    /// Performs ask assistant asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task AskAssistantAsync() => AskAssistantAsync(AssistantInput);
 
     /// <summary>
-    /// Performs ask assistant async asynchronously so I/O does not block the caller's thread.
+    /// Performs ask assistant asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task AskAssistantAsync(string instruction) => RunSafelyAsync(async () =>
     {
@@ -703,7 +703,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs save browser settings async asynchronously so I/O does not block the caller's thread.
+    /// Performs save browser settings asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task SaveBrowserSettingsAsync() => RunSafelyAsync(async () =>
     {
@@ -713,7 +713,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs toggle extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleExtensionAsync(BrowserExtensionDefinition? extension)
     {
@@ -723,7 +723,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs delete extension async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete extension asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteExtensionAsync(BrowserExtensionDefinition? extension)
     {
@@ -733,7 +733,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save login async asynchronously so I/O does not block the caller's thread.
+    /// Performs save login asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task SaveLoginAsync() => RunSafelyAsync(async () =>
     {
@@ -744,7 +744,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs delete login async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete login asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteLoginAsync(SavedLogin? login)
     {
@@ -754,7 +754,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs autofill login async asynchronously so I/O does not block the caller's thread.
+    /// Performs autofill login asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task AutofillLoginAsync(SavedLogin? login) => RunSafelyAsync(async () =>
     {
@@ -774,7 +774,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// Performs apply extensions async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply extensions asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ApplyExtensionsAsync(Uri address)
     {
@@ -786,7 +786,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Performs save tabs async asynchronously so I/O does not block the caller's thread.
+    /// Performs save tabs asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task SaveTabsAsync() => _data.SaveTabsAsync(Tabs.Select(tab => new BrowserTabState(tab.Id, tab.Title, tab.Address,
         tab.IsPrivate ? BrowserTabPrivacy.Private : BrowserTabPrivacy.Standard, tab.Group, DateTimeOffset.UtcNow)), CancellationToken.None);
@@ -863,7 +863,7 @@ public sealed class BrowserPageViewModel : ObservableObject, IDisposable
         Dispatcher.UIThread.Post(() => _ = HandleStateChangedAsync(state));
 
     /// <summary>
-    /// Performs handle state changed async asynchronously so I/O does not block the caller's thread.
+    /// Performs handle state changed asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task HandleStateChangedAsync(BrowserSnapshot state)
     {
@@ -933,11 +933,11 @@ public sealed class BrowserTabViewModel : ObservableObject
     /// </summary>
     public string Address { get => _address; set => SetProperty(ref _address, value); }
     /// <summary>
-    /// Reports whether is private is true for the current state.
+    /// Reports whether private applies to the current state.
     /// </summary>
     public bool IsPrivate { get; }
     /// <summary>
-    /// Reports whether is selected is true for the current state.
+    /// Reports whether selected applies to the current state.
     /// </summary>
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
     /// <summary>

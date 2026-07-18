@@ -20,7 +20,7 @@ namespace Haven.Browser;
 public sealed class BrowserNavigationPolicy : IBrowserNavigationPolicy
 {
     /// <summary>
-    /// Performs assess async asynchronously so I/O does not block the caller's thread.
+    /// Performs assess asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
     {
@@ -62,7 +62,7 @@ public sealed class BrowserNavigationPolicy : IBrowserNavigationPolicy
     private static BrowserNavigationAssessment Denied(Uri address, string reason) => new(address, false, reason, []);
 
     /// <summary>
-    /// Reports whether is non public is true for the current state.
+    /// Reports whether non public applies to the current state.
     /// </summary>
     internal static bool IsNonPublic(IPAddress address)
     {

@@ -492,7 +492,7 @@ public sealed partial class NotesWorkspaceView
         ?? throw new InvalidOperationException("The verified Notes media service is unavailable.");
 
     /// <summary>
-    /// Performs replace selected media async asynchronously so I/O does not block the caller's thread.
+    /// Performs replace selected media asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ReplaceSelectedMediaAsync(NotesBlock block)
     {
@@ -528,7 +528,7 @@ public sealed partial class NotesWorkspaceView
     }
 
     /// <summary>
-    /// Performs save selected media copy async asynchronously so I/O does not block the caller's thread.
+    /// Performs save selected media copy asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveSelectedMediaCopyAsync(NotesMediaData media)
     {

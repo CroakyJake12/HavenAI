@@ -119,23 +119,23 @@ public sealed class CatalogPageViewModel : ObservableObject
     /// </summary>
     public string BuilderHint => Kind switch { CatalogPageKind.Agents => "Describe the assistant you want Haven to create", CatalogPageKind.Plugins => "Describe the functional capability and constraints", _ => "Describe the reusable prompting behaviour" };
     /// <summary>
-    /// Reports whether is agent catalog is true for the current state.
+    /// Reports whether agent catalog applies to the current state.
     /// </summary>
     public bool IsAgentCatalog => Kind == CatalogPageKind.Agents;
     /// <summary>
-    /// Reports whether is plugin catalog is true for the current state.
+    /// Reports whether plugin catalog applies to the current state.
     /// </summary>
     public bool IsPluginCatalog => Kind == CatalogPageKind.Plugins;
     /// <summary>
-    /// Reports whether is prompt catalog is true for the current state.
+    /// Reports whether prompt catalog applies to the current state.
     /// </summary>
     public bool IsPromptCatalog => Kind == CatalogPageKind.Prompts;
     /// <summary>
-    /// Reports whether can create items is true for the current state.
+    /// Reports whether create items applies to the current state.
     /// </summary>
     public bool CanCreateItems => IsPromptCatalog || _allowStudioCreators;
     /// <summary>
-    /// Reports whether can upload plugin is true for the current state.
+    /// Reports whether upload plugin applies to the current state.
     /// </summary>
     public bool CanUploadPlugin => IsPluginCatalog && _allowStudioCreators;
     /// <summary>
@@ -167,15 +167,15 @@ public sealed class CatalogPageViewModel : ObservableObject
     /// </summary>
     public AsyncRelayCommand<CatalogCardViewModel> DeleteCommand { get; }
     /// <summary>
-    /// Reports whether is loaded is true for the current state.
+    /// Reports whether loaded applies to the current state.
     /// </summary>
     public bool IsLoaded { get => _loaded; private set => SetProperty(ref _loaded, value); }
     /// <summary>
-    /// Reports whether is creating is true for the current state.
+    /// Reports whether creating applies to the current state.
     /// </summary>
     public bool IsCreating { get => _isCreating; set { if (SetProperty(ref _isCreating, value)) RaisePropertyChanged(nameof(IsNotCreating)); } }
     /// <summary>
-    /// Reports whether is not creating is true for the current state.
+    /// Reports whether not creating applies to the current state.
     /// </summary>
     public bool IsNotCreating => !IsCreating;
     /// <summary>
@@ -208,7 +208,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -224,7 +224,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Reports whether can create is true for the current state.
+    /// Reports whether create applies to the current state.
     /// </summary>
     private bool CanCreate() => !string.IsNullOrWhiteSpace(NewName)
                                 && !string.IsNullOrWhiteSpace(NewDescription)
@@ -300,7 +300,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs import plugin async asynchronously so I/O does not block the caller's thread.
+    /// Performs import plugin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task ImportPluginAsync(string path)
     {
@@ -333,7 +333,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs duplicate async asynchronously so I/O does not block the caller's thread.
+    /// Performs duplicate asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DuplicateAsync(CatalogCardViewModel? item)
     {
@@ -350,7 +350,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync(CatalogCardViewModel? item)
     {
@@ -369,11 +369,11 @@ public sealed class CatalogPageViewModel : ObservableObject
 public sealed record CatalogCardViewModel(Guid Id, CatalogPageKind Kind, string Name, string IconKey, string Description, string Meta, bool IsEnabled, bool IsBuiltIn)
 {
     /// <summary>
-    /// Reports whether can duplicate is true for the current state.
+    /// Reports whether duplicate applies to the current state.
     /// </summary>
     public bool CanDuplicate => Kind == CatalogPageKind.Agents;
     /// <summary>
-    /// Reports whether can delete is true for the current state.
+    /// Reports whether delete applies to the current state.
     /// </summary>
     public bool CanDelete => !IsBuiltIn;
 }
@@ -420,7 +420,7 @@ public sealed class PluginImportManifest
     /// </summary>
     public bool Persists { get; init; }
     /// <summary>
-    /// Reports whether is agentic is true for the current state.
+    /// Reports whether agentic applies to the current state.
     /// </summary>
     public bool IsAgentic { get; init; }
 }
@@ -552,7 +552,7 @@ public sealed class AutomationsPageViewModel : ObservableObject
     public RelayCommand<AutomationCardViewModel> RunNowCommand { get; }
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -584,7 +584,7 @@ public sealed class AutomationsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs toggle async asynchronously so I/O does not block the caller's thread.
+    /// Performs toggle asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ToggleAsync(AutomationCardViewModel? item)
     {
@@ -597,7 +597,7 @@ public sealed class AutomationsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync(AutomationCardViewModel? item)
     {
@@ -621,7 +621,7 @@ public sealed class AutomationsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs register worker async asynchronously so I/O does not block the caller's thread.
+    /// Performs register worker asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RegisterWorkerAsync()
     {
@@ -657,7 +657,7 @@ public sealed class AutomationCardViewModel(AutomationDefinition definition)
     /// </summary>
     public string NextRun => definition.NextRunAt?.LocalDateTime.ToString("g") ?? "Not scheduled";
     /// <summary>
-    /// Reports whether is enabled is true for the current state.
+    /// Reports whether enabled applies to the current state.
     /// </summary>
     public bool IsEnabled => definition.IsEnabled;
     /// <summary>
@@ -888,7 +888,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     /// </summary>
     public IReadOnlyList<PermissionMode> PermissionModes { get; } = Enum.GetValues<PermissionMode>();
     /// <summary>
-    /// Reports whether can create theme is true for the current state.
+    /// Reports whether create theme applies to the current state.
     /// </summary>
     public bool CanCreateTheme => _allowThemeCreator;
     /// <summary>
@@ -1024,7 +1024,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     /// </summary>
     public bool ThemeCardBorder { get => _themeCardBorder; set => SetProperty(ref _themeCardBorder, value); }
     /// <summary>
-    /// Reports whether is model delete confirming is true for the current state.
+    /// Reports whether model delete confirming applies to the current state.
     /// </summary>
     public bool IsModelDeleteConfirming { get => _isModelDeleteConfirming; private set => SetProperty(ref _isModelDeleteConfirming, value); }
     /// <summary>
@@ -1154,7 +1154,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs install model async asynchronously so I/O does not block the caller's thread.
+    /// Performs install model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task InstallModelAsync()
     {
@@ -1171,7 +1171,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete model async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete model asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteModelAsync()
     {
@@ -1188,7 +1188,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs refresh models async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshModelsAsync()
     {
@@ -1370,11 +1370,11 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     /// <summary>
-    /// Reports whether is deleted is true for the current state.
+    /// Reports whether deleted applies to the current state.
     /// </summary>
     public bool IsDeleted { get => _isDeleted; private set { if (!SetProperty(ref _isDeleted, value)) return; SaveCommand.RaiseCanExecuteChanged(); DeleteCommand.RaiseCanExecuteChanged(); ArchiveCommand.RaiseCanExecuteChanged(); } }
     /// <summary>
-    /// Reports whether is delete confirming is true for the current state.
+    /// Reports whether delete confirming applies to the current state.
     /// </summary>
     public bool IsDeleteConfirming { get => _isDeleteConfirming; private set => SetProperty(ref _isDeleteConfirming, value); }
     /// <summary>
@@ -1404,7 +1404,7 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     public void SetRootPath(string path) => RootPath = path;
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -1429,7 +1429,7 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs delete async asynchronously so I/O does not block the caller's thread.
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task DeleteAsync()
     {
@@ -1447,7 +1447,7 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs archive async asynchronously so I/O does not block the caller's thread.
+    /// Performs archive asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task ArchiveAsync()
     {
@@ -1529,7 +1529,7 @@ public sealed class LessonSettingsPageViewModel : ObservableObject
     public AsyncRelayCommand SaveCommand { get; }
 
     /// <summary>
-    /// Performs save async asynchronously so I/O does not block the caller's thread.
+    /// Performs save asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task SaveAsync()
     {
@@ -1621,7 +1621,7 @@ public sealed class ModeLibraryPageViewModel : ObservableObject
     /// </summary>
     public RelayCommand CreateInStudioCommand { get; }
     /// <summary>
-    /// Reports whether is loaded is true for the current state.
+    /// Reports whether loaded applies to the current state.
     /// </summary>
     public bool IsLoaded { get => _loaded; private set => SetProperty(ref _loaded, value); }
     /// <summary>
@@ -1639,7 +1639,7 @@ public sealed class ModeLibraryPageViewModel : ObservableObject
     private IReadOnlyList<ModeCardViewModel> _allItems = [];
 
     /// <summary>
-    /// Performs refresh async asynchronously so I/O does not block the caller's thread.
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -1661,7 +1661,7 @@ public sealed class ModeLibraryPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs apply filter async asynchronously so I/O does not block the caller's thread.
+    /// Performs apply filter asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private Task ApplyFilterAsync()
     {
@@ -1675,7 +1675,7 @@ public sealed class ModeLibraryPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Performs pin async asynchronously so I/O does not block the caller's thread.
+    /// Performs pin asynchronously so I/O does not block the caller's thread.
     /// </summary>
     private async Task PinAsync(ModeCardViewModel? item)
     {
