@@ -307,24 +307,50 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     private void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs args)
     {
         if (_disposed) return;
-        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(args.Request);
-        if (args.IsSuccess && assessment.IsAllowed && args.Request.Scheme is "http" or "https") _lastCommittedAddress = args.Request;
-        Publish(Snapshot(args.IsSuccess ? args.Request.Host : "Navigation failed"));
+        var request = args.Request;
+        if (request is null)
+        {
+            Publish(_state with
+            {
+                IsLoading = false,
+                Status = "Navigation completed without a request URI."
+            });
+            return;
+        }
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(request);
+        if (args.IsSuccess && assessment.IsAllowed && request.Scheme is "http" or "https")
+            _lastCommittedAddress = request;
+        Publish(Snapshot(args.IsSuccess ? request.Host : "Navigation failed"));
     }
 
     private void OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs args)
     {
         args.Handled = true;
         if (_disposed) return;
+        var requested = args.Request;
+        if (requested is null)
+        {
+            Publish(_state with { Status = "Popup request was missing a destination." });
+            return;
+        }
         var requester = _webView.Source;
         var requesterAssessment = BrowserNativeRequestPolicy.AssessTopLevel(requester);
         var decision = requesterAssessment.IsAllowed && requester?.Scheme is "http" or "https"
             ? _permissions.GetDecision(requester, BrowserSitePermissionKind.WindowManagement)
             : BrowserSitePermissionDecision.Ask;
-        var assessment = BrowserNativeRequestPolicy.AssessPopup(requester, args.Request, decision);
-        if (!assessment.IsAllowed) { Publish(_state with { Status = assessment.Reason }); return; }
-        Publish(_state with { Address = args.Request, IsLoading = true, Status = "Opening approved popup in the current tab…" });
-        _webView.Navigate(args.Request);
+        var assessment = BrowserNativeRequestPolicy.AssessPopup(requester, requested, decision);
+        if (!assessment.IsAllowed)
+        {
+            Publish(_state with { Status = assessment.Reason });
+            return;
+        }
+        Publish(_state with
+        {
+            Address = requested,
+            IsLoading = true,
+            Status = "Opening approved popup in the current tab…"
+        });
+        _webView.Navigate(requested);
     }
 
     private void OnAdapterDestroyed(object? sender, WebViewAdapterEventArgs args)

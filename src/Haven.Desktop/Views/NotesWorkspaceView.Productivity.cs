@@ -427,7 +427,7 @@ public sealed partial class NotesWorkspaceView
                 value.PageLayout.Columns = (int)(columns.Value ?? 1);
                 value.PageLayout.GutterPoints = (double)(gutter.Value ?? 0);
                 value.PageLayout.ColumnSpacingPoints = (double)(spacing.Value ?? 18);
-                value.PageLayout.PlaceholderText = watermark.Text ?? string.Empty;
+                value.PageLayout.Watermark = watermark.Text ?? string.Empty;
                 value.PageLayout.PageNumberFormat = pageNumberFormat.SelectedItem as string ?? "1, 2, 3";
                 value.PageLayout.MirrorMargins = mirror.IsChecked == true;
                 value.PageLayout.LineNumbering = lineNumbers.IsChecked == true;

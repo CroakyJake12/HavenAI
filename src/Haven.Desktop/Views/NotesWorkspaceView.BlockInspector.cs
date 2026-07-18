@@ -202,10 +202,14 @@ public sealed partial class NotesWorkspaceView
             AcceptsReturn = true,
             MinHeight = 140,
             FontFamily = new FontFamily("Cascadia Mono"),
-            TextWrapping = wrap.IsChecked == true ? TextWrapping.Wrap : TextWrapping.NoWrap,
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+            TextWrapping = wrap.IsChecked == true ? TextWrapping.Wrap : TextWrapping.NoWrap
         };
+        ScrollViewer.SetHorizontalScrollBarVisibility(
+            preview,
+            Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        ScrollViewer.SetVerticalScrollBarVisibility(
+            preview,
+            Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         var statistics = new TextBlock { Classes = { "muted" }, FontSize = 9 };
         void RebuildPreview()
         {

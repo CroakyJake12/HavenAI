@@ -501,9 +501,10 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
 
     public void RemoveTableRow(NotesBlock block)
     {
-        if (block.Table?.Rows.Count <= 1) return;
+        var table = block.Table;
+        if (table is null || table.Rows.Count <= 1) return;
         PushUndo(SnapshotRequired());
-        block.Table.Rows.RemoveAt(block.Table.Rows.Count - 1);
+        table.Rows.RemoveAt(table.Rows.Count - 1);
         MarkDirty();
     }
 

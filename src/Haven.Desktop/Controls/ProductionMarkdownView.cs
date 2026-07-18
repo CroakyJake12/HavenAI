@@ -193,7 +193,7 @@ public sealed class ProductionMarkdownView : UserControl
         header.Children.Add(ActionButton("Ask to apply", 3, MarkdownCodeAction.AskToApply, language, code));
         var stack = new StackPanel { Spacing = 6 };
         stack.Children.Add(header);
-        stack.Children.Add(new TextBox
+        var codeBox = new TextBox
         {
             Text = code,
             IsReadOnly = true,
@@ -202,10 +202,15 @@ public sealed class ProductionMarkdownView : UserControl
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             FontSize = 12,
             MinHeight = 42,
-            MaxHeight = 500,
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
-        });
+            MaxHeight = 500
+        };
+        ScrollViewer.SetHorizontalScrollBarVisibility(
+            codeBox,
+            Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        ScrollViewer.SetVerticalScrollBarVisibility(
+            codeBox,
+            Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        stack.Children.Add(codeBox);
         return new Border
         {
             Background = Brush("HavenPanel3Brush"),

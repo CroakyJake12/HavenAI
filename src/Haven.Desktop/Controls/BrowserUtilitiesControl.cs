@@ -102,7 +102,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             try
             {
                 var literal = JsonSerializer.Serialize(text);
-                var result = await vm.Browser.ExecuteScriptAsync(
+                var result = await vm.Browser.ExecuteUiScriptAsync(
                     $"window.find({literal}, false, {(backwards ? "true" : "false")}, true, false, true, false)",
                     operation.Token);
                 status.Text = string.Equals(result?.Trim('"'), "true", StringComparison.OrdinalIgnoreCase)
@@ -139,7 +139,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             using var operation = LinkedOperation();
             try
             {
-                await vm.Browser.ExecuteScriptAsync("window.getSelection()?.removeAllRanges()", operation.Token);
+                await vm.Browser.ExecuteUiScriptAsync("window.getSelection()?.removeAllRanges()", operation.Token);
                 status.Text = "Find cleared.";
             }
             catch (OperationCanceledException) when (operation.IsCancellationRequested)
@@ -250,7 +250,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
         using var operation = LinkedOperation();
         try
         {
-            await vm.Browser.ExecuteScriptAsync(
+            await vm.Browser.ExecuteUiScriptAsync(
                 $"document.documentElement.style.zoom='{value.ToString(System.Globalization.CultureInfo.InvariantCulture)}%'",
                 operation.Token);
             status.Text = $"Current page zoom: {value}%";

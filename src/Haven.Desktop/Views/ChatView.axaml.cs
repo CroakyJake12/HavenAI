@@ -425,7 +425,7 @@ public sealed partial class ChatView : UserControl
             var pasteDirectory = Path.Combine(_paths.DataDirectory, "clipboard-imports");
             Directory.CreateDirectory(pasteDirectory);
             var path = Path.Combine(pasteDirectory, "clipboard-" + Guid.NewGuid().ToString("N") + ".png");
-            bitmap.Save(path, PngBitmapEncoderOptions.Default);
+            bitmap.Save(path);
             var keepTemporaryCopy = _viewModel.IsTemporary;
             try { await ImportAttachmentsAsync([path]); }
             finally
