@@ -98,7 +98,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             Effect = new BlurEffect { Radius = 86 },
             IsHitTestVisible = false
         };
-        _blooms.Add(new AuroraBloom(ellipse, speed, driftX, driftY, phase));
+        _blooms.Add(new AuroraBloom(ellipse, opacity, speed, driftX, driftY, phase));
         _bloomCanvas.Children.Add(ellipse);
     }
 
@@ -166,8 +166,11 @@ public sealed class MagicalBackdrop : Grid, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private sealed record AuroraBloom(Ellipse Shape, double Speed, double DriftX, double DriftY, double Phase)
-    {
-        public double BaseOpacity { get; } = Shape.Opacity;
-    }
+    private sealed record AuroraBloom(
+        Ellipse Shape,
+        double BaseOpacity,
+        double Speed,
+        double DriftX,
+        double DriftY,
+        double Phase);
 }
