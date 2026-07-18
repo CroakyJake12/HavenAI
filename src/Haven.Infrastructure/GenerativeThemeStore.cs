@@ -460,7 +460,6 @@ internal static class BuiltInThemes
         "#E6FFFFFF",
         "#FFFFFFFF",
         "#FFE7EBF0",
-        "#FFDDE2E9",
         "#800078D4");
 
     private static GenerativeThemePalette DarkPalette(string background, string panel, string accent) => new(
