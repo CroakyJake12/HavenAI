@@ -9,7 +9,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
-using Haven.Desktop.Views;
 
 namespace Haven.Desktop.Controls;
 
@@ -86,12 +85,12 @@ public sealed partial class WorkspaceChromeHost
 
         var addTab = new Button
         {
-            Classes = { "chrome" },
             Content = new HavenIcon { IconKey = "plus", Width = 15, Height = 15 },
-            ToolTip = "New Home tab",
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(4, 0, 0, 0)
         };
+        addTab.Classes.Add("chrome");
+        ToolTip.SetTip(addTab, "New Home tab");
         addTab.Click += async (_, _) => await OpenFreshHomeTabAsync();
 
         var tabArea = new Grid
@@ -113,16 +112,16 @@ public sealed partial class WorkspaceChromeHost
 
         var modelStatus = new Button
         {
-            Classes = { "status" },
             Content = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 7,
                 Children = { _modelStatusText, _modelRefreshIcon }
             },
-            VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = "Refresh local models"
+            VerticalAlignment = VerticalAlignment.Center
         };
+        modelStatus.Classes.Add("status");
+        ToolTip.SetTip(modelStatus, "Refresh local models");
         modelStatus.Click += (_, _) =>
         {
             if (_modernShell?.RefreshModelsCommand.CanExecute(null) == true)
@@ -134,7 +133,6 @@ public sealed partial class WorkspaceChromeHost
 
         _actionsButton = new Button
         {
-            Classes = { "primary" },
             Content = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -146,9 +144,10 @@ public sealed partial class WorkspaceChromeHost
                 }
             },
             VerticalAlignment = VerticalAlignment.Center,
-            Padding = new Thickness(15, 8),
-            ToolTip = "Search Haven actions · Ctrl+K"
+            Padding = new Thickness(15, 8)
         };
+        _actionsButton.Classes.Add("primary");
+        ToolTip.SetTip(_actionsButton, "Search Haven actions · Ctrl+K");
         _actionsFlyout = BuildActionsFlyout();
         _actionsButton.Flyout = _actionsFlyout;
         _actionsButton.Click += (_, _) =>
@@ -172,6 +171,38 @@ public sealed partial class WorkspaceChromeHost
     {
         _actionsSearch.TextChanged += OnActionsSearchChanged;
 
+        var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        heading.Children.Add(new StackPanel
+        {
+            Spacing = 2,
+            Children =
+            {
+                new TextBlock { Text = "Actions", FontSize = 18, FontWeight = FontWeight.SemiBold },
+                new TextBlock { Text = "Search commands or browse a collapsible section", Classes = { "muted" }, FontSize = 10 }
+            }
+        });
+        heading.Children.Add(WithModernColumn(new TextBlock
+        {
+            Text = "Ctrl+K",
+            Classes = { "muted" },
+            FontSize = 10,
+            VerticalAlignment = VerticalAlignment.Center
+        }, 1));
+
+        var searchHost = new Grid();
+        searchHost.Children.Add(_actionsSearch);
+        searchHost.Children.Add(new HavenIcon
+        {
+            IconKey = "search",
+            Width = 15,
+            Height = 15,
+            Margin = new Thickness(12, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0.65,
+            IsHitTestVisible = false
+        });
+
         var content = new StackPanel
         {
             Width = 560,
@@ -179,47 +210,8 @@ public sealed partial class WorkspaceChromeHost
             Margin = new Thickness(10),
             Children =
             {
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                    Children =
-                    {
-                        new StackPanel
-                        {
-                            Spacing = 2,
-                            Children =
-                            {
-                                new TextBlock { Text = "Actions", FontSize = 18, FontWeight = FontWeight.SemiBold },
-                                new TextBlock { Text = "Search commands or browse a collapsible section", Classes = { "muted" }, FontSize = 10 }
-                            }
-                        },
-                        WithModernColumn(new TextBlock
-                        {
-                            Text = "Ctrl+K",
-                            Classes = { "muted" },
-                            FontSize = 10,
-                            VerticalAlignment = VerticalAlignment.Center
-                        }, 1)
-                    }
-                },
-                new Grid
-                {
-                    Children =
-                    {
-                        _actionsSearch,
-                        new HavenIcon
-                        {
-                            IconKey = "search",
-                            Width = 15,
-                            Height = 15,
-                            Margin = new Thickness(12, 0, 0, 0),
-                            HorizontalAlignment = HorizontalAlignment.Left,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Opacity = 0.65,
-                            IsHitTestVisible = false
-                        }
-                    }
-                },
+                heading,
+                searchHost,
                 new ScrollViewer
                 {
                     MaxHeight = 520,
@@ -319,6 +311,7 @@ public sealed partial class WorkspaceChromeHost
     private void RedirectCommandPaletteToActions()
     {
         if (_modernShell is null || _actionsButton is null || _actionsFlyout is null) return;
+
         _suppressPaletteRedirect = true;
         try
         {
@@ -344,6 +337,7 @@ public sealed partial class WorkspaceChromeHost
     {
         UnobserveTabs();
         if (_modernShell is null) return;
+
         foreach (var tab in _modernShell.OpenTabs)
         {
             tab.PropertyChanged += OnTabPropertyChanged;
@@ -353,7 +347,8 @@ public sealed partial class WorkspaceChromeHost
 
     private void UnobserveTabs()
     {
-        foreach (var tab in _observedTabs) tab.PropertyChanged -= OnTabPropertyChanged;
+        foreach (var tab in _observedTabs)
+            tab.PropertyChanged -= OnTabPropertyChanged;
         _observedTabs.Clear();
     }
 
@@ -369,6 +364,7 @@ public sealed partial class WorkspaceChromeHost
     {
         _modernTabs.Children.Clear();
         if (_modernShell is null) return;
+
         foreach (var tab in _modernShell.OpenTabs)
             _modernTabs.Children.Add(BuildModernTab(tab));
     }
@@ -436,14 +432,15 @@ public sealed partial class WorkspaceChromeHost
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(10),
             HorizontalContentAlignment = HorizontalAlignment.Center,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            ToolTip = tab.Title
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         button.Classes.Add("workspaceTab");
         if (tab.IsSelected) button.Classes.Add("active");
+        ToolTip.SetTip(button, tab.Title);
         button.Click += (_, _) =>
         {
-            if (_modernShell is not null) _modernShell.SelectedTab = tab;
+            if (_modernShell is not null)
+                _modernShell.SelectedTab = tab;
         };
         button.ContextMenu = BuildTabContextMenu(tab);
 
@@ -467,8 +464,10 @@ public sealed partial class WorkspaceChromeHost
     {
         var rename = new MenuItem { Header = "Rename tab" };
         rename.Click += async (_, _) => await RenameTabAsync(tab);
+
         var close = new MenuItem { Header = "Close tab" };
         close.Click += (_, _) => CloseModernTab(tab);
+
         return new ContextMenu { ItemsSource = new object[] { rename, close } };
     }
 
@@ -486,7 +485,9 @@ public sealed partial class WorkspaceChromeHost
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
-        var save = new Button { Content = "Rename", Classes = { "accent" } };
+
+        var save = new Button { Content = "Rename" };
+        save.Classes.Add("accent");
         var cancel = new Button { Content = "Cancel" };
         save.Click += (_, _) =>
         {
@@ -494,6 +495,7 @@ public sealed partial class WorkspaceChromeHost
             dialog.Close();
         };
         cancel.Click += (_, _) => dialog.Close();
+
         dialog.Content = new StackPanel
         {
             Margin = new Thickness(20),
@@ -521,6 +523,7 @@ public sealed partial class WorkspaceChromeHost
     private void CloseModernTab(WorkspaceTabViewModel tab)
     {
         if (_modernShell is null) return;
+
         var index = _modernShell.OpenTabs.IndexOf(tab);
         if (index < 0) return;
         var wasSelected = ReferenceEquals(_modernShell.SelectedTab, tab);
@@ -540,6 +543,7 @@ public sealed partial class WorkspaceChromeHost
     private async Task OpenFreshHomeTabAsync()
     {
         if (_modernShell is null) return;
+
         var canonicalHomeBefore = _modernShell.OpenTabs.FirstOrDefault(tab =>
             tab.Key.Equals("home", StringComparison.OrdinalIgnoreCase));
 
@@ -574,12 +578,17 @@ public sealed partial class WorkspaceChromeHost
             _tabDragStart = args.GetPosition(this);
             args.Pointer.Capture(button);
         };
+
         button.PointerMoved += async (_, args) =>
         {
-            if (_tabDragCandidate != tab || _tabDragInProgress ||
-                !args.GetCurrentPoint(button).Properties.IsLeftButtonPressed) return;
+            if (_tabDragCandidate != tab || _tabDragInProgress
+                || !args.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
+                return;
+
             var current = args.GetPosition(this);
-            if (Math.Abs(current.X - _tabDragStart.X) < 6 && Math.Abs(current.Y - _tabDragStart.Y) < 6) return;
+            if (Math.Abs(current.X - _tabDragStart.X) < 6
+                && Math.Abs(current.Y - _tabDragStart.Y) < 6)
+                return;
 
             _tabDragInProgress = true;
             var transfer = new DataTransfer();
@@ -595,9 +604,11 @@ public sealed partial class WorkspaceChromeHost
                 args.Pointer.Capture(null);
             }
         };
+
         button.PointerReleased += (_, args) =>
         {
-            if (!_tabDragInProgress) _tabDragCandidate = null;
+            if (!_tabDragInProgress)
+                _tabDragCandidate = null;
             args.Pointer.Capture(null);
         };
 
@@ -609,6 +620,7 @@ public sealed partial class WorkspaceChromeHost
                 args.DragEffects = DragDropEffects.None;
                 return;
             }
+
             var insertAfter = args.GetPosition(host).X >= host.Bounds.Width / 2;
             leftIndicator.IsVisible = !insertAfter;
             rightIndicator.IsVisible = insertAfter;
@@ -624,7 +636,7 @@ public sealed partial class WorkspaceChromeHost
         DragDrop.AddDropHandler(host, (_, args) =>
         {
             var insertAfter = args.GetPosition(host).X >= host.Bounds.Width / 2;
-            ClearDropPreview(host, leftIndicator, rightIndicator);
+            ClearDropPreview(host, leftIndicator, rightDropIndicator: rightIndicator);
             if (!TryReadTabTransfer(args.DataTransfer, out var sourceKey)) return;
             MoveTab(sourceKey, tab, insertAfter);
             args.Handled = true;
@@ -634,13 +646,17 @@ public sealed partial class WorkspaceChromeHost
     private void MoveTab(string sourceKey, WorkspaceTabViewModel target, bool insertAfter)
     {
         if (_modernShell is null) return;
-        var source = _modernShell.OpenTabs.FirstOrDefault(tab => tab.Key.Equals(sourceKey, StringComparison.Ordinal));
+
+        var source = _modernShell.OpenTabs.FirstOrDefault(tab =>
+            tab.Key.Equals(sourceKey, StringComparison.Ordinal));
         if (source is null || ReferenceEquals(source, target)) return;
+
         var sourceIndex = _modernShell.OpenTabs.IndexOf(source);
         var targetIndex = _modernShell.OpenTabs.IndexOf(target) + (insertAfter ? 1 : 0);
         if (sourceIndex < targetIndex) targetIndex--;
         targetIndex = Math.Clamp(targetIndex, 0, _modernShell.OpenTabs.Count - 1);
-        if (sourceIndex != targetIndex) _modernShell.OpenTabs.Move(sourceIndex, targetIndex);
+        if (sourceIndex != targetIndex)
+            _modernShell.OpenTabs.Move(sourceIndex, targetIndex);
     }
 
     private static bool TryReadTabTransfer(IDataTransfer transfer, out string key)
@@ -661,10 +677,10 @@ public sealed partial class WorkspaceChromeHost
         IsVisible = false
     };
 
-    private static void ClearDropPreview(Grid host, Border left, Border right)
+    private static void ClearDropPreview(Grid host, Border left, Border rightDropIndicator)
     {
         left.IsVisible = false;
-        right.IsVisible = false;
+        rightDropIndicator.IsVisible = false;
         host.Opacity = 1;
     }
 
@@ -676,7 +692,10 @@ public sealed partial class WorkspaceChromeHost
         if (tab.Key.StartsWith("file-", StringComparison.OrdinalIgnoreCase)) return "file";
         if (tab.Key.Contains("settings", StringComparison.OrdinalIgnoreCase)) return "settings";
         if (tab.Key.Contains("archive", StringComparison.OrdinalIgnoreCase)) return "archive";
-        if (tab.Key.Contains("notes", StringComparison.OrdinalIgnoreCase) || tab.Page.GetType().Name.Contains("Notes", StringComparison.OrdinalIgnoreCase)) return "notes";
+        if (tab.Key.Contains("notes", StringComparison.OrdinalIgnoreCase)
+            || tab.Page.GetType().Name.Contains("Notes", StringComparison.OrdinalIgnoreCase))
+            return "notes";
+
         return tab.Surface switch
         {
             HavenSurface.Home => "home",
@@ -698,7 +717,8 @@ public sealed partial class WorkspaceChromeHost
         _modernShell.CommandSearch = _actionsSearch.Text ?? string.Empty;
     }
 
-    private void OnCommandItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => QueueActionsRebuild();
+    private void OnCommandItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        QueueActionsRebuild();
 
     private void QueueActionsRebuild()
     {
@@ -718,32 +738,39 @@ public sealed partial class WorkspaceChromeHost
 
         foreach (var category in ActionCategories)
         {
-            var items = _modernShell.CommandItems.Where(item => CategoryFor(item) == category).ToArray();
+            var items = _modernShell.CommandItems
+                .Where(item => CategoryFor(item) == category)
+                .ToArray();
             var rows = new StackPanel { Spacing = 2, Margin = new Thickness(0, 3, 0, 7) };
-            foreach (var item in items) rows.Children.Add(BuildActionRow(item));
+            foreach (var item in items)
+                rows.Children.Add(BuildActionRow(item));
+
             if (items.Length == 0)
             {
                 rows.Children.Add(new TextBlock
                 {
-                    Text = category == "Help" ? "Ctrl+K opens this Actions menu from anywhere." : "No matching actions in this section.",
+                    Text = category == "Help"
+                        ? "Ctrl+K opens this Actions menu from anywhere."
+                        : "No matching actions in this section.",
                     Classes = { "muted" },
                     FontSize = 10,
                     Margin = new Thickness(10, 6)
                 });
             }
 
+            var header = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                ColumnSpacing = 9,
+                Children =
+                {
+                    new HavenIcon { IconKey = CategoryIcon(category), Width = 15, Height = 15, Opacity = 0.72 },
+                    WithModernColumn(new TextBlock { Text = category, FontWeight = FontWeight.SemiBold }, 1)
+                }
+            };
             _actionsSections.Children.Add(new Expander
             {
-                Header = new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-                    ColumnSpacing = 9,
-                    Children =
-                    {
-                        new HavenIcon { IconKey = CategoryIcon(category), Width = 15, Height = 15, Opacity = 0.72 },
-                        WithModernColumn(new TextBlock { Text = category, FontWeight = FontWeight.SemiBold }, 1)
-                    }
-                },
+                Header = header,
                 IsExpanded = category is "File" or "Chat" or "Tools",
                 Content = rows
             });
@@ -752,42 +779,58 @@ public sealed partial class WorkspaceChromeHost
 
     private Button BuildActionRow(CommandPaletteItemViewModel item)
     {
-        var button = new Button
+        var content = new Grid
         {
-            Classes = { "sidebar" },
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = new Grid
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 10,
+            Children =
             {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-                ColumnSpacing = 10,
-                Children =
+                new HavenIcon
                 {
-                    new HavenIcon { IconKey = CommandIcon(item.Name), Width = 16, Height = 16, Opacity = 0.76, VerticalAlignment = VerticalAlignment.Center },
-                    WithModernColumn(new StackPanel
+                    IconKey = CommandIcon(item.Name),
+                    Width = 16,
+                    Height = 16,
+                    Opacity = 0.76,
+                    VerticalAlignment = VerticalAlignment.Center
+                },
+                WithModernColumn(new StackPanel
+                {
+                    Spacing = 1,
+                    Children =
                     {
-                        Spacing = 1,
-                        Children =
+                        new TextBlock { Text = item.Name, FontWeight = FontWeight.SemiBold },
+                        new TextBlock
                         {
-                            new TextBlock { Text = item.Name, FontWeight = FontWeight.SemiBold },
-                            new TextBlock { Text = item.Description, Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap }
+                            Text = item.Description,
+                            Classes = { "muted" },
+                            FontSize = 10,
+                            TextWrapping = TextWrapping.Wrap
                         }
-                    }, 1),
-                    WithModernColumn(new TextBlock
-                    {
-                        Text = item.Shortcut,
-                        Classes = { "muted" },
-                        FontSize = 10,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        IsVisible = !string.IsNullOrWhiteSpace(item.Shortcut)
-                    }, 2)
-                }
+                    }
+                }, 1),
+                WithModernColumn(new TextBlock
+                {
+                    Text = item.Shortcut,
+                    Classes = { "muted" },
+                    FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsVisible = !string.IsNullOrWhiteSpace(item.Shortcut)
+                }, 2)
             }
         };
+
+        var button = new Button
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = content
+        };
+        button.Classes.Add("sidebar");
         button.Click += (_, _) =>
         {
             _actionsFlyout?.Hide();
-            if (item.RunCommand.CanExecute(null)) item.RunCommand.Execute(null);
+            if (item.RunCommand.CanExecute(null))
+                item.RunCommand.Execute(null);
         };
         return button;
     }
@@ -836,6 +879,7 @@ public sealed partial class WorkspaceChromeHost
     private void QueueModelStatusUpdate()
     {
         if (_modernShell is null) return;
+
         var raw = string.IsNullOrWhiteSpace(_modernShell.OllamaStatus)
             ? "Ollama status unavailable"
             : _modernShell.OllamaStatus.Trim();
@@ -870,7 +914,10 @@ public sealed partial class WorkspaceChromeHost
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(2.5), cancellationToken);
-            if (cancellationToken.IsCancellationRequested || !string.Equals(_latestRawStatus, candidate, StringComparison.Ordinal)) return;
+            if (cancellationToken.IsCancellationRequested
+                || !string.Equals(_latestRawStatus, candidate, StringComparison.Ordinal))
+                return;
+
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _modelStatusText.Text = candidate;
@@ -924,7 +971,7 @@ public sealed partial class WorkspaceChromeHost
             if (button.Name is "ExperienceCallButton" or "ExperiencePlanButton" or "ExperienceBrowseButton")
                 button.IsVisible = true;
 
-            if (button.Name is "ExperienceChatButton" or "ExperienceStudioButton" or "ExperiencePlanButton" or "ExperienceNotesButton")
+            if (button.Name is "ExperienceChatButton" or "ExperiencePlanButton")
                 MakeRailButtonDirect(button);
         }
     }
@@ -942,14 +989,8 @@ public sealed partial class WorkspaceChromeHost
                 case "ExperienceChatButton":
                     await _modernShell.NavigateChatCommand.ExecuteAsync();
                     break;
-                case "ExperienceStudioButton":
-                    await _modernShell.NavigateStudioCommand.ExecuteAsync();
-                    break;
                 case "ExperiencePlanButton":
                     _modernShell.NavigatePlanCommand.Execute(null);
-                    break;
-                case "ExperienceNotesButton":
-                    await NotesExperienceNavigation.OpenAsync(_modernShell, NotesExperienceKind.Notes);
                     break;
             }
         };
