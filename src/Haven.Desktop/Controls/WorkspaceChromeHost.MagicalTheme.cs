@@ -99,8 +99,9 @@ public sealed partial class WorkspaceChromeHost
             Width = 13,
             Height = 13
         };
-        _maximizeButton = CaptionButton(_maximizeIcon, "Maximize");
-        _maximizeButton.Click += (_, _) =>
+        var maximize = CaptionButton(_maximizeIcon, "Maximize");
+        _maximizeButton = maximize;
+        maximize.Click += (_, _) =>
         {
             if (TopLevel.GetTopLevel(this) is not Window window) return;
             ToggleMaximize(window);
@@ -118,7 +119,7 @@ public sealed partial class WorkspaceChromeHost
             Spacing = 2,
             Margin = new Thickness(2, 0, 6, 0),
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { minimize, _maximizeButton, close }
+            Children = { minimize, maximize, close }
         };
     }
 
