@@ -1,5 +1,6 @@
 using System.Text;
 using Avalonia.Controls;
+using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.Controls;
@@ -45,7 +46,7 @@ public sealed class NotesHtmlPreviewControl : UserControl, IDisposable
 
     private static void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs args)
     {
-        if (args.Request.Scheme is "data" or "about") return;
+        if (args.Request?.Scheme is "data" or "about") return;
         args.Cancel = true;
     }
 
