@@ -62,6 +62,8 @@ public sealed class NotesCodeInspectorTests : IDisposable
         try
         {
             window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(25);
             var labels = view.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text ?? string.Empty).ToArray();
             var buttons = view.GetVisualDescendants().OfType<Button>().ToArray();

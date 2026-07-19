@@ -14,7 +14,7 @@ using Avalonia.Media;
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// Resolves stable Haven icon keys to closed, fill-safe 24px geometry. This is
+/// Resolves stable Haven icon keys to medium-weight outlined 24px geometry. This is
 /// also used for user-created catalog items, so an unknown key always renders
 /// a visible fallback instead of disappearing.
 /// </summary>
@@ -71,7 +71,15 @@ public sealed class HavenIcon : PathIcon
         var icons = new Dictionary<string, Geometry>(StringComparer.OrdinalIgnoreCase);
         void Add(string key, string data, params string[] aliases)
         {
-            var geometry = StreamGeometry.Parse(data);
+            // PathIcon paints geometry as a fill and has no stroke API. Subtracting
+            // a centred, slightly smaller copy creates a consistent 2.6px visual
+            // outline while retaining PathIcon's theming, accessibility and every
+            // existing XAML call site. Rounded source curves remain rounded instead
+            // of being flattened by a bitmap or font-icon replacement.
+            var outer = StreamGeometry.Parse(data);
+            var inner = StreamGeometry.Parse(data);
+            inner.Transform = new MatrixTransform(new Matrix(0.78, 0, 0, 0.78, 2.64, 2.64));
+            var geometry = new CombinedGeometry(GeometryCombineMode.Exclude, outer, inner);
             icons[key] = geometry;
             foreach (var alias in aliases) icons[alias] = geometry;
         }

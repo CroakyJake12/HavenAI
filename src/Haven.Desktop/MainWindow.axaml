@@ -1444,6 +1444,10 @@
 									IsVisible="{Binding ShowContextHeaderWidget}"
 									ToolTip.Tip="{Binding ContextLabel}">
 								<StackPanel Orientation="Horizontal" Spacing="8">
+									<StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding CurrentChat.IsTemporary}">
+										<controls:HavenIcon IconKey="chat" Width="13" Height="13" Opacity="0.72" />
+										<TextBlock Text="Temporary Chat" Classes="muted" VerticalAlignment="Center" />
+									</StackPanel>
 									<TextBlock Text="{Binding ContextRemainingPercent, StringFormat='{}{0}%'}" FontWeight="SemiBold" />
 									<ProgressBar Width="64" Height="4" Minimum="0" Maximum="100" Value="{Binding ContextPercent}" VerticalAlignment="Center" />
 								</StackPanel>

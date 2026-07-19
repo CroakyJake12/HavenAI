@@ -23,7 +23,9 @@ public static class PluginCatalog
         BuiltIn("BrowserUse", "Use Haven's embedded isolated browser.", "browser-use", "Use only the embedded Haven browser and verify actions.", "[\"Browser\"]", agentic: true),
         BuiltIn("ComputerUse", "Use permissioned, target-bound desktop tools.", "computer-use", "Use exact target-window binding, inspect-act-verify and stop immediately on cancellation.", "[\"ComputerUse\"]", agentic: true),
         BuiltIn("WebSearch", "Research live information and cite sources.", "web-search", "Use the browser research tools to search current sources, prefer primary evidence, record source URLs, reconcile disagreements, and cite factual claims.", "[\"Browser\"]"),
-        BuiltIn("Agent", "Select Default, Auto or a custom agent.", "agent", "Use the selected agent instructions and make automatic switches visible.", persists: true, agentic: true),
+        // Agent selection is a normal chat capability. It must remain available
+        // even when the user hides genuinely agentic execution plugins.
+        BuiltIn("Agent", "Select Default, Auto or a custom agent.", "agent", "Use the selected agent instructions and make automatic switches visible.", persists: true, agentic: false),
         BuiltIn("DuoMode", "Work in Ping Pong, Collaborate, or Supervise mode.", "duo", "Use the selected Duo mode and keep handovers, shared work, and supervision visible.", persists: true, agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),
         BuiltIn("Automate", "Create or update a Scheduled Action from chat.", "automation", "Turn the request into a reviewable scheduled action. Confirm timing and scope before enabling it.", agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),
         BuiltIn("Test", "Run targeted tests and report real results before finishing.", "test", "Derive targeted tests from the request, run them with workspace tools, and report exact evidence. Never claim unrun tests passed.", "[\"Tools\"]", agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),

@@ -9,6 +9,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
@@ -75,6 +76,8 @@ public sealed class NotesMediaAiViewTests : IDisposable
         try
         {
             window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(30);
             var inspectorTabs = view.GetVisualDescendants()
                 .OfType<TabControl>()

@@ -156,7 +156,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModeSeedService>();
         services.AddSingleton<ModeManifestValidator>();
         services.AddSingleton<ModeCreationService>();
-        services.AddSingleton<BrowserCompletionService>();
         services.AddSingleton<FilesystemActionService>();
         services.AddSingleton<SettingsEncryptionService>();
         services.AddSingleton<SettingsExportService>();

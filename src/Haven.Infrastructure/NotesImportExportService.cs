@@ -902,7 +902,10 @@ internal static class SimpleNotesPdfWriter
             var content = new StringBuilder("BT /F1 10 Tf 48 790 Td 13 TL\n");
             foreach (var line in pages[index]) content.Append('(').Append(EscapePdf(line)).AppendLine(") Tj T*");
             content.Append("ET");
-            var contentBytes = Encoding.GetEncoding(1252, EncoderFallback.ReplacementFallback, DecoderFallback.ReplacementFallback).GetBytes(content.ToString());
+            // PDF's built-in Helvetica uses a single-byte WinAnsi-like encoding.
+            // Latin-1 is always available in modern .NET and replaces unsupported
+            // characters without requiring the optional code-pages provider.
+            var contentBytes = Encoding.Latin1.GetBytes(content.ToString());
             var header = Encoding.ASCII.GetBytes($"<< /Length {contentBytes.Length} >>\nstream\n");
             var footer = Encoding.ASCII.GetBytes("\nendstream");
             objects.Add(header.Concat(contentBytes).Concat(footer).ToArray());

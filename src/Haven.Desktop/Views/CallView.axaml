@@ -105,6 +105,8 @@
                       <DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
+                  <TextBlock Text="{Binding SelectedVoiceDescription}" TextWrapping="Wrap" FontSize="10"
+                             Foreground="{DynamicResource HavenMutedBrush}" />
                   <CheckBox Content="Speak Haven responses" IsChecked="{Binding EnableSpeechOutput}"
                             IsEnabled="{Binding IsNotActive}"/>
                   <TextBlock Text="{Binding SpeechOutputStatus}" TextWrapping="Wrap" FontSize="11"

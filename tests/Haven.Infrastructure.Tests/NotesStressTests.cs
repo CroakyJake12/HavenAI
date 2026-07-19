@@ -95,6 +95,7 @@ public sealed class NotesStressTests : IDisposable
             {
                 Title = "Section " + (sectionIndex + 1)
             };
+            section.Pages.Clear();
             for (var pageIndex = 0; pageIndex < 10; pageIndex++)
             {
                 var page = new NotesPage
@@ -104,6 +105,7 @@ public sealed class NotesStressTests : IDisposable
                     CanvasWidth = 2400,
                     CanvasHeight = 1800
                 };
+                page.Blocks.Clear();
                 for (var blockIndex = 0; blockIndex < 100; blockIndex++)
                 {
                     var marker = globalIndex == 9876 ? " stress-target-9876" : string.Empty;

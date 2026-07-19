@@ -87,22 +87,24 @@ public sealed class BrowserDownloadTransport
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         try
         {
-            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            await using var output = new FileStream(
-                temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var buffer = new byte[64 * 1024];
-            while (true)
+            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+            await using (var output = new FileStream(
+                             temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                var read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-                if (read == 0) break;
-                size += read;
-                if (size > MaximumDownloadBytes)
-                    throw new InvalidOperationException("The download exceeded Haven's 250 MB limit while streaming.");
-                hash.AppendData(buffer, 0, read);
-                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                var buffer = new byte[64 * 1024];
+                while (true)
+                {
+                    var read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    if (read == 0) break;
+                    size += read;
+                    if (size > MaximumDownloadBytes)
+                        throw new InvalidOperationException("The download exceeded Haven's 250 MB limit while streaming.");
+                    hash.AppendData(buffer, 0, read);
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                }
+                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
-            await output.FlushAsync(cancellationToken).ConfigureAwait(false);
             File.Move(temporary, destination, false);
         }
         finally

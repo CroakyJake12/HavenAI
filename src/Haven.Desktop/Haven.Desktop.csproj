@@ -30,6 +30,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="KokoroSharp.CPU" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />

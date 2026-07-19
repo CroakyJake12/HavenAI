@@ -79,7 +79,7 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
         var result = await retrieval.SearchAsync(new RetrievalQuery(
             "but for causation", [new RetrievalScope(RetrievalScopeKind.Subject, subject.Id)]), CancellationToken.None);
 
-        Assert.Contains(result.Citations, item => item.Title == "Causation");
+        Assert.Contains(result.Citations, item => item.Title == "Criminal Law");
         Assert.All(result.Citations, item => Assert.Equal(subject.Id, item.ScopeId));
     }
 

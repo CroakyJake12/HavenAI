@@ -25,21 +25,15 @@ public sealed class GenerativeUiViewTests
     /// Performs the theme studio axaml loads with ai and manual tabs step owned by this component.
     /// </summary>
     [AvaloniaFact]
-    public void ThemeStudioAxamlLoadsWithAiAndManualTabs()
+    public void ThemeStudioAxamlLoadsWithStudioEntryPoint()
     {
         var view = new GenerativeUiThemeSelectorView();
         var window = new Window { Content = view };
         try
         {
             window.Show();
-            var headers = view.GetVisualDescendants()
-                .OfType<TabItem>()
-                .Select(item => Convert.ToString(item.Header, System.Globalization.CultureInfo.InvariantCulture))
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .ToArray();
-
-            Assert.Contains("Create with AI", headers);
-            Assert.Contains("Configure manually", headers);
+            Assert.Contains(view.GetVisualDescendants().OfType<Button>(), button => Equals(button.Content, "Create with Studio"));
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Themes and layout");
         }
         finally
         {

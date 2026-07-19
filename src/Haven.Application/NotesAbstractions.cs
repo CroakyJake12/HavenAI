@@ -151,7 +151,11 @@ public static class NotesTextStatistics
     public static NotesStatistics Calculate(NotesDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var text = EnumerateText(document).ToArray();
+        // Word processors report statistics for editable document content rather
+        // than for navigation labels such as "Section 1" and "Page 1".  Keep
+        // EnumerateText available for search/AI context, where those labels are
+        // useful, but exclude them from the status-bar and computed-field counts.
+        var text = EnumerateBodyText(document).ToArray();
         var joined = string.Join("\n", text);
         var words = joined.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         var characters = joined.Length;
@@ -160,6 +164,47 @@ public static class NotesTextStatistics
             .Count(block => block.Kind is NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote);
         var readingMinutes = words == 0 ? 0 : Math.Max(1, (int)Math.Ceiling(words / 220d));
         return new NotesStatistics(words, characters, charactersWithoutSpaces, paragraphs, readingMinutes);
+    }
+
+    private static IEnumerable<string> EnumerateBodyText(NotesDocument document)
+    {
+        foreach (var section in document.Sections)
+        {
+            yield return section.Header;
+            yield return section.Footer;
+            foreach (var page in section.Pages)
+            {
+                foreach (var block in page.Blocks)
+                {
+                    yield return block.PlainText;
+                    if (block.List is not null)
+                        foreach (var item in block.List.Items) yield return item.Text;
+                    if (block.Table is not null)
+                        foreach (var cell in block.Table.Rows.SelectMany(row => row.Cells)) yield return cell.Text;
+                    if (block.Media is not null)
+                    {
+                        yield return block.Media.Caption;
+                        yield return block.Media.AltText;
+                    }
+                    if (block.Equation is not null)
+                    {
+                        yield return block.Equation.Source;
+                        yield return block.Equation.AccessibleAlternative;
+                    }
+                    if (block.Html is not null)
+                    {
+                        yield return block.Html.FallbackText;
+                        yield return block.Html.HtmlSource;
+                    }
+                    if (block.Flashcard is not null)
+                    {
+                        yield return block.Flashcard.Front;
+                        yield return block.Flashcard.Back;
+                        yield return block.Flashcard.Hint;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

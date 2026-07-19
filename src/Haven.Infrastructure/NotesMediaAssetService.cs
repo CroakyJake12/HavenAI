@@ -118,23 +118,25 @@ public sealed class NotesMediaAssetService(
         var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            await using var input = new FileStream(
-                verification.Path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                64 * 1024,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using var output = new FileStream(
-                temporary,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                64 * 1024,
-                FileOptions.Asynchronous | FileOptions.WriteThrough);
-            await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-            await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-            output.Flush(flushToDisk: true);
+            await using (var input = new FileStream(
+                             verification.Path,
+                             FileMode.Open,
+                             FileAccess.Read,
+                             FileShare.Read,
+                             64 * 1024,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var output = new FileStream(
+                             temporary,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             64 * 1024,
+                             FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+                output.Flush(flushToDisk: true);
+            }
             var copiedHash = await ComputeSha256Async(temporary, cancellationToken).ConfigureAwait(false);
             if (!copiedHash.Equals(verification.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("The copied media did not match the verified source hash.");

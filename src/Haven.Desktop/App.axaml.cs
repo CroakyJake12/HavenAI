@@ -78,6 +78,7 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<SafeModeBrowserAutomationService>();
         collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
+        collection.AddSingleton<BrowserCompletionService>();
         collection.AddSingleton<BrowserToolRuntime>();
         collection.AddSingleton<AutomationToolRuntime>();
         collection.AddSingleton<CapabilityPreflightService>();

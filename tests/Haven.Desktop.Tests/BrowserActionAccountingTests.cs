@@ -36,7 +36,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
         var store = new FaultingStore { ThrowOnAudit = true };
         using var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
 
-        var request = await automation.ClickReferenceAsync("haven-submit", CancellationToken.None);
+        var request = await automation.ClickReferenceAsync("haven-1", CancellationToken.None);
         Assert.Contains("Approval required", request);
         var action = Assert.Single(store.Actions);
 
@@ -59,7 +59,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
         var store = new FaultingStore { FailUpdatesAfter = 1 };
         using var automation = new BrowserAutomationService(browser, new AllowPolicy(), store, _paths);
 
-        await automation.ClickReferenceAsync("haven-submit", CancellationToken.None);
+        await automation.ClickReferenceAsync("haven-1", CancellationToken.None);
         var action = Assert.Single(store.Actions);
         var result = await automation.ApproveAsync(action.Id, CancellationToken.None);
 
@@ -147,7 +147,7 @@ public sealed class BrowserActionAccountingTests : IDisposable
                     {
                         new
                         {
-                            Reference = "haven-submit",
+                            Reference = "haven-1",
                             Kind = "button",
                             Text = "Place order",
                             Address = (string?)null,

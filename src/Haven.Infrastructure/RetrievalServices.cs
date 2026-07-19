@@ -304,7 +304,7 @@ public sealed class RetrievalIndexService(
         {
             if (selected.Count >= Math.Clamp(query.MaximumResults, 1, 50)) break;
             var chunkTokens = EstimateTokens(item.Chunk.Text);
-            if (estimatedTokens + chunkTokens > Math.Max(128, query.TokenBudget) && selected.Count > 0) continue;
+            if (estimatedTokens + chunkTokens > Math.Max(128, query.TokenBudget)) continue;
             if (usedDocuments.TryGetValue(item.Document.Id, out var count) && count >= 3) continue;
             selected.Add(item);
             usedDocuments[item.Document.Id] = count + 1;

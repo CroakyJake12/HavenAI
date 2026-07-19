@@ -9,6 +9,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
@@ -44,6 +45,9 @@ public sealed class NotesWorkspaceTests : IDisposable
         try
         {
             window.Show();
+            foreach (var label in new[] { "Navigation", "Advanced tools" })
+                view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, label))
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(25);
 
             Assert.NotNull(viewModel.Document);
@@ -56,9 +60,14 @@ public sealed class NotesWorkspaceTests : IDisposable
                 .ToArray();
             Assert.Contains("HAVEN NOTES", labels);
             Assert.Contains("LIBRARY", labels);
-            Assert.Contains("REVIEWED AI", labels);
-            Assert.Contains("VERSION HISTORY", labels);
-            Assert.Contains("DOCUMENT INFORMATION", labels);
+            Assert.Contains("SELECTED BLOCK", labels);
+            var inspectorHeaders = view.GetVisualDescendants().OfType<TabItem>()
+                .Select(item => Convert.ToString(item.Header, System.Globalization.CultureInfo.InvariantCulture))
+                .ToArray();
+            Assert.Contains("AI", inspectorHeaders);
+            Assert.Contains("Review", inspectorHeaders);
+            Assert.Contains("Versions", inspectorHeaders);
+            Assert.Contains("Document", inspectorHeaders);
             var buttons = view.GetVisualDescendants()
                 .OfType<Button>()
                 .Select(button => button.Content as string)
@@ -240,7 +249,7 @@ public sealed class NotesWorkspaceTests : IDisposable
         });
         Assert.Empty(allowed.Error);
         Assert.Contains("Content-Security-Policy", allowed.DocumentHtml, StringComparison.Ordinal);
-        Assert.Contains("default-src 'none'", allowed.DocumentHtml, StringComparison.Ordinal);
+        Assert.Contains("default-src &#39;none&#39;", allowed.DocumentHtml, StringComparison.Ordinal);
 
         var canvas = new NotesInkCanvasControl
         {

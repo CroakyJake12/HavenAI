@@ -57,6 +57,9 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     /// Stores autosave timer locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly DispatcherTimer _autosaveTimer;
+    /// <summary>Serializes startup so attaching a view cannot reopen and overwrite an already initialized document.</summary>
+    private readonly SemaphoreSlim _initializationGate = new(1, 1);
+    private bool _isInitialized;
     /// <summary>
     /// Stores undo locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -574,9 +577,11 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(NotesWorkspaceViewModel));
-        IsBusy = true;
+        await _initializationGate.WaitAsync(cancellationToken);
         try
         {
+            if (_isInitialized) return;
+            IsBusy = true;
             await RefreshDocumentsAsync(cancellationToken);
             await RefreshModelsAsync(cancellationToken);
             var first = Documents.FirstOrDefault();
@@ -584,10 +589,12 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
             else await OpenDocumentAsync(first.Id, cancellationToken);
             _autosaveTimer.Start();
             Status = "Haven Notes is ready. Changes autosave locally.";
+            _isInitialized = true;
         }
         finally
         {
             IsBusy = false;
+            _initializationGate.Release();
         }
     }
 
@@ -1364,7 +1371,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     {
         if (Document is null || _undo.Count == 0) return;
         _redo.Push(Snapshot(Document));
-        SetDocument(Deserialize(_undo.Pop()));
+        SetDocument(Deserialize(_undo.Pop()), resetHistory: false);
         IsDirty = true;
         Status = "Undid the last Notes edit.";
         RaiseCommandStates();
@@ -1377,7 +1384,7 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     {
         if (Document is null || _redo.Count == 0) return;
         _undo.Push(Snapshot(Document));
-        SetDocument(Deserialize(_redo.Pop()));
+        SetDocument(Deserialize(_redo.Pop()), resetHistory: false);
         IsDirty = true;
         Status = "Redid the Notes edit.";
         RaiseCommandStates();
@@ -1386,15 +1393,21 @@ public sealed class NotesWorkspaceViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Performs the set document step owned by this component.
     /// </summary>
-    private void SetDocument(NotesDocument document)
+    private void SetDocument(NotesDocument document, bool resetHistory = true)
     {
         Document = document;
         CurrentSection = document.Sections.FirstOrDefault();
         CurrentPage = CurrentSection?.Pages.OrderBy(page => page.Order).FirstOrDefault();
         SelectedBlock = CurrentPage?.Blocks.OrderBy(block => block.Order).FirstOrDefault();
         PendingAiChange = document.AiChanges.LastOrDefault(change => change.Status == NotesAiChangeStatus.Proposed);
-        _undo.Clear();
-        _redo.Clear();
+        // Opening a different document starts a new edit history. Undo and redo,
+        // however, restore snapshots inside the current history and must not wipe
+        // the opposite stack that was prepared immediately before this call.
+        if (resetHistory)
+        {
+            _undo.Clear();
+            _redo.Clear();
+        }
         _editSnapshots.Clear();
         IsDirty = document.Recovery.HasUnsavedRecovery;
         _ = RefreshVersionsAsync(CancellationToken.None);

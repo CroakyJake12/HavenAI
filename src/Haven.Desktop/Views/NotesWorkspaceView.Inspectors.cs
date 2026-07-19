@@ -456,6 +456,17 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void BuildInformationInspector()
     {
+        // Productivity sections are rebuilt when the document changes. Detach
+        // their reusable result panels before replacing the surrounding cards;
+        // Avalonia correctly rejects giving one visual two parents.
+        foreach (var reusable in new Panel[]
+                 {
+                     _localFindResultsPanel, _languageIssuesPanel, _bookmarksPanel,
+                     _fieldsPanel, _stylesPanel, _versionComparisonPanel,
+                     _equationLibraryPanel, _canvasBookmarksPanel, _studyAttemptsPanel,
+                     _crossReferencesPanel, _conflictsPanel
+                 })
+            if (reusable.Parent is Panel parent) parent.Children.Remove(reusable);
         _informationPanel.Children.Clear();
         _informationPanel.Children.Add(new TextBlock { Text = "DOCUMENT INFORMATION", Classes = { "eyebrow" } });
         _informationPanel.Children.Add(new TextBlock { Text = _viewModel.StatisticsLabel, FontWeight = FontWeight.SemiBold });

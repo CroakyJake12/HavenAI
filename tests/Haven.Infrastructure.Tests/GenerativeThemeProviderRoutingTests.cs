@@ -29,10 +29,10 @@ public sealed class GenerativeThemeProviderRoutingTests
         await using var provider = services.BuildServiceProvider();
 
         var providerClient = provider.GetRequiredService<IProviderModelClient>();
-        var concreteClient = provider.GetRequiredService<ProviderRoutingModelClient>();
+        var resilientClient = provider.GetRequiredService<ResilientProviderRoutingModelClient>();
         var themeStudio = provider.GetRequiredService<IGenerativeThemeAiService>();
 
-        Assert.Same(concreteClient, providerClient);
+        Assert.Same(resilientClient, providerClient);
         Assert.IsType<GenerativeThemeAiService>(themeStudio);
     }
 }

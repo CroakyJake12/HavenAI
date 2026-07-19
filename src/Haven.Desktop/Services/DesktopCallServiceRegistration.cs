@@ -27,8 +27,9 @@ public static class DesktopCallServiceRegistration
         ArgumentNullException.ThrowIfNull(services);
         services.AddSingleton<IScreenShareService, WindowsGraphicsCaptureService>();
         services.AddSingleton<WindowsNaturalSpeechOutputService>();
+        services.AddSingleton<HybridNaturalSpeechOutputService>();
         services.AddSingleton<ISpeechOutputService>(provider =>
-            provider.GetRequiredService<WindowsNaturalSpeechOutputService>());
+            provider.GetRequiredService<HybridNaturalSpeechOutputService>());
         services.AddSingleton<CallVoicePreviewController>();
         services.AddSingleton<CallCompletionController>();
         services.AddSingleton<NotesDictationController>();

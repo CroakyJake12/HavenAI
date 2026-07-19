@@ -593,11 +593,15 @@ public sealed class NotesAttachmentStore(IAppPaths paths, IProductionDiagnostics
             var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
             try
             {
-                await using var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await using var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough);
-                await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-                output.Flush(flushToDisk: true);
+                // Close both handles before the atomic rename. Windows correctly
+                // refuses to move a file still held by our own FileShare.None stream.
+                await using (var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.WriteThrough))
+                {
+                    await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                    await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    output.Flush(flushToDisk: true);
+                }
                 File.Move(temporary, destination);
                 var hash = await ComputeAsync(destination, cancellationToken).ConfigureAwait(false);
                 return new NotesMediaData

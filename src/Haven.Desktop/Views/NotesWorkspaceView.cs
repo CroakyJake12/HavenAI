@@ -68,6 +68,12 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// Stores information panel locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly StackPanel _informationPanel = new() { Spacing = 9 };
+    /// <summary>Hosts the document library and outline only when Navigation is open.</summary>
+    private readonly Border _libraryHost = new() { Width = 285, IsVisible = false };
+    /// <summary>Hosts formatting, AI, review, version and document tools on demand.</summary>
+    private readonly Border _inspectorHost = new() { Width = 365, IsVisible = false };
+    private readonly GridSplitter _librarySplitter = Splitter();
+    private readonly GridSplitter _inspectorSplitter = Splitter();
     /// <summary>
     /// Stores document title locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -129,21 +135,26 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             Background = ResourceBrush("HavenBackgroundBrush", Color.FromRgb(18, 18, 20))
         };
         root.Children.Add(BuildTopBar());
+        root.Children.Add(WithRow(BuildDocumentRibbon(), 1));
         var body = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("270,6,*,6,350"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,6,*,6,Auto"),
             Margin = new Thickness(12, 8, 12, 12)
         };
-        Grid.SetRow(body, 1);
-        body.Children.Add(BuildLibraryPane());
-        body.Children.Add(WithColumn(Splitter(), 1));
+        _libraryHost.Child = BuildLibraryPane();
+        _inspectorHost.Child = BuildInspectorPane();
+        _librarySplitter.IsVisible = false;
+        _inspectorSplitter.IsVisible = false;
+        Grid.SetRow(body, 2);
+        body.Children.Add(_libraryHost);
+        body.Children.Add(WithColumn(_librarySplitter, 1));
         body.Children.Add(WithColumn(BuildEditorPane(), 2));
-        body.Children.Add(WithColumn(Splitter(), 3));
-        body.Children.Add(WithColumn(BuildInspectorPane(), 4));
+        body.Children.Add(WithColumn(_inspectorSplitter, 3));
+        body.Children.Add(WithColumn(_inspectorHost, 4));
         root.Children.Add(body);
         return root;
     }
@@ -155,16 +166,15 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     {
         var panel = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto"),
             ColumnSpacing = 7,
             Margin = new Thickness(14, 10, 14, 0)
         };
         panel.Children.Add(ActionButton("New", async () => await _viewModel.NewDocumentCommand.ExecuteAsync(), "Create a new local Notes document"));
-        panel.Children.Add(WithColumn(ActionButton("Save", async () => await _viewModel.SaveCommand.ExecuteAsync(), "Save now; autosave also runs automatically"), 1));
-        panel.Children.Add(WithColumn(ActionButton("Undo", () => { _viewModel.UndoCommand.Execute(null); return Task.CompletedTask; }, "Undo the last document edit"), 2));
-        panel.Children.Add(WithColumn(ActionButton("Redo", () => { _viewModel.RedoCommand.Execute(null); return Task.CompletedTask; }, "Redo the last undone edit"), 3));
-        panel.Children.Add(WithColumn(ActionButton("Import", ImportDocumentAsync, "Import a supported document into a new native Notes file"), 4));
-        panel.Children.Add(WithColumn(ActionButton("Export", ExportDocumentAsync, "Export the current document truthfully"), 5));
+        panel.Children.Add(WithColumn(ActionButton("Import", ImportDocumentAsync, "Open or import a supported document into Haven Documents"), 1));
+        panel.Children.Add(WithColumn(ActionButton("Save", async () => await _viewModel.SaveCommand.ExecuteAsync(), "Save now; autosave also runs automatically"), 2));
+        panel.Children.Add(WithColumn(ActionButton("Undo", () => { _viewModel.UndoCommand.Execute(null); return Task.CompletedTask; }, "Undo the last document edit"), 3));
+        panel.Children.Add(WithColumn(ActionButton("Redo", () => { _viewModel.RedoCommand.Execute(null); return Task.CompletedTask; }, "Redo the last undone edit"), 4));
         var identity = new StackPanel
         {
             Spacing = 1,
@@ -172,14 +182,94 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             Children =
             {
                 new TextBlock { Text = "HAVEN NOTES", Classes = { "eyebrow" }, HorizontalAlignment = HorizontalAlignment.Center },
+                new TextBlock { Text = "Documents", Classes = { "muted2" }, FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center },
                 _saveState
             }
         };
-        panel.Children.Add(WithColumn(identity, 6));
-        panel.Children.Add(WithColumn(ActionButton("Print", async () => await _viewModel.PrintAsync(CancellationToken.None), "Create a print-ready PDF and open the Windows print handler"), 7));
-        panel.Children.Add(WithColumn(ActionButton("Delete", () => { _viewModel.RequestDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Move this document to recoverable Notes trash", danger: true), 8));
-        panel.Children.Add(WithColumn(new TextBlock { Text = "Autosave · versions · local recovery", Classes = { "muted2" }, VerticalAlignment = VerticalAlignment.Center, FontSize = 9 }, 9));
+        panel.Children.Add(WithColumn(identity, 5));
+        panel.Children.Add(WithColumn(ActionButton("Navigation", ToggleLibraryPane, "Show or hide documents, search, sections and pages"), 6));
+        panel.Children.Add(WithColumn(ActionButton("Advanced tools", ToggleInspectorPane, "Show or hide block, AI, review, version and document tools"), 7));
+        panel.Children.Add(WithColumn(ActionButton("Export", ExportDocumentAsync, "Export the current document truthfully"), 8));
+        panel.Children.Add(WithColumn(ActionButton("Print", async () => await _viewModel.PrintAsync(CancellationToken.None), "Create a print-ready PDF and open the Windows print handler"), 9));
         return panel;
+    }
+
+    /// <summary>
+    /// Builds the compact word-processor ribbon. The frequently used writing and
+    /// insertion tools remain one click away without permanently surrounding the
+    /// page with website-editor sidebars.
+    /// </summary>
+    private Control BuildDocumentRibbon()
+    {
+        var home = new WrapPanel { ItemHeight = 32, ItemWidth = 88 };
+        home.Children.Add(AddBlockButton("Paragraph", _viewModel.AddParagraphCommand));
+        home.Children.Add(AddBlockButton("Heading", _viewModel.AddHeadingCommand));
+        home.Children.Add(AddBlockButton("List", _viewModel.AddListCommand));
+
+        var insert = new WrapPanel { ItemHeight = 32, ItemWidth = 82 };
+        insert.Children.Add(AddBlockButton("Table", _viewModel.AddTableCommand));
+        insert.Children.Add(AddBlockButton("Equation", _viewModel.AddEquationCommand));
+        insert.Children.Add(AddBlockButton("Canvas", _viewModel.AddCanvasCommand));
+        insert.Children.Add(AddBlockButton("Flashcard", _viewModel.AddFlashcardCommand));
+        insert.Children.Add(AddBlockButton("HTML", _viewModel.AddHtmlCommand));
+        insert.Children.Add(ActionButton("Media", ImportMediaAsync, "Insert image, audio, video or document media"));
+
+        static Control Group(string label, Control tools) => new StackPanel
+        {
+            Spacing = 3,
+            Children =
+            {
+                tools,
+                new TextBlock
+                {
+                    Text = label,
+                    Classes = { "muted2" },
+                    FontSize = 9,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                }
+            }
+        };
+
+        var toolsGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"),
+            ColumnSpacing = 16,
+            Margin = new Thickness(14, 6)
+        };
+        toolsGrid.Children.Add(Group("WRITE", home));
+        toolsGrid.Children.Add(WithColumn(Group("INSERT", insert), 1));
+        toolsGrid.Children.Add(WithColumn(ActionButton("Delete document", () =>
+        {
+            _viewModel.RequestDeleteDocumentCommand.Execute(null);
+            RefreshDeleteConfirmation();
+            return Task.CompletedTask;
+        }, "Move this document to recoverable trash", danger: true), 3));
+
+        return new Border
+        {
+            Background = ResourceBrush("HavenSurfaceBrush", Color.FromRgb(28, 28, 31)),
+            BorderBrush = ResourceBrush("HavenBorderBrush", Color.FromRgb(55, 55, 62)),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = toolsGrid
+        };
+    }
+
+    /// <summary>Shows or hides document navigation while leaving all navigation features available.</summary>
+    private Task ToggleLibraryPane()
+    {
+        var show = !_libraryHost.IsVisible;
+        _libraryHost.IsVisible = show;
+        _librarySplitter.IsVisible = show;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Shows or hides advanced editing tools while leaving their state intact.</summary>
+    private Task ToggleInspectorPane()
+    {
+        var show = !_inspectorHost.IsVisible;
+        _inspectorHost.IsVisible = show;
+        _inspectorSplitter.IsVisible = show;
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -257,36 +347,55 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             Focus();
         };
 
-        var addBar = new WrapPanel { ItemHeight = 34, ItemWidth = 92 };
-        addBar.Children.Add(AddBlockButton("Paragraph", _viewModel.AddParagraphCommand));
-        addBar.Children.Add(AddBlockButton("Heading", _viewModel.AddHeadingCommand));
-        addBar.Children.Add(AddBlockButton("List", _viewModel.AddListCommand));
-        addBar.Children.Add(AddBlockButton("Table", _viewModel.AddTableCommand));
-        addBar.Children.Add(AddBlockButton("Equation", _viewModel.AddEquationCommand));
-        addBar.Children.Add(AddBlockButton("HTML", _viewModel.AddHtmlCommand));
-        addBar.Children.Add(AddBlockButton("Canvas", _viewModel.AddCanvasCommand));
-        addBar.Children.Add(AddBlockButton("Flashcard", _viewModel.AddFlashcardCommand));
-        addBar.Children.Add(ActionButton("Media", ImportMediaAsync, "Import image, audio, video or document media"));
-
         _deleteConfirmation.Children.Add(new TextBlock { Text = "Move this document to recoverable trash?", VerticalAlignment = VerticalAlignment.Center });
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Cancel", () => { _viewModel.CancelDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Cancel delete"), 1));
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Move to trash", async () => { await _viewModel.DeleteDocumentCommand.ExecuteAsync(); RefreshDeleteConfirmation(); }, "Confirm recoverable delete", danger: true), 2));
 
-        var header = Card(new StackPanel { Spacing = 9, Children = { titleBar, addBar, _deleteConfirmation } });
+        var page = new Border
+        {
+            MaxWidth = 900,
+            MinHeight = 1080,
+            Margin = new Thickness(28, 18, 28, 48),
+            Padding = new Thickness(64, 52),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Background = ResourceBrush("HavenElevatedBrush", Color.FromRgb(35, 35, 39)),
+            BorderBrush = ResourceBrush("HavenBorderBrush", Color.FromRgb(63, 63, 70)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    titleBar,
+                    new Separator(),
+                    _deleteConfirmation,
+                    _blocksPanel
+                }
+            }
+        };
+
+        var statusBar = new Border
+        {
+            Background = ResourceBrush("HavenSurfaceBrush", Color.FromRgb(28, 28, 31)),
+            BorderBrush = ResourceBrush("HavenBorderBrush", Color.FromRgb(55, 55, 62)),
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Padding = new Thickness(12, 5),
+            Child = _status
+        };
         return new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            RowSpacing = 10,
+            RowDefinitions = new RowDefinitions("*,Auto"),
             Children =
             {
-                header,
-                WithRow(new ScrollViewer
+                new ScrollViewer
                 {
                     VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
                     HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-                    Content = _blocksPanel
-                }, 1),
-                WithRow(Card(_status), 2)
+                    Content = page
+                },
+                WithRow(statusBar, 1)
             }
         };
     }
@@ -298,6 +407,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     {
         var tabs = new TabControl
         {
+            Focusable = true,
             ItemsSource = new object[]
             {
                 new TabItem { Header = "Block", Content = InspectorScroll(_blockPanel) },
@@ -306,6 +416,14 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
                 new TabItem { Header = "Versions", Content = InspectorScroll(_versionsPanel) },
                 new TabItem { Header = "Document", Content = InspectorScroll(_informationPanel) }
             }
+        };
+        AutomationProperties.SetName(tabs, "Advanced document tools");
+        // The inspector starts collapsed, so its tab containers do not exist yet.
+        // Select Block when the pane is actually attached; selecting it earlier
+        // is discarded by Avalonia while the ItemsSource is still unrealized.
+        tabs.AttachedToVisualTree += (_, _) =>
+        {
+            if (tabs.SelectedIndex < 0) tabs.SelectedIndex = 0;
         };
         return Card(tabs);
     }
@@ -509,9 +627,71 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         foreach (var preview in _blocksPanel.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
         _blocksPanel.Children.Clear();
         foreach (var block in _viewModel.Blocks)
-            _blocksPanel.Children.Add(NotesBlockEditorFactory.Build(_viewModel, block, BeginEditing, EndEditing, QueueRefresh, ImportMediaAsync));
+            _blocksPanel.Children.Add(BuildDocumentBlock(block));
         if (_viewModel.Blocks.Count == 0)
             _blocksPanel.Children.Add(new TextBlock { Text = "Use the block toolbar to add content.", Classes = { "muted" }, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20) });
+    }
+
+    /// <summary>
+    /// Presents ordinary prose like a word processor. The complete structural
+    /// editor remains available in a collapsed section, so formatting, runs,
+    /// ordering and deletion are preserved without dominating the page.
+    /// </summary>
+    private Control BuildDocumentBlock(NotesBlock block)
+    {
+        var advanced = NotesBlockEditorFactory.Build(
+            _viewModel, block, BeginEditing, EndEditing, QueueRefresh, ImportMediaAsync);
+        if (block.Kind is not (NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote))
+            return advanced;
+
+        var editor = new TextBox
+        {
+            Text = block.PlainText,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(2, 5),
+            MinHeight = block.Kind == NotesBlockKind.Heading ? 54 : 40,
+            FontSize = block.Kind == NotesBlockKind.Heading ? 27 : 15,
+            FontWeight = block.Kind == NotesBlockKind.Heading ? FontWeight.SemiBold : FontWeight.Normal,
+            FontStyle = block.Kind == NotesBlockKind.Quote ? FontStyle.Italic : FontStyle.Normal,
+            PlaceholderText = block.Kind == NotesBlockKind.Heading ? "Heading" : "Start writing…"
+        };
+        AutomationProperties.SetName(editor, block.Kind == NotesBlockKind.Heading ? "Document heading" : "Document paragraph");
+        editor.GotFocus += (_, _) => BeginEditing(block);
+        editor.TextChanged += (_, _) =>
+        {
+            var text = editor.Text ?? string.Empty;
+            if (block.Runs.Count == 1) block.Runs[0].Text = text;
+            _viewModel.UpdateBlockText(block, text);
+        };
+        editor.LostFocus += (_, _) => EndEditing(block, "Edited " + block.Kind);
+
+        Control writingSurface = editor;
+        if (block.Kind == NotesBlockKind.Quote)
+            writingSurface = new Border
+            {
+                BorderBrush = ResourceBrush("HavenAccentBrush", Color.FromRgb(47, 128, 237)),
+                BorderThickness = new Thickness(3, 0, 0, 0),
+                Padding = new Thickness(12, 0, 0, 0),
+                Child = editor
+            };
+
+        var tools = new Expander
+        {
+            Header = "Formatting and block tools",
+            Content = advanced,
+            IsExpanded = block.Runs.Count > 1,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        AutomationProperties.SetName(tools, "Formatting and block tools for " + block.Kind);
+        return new StackPanel
+        {
+            Spacing = 3,
+            Margin = new Thickness(0, 1, 0, 6),
+            Children = { writingSurface, tools }
+        };
     }
 
     /// <summary>

@@ -106,8 +106,16 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     public CallVoice? SelectedVoice
     {
         get => _selectedVoice;
-        set => SetProperty(ref _selectedVoice, value);
+        set
+        {
+            if (!SetProperty(ref _selectedVoice, value)) return;
+            RaisePropertyChanged(nameof(SelectedVoiceDescription));
+        }
     }
+    /// <summary>Explains the quality, privacy and one-time setup cost of the selected voicebank.</summary>
+    public string SelectedVoiceDescription => SelectedVoice?.Id.StartsWith("kokoro:", StringComparison.OrdinalIgnoreCase) == true
+        ? "Neural, expressive and fully local. The compact voice model downloads once on first preview."
+        : "Windows system voice. Instant and offline, but less conversational than Haven Neural.";
 
     /// <summary>
     /// Stores input mode locally so this component can preserve the dependency, cache, or state between member calls.
@@ -327,7 +335,7 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     /// Gets or updates speech output status, the bindable or domain state represented by this property.
     /// </summary>
     public string SpeechOutputStatus => HasSpeechOutput
-        ? "Local speech output ready"
+        ? "Haven Neural and Windows voicebanks ready"
         : _coordinator.Capabilities.SpeechOutputUnavailableReason ?? "Speech output unavailable";
     /// <summary>
     /// Gets or updates screen share status, the bindable or domain state represented by this property.

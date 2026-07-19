@@ -12,8 +12,10 @@ using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 
 namespace Haven.Desktop.Controls;
 
@@ -393,9 +395,39 @@ public sealed partial class MarkdownView : UserControl
                 var link = LinkPattern().Match(token);
                 if (link.Success)
                 {
-                    var run = new Run($"{link.Groups[1].Value} ({link.Groups[2].Value})");
-                    run.Foreground = Brush("HavenBlueBrush", "#5AA6FF");
-                    inlines.Add(run);
+                    var label = link.Groups[1].Value;
+                    var target = link.Groups[2].Value;
+                    var hyperlink = new HyperlinkButton
+                    {
+                        Content = new TextBlock
+                        {
+                            Text = label,
+                            Foreground = Brush("HavenBlueBrush", "#5AA6FF"),
+                            TextDecorations = TextDecorations.Underline
+                        },
+                        Padding = new Thickness(0),
+                        MinHeight = 0,
+                        Background = Brushes.Transparent,
+                        BorderThickness = new Thickness(0)
+                    };
+
+                    if (TryResolveLocalFile(target, out var sourcePath))
+                    {
+                        ToolTip.SetTip(hyperlink, "Save " + Path.GetFileName(sourcePath));
+                        hyperlink.Click += async (_, args) => await SaveLinkedFileAsync(sourcePath, args);
+                    }
+                    else if (Uri.TryCreate(target, UriKind.Absolute, out var uri)
+                             && uri.Scheme is "http" or "https" or "mailto")
+                    {
+                        hyperlink.NavigateUri = uri;
+                        ToolTip.SetTip(hyperlink, target);
+                    }
+                    else
+                    {
+                        hyperlink.IsEnabled = false;
+                        ToolTip.SetTip(hyperlink, "The linked file is not available on this device.");
+                    }
+                    inlines.Add(new InlineUIContainer(hyperlink));
                 }
                 else inlines.Add(new Run(token));
             }
@@ -418,6 +450,49 @@ public sealed partial class MarkdownView : UserControl
             position = match.Index + match.Length;
         }
         if (position < text.Length) inlines.Add(new Run(text[position..]));
+    }
+
+    /// <summary>
+    /// Resolves only existing local files. This deliberately rejects missing and
+    /// relative targets so model-written Markdown cannot turn a click into an
+    /// unexpected filesystem probe.
+    /// </summary>
+    private static bool TryResolveLocalFile(string target, out string path)
+    {
+        path = string.Empty;
+        try
+        {
+            var candidate = target.StartsWith("sandbox:", StringComparison.OrdinalIgnoreCase)
+                ? Uri.UnescapeDataString(target[8..])
+                : Uri.TryCreate(target, UriKind.Absolute, out var uri) && uri.IsFile
+                    ? uri.LocalPath
+                    : Uri.UnescapeDataString(target);
+            if (!Path.IsPathFullyQualified(candidate) || !File.Exists(candidate)) return false;
+            path = Path.GetFullPath(candidate);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or UriFormatException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Copies a generated file only after the user chooses its destination.</summary>
+    private async Task SaveLinkedFileAsync(string sourcePath, RoutedEventArgs args)
+    {
+        args.Handled = true;
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
+        var destination = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save generated file",
+            SuggestedFileName = Path.GetFileName(sourcePath),
+            ShowOverwritePrompt = true
+        });
+        var destinationPath = destination?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(destinationPath)) return;
+        await using var source = File.OpenRead(sourcePath);
+        await using var output = File.Create(destinationPath);
+        await source.CopyToAsync(output);
     }
 
     /// <summary>

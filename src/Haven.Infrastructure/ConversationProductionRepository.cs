@@ -560,13 +560,13 @@ public sealed class ConversationProductionRepository(
             ? """
                 SELECT c.id,m.id,c.title,m.content,m.created_at
                   FROM messages m JOIN conversations c ON c.id=m.conversation_id
-                 WHERE c.is_temporary=0 AND (m.content LIKE $query ESCAPE '\\' OR c.title LIKE $query ESCAPE '\\')
+                 WHERE c.is_temporary=0 AND (m.content LIKE $query ESCAPE '\' OR c.title LIKE $query ESCAPE '\')
                  ORDER BY m.created_at DESC LIMIT $limit;
                 """
             : """
                 SELECT c.id,m.id,c.title,m.content,m.created_at
                   FROM messages m JOIN conversations c ON c.id=m.conversation_id
-                 WHERE c.id=$conversationId AND m.content LIKE $query ESCAPE '\\'
+                 WHERE c.id=$conversationId AND m.content LIKE $query ESCAPE '\'
                  ORDER BY m.created_at DESC LIMIT $limit;
                 """;
         command.Parameters.AddWithValue("$query", "%" + EscapeLike(query.Trim()) + "%");

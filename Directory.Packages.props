@@ -21,6 +21,10 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+    <!-- Kokoro is a local neural TTS model. The CPU package keeps Call usable
+         without a cloud key while providing markedly more natural prosody than
+         Windows' legacy/system voices. -->
+    <PackageVersion Include="KokoroSharp.CPU" Version="0.6.7" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

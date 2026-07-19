@@ -759,7 +759,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets or updates recent heading, the bindable or domain state represented by this property.
     /// </summary>
-    public string RecentHeading => CurrentMode switch { HavenMode.Do => "Recent tasks", HavenMode.Teach => "Recent teaching chats", HavenMode.Studio when IsProjectOpen => "Project chats", HavenMode.Studio => "Standalone chats", _ => "Recent" };
+    public string RecentHeading => CurrentMode switch { HavenMode.Do => "Tasks", HavenMode.Teach => "Teaching chats", HavenMode.Studio when IsProjectOpen => "Project chats", HavenMode.Studio => "Standalone chats", _ => "Chats" };
     /// <summary>
     /// Gets or updates container settings label, the bindable or domain state represented by this property.
     /// </summary>
@@ -1309,7 +1309,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 await RefreshAfterSettingsAsync();
                 _groupPages.Remove(definition.Id);
-            }),
+            }, () => ReturnToChatGroupAsync(definition.Id)),
             true,
             HavenSurface.Chat);
         return Task.CompletedTask;
@@ -1645,8 +1645,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
         if (CurrentChat.SelectedContainer is null) return;
+        var selected = CurrentChat.SelectedContainer;
         AddOrSelectTab("container-settings-" + CurrentChat.SelectedContainer.Id.ToString("N"), ContainerSettingsLabel,
-            new ContainerSettingsPageViewModel(CurrentChat.SelectedContainer, _containers, RefreshAfterSettingsAsync), true);
+            new ContainerSettingsPageViewModel(selected, _containers, RefreshAfterSettingsAsync,
+                selected.Definition.Mode == HavenMode.Chat ? () => ReturnToChatGroupAsync(selected.Id) : null), true);
+    }
+
+    /// <summary>Returns from group settings to the group's chat list using freshly persisted data.</summary>
+    private async Task ReturnToChatGroupAsync(Guid groupId)
+    {
+        var group = (await _containers.GetByModeAsync(HavenMode.Chat, CancellationToken.None))
+            .FirstOrDefault(item => item.Id == groupId);
+        if (group is not null) await OpenChatGroupAsync(group);
+        else if (NavigateBackCommand.CanExecute(null)) NavigateBackCommand.Execute(null);
     }
 
     /// <summary>

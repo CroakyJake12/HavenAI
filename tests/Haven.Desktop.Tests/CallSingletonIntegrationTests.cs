@@ -31,10 +31,13 @@ public sealed class CallSingletonIntegrationTests
         await using var provider = services.BuildServiceProvider();
 
         var contract = provider.GetRequiredService<ISpeechOutputService>();
-        var concrete = provider.GetRequiredService<WindowsNaturalSpeechOutputService>();
+        var concrete = provider.GetRequiredService<HybridNaturalSpeechOutputService>();
+        var windowsFallback = provider.GetRequiredService<WindowsNaturalSpeechOutputService>();
         var preview = provider.GetRequiredService<CallVoicePreviewController>();
 
         Assert.Same(concrete, contract);
+        Assert.NotSame(windowsFallback, contract);
+        Assert.Contains(contract.Voices, voice => voice.Id.StartsWith("kokoro:", StringComparison.Ordinal));
         Assert.Same(contract, provider.GetRequiredService<ISpeechOutputService>());
         Assert.Same(preview, provider.GetRequiredService<CallVoicePreviewController>());
     }

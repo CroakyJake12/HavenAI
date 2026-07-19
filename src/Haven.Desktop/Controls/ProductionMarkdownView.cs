@@ -380,6 +380,14 @@ public sealed class ProductionMarkdownView : UserControl
     private static TextBlock BuildInlineText(string text, double size, FontWeight weight, FontStyle style = FontStyle.Normal)
     {
         var block = new TextBlock { FontSize = size, FontWeight = weight, FontStyle = style, TextWrapping = TextWrapping.Wrap };
+        // Keep ordinary text in Text rather than manufacturing a single Run.
+        // This gives accessibility APIs, copying, and headless rendering the
+        // actual content while reserving Inlines for genuinely mixed styling.
+        if (!InlinePattern.IsMatch(text))
+        {
+            block.Text = text;
+            return block;
+        }
         var position = 0;
         foreach (Match match in InlinePattern.Matches(text))
         {

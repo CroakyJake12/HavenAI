@@ -90,6 +90,8 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// Stores effort description locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly TextBlock _effortDescription;
+    /// <summary>Tracks up to three model selections for session-local quick access.</summary>
+    private readonly LinkedList<string> _recentModelNames = [];
     /// <summary>
     /// Stores chat locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -176,8 +178,21 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             IsSnapToTickEnabled = true,
             LargeChange = 20,
             SmallChange = 20,
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 14,
+            Background = new LinearGradientBrush
+            {
+                StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+                EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+                GradientStops =
+                {
+                    new GradientStop(Color.Parse("#FFD84D"), 0),
+                    new GradientStop(Color.Parse("#FF8A33"), 0.58),
+                    new GradientStop(Color.Parse("#E63B3B"), 1)
+                }
+            }
         };
+        _effortSlider.Classes.Add("effort");
         _effortSlider.ValueChanged += OnEffortValueChanged;
 
         _mainFlyout = new Flyout
@@ -458,12 +473,34 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             var chat = ResolveChat();
             if (chat is null) return;
             var query = search.Text?.Trim() ?? string.Empty;
-            foreach (var model in chat.Models
-                         .Where(model => query.Length == 0
-                                         || model.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                                         || model.Family.Contains(query, StringComparison.OrdinalIgnoreCase))
-                         .OrderBy(model => model.Name, StringComparer.OrdinalIgnoreCase))
+            var matching = chat.Models
+                .Where(model => query.Length == 0
+                                || model.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                                || model.Family.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (query.Length == 0 && chat.SelectedModel is { } current) RecordRecentModel(current.Name);
+            var recent = query.Length == 0
+                ? _recentModelNames
+                    .Select(name => matching.FirstOrDefault(model => model.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    .OfType<ModelDescriptor>()
+                    .Take(3)
+                    .ToArray()
+                : [];
+            var recommended = query.Length == 0
+                ? matching.Except(recent)
+                    .OrderByDescending(ModelRecommendationScore)
+                    .ThenBy(model => model.Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(3)
+                    .ToArray()
+                : matching.OrderBy(model => model.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+            var displayed = recent.Concat(recommended).ToArray();
+            if (recent.Length > 0)
+                modelButtons.Children.Add(new TextBlock { Text = "RECENTLY USED", Classes = { "eyebrow" }, Margin = new Thickness(4) });
+            for (var index = 0; index < displayed.Length; index++)
             {
+                if (query.Length == 0 && index == recent.Length && recommended.Length > 0)
+                    modelButtons.Children.Add(new TextBlock { Text = "RECOMMENDED", Classes = { "eyebrow" }, Margin = new Thickness(4, 9, 4, 4) });
+                var model = displayed[index];
                 var selected = ReferenceEquals(model, chat.SelectedModel);
                 var button = new Button
                 {
@@ -486,7 +523,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                                         FontWeight = FontWeight.SemiBold,
                                         TextWrapping = TextWrapping.Wrap
                                     },
-                                    new TextBlock { Text = model.Family, Classes = { "muted" }, FontSize = 9 }
+                                    new TextBlock { Text = model.Family + " · " + CapabilityLabel(model), Classes = { "muted" }, FontSize = 9 }
                                 }
                             },
                             WithColumn(new TextBlock
@@ -501,6 +538,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 button.Click += (_, _) =>
                 {
                     chat.SelectedModel = model;
+                    RecordRecentModel(model.Name);
                     RefreshSummary();
                     _mainFlyout.Hide();
                 };
@@ -540,6 +578,31 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 }
             }
         };
+    }
+
+    private void RecordRecentModel(string name)
+    {
+        var existing = _recentModelNames.FirstOrDefault(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null) _recentModelNames.Remove(existing);
+        _recentModelNames.AddFirst(name);
+        while (_recentModelNames.Count > 3) _recentModelNames.RemoveLast();
+    }
+
+    private static int ModelRecommendationScore(ModelDescriptor model)
+    {
+        var capabilities = Enum.GetValues<ToolCapability>().Count(model.Supports);
+        var sizePenalty = (int)Math.Min(99, model.SizeBytes / 1024L / 1024L / 1024L);
+        return capabilities * 100 - sizePenalty;
+    }
+
+    private static string CapabilityLabel(ModelDescriptor model)
+    {
+        var labels = new List<string>();
+        if (model.Supports(ToolCapability.Vision)) labels.Add("Vision");
+        if (model.Supports(ToolCapability.Tools)) labels.Add("Tools");
+        if (model.Supports(ToolCapability.Browser)) labels.Add("Web");
+        if (model.Supports(ToolCapability.AudioInput) || model.Supports(ToolCapability.AudioOutput)) labels.Add("Audio");
+        return labels.Count == 0 ? "Chat" : string.Join(" · ", labels);
     }
 
     /// <summary>
@@ -626,6 +689,8 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         }
         if (e.PropertyName is not (nameof(ChatPageViewModel.SelectedModel) or nameof(ChatPageViewModel.SelectedEffort)))
             return;
+        if (e.PropertyName == nameof(ChatPageViewModel.SelectedModel) && _chat?.SelectedModel is { } selected)
+            RecordRecentModel(selected.Name);
         if (!_updatingEffort && e.PropertyName == nameof(ChatPageViewModel.SelectedEffort))
             _effortPercent = PercentageForEffort(_chat?.SelectedEffort ?? EffortLevel.Medium);
         RefreshSummary();
@@ -678,7 +743,9 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     private void RefreshSummary()
     {
         var chat = ResolveChat();
-        _summary.Text = $"{SimplifyModelName(chat?.SelectedModel?.Name)} • {_effortPercent}%";
+        _summary.Text = chat?.SelectedModel is null
+            ? "Choose model"
+            : $"{SimplifyModelName(chat.SelectedModel.Name)} • {_effortPercent}%";
         _capabilities.Children.Clear();
         if (chat?.SelectedModel is not { } model) return;
         AddCapability(model.Supports(ToolCapability.Vision), "◉", "Vision");

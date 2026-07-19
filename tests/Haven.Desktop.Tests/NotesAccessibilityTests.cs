@@ -10,6 +10,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
@@ -53,12 +54,14 @@ public sealed class NotesAccessibilityTests : IDisposable
         try
         {
             window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(25);
 
             Assert.Equal("Haven Notes document workspace", AutomationProperties.GetName(view));
             var criticalLabels = new HashSet<string>(StringComparer.Ordinal)
             {
-                "Save", "Import", "Export", "Print", "Delete",
+                "Save", "Import", "Export", "Print", "Delete document",
                 "Sort ↑", "Sort ↓", "Sum", "Apply table data"
             };
             var criticalButtons = view.GetVisualDescendants()

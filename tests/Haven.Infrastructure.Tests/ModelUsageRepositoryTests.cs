@@ -83,6 +83,8 @@ public sealed class ModelUsageRepositoryTests : IDisposable
         var repository = new ModelUsageRepository(database);
         var firstMessage = Guid.NewGuid();
         var secondMessage = Guid.NewGuid();
+        await conversations.AddMessageAsync(new ChatMessage(firstMessage, conversation.Id, MessageRole.Assistant, "First response", null, "one", null, now), CancellationToken.None);
+        await conversations.AddMessageAsync(new ChatMessage(secondMessage, conversation.Id, MessageRole.Assistant, "Second response", null, "local", null, now.AddSeconds(3)), CancellationToken.None);
 
         await repository.RecordAsync(new ResponseUsageEntry(Guid.NewGuid(), conversation.Id, firstMessage,
             new ModelUsageRecord("openai", "one", 100, 50, 10, 5, 0.002m, "GBP", UsageMeasurementKind.ProviderConfirmed, TimeSpan.FromSeconds(2), now)), CancellationToken.None);

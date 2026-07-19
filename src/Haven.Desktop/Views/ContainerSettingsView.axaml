@@ -67,11 +67,12 @@
            FOOTER: Status + Archive + Delete + Save buttons
            Delete confirmation appears when delete is requested
            ============================================================ -->
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding !IsDeleteConfirming}">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding !IsDeleteConfirming}">
         <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" />
         <Button Grid.Column="1" Content="{Binding ArchiveLabel}" Command="{Binding ArchiveCommand}" />
         <Button Grid.Column="2" Content="{Binding DeleteLabel}" Classes="danger" Command="{Binding RequestDeleteCommand}" />
-        <Button Grid.Column="3" Content="Save changes" Classes="accent" Command="{Binding SaveCommand}" />
+        <Button Grid.Column="3" Content="Discard changes" Command="{Binding DiscardChangesCommand}" />
+        <Button Grid.Column="4" Content="Save changes" Classes="accent" Command="{Binding SaveCommand}" />
       </Grid>
       <!-- Delete confirmation banner -->
       <Border Classes="permission" IsVisible="{Binding IsDeleteConfirming}"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="Permanently delete this group and its settings? Saved conversations remain separately available." VerticalAlignment="Center" /><Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDeleteCommand}" /><Button Grid.Column="2" Content="Delete permanently" Classes="danger" Command="{Binding DeleteCommand}" /></Grid></Border>

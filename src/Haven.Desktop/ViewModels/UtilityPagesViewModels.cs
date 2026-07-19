@@ -1293,6 +1293,8 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     /// Stores saved locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly Func<Task> _saved;
+    /// <summary>Returns to the page that opened settings after save or discard.</summary>
+    private readonly Func<Task>? _closed;
     /// <summary>
     /// Stores name locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -1322,11 +1324,12 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     /// </summary>
     private bool _isDeleteConfirming;
 
-    public ContainerSettingsPageViewModel(ContainerItemViewModel item, IContainerRepository repository, Func<Task> saved)
+    public ContainerSettingsPageViewModel(ContainerItemViewModel item, IContainerRepository repository, Func<Task> saved, Func<Task>? closed = null)
     {
         _item = item;
         _repository = repository;
         _saved = saved;
+        _closed = closed;
         _name = item.Definition.Name;
         _rootPath = item.Definition.RootPath ?? string.Empty;
         _context = item.Definition.Context;
@@ -1336,6 +1339,7 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
         ArchiveCommand = new AsyncRelayCommand(ArchiveAsync, () => !IsDeleted);
         RequestDeleteCommand = new RelayCommand(() => IsDeleteConfirming = true);
         CancelDeleteCommand = new RelayCommand(() => IsDeleteConfirming = false);
+        DiscardChangesCommand = new AsyncRelayCommand(DiscardChangesAsync);
     }
 
     /// <summary>
@@ -1402,6 +1406,8 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
     /// Reports whether cancel delete command is true for the current state.
     /// </summary>
     public RelayCommand CancelDeleteCommand { get; }
+    /// <summary>Restores the last saved values and returns without persisting edits.</summary>
+    public AsyncRelayCommand DiscardChangesCommand { get; }
 
     /// <summary>
     /// Performs the set root path step owned by this component.
@@ -1426,11 +1432,22 @@ public sealed class ContainerSettingsPageViewModel : ObservableObject
             await _repository.UpsertAsync(definition, CancellationToken.None);
             await _saved();
             Status = "Project settings saved.";
+            if (_closed is not null) await _closed();
         }
         catch (Exception ex)
         {
             Status = $"Could not save settings: {ex.Message}";
         }
+    }
+
+    private async Task DiscardChangesAsync()
+    {
+        Name = _item.Definition.Name;
+        RootPath = _item.Definition.RootPath ?? string.Empty;
+        Context = _item.Definition.Context;
+        Instructions = _item.Definition.Instructions;
+        Status = "Changes discarded.";
+        if (_closed is not null) await _closed();
     }
 
     /// <summary>

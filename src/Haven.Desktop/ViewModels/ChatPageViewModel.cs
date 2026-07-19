@@ -759,7 +759,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     public string TemporaryLabel => IsTemporary ? "Temporary · history off" : "Saved locally";
     /// <summary>Labels the empty-chat header action according to what clicking it will do.</summary>
-    public string TemporaryHeaderActionLabel => IsTemporary ? "Make permanent" : "Temporary chat";
+    public string TemporaryHeaderActionLabel => IsTemporary ? "Make Permanent" : "Make Temporary";
     /// <summary>
     /// Gets or updates send command, the bindable or domain state represented by this property.
     /// </summary>
@@ -1197,7 +1197,9 @@ public sealed class ChatPageViewModel : ObservableObject
             }
             if (completedMessage is not null && streaming is not null && !IsTemporary)
             {
-                var metadata = JsonSerializer.Serialize(new { confidence = streaming.ConfidenceScore });
+                var metadata = streaming.ConfidenceScore is null
+                    ? null
+                    : JsonSerializer.Serialize(new { confidence = streaming.ConfidenceScore });
                 await _conversations.AddMessageAsync(completedMessage with { Content = streaming.Content, MetadataJson = metadata }, _sendCancellation.Token);
             }
             if (!Status.StartsWith("Model preflight", StringComparison.Ordinal)) Status = "Ready";
@@ -2321,22 +2323,47 @@ public sealed class ChatPageViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException) { }
         }
-        var score = ComputeConfidence(content, streaming.Activities);
+        var prompt = Messages.LastOrDefault(item => item.Role == MessageRole.User)?.Content ?? string.Empty;
+        var score = ComputeConfidence(prompt, content, streaming.Activities, _preferences.GenerationOptions.Temperature);
         streaming.MarkComplete(_preferences.ConfidenceMeter ? score : null);
+        streaming.SetConfidenceAdvice(_preferences.ConfidenceMeter && score < 75 && _preferences.GenerationOptions.Temperature > 1.0
+            ? "Lower the model temperature in Advanced configurations for less creative, more consistent answers."
+            : string.Empty);
     }
 
     /// <summary>
     /// Performs the compute confidence step owned by this component.
     /// </summary>
-    private static int ComputeConfidence(string content, IEnumerable<ToolActivityViewModel> activities)
+    private static int? ComputeConfidence(
+        string prompt,
+        string content,
+        IEnumerable<ToolActivityViewModel> activities,
+        double temperature)
     {
-        var score = 62;
+        // Confidence is useful for claims and work products, but it is visual
+        // noise for greetings, thanks and other purely conversational turns.
+        if (!NeedsConfidenceIndicator(prompt, content)) return null;
+
+        var score = 82;
         foreach (var activity in activities) score += activity.Succeeded ? 5 : -12;
         if (Regex.IsMatch(content, @"https?://|\[[^\]]+\]\([^)]+\)")) score += 10;
         if (Regex.IsMatch(content, @"\b(i'?m not sure|uncertain|might|possibly|cannot verify|unverified)\b", RegexOptions.IgnoreCase)) score -= 14;
         if (Regex.IsMatch(content, @"\b(verified|test(?:s)? passed|exit code 0|primary source)\b", RegexOptions.IgnoreCase)) score += 8;
-        if (content.Length < 20) score -= 5;
+        if (content.Length < 40) score -= 6;
+        // Ordinary temperatures should not suppress confidence. Only unusually
+        // creative sampling contributes a bounded penalty.
+        if (temperature > 1.0) score -= (int)Math.Round(Math.Min(18, (temperature - 1.0) * 18));
         return Math.Clamp(score, 5, 98);
+    }
+
+    private static bool NeedsConfidenceIndicator(string prompt, string content)
+    {
+        var combined = prompt + "\n" + content;
+        if (Regex.IsMatch(prompt.Trim(), @"^(hi|hello|hey|thanks|thank you|ok|okay|good (morning|afternoon|evening)|how are you)[!.? ]*$", RegexOptions.IgnoreCase))
+            return false;
+        return Regex.IsMatch(combined,
+            @"\b(why|how|what|when|where|who|which|fact|source|research|code|bug|error|build|test|file|project|work|calculate|medical|medicine|health|legal|law|finance|money|safety|risk|verify|latest|current)\b|https?://|```",
+            RegexOptions.IgnoreCase);
     }
 
     /// <summary>
@@ -2451,6 +2478,8 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// Stores confidence score locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private int? _confidenceScore;
+    /// <summary>Explains when an unusually creative temperature materially reduced the estimate.</summary>
+    private string _confidenceAdvice = string.Empty;
     /// <summary>
     /// Stores is compacted locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -2553,6 +2582,8 @@ public sealed class MessageBubbleViewModel : ObservableObject
     /// Gets or updates confidence width, the bindable or domain state represented by this property.
     /// </summary>
     public double ConfidenceWidth => (_confidenceScore ?? 0) * 1.6;
+    public string ConfidenceAdvice => _confidenceAdvice;
+    public bool HasConfidenceAdvice => !string.IsNullOrWhiteSpace(_confidenceAdvice);
     /// <summary>
     /// Reports whether compacted applies to the current state.
     /// </summary>
@@ -2627,6 +2658,12 @@ public sealed class MessageBubbleViewModel : ObservableObject
         RaisePropertyChanged(nameof(HasConfidence));
         RaisePropertyChanged(nameof(ConfidenceLabel));
         RaisePropertyChanged(nameof(ConfidenceWidth));
+    }
+    public void SetConfidenceAdvice(string advice)
+    {
+        _confidenceAdvice = advice;
+        RaisePropertyChanged(nameof(ConfidenceAdvice));
+        RaisePropertyChanged(nameof(HasConfidenceAdvice));
     }
     /// <summary>
     /// Performs the mark compacted step owned by this component.

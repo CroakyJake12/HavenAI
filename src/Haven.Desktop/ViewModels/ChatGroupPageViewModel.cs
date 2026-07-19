@@ -94,6 +94,7 @@ public sealed class ChatGroupPageViewModel : ObservableObject
         NewChatCommand = new AsyncRelayCommand(() => _newChat(_definition));
         OpenChatCommand = new AsyncRelayCommand<ChatGroupConversationViewModel>(item => item is null ? Task.CompletedTask : _openChat(item.Definition));
         SettingsCommand = new AsyncRelayCommand(() => _openSettings?.Invoke(_definition) ?? Task.CompletedTask);
+        BackCommand = new AsyncRelayCommand(() => _closed?.Invoke() ?? Task.CompletedTask);
         ArchiveCommand = new AsyncRelayCommand(ArchiveAsync);
         RemoveResourceCommand = new AsyncRelayCommand<ContainerResourceItemViewModel>(RemoveResourceAsync);
     }
@@ -184,6 +185,8 @@ public sealed class ChatGroupPageViewModel : ObservableObject
     /// Gets or updates settings command, the bindable or domain state represented by this property.
     /// </summary>
     public AsyncRelayCommand SettingsCommand { get; }
+    /// <summary>Returns to the screen that opened this group without modifying it.</summary>
+    public AsyncRelayCommand BackCommand { get; }
     /// <summary>
     /// Gets or updates archive command, the bindable or domain state represented by this property.
     /// </summary>

@@ -9,6 +9,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
@@ -60,6 +61,8 @@ public sealed class NotesBlockInspectorTests : IDisposable
         try
         {
             window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(25);
             var tabHeaders = view.GetVisualDescendants()
                 .OfType<TabItem>()
@@ -121,6 +124,8 @@ public sealed class NotesBlockInspectorTests : IDisposable
         try
         {
             window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(25);
             var buttons = view.GetVisualDescendants()
                 .OfType<Button>()
