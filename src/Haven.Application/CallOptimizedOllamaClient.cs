@@ -18,7 +18,7 @@ namespace Haven.Application;
 /// </summary>
 public sealed class CallOptimizedOllamaClient(IOllamaClient inner) : IOllamaClient
 {
-    private const int CallContextLimit = 8192;
+    private const int CallContextLimit = 4096;
 
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) =>
         inner.IsAvailableAsync(cancellationToken);
@@ -36,13 +36,15 @@ public sealed class CallOptimizedOllamaClient(IOllamaClient inner) : IOllamaClie
             yield break;
         }
 
-        var optimized = request with
-        {
-            Options = new GenerationOptions(
+        var optimized = new OllamaChatRequest(
+            request.Model,
+            request.Messages,
+            request.Effort,
+            request.SystemPrompt,
+            Options: new GenerationOptions(
                 Temperature: Math.Min(request.Options?.Temperature ?? 0.65, 0.65),
                 ContextLimit: Math.Min(request.Options?.ContextLimit ?? CallContextLimit, CallContextLimit),
-                ActionLimit: 0)
-        };
+                ActionLimit: 0));
 
         await foreach (var delta in inner.StreamChatAsync(optimized, cancellationToken).ConfigureAwait(false))
             yield return delta;
@@ -53,12 +55,6 @@ public sealed class CallOptimizedOllamaClient(IOllamaClient inner) : IOllamaClie
 
     public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
         inner.ChatWithToolsAsync(request, cancellationToken);
-
-    public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) =>
-        inner.PullModelAsync(model, progress, cancellationToken);
-
-    public Task DeleteModelAsync(string model, CancellationToken cancellationToken) =>
-        inner.DeleteModelAsync(model, cancellationToken);
 
     /// <summary>
     /// Loads the selected model and its call-sized KV cache before the first real
@@ -87,7 +83,8 @@ public sealed class CallOptimizedOllamaClient(IOllamaClient inner) : IOllamaClie
         var value = Normalize(message.Content);
         reply = value switch
         {
-            "hi" or "hello" or "hey" or "hiya" or "hello haven" or "hey haven" =>
+            "hi" or "hi there" or "hello" or "hello there" or "hey" or "hiya" or
+            "hello haven" or "hey haven" =>
                 "Hi! It’s good to hear you. How are you doing?",
             "good morning" => "Good morning! How are you doing?",
             "good afternoon" => "Good afternoon! How’s your day going?",
