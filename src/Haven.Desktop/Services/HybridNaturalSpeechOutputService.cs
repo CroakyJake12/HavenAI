@@ -126,8 +126,8 @@ public sealed class HybridNaturalSpeechOutputService(
 
         var value = text.Trim();
         if (value.Length <= 28) speed -= 0.04f;
-        if (value.EndsWith('?', StringComparison.Ordinal)) speed -= 0.02f;
-        if (value.EndsWith('!', StringComparison.Ordinal)) speed += 0.01f;
+        if (value.EndsWith('?')) speed -= 0.02f;
+        if (value.EndsWith('!')) speed += 0.01f;
         return Math.Clamp(speed, 0.92f, 1.08f);
     }
 
