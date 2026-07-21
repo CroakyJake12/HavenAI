@@ -20,29 +20,28 @@ public sealed class CallVoiceLatencyTests
         Assert.Equal(EffortLevel.Low, options.Effort);
         Assert.NotNull(options.SystemPrompt);
         Assert.Contains("conversationally", options.SystemPrompt!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Hmm", options.SystemPrompt!, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void SentenceChunkerEmitsUnicodeThinkingCueImmediately()
+    public void SentenceChunkerEmitsCompletedShortSentenceImmediately()
     {
         var chunker = new SentenceChunker();
 
-        var chunks = chunker.Append("Hmm… ");
+        var chunks = chunker.Append("Let me think. ");
 
-        Assert.Equal(["Hmm…"], chunks);
+        Assert.Equal(["Let me think."], chunks);
     }
 
     [Fact]
-    public void SentenceChunkerEmitsFirstUnpunctuatedChunkAtConversationalLatency()
+    public void SentenceChunkerUsesNaturalFirstPhraseForUnpunctuatedOutput()
     {
         var chunker = new SentenceChunker();
-        var streamedText = string.Join(" ", Enumerable.Repeat("quick", 20));
+        var streamedText = string.Join(" ", Enumerable.Repeat("quick", 30));
 
         var chunks = chunker.Append(streamedText);
 
         var first = Assert.Single(chunks);
-        Assert.InRange(first.Length, 24, 48);
+        Assert.InRange(first.Length, 48, 96);
         Assert.NotEmpty(chunker.Flush());
     }
 
