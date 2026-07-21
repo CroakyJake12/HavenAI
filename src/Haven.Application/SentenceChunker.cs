@@ -13,7 +13,9 @@ namespace Haven.Application;
 
 /// <summary>
 /// Turns arbitrary streamed model deltas into natural speech-sized chunks while
-/// retaining incomplete text for the next delta.
+/// retaining incomplete text for the next delta. The first chunk is deliberately
+/// shorter so a live call begins speaking quickly, while later chunks stay long
+/// enough to preserve natural phrasing.
 /// </summary>
 public sealed class SentenceChunker
 {
@@ -25,11 +27,22 @@ public sealed class SentenceChunker
     /// Stores soft limit locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly int _softLimit;
+    /// <summary>
+    /// Stores the smaller first-chunk limit used to reduce time to first spoken audio.
+    /// </summary>
+    private readonly int _firstSoftLimit;
+    /// <summary>
+    /// Tracks whether at least one speech chunk has already been emitted.
+    /// </summary>
+    private bool _hasEmitted;
 
-    public SentenceChunker(int softLimit = 220)
+    public SentenceChunker(int softLimit = 160, int firstSoftLimit = 72)
     {
         if (softLimit < 32) throw new ArgumentOutOfRangeException(nameof(softLimit));
+        if (firstSoftLimit < 16 || firstSoftLimit > softLimit)
+            throw new ArgumentOutOfRangeException(nameof(firstSoftLimit));
         _softLimit = softLimit;
+        _firstSoftLimit = firstSoftLimit;
     }
 
     /// <summary>
@@ -40,12 +53,16 @@ public sealed class SentenceChunker
         if (string.IsNullOrEmpty(delta)) return [];
         _pending.Append(delta);
         var chunks = new List<string>();
+        var activeLimit = _hasEmitted ? _softLimit : _firstSoftLimit;
 
-        while (TryFindBoundary(_pending, _softLimit, out var boundary))
+        while (TryFindBoundary(_pending, activeLimit, out var boundary))
         {
             var chunk = _pending.ToString(0, boundary).Trim();
             _pending.Remove(0, boundary);
-            if (chunk.Length > 0) chunks.Add(chunk);
+            if (chunk.Length == 0) continue;
+            chunks.Add(chunk);
+            _hasEmitted = true;
+            activeLimit = _softLimit;
         }
 
         return chunks;
@@ -58,6 +75,7 @@ public sealed class SentenceChunker
     {
         var remainder = _pending.ToString().Trim();
         _pending.Clear();
+        if (remainder.Length > 0) _hasEmitted = true;
         return remainder;
     }
 
@@ -70,7 +88,7 @@ public sealed class SentenceChunker
         {
             var current = value[index];
             var nextIsBreak = index == value.Length - 1 || char.IsWhiteSpace(value[index + 1]);
-            if (nextIsBreak && current is '.' or '!' or '?' or '\n')
+            if (nextIsBreak && current is '.' or '!' or '?' or '…' or '\n')
             {
                 boundary = index + 1;
                 return true;
