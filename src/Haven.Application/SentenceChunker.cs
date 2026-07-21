@@ -14,8 +14,8 @@ namespace Haven.Application;
 /// <summary>
 /// Turns arbitrary streamed model deltas into natural speech-sized chunks while
 /// retaining incomplete text for the next delta. The first chunk is deliberately
-/// shorter so a live call begins speaking quickly, while later chunks stay long
-/// enough to preserve natural phrasing.
+/// very short so a live call begins speaking promptly, while later chunks remain
+/// long enough to avoid robotic word-by-word playback.
 /// </summary>
 public sealed class SentenceChunker
 {
@@ -36,7 +36,7 @@ public sealed class SentenceChunker
     /// </summary>
     private bool _hasEmitted;
 
-    public SentenceChunker(int softLimit = 160, int firstSoftLimit = 72)
+    public SentenceChunker(int softLimit = 120, int firstSoftLimit = 48)
     {
         if (softLimit < 32) throw new ArgumentOutOfRangeException(nameof(softLimit));
         if (firstSoftLimit < 16 || firstSoftLimit > softLimit)
