@@ -56,6 +56,21 @@ public sealed class CallOptimizedOllamaClient(IOllamaClient inner) : IOllamaClie
     public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
         inner.ChatWithToolsAsync(request, cancellationToken);
 
+    /// <summary>Best-effort startup warm-up for the first locally installed model.</summary>
+    public async Task WarmDefaultSafelyAsync()
+    {
+        try
+        {
+            var models = await inner.GetModelsAsync(CancellationToken.None).ConfigureAwait(false);
+            var model = models.FirstOrDefault();
+            if (model is not null) await WarmAsync(model, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // App startup and normal Chat must never fail because Call warm-up was unavailable.
+        }
+    }
+
     /// <summary>
     /// Loads the selected model and its call-sized KV cache before the first real
     /// turn. Only the first streamed token is needed to complete the warm-up.
