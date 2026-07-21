@@ -1,8 +1,8 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Application/ResponsiveCallCoordinator.cs, in the Application layer.
- * What: Decorates CallCoordinator with model warm-up and a cancellable audible acknowledgement for genuinely slow turns.
- * How: The selected call model warms in the background; a reliable short phrase is scheduled only after prolonged silence and cancelled on the first real model delta.
+ * What: Decorates CallCoordinator with model and speech warm-up plus a cancellable acknowledgement for genuinely slow turns.
+ * How: The selected call model and voice warm in the background; a reliable short phrase is scheduled only after prolonged silence and cancelled on the first real model delta.
  * Why: Prompted filler is unreliable, "Hmm" can be mis-phonemized, and cold local models make ordinary spoken interaction feel unresponsive.
  * Maintenance: Keep cues out of transcript and persistence; they are ephemeral audio feedback only.
  */
@@ -21,6 +21,7 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
 
     private readonly CallCoordinator _inner;
     private readonly ISpeechOutputService _speechOutput;
+    private readonly ISpeechOutputWarmup _speechWarmup;
     private readonly CallOptimizedOllamaClient _models;
     private readonly object _cueGate = new();
     private readonly object _warmupGate = new();
@@ -34,10 +35,12 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     public ResponsiveCallCoordinator(
         CallCoordinator inner,
         ISpeechOutputService speechOutput,
+        ISpeechOutputWarmup speechWarmup,
         CallOptimizedOllamaClient models)
     {
         _inner = inner;
         _speechOutput = speechOutput;
+        _speechWarmup = speechWarmup;
         _models = models;
         _inner.StateChanged += OnInnerStateChanged;
         _inner.TranscriptChanged += OnInnerTranscriptChanged;
@@ -144,14 +147,16 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         CancelWarmup();
         var cts = new CancellationTokenSource();
         lock (_warmupGate) _warmupCts = cts;
-        _ = WarmModelSafelyAsync(model, cts);
+        _ = WarmServicesSafelyAsync(model, cts);
     }
 
-    private async Task WarmModelSafelyAsync(ModelDescriptor model, CancellationTokenSource owner)
+    private async Task WarmServicesSafelyAsync(ModelDescriptor model, CancellationTokenSource owner)
     {
         try
         {
-            await _models.WarmAsync(model, owner.Token).ConfigureAwait(false);
+            await Task.WhenAll(
+                _models.WarmAsync(model, owner.Token),
+                _speechWarmup.WarmAsync(_voiceName, owner.Token)).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (owner.IsCancellationRequested)
         {
