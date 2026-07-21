@@ -94,7 +94,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISpeechOutputService, SystemSpeechOutputService>();
         services.AddSingleton<IScreenShareService, UnsupportedScreenShareService>();
         services.AddHttpClient<ISpeechModelManager, WhisperModelManager>(client => client.Timeout = Timeout.InfiniteTimeSpan);
-        services.AddSingleton<ICallCoordinator, CallCoordinator>();
+        services.AddSingleton<CallCoordinator>();
+        services.AddSingleton<ResponsiveCallCoordinator>();
+        services.AddSingleton<ICallCoordinator>(provider => provider.GetRequiredService<ResponsiveCallCoordinator>());
         services.AddSingleton<ILegacyStateMigrator, LegacyStateMigrator>();
         services.AddSingleton<IWorkspaceToolService, WorkspaceToolService>();
         services.AddSingleton<IWorkspaceTransactionService, WorkspaceTransactionService>();
