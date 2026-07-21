@@ -1,7 +1,7 @@
 /*
  * FILE DOCUMENTATION
  * Where: tests/Haven.Desktop.Tests/AxamlSourceLocatorTests.cs in the automated test suite.
- * What: Protects exact-name, unique-type, ambiguous-type, and project-root source-location behavior.
+ * What: Protects exact-name, unique-type, ambiguous-name, ambiguous-type, and project-root source-location behavior.
  * Why: The built-in developer tools must never jump to an arbitrary AXAML element when a runtime control is ambiguous.
  */
 
@@ -50,6 +50,18 @@ public sealed class AxamlSourceLocatorTests
         Assert.NotNull(result);
         Assert.False(result!.IsExact);
         Assert.Equal(3, result.Line);
+    }
+
+    [Fact]
+    public void Locate_does_not_guess_when_a_name_is_reused()
+    {
+        using var project = TestProject.Create();
+        project.Write("Views/First.axaml", "<UserControl><Button x:Name=\"ActionButton\" /></UserControl>");
+        project.Write("Views/Second.axaml", "<UserControl><Button x:Name=\"ActionButton\" /></UserControl>");
+
+        var result = AxamlSourceLocator.Locate(project.Root, "ActionButton", "Button");
+
+        Assert.Null(result);
     }
 
     [Fact]
