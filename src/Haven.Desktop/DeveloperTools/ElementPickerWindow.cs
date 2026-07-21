@@ -71,7 +71,7 @@ internal sealed class ElementPickerWindow : Window
         Closed += OnClosed;
     }
 
-    public event EventHandler<Visual>? ElementPicked;
+    public event Action<Visual>? ElementPicked;
 
     private void OnOpened(object? sender, EventArgs e) => SyncToOwner();
 
@@ -98,7 +98,7 @@ internal sealed class ElementPickerWindow : Window
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_hovered is null) return;
-        ElementPicked?.Invoke(this, _hovered);
+        ElementPicked?.Invoke(_hovered);
         e.Handled = true;
         Close();
     }
