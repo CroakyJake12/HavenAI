@@ -49,8 +49,14 @@ public sealed partial class App : Avalonia.Application
     /// <summary>
     /// Performs the initialize step owned by this component.
     /// </summary>
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
+    public override void Initialize() {
+        AvaloniaXamlLoader.Load(this);
+
+        #if DEBUG
+            this.AttachDeveloperTools();
+        #endif
+    }
     /// <summary>
     /// Handles the framework initialization completed event raised by the UI or runtime.
     /// </summary>
@@ -289,4 +295,5 @@ public sealed partial class App : Avalonia.Application
             correlationId,
             CancellationToken.None);
     }
+
 }

@@ -17,6 +17,7 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" />
     <ProjectReference Include="..\Haven.Core\Haven.Core.csproj" />
     <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
