@@ -70,7 +70,7 @@ internal sealed class HavenDeveloperToolsSession : IDisposable
         return tools;
     }
 
-    private void OnElementPicked(object? sender, Visual visual)
+    private void OnElementPicked(Visual visual)
     {
         var tools = EnsureTools();
         tools.RefreshTree();
