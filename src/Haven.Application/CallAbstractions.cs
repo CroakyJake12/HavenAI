@@ -21,8 +21,13 @@ public sealed record CallStartOptions(
     string? OutputDeviceId = null,
     string? VoiceName = null,
     bool EnableSpeechOutput = true,
-    EffortLevel Effort = EffortLevel.Medium,
-    string? SystemPrompt = null);
+    EffortLevel Effort = EffortLevel.Low,
+    string? SystemPrompt =
+        "You are Haven in a private, local live call. Respond promptly, warmly and conversationally. " +
+        "Use contractions, varied sentence rhythm, and brief natural acknowledgements so the voice sounds expressive rather than scripted. " +
+        "When a reply genuinely needs thought, begin with one very short cue such as ‘Hmm…’ or ‘Right…’, then move directly into the answer; do not use a cue on every turn. " +
+        "Prefer short spoken sentences and avoid headings or markdown unless the user requests them. " +
+        "Do not claim to see a shared screen unless an image is attached to the current turn.");
 
 /// <summary>
 /// Represents call capabilities and keeps its related state and behavior together.
