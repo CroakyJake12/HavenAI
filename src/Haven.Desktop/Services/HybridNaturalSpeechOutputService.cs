@@ -24,7 +24,7 @@ public sealed class HybridNaturalSpeechOutputService(
     WindowsNaturalSpeechOutputService windows) : ISpeechOutputService, IAsyncDisposable
 {
     private const string NeuralPrefix = "kokoro:";
-    private readonly SemaphoreSlim _neuralGate = new(1, 1);
+    private readonly SemaphoreSlim _speechGate = new(1, 1);
     private readonly object _stateGate = new();
     private KokoroTTS? _neural;
     private bool _disposed;
@@ -65,22 +65,29 @@ public sealed class HybridNaturalSpeechOutputService(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (string.IsNullOrWhiteSpace(text)) return;
-        if (voiceName?.StartsWith(NeuralPrefix, StringComparison.OrdinalIgnoreCase) != true)
-        {
-            await windows.SpeakAsync(text, voiceName, outputDeviceId, cancellationToken).ConfigureAwait(false);
-            return;
-        }
 
-        await _neuralGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Serialize every output engine, not only Kokoro. This prevents a short
+        // acknowledgement, voice preview or streamed reply from speaking over the
+        // next chunk and makes interruption behavior predictable across engines.
+        await _speechGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (voiceName?.StartsWith(NeuralPrefix, StringComparison.OrdinalIgnoreCase) != true)
+            {
+                await windows.SpeakAsync(text, voiceName, outputDeviceId, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
             var engine = await GetNeuralEngineAsync(cancellationToken).ConfigureAwait(false);
             var id = voiceName[NeuralPrefix.Length..];
             var voice = KokoroVoiceManager.GetVoice(id);
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var handle = engine.SpeakFast(text, voice, new KokoroTTSPipelineConfig
+            var handle = engine.SpeakFast(text.Trim(), voice, new KokoroTTSPipelineConfig
             {
-                Speed = 0.98f,
+                // Each curated voice gets a subtle pace profile. Short cues and
+                // questions slow down slightly so they sound intentional rather
+                // than clipped, while ordinary reply chunks remain brisk.
+                Speed = ResolveSpeed(id, text),
                 PreprocessText = true
             });
             handle.OnSpeechCompleted += _ => completion.TrySetResult();
@@ -94,8 +101,34 @@ public sealed class HybridNaturalSpeechOutputService(
         }
         finally
         {
-            _neuralGate.Release();
+            _speechGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Applies small per-voice and per-utterance pacing changes. Kokoro derives most
+    /// expression from punctuation and wording; this keeps that delivery varied
+    /// without introducing cloud-only style controls or unstable voice identifiers.
+    /// </summary>
+    private static float ResolveSpeed(string voiceId, string text)
+    {
+        var speed = voiceId switch
+        {
+            "af_nova" => 1.04f,
+            "af_sky" => 1.03f,
+            "af_bella" => 1.01f,
+            "am_michael" => 1.02f,
+            "am_adam" => 1.03f,
+            "bf_emma" => 0.99f,
+            "bm_george" => 0.98f,
+            _ => 1.01f
+        };
+
+        var value = text.Trim();
+        if (value.Length <= 28) speed -= 0.04f;
+        if (value.EndsWith('?', StringComparison.Ordinal)) speed -= 0.02f;
+        if (value.EndsWith('!', StringComparison.Ordinal)) speed += 0.01f;
+        return Math.Clamp(speed, 0.92f, 1.08f);
     }
 
     private async Task<KokoroTTS> GetNeuralEngineAsync(CancellationToken cancellationToken)
@@ -135,13 +168,13 @@ public sealed class HybridNaturalSpeechOutputService(
         if (_disposed) return;
         _disposed = true;
         lock (_stateGate) _neural?.StopPlayback();
-        await _neuralGate.WaitAsync().ConfigureAwait(false);
+        await _speechGate.WaitAsync().ConfigureAwait(false);
         lock (_stateGate)
         {
             _neural?.Dispose();
             _neural = null;
         }
-        _neuralGate.Release();
-        _neuralGate.Dispose();
+        _speechGate.Release();
+        _speechGate.Dispose();
     }
 }
