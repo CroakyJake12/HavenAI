@@ -695,7 +695,7 @@
            ============================================================ -->
    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
 			<Border Width="276"
-					Background="{DynamicResource HavenElevatedBrush}"
+					Background="{DynamicResource HavenPanelBrush}"
 					BorderBrush="Transparent"
 					BorderThickness="0"
 					CornerRadius="12"
