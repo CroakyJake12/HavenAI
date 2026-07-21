@@ -1,10 +1,10 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Application/ResponsiveCallCoordinator.cs, in the Application layer.
- * What: Decorates CallCoordinator with a cancellable audible acknowledgement when a model is slow to begin speaking.
- * How: A short cue is scheduled when Call enters Thinking and cancelled as soon as real speech, listening, interruption or teardown begins.
- * Why: Prompting a model to say "Hmm" is not reliable and does not improve perceived latency when model startup is slow.
- * Maintenance: Keep cues out of the transcript and persistence; they are ephemeral audio feedback only.
+ * What: Decorates CallCoordinator with model and speech warm-up plus a cancellable acknowledgement for genuinely slow turns.
+ * How: The selected call model and voice warm in the background; a reliable short phrase is scheduled only after prolonged silence and cancelled on the first real model delta.
+ * Why: Prompted filler is unreliable, "Hmm" can be mis-phonemized, and cold local models make ordinary spoken interaction feel unresponsive.
+ * Maintenance: Keep cues out of transcript and persistence; they are ephemeral audio feedback only.
  */
 
 using Haven.Core;
@@ -12,26 +12,36 @@ using Haven.Core;
 namespace Haven.Application;
 
 /// <summary>
-/// Preserves the normal call coordinator contract while guaranteeing that an
-/// enabled spoken call does not sit silently during a slow model warm-up.
+/// Preserves the normal call coordinator contract while reducing cold-start delay
+/// and preventing an enabled spoken call from sitting silently on a slow turn.
 /// </summary>
 public sealed class ResponsiveCallCoordinator : ICallCoordinator
 {
-    private static readonly TimeSpan CueDelay = TimeSpan.FromMilliseconds(550);
+    private static readonly TimeSpan CueDelay = TimeSpan.FromMilliseconds(1250);
 
     private readonly CallCoordinator _inner;
     private readonly ISpeechOutputService _speechOutput;
+    private readonly ISpeechOutputWarmup _speechWarmup;
+    private readonly CallOptimizedOllamaClient _models;
     private readonly object _cueGate = new();
+    private readonly object _warmupGate = new();
     private CancellationTokenSource? _cueCts;
+    private CancellationTokenSource? _warmupCts;
     private bool _speechEnabled;
     private string? _voiceName;
     private string? _outputDeviceId;
     private bool _disposed;
 
-    public ResponsiveCallCoordinator(CallCoordinator inner, ISpeechOutputService speechOutput)
+    public ResponsiveCallCoordinator(
+        CallCoordinator inner,
+        ISpeechOutputService speechOutput,
+        ISpeechOutputWarmup speechWarmup,
+        CallOptimizedOllamaClient models)
     {
         _inner = inner;
         _speechOutput = speechOutput;
+        _speechWarmup = speechWarmup;
+        _models = models;
         _inner.StateChanged += OnInnerStateChanged;
         _inner.TranscriptChanged += OnInnerTranscriptChanged;
         _inner.AudioLevelChanged += OnInnerAudioLevelChanged;
@@ -58,12 +68,15 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         CancelCue();
+        CancelWarmup();
         _speechEnabled = options.EnableSpeechOutput;
         _voiceName = options.VoiceName;
         _outputDeviceId = options.OutputDeviceId;
         try
         {
-            return await _inner.StartAsync(options, speechModel, cancellationToken).ConfigureAwait(false);
+            var session = await _inner.StartAsync(options, speechModel, cancellationToken).ConfigureAwait(false);
+            StartWarmup(options.Model);
+            return session;
         }
         catch
         {
@@ -108,6 +121,7 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     public async Task EndAsync(CancellationToken cancellationToken)
     {
         CancelCue();
+        CancelWarmup();
         try
         {
             await _inner.EndAsync(cancellationToken).ConfigureAwait(false);
@@ -128,6 +142,40 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         StateChanged?.Invoke(this, e);
     }
 
+    private void StartWarmup(ModelDescriptor model)
+    {
+        CancelWarmup();
+        var cts = new CancellationTokenSource();
+        lock (_warmupGate) _warmupCts = cts;
+        _ = WarmServicesSafelyAsync(model, cts);
+    }
+
+    private async Task WarmServicesSafelyAsync(ModelDescriptor model, CancellationTokenSource owner)
+    {
+        try
+        {
+            await Task.WhenAll(
+                _models.WarmAsync(model, owner.Token),
+                _speechWarmup.WarmAsync(_voiceName, owner.Token)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (owner.IsCancellationRequested)
+        {
+            // Ending or replacing a call cancelled an obsolete warm-up.
+        }
+        catch (Exception)
+        {
+            // Warm-up is an optimization; the real turn retains normal error handling.
+        }
+        finally
+        {
+            lock (_warmupGate)
+            {
+                if (ReferenceEquals(_warmupCts, owner)) _warmupCts = null;
+            }
+            owner.Dispose();
+        }
+    }
+
     private void ScheduleCue()
     {
         CancelCue();
@@ -144,14 +192,14 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
             if (!_inner.IsActive || _inner.State != CallState.Thinking) return;
 
             await _speechOutput.SpeakAsync(
-                "Hmm…",
+                "Let me think.",
                 _voiceName,
                 _outputDeviceId,
                 owner.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (owner.IsCancellationRequested)
         {
-            // Real speech or another state transition won the race, which is expected.
+            // Real output or another state transition won the race, which is expected.
         }
         catch (Exception)
         {
@@ -180,6 +228,19 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         catch (ObjectDisposedException) { }
     }
 
+    private void CancelWarmup()
+    {
+        CancellationTokenSource? warmup;
+        lock (_warmupGate)
+        {
+            warmup = _warmupCts;
+            _warmupCts = null;
+        }
+        if (warmup is null) return;
+        try { warmup.Cancel(); }
+        catch (ObjectDisposedException) { }
+    }
+
     private void ClearSpeechSettings()
     {
         _speechEnabled = false;
@@ -187,8 +248,12 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         _outputDeviceId = null;
     }
 
-    private void OnInnerTranscriptChanged(object? sender, CallTranscriptEventArgs e) =>
+    private void OnInnerTranscriptChanged(object? sender, CallTranscriptEventArgs e)
+    {
+        if (e.Role == MessageRole.Assistant && e.IsDelta && !string.IsNullOrWhiteSpace(e.Text))
+            CancelCue();
         TranscriptChanged?.Invoke(this, e);
+    }
 
     private void OnInnerAudioLevelChanged(object? sender, CallAudioLevelEventArgs e) =>
         AudioLevelChanged?.Invoke(this, e);
@@ -201,6 +266,7 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         if (_disposed) return;
         _disposed = true;
         CancelCue();
+        CancelWarmup();
         ClearSpeechSettings();
         _inner.StateChanged -= OnInnerStateChanged;
         _inner.TranscriptChanged -= OnInnerTranscriptChanged;

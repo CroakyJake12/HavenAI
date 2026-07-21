@@ -30,6 +30,28 @@ public static class DesktopCallServiceRegistration
         services.AddSingleton<HybridNaturalSpeechOutputService>();
         services.AddSingleton<ISpeechOutputService>(provider =>
             provider.GetRequiredService<HybridNaturalSpeechOutputService>());
+        services.AddSingleton<ISpeechOutputWarmup>(provider =>
+            provider.GetRequiredService<HybridNaturalSpeechOutputService>());
+
+        // Call gets a deliberately smaller context and narrow instant social replies.
+        // Re-registering these after Infrastructure keeps ordinary Chat/Studio on the
+        // full IOllamaClient while the live voice surface uses the optimized wrapper.
+        services.AddSingleton<CallOptimizedOllamaClient>();
+        services.AddSingleton<CallCoordinator>(provider => new CallCoordinator(
+            provider.GetRequiredService<ICallRepository>(),
+            provider.GetRequiredService<IConversationRepository>(),
+            provider.GetRequiredService<CallOptimizedOllamaClient>(),
+            provider.GetRequiredService<ISpeechInputService>(),
+            provider.GetRequiredService<ISpeechOutputService>(),
+            provider.GetRequiredService<IScreenShareService>()));
+        services.AddSingleton<ResponsiveCallCoordinator>();
+        services.AddSingleton<ICallCoordinator>(provider =>
+        {
+            var models = provider.GetRequiredService<CallOptimizedOllamaClient>();
+            _ = models.WarmDefaultSafelyAsync();
+            return provider.GetRequiredService<ResponsiveCallCoordinator>();
+        });
+
         services.AddSingleton<CallVoicePreviewController>();
         services.AddSingleton<CallCompletionController>();
         services.AddSingleton<NotesDictationController>();
