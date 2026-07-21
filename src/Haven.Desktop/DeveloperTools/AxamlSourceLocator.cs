@@ -46,11 +46,16 @@ internal static class AxamlSourceLocator
                 $"(?:x:Name|Name)\\s*=\\s*[\"']{Regex.Escape(name)}[\"']",
                 RegexOptions.CultureInvariant,
                 RegexTimeout);
+            AxamlSourceLocation? exact = null;
             foreach (var file in files)
             {
-                var location = FindFirst(file, namePattern, isExact: true);
-                if (location is not null) return location;
+                foreach (var match in FindAll(file, namePattern, isExact: true))
+                {
+                    if (exact is not null) return null;
+                    exact = match;
+                }
             }
+            if (exact is not null) return exact;
         }
 
         if (string.IsNullOrWhiteSpace(typeName)) return null;
@@ -87,9 +92,6 @@ internal static class AxamlSourceLocator
         }
         return null;
     }
-
-    private static AxamlSourceLocation? FindFirst(string file, Regex pattern, bool isExact) =>
-        FindAll(file, pattern, isExact).FirstOrDefault();
 
     private static IEnumerable<AxamlSourceLocation> FindAll(string file, Regex pattern, bool isExact)
     {
