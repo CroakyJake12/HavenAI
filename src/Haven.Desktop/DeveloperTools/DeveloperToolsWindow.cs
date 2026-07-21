@@ -23,7 +23,7 @@ internal sealed class DeveloperToolsWindow : Window
 {
     private static readonly IBrush PanelBrush = new SolidColorBrush(Color.FromRgb(29, 32, 40));
     private static readonly IBrush PanelAltBrush = new SolidColorBrush(Color.FromRgb(36, 40, 50));
-    private static readonly IBrush BorderBrush = new SolidColorBrush(Color.FromRgb(64, 70, 86));
+    private new static readonly IBrush BorderBrush = new SolidColorBrush(Color.FromRgb(64, 70, 86));
     private static readonly IBrush AccentBrush = new SolidColorBrush(Color.FromRgb(95, 168, 255));
     private static readonly IBrush MutedBrush = new SolidColorBrush(Color.FromRgb(171, 177, 191));
 
@@ -129,7 +129,7 @@ internal sealed class DeveloperToolsWindow : Window
         _openSourceButton.Padding = new Thickness(12, 7);
         _openSourceButton.Click += (_, _) => OpenSource();
 
-        _searchBox.Watermark = "Filter tree by type, name, class, or text";
+        _searchBox.PlaceholderText = "Filter tree by type, name, class, or text";
         _searchBox.MinWidth = 260;
         _searchBox.VerticalContentAlignment = VerticalAlignment.Center;
         _searchBox.TextChanged += (_, _) => RefreshTree();
@@ -198,7 +198,7 @@ internal sealed class DeveloperToolsWindow : Window
         _editProperty.MinWidth = 120;
         _editProperty.SelectionChanged += (_, _) => LoadLiveEditValue();
 
-        _editValue.Watermark = "Value";
+        _editValue.PlaceholderText = "Value";
         _editValue.MinWidth = 180;
         _editValue.KeyDown += (_, e) =>
         {
@@ -372,7 +372,9 @@ internal sealed class DeveloperToolsWindow : Window
     private static Control BuildTreeHeader(Visual visual)
     {
         var type = visual.GetType().Name;
-        var name = visual is StyledElement { Name: { Length: > 0 } element } ? $"#{element.Name}" : string.Empty;
+        var name = string.Empty;
+        if (visual is StyledElement element && !string.IsNullOrEmpty(element.Name))
+            name = $"#{element.Name}";
         var classes = visual is StyledElement styled && styled.Classes.Count > 0
             ? "." + string.Join('.', styled.Classes)
             : string.Empty;
