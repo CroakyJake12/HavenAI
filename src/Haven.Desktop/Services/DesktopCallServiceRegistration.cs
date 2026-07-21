@@ -46,7 +46,11 @@ public static class DesktopCallServiceRegistration
             provider.GetRequiredService<IScreenShareService>()));
         services.AddSingleton<ResponsiveCallCoordinator>();
         services.AddSingleton<ICallCoordinator>(provider =>
-            provider.GetRequiredService<ResponsiveCallCoordinator>());
+        {
+            var models = provider.GetRequiredService<CallOptimizedOllamaClient>();
+            _ = models.WarmDefaultSafelyAsync();
+            return provider.GetRequiredService<ResponsiveCallCoordinator>();
+        });
 
         services.AddSingleton<CallVoicePreviewController>();
         services.AddSingleton<CallCompletionController>();
