@@ -34,7 +34,7 @@ public sealed class CallVoiceLatencyTests
     }
 
     [Fact]
-    public void SentenceChunkerEmitsFirstUnpunctuatedChunkBeforeLegacyLimit()
+    public void SentenceChunkerEmitsFirstUnpunctuatedChunkAtConversationalLatency()
     {
         var chunker = new SentenceChunker();
         var streamedText = string.Join(" ", Enumerable.Repeat("quick", 20));
@@ -42,7 +42,7 @@ public sealed class CallVoiceLatencyTests
         var chunks = chunker.Append(streamedText);
 
         var first = Assert.Single(chunks);
-        Assert.True(first.Length < 220);
+        Assert.InRange(first.Length, 24, 48);
         Assert.NotEmpty(chunker.Flush());
     }
 
