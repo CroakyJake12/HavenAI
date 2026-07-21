@@ -30,6 +30,8 @@ public static class DesktopCallServiceRegistration
         services.AddSingleton<HybridNaturalSpeechOutputService>();
         services.AddSingleton<ISpeechOutputService>(provider =>
             provider.GetRequiredService<HybridNaturalSpeechOutputService>());
+        services.AddSingleton<ISpeechOutputWarmup>(provider =>
+            provider.GetRequiredService<HybridNaturalSpeechOutputService>());
 
         // Call gets a deliberately smaller context and narrow instant social replies.
         // Re-registering these after Infrastructure keeps ordinary Chat/Studio on the
