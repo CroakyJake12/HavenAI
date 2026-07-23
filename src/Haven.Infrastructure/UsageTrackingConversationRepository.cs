@@ -130,6 +130,12 @@ public sealed class UsageTrackingConversationRepository(
     }
 
     /// <summary>
+    /// Permanently removes one message from the underlying conversation store.
+    /// </summary>
+    public Task DeleteMessageAsync(Guid conversationId, Guid messageId, CancellationToken cancellationToken) =>
+        inner.DeleteMessageAsync(conversationId, messageId, cancellationToken);
+
+    /// <summary>
     /// Performs mark messages compacted asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken) =>

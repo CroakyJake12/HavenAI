@@ -20,9 +20,9 @@
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Border.card">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#94101A2D" />
+    <Setter Property="Background" Value="{DynamicResource HavenPanelBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#3E8CF7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
     <Setter Property="BorderThickness" Value="1" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
@@ -34,9 +34,9 @@
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Border.dashboardTile">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#86101A2D" />
+    <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#3A8CF7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
     <Setter Property="BorderThickness" Value="1" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
@@ -48,9 +48,9 @@
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Border.permission">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#50386CFF" />
+    <Setter Property="Background" Value="{DynamicResource HavenAccentSoftBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#66A45CFF" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
     <Setter Property="BorderThickness" Value="1" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
@@ -60,17 +60,17 @@
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Border.composer">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#9510192B" />
+    <Setter Property="Background" Value="{DynamicResource HavenPanelBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#408CF7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
   </Style>
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="Border.magicalFloatingRail">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#080A1120" />
+    <Setter Property="Background" Value="{DynamicResource HavenElevatedBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#5A86F7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
     <Setter Property="BorderThickness" Value="1" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
@@ -125,32 +125,32 @@
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="TextBox">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#9A0D182B" />
+    <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#3C8CF7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
   </Style>
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="ComboBox">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#9A0D182B" />
+    <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#3C8CF7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
   </Style>
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="FlyoutPresenter">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#E0101A2D" />
+    <Setter Property="Background" Value="{DynamicResource HavenElevatedBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#5A86F7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
   </Style>
 
   <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
   <Style Selector="MenuFlyoutPresenter">
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="Background" Value="#E0101A2D" />
+    <Setter Property="Background" Value="{DynamicResource HavenElevatedBrush}" />
     <!-- Section: Hosts the Setter portion of this view at this position in the visual tree. -->
-    <Setter Property="BorderBrush" Value="#5A86F7EA" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenLineStrongBrush}" />
   </Style>
 </Styles>

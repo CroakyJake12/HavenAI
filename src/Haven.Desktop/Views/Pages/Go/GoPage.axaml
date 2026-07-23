@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:topRail="using:Haven.Desktop.Views.Shell.TopRail"
+             x:Class="Haven.Desktop.Views.Pages.Go.GoPage">
+
+  <Grid ClipToBounds="True">
+    <Border CornerRadius="22">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+          <GradientStop Color="#FFFFFFFF" Offset="0" />
+          <GradientStop Color="#FFF8FFF9" Offset="0.40" />
+          <GradientStop Color="#FFCBFFD3" Offset="0.82" />
+          <GradientStop Color="#FFBEFAF8" Offset="1" />
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+
+    <Grid Margin="44,30,44,28"
+          RowDefinitions="*,Auto,Auto"
+          RowSpacing="20">
+
+      <Border HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Margin="0,0,0,70"
+              Background="#32FFFFFF"
+              CornerRadius="26"
+              Padding="72,20">
+        <TextBlock Text="How can I help?"
+                   Foreground="#FF050505"
+                   FontSize="46"
+                   FontWeight="ExtraBold"
+                   HorizontalAlignment="Center" />
+      </Border>
+
+      <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
+        <Button x:Name="RecentChatsButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:HavenIcon x:Name="SuggestionIcon0" IconKey="chat" Width="19" Height="19" Foreground="#FF913C00" />
+            <TextBlock x:Name="SuggestionText0" Text="Show my Recent Chats" Foreground="#FF913C00" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="TeachingButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:HavenIcon x:Name="SuggestionIcon1" IconKey="teach" Width="19" Height="19" Foreground="#FF07539B" />
+            <TextBlock x:Name="SuggestionText1" Text="Continue teaching me Algebra" Foreground="#FF07539B" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="StudioButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:HavenIcon x:Name="SuggestionIcon2" IconKey="folder" Width="20" Height="20" Foreground="#FF5B00A8" />
+            <TextBlock x:Name="SuggestionText2" Text="Work on Haven" Foreground="#FF5B00A8" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="RecapButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:HavenIcon x:Name="SuggestionIcon3" IconKey="refresh" Width="20" Height="20" Foreground="#FF176425" />
+            <TextBlock x:Name="SuggestionText3" Text="Recap this Week's Work" Foreground="#FF176425" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="LoadMoreButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+          <TextBlock Text="Load More" Foreground="#FF111111" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+        </Button>
+      </WrapPanel>
+
+      <Grid Grid.Row="2" HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10">
+        <topRail:AddMenu x:Name="AddButton"
+                         Width="62" Height="62" CornerRadius="31"
+                         Background="#DFFFFFFF"
+                         BorderBrush="{DynamicResource HavenLineBrush}"
+                         BorderThickness="1"
+                         Foreground="#FF050505" />
+        <TextBox x:Name="InstructionBox"
+                 Grid.Column="1"
+                 Height="62"
+                 CornerRadius="18"
+                 Background="#DFFFFFFF"
+                 BorderBrush="{DynamicResource HavenLineBrush}"
+                 BorderThickness="1"
+                 Foreground="#FF222222"
+                 PlaceholderText="Ask Haven Anything"
+                 HorizontalContentAlignment="Center"
+                 VerticalContentAlignment="Center"
+                 FontSize="16"
+                 FontWeight="SemiBold"
+                 Padding="22,0" />
+        <Button x:Name="SendButton"
+                Grid.Column="2"
+                Width="68" Height="62" CornerRadius="21"
+                Background="#FF6FE9F0"
+                BorderBrush="#667ADDE3"
+                BorderThickness="1">
+          <controls:HavenIcon IconKey="send" Width="29" Height="29" Foreground="#FF050505" />
+        </Button>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

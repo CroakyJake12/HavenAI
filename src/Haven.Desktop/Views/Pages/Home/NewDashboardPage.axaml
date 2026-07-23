@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.Pages.Home.NewDashboardPage">
+  <Grid Background="Transparent">
+    <ScrollViewer Margin="24,76,24,28"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="26">
+        <StackPanel HorizontalAlignment="Center" Spacing="4">
+          <TextBlock x:Name="WelcomeText" Text="Welcome" FontSize="34" FontWeight="ExtraBold" HorizontalAlignment="Center"/>
+          <TextBlock x:Name="DateText" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="Pinned Apps &amp; Activities" FontSize="16" FontWeight="ExtraBold" VerticalAlignment="Center"/>
+            <Button x:Name="EditPinnedButton" Grid.Column="1" Classes="chip" Content="Edit Pinned"/>
+          </Grid>
+          <WrapPanel x:Name="PinnedPanel" Orientation="Horizontal" ItemWidth="220" ItemHeight="148"/>
+          <TextBlock x:Name="PinnedEmptyText" Text="Pin apps from the App launcher to keep them here." Classes="muted" IsVisible="False"/>
+        </StackPanel>
+
+        <StackPanel x:Name="DynamicRowsPanel" Spacing="24"/>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Button x:Name="EditWithHavenButton"
+            Classes="chip"
+            Content="Edit With Haven"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="0,0,28,26"
+            Padding="24,12"/>
+  </Grid>
+</UserControl>

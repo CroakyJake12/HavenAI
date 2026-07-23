@@ -410,7 +410,7 @@
                             <Button Grid.Column="1"
                                     Classes="chrome"
                                     x:Name="RefreshFilesButton"
-                                    Command="{Binding ActiveProjectPage.RefreshCommand}"
+                                    Command="{Binding ActiveProjectRefreshCommand}"
                                     ToolTip.Tip="Refresh project files">
                                 <StackPanel Orientation="Horizontal"
                                             Spacing="6">
@@ -424,7 +424,7 @@
                                 </StackPanel>
                             </Button>
                         </Grid>
-                        <ListBox ItemsSource="{Binding ActiveProjectPage.Files}"
+                        <ListBox ItemsSource="{Binding ActiveProjectFiles}"
                                  BorderThickness="0" Background="Transparent">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -481,7 +481,7 @@
                       ColumnSpacing="6">
                     <Button Classes="sidebarUtility"
                             x:Name="BuildButton"
-                            Command="{Binding ActiveProjectPage.BuildCommand}">
+                            Command="{Binding ActiveProjectBuildCommand}">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="7"
                                     HorizontalAlignment="Center">
@@ -496,7 +496,7 @@
                     <Button Grid.Column="1"
                             Classes="sidebarUtility"
                             x:Name="TestButton"
-                            Command="{Binding ActiveProjectPage.TestCommand}">
+                            Command="{Binding ActiveProjectTestCommand}">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="7"
                                     HorizontalAlignment="Center">

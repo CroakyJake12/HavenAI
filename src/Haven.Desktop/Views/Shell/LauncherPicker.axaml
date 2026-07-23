@@ -45,13 +45,14 @@
                                    TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
                         <StackPanel Spacing="4">
                             <TextBlock Text="Includes: Chat, Notifications, Morph Transitions" FontSize="11" Foreground="#4CAF50"/>
-                            <TextBlock Text="Coming: Studio, Voice, Plan, Browser" FontSize="11" Foreground="#999999"/>
+                            <TextBlock Text="Coming next: Studio workspace, Plan, Browser" FontSize="11" Foreground="#999999"/>
                         </StackPanel>
                     </StackPanel>
                 </Button>
 
                 <!-- Classic Haven -->
                 <Button x:Name="ClassicHavenButton"
+                        Grid.Column="1"
                         HorizontalContentAlignment="Stretch"
                         MinHeight="180"
                         CornerRadius="16"
@@ -79,6 +80,32 @@
                 </Button>
 
             </Grid>
+
+            <Border Background="#FFFFFFFF"
+                    BorderBrush="#DDE5DD"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="16,13">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="7">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Generative UI" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="Allow generated themes to replace the launcher-selected Haven appearance."
+                                   Foreground="#666666" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch x:Name="GenerativeUiToggle"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center" />
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10">
+                        <Button x:Name="ResetGenerativeUiButton"
+                                Content="Reset to Haven Default Light"
+                                Padding="12,6" />
+                        <TextBlock x:Name="GenerativeUiStatusText"
+                                   VerticalAlignment="Center"
+                                   Foreground="#4CAF50"
+                                   FontSize="11" />
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- Footer -->
             <TextBlock Text="You can switch between versions at any time from the launcher."

@@ -182,7 +182,6 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
         AddHandler(DragDrop.DropEvent, OnDrop);
         DetachedFromVisualTree += (_, _) => Detach();
 
-        _ = InitializeAsync();
     }
 
     // ─── INotifyPropertyChanged ─────────────────────────────────────

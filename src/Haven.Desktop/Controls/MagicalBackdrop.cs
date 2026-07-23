@@ -11,8 +11,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
-using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Controls;
 
@@ -53,27 +53,26 @@ public sealed class MagicalBackdrop : Grid, IDisposable
 
     public MagicalBackdrop()
     {
-        MagicalPalette.Apply();
-
         IsHitTestVisible = false;
         ClipToBounds = true;
+        var isLight = Avalonia.Application.Current?.RequestedThemeVariant == ThemeVariant.Light;
         Background = new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
             EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
             GradientStops =
             [
-                new GradientStop(Color.Parse("#050B18"), 0),
-                new GradientStop(Color.Parse("#09162D"), 0.34),
-                new GradientStop(Color.Parse("#051B1F"), 0.72),
-                new GradientStop(Color.Parse("#150D24"), 1)
+                new GradientStop(Color.Parse(isLight ? "#FFFFFFFF" : "#050B18"), 0),
+                new GradientStop(Color.Parse(isLight ? "#FFF9FFF9" : "#09162D"), 0.34),
+                new GradientStop(Color.Parse(isLight ? "#FFE4FFEC" : "#051B1F"), 0.72),
+                new GradientStop(Color.Parse(isLight ? "#FFD8FBFF" : "#150D24"), 1)
             ]
         };
 
         Children.Add(new Border
         {
             IsHitTestVisible = false,
-            Opacity = 0.42,
+            Opacity = isLight ? 0.24 : 0.42,
             Background = new LinearGradientBrush
             {
                 StartPoint = new RelativePoint(0, 1, RelativeUnit.Relative),

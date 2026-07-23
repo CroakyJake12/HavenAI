@@ -28,6 +28,8 @@ public interface IConversationRepository
     Task<IReadOnlyList<ChatMessage>> GetContextMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => GetMessagesAsync(conversationId, cancellationToken);
     Task UpsertConversationAsync(Conversation conversation, CancellationToken cancellationToken);
     Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken);
+    Task DeleteMessageAsync(Guid conversationId, Guid messageId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This conversation store does not support deleting individual messages.");
     Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<IReadOnlyList<ConversationContextEntry>> GetContextEntriesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ConversationContextEntry>>([]);
     Task AddContextEntryAsync(ConversationContextEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;

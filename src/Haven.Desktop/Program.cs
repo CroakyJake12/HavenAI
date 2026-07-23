@@ -62,10 +62,9 @@ internal static class Program
     /// Builds avalonia app from the currently available inputs.
     /// </summary>
     public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
-            .UsePlatformDetect()
-            .WithInterFont()
-            .LogToTrace();
+    AppBuilder.Configure<App>()
+        .UsePlatformDetect()
+        .LogToTrace();
 
     /// <summary>
     /// Performs the report bootstrap failure step owned by this component.

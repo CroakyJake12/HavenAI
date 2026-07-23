@@ -28,6 +28,7 @@ public sealed class NotificationCentre : Grid, IDisposable
     public NotificationCentre()
     {
         IsHitTestVisible = false;
+        MinWidth = 400;
 
         _searchBox = new TextBox { PlaceholderText = "Search notifications", MinWidth = 260 };
         _searchBox.TextChanged += OnSearchChanged;
@@ -52,10 +53,11 @@ public sealed class NotificationCentre : Grid, IDisposable
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = new Grid
+            Padding = new Thickness(12, 10),
+            Content = new StackPanel
             {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-                ColumnSpacing = 10,
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
                 Children =
                 {
                     new HavenIcon { IconKey = "settings", Width = 16, Height = 16, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center },
@@ -123,9 +125,10 @@ public sealed class NotificationCentre : Grid, IDisposable
             Width = 400,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Stretch,
-            Background = new SolidColorBrush(Color.FromArgb(250, 22, 22, 25)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)),
-            BorderThickness = new Thickness(1, 0, 0, 0),
+            Background = ResourceBrush("HavenElevatedBrush", Colors.White),
+            BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(30, 0, 0, 0)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(18),
             ClipToBounds = true,
             Child = content,
             Opacity = 0,
@@ -139,6 +142,9 @@ public sealed class NotificationCentre : Grid, IDisposable
     /// Raised when the user clicks "Notification Settings".
     /// </summary>
     public event EventHandler? SettingsClicked;
+
+    /// <summary>Raised when the panel's own close button is used.</summary>
+    public event EventHandler? CloseRequested;
 
     /// <summary>
     /// Returns whether the panel is currently open.
@@ -167,6 +173,7 @@ public sealed class NotificationCentre : Grid, IDisposable
         _panel.Opacity = 0;
         _panel.RenderTransform = new TranslateTransform(400, 0);
         IsHitTestVisible = false;
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -318,6 +325,9 @@ public sealed class NotificationCentre : Grid, IDisposable
             }
         }
     }
+
+    private static IBrush ResourceBrush(string key, Color fallback) =>
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 
     public void Dispose()
     {

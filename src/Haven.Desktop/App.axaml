@@ -25,6 +25,8 @@
 
   <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <Application.Resources>
+    <!-- Montserrat is bundled so the mockup typography is consistent on every machine. -->
+    <FontFamily x:Key="HavenFontFamily">avares://Haven/Assets/Fonts/MontserratStatic#Montserrat</FontFamily>
     <!-- Background: light mint gradient surfaces -->
     <!-- Section: Hosts the SolidColorBrush portion of this view at this position in the visual tree. -->
     <SolidColorBrush x:Key="HavenBackgroundBrush" Color="#E8F5E9" />
@@ -148,6 +150,18 @@
       </Setter>
     </ControlTheme>
 
+    <!-- Programmatic New Haven popups draw their own detached rounded cards. -->
+    <ControlTheme x:Key="HavenFloatingFlyoutPresenterTheme" TargetType="FlyoutPresenter">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="FlyoutPresenter">
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
     <!-- Section: Hosts the ControlTheme portion of this view at this position in the visual tree. -->
     <ControlTheme x:Key="HavenAcrylicMenuPresenterTheme" TargetType="MenuFlyoutPresenter"
                   BasedOn="{StaticResource {x:Type MenuFlyoutPresenter}}">
@@ -179,13 +193,14 @@
     <Style Selector="Window">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
-      <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Montserrat, sans-serif" />
+      <Setter Property="FontFamily" Value="{StaticResource HavenFontFamily}" />
       <Setter Property="FontSize" Value="14" />
     </Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="UserControl"><Setter Property="Background" Value="Transparent" /></Style>
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource HavenFontFamily}" />
       <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>

@@ -105,6 +105,8 @@ public sealed class UserPreferencesService
             "#0D1510", "#121E17", "#18281E", "#ECF5EF", "#7FA38D", "#4ECC7A", "#7AEAA3", false, "#4ECC7A", false),
         new("rose", "Rose", "Warm dark with pink accent",
             "#181114", "#22161A", "#2D1C22", "#FBF0F2", "#A38088", "#FF6B8A", "#FF9AB5", false, "#FF6B8A", false),
+        new("new-haven", "New Haven", "Phase 1 mockup palette",
+            "#F1F8E9", "#FFFFFF", "#F7F7F7", "#050505", "#646464", "#6FE9F0", "#0078D4", true, "#6FE9F0", false),
         new("light", "Light", "Clean Windows 11 Mica light",
             "#F3F3F3", "#FFFFFF", "#F9F9F9", "#1A1A1A", "#616161", "#005FB8", "#0078D4", true, "#005FB8", true),
         new("midnight", "Midnight", "Original deep teal theme",
@@ -161,6 +163,8 @@ public sealed class UserPreferencesService
     public bool BrowserSideAssistant => _preferences.BrowserSideAssistant;
     /// <summary>Reports whether Haven should start Ollama when a local-model send finds it offline.</summary>
     public bool AutoWakeOllama => _preferences.AutoWakeOllama;
+    /// <summary>Reports whether Generative UI may replace Haven's launcher-selected base theme.</summary>
+    public bool GenerativeUiEnabled => _preferences.GenerativeUiEnabled;
     /// <summary>
     /// Gets or updates generation options, the bindable or domain state represented by this property.
     /// </summary>
@@ -342,6 +346,15 @@ public sealed class UserPreferencesService
     }
 
     /// <summary>
+    /// Enables or disables Generative UI theme application at startup.
+    /// </summary>
+    public void SetGenerativeUiEnabled(bool enabled)
+    {
+        _preferences = _preferences with { GenerativeUiEnabled = enabled };
+        Save();
+    }
+
+    /// <summary>
     /// Performs the set tool permissions step owned by this component.
     /// </summary>
     public void SetToolPermissions(PermissionMode file, PermissionMode command, PermissionMode browser, PermissionMode computer)
@@ -486,6 +499,11 @@ public sealed class UserPreferencesService
         public bool BrowserSideAssistant { get; init; } = true;
         /// <summary>Gets whether local-model sends may launch Ollama automatically.</summary>
         public bool AutoWakeOllama { get; init; } = true;
+        /// <summary>
+        /// Gets whether Generative UI is allowed to override the base Haven theme.
+        /// Disabled is the safe default for existing preference files that predate this setting.
+        /// </summary>
+        public bool GenerativeUiEnabled { get; init; }
         /// <summary>
         /// Gets or updates temperature, the bindable or domain state represented by this property.
         /// </summary>

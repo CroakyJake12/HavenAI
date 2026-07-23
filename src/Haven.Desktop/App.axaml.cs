@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Haven.Application;
 using Haven.Automations;
 using Haven.Browser;
+using Haven.Core;
 using Haven.Desktop.Events;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell;
@@ -92,13 +93,21 @@ public sealed partial class App : Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // The launcher is temporary. Only the chosen Haven window should end the application.
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
             // Show launcher picker
-            var picker = new LauncherPicker();
+            var preferences = _services.GetRequiredService<UserPreferencesService>();
+            var themeStore = _services.GetRequiredService<IGenerativeThemeStore>();
+            // The launcher is always a neutral light surface. The selected version applies
+            // its own base appearance immediately before the main visual tree is built.
+            preferences.ApplyTheme("light", save: false);
+            var picker = new LauncherPicker(preferences, themeStore);
             var launcherWindow = new Window
             {
                 Title = "Haven",
                 Width = 700,
-                Height = 500,
+                Height = 640,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Content = picker,
                 Background = new SolidColorBrush(Color.Parse("#F1F8E9")),
@@ -107,27 +116,41 @@ public sealed partial class App : Avalonia.Application
 
             picker.LaunchRequested += (_, useNewHaven) =>
             {
-                launcherWindow.Close();
-
+                if (!ReferenceEquals(desktop.MainWindow, launcherWindow)) return;
+                var appearance = useNewHaven
+                    ? GenerativeThemeAppearance.Light
+                    : GenerativeThemeAppearance.Dark;
+                preferences.ApplyTheme(useNewHaven ? "new-haven" : "obsidian", save: false);
+                MainWindow window;
                 if (useNewHaven)
                 {
                     // New Haven - light theme with new UI
                     var mainView = _services.GetRequiredService<MainView>();
-                    var window = new MainWindow { DataContext = mainView };
-                    desktop.MainWindow = window;
-                    window.Opened += async (_, _) => await InitialiseNewHaven(mainView);
+                    mainView.ApplyEdition(HavenShellEdition.New);
+                    window = new MainWindow { DataContext = mainView };
+                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
+                        mainView,
+                        preferences.GenerativeUiEnabled,
+                        appearance);
                 }
                 else
                 {
                     // Classic Haven - dark theme with full feature set
                     var mainView = _services.GetRequiredService<MainView>();
-                    var window = new MainWindow { DataContext = mainView };
+                    mainView.ApplyEdition(HavenShellEdition.Classic);
+                    window = new MainWindow { DataContext = mainView };
                     window.Background = new SolidColorBrush(Color.Parse("#181818"));
-                    desktop.MainWindow = window;
-                    window.Opened += async (_, _) => await InitialiseNewHaven(mainView);
+                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
+                        mainView,
+                        preferences.GenerativeUiEnabled,
+                        appearance);
                 }
 
+                desktop.MainWindow = window;
                 desktop.Exit += OnDesktopExit;
+                window.Closed += (_, _) => desktop.Shutdown();
+                window.Show();
+                launcherWindow.Close();
             };
 
             desktop.MainWindow = launcherWindow;
@@ -136,7 +159,10 @@ public sealed partial class App : Avalonia.Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task InitialiseNewHaven(MainView shell)
+    private async Task InitialiseSelectedHaven(
+        MainView shell,
+        bool generativeUiEnabled,
+        GenerativeThemeAppearance appearance)
     {
         var correlationId = Guid.NewGuid().ToString("N");
         try
@@ -144,7 +170,13 @@ public sealed partial class App : Avalonia.Application
             var services = _services ?? throw new InvalidOperationException("Haven services have not been initialized.");
             var recovery = _startupRecovery ?? services.GetRequiredService<IStartupRecoveryCoordinator>();
             var recoveryState = await recovery.BeginStartupAsync(CancellationToken.None);
-            await services.GetRequiredService<GenerativeUiThemeRuntime>().InitializeAsync(CancellationToken.None);
+            if (generativeUiEnabled)
+            {
+                await services.GetRequiredService<IGenerativeThemeStore>()
+                    .SetAppearanceAsync(appearance, CancellationToken.None);
+                await services.GetRequiredService<GenerativeUiThemeRuntime>()
+                    .InitializeAsync(CancellationToken.None);
+            }
 
             BrowserAutomationRegistry.Register(
                 services.GetRequiredService<BrowserSessionService>(),
@@ -191,10 +223,10 @@ public sealed partial class App : Avalonia.Application
                     cancellationToken: CancellationToken.None);
             }
 
-            if (services is not null)
-                await services.DisposeAsync();
             if (recovery is not null)
                 await recovery.MarkCleanShutdownAsync(CancellationToken.None);
+            if (services is not null)
+                await services.DisposeAsync();
         }
         catch (Exception ex)
         {

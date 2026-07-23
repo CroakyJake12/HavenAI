@@ -6,106 +6,26 @@
              x:Class="Haven.Desktop.Views.Shell.MainView"
              x:Name="MainViewRoot">
 
-    <Grid RowDefinitions="Auto,Auto,*"
+    <Grid RowDefinitions="Auto,*"
           Background="Transparent">
 
-        <Border Grid.RowSpan="3"
+        <Border Grid.RowSpan="2"
                 Background="{DynamicResource HavenBackgroundBrush}"
                 IsHitTestVisible="False" />
 
         <!-- ROW 0: Top Rail (header with logo, tabs, actions) -->
         <topRail:TopRail x:Name="TopRail" Grid.Row="0" />
 
-        <!-- ROW 1: Go mode switcher + Model info -->
+        <!-- ROW 1: Main content area -->
         <Grid Grid.Row="1"
-              ColumnDefinitions="Auto,*,Auto"
-              Margin="16,4,16,8">
-            <!-- Left: Go mode switcher -->
-            <StackPanel x:Name="GoModeSwitcher"
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        VerticalAlignment="Center">
-                <Button x:Name="GoChatButton"
-                        Classes="icon compact"
-                        ToolTip.Tip="Chat">
-                    <controls:HavenIcon IconKey="chat" Width="16" Height="16"/>
-                </Button>
-                <Button x:Name="GoDashboardButton"
-                        Classes="icon compact"
-                        ToolTip.Tip="Dashboard">
-                    <controls:HavenIcon IconKey="dashboard" Width="16" Height="16"/>
-                </Button>
-                <TextBlock Text="Go"
-                           FontWeight="SemiBold"
-                           FontSize="13"
-                           VerticalAlignment="Center"
-                           Margin="4,0,0,0"/>
-            </StackPanel>
-
-            <!-- Center: Stored Chat dropdown -->
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Center">
-                <Button x:Name="StoredChatDropdown"
-                        Classes="chip"
-                        HorizontalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:HavenIcon IconKey="chat" Width="14" Height="14" Opacity="0.72"/>
-                        <TextBlock Text="Stored Chat" VerticalAlignment="Center"/>
-                        <controls:HavenIcon IconKey="chevron-down" Width="11" Height="11" Opacity="0.6"/>
-                    </StackPanel>
-                    <Button.Flyout>
-                        <Flyout Placement="BottomEdgeAlignedLeft">
-                            <StackPanel Spacing="2" MinWidth="160">
-                                <Button Classes="sidebar" HorizontalAlignment="Stretch">
-                                    <TextBlock Text="Saved Chat" FontWeight="SemiBold"/>
-                                </Button>
-                                <Button Classes="sidebar" HorizontalAlignment="Stretch">
-                                    <TextBlock Text="Temporary Chat" FontWeight="SemiBold"/>
-                                </Button>
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-            </StackPanel>
-
-            <!-- Right: Model info -->
-            <StackPanel Grid.Column="2"
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        VerticalAlignment="Center">
-                <Border Background="{DynamicResource HavenPanel2Brush}"
-                        BorderBrush="{DynamicResource HavenLineBrush}"
-                        BorderThickness="1"
-                        CornerRadius="999"
-                        Padding="12,5">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock x:Name="ModelNameText"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Text="Qwen 3.6"/>
-                        <TextBlock Text="&#x2022;"
-                                   Classes="muted"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock x:Name="ContextPercentText"
-                                   FontSize="12"
-                                   Text="100%"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </Grid>
-
-        <!-- ROW 2: Main content area -->
-        <Grid Grid.Row="2"
-              Margin="16,0,16,16">
+              ColumnDefinitions="Auto,*"
+              Margin="16,4,16,16">
 
             <!-- Sidebar (conditional) -->
             <sidebar:Sidebar x:Name="SidebarControl"
                              Grid.Column="0"
                              Width="276"
-                             IsVisible="{Binding HasFullSidebar}"
+                             IsVisible="True"
                              Margin="0,0,10,0"/>
 
             <!-- Content area -->
@@ -116,111 +36,95 @@
                         BorderThickness="1"
                         CornerRadius="24"
                         ClipToBounds="True">
-                    <Grid RowDefinitions="Auto,*">
-                        <!-- Workspace header (when in chat mode) -->
-                        <Border x:Name="WorkspaceHeader"
-                                Height="72"
-                                Margin="8,8,8,0"
-                                Padding="18,0"
-                                Background="{DynamicResource HavenPanelBrush}"
-                                BorderBrush="{DynamicResource HavenLineBrush}"
-                                BorderThickness="1"
-                                CornerRadius="17"
-                                IsVisible="False">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <StackPanel Spacing="2" VerticalAlignment="Center" Margin="12,0,0,0">
-                                    <TextBlock x:Name="WorkspaceEyebrowText"
-                                               Classes="eyebrow"/>
-                                    <TextBlock x:Name="WorkspaceTitleText"
-                                               FontSize="18"
-                                               FontWeight="SemiBold"/>
-                                </StackPanel>
+                    <Grid>
+                        <!-- Page content owns the full framed workspace. -->
+                        <ContentControl x:Name="PageContent" Margin="6"/>
 
-                                <!-- Center: Model picker + context widget -->
-                                <StackPanel Grid.Column="1"
-                                            Orientation="Horizontal"
-                                            Spacing="8"
-                                            VerticalAlignment="Center"
-                                            HorizontalAlignment="Center">
-                                    <!-- Chat mode dropdown (Saved Chat / Temporary Chat) -->
-                                    <Button x:Name="TemporaryChatButton"
-                                            Classes="chip"
-                                            IsVisible="False">
-                                        <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <controls:HavenIcon IconKey="chat" Width="14" Height="14" Opacity="0.72"/>
-                                            <TextBlock Text="Saved Chat" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <Button.Flyout>
-                                            <Flyout Placement="BottomEdgeAlignedLeft">
-                                                <StackPanel Spacing="2">
-                                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
-                                                            Command="{Binding $parent[UserControl].DataContext.ToggleTemporaryCommand}">
-                                                        <StackPanel Orientation="Horizontal" Spacing="9">
-                                                            <controls:HavenIcon IconKey="chat" Width="18" Height="18"
-                                                                                Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="Saved Chat" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                    </Button>
-                                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
-                                                            Command="{Binding $parent[UserControl].DataContext.ToggleTemporaryCommand}">
-                                                        <StackPanel Orientation="Horizontal" Spacing="9">
-                                                            <controls:HavenIcon IconKey="chat" Width="18" Height="18"
-                                                                                Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="Temporary Chat" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Flyout>
-                                        </Button.Flyout>
-                                    </Button>
-                                    <!-- Model info widget -->
-                                    <Border Background="{DynamicResource HavenPanel2Brush}"
-                                            BorderBrush="{DynamicResource HavenLineBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="999"
-                                            Padding="10,4">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock x:Name="ContextPercentLabel"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="12"/>
-                                            <ProgressBar Width="48" Height="4"
-                                                        Minimum="0" Maximum="100"
-                                                        x:Name="ContextProgressBar"/>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
+                        <!-- The app switcher and model state belong inside the workspace frame. -->
+                        <Grid x:Name="ShellContextBar"
+                              ColumnDefinitions="Auto,*,Auto"
+                              Margin="18,16,18,0"
+                              IsVisible="False"
+                              VerticalAlignment="Top">
+                            <StackPanel x:Name="GoModeSwitcher"
+                                        Orientation="Horizontal"
+                                        Spacing="8"
+                                        VerticalAlignment="Center">
+                                <Border Background="{DynamicResource HavenPanel2Brush}"
+                                        BorderBrush="{DynamicResource HavenLineBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="999"
+                                        Padding="3">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <Button x:Name="GoChatButton"
+                                                Classes="icon compact"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                CornerRadius="999"
+                                                ToolTip.Tip="Chat">
+                                            <controls:HavenIcon IconKey="chat" Width="16" Height="16"/>
+                                        </Button>
+                                        <Button x:Name="GoDashboardButton"
+                                                Classes="icon compact"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                CornerRadius="999"
+                                                ToolTip.Tip="Dashboard">
+                                            <controls:HavenIcon IconKey="dashboard" Width="16" Height="16"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock x:Name="GoModeLabel" Text="Go"
+                                           FontWeight="Bold"
+                                           FontSize="14"
+                                           VerticalAlignment="Center"
+                                           Margin="4,0,0,0"/>
+                            </StackPanel>
 
-                                <!-- Right: Model name + context usage -->
-                                <StackPanel Grid.Column="2"
-                                            Orientation="Horizontal"
-                                            Spacing="8"
-                                            VerticalAlignment="Center">
-                                    <Border Background="{DynamicResource HavenPanel2Brush}"
-                                            BorderBrush="{DynamicResource HavenLineBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="999"
-                                            Padding="12,5">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock x:Name="HeaderModelNameText"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="12"
-                                                       Text="Qwen 3.6"/>
-                                            <TextBlock Text="&#x2022;"
-                                                       Classes="muted"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock x:Name="HeaderContextPercentText"
-                                                       FontSize="12"
-                                                       Text="100%"/>
-                                        </StackPanel>
-                                    </Border>
+                            <Button x:Name="StoredChatDropdown"
+                                    Grid.Column="1"
+                                    Classes="chip"
+                                    HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <controls:HavenIcon IconKey="chat" Width="14" Height="14" Opacity="0.72"/>
+                                    <TextBlock x:Name="StoredChatLabel" Text="Saved Chat" VerticalAlignment="Center"/>
+                                    <controls:HavenIcon IconKey="chevron-down" Width="11" Height="11" Opacity="0.6"/>
                                 </StackPanel>
-                            </Grid>
-                        </Border>
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedLeft">
+                                        <StackPanel Spacing="2" MinWidth="160">
+                                            <Button x:Name="SavedChatOption" Classes="sidebar" HorizontalAlignment="Stretch">
+                                                <TextBlock Text="Saved Chat" FontWeight="SemiBold"/>
+                                            </Button>
+                                            <Button x:Name="TemporaryChatOption" Classes="sidebar" HorizontalAlignment="Stretch">
+                                                <TextBlock Text="Temporary Chat" FontWeight="SemiBold"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
 
-                        <!-- Page content -->
-                        <ContentControl x:Name="PageContent"
-                                        Grid.Row="1"
-                                        Margin="6"/>
+                            <Button x:Name="ModelSelectorButton"
+                                    Grid.Column="2"
+                                    Classes="chip"
+                                    Background="{DynamicResource HavenPanel2Brush}"
+                                    BorderBrush="{DynamicResource HavenLineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="999"
+                                    Padding="12,5"
+                                    VerticalAlignment="Center"
+                                    ToolTip.Tip="Choose the model for this chat">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock x:Name="ModelNameText"
+                                               FontWeight="Bold"
+                                               FontSize="13"
+                                               Text="Qwen 3.6"/>
+                                    <TextBlock Text="&#x2022;" Classes="muted" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ContextPercentText" FontSize="13" FontWeight="Medium" Text="100%"/>
+                                    <controls:HavenIcon IconKey="chevron-down" Width="11" Height="11" Opacity="0.62"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </Grid>
                 </Border>
 
@@ -231,48 +135,6 @@
                         ClipToBounds="True"
                         IsVisible="False"/>
             </Grid>
-        </Grid>
-
-        <!-- Command palette overlay -->
-        <Grid Grid.RowSpan="3"
-              IsVisible="{Binding IsCommandPaletteOpen}">
-            <Button Background="{DynamicResource HavenPanelBrush}"
-                    BorderThickness="0"
-                    Command="{Binding CloseCommandPaletteCommand}"/>
-            <Border Classes="card"
-                    Width="700"
-                    MaxHeight="650"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center">
-                <Grid RowDefinitions="Auto,Auto,*"
-                      RowSpacing="14">
-                    <Grid ColumnDefinitions="Auto,*,Auto"
-                          ColumnSpacing="11">
-                        <Border Width="40" Height="40"
-                                Background="{DynamicResource HavenAccentSoftBrush}"
-                                BorderBrush="{DynamicResource HavenAccentBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="14">
-                            <controls:HavenIcon IconKey="commands" Width="19" Height="19"
-                                              Foreground="{DynamicResource HavenAccentBrush}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBox Grid.Column="1"
-                                 x:Name="CommandSearchBox"
-                                 PlaceholderText="Search commands..."
-                                 FontSize="15"/>
-                        <Button Grid.Column="2" Classes="chrome"
-                                Command="{Binding CloseCommandPaletteCommand}">
-                            <controls:HavenIcon IconKey="close" Width="14" Height="14"/>
-                        </Button>
-                    </Grid>
-                    <Separator Grid.Row="1"/>
-                    <ListBox x:Name="CommandList"
-                             Grid.Row="2"
-                             Background="Transparent"
-                             BorderThickness="0"/>
-                </Grid>
-            </Border>
         </Grid>
 
     </Grid>

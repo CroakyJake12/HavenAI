@@ -258,6 +258,36 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     }
 
     /// <summary>
+    /// Permanently removes one message and the branch/version records that depend on it.
+    /// </summary>
+    public async Task DeleteMessageAsync(Guid conversationId, Guid messageId, CancellationToken cancellationToken)
+    {
+        await ConversationProductionSchema.EnsureAsync(factory, cancellationToken).ConfigureAwait(false);
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM messages WHERE id=$id AND conversation_id=$conversationId;";
+            command.Parameters.AddWithValue("$id", messageId.ToString());
+            command.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+            if (await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
+                throw new InvalidOperationException("The message no longer exists in this conversation.");
+        }
+
+        await using (var cleanTurns = connection.CreateCommand())
+        {
+            cleanTurns.Transaction = transaction;
+            cleanTurns.CommandText = "DELETE FROM conversation_turns WHERE conversation_id=$conversationId AND user_message_id IS NULL AND assistant_message_id IS NULL;";
+            cleanTurns.Parameters.AddWithValue("$conversationId", conversationId.ToString());
+            await cleanTurns.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Performs mark messages compacted asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task MarkMessagesCompactedAsync(Guid conversationId, IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken)

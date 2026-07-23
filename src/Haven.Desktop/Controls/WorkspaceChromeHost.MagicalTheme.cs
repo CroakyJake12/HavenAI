@@ -102,17 +102,18 @@ public sealed partial class WorkspaceChromeHost
         Grid.SetColumn(windowControls, 1);
         railContent.Children.Add(windowControls);
 
+        var isLight = UsesLightAppearance();
         var acrylic = new AcrylicSurface
         {
             Content = railContent,
             Padding = new Thickness(0),
             CornerRadius = new CornerRadius(20),
-            BorderBrush = new SolidColorBrush(Color.Parse("#6088F8EC")),
+            BorderBrush = new SolidColorBrush(Color.Parse(isLight ? "#4D000000" : "#6088F8EC")),
             BorderThickness = new Thickness(1),
-            TintColor = Color.Parse("#111A31"),
-            FallbackColor = Color.Parse("#F2111A31"),
-            TintOpacity = 0.52,
-            MaterialOpacity = 0.72
+            TintColor = Color.Parse(isLight ? "#FFFFFFFF" : "#111A31"),
+            FallbackColor = Color.Parse(isLight ? "#F7FFFFFF" : "#F2111A31"),
+            TintOpacity = isLight ? 0.74 : 0.52,
+            MaterialOpacity = isLight ? 0.86 : 0.72
         };
 
         _floatingTopRailHost = new Border
@@ -357,17 +358,18 @@ public sealed partial class WorkspaceChromeHost
         rail.BorderThickness = new Thickness(0);
         rail.CornerRadius = new CornerRadius(18);
 
+        var isLight = UsesLightAppearance();
         var acrylic = new AcrylicSurface
         {
             Content = rail,
             Padding = new Thickness(0),
             CornerRadius = new CornerRadius(20),
-            BorderBrush = new SolidColorBrush(Color.Parse("#568AF7E7")),
+            BorderBrush = new SolidColorBrush(Color.Parse(isLight ? "#40000000" : "#568AF7E7")),
             BorderThickness = new Thickness(1),
-            TintColor = Color.Parse("#101B2D"),
-            FallbackColor = Color.Parse("#F2101B2D"),
-            TintOpacity = 0.50,
-            MaterialOpacity = 0.70
+            TintColor = Color.Parse(isLight ? "#FFFFFFFF" : "#101B2D"),
+            FallbackColor = Color.Parse(isLight ? "#F7FFFFFF" : "#F2101B2D"),
+            TintOpacity = isLight ? 0.72 : 0.50,
+            MaterialOpacity = isLight ? 0.84 : 0.70
         };
 
         _magicalModeRailHost = new Border
@@ -405,4 +407,7 @@ public sealed partial class WorkspaceChromeHost
         if (_magicalBackdrop is not null)
             _magicalBackdrop.ReduceMotion = reduceAnimations;
     }
+
+    private static bool UsesLightAppearance() =>
+        Avalonia.Application.Current?.RequestedThemeVariant == Avalonia.Styling.ThemeVariant.Light;
 }

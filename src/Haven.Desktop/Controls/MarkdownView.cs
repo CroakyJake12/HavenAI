@@ -35,7 +35,7 @@ public sealed partial class MarkdownView : UserControl
     /// <summary>
     /// Stores blocks locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly StackPanel _blocks = new() { Spacing = 8 };
+    private readonly StackPanel _blocks = new() { Spacing = 10 };
 
     static MarkdownView()
     {
@@ -197,7 +197,7 @@ public sealed partial class MarkdownView : UserControl
                         TextAlignment = TextAlignment.Right,
                         Margin = new Thickness(0, 1, 7, 0)
                     });
-                    var text = CreateRichText(content.Trim(), 14, FontWeight.Normal, 0);
+                    var text = CreateRichText(content.Trim(), 14, FontWeight.Medium, 0);
                     Grid.SetColumn(text, 1);
                     row.Children.Add(text);
                     list.Children.Add(row);
@@ -223,7 +223,7 @@ public sealed partial class MarkdownView : UserControl
                     Background = Brush("HavenPanel2Brush", "#111721"),
                     CornerRadius = new CornerRadius(0, 8, 8, 0),
                     Padding = new Thickness(12, 8),
-                    Child = CreateRichText(quote.ToString(), 13, FontWeight.Normal, 0, FontStyle.Italic)
+                    Child = CreateRichText(quote.ToString(), 13, FontWeight.Medium, 0, FontStyle.Italic)
                 });
                 continue;
             }
@@ -236,7 +236,7 @@ public sealed partial class MarkdownView : UserControl
                 paragraph.Append(lines[index].Trim());
                 index++;
             }
-            _blocks.Children.Add(CreateRichText(paragraph.ToString(), 14, FontWeight.Normal, 0));
+            _blocks.Children.Add(CreateRichText(paragraph.ToString(), 14, FontWeight.Medium, 0));
         }
     }
 
@@ -346,8 +346,8 @@ public sealed partial class MarkdownView : UserControl
             FontSize = size,
             FontWeight = weight,
             FontStyle = style,
-            LineHeight = Math.Max(19, size * 1.55),
-            Foreground = Brush("HavenTextSoftBrush", "#C9D2DE"),
+            LineHeight = Math.Max(22, size * 1.65),
+            Foreground = Brush("HavenTextBrush", "#F5F7FA"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, bottomMargin)
         };
