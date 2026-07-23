@@ -10,7 +10,7 @@ public static class ReasoningScale
     public const int MaximumPercentage = 100;
     public const int StepSize = 25;
 
-    public static readonly IReadOnlyList<int> Percentages { get; } =
+    public static IReadOnlyList<int> Percentages { get; } =
         [MinimumPercentage, 50, 75, MaximumPercentage];
 
     public static int ToPercentage(EffortLevel effort) => effort switch
@@ -29,7 +29,7 @@ public static class ReasoningScale
             50 => EffortLevel.Medium,
             75 => EffortLevel.High,
             100 => EffortLevel.Max,
-            _ => throw new UnreachableException()
+            _ => throw new InvalidOperationException("Reasoning percentage snapping returned an unsupported value.")
         };
 
     public static int SnapPercentage(double percentage)
