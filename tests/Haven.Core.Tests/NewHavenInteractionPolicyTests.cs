@@ -79,7 +79,7 @@ public sealed class ChatCapabilitySelectorTests
     }
 
     private static OllamaToolDefinition Tool(string name) =>
-        new(name, name, new Dictionary<string, OllamaToolParameter>());
+        new(name, name, new Dictionary<string, object>(), []);
 }
 
 public sealed class CompatibleModelFallbackSelectorTests
