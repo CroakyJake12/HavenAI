@@ -9,6 +9,7 @@
 
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using Avalonia;
 
 namespace Haven.Desktop;
@@ -19,6 +20,11 @@ namespace Haven.Desktop;
 internal static class Program
 {
     /// <summary>
+    /// Maximum thread pool threads to configure (up to 96 cores).
+    /// </summary>
+    private const int MaxThreadPoolThreads = 96;
+
+    /// <summary>
     /// Performs the main step owned by this component.
     /// </summary>
     [STAThread]
@@ -26,6 +32,7 @@ internal static class Program
     {
         try
         {
+            ConfigureThreadPool();
             if (OperatingSystem.IsWindows())
                 SetCurrentProcessExplicitAppUserModelID("Haven.LocalAI.Desktop");
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -35,6 +42,20 @@ internal static class Program
             ReportBootstrapFailure(ex);
             Environment.ExitCode = 1;
         }
+    }
+
+    /// <summary>
+    /// Configures the .NET thread pool to utilize up to 96 cores for parallel processing.
+    /// </summary>
+    private static void ConfigureThreadPool()
+    {
+        var coreCount = Environment.ProcessorCount;
+        var threadCount = Math.Min(coreCount, MaxThreadPoolThreads);
+
+        ThreadPool.SetMinThreads(threadCount, threadCount);
+        ThreadPool.SetMaxThreads(threadCount, threadCount);
+
+        Console.WriteLine($"[Haven] Thread pool configured: {threadCount} threads ( cores: {coreCount})");
     }
 
     /// <summary>

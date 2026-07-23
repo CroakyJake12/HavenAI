@@ -326,7 +326,7 @@ public sealed class BrowserSafetyViewModel : ObservableObject, IDisposable
         if (address is not null && address.IsAbsoluteUri && address.Scheme is "http" or "https" && string.IsNullOrEmpty(address.UserInfo))
         {
             CurrentOrigin = BrowserSitePermissionStore.CanonicalOrigin(address);
-            PermissionStatus = "Saved decisions apply only to this exact origin. Ask delegates the current request to Haven's prompt flow.";
+            PermissionStatus = "Saved decisions apply only to this exact origin. Ask delegates the current request to Haven's instruction flow.";
         }
         else
         {

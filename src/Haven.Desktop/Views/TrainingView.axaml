@@ -30,7 +30,7 @@
     <!-- Panel cards: white/dark rounded containers for content groups -->
     <!-- Section: Defines presentation rules here so repeated controls share one visual contract. -->
     <Style Selector="Border.report-panel">
-      <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource HavenPanel2Brush}"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="Padding" Value="16"/>
     </Style>
@@ -49,8 +49,8 @@
            ============================================================ -->
       <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
         <Button Command="{Binding ExitTrainingCommand}"
-                Background="Transparent" Foreground="{DynamicResource TextPrimaryBrush}"
-                BorderBrush="{DynamicResource StrokeBrush}" CornerRadius="10" Padding="10,5">
+                Background="Transparent" Foreground="{DynamicResource HavenTextBrush}"
+                BorderBrush="{DynamicResource HavenLineBrush}" CornerRadius="10" Padding="10,5">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <controls:HavenIcon IconKey="chevron-left" Width="13" Height="13" />
             <TextBlock Text="Back" />
@@ -73,7 +73,7 @@
         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
 
           <!-- Row 0-1: Task prompt — multi-line text input spanning both columns -->
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Task Prompt" Classes="section-header"/>
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Task Instruction" Classes="section-header"/>
           <TextBox Grid.Row="1" Grid.ColumnSpan="2"
                    Text="{Binding TaskPrompt}" AcceptsReturn="True" TextWrapping="Wrap"
                    MinHeight="80" Margin="0,0,0,8"/>
@@ -97,7 +97,7 @@
           </StackPanel>
 
           <!-- Row 4: Sandbox Permissions — controls for tool access during training -->
-          <Border Grid.Row="4" Grid.ColumnSpan="2" Background="{DynamicResource SurfaceCardBrush}"
+          <Border Grid.Row="4" Grid.ColumnSpan="2" Background="{DynamicResource HavenPanel2Brush}"
                   CornerRadius="8" Padding="12" Margin="0,8,0,0">
             <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
@@ -135,7 +135,7 @@
           <!-- Row 5: Start Training button — spans both columns -->
           <Button Grid.Row="5" Grid.ColumnSpan="2" Content="Start Training"
                   Command="{Binding StartSessionCommand}"
-                  Background="{DynamicResource PrimaryBrush}" Foreground="White"
+                  Background="{DynamicResource HavenAccentBrush}" Foreground="White"
                   HorizontalAlignment="Left" Margin="0,12,0,0" Padding="20,8"
                   IsEnabled="{Binding !IsRunning}"/>
         </Grid>
@@ -176,7 +176,7 @@
                Shows the agent's thinking in real-time as it streams from the model.
                Clears when a tool call happens (replaced by the tool activity entry).
                Scrollable, monospaced, max 150px height. Only visible when there's text. -->
-          <Border Grid.Row="3" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="6"
+          <Border Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
                   Padding="10" Margin="0,8,0,0" IsVisible="{Binding HasLiveReasoning}">
             <ScrollViewer MaxHeight="150">
               <TextBlock Text="{Binding LiveReasoning}" TextWrapping="Wrap" FontSize="11"
@@ -205,7 +205,7 @@
             <ItemsControl ItemsSource="{Binding AttemptHistory}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="svc:TrainingAttemptResult">
-                  <Button Background="{DynamicResource SurfaceCardBrush}" CornerRadius="6"
+                  <Button Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
                           Padding="10,8" Margin="0,0,0,6" HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Left"
                           Command="{Binding $parent[UserControl].DataContext.SelectAttemptCommand}"
@@ -224,7 +224,7 @@
                       <TextBlock FontSize="11" Opacity="0.6"
                                  Text="{Binding FilesChanged, StringFormat='{}{0} files changed'}"/>
                       <!-- "Timed Out" badge — only shown when the attempt didn't finish -->
-                      <Border Background="{DynamicResource StrokeBrush}" CornerRadius="4"
+                      <Border Background="{DynamicResource HavenLineBrush}" CornerRadius="4"
                               Padding="6,3" IsVisible="{Binding !CompletedBeforeTimeout}">
                         <TextBlock Text="Timed Out" FontSize="10" Opacity="0.7"/>
                       </Border>
@@ -272,11 +272,11 @@
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="Submit Feedback"
                         Command="{Binding SubmitFeedbackCommand}"
-                        Background="{DynamicResource PrimaryBrush}" Foreground="White"
+                        Background="{DynamicResource HavenAccentBrush}" Foreground="White"
                         Padding="14,6"/>
                 <Button Content="Skip"
                         Command="{Binding SkipFeedbackCommand}"
-                        Background="{DynamicResource StrokeBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                        Background="{DynamicResource HavenLineBrush}" Foreground="{DynamicResource HavenTextBrush}"
                         Padding="14,6"/>
               </StackPanel>
             </StackPanel>
@@ -289,7 +289,7 @@
            Persistent bar showing current status message and total attempts.
            Always visible at the bottom of the page.
            ============================================================ -->
-      <Border Grid.Row="3" Background="{DynamicResource SurfaceCardBrush}"
+      <Border Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}"
               CornerRadius="8" Padding="12,8">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"

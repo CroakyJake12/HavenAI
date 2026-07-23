@@ -17,6 +17,7 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Controls;
@@ -34,7 +35,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// <summary>
     /// Stores mode profile prefix locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    internal const string ModeProfilePrefix = "Mode profile · ";
+    internal const string ModeProfilePrefix = "App profile · ";
 
     /// <summary>
     /// Stores fixed mode keys locally so this component can preserve the dependency, cache, or state between member calls.
@@ -83,7 +84,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// <summary>
     /// Stores shell locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private MainWindowViewModel? _shell;
+    private MainView? _shell;
     /// <summary>
     /// Stores shell notifications locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -309,7 +310,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _overlayStatus.Text = "Mode navigation could not load: " + ex.Message);
+            await Dispatcher.UIThread.InvokeAsync(() => _overlayStatus.Text = "App navigation could not load: " + ex.Message);
         }
         finally
         {
@@ -389,7 +390,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         foreach (var mode in modes)
             panel.Children.Add(FlyoutEntry(mode.Name, mode.Description, mode.IconKey, () => OpenModeAsync(mode)));
         if (modes.Count == 0)
-            panel.Children.Add(new TextBlock { Text = "Modes are still loading…", Classes = { "muted" }, Margin = new Thickness(10) });
+            panel.Children.Add(new TextBlock { Text = "Apps are still loading…", Classes = { "muted" }, Margin = new Thickness(10) });
         button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
@@ -641,7 +642,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_shellNotifications is not null) _shellNotifications.PropertyChanged -= OnShellPropertyChanged;
-        _shell = DataContext as MainWindowViewModel;
+        _shell = DataContext as MainView;
         _shellNotifications = _shell;
         if (_shellNotifications is not null) _shellNotifications.PropertyChanged += OnShellPropertyChanged;
         UpdateActiveState();
@@ -653,9 +654,9 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_modes.Count == 0 && !_modeRefreshTimer.IsEnabled) _modeRefreshTimer.Start();
-        if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
-            or nameof(MainWindowViewModel.CurrentChat)
-            or nameof(MainWindowViewModel.ProductName))
+        if (e.PropertyName is nameof(MainView.CurrentPage)
+            or nameof(MainView.CurrentChat)
+            or nameof(MainView.ProductName))
             UpdateActiveState();
     }
 

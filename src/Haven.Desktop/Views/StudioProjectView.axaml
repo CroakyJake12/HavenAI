@@ -11,9 +11,9 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Haven.Desktop.ViewModels"
+             xmlns:pages="using:Haven.Desktop.Views.Pages.StudioProject"
              x:Class="Haven.Desktop.Views.StudioProjectView"
-             x:DataType="vm:StudioProjectPageViewModel">
+             x:DataType="pages:StudioProjectPage">
   <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
@@ -115,12 +115,12 @@
           <TextBlock Text="Choose a type to get started. You can configure it after creation." Classes="muted" FontSize="12" />
 
           <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
-            <!-- Mode -->
+            <!-- App -->
             <Border Grid.Row="0" Grid.Column="0" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
               <Button Command="{Binding StartModeCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Mode" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
-                  <TextBlock Text="Define surfaces, tools, plugins, and system prompt for a new Haven mode." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                  <TextBlock Text="App" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Define surfaces, tools, plugins, and system instructions for a new Haven app." Classes="muted" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Button>
             </Border>
@@ -142,12 +142,12 @@
                 </StackPanel>
               </Button>
             </Border>
-            <!-- Prompt -->
+            <!-- Instruction -->
             <Border Grid.Row="1" Grid.Column="1" CornerRadius="8" Background="{DynamicResource HavenPanel2Brush}" Padding="16" Cursor="Hand">
               <Button Command="{Binding StartPromptCreationCommand}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left" Padding="0">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Prompt" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
-                  <TextBlock Text="Create a reusable instruction prompt invoked with >." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                  <TextBlock Text="Instruction" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
+                  <TextBlock Text="Create a reusable instruction invoked with >." Classes="muted" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
               </Button>
             </Border>

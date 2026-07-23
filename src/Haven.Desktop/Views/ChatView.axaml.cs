@@ -22,6 +22,7 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Chat;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
@@ -64,9 +65,9 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private readonly HashSet<Guid> _pendingAttachmentIds = [];
     /// <summary>
-    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// Stores chat page locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private ChatPageViewModel? _viewModel;
+    private ChatPage? _chat;
     /// <summary>
     /// Stores draft debounce locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -96,9 +97,6 @@ public sealed partial class ChatView : UserControl
         _messageTools.BranchChanged += OnBranchChanged;
         _messageTools.RegenerationRequested += OnMessageRegenerationRequested;
         _messageToolsFlyout = new Flyout { Content = _messageTools };
-        // Conversation-wide tools are intentionally no longer inserted above every
-        // chat. Their message-specific actions live in the floating message menu,
-        // while context usage is exposed by the main chat header.
 
         if (App.Services is { } services)
         {
@@ -114,7 +112,7 @@ public sealed partial class ChatView : UserControl
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
         DetachedFromVisualTree += (_, _) => DetachViewModel();
-        AttachViewModel(DataContext as ChatPageViewModel);
+        AttachViewModel(DataContext as ChatPage);
     }
 
     /// <summary>
@@ -135,21 +133,21 @@ public sealed partial class ChatView : UserControl
     /// <summary>
     /// Handles the data context changed event raised by the UI or runtime.
     /// </summary>
-    private void OnDataContextChanged(object? sender, EventArgs e) => AttachViewModel(DataContext as ChatPageViewModel);
+    private void OnDataContextChanged(object? sender, EventArgs e) => AttachViewModel(DataContext as ChatPage);
 
     /// <summary>
     /// Performs the attach view model step owned by this component.
     /// </summary>
-    private void AttachViewModel(ChatPageViewModel? viewModel)
+    private void AttachViewModel(ChatPage? chat)
     {
-        if (ReferenceEquals(_viewModel, viewModel)) return;
+        if (ReferenceEquals(_chat, chat)) return;
         DetachViewModel();
-        _viewModel = viewModel;
-        if (_viewModel is null) return;
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        _viewModel.ConversationChanged += OnConversationChanged;
-        _viewModel.Attachments.CollectionChanged += OnAttachmentCollectionChanged;
-        _ = LoadProductionStateAsync(_viewModel, CancellationToken.None);
+        _chat = chat;
+        if (_chat is null) return;
+        _chat.PropertyChanged += OnViewModelPropertyChanged;
+        _chat.ConversationChanged += OnConversationChanged;
+        _chat.Attachments.CollectionChanged += OnAttachmentCollectionChanged;
+        _ = LoadProductionStateAsync(_chat, CancellationToken.None);
     }
 
     /// <summary>
@@ -157,13 +155,13 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private void DetachViewModel()
     {
-        if (_viewModel is not null)
+        if (_chat is not null)
         {
-            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-            _viewModel.ConversationChanged -= OnConversationChanged;
-            _viewModel.Attachments.CollectionChanged -= OnAttachmentCollectionChanged;
+            _chat.PropertyChanged -= OnViewModelPropertyChanged;
+            _chat.ConversationChanged -= OnConversationChanged;
+            _chat.Attachments.CollectionChanged -= OnAttachmentCollectionChanged;
         }
-        _viewModel = null;
+        _chat = null;
         _draftDebounce?.Cancel();
         _draftDebounce?.Dispose();
         _draftDebounce = null;
@@ -177,16 +175,16 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async void OnConversationChanged(object? sender, EventArgs e)
     {
-        if (_viewModel is null) return;
+        if (_chat is null) return;
         try
         {
-            if (_attachmentConversationId != Guid.Empty && _attachmentConversationId != _viewModel.ConversationId)
+            if (_attachmentConversationId != Guid.Empty && _attachmentConversationId != _chat.ConversationId)
             {
                 _attachmentIdsByPath.Clear();
                 _pendingAttachmentIds.Clear();
             }
-            await AssociatePendingAttachmentsAsync(_viewModel, CancellationToken.None);
-            await LoadProductionStateAsync(_viewModel, CancellationToken.None);
+            await AssociatePendingAttachmentsAsync(_chat, CancellationToken.None);
+            await LoadProductionStateAsync(_chat, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException)
         {
@@ -197,18 +195,18 @@ public sealed partial class ChatView : UserControl
     /// <summary>
     /// Performs load production state asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private async Task LoadProductionStateAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
+    private async Task LoadProductionStateAsync(ChatPage chat, CancellationToken cancellationToken)
     {
-        await _productionToolbar.LoadAsync(viewModel.ConversationId, cancellationToken);
-        await _messageTools.LoadAsync(viewModel.ConversationId, cancellationToken);
-        if (_production is null || viewModel.IsTemporary) return;
+        await _productionToolbar.LoadAsync(chat.ConversationId, cancellationToken);
+        await _messageTools.LoadAsync(chat.ConversationId, cancellationToken);
+        if (_production is null || chat.IsTemporary) return;
         try
         {
-            var branch = await _production.GetCurrentBranchAsync(viewModel.ConversationId, cancellationToken);
-            var draft = await _production.GetDraftAsync(viewModel.ConversationId, branch?.Id, cancellationToken);
-            if (draft is null || !string.IsNullOrWhiteSpace(viewModel.Composer)) return;
+            var branch = await _production.GetCurrentBranchAsync(chat.ConversationId, cancellationToken);
+            var draft = await _production.GetDraftAsync(chat.ConversationId, branch?.Id, cancellationToken);
+            if (draft is null || !string.IsNullOrWhiteSpace(chat.Composer)) return;
             _loadingDraft = true;
-            try { viewModel.Composer = draft.Content; }
+            try { chat.Composer = draft.Content; }
             finally { _loadingDraft = false; }
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
@@ -222,7 +220,7 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ChatPageViewModel.Composer) && !_loadingDraft)
+        if (e.PropertyName == nameof(ChatPage.Composer) && !_loadingDraft)
             ScheduleDraftSave();
     }
 
@@ -245,19 +243,19 @@ public sealed partial class ChatView : UserControl
         try
         {
             await Task.Delay(650, cancellationToken);
-            if (_viewModel is null || _production is null || _viewModel.IsTemporary) return;
-            await EnsureConversationSavedAsync(_viewModel, cancellationToken);
-            var branch = await _production.GetCurrentBranchAsync(_viewModel.ConversationId, cancellationToken)
-                         ?? await _production.EnsureRootBranchAsync(_viewModel.ConversationId, cancellationToken);
-            if (string.IsNullOrWhiteSpace(_viewModel.Composer) && _pendingAttachmentIds.Count == 0)
+            if (_chat is null || _production is null || _chat.IsTemporary) return;
+            await EnsureConversationSavedAsync(_chat, cancellationToken);
+            var branch = await _production.GetCurrentBranchAsync(_chat.ConversationId, cancellationToken)
+                         ?? await _production.EnsureRootBranchAsync(_chat.ConversationId, cancellationToken);
+            if (string.IsNullOrWhiteSpace(_chat.Composer) && _pendingAttachmentIds.Count == 0)
             {
-                await _production.DeleteDraftAsync(_viewModel.ConversationId, branch.Id, cancellationToken);
+                await _production.DeleteDraftAsync(_chat.ConversationId, branch.Id, cancellationToken);
                 return;
             }
             await _production.SaveDraftAsync(new ConversationDraft(
-                _viewModel.ConversationId,
+                _chat.ConversationId,
                 branch.Id,
-                _viewModel.Composer,
+                _chat.Composer,
                 JsonSerializer.Serialize(_pendingAttachmentIds),
                 DateTimeOffset.UtcNow), cancellationToken);
         }
@@ -271,27 +269,27 @@ public sealed partial class ChatView : UserControl
     /// <summary>
     /// Performs ensure conversation saved asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private async Task EnsureConversationSavedAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
+    private async Task EnsureConversationSavedAsync(ChatPage chat, CancellationToken cancellationToken)
     {
-        if (_conversations is null || viewModel.IsTemporary) return;
-        if (await _conversations.GetAsync(viewModel.ConversationId, cancellationToken) is not null) return;
+        if (_conversations is null || chat.IsTemporary) return;
+        if (await _conversations.GetAsync(chat.ConversationId, cancellationToken) is not null) return;
         var now = DateTimeOffset.UtcNow;
-        var kind = viewModel.Mode switch
+        var kind = chat.Mode switch
         {
             HavenMode.Chat => ConversationKind.Chat,
-            HavenMode.Teach when viewModel.SelectedLesson is null => ConversationKind.QuickChat,
+            HavenMode.Teach when chat.SelectedLesson is null => ConversationKind.QuickChat,
             HavenMode.Teach => ConversationKind.LessonChat,
             HavenMode.Do => ConversationKind.Task,
             HavenMode.Studio => ConversationKind.StudioChat,
             _ => ConversationKind.Chat
         };
         await _conversations.UpsertConversationAsync(new Conversation(
-            viewModel.ConversationId,
-            viewModel.Mode,
+            chat.ConversationId,
+            chat.Mode,
             kind,
-            viewModel.ConversationTitle,
-            viewModel.SelectedContainer?.Id,
-            viewModel.SelectedLesson?.Id,
+            chat.ConversationTitle,
+            chat.SelectedContainer?.Id,
+            chat.SelectedLesson?.Id,
             false,
             false,
             now,
@@ -303,8 +301,8 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async void OnBranchChanged(object? sender, EventArgs e)
     {
-        if (_viewModel is null) return;
-        await _viewModel.LoadConversationAsync(_viewModel.ConversationId, CancellationToken.None);
+        if (_chat is null) return;
+        await _chat.LoadConversationAsync(_chat.ConversationId, CancellationToken.None);
     }
 
     /// <summary>
@@ -312,14 +310,14 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private void OnProductionModelSelected(ModelDescriptor model)
     {
-        if (_viewModel is null) return;
-        var existing = _viewModel.Models.FirstOrDefault(item => item.Name.Equals(model.Name, StringComparison.OrdinalIgnoreCase));
+        if (_chat is null) return;
+        var existing = _chat.Models.FirstOrDefault(item => item.Name.Equals(model.Name, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
         {
-            _viewModel.Models.Add(model);
+            _chat.Models.Add(model);
             existing = model;
         }
-        _viewModel.SelectedModel = existing;
+        _chat.SelectedModel = existing;
     }
 
     /// <summary>
@@ -327,7 +325,7 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async void OnAttachClicked(object? sender, RoutedEventArgs e)
     {
-        if (_viewModel is null) return;
+        if (_chat is null) return;
         var top = TopLevel.GetTopLevel(this);
         if (top?.StorageProvider is null) return;
         var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -367,31 +365,31 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async Task ImportAttachmentsAsync(IEnumerable<string> sourcePaths)
     {
-        if (_viewModel is null) return;
+        if (_chat is null) return;
         var paths = sourcePaths.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (paths.Length == 0) return;
 
-        if (_attachmentService is null || _production is null || _paths is null || _viewModel.IsTemporary)
+        if (_attachmentService is null || _production is null || _paths is null || _chat.IsTemporary)
         {
-            _viewModel.AddAttachments(paths);
+            _chat.AddAttachments(paths);
             return;
         }
 
-        await EnsureConversationSavedAsync(_viewModel, CancellationToken.None);
-        var branch = await _production.GetCurrentBranchAsync(_viewModel.ConversationId, CancellationToken.None)
-                     ?? await _production.EnsureRootBranchAsync(_viewModel.ConversationId, CancellationToken.None);
-        _attachmentConversationId = _viewModel.ConversationId;
+        await EnsureConversationSavedAsync(_chat, CancellationToken.None);
+        var branch = await _production.GetCurrentBranchAsync(_chat.ConversationId, CancellationToken.None)
+                     ?? await _production.EnsureRootBranchAsync(_chat.ConversationId, CancellationToken.None);
+        _attachmentConversationId = _chat.ConversationId;
         foreach (var path in paths)
         {
             var attachment = await _attachmentService.ImportAsync(
-                _viewModel.ConversationId,
+                _chat.ConversationId,
                 null,
                 branch.Id,
                 path,
                 null,
                 CancellationToken.None);
             _pendingAttachmentIds.Add(attachment.Id);
-            await AddAttachmentRepresentationsAsync(_viewModel, attachment, CancellationToken.None);
+            await AddAttachmentRepresentationsAsync(_chat, attachment, CancellationToken.None);
         }
         ScheduleDraftSave();
     }
@@ -399,13 +397,13 @@ public sealed partial class ChatView : UserControl
     /// <summary>
     /// Performs add attachment representations asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private async Task AddAttachmentRepresentationsAsync(ChatPageViewModel viewModel, MessageAttachment attachment, CancellationToken cancellationToken)
+    private async Task AddAttachmentRepresentationsAsync(ChatPage chat, MessageAttachment attachment, CancellationToken cancellationToken)
     {
         if (_paths is null) return;
         var conversationDirectory = Path.Combine(_paths.AttachmentsDirectory, attachment.ConversationId.ToString("N"));
         var storedPath = Path.Combine(conversationDirectory, attachment.StoredName);
         if (attachment.Kind == MessageAttachmentKind.Image && File.Exists(storedPath))
-            AddMappedAttachment(viewModel, storedPath, attachment.Id);
+            AddMappedAttachment(chat, storedPath, attachment.Id);
 
         if (attachment.Kind == MessageAttachmentKind.Video)
         {
@@ -413,7 +411,7 @@ public sealed partial class ChatView : UserControl
             {
                 var framePath = Path.GetFullPath(Path.Combine(conversationDirectory, relativePath));
                 if (IsInside(framePath, conversationDirectory) && File.Exists(framePath))
-                    AddMappedAttachment(viewModel, framePath, attachment.Id);
+                    AddMappedAttachment(chat, framePath, attachment.Id);
             }
         }
 
@@ -431,18 +429,18 @@ public sealed partial class ChatView : UserControl
             if (!string.IsNullOrWhiteSpace(attachment.ExtractedText))
                 builder.AppendLine().AppendLine("Extracted content:").AppendLine(attachment.ExtractedText);
             await File.WriteAllTextAsync(contextPath, builder.ToString(), new UTF8Encoding(false), cancellationToken);
-            AddMappedAttachment(viewModel, contextPath, attachment.Id);
+            AddMappedAttachment(chat, contextPath, attachment.Id);
         }
     }
 
     /// <summary>
     /// Performs the add mapped attachment step owned by this component.
     /// </summary>
-    private void AddMappedAttachment(ChatPageViewModel viewModel, string path, Guid attachmentId)
+    private void AddMappedAttachment(ChatPage chat, string path, Guid attachmentId)
     {
-        if (viewModel.Attachments.Any(item => item.Path.Equals(path, StringComparison.OrdinalIgnoreCase))) return;
+        if (chat.Attachments.Any(item => item.Path.Equals(path, StringComparison.OrdinalIgnoreCase))) return;
         _attachmentIdsByPath[path] = attachmentId;
-        viewModel.AddAttachment(path);
+        chat.AddAttachment(path);
     }
 
     /// <summary>
@@ -450,7 +448,7 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async void OnAttachmentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (_suppressAttachmentCleanup || _viewModel is null || _viewModel.IsSending || _attachmentService is null || e.OldItems is null) return;
+        if (_suppressAttachmentCleanup || _chat is null || _chat.IsSending || _attachmentService is null || e.OldItems is null) return;
         try
         {
             var removedIds = e.OldItems.OfType<AttachmentItemViewModel>()
@@ -463,8 +461,8 @@ public sealed partial class ChatView : UserControl
             _suppressAttachmentCleanup = true;
             foreach (var id in removedIds)
             {
-                foreach (var remaining in _viewModel.Attachments.Where(item => _attachmentIdsByPath.TryGetValue(item.Path, out var mapped) && mapped == id).ToArray())
-                    _viewModel.Attachments.Remove(remaining);
+                foreach (var remaining in _chat.Attachments.Where(item => _attachmentIdsByPath.TryGetValue(item.Path, out var mapped) && mapped == id).ToArray())
+                    _chat.Attachments.Remove(remaining);
                 foreach (var path in _attachmentIdsByPath.Where(pair => pair.Value == id).Select(pair => pair.Key).ToArray())
                     _attachmentIdsByPath.Remove(path);
                 _pendingAttachmentIds.Remove(id);
@@ -485,19 +483,19 @@ public sealed partial class ChatView : UserControl
     /// <summary>
     /// Performs associate pending attachments asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private async Task AssociatePendingAttachmentsAsync(ChatPageViewModel viewModel, CancellationToken cancellationToken)
+    private async Task AssociatePendingAttachmentsAsync(ChatPage chat, CancellationToken cancellationToken)
     {
-        if (_production is null || _conversations is null || _pendingAttachmentIds.Count == 0 || viewModel.IsTemporary || viewModel.Attachments.Count > 0) return;
-        var messages = await _conversations.GetMessagesAsync(viewModel.ConversationId, cancellationToken);
+        if (_production is null || _conversations is null || _pendingAttachmentIds.Count == 0 || chat.IsTemporary || chat.Attachments.Count > 0) return;
+        var messages = await _conversations.GetMessagesAsync(chat.ConversationId, cancellationToken);
         var userMessage = messages.LastOrDefault(item => item.Role == MessageRole.User);
         if (userMessage is null) return;
-        var attachments = await _production.GetAttachmentsAsync(viewModel.ConversationId, null, cancellationToken);
+        var attachments = await _production.GetAttachmentsAsync(chat.ConversationId, null, cancellationToken);
         foreach (var attachment in attachments.Where(item => _pendingAttachmentIds.Contains(item.Id)))
             await _production.UpsertAttachmentAsync(attachment with { MessageId = userMessage.Id, UpdatedAt = DateTimeOffset.UtcNow }, cancellationToken);
         _pendingAttachmentIds.Clear();
         _attachmentIdsByPath.Clear();
-        var branch = await _production.GetCurrentBranchAsync(viewModel.ConversationId, cancellationToken);
-        await _production.DeleteDraftAsync(viewModel.ConversationId, branch?.Id, cancellationToken);
+        var branch = await _production.GetCurrentBranchAsync(chat.ConversationId, cancellationToken);
+        await _production.DeleteDraftAsync(chat.ConversationId, branch?.Id, cancellationToken);
     }
 
     /// <summary>
@@ -505,7 +503,7 @@ public sealed partial class ChatView : UserControl
     /// </summary>
     private async void OnComposerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_viewModel is null || sender is not TextBox textBox) return;
+        if (_chat is null || sender is not TextBox textBox) return;
         if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             e.Handled = true;
@@ -519,14 +517,14 @@ public sealed partial class ChatView : UserControl
         _enterDebounce?.Cancel();
         _enterDebounce?.Dispose();
         _enterDebounce = new CancellationTokenSource();
-        var snapshot = _viewModel.Composer;
+        var snapshot = _chat.Composer;
         try
         {
             await Task.Delay(80, _enterDebounce.Token);
-            if (_viewModel.Composer != snapshot || string.IsNullOrWhiteSpace(snapshot)) return;
+            if (_chat.Composer != snapshot || string.IsNullOrWhiteSpace(snapshot)) return;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_viewModel.SendCommand.CanExecute(null)) _viewModel.SendCommand.Execute(null);
+                if (_chat.SendCommand.CanExecute(null)) _chat.SendCommand.Execute(null);
             });
         }
         catch (OperationCanceledException) { }
@@ -538,7 +536,7 @@ public sealed partial class ChatView : UserControl
     private async Task PasteIntoComposerAsync(TextBox textBox)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is null || _viewModel is null) return;
+        if (clipboard is null || _chat is null) return;
         var files = await clipboard.TryGetFilesAsync();
         var paths = files?.OfType<IStorageFile>().Select(item => item.TryGetLocalPath()).OfType<string>().ToArray() ?? [];
         if (paths.Length > 0)
@@ -554,7 +552,7 @@ public sealed partial class ChatView : UserControl
             Directory.CreateDirectory(pasteDirectory);
             var path = Path.Combine(pasteDirectory, "clipboard-" + Guid.NewGuid().ToString("N") + ".png");
             bitmap.Save(path);
-            var keepTemporaryCopy = _viewModel.IsTemporary;
+            var keepTemporaryCopy = _chat.IsTemporary;
             try { await ImportAttachmentsAsync([path]); }
             finally
             {
@@ -569,10 +567,10 @@ public sealed partial class ChatView : UserControl
 
         var text = await clipboard.TryGetTextAsync();
         if (text is null) return;
-        var current = _viewModel.Composer;
+        var current = _chat.Composer;
         var start = Math.Clamp(Math.Min(textBox.SelectionStart, textBox.SelectionEnd), 0, current.Length);
         var end = Math.Clamp(Math.Max(textBox.SelectionStart, textBox.SelectionEnd), start, current.Length);
-        _viewModel.Composer = current[..start] + text + current[end..];
+        _chat.Composer = current[..start] + text + current[end..];
         textBox.CaretIndex = start + text.Length;
     }
 
@@ -605,12 +603,12 @@ public sealed partial class ChatView : UserControl
     /// <summary>Resumes chat after the message panel prepares a response regeneration branch.</summary>
     private async void OnMessageRegenerationRequested(string prompt)
     {
-        if (_viewModel is null) return;
+        if (_chat is null) return;
         try
         {
-            await _viewModel.LoadConversationAsync(_viewModel.ConversationId, CancellationToken.None);
-            _viewModel.Composer = prompt;
-            if (_viewModel.SendCommand.CanExecute(null)) _viewModel.SendCommand.Execute(null);
+            await _chat.LoadConversationAsync(_chat.ConversationId, CancellationToken.None);
+            _chat.Composer = prompt;
+            if (_chat.SendCommand.CanExecute(null)) _chat.SendCommand.Execute(null);
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
         {

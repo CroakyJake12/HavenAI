@@ -140,8 +140,8 @@ public sealed class NotesWorkspaceTests : IDisposable
             var editor = NotesBlockEditorFactory.Build(
                 viewModel,
                 block,
-                viewModel.BeginBlockEdit,
-                viewModel.CommitBlockEdit,
+                viewModel.BeginBlockEditAsync,
+                viewModel.CommitBlockEditAsync,
                 () => { },
                 () => Task.CompletedTask);
             var window = new Window { Content = editor };
@@ -168,9 +168,9 @@ public sealed class NotesWorkspaceTests : IDisposable
         var viewModel = CreateViewModel(diagnostics, ProposalResponse());
         await viewModel.InitializeAsync(CancellationToken.None);
         var block = viewModel.SelectedBlock!;
-        viewModel.BeginBlockEdit(block);
+        await viewModel.BeginBlockEditAsync(block);
         viewModel.UpdateBlockText(block, "Changed locally");
-        viewModel.CommitBlockEdit(block, "Changed locally");
+        await viewModel.CommitBlockEditAsync(block, "Changed locally");
         Assert.True(viewModel.UndoCommand.CanExecute(null));
 
         viewModel.UndoCommand.Execute(null);

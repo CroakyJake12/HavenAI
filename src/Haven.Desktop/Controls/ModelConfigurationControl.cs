@@ -18,12 +18,14 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Chat;
+using Haven.Desktop.Views.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Controls;
 
 /// <summary>
-/// One compact prompt-bar control for model selection, effort, generation options and
+/// One compact instruction-bar control for model selection, effort, generation options and
 /// corrective recovery actions. It reuses the live ChatPageViewModel so Generative UI
 /// can move the control without copying or bypassing chat behaviour.
 /// </summary>
@@ -95,11 +97,11 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// <summary>
     /// Stores chat locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private ChatPageViewModel? _chat;
+    private ChatPage? _chat;
     /// <summary>
     /// Stores shell locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private MainWindowViewModel? _shell;
+    private MainView? _shell;
     /// <summary>
     /// Stores subscribed source locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -564,7 +566,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 new TextBlock { Text = "MODEL", FontWeight = FontWeight.SemiBold, FontSize = 11 },
                 new TextBlock
                 {
-                    Text = "Full provider and model names are retained here. The prompt bar uses a shorter display name only.",
+                    Text = "Full provider and model names are retained here. The instruction bar uses a shorter display name only.",
                     Classes = { "muted" },
                     FontSize = 10,
                     TextWrapping = TextWrapping.Wrap
@@ -648,8 +650,8 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     private void AttachContext()
     {
         DetachContext();
-        _shell = DataContext as MainWindowViewModel;
-        _chat = DataContext as ChatPageViewModel ?? _shell?.CurrentChat;
+        _shell = DataContext as MainView;
+        _chat = DataContext as ChatPage ?? _shell?.CurrentChat;
         if (_shell is INotifyPropertyChanged shellNotifications)
         {
             _subscribedSource = shellNotifications;
@@ -682,16 +684,16 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// </summary>
     private void OnSourcePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (sender is MainWindowViewModel && e.PropertyName == nameof(MainWindowViewModel.CurrentChat))
+        if (sender is MainView && e.PropertyName == nameof(MainView.CurrentChat))
         {
             AttachContext();
             return;
         }
-        if (e.PropertyName is not (nameof(ChatPageViewModel.SelectedModel) or nameof(ChatPageViewModel.SelectedEffort)))
+        if (e.PropertyName is not (nameof(ChatPage.SelectedModel) or nameof(ChatPage.SelectedEffort)))
             return;
-        if (e.PropertyName == nameof(ChatPageViewModel.SelectedModel) && _chat?.SelectedModel is { } selected)
+        if (e.PropertyName == nameof(ChatPage.SelectedModel) && _chat?.SelectedModel is { } selected)
             RecordRecentModel(selected.Name);
-        if (!_updatingEffort && e.PropertyName == nameof(ChatPageViewModel.SelectedEffort))
+        if (!_updatingEffort && e.PropertyName == nameof(ChatPage.SelectedEffort))
             _effortPercent = PercentageForEffort(_chat?.SelectedEffort ?? EffortLevel.Medium);
         RefreshSummary();
     }
@@ -714,7 +716,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// <summary>
     /// Performs the resolve chat step owned by this component.
     /// </summary>
-    private ChatPageViewModel? ResolveChat()
+    private ChatPage? ResolveChat()
     {
         if (_shell is not null && !ReferenceEquals(_chat, _shell.CurrentChat))
         {

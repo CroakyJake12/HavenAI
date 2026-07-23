@@ -1,0 +1,328 @@
+using System;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Haven.Desktop.Controls;
+
+namespace Haven.Desktop.Views.Shell.TopRail;
+
+/// <summary>
+/// Slide-in notification panel anchored to the right edge of the window.
+/// Opens when the bell icon is clicked and displays priority and unread
+/// notification sections with search and settings.
+/// </summary>
+public sealed class NotificationCentre : Grid, IDisposable
+{
+    private readonly Border _panel;
+    private readonly TextBox _searchBox;
+    private readonly StackPanel _prioritySection;
+    private readonly StackPanel _unreadSection;
+    private readonly StackPanel _priorityItems;
+    private readonly StackPanel _unreadItems;
+    private readonly TextBlock _emptyState;
+    private readonly Button _settingsButton;
+    private bool _isOpen;
+    private bool _disposed;
+
+    public NotificationCentre()
+    {
+        IsHitTestVisible = false;
+
+        _searchBox = new TextBox { PlaceholderText = "Search notifications", MinWidth = 260 };
+        _searchBox.TextChanged += OnSearchChanged;
+
+        _priorityItems = new StackPanel { Spacing = 6 };
+        _unreadItems = new StackPanel { Spacing = 6 };
+
+        _prioritySection = BuildSection("Priority", _priorityItems);
+        _unreadSection = BuildSection("Unread", _unreadItems);
+
+        _emptyState = new TextBlock
+        {
+            Text = "No notifications",
+            Classes = { "muted" },
+            FontSize = 12,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 24, 0, 0),
+            IsVisible = false
+        };
+
+        _settingsButton = new Button
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                ColumnSpacing = 10,
+                Children =
+                {
+                    new HavenIcon { IconKey = "settings", Width = 16, Height = 16, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center },
+                    new TextBlock { Text = "Notification Settings", FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center }
+                }
+            }
+        };
+        _settingsButton.Classes.Add("sidebar");
+        _settingsButton.Click += (_, _) => SettingsClicked?.Invoke(this, EventArgs.Empty);
+
+        var header = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(0, 0, 0, 6),
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = "Notifications",
+                    FontSize = 18,
+                    FontWeight = FontWeight.SemiBold,
+                    VerticalAlignment = VerticalAlignment.Center
+                },
+            }
+        };
+
+        var closeBtn = new Button
+        {
+            Content = new HavenIcon { IconKey = "close", Width = 14, Height = 14 },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(6)
+        };
+        closeBtn.Classes.Add("chrome");
+        closeBtn.Click += (_, _) => Close();
+        Grid.SetColumn(closeBtn, 1);
+        header.Children.Add(closeBtn);
+
+        var content = new StackPanel
+        {
+            Width = 380,
+            Spacing = 10,
+            Margin = new Thickness(16),
+            Children =
+            {
+                header,
+                _searchBox,
+                new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                    Content = new StackPanel
+                    {
+                        Spacing = 14,
+                        Children = { _prioritySection, _unreadSection, _emptyState }
+                    }
+                },
+                new Border { Height = 1, Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
+                _settingsButton
+            }
+        };
+
+        _panel = new Border
+        {
+            Width = 400,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Background = new SolidColorBrush(Color.FromArgb(250, 22, 22, 25)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)),
+            BorderThickness = new Thickness(1, 0, 0, 0),
+            ClipToBounds = true,
+            Child = content,
+            Opacity = 0,
+            RenderTransform = new TranslateTransform(400, 0)
+        };
+
+        Children.Add(_panel);
+    }
+
+    /// <summary>
+    /// Raised when the user clicks "Notification Settings".
+    /// </summary>
+    public event EventHandler? SettingsClicked;
+
+    /// <summary>
+    /// Returns whether the panel is currently open.
+    /// </summary>
+    public bool IsOpen => _isOpen;
+
+    /// <summary>
+    /// Opens the notification centre with a slide-in animation.
+    /// </summary>
+    public void Open()
+    {
+        if (_isOpen) return;
+        _isOpen = true;
+        IsHitTestVisible = true;
+        _panel.Opacity = 1;
+        _panel.RenderTransform = new TranslateTransform(0, 0);
+    }
+
+    /// <summary>
+    /// Closes the notification centre with a slide-out animation.
+    /// </summary>
+    public void Close()
+    {
+        if (!_isOpen) return;
+        _isOpen = false;
+        _panel.Opacity = 0;
+        _panel.RenderTransform = new TranslateTransform(400, 0);
+        IsHitTestVisible = false;
+    }
+
+    /// <summary>
+    /// Toggles the panel open or closed.
+    /// </summary>
+    public void Toggle() { if (_isOpen) Close(); else Open(); }
+
+    /// <summary>
+    /// Adds a priority notification to the panel.
+    /// </summary>
+    public void AddPriorityNotification(string title, string source, string iconKey = "info")
+    {
+        _priorityItems.Children.Add(BuildNotificationItem(title, source, iconKey, isPriority: true));
+        UpdateEmptyState();
+    }
+
+    /// <summary>
+    /// Adds an unread notification to the panel.
+    /// </summary>
+    public void AddUnreadNotification(string title, string source, string iconKey = "info")
+    {
+        _unreadItems.Children.Add(BuildNotificationItem(title, source, iconKey, isPriority: false));
+        UpdateEmptyState();
+    }
+
+    /// <summary>
+    /// Clears all notifications.
+    /// </summary>
+    public void ClearAll()
+    {
+        _priorityItems.Children.Clear();
+        _unreadItems.Children.Clear();
+        UpdateEmptyState();
+    }
+
+    private static StackPanel BuildSection(string title, StackPanel items)
+    {
+        return new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = title.ToUpperInvariant(),
+                    Classes = { "eyebrow" },
+                    FontSize = 10,
+                    Margin = new Thickness(2, 0, 0, 4)
+                },
+                items
+            }
+        };
+    }
+
+    private Border BuildNotificationItem(string title, string source, string iconKey, bool isPriority)
+    {
+        var icon = new HavenIcon
+        {
+            IconKey = iconKey,
+            Width = 18,
+            Height = 18,
+            Opacity = 0.8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var dismissBtn = new Button
+        {
+            Content = new HavenIcon { IconKey = "close", Width = 12, Height = 12 },
+            Padding = new Thickness(4),
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center
+        };
+        dismissBtn.Classes.Add("chrome");
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 10,
+        };
+        grid.Children.Add(icon);
+
+        var textStack = new StackPanel
+        {
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children =
+            {
+                new TextBlock { Text = title, FontWeight = FontWeight.SemiBold, FontSize = 13, TextWrapping = TextWrapping.Wrap },
+                new TextBlock
+                {
+                    Text = source,
+                    Classes = { "muted" },
+                    FontSize = 10,
+                    Margin = new Thickness(0, 1, 0, 0)
+                }
+            }
+        };
+        Grid.SetColumn(textStack, 1);
+        grid.Children.Add(textStack);
+
+        Grid.SetColumn(dismissBtn, 2);
+        grid.Children.Add(dismissBtn);
+
+        var border = new Border
+        {
+            Padding = new Thickness(10, 8),
+            CornerRadius = new CornerRadius(10),
+            Background = isPriority
+                ? new SolidColorBrush(Color.FromArgb(30, 255, 180, 50))
+                : new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Child = grid
+        };
+
+        dismissBtn.Click += (_, _) =>
+        {
+            var parent = border.Parent as Panel;
+            parent?.Children.Remove(border);
+            UpdateEmptyState();
+        };
+
+        return border;
+    }
+
+    private void UpdateEmptyState()
+    {
+        _emptyState.IsVisible = _priorityItems.Children.Count == 0 && _unreadItems.Children.Count == 0;
+    }
+
+    private void OnSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        var query = _searchBox.Text?.Trim() ?? string.Empty;
+        FilterSection(_priorityItems, query);
+        FilterSection(_unreadItems, query);
+    }
+
+    private static void FilterSection(StackPanel items, string query)
+    {
+        foreach (var child in items.Children.OfType<Border>())
+        {
+            if (child.Child is Grid grid)
+            {
+                var titleBlock = grid.Children.OfType<StackPanel>().FirstOrDefault()
+                    ?.Children.OfType<TextBlock>().FirstOrDefault();
+                var title = titleBlock?.Text ?? string.Empty;
+                child.IsVisible = string.IsNullOrWhiteSpace(query) ||
+                                  title.Contains(query, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _searchBox.TextChanged -= OnSearchChanged;
+    }
+}

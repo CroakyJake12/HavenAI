@@ -110,7 +110,7 @@ public sealed class NotesMediaAiReviewTests : IDisposable
             CancellationToken.None);
         var persisted = Assert.IsType<NotesAiChange>(
             NotesMediaAiReview.FindPending(workspace.Document!, block.Id, NotesMediaAiTarget.Transcript));
-        NotesMediaAiReview.Reject(workspace, block, persisted);
+        await NotesMediaAiReview.RejectAsync(workspace, block, persisted);
 
         Assert.Equal("Original rough transcript.", NotesMediaTransformStore.Load(block).Transcript);
         Assert.Equal(NotesAiChangeStatus.Rejected, persisted.Status);

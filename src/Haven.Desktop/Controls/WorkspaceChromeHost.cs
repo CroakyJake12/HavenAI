@@ -84,6 +84,12 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
         if (tabStrip is not null) root.Children.Remove(tabStrip);
         if (headerBorder is not null) root.Children.Remove(headerBorder);
 
+        // Remove the background border that blocks the custom backdrop
+        var backgroundBorder = root.Children
+            .OfType<Border>()
+            .FirstOrDefault(border => Grid.GetRowSpan(border) > 1 && border.IsHitTestVisible == false);
+        if (backgroundBorder is not null) root.Children.Remove(backgroundBorder);
+
         // The original page/content area already occupies row 2. Collapsing the detached
         // rows lets it fill the workspace while preserving all existing overlays and bindings.
         root.RowDefinitions = new RowDefinitions("0,0,*");

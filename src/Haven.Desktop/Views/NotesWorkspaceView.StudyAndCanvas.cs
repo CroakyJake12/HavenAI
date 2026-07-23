@@ -67,7 +67,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void ApplyDocumentLayoutSurface(NotesDocument document)
     {
-        if (_viewModel.CurrentPage is null || _viewModel.CurrentSection is null) return;
+        if (_page.CurrentPage is null || _page.CurrentSection is null) return;
         _blocksPanel.Width = double.NaN;
         _blocksPanel.MaxWidth = double.PositiveInfinity;
         _blocksPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -81,24 +81,24 @@ public sealed partial class NotesWorkspaceView
         var surface = document.LayoutMode switch
         {
             NotesLayoutMode.Paginated => NotesDocumentLayoutSurface.BuildPaginated(
-                _viewModel,
+                _page,
                 advanced,
-                BeginEditing,
-                EndEditing,
+                BeginEditingAsync,
+                EndEditingAsync,
                 QueueRefresh,
                 ImportMediaAsync),
             NotesLayoutMode.Freeform => NotesDocumentLayoutSurface.BuildFreeform(
-                _viewModel,
+                _page,
                 infinite: false,
-                BeginEditing,
-                EndEditing,
+                BeginEditingAsync,
+                EndEditingAsync,
                 QueueRefresh,
                 ImportMediaAsync),
             NotesLayoutMode.InfiniteCanvas => NotesDocumentLayoutSurface.BuildFreeform(
-                _viewModel,
+                _page,
                 infinite: true,
-                BeginEditing,
-                EndEditing,
+                BeginEditingAsync,
+                EndEditingAsync,
                 QueueRefresh,
                 ImportMediaAsync),
             _ => throw new ArgumentOutOfRangeException(nameof(document.LayoutMode))
@@ -121,7 +121,7 @@ public sealed partial class NotesWorkspaceView
         var label = new TextBox { PlaceholderText = "Displayed label" };
         var add = ActionButton("Add cross-reference", () =>
         {
-            if (_viewModel.SelectedBlock is not { } source
+            if (_page.SelectedBlock is not { } source
                 || target.SelectedIndex < 0
                 || target.SelectedIndex >= blocks.Length)
                 return Task.CompletedTask;
@@ -154,7 +154,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildEquationProductivity(NotesDocument document)
     {
-        var selectedBlock = _viewModel.SelectedBlock;
+        var selectedBlock = _page.SelectedBlock;
         var equation = selectedBlock?.Equation;
         var templates = NotesEquationTools.Templates.ToArray();
         var template = new ComboBox
@@ -171,16 +171,15 @@ public sealed partial class NotesWorkspaceView
             foreach (var symbol in NotesEquationTools.SearchSymbols(_equationSymbolQuery).Take(40))
             {
                 var value = symbol;
-                symbols.Children.Add(ActionButton(value.Glyph + " " + value.Command, () =>
+                symbols.Children.Add(ActionButton(value.Glyph + " " + value.Command, async () =>
                 {
-                    if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
-                    _viewModel.UpdateEquation(
+                    if (selectedBlock?.Equation is not { } selectedEquation) return;
+                    await _page.UpdateEquationAsync(
                         selectedBlock,
                         selectedEquation.Source + value.Command,
                         selectedEquation.ViewMode,
                         selectedEquation.AccessibleAlternative);
                     RefreshAll();
-                    return Task.CompletedTask;
                 }, value.Name + " · " + value.Category));
             }
         }
@@ -192,30 +191,28 @@ public sealed partial class NotesWorkspaceView
         RebuildSymbols();
 
         var actions = new WrapPanel();
-        actions.Children.Add(ActionButton("Insert template", () =>
+        actions.Children.Add(ActionButton("Insert template", async () =>
         {
             if (selectedBlock?.Equation is not { } selectedEquation
                 || template.SelectedIndex < 0
                 || template.SelectedIndex >= templates.Length)
-                return Task.CompletedTask;
+                return;
             var selected = templates[template.SelectedIndex];
             var source = string.IsNullOrWhiteSpace(selectedEquation.Source)
                 ? selected.Latex
                 : selectedEquation.Source + " " + selected.Latex;
-            _viewModel.UpdateEquation(selectedBlock, source, selectedEquation.ViewMode, selectedEquation.AccessibleAlternative);
+            await _page.UpdateEquationAsync(selectedBlock, source, selectedEquation.ViewMode, selectedEquation.AccessibleAlternative);
             RefreshAll();
-            return Task.CompletedTask;
         }, "Insert a source-preserving equation template"));
-        actions.Children.Add(ActionButton("Expand input", () =>
+        actions.Children.Add(ActionButton("Expand input", async () =>
         {
-            if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
-            _viewModel.UpdateEquation(
+            if (selectedBlock?.Equation is not { } selectedEquation) return;
+            await _page.UpdateEquationAsync(
                 selectedBlock,
                 NotesEquationTools.ExpandIntelligentInput(selectedEquation.Source),
                 selectedEquation.ViewMode,
                 selectedEquation.AccessibleAlternative);
             RefreshAll();
-            return Task.CompletedTask;
         }, "Expand exact intelligent-input shortcuts such as sqrt, sum, int and alpha"));
         actions.Children.Add(ActionButton("Save to library", () =>
         {
@@ -236,9 +233,9 @@ public sealed partial class NotesWorkspaceView
 
         var macroName = new TextBox { PlaceholderText = @"Macro name, e.g. \R", IsEnabled = equation is not null };
         var macroValue = new TextBox { PlaceholderText = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
-        var addMacro = ActionButton("Add macro", () =>
+        var addMacro = ActionButton("Add macro", async () =>
         {
-            if (selectedBlock?.Equation is not { } selectedEquation) return Task.CompletedTask;
+            if (selectedBlock?.Equation is not { } selectedEquation) return;
             var name = macroName.Text?.Trim() ?? string.Empty;
             var candidate = new Dictionary<string, string>(selectedEquation.Macros, StringComparer.Ordinal)
             {
@@ -248,13 +245,12 @@ public sealed partial class NotesWorkspaceView
             if (errors.Count > 0)
             {
                 _status.Text = string.Join(" ", errors);
-                return Task.CompletedTask;
+                return;
             }
-            _viewModel.BeginBlockEdit(selectedBlock);
+            await _page.BeginBlockEditAsync(selectedBlock);
             selectedEquation.Macros = candidate;
-            _viewModel.CommitBlockEdit(selectedBlock, "Added equation macro " + name);
+            await _page.CommitBlockEditAsync(selectedBlock, "Added equation macro " + name);
             RefreshAll();
-            return Task.CompletedTask;
         }, "Add a validated equation macro");
         addMacro.IsEnabled = equation is not null;
         RefreshEquationLibrary(document);
@@ -293,7 +289,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildCanvasProductivity(NotesDocument document)
     {
-        var selectedBlock = _viewModel.SelectedBlock;
+        var selectedBlock = _page.SelectedBlock;
         var canvas = selectedBlock?.Canvas;
         if (canvas is null)
         {
@@ -334,44 +330,42 @@ public sealed partial class NotesWorkspaceView
         }
         selected.SelectionChanged += (_, _) => LoadSelection();
         LoadSelection();
-        var apply = ActionButton("Apply geometry", () =>
+        var apply = ActionButton("Apply geometry", async () =>
         {
             if (!ready || selected.SelectedIndex < 0 || selected.SelectedIndex >= objects.Length || selectedBlock is null)
-                return Task.CompletedTask;
+                return;
             var value = objects[selected.SelectedIndex];
-            _viewModel.BeginBlockEdit(selectedBlock);
+            await _page.BeginBlockEditAsync(selectedBlock);
             var wasLocked = value.Locked;
             value.Locked = false;
             NotesCanvasOperations.Move(value, (double)(x.Value ?? 0), (double)(y.Value ?? 0), (double)(grid.Value ?? 0));
             NotesCanvasOperations.Resize(value, (double)(width.Value ?? 160), (double)(height.Value ?? 100), (double)(grid.Value ?? 0));
             NotesCanvasOperations.Rotate(value, (double)(rotation.Value ?? 0));
             value.Locked = locked.IsChecked == true || wasLocked && locked.IsChecked != false;
-            _viewModel.CommitBlockEdit(selectedBlock, "Changed canvas object geometry");
+            await _page.CommitBlockEditAsync(selectedBlock, "Changed canvas object geometry");
             RefreshAll();
-            return Task.CompletedTask;
         }, "Apply snapped position, size, rotation and lock state");
 
         var from = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
         var to = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
         var connectorLabel = new TextBox { PlaceholderText = "Connector label" };
-        var connect = ActionButton("Connect objects", () =>
+        var connect = ActionButton("Connect objects", async () =>
         {
             if (selectedBlock is null
                 || from.SelectedIndex < 0 || to.SelectedIndex < 0
                 || from.SelectedIndex >= objects.Length || to.SelectedIndex >= objects.Length)
-                return Task.CompletedTask;
+                return;
             var first = objects[from.SelectedIndex];
             var second = objects[to.SelectedIndex];
             if (first.Id == second.Id)
             {
                 _status.Text = "A canvas object cannot connect to itself.";
-                return Task.CompletedTask;
+                return;
             }
-            _viewModel.BeginBlockEdit(selectedBlock);
+            await _page.BeginBlockEditAsync(selectedBlock);
             canvas.Objects.Add(CreateSafeConnector(first, second, connectorLabel.Text ?? string.Empty, canvas.Objects.Count));
-            _viewModel.CommitBlockEdit(selectedBlock, "Connected canvas objects");
+            await _page.CommitBlockEditAsync(selectedBlock, "Connected canvas objects");
             RefreshAll();
-            return Task.CompletedTask;
         }, "Create a validator-safe editable connector");
 
         var bookmarkName = new TextBox { PlaceholderText = "Spatial bookmark name" };
@@ -379,7 +373,7 @@ public sealed partial class NotesWorkspaceView
         {
             MutateAdvancedState(document, state => state.CanvasBookmarks.Add(new NotesCanvasBookmarkEntry
             {
-                PageId = _viewModel.CurrentPage?.Id ?? Guid.Empty,
+                PageId = _page.CurrentPage?.Id ?? Guid.Empty,
                 Name = string.IsNullOrWhiteSpace(bookmarkName.Text)
                     ? "Canvas view " + (state.CanvasBookmarks.Count + 1)
                     : bookmarkName.Text.Trim(),
@@ -391,23 +385,21 @@ public sealed partial class NotesWorkspaceView
             return Task.CompletedTask;
         }, "Save current pan and zoom in the native document");
         var grouping = new WrapPanel();
-        grouping.Children.Add(ActionButton("Group unlocked", () =>
+        grouping.Children.Add(ActionButton("Group unlocked", async () =>
         {
-            if (selectedBlock is null) return Task.CompletedTask;
-            _viewModel.BeginBlockEdit(selectedBlock);
+            if (selectedBlock is null) return;
+            await _page.BeginBlockEditAsync(selectedBlock);
             NotesCanvasOperations.Group(canvas.Objects.Where(value => !value.Locked));
-            _viewModel.CommitBlockEdit(selectedBlock, "Grouped canvas objects");
+            await _page.CommitBlockEditAsync(selectedBlock, "Grouped canvas objects");
             RefreshAll();
-            return Task.CompletedTask;
         }, "Group unlocked canvas objects"));
-        grouping.Children.Add(ActionButton("Ungroup all", () =>
+        grouping.Children.Add(ActionButton("Ungroup all", async () =>
         {
-            if (selectedBlock is null) return Task.CompletedTask;
-            _viewModel.BeginBlockEdit(selectedBlock);
+            if (selectedBlock is null) return;
+            await _page.BeginBlockEditAsync(selectedBlock);
             NotesCanvasOperations.Ungroup(canvas.Objects);
-            _viewModel.CommitBlockEdit(selectedBlock, "Ungrouped canvas objects");
+            await _page.CommitBlockEditAsync(selectedBlock, "Ungrouped canvas objects");
             RefreshAll();
-            return Task.CompletedTask;
         }, "Remove group IDs from unlocked objects"));
         var bounds = NotesCanvasOperations.Bounds(canvas.Objects);
         RefreshCanvasBookmarks(document, canvas);
@@ -445,7 +437,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildStudyProductivity(NotesDocument document)
     {
-        var selectedBlock = _viewModel.SelectedBlock;
+        var selectedBlock = _page.SelectedBlock;
         var card = selectedBlock?.Flashcard;
         var state = LoadAdvancedState(document);
         var dailyTarget = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.DailyTarget };
@@ -625,13 +617,12 @@ public sealed partial class NotesWorkspaceView
                 Classes = { "muted" },
                 FontSize = 9
             });
-            row.Children.Add(WithColumn(ActionButton("Insert", () =>
+            row.Children.Add(WithColumn(ActionButton("Insert", async () =>
             {
-                var block = _viewModel.SelectedBlock;
-                if (block?.Equation is not { } equation) return Task.CompletedTask;
-                _viewModel.UpdateEquation(block, entry.Latex, equation.ViewMode, equation.AccessibleAlternative);
+                var block = _page.SelectedBlock;
+                if (block?.Equation is not { } equation) return;
+                await _page.UpdateEquationAsync(block, entry.Latex, equation.ViewMode, equation.AccessibleAlternative);
                 RefreshAll();
-                return Task.CompletedTask;
             }, "Insert this saved equation"), 1));
             row.Children.Add(WithColumn(ActionButton("×", () =>
             {
@@ -655,23 +646,22 @@ public sealed partial class NotesWorkspaceView
     private void RefreshCanvasBookmarks(NotesDocument document, NotesCanvasData canvas)
     {
         _canvasBookmarksPanel.Children.Clear();
-        var pageId = _viewModel.CurrentPage?.Id;
+        var pageId = _page.CurrentPage?.Id;
         var state = LoadAdvancedState(document);
         foreach (var bookmark in state.CanvasBookmarks.Where(value => value.PageId == pageId))
         {
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
             row.Children.Add(new TextBlock { Text = bookmark.Name + $" · {bookmark.Zoom:P0}", Classes = { "muted" }, FontSize = 9 });
-            row.Children.Add(WithColumn(ActionButton("Open", () =>
+            row.Children.Add(WithColumn(ActionButton("Open", async () =>
             {
-                var block = _viewModel.SelectedBlock;
-                if (block?.Canvas is null) return Task.CompletedTask;
-                _viewModel.BeginBlockEdit(block);
+                var block = _page.SelectedBlock;
+                if (block?.Canvas is null) return;
+                await _page.BeginBlockEditAsync(block);
                 canvas.OffsetX = bookmark.X;
                 canvas.OffsetY = bookmark.Y;
                 canvas.Zoom = bookmark.Zoom;
-                _viewModel.CommitBlockEdit(block, "Opened canvas bookmark");
+                await _page.CommitBlockEditAsync(block, "Opened canvas bookmark");
                 RefreshAll();
-                return Task.CompletedTask;
             }, "Restore this pan and zoom position"), 1));
             row.Children.Add(WithColumn(ActionButton("×", () =>
             {
@@ -764,7 +754,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private async Task ExportSelectedEquationAsync()
     {
-        if (_viewModel.SelectedBlock?.Equation is not { } equation) return;
+        if (_page.SelectedBlock?.Equation is not { } equation) return;
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (storage is null) return;
         var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions

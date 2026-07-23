@@ -1,0 +1,364 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Pages.Chat.ChatPage">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="PopupTintBrush" Color="#751f1f1c" />
+          <SolidColorBrush x:Key="PopupBorderBrush" Color="#ffffff00" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="PopupTintBrush" Color="#E6F3F5F7" />
+          <SolidColorBrush x:Key="PopupBorderBrush" Color="#30000000" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Grid ColumnDefinitions="Auto,*">
+    <!-- Sidebar: container and lesson selection (Teach/Do/Studio apps) -->
+    <Border Grid.Column="0" Width="240" Background="{DynamicResource HavenPanelBrush}"
+            BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0"
+            IsVisible="{Binding HasContainers}" Padding="14,18,14,10">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding ContainerLabel}" Classes="eyebrow" />
+          <Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding SelectQuickChatsCommand}"
+                  IsVisible="{Binding IsTeach}" Content="Quick Chats" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="2" Margin="0,8,0,4">
+          <ListBox ItemsSource="{Binding Containers}"
+                   BorderThickness="0" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                        Command="{Binding $parent[UserControl].DataContext.SelectContainerCommand}"
+                        CommandParameter="{Binding}">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1" Classes="chrome" MinHeight="22" MinWidth="22" Padding="0"
+                            ToolTip.Tip="Delete" Command="{Binding $parent[UserControl].DataContext.DeleteContainerCommand}"
+                            CommandParameter="{Binding}">
+                      <controls:HavenIcon IconKey="close" Width="11" Height="11" />
+                    </Button>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Button Classes="sidebarUtility" HorizontalAlignment="Left" Content="{Binding NewContainerLabel}"
+                  Command="{Binding NewContainerCommand}" />
+        </StackPanel>
+
+        <!-- Lessons (Teach mode) -->
+        <StackPanel Grid.Row="2" Spacing="2" IsVisible="{Binding IsTeach}" Margin="0,4,0,0">
+          <TextBlock Text="Lessons" Classes="eyebrow" IsVisible="{Binding HasLessons}" />
+          <ListBox ItemsSource="{Binding Lessons}"
+                   BorderThickness="0" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                        Command="{Binding $parent[UserControl].DataContext.SelectLessonCommand}"
+                        CommandParameter="{Binding}">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                </Button>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Button Classes="sidebarUtility" HorizontalAlignment="Left" Content="Add lesson"
+                  Command="{Binding NewLessonCommand}" IsVisible="{Binding HasSelectedSubject}" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" Text="{Binding Status}" Classes="muted2" FontSize="10"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Bottom" />
+      </Grid>
+    </Border>
+
+    <!-- Main chat area -->
+    <Grid Grid.Column="1">
+      <!-- Empty state (shown when no messages) -->
+      <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Top" MaxWidth="1020" Margin="30,93,30,235" Spacing="12">
+        <Image Source="/Assets/haven-192.png" Width="62" Height="62" />
+        <TextBlock Text="{Binding EmptyTitle}" FontSize="25" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock Text="{Binding ModeSubtitle}" Classes="muted" TextAlignment="Center" />
+        <WrapPanel HorizontalAlignment="Center" Margin="0,12,0,0">
+          <Button Classes="chip" Margin="0,0,6,6" Command="{Binding UseStarterCommand}" CommandParameter="{Binding StarterOne}">
+            <TextBlock Text="{Binding StarterOne}" FontSize="12" />
+          </Button>
+          <Button Classes="chip" Margin="0,0,6,6" Command="{Binding UseStarterCommand}" CommandParameter="{Binding StarterTwo}">
+            <TextBlock Text="{Binding StarterTwo}" FontSize="12" />
+          </Button>
+          <Button Classes="chip" Margin="0,0,6,6" Command="{Binding UseStarterCommand}" CommandParameter="{Binding StarterThree}">
+            <TextBlock Text="{Binding StarterThree}" FontSize="12" />
+          </Button>
+          <Button Classes="chip" Margin="0,0,6,6" Command="{Binding UseStarterCommand}" CommandParameter="{Binding StarterFour}">
+            <TextBlock Text="{Binding StarterFour}" FontSize="12" />
+          </Button>
+        </WrapPanel>
+      </StackPanel>
+
+      <!-- Messages (virtualized) -->
+      <ListBox ItemsSource="{Binding Messages}" IsVisible="{Binding HasMessages}"
+               Margin="30,28,30,235" BorderThickness="0" Background="Transparent"
+               x:Name="MessageScroller">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="38,*" ColumnSpacing="13" Margin="0,0,0,28" Opacity="{Binding ContentOpacity}">
+              <Border Classes="avatar" Width="36" Height="36">
+                <Image Source="/Assets/haven-32.png" Width="36" Height="36" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="8"
+                          HorizontalAlignment="{Binding Alignment}" MaxWidth="{Binding MaxBubbleWidth}">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+                  <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                  <Border Grid.Column="1" Background="{DynamicResource HavenBlueSoftBrush}"
+                          CornerRadius="999" Padding="7,2" IsVisible="{Binding HasModelLabel}">
+                    <TextBlock Text="{Binding ModelLabel}" Foreground="{DynamicResource HavenBlueBrush}"
+                               FontSize="9" />
+                  </Border>
+                  <TextBlock Grid.Column="3" Text="{Binding TimeLabel}" Classes="muted2" FontSize="10"
+                             VerticalAlignment="Center" />
+                </Grid>
+                <Border Background="{Binding BubbleBackground}"
+                        BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
+                        CornerRadius="{Binding BubbleCornerRadius}" Padding="15,12">
+                  <controls:MarkdownView Markdown="{Binding Content}">
+                    <controls:MarkdownView.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Copy message" Click="OnCopyMessageClicked" />
+                      </ContextMenu>
+                    </controls:MarkdownView.ContextMenu>
+                  </controls:MarkdownView>
+                </Border>
+                <TextBlock Text="{Binding State}" Classes="muted2" FontSize="10" IsVisible="{Binding HasState}" />
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <!-- Dismiss overlay for pickers -->
+      <Button x:Name="DismissOverlay" Classes="popupDismissLayer" IsVisible="{Binding IsPickerOverlayVisible}"
+              Command="{Binding ClosePickersCommand}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+      <!-- Composer area -->
+      <Grid Margin="24,0,24,14" MaxWidth="920" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
+            RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Floating resolve errors button -->
+        <Button Grid.Row="0" Classes="chip" HorizontalAlignment="Center" Margin="0,0,0,6"
+                IsVisible="{Binding HasErrorsToResolve}"
+                Command="{Binding ResolveErrorsCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <controls:HavenIcon IconKey="warning" Width="14" Height="14" Foreground="#FF6B6B"/>
+            <TextBlock Text="Resolve Errors" VerticalAlignment="Center" FontWeight="SemiBold"/>
+          </StackPanel>
+        </Button>
+
+        <!-- Ollama offline warning -->
+        <Border Grid.Row="1" Classes="permission" BorderBrush="#D94A4A" Margin="0,0,0,8"
+                IsVisible="{Binding IsOllamaOfflineWarningVisible}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+            <controls:HavenIcon IconKey="warning" Width="18" Height="18" Foreground="#FF6B6B" />
+            <TextBlock Grid.Column="1" Text="Ollama not connected — connect to your installation of Ollama to use this local model."
+                       Foreground="#FF6B6B" TextWrapping="Wrap" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <!-- Missing plugin warning -->
+        <Border Grid.Row="2" Classes="permission" Margin="0,0,0,8" IsVisible="{Binding HasMissingPluginNotice}">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <StackPanel>
+              <TextBlock Text="{Binding MissingPluginName, StringFormat='Missing plugin: @{0}'}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding MissingPluginReason}" Classes="muted" FontSize="10" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissMissingPluginCommand}" />
+            <Button Grid.Column="2" Content="Enable and retry" Classes="accent"
+                    Command="{Binding RetryWithPluginCommand}" />
+          </Grid>
+        </Border>
+
+        <!-- Composer box -->
+        <Border Grid.Row="3" Classes="composer" ClipToBounds="True">
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <!-- Plugin picker overlay -->
+            <Border Background="{DynamicResource PopupTintBrush}" Padding="10"
+                    IsVisible="{Binding IsPluginPickerOpen}" CornerRadius="12">
+              <StackPanel Spacing="5">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="PLUGINS" Classes="eyebrow" />
+                  <Button Grid.Column="1" Classes="chrome" Command="{Binding ClosePickersCommand}"
+                          ToolTip.Tip="Close">
+                    <controls:HavenIcon IconKey="close" Width="13" Height="13" />
+                  </Button>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding PluginSuggestions}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Classes="sidebar" HorizontalAlignment="Stretch" IsVisible="{Binding IsVisibleInPicker}"
+                              Command="{Binding $parent[UserControl].DataContext.SelectPluginCommand}"
+                              CommandParameter="{Binding}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                          <controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" />
+                          <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding AllowedModesLabel}" Classes="muted2" FontSize="9" />
+                        </Grid>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <!-- Instruction picker overlay -->
+            <Border Grid.Row="1" Background="{DynamicResource HavenPanel3Brush}"
+                    BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,0,1"
+                    Padding="10" IsVisible="{Binding IsPromptPickerOpen}">
+              <StackPanel Spacing="5">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="INSTRUCTION LIBRARY" Classes="eyebrow" />
+                  <Button Grid.Column="1" Classes="chrome" Command="{Binding ClosePickersCommand}"
+                          ToolTip.Tip="Close">
+                    <controls:HavenIcon IconKey="close" Width="13" Height="13" />
+                  </Button>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding PromptSuggestions}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Classes="sidebar" HorizontalAlignment="Stretch" IsVisible="{Binding IsVisibleInPicker}"
+                              Command="{Binding $parent[UserControl].DataContext.SelectPromptCommand}"
+                              CommandParameter="{Binding}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                          <controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" />
+                          <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding AllowedModesLabel}" Classes="muted2" FontSize="9" />
+                        </Grid>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <!-- Attachments display -->
+            <ItemsControl Grid.Row="2" ItemsSource="{Binding Attachments}" Margin="12,8,12,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="9" Padding="8,5" Margin="0,0,6,5">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="{Binding KindLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" />
+                      <TextBlock Text="{Binding Name}" FontSize="10" MaxWidth="190"
+                                 TextTrimming="CharacterEllipsis" />
+                      <Button Classes="chrome"
+                              Command="{Binding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Remove attachment">
+                        <controls:HavenIcon IconKey="close" Width="11" Height="11" />
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Active plugin/instruction chips -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="12,4,12,0">
+              <ItemsControl ItemsSource="{Binding Plugins}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Classes="chip" IsVisible="{Binding IsActive}"
+                            Command="{Binding $parent[UserControl].DataContext.TogglePluginCommand}"
+                            CommandParameter="{Binding}" Margin="0,0,5,4">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <controls:HavenIcon IconKey="{Binding IconKey}" Width="13" Height="13" />
+                        <TextBlock Text="{Binding DisplayName}" />
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl ItemsSource="{Binding Prompts}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Classes="chip" IsVisible="{Binding IsActive}"
+                            Command="{Binding $parent[UserControl].DataContext.TogglePromptCommand}"
+                            CommandParameter="{Binding}" Margin="0,0,5,4">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <controls:HavenIcon IconKey="{Binding IconKey}" Width="13" Height="13" />
+                        <TextBlock Text="{Binding DisplayName}" />
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <!-- Agent selector (when Agent plugin is active) -->
+            <Border Grid.Row="4" Background="{DynamicResource HavenBlueSoftBrush}"
+                    BorderBrush="#284B72" BorderThickness="0,1" Padding="11,7"
+                    IsVisible="{Binding IsAgentPluginActive}">
+              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                <TextBlock Text="AGENT" Classes="eyebrow" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Agents}" SelectedItem="{Binding SelectedAgent}"
+                          MinWidth="170">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:HavenIcon IconKey="{Binding IconKey}" Width="16" Height="16" />
+                        <TextBlock Text="{Binding Name}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Grid.Column="2" Text="{Binding AgentNotice}" Classes="muted" FontSize="10"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <!-- Composer input and toolbar -->
+            <Grid Grid.Row="5" RowDefinitions="Auto,Auto">
+              <TextBox Text="{Binding Composer}" Classes="composerInput"
+                       PlaceholderText="Message Haven…  @ plugins  > instructions  / commands"
+                       AcceptsReturn="True" TextWrapping="Wrap" MinHeight="78" MaxHeight="205"
+                       FontSize="14" KeyDown="OnComposerKeyDown" x:Name="ComposerBox" />
+              <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="10,4,10,10" ColumnSpacing="7">
+                <Button x:Name="AttachButton" Classes="icon" ToolTip.Tip="Add to this message">
+                  <controls:HavenIcon IconKey="plus" Width="14" Height="14" />
+                  <Button.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Attach files or images" Click="OnAttachClicked" />
+                      <MenuItem Header="Choose plugin (@)" Command="{Binding OpenPluginPickerCommand}" />
+                      <MenuItem Header="Instruction Library (>)" Command="{Binding OpenPromptPickerCommand}" />
+                    </MenuFlyout>
+                  </Button.Flyout>
+                </Button>
+                <Button x:Name="PluginButton" Grid.Column="1" Classes="icon" Command="{Binding OpenPluginPickerCommand}"
+                        ToolTip.Tip="Plugins">
+                  <controls:HavenIcon IconKey="plugin" Width="15" Height="15" />
+                </Button>
+                <Button x:Name="PromptButton" Grid.Column="2" Classes="icon" Command="{Binding OpenPromptPickerCommand}"
+                        ToolTip.Tip="Instruction Library">
+                  <controls:HavenIcon IconKey="prompt" Width="15" Height="15" />
+                </Button>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                  <Button x:Name="StopButton" VerticalContentAlignment="Center" Content="Stop" Classes="icon,stop"
+                          Command="{Binding StopCommand}" IsVisible="{Binding IsSending}" ToolTip.Tip="Stop" />
+                  <Button x:Name="SendButton" VerticalContentAlignment="Center" Content="Send" Classes="send"
+                          Command="{Binding SendCommand}" IsVisible="{Binding IsNotSending}"
+                          ToolTip.Tip="Send (Ctrl+Enter)" />
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

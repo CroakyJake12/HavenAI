@@ -1,65 +1,35 @@
-/*
- * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/App.axaml.cs, in the Desktop composition layer, which starts and wires the Avalonia application.
- * What: This file owns App. Read the type and member comments below as a map of each responsibility.
- * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
- * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
- * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
- */
-
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Haven.Application;
 using Haven.Automations;
 using Haven.Browser;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Events;
 using Haven.Desktop.Services;
+using Haven.Desktop.Views.Shell;
 using Haven.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop;
 
-/// <summary>
-/// Represents app and keeps its related state and behavior together.
-/// </summary>
 public sealed partial class App : Avalonia.Application
 {
-    /// <summary>
-    /// Stores services locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private ServiceProvider? _services;
-    /// <summary>
-    /// Stores startup recovery locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private IStartupRecoveryCoordinator? _startupRecovery;
-    /// <summary>
-    /// Stores production diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private IProductionDiagnostics? _productionDiagnostics;
-    /// <summary>
-    /// Stores exception hooks attached locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private bool _exceptionHooksAttached;
-    /// <summary>
-    /// Gets or updates services, the bindable or domain state represented by this property.
-    /// </summary>
     internal static IServiceProvider? Services { get; private set; }
 
-    /// <summary>
-    /// Performs the initialize step owned by this component.
-    /// </summary>
-
-    public override void Initialize() {
+    public override void Initialize()
+    {
         AvaloniaXamlLoader.Load(this);
-
         #if DEBUG
             this.AttachDeveloperTools();
         #endif
     }
-    /// <summary>
-    /// Handles the framework initialization completed event raised by the UI or runtime.
-    /// </summary>
+
     public override void OnFrameworkInitializationCompleted()
     {
         var collection = new ServiceCollection();
@@ -81,7 +51,9 @@ public sealed partial class App : Avalonia.Application
             provider.GetRequiredService<IBrowserAutomationStore>(),
             provider.GetRequiredService<BrowserDownloadTransport>(),
             provider.GetRequiredService<BrowserBackgroundPageLoader>()));
-        collection.AddSingleton<SafeModeBrowserAutomationService>();
+        collection.AddSingleton(provider => new SafeModeBrowserAutomationService(
+            provider.GetRequiredService<BrowserAutomationService>(),
+            provider.GetRequiredService<IProductionDiagnostics>()));
         collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
         collection.AddSingleton<BrowserCompletionService>();
@@ -105,34 +77,66 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<AutomationDeliveryController>();
         collection.AddSingleton<GenerativeUiThemeRuntime>();
         collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
-        collection.AddTransient<ProviderConnectionsViewModel>();
-        collection.AddSingleton<MainWindowViewModel>();
+        collection.AddSingleton<HavenEventBus>();
+        collection.AddSingleton<MainView>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
             ValidateScopes = true
         });
         Services = _services;
+        Subscribe.EventBus = _services.GetRequiredService<HavenEventBus>();
         _startupRecovery = _services.GetRequiredService<IStartupRecoveryCoordinator>();
         _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();
         AttachExceptionHooks();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = _services.GetRequiredService<MainWindowViewModel>();
-            var window = new MainWindow { DataContext = vm };
-            desktop.MainWindow = window;
-            window.Opened += async (_, _) => await InitialiseAsync(vm);
-            desktop.Exit += OnDesktopExit;
+            // Show launcher picker
+            var picker = new LauncherPicker();
+            var launcherWindow = new Window
+            {
+                Title = "Haven",
+                Width = 700,
+                Height = 500,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = picker,
+                Background = new SolidColorBrush(Color.Parse("#F1F8E9")),
+                CanResize = false
+            };
+
+            picker.LaunchRequested += (_, useNewHaven) =>
+            {
+                launcherWindow.Close();
+
+                if (useNewHaven)
+                {
+                    // New Haven - light theme with new UI
+                    var mainView = _services.GetRequiredService<MainView>();
+                    var window = new MainWindow { DataContext = mainView };
+                    desktop.MainWindow = window;
+                    window.Opened += async (_, _) => await InitialiseNewHaven(mainView);
+                }
+                else
+                {
+                    // Classic Haven - dark theme with full feature set
+                    var mainView = _services.GetRequiredService<MainView>();
+                    var window = new MainWindow { DataContext = mainView };
+                    window.Background = new SolidColorBrush(Color.Parse("#181818"));
+                    desktop.MainWindow = window;
+                    window.Opened += async (_, _) => await InitialiseNewHaven(mainView);
+                }
+
+                desktop.Exit += OnDesktopExit;
+            };
+
+            desktop.MainWindow = launcherWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    /// <summary>
-    /// Performs initialise asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task InitialiseAsync(MainWindowViewModel vm)
+    private async Task InitialiseNewHaven(MainView shell)
     {
         var correlationId = Guid.NewGuid().ToString("N");
         try
@@ -151,7 +155,7 @@ public sealed partial class App : Avalonia.Application
             await lifecycle.StartupAsync(CancellationToken.None);
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
-            await vm.InitializeAsync(migration, CancellationToken.None);
+            await shell.InitializeAsync(migration, CancellationToken.None);
             await services.GetRequiredService<AutomationDeliveryController>().StartAsync(CancellationToken.None);
 
             if (recoveryState.IsSafeMode)
@@ -164,29 +168,14 @@ public sealed partial class App : Avalonia.Application
             }
 
             await recovery.MarkStartupCompletedAsync(CancellationToken.None);
-            if (_productionDiagnostics is not null)
-            {
-                await _productionDiagnostics.WriteAsync(
-                    ReliabilitySeverity.Information,
-                    "desktop",
-                    "startup-ready",
-                    recoveryState.IsSafeMode ? "Haven started in recovery safe mode." : "Haven completed desktop startup.",
-                    new Dictionary<string, string> { ["safeMode"] = recoveryState.IsSafeMode.ToString(System.Globalization.CultureInfo.InvariantCulture) },
-                    correlationId,
-                    CancellationToken.None);
-            }
         }
         catch (Exception ex)
         {
             await LogExceptionAsync("startup-failed", ex, correlationId);
-            vm.SetStartupError(ex.Message);
         }
     }
 
-    /// <summary>
-    /// Handles the desktop exit event raised by the UI or runtime.
-    /// </summary>
-    private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    private async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         var services = _services;
         var recovery = _startupRecovery;
@@ -194,18 +183,18 @@ public sealed partial class App : Avalonia.Application
         {
             if (_productionDiagnostics is not null)
             {
-                _productionDiagnostics.WriteAsync(
+                await _productionDiagnostics.WriteAsync(
                     ReliabilitySeverity.Information,
                     "desktop",
                     "shutdown-begin",
                     "Haven began coordinated shutdown.",
-                    cancellationToken: CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                    cancellationToken: CancellationToken.None);
             }
 
             if (services is not null)
-                services.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await services.DisposeAsync();
             if (recovery is not null)
-                recovery.MarkCleanShutdownAsync(CancellationToken.None).GetAwaiter().GetResult();
+                await recovery.MarkCleanShutdownAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -213,6 +202,8 @@ public sealed partial class App : Avalonia.Application
         }
         finally
         {
+            Subscribe.EventBus?.Dispose();
+            Subscribe.EventBus = null;
             _services = null;
             Services = null;
             _productionDiagnostics = null;
@@ -221,9 +212,6 @@ public sealed partial class App : Avalonia.Application
         }
     }
 
-    /// <summary>
-    /// Performs the attach exception hooks step owned by this component.
-    /// </summary>
     private void AttachExceptionHooks()
     {
         if (_exceptionHooksAttached) return;
@@ -232,9 +220,6 @@ public sealed partial class App : Avalonia.Application
         _exceptionHooksAttached = true;
     }
 
-    /// <summary>
-    /// Performs the detach exception hooks step owned by this component.
-    /// </summary>
     private void DetachExceptionHooks()
     {
         if (!_exceptionHooksAttached) return;
@@ -243,42 +228,21 @@ public sealed partial class App : Avalonia.Application
         _exceptionHooksAttached = false;
     }
 
-    /// <summary>
-    /// Handles the unhandled exception event raised by the UI or runtime.
-    /// </summary>
     private void OnUnhandledException(object sender, UnhandledExceptionEventArgs eventArgs)
     {
         var exception = eventArgs.ExceptionObject as Exception
                         ?? new InvalidOperationException("The runtime reported a non-Exception unhandled failure.");
-        try
-        {
-            LogExceptionAsync(
-                eventArgs.IsTerminating ? "unhandled-terminating" : "unhandled",
-                exception,
-                Guid.NewGuid().ToString("N")).GetAwaiter().GetResult();
-        }
+        try { _ = LogExceptionAsync(eventArgs.IsTerminating ? "unhandled-terminating" : "unhandled", exception, Guid.NewGuid().ToString("N")); }
         catch { }
     }
 
-    /// <summary>
-    /// Handles the unobserved task exception event raised by the UI or runtime.
-    /// </summary>
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs eventArgs)
     {
-        try
-        {
-            LogExceptionAsync("unobserved-task", eventArgs.Exception, Guid.NewGuid().ToString("N")).GetAwaiter().GetResult();
-        }
+        try { _ = LogExceptionAsync("unobserved-task", eventArgs.Exception, Guid.NewGuid().ToString("N")); }
         catch { }
-        finally
-        {
-            eventArgs.SetObserved();
-        }
+        finally { eventArgs.SetObserved(); }
     }
 
-    /// <summary>
-    /// Performs log exception asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task LogExceptionAsync(string eventName, Exception exception, string correlationId)
     {
         if (_productionDiagnostics is null) return;
@@ -295,5 +259,4 @@ public sealed partial class App : Avalonia.Application
             correlationId,
             CancellationToken.None);
     }
-
 }

@@ -10,9 +10,11 @@
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Notes;
 
 namespace Haven.Desktop.Services;
+
+using NotesPageView = Views.Pages.Notes.NotesPage;
 
 /// <summary>
 /// Lists the supported notes media ai target values used to make state explicit and type-safe.
@@ -50,7 +52,7 @@ public static class NotesMediaAiReview
     /// </summary>
     public static async Task<NotesAiChange> ProposeAsync(
         INotesAiService ai,
-        NotesWorkspaceViewModel workspace,
+        NotesPageView workspace,
         NotesBlock block,
         NotesMediaAiTarget target,
         string instruction,
@@ -83,7 +85,7 @@ public static class NotesMediaAiReview
             document.Citations), cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
-        workspace.BeginBlockEdit(block);
+        await workspace.BeginBlockEditAsync(block);
         var previous = ReadPending(block, target);
         if (previous is not null)
         {
@@ -108,7 +110,7 @@ public static class NotesMediaAiReview
             CreatedAt = DateTimeOffset.UtcNow
         };
         WritePending(block, target, change);
-        workspace.CommitBlockEdit(block, "Created reviewed AI proposal for media " + DisplayName(target).ToLowerInvariant());
+        await workspace.CommitBlockEditAsync(block, "Created reviewed AI proposal for media " + DisplayName(target).ToLowerInvariant());
         return change;
     }
 
@@ -116,7 +118,7 @@ public static class NotesMediaAiReview
     /// Performs apply asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task ApplyAsync(
-        NotesWorkspaceViewModel workspace,
+        NotesPageView workspace,
         NotesBlock block,
         NotesAiChange change,
         CancellationToken cancellationToken)
@@ -136,7 +138,7 @@ public static class NotesMediaAiReview
         if (persisted?.Id != change.Id)
             throw new InvalidDataException("The media proposal is stale or has already been replaced.");
 
-        workspace.BeginBlockEdit(block);
+        await workspace.BeginBlockEditAsync(block);
         WriteTarget(block, target, change.ProposedContent.Trim());
         RemovePending(block, target);
         change.Status = NotesAiChangeStatus.Applied;
@@ -151,7 +153,7 @@ public static class NotesMediaAiReview
             Summary = "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant(),
             CreatedAt = DateTimeOffset.UtcNow
         });
-        workspace.CommitBlockEdit(block, "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant());
+        await workspace.CommitBlockEditAsync(block, "Applied reviewed AI media " + DisplayName(target).ToLowerInvariant());
         if (workspace.SaveCommand.CanExecute(null))
             await workspace.SaveCommand.ExecuteAsync().ConfigureAwait(false);
     }
@@ -159,8 +161,8 @@ public static class NotesMediaAiReview
     /// <summary>
     /// Performs the reject step owned by this component.
     /// </summary>
-    public static void Reject(
-        NotesWorkspaceViewModel workspace,
+    public static async Task RejectAsync(
+        NotesPageView workspace,
         NotesBlock block,
         NotesAiChange change)
     {
@@ -173,13 +175,13 @@ public static class NotesMediaAiReview
         var persisted = ReadPending(block, target);
         if (persisted?.Id != change.Id)
             throw new InvalidDataException("The media proposal is stale or has already been replaced.");
-        workspace.BeginBlockEdit(block);
+        await workspace.BeginBlockEditAsync(block);
         RemovePending(block, target);
         change.Status = NotesAiChangeStatus.Rejected;
         change.ReviewedAt = DateTimeOffset.UtcNow;
         change.ReviewedBy = Environment.UserName;
         workspace.Document!.AiChanges.Add(change);
-        workspace.CommitBlockEdit(block, "Rejected AI media accessibility proposal");
+        await workspace.CommitBlockEditAsync(block, "Rejected AI media accessibility proposal");
     }
 
     /// <summary>

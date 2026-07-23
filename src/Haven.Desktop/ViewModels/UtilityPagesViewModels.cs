@@ -1,7 +1,7 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Desktop/ViewModels/UtilityPagesViewModels.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
- * What: This file owns CatalogPageKind, CatalogPageViewModel, CatalogCardViewModel, PluginImportManifest, AutomationsPageViewModel, AutomationCardViewModel, SettingsPageViewModel, ModelSettingsItemViewModel, ContainerSettingsPageViewModel, LessonSettingsPageViewModel, ModeLibraryPageViewModel, ModeCardViewModel. Read the type and member comments below as a map of each responsibility.
+ * What: This file owns CatalogPageKind, CatalogPageViewModel, CatalogCardViewModel, PluginImportManifest, AutomationsPageViewModel, AutomationCardViewModel, SettingsPageViewModel, ModelSettingsItemViewModel, LessonSettingsPageViewModel, ModeLibraryPageViewModel, ModeCardViewModel. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
@@ -96,7 +96,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates title, the bindable or domain state represented by this property.
     /// </summary>
-    public string Title => Kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Plugins => "Plugins", _ => "Prompt Library" };
+    public string Title => Kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Plugins => "Plugins", _ => "Instruction Library" };
     /// <summary>
     /// Gets or updates subtitle, the bindable or domain state represented by this property.
     /// </summary>
@@ -104,20 +104,20 @@ public sealed class CatalogPageViewModel : ObservableObject
     {
         CatalogPageKind.Agents => "Choose specialised local assistants and model preferences.",
         CatalogPageKind.Plugins => "Functional, capability-backed tools invoked with @.",
-        _ => "Reusable built-in and custom instruction prompts invoked with >."
+        _ => "Reusable built-in and custom instructions invoked with >."
     };
     /// <summary>
     /// Creates label with the invariants required by its callers.
     /// </summary>
-    public string CreateLabel => Kind switch { CatalogPageKind.Agents => "Create agent", CatalogPageKind.Plugins => "Create plugin", _ => "Create prompt" };
+    public string CreateLabel => Kind switch { CatalogPageKind.Agents => "Create agent", CatalogPageKind.Plugins => "Create plugin", _ => "Create instruction" };
     /// <summary>
     /// Builds er title from the currently available inputs.
     /// </summary>
-    public string BuilderTitle => Kind switch { CatalogPageKind.Agents => "AGENT CREATOR", CatalogPageKind.Plugins => "PLUGIN CREATOR", _ => "PROMPT CREATOR" };
+    public string BuilderTitle => Kind switch { CatalogPageKind.Agents => "AGENT CREATOR", CatalogPageKind.Plugins => "PLUGIN CREATOR", _ => "INSTRUCTION CREATOR" };
     /// <summary>
     /// Builds er hint from the currently available inputs.
     /// </summary>
-    public string BuilderHint => Kind switch { CatalogPageKind.Agents => "Describe the assistant you want Haven to create", CatalogPageKind.Plugins => "Describe the functional capability and constraints", _ => "Describe the reusable prompting behaviour" };
+    public string BuilderHint => Kind switch { CatalogPageKind.Agents => "Describe the assistant you want Haven to create", CatalogPageKind.Plugins => "Describe the functional capability and constraints", _ => "Describe the reusable instruction behaviour" };
     /// <summary>
     /// Reports whether agent catalog applies to the current state.
     /// </summary>
@@ -1273,214 +1273,6 @@ public sealed class ModelSettingsItemViewModel(ModelDescriptor definition)
         var unit = 0;
         while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
         return $"{value:0.#} {units[unit]}";
-    }
-}
-
-/// <summary>
-/// Represents container settings page view model and keeps its related state and behavior together.
-/// </summary>
-public sealed class ContainerSettingsPageViewModel : ObservableObject
-{
-    /// <summary>
-    /// Stores item locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private readonly ContainerItemViewModel _item;
-    /// <summary>
-    /// Stores repository locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private readonly IContainerRepository _repository;
-    /// <summary>
-    /// Stores saved locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private readonly Func<Task> _saved;
-    /// <summary>Returns to the page that opened settings after save or discard.</summary>
-    private readonly Func<Task>? _closed;
-    /// <summary>
-    /// Stores name locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _name;
-    /// <summary>
-    /// Stores root path locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _rootPath;
-    /// <summary>
-    /// Stores context locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _context;
-    /// <summary>
-    /// Stores instructions locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _instructions;
-    /// <summary>
-    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _status = "Changes are stored locally.";
-    /// <summary>
-    /// Stores is deleted locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private bool _isDeleted;
-    /// <summary>
-    /// Stores is delete confirming locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private bool _isDeleteConfirming;
-
-    public ContainerSettingsPageViewModel(ContainerItemViewModel item, IContainerRepository repository, Func<Task> saved, Func<Task>? closed = null)
-    {
-        _item = item;
-        _repository = repository;
-        _saved = saved;
-        _closed = closed;
-        _name = item.Definition.Name;
-        _rootPath = item.Definition.RootPath ?? string.Empty;
-        _context = item.Definition.Context;
-        _instructions = item.Definition.Instructions;
-        SaveCommand = new AsyncRelayCommand(SaveAsync, () => !IsDeleted && !string.IsNullOrWhiteSpace(Name));
-        DeleteCommand = new AsyncRelayCommand(DeleteAsync, () => !IsDeleted);
-        ArchiveCommand = new AsyncRelayCommand(ArchiveAsync, () => !IsDeleted);
-        RequestDeleteCommand = new RelayCommand(() => IsDeleteConfirming = true);
-        CancelDeleteCommand = new RelayCommand(() => IsDeleteConfirming = false);
-        DiscardChangesCommand = new AsyncRelayCommand(DiscardChangesAsync);
-    }
-
-    /// <summary>
-    /// Gets or updates eyebrow, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Eyebrow => _item.Definition.Mode switch { HavenMode.Teach => "SUBJECT SETTINGS", HavenMode.Do => "WORKSPACE SETTINGS", _ => "PROJECT SETTINGS" };
-    /// <summary>
-    /// Gets or updates item label, the bindable or domain state represented by this property.
-    /// </summary>
-    public string ItemLabel => _item.Definition.Mode switch { HavenMode.Chat => "chat group", HavenMode.Teach => "subject", HavenMode.Do => "task group", _ => "project" };
-    /// <summary>
-    /// Gets or updates archive label, the bindable or domain state represented by this property.
-    /// </summary>
-    public string ArchiveLabel => "Archive " + ItemLabel;
-    /// <summary>
-    /// Gets or updates delete label, the bindable or domain state represented by this property.
-    /// </summary>
-    public string DeleteLabel => "Delete " + ItemLabel;
-    /// <summary>
-    /// Gets or updates name, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Name { get => _name; set { if (SetProperty(ref _name, value)) SaveCommand.RaiseCanExecuteChanged(); } }
-    /// <summary>
-    /// Gets or updates root path, the bindable or domain state represented by this property.
-    /// </summary>
-    public string RootPath { get => _rootPath; set => SetProperty(ref _rootPath, value); }
-    /// <summary>
-    /// Gets or updates context, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Context { get => _context; set => SetProperty(ref _context, value); }
-    /// <summary>
-    /// Gets or updates instructions, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Instructions { get => _instructions; set => SetProperty(ref _instructions, value); }
-    /// <summary>
-    /// Gets or updates status, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
-    /// <summary>
-    /// Reports whether deleted applies to the current state.
-    /// </summary>
-    public bool IsDeleted { get => _isDeleted; private set { if (!SetProperty(ref _isDeleted, value)) return; SaveCommand.RaiseCanExecuteChanged(); DeleteCommand.RaiseCanExecuteChanged(); ArchiveCommand.RaiseCanExecuteChanged(); } }
-    /// <summary>
-    /// Reports whether delete confirming applies to the current state.
-    /// </summary>
-    public bool IsDeleteConfirming { get => _isDeleteConfirming; private set => SetProperty(ref _isDeleteConfirming, value); }
-    /// <summary>
-    /// Gets or updates save command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand SaveCommand { get; }
-    /// <summary>
-    /// Gets or updates delete command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand DeleteCommand { get; }
-    /// <summary>
-    /// Gets or updates archive command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand ArchiveCommand { get; }
-    /// <summary>
-    /// Gets or updates request delete command, the bindable or domain state represented by this property.
-    /// </summary>
-    public RelayCommand RequestDeleteCommand { get; }
-    /// <summary>
-    /// Reports whether cancel delete command is true for the current state.
-    /// </summary>
-    public RelayCommand CancelDeleteCommand { get; }
-    /// <summary>Restores the last saved values and returns without persisting edits.</summary>
-    public AsyncRelayCommand DiscardChangesCommand { get; }
-
-    /// <summary>
-    /// Performs the set root path step owned by this component.
-    /// </summary>
-    public void SetRootPath(string path) => RootPath = path;
-
-    /// <summary>
-    /// Performs save asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task SaveAsync()
-    {
-        try
-        {
-            var definition = _item.Definition with
-            {
-                Name = Name.Trim(),
-                RootPath = string.IsNullOrWhiteSpace(RootPath) ? null : Path.GetFullPath(RootPath.Trim()),
-                Context = Context.Trim(),
-                Instructions = Instructions.Trim(),
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-            await _repository.UpsertAsync(definition, CancellationToken.None);
-            await _saved();
-            Status = "Project settings saved.";
-            if (_closed is not null) await _closed();
-        }
-        catch (Exception ex)
-        {
-            Status = $"Could not save settings: {ex.Message}";
-        }
-    }
-
-    private async Task DiscardChangesAsync()
-    {
-        Name = _item.Definition.Name;
-        RootPath = _item.Definition.RootPath ?? string.Empty;
-        Context = _item.Definition.Context;
-        Instructions = _item.Definition.Instructions;
-        Status = "Changes discarded.";
-        if (_closed is not null) await _closed();
-    }
-
-    /// <summary>
-    /// Performs delete asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task DeleteAsync()
-    {
-        try
-        {
-            await _repository.DeleteAsync(_item.Id, CancellationToken.None);
-            IsDeleted = true;
-            await _saved();
-            Status = "Project deleted. Its saved conversations remain in history.";
-        }
-        catch (Exception ex)
-        {
-            Status = $"Could not delete project: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Performs archive asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task ArchiveAsync()
-    {
-        try
-        {
-            await _repository.UpsertAsync(_item.Definition with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
-            IsDeleted = true;
-            await _saved();
-            Status = $"{string.Concat(char.ToUpperInvariant(ItemLabel[0]), ItemLabel[1..])} archived. Restore it from Archive when needed.";
-        }
-        catch (Exception ex) { Status = $"Could not archive {ItemLabel}: {ex.Message}"; }
     }
 }
 

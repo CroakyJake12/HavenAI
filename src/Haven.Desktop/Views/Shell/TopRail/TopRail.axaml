@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:topRail="using:Haven.Desktop.Views.Shell.TopRail"
+             x:Class="Haven.Desktop.Views.Shell.TopRail.TopRail"
+             x:Name="TopRailRoot">
+
+    <Grid>
+        <!-- MAIN: Top Rail bar -->
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,8,12,0" VerticalAlignment="Center">
+
+            <!-- LEFT: Logo "Haven AI" (clickable, goes to home) -->
+            <Button x:Name="LogoButton" Classes="product" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Image Source="/Assets/haven-32.png" Width="28" Height="28" VerticalAlignment="Center"/>
+                    <TextBlock Text="Haven AI" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <!-- CENTER: Tab bar with pink/red background -->
+            <Border Grid.Column="1"
+                    Background="#E8B4B8"
+                    CornerRadius="10"
+                    Margin="16,0"
+                    Padding="4,2">
+                <Grid ColumnDefinitions="*,Auto">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="TabStrip" Orientation="Horizontal" Spacing="2"/>
+                    </ScrollViewer>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button x:Name="AddTabButton" Classes="icon compact" ToolTip.Tip="New tab">
+                            <controls:HavenIcon IconKey="plus" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="TabViewButton" Classes="icon compact" ToolTip.Tip="Tab view">
+                            <controls:HavenIcon IconKey="window" Width="14" Height="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- RIGHT: Static buttons + Dynamic Action Toolbar -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button x:Name="BackButton" Classes="icon compact" ToolTip.Tip="Back">
+                    <controls:HavenIcon IconKey="chevron-left" Width="16" Height="16"/>
+                </Button>
+                <Button x:Name="AppsButton" Classes="icon compact" ToolTip.Tip="Apps">
+                    <controls:HavenIcon IconKey="rocket" Width="16" Height="16"/>
+                </Button>
+                <Button x:Name="RecentButton" Classes="icon compact" ToolTip.Tip="Recent">
+                    <controls:HavenIcon IconKey="clock" Width="16" Height="16"/>
+                </Button>
+                <Button x:Name="NotificationsButton" Classes="icon compact" ToolTip.Tip="Notifications">
+                    <controls:HavenIcon IconKey="bell" Width="16" Height="16"/>
+                </Button>
+                <!-- Dynamic Action Toolbar host (Actions button + pinned icons) -->
+                <topRail:DynamicActionToolbar x:Name="ActionToolbar"/>
+            </StackPanel>
+
+        </Grid>
+
+        <!-- Notification Centre overlay (slides from right, overlays everything) -->
+        <topRail:NotificationCentre x:Name="NotificationCentreOverlay"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"/>
+
+    </Grid>
+</UserControl>

@@ -408,16 +408,23 @@ internal sealed class DeveloperToolsWindow : Window
             _propertyRows.Children.Add(PropertyRow(property.Name, property.Value));
 
         _sourceLocation = AxamlSourceLocator.Locate(visual);
-        _openSourceButton.IsEnabled = _sourceLocation is not null;
+        _openSourceButton.IsEnabled = _sourceLocation is not null && _sourceLocation.FilePath.Length > 0;
         if (_sourceLocation is null)
         {
             _sourceHeading.Text = "No AXAML source match";
             _sourcePreview.Text = "This may be a template-generated runtime element. Select its nearest named parent, or add x:Name to the control you want to locate exactly.";
         }
+        else if (_sourceLocation.Note == "code-only")
+        {
+            _sourceHeading.Text = "No AXAML file";
+            _sourcePreview.Text = _sourceLocation.Snippet;
+        }
         else
         {
-            var exactLabel = _sourceLocation.IsExact ? "exact name match" : "unique type match";
-            _sourceHeading.Text = $"{Path.GetFileName(_sourceLocation.FilePath)}:{_sourceLocation.Line} • {exactLabel}";
+            var exactLabel = _sourceLocation.IsExact ? "exact name match" : "type match";
+            var noteSuffix = _sourceLocation.Note?.StartsWith("Ambiguous") == true
+                ? $" \u2022 {_sourceLocation.Note}" : string.Empty;
+            _sourceHeading.Text = $"{Path.GetFileName(_sourceLocation.FilePath)}:{_sourceLocation.Line} \u2022 {exactLabel}{noteSuffix}";
             _sourcePreview.Text = _sourceLocation.Snippet;
         }
 

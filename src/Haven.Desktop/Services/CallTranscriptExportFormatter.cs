@@ -8,6 +8,8 @@
  */
 
 using System.Text;
+using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Services;
@@ -27,7 +29,7 @@ public static class CallTranscriptExportFormatter
         ArgumentNullException.ThrowIfNull(transcript);
         var items = transcript.ToArray();
         var builder = new StringBuilder();
-        builder.AppendLine("# Haven Call Transcript");
+        builder.AppendLine("# Haven Voice Transcript");
         builder.AppendLine();
         builder.AppendLine($"Exported: {exportedAt.ToLocalTime():f}");
         builder.AppendLine($"Turns: {items.Length}");
@@ -44,4 +46,37 @@ public static class CallTranscriptExportFormatter
         }
         return builder.ToString().TrimEnd() + Environment.NewLine;
     }
+
+    /// <summary>
+    /// Performs the to markdown step owned by this component.
+    /// </summary>
+    public static string ToMarkdown(
+        IEnumerable<TranscriptExportEntry> transcript,
+        DateTimeOffset exportedAt)
+    {
+        ArgumentNullException.ThrowIfNull(transcript);
+        var items = transcript.ToArray();
+        var builder = new StringBuilder();
+        builder.AppendLine("# Haven Voice Transcript");
+        builder.AppendLine();
+        builder.AppendLine($"Exported: {exportedAt.ToLocalTime():f}");
+        builder.AppendLine($"Turns: {items.Length}");
+        builder.AppendLine();
+
+        foreach (var item in items)
+        {
+            var speaker = item.Role == MessageRole.User ? "You" : "Haven";
+            var timeLabel = item.Timestamp.ToString("HH:mm");
+            builder.AppendLine($"## {speaker} · {timeLabel}");
+            builder.AppendLine();
+            builder.AppendLine(item.Text.Trim());
+            builder.AppendLine();
+        }
+        return builder.ToString().TrimEnd() + Environment.NewLine;
+    }
 }
+
+/// <summary>
+/// Simple transcript entry for export without ViewModel dependency.
+/// </summary>
+public sealed record TranscriptExportEntry(MessageRole Role, string Text, DateTimeOffset Timestamp);

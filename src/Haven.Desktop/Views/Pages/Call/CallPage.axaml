@@ -1,0 +1,185 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Pages.Call.CallPage"
+             Loaded="OnLoaded">
+
+  <Border Padding="24">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+
+      <!-- Row 0: Header -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:HavenIcon IconKey="call" Width="24" Height="24" Foreground="{DynamicResource HavenAccentBrush}"/>
+            <TextBlock Text="Haven Voice" FontSize="24" FontWeight="SemiBold"/>
+          </StackPanel>
+          <TextBlock Text="A private local voice conversation with your Ollama model"
+                     Foreground="{DynamicResource HavenMutedBrush}"/>
+        </StackPanel>
+        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
+                BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
+                CornerRadius="999" Padding="12,6" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <Ellipse x:Name="StateDot" Width="8" Height="8" Fill="{DynamicResource HavenAccentBrush}"/>
+            <TextBlock x:Name="StateLabel" FontWeight="SemiBold" FontSize="12" Text="Idle"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Row 1: Main content -->
+      <Grid Grid.Row="1" ColumnDefinitions="320,*" ColumnSpacing="18">
+
+        <!-- Left: Setup panel -->
+        <ScrollViewer Grid.Column="0">
+          <StackPanel Spacing="14">
+            <Border Background="{DynamicResource HavenPanel2Brush}"
+                    BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
+                    CornerRadius="14" Padding="16">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Call setup" FontSize="16" FontWeight="SemiBold"/>
+
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Ollama model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <ComboBox x:Name="ModelCombo" IsEnabled="True" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Conversation mode" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <ComboBox x:Name="InputModeCombo" IsEnabled="True"/>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Microphone" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <ComboBox x:Name="InputDeviceCombo" IsEnabled="True"/>
+                  <TextBlock x:Name="SpeechInputStatus" TextWrapping="Wrap" FontSize="11"
+                             Foreground="{DynamicResource HavenMutedBrush}" Text="Checking..."/>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Speech model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <ComboBox x:Name="SpeechModelCombo" IsEnabled="True"/>
+                  <TextBlock x:Name="SpeechModelStatus" FontSize="11"
+                             Foreground="{DynamicResource HavenMutedBrush}" Text="Choose a model"/>
+                  <StackPanel x:Name="SpeechModelSetup" Spacing="7" IsVisible="False">
+                    <ProgressBar x:Name="SpeechDownloadProgress" IsVisible="False" Value="0" Maximum="100"/>
+                    <Button x:Name="DownloadSpeechButton" Content="Download model"
+                            Classes="secondary" HorizontalAlignment="Stretch"/>
+                  </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Voice" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <ComboBox x:Name="VoiceCombo" IsEnabled="True"/>
+                  <TextBlock x:Name="VoiceDescription" TextWrapping="Wrap" FontSize="10"
+                             Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <Button x:Name="PreviewVoiceButton" Content="Preview selected voice"
+                          Classes="secondary" HorizontalAlignment="Stretch"/>
+                  <CheckBox x:Name="SpeechOutputCheck" Content="Speak Haven responses" IsChecked="True" IsEnabled="True"/>
+                  <TextBlock x:Name="SpeechOutputStatus" TextWrapping="Wrap" FontSize="11"
+                             Foreground="{DynamicResource HavenMutedBrush}" Text="Checking..."/>
+                </StackPanel>
+
+                <Button x:Name="StartCallButton" Content="Start local call"
+                        Classes="primary" HorizontalAlignment="Stretch"/>
+                <Button x:Name="ExportTranscriptButton" Content="Export transcript"
+                        Classes="secondary" HorizontalAlignment="Stretch" IsEnabled="False"/>
+              </StackPanel>
+            </Border>
+
+            <Border Background="{DynamicResource HavenPanel2Brush}"
+                    BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
+                    CornerRadius="14" Padding="14">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Privacy" FontWeight="SemiBold"/>
+                <TextBlock Text="Audio and screen frames stay in memory only. Haven stores the text transcript and call metadata, never raw media."
+                           TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                <TextBlock x:Name="ScreenShareStatus" TextWrapping="Wrap" FontSize="11"
+                           Foreground="{DynamicResource HavenMutedBrush}" Text="Checking..."/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Right: Live transcript -->
+        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
+                BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
+                CornerRadius="14">
+          <Grid RowDefinitions="Auto,*,Auto">
+
+            <!-- Transcript header -->
+            <Border Grid.Row="0" Padding="18,14" BorderBrush="{DynamicResource HavenLineBrush}"
+                    BorderThickness="0,0,0,1">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel>
+                  <TextBlock Text="Live transcript" FontSize="16" FontWeight="SemiBold"/>
+                  <TextBlock x:Name="TranscriptStatus" TextWrapping="Wrap" FontSize="12"
+                             Foreground="{DynamicResource HavenMutedBrush}" Text="Ready to call"/>
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="InterruptButton" Content="Interrupt"
+                        Classes="subtle" VerticalAlignment="Center" IsEnabled="False"/>
+              </Grid>
+            </Border>
+
+            <!-- Empty state / Transcript -->
+            <Grid Grid.Row="1">
+              <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9">
+                <Border Width="72" Height="72" CornerRadius="36"
+                        Background="{DynamicResource HavenAccentSoftBrush}">
+                  <controls:HavenIcon IconKey="call" Width="32" Height="32"
+                            Foreground="{DynamicResource HavenAccentBrush}" HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Start a call, then speak or type below" FontWeight="SemiBold"/>
+                <TextBlock Text="Typed transcript mode works even when optional audio components are unavailable."
+                           FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+              </StackPanel>
+
+              <ScrollViewer x:Name="TranscriptScroller" Padding="18" IsVisible="False">
+                <StackPanel x:Name="TranscriptPanel" Spacing="14"/>
+              </ScrollViewer>
+            </Grid>
+
+            <!-- Text input -->
+            <Border Grid.Row="2" Padding="16" BorderBrush="{DynamicResource HavenLineBrush}"
+                    BorderThickness="0,1,0,0">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox x:Name="TranscriptInput" Grid.Column="0"
+                         PlaceholderText="Type a message during the call..."
+                         IsEnabled="False"/>
+                <Button Grid.Column="1" x:Name="SendTranscriptButton" Content="Send"
+                        Classes="send" IsEnabled="False"
+                        Padding="16,0" CornerRadius="18"/>
+              </Grid>
+            </Border>
+
+          </Grid>
+        </Border>
+
+      </Grid>
+
+      <!-- Row 2: Waveform + Controls -->
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalAlignment="Bottom">
+        <Grid x:Name="WaveformGrid" ColumnDefinitions="*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*" ColumnSpacing="3">
+        </Grid>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button x:Name="MuteButton" Classes="icon" ToolTip.Tip="Mute">
+            <controls:HavenIcon IconKey="mic" Width="18" Height="18"/>
+          </Button>
+          <Button x:Name="PushToTalkButton" Classes="icon" ToolTip.Tip="Hold to talk">
+            <controls:HavenIcon IconKey="phone" Width="18" Height="18"/>
+          </Button>
+          <Button x:Name="PauseButton" Classes="icon" ToolTip.Tip="Pause" IsEnabled="False">
+            <controls:HavenIcon IconKey="pause" Width="18" Height="18"/>
+          </Button>
+          <Button x:Name="EndCallButton" Classes="stop" Width="44" Height="36"
+                  ToolTip.Tip="End call" IsEnabled="False">
+            <controls:HavenIcon IconKey="phone-off" Width="18" Height="18"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Border>
+
+</UserControl>

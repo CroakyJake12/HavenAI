@@ -18,7 +18,7 @@ using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Browser;
 using Haven.Desktop.Controls;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Browser;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views;
@@ -35,7 +35,7 @@ public sealed partial class BrowserView : UserControl
     /// <summary>
     /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private BrowserPageViewModel? _viewModel;
+    private BrowserPage? _viewModel;
     /// <summary>
     /// Stores utilities locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -60,13 +60,29 @@ public sealed partial class BrowserView : UserControl
     /// Stores lifetime locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private CancellationTokenSource _lifetime = new();
+    /// <summary>
+    /// Stores tab webviews locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
+    private readonly Dictionary<Guid, NativeWebView> _tabWebViews = new();
+    /// <summary>
+    /// Stores tab last active times for cleanup.
+    /// </summary>
+    private readonly Dictionary<Guid, DateTime> _tabLastActive = new();
+    /// <summary>
+    /// Stores the inactive tab cleanup timer.
+    /// </summary>
+    private readonly DispatcherTimer _cleanupTimer;
+    /// <summary>
+    /// Stores how long a tab can be inactive before disposal (5 minutes).
+    /// </summary>
+    private static readonly TimeSpan InactiveTabTimeout = TimeSpan.FromMinutes(5);
 
     public BrowserView()
     {
         InitializeComponent();
         _nativeBrowser = NativeBrowser;
         ConfigureEnvironmentForCurrentTab(_nativeBrowser);
-        DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPageViewModel);
+        DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPage);
         AttachedToVisualTree += (_, _) =>
         {
             if (_lifetime.IsCancellationRequested)
@@ -77,6 +93,11 @@ public sealed partial class BrowserView : UserControl
             EnsureUtilities();
             _ = MountSelectedTabAsync();
         };
+
+        // Clean up inactive tabs every 60 seconds
+        _cleanupTimer = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background,
+            (_, _) => CleanupInactiveTabs());
+        _cleanupTimer.Start();
     }
 
     /// <summary>
@@ -85,14 +106,18 @@ public sealed partial class BrowserView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _lifetime.Cancel();
+        _cleanupTimer.Stop();
         DetachBrowser();
+        // Clear cached tab webviews
+        _tabWebViews.Clear();
+        _tabLastActive.Clear();
         base.OnDetachedFromVisualTree(e);
     }
 
     /// <summary>
     /// Performs the change view model step owned by this component.
     /// </summary>
-    private void ChangeViewModel(BrowserPageViewModel? next)
+    private void ChangeViewModel(BrowserPage? next)
     {
         if (_viewModel is not null)
         {
@@ -125,14 +150,33 @@ public sealed partial class BrowserView : UserControl
     /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(BrowserPageViewModel.SelectedTab) or nameof(BrowserPageViewModel.IsPrivate))
+        if (args.PropertyName is nameof(BrowserPage.SelectedTab) or nameof(BrowserPage.IsPrivate))
             _ = MountSelectedTabAsync();
     }
 
     /// <summary>
     /// Handles the tabs changed event raised by the UI or runtime.
     /// </summary>
-    private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs args) => _ = CleanupPrivateProfilesAsync();
+    private void OnTabsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        _ = CleanupPrivateProfilesAsync();
+
+        // Clean up webviews for removed tabs
+        if (args.Action == NotifyCollectionChangedAction.Remove && args.OldItems is not null)
+        {
+            foreach (var item in args.OldItems)
+            {
+                if (item is BrowserTabViewModel tab && _tabWebViews.TryGetValue(tab.Id, out var webView))
+                {
+                    // Remove from visual tree
+                    if (webView.Parent is Grid container)
+                        container.Children.Remove(webView);
+                    _tabWebViews.Remove(tab.Id);
+                    _tabLastActive.Remove(tab.Id);
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Performs cleanup private profiles asynchronously so I/O does not block the caller's thread.
@@ -166,7 +210,7 @@ public sealed partial class BrowserView : UserControl
     /// </summary>
     private async void OnImportExtensionRequested(object? sender, bool convertChrome)
     {
-        if (DataContext is not BrowserPageViewModel vm || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
+        if (DataContext is not BrowserPage vm || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
         try
         {
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -211,6 +255,9 @@ public sealed partial class BrowserView : UserControl
         if (!this.IsAttachedToVisualTree() || _viewModel?.SelectedTab is not { } tab) return;
         if (_host is not null && _mountedTabId == tab.Id && _mountedPrivate == tab.IsPrivate) return;
 
+        // Check if we're switching to an already-cached tab (no navigation needed)
+        var isCachedTab = _tabWebViews.ContainsKey(tab.Id);
+
         try
         {
             var token = _lifetime.Token;
@@ -224,7 +271,7 @@ public sealed partial class BrowserView : UserControl
             {
                 token.ThrowIfCancellationRequested();
                 ReplaceNativeBrowser(profileDirectory, tab.IsPrivate, tab.Id);
-                AttachBrowser();
+                AttachBrowser(skipNavigation: isCachedTab);
             });
         }
         catch (OperationCanceledException) { }
@@ -233,25 +280,72 @@ public sealed partial class BrowserView : UserControl
 
     /// <summary>
     /// Performs the replace native browser step owned by this component.
+    /// Hides inactive tabs and shows the active one (keeps all in visual tree).
     /// </summary>
     private void ReplaceNativeBrowser(string profileDirectory, bool isPrivate, Guid tabId)
     {
         DetachBrowser();
-        if (_nativeBrowser.Parent is not Border container)
+        if (_nativeBrowser.Parent is not Grid container)
             throw new InvalidOperationException("The native Browser host container is unavailable.");
 
-        var replacement = new NativeWebView();
-        replacement.EnvironmentRequested += (_, args) => ConfigureEnvironment(args, profileDirectory, isPrivate, tabId);
-        container.Child = replacement;
+        NativeWebView replacement;
+        if (_tabWebViews.TryGetValue(tabId, out var existing))
+        {
+            // Reuse existing webview for this tab
+            replacement = existing;
+        }
+        else
+        {
+            // Create new webview, add to container (hidden), and cache it
+            replacement = new NativeWebView();
+            replacement.EnvironmentRequested += (_, args) => ConfigureEnvironment(args, profileDirectory, isPrivate, tabId);
+            replacement.IsVisible = false;
+            container.Children.Add(replacement);
+            _tabWebViews[tabId] = replacement;
+        }
+
+        // Update last active time
+        _tabLastActive[tabId] = DateTime.UtcNow;
+
+        // Hide all other tabs, show the active one
+        foreach (var kv in _tabWebViews)
+        {
+            kv.Value.IsVisible = kv.Key == tabId;
+        }
+
         _nativeBrowser = replacement;
         _mountedTabId = tabId;
         _mountedPrivate = isPrivate;
     }
 
     /// <summary>
+    /// Cleans up tabs that have been inactive for longer than the timeout.
+    /// </summary>
+    private void CleanupInactiveTabs()
+    {
+        var now = DateTime.UtcNow;
+        var tabsToRemove = _tabLastActive
+            .Where(kvp => kvp.Value + InactiveTabTimeout < now && kvp.Key != _mountedTabId)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var tabId in tabsToRemove)
+        {
+            if (_tabWebViews.TryGetValue(tabId, out var webView))
+            {
+                // Remove from visual tree
+                if (webView.Parent is Grid container)
+                    container.Children.Remove(webView);
+                _tabWebViews.Remove(tabId);
+            }
+            _tabLastActive.Remove(tabId);
+        }
+    }
+
+    /// <summary>
     /// Performs the attach browser step owned by this component.
     /// </summary>
-    private void AttachBrowser()
+    private void AttachBrowser(bool skipNavigation = false)
     {
         if (_host is not null || !this.IsAttachedToVisualTree() || _viewModel is not { } vm) return;
         try
@@ -260,7 +354,9 @@ public sealed partial class BrowserView : UserControl
             var permissions = BrowserSitePermissionStoreProvider.Get(services.GetRequiredService<IAppPaths>());
             _host = new NativeWebViewHost(_nativeBrowser, permissions);
             vm.Browser.Attach(_host);
-            _ = vm.NavigateSafelyAsync();
+            // Only navigate if this is a new tab, not when switching to an already-loaded cached tab
+            if (!skipNavigation)
+                _ = vm.NavigateSafelyAsync();
         }
         catch (Exception ex) { vm.ReportBrowserError(ex); }
     }
@@ -270,7 +366,7 @@ public sealed partial class BrowserView : UserControl
     /// </summary>
     private void OnAddressKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || DataContext is not BrowserPageViewModel vm) return;
+        if (e.Key != Key.Enter || DataContext is not BrowserPage vm) return;
         vm.NavigateCommand.Execute(null);
         e.Handled = true;
     }

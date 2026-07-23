@@ -16,6 +16,7 @@ using Avalonia.Media;
 using Haven.Application;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
+using Haven.Desktop.Views.Pages.Browser;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Controls;
@@ -53,11 +54,11 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     /// <summary>
     /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private BrowserPageViewModel? _viewModel;
+    private BrowserPage? _viewModel;
     /// <summary>
     /// Stores notifications locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private INotifyPropertyChanged? _notifications;
+    private BrowserPage? _notifications;
     /// <summary>
     /// Stores lifetime locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -421,7 +422,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         DetachViewModel();
-        _viewModel = DataContext as BrowserPageViewModel;
+        _viewModel = DataContext as BrowserPage;
         _notifications = _viewModel;
         if (_notifications is not null) _notifications.PropertyChanged += OnViewModelPropertyChanged;
         _ = RefreshPolicyAsync();
@@ -442,11 +443,11 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(BrowserPageViewModel.Address)
-            or nameof(BrowserPageViewModel.SelectedTab)
-            or nameof(BrowserPageViewModel.Status))) return;
+        if (e.PropertyName is not (nameof(BrowserPage.Address)
+            or nameof(BrowserPage.SelectedTab)
+            or nameof(BrowserPage.Status))) return;
 
-        if (e.PropertyName is nameof(BrowserPageViewModel.Address) or nameof(BrowserPageViewModel.SelectedTab))
+        if (e.PropertyName is nameof(BrowserPage.Address) or nameof(BrowserPage.SelectedTab))
         {
             _zoomButton.Content = "100%";
             _zoomSlider.Value = 100;

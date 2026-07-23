@@ -7,7 +7,7 @@
   Layout: Parent containers own placement and spacing; child controls own content and local presentation.
   Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
   Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
--->
+ -->
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -69,13 +69,13 @@
            ============================================================ -->
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding !IsDeleteConfirming}">
         <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="{Binding ArchiveLabel}" Command="{Binding ArchiveCommand}" />
-        <Button Grid.Column="2" Content="{Binding DeleteLabel}" Classes="danger" Command="{Binding RequestDeleteCommand}" />
-        <Button Grid.Column="3" Content="Discard changes" Command="{Binding DiscardChangesCommand}" />
-        <Button Grid.Column="4" Content="Save changes" Classes="accent" Command="{Binding SaveCommand}" />
+        <Button x:Name="ArchiveButton" Grid.Column="1" Content="{Binding ArchiveLabel}" Command="{Binding ArchiveCommand}" />
+        <Button x:Name="DeleteButton" Grid.Column="2" Content="{Binding DeleteLabel}" Classes="danger" Command="{Binding RequestDeleteCommand}" />
+        <Button x:Name="DiscardButton" Grid.Column="3" Content="Discard changes" Command="{Binding DiscardChangesCommand}" />
+        <Button x:Name="SaveButton" Grid.Column="4" Content="Save changes" Classes="accent" Command="{Binding SaveCommand}" />
       </Grid>
       <!-- Delete confirmation banner -->
-      <Border Classes="permission" IsVisible="{Binding IsDeleteConfirming}"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="Permanently delete this group and its settings? Saved conversations remain separately available." VerticalAlignment="Center" /><Button Grid.Column="1" Content="Cancel" Command="{Binding CancelDeleteCommand}" /><Button Grid.Column="2" Content="Delete permanently" Classes="danger" Command="{Binding DeleteCommand}" /></Grid></Border>
+      <Border Classes="permission" IsVisible="{Binding IsDeleteConfirming}"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7"><TextBlock Text="Permanently delete this group and its settings? Saved conversations remain separately available." VerticalAlignment="Center" /><Button x:Name="CancelDeleteButton" Grid.Column="1" Content="Cancel" Command="{Binding CancelDeleteCommand}" /><Button x:Name="ConfirmDeleteButton" Grid.Column="2" Content="Delete permanently" Classes="danger" Command="{Binding DeleteCommand}" /></Grid></Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

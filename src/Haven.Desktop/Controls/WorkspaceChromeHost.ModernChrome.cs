@@ -19,6 +19,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell;
+using Haven.Desktop.Views.Pages.Browser;
 
 namespace Haven.Desktop.Controls;
 
@@ -113,7 +115,7 @@ public sealed partial class WorkspaceChromeHost
     /// <summary>
     /// Stores modern shell locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private MainWindowViewModel? _modernShell;
+    private MainView? _modernShell;
     /// <summary>
     /// Stores actions button locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -363,7 +365,7 @@ public sealed partial class WorkspaceChromeHost
         AttachedToVisualTree += OnModernAttachedToVisualTree;
         _railAuditTimer.Tick += OnRailAuditTimerTick;
         _railAuditTimer.Start();
-        AttachModernShell(DataContext as MainWindowViewModel);
+        AttachModernShell(DataContext as MainView);
     }
 
     /// <summary>
@@ -397,12 +399,12 @@ public sealed partial class WorkspaceChromeHost
     /// Handles the modern data context changed event raised by the UI or runtime.
     /// </summary>
     private void OnModernDataContextChanged(object? sender, EventArgs e) =>
-        AttachModernShell(DataContext as MainWindowViewModel);
+        AttachModernShell(DataContext as MainView);
 
     /// <summary>
     /// Performs the attach modern shell step owned by this component.
     /// </summary>
-    private void AttachModernShell(MainWindowViewModel? shell)
+    private void AttachModernShell(MainView? shell)
     {
         if (_modernShell is not null)
         {
@@ -442,15 +444,15 @@ public sealed partial class WorkspaceChromeHost
     {
         if (_modernShell is null) return;
 
-        if (e.PropertyName == nameof(MainWindowViewModel.OllamaStatus))
+        if (e.PropertyName == nameof(MainView.OllamaStatus))
             QueueModelStatusUpdate();
-        else if (e.PropertyName == nameof(MainWindowViewModel.IsCommandPaletteOpen)
+        else if (e.PropertyName == nameof(MainView.IsCommandPaletteOpen)
                  && _modernShell.IsCommandPaletteOpen
                  && !_suppressPaletteRedirect)
             RedirectCommandPaletteToActions();
-        else if (e.PropertyName is nameof(MainWindowViewModel.CurrentPage)
-                 or nameof(MainWindowViewModel.CurrentChat)
-                 or nameof(MainWindowViewModel.ProductName))
+        else if (e.PropertyName is nameof(MainView.CurrentPage)
+                 or nameof(MainView.CurrentChat)
+                 or nameof(MainView.ProductName))
         {
             UpdateNavigationButtons();
             Dispatcher.UIThread.Post(AuditRailButtons);
@@ -815,7 +817,7 @@ public sealed partial class WorkspaceChromeHost
 
     private async Task RefreshTabAsync(WorkspaceTabViewModel tab)
     {
-        if (tab.Page is BrowserPageViewModel browser)
+        if (tab.Page is BrowserPage browser)
         {
             await browser.ReloadCommand.ExecuteAsync();
             return;
@@ -1253,8 +1255,8 @@ public sealed partial class WorkspaceChromeHost
         var name = item.Name.ToLowerInvariant();
         if (name.Contains("new ") || name.StartsWith("archive") || name.Contains("activity log")) return "File";
         if (name.Contains("rename") || name.Contains("copy") || name.Contains("undo") || name.Contains("redo") || name.Contains("save")) return "Edit";
-        if (name.Contains("sidebar") || name.Contains("mode library")) return "View";
-        if (name.Contains("branch") || name.Contains("chat") || name.Contains("context") || name.Contains("model") || name.Contains("prompt") || name.Contains("plugin") || name.Contains("pin")) return "Chat";
+        if (name.Contains("sidebar") || name.Contains("app library")) return "View";
+        if (name.Contains("branch") || name.Contains("chat") || name.Contains("context") || name.Contains("model") || name.Contains("instruction") || name.Contains("plugin") || name.Contains("pin")) return "Chat";
         if (name.Contains("project") || name.Contains("macro") || name.Contains("extension")) return "Project";
         if (name.Contains("browse") || name.Contains("training") || name.Contains("scheduled") || name.Contains("refresh") || name.Contains("settings")) return "Tools";
         return "Help";
@@ -1274,7 +1276,7 @@ public sealed partial class WorkspaceChromeHost
         if (value.Contains("model") || value.Contains("refresh")) return "refresh";
         if (value.Contains("settings")) return "settings";
         if (value.Contains("plugin")) return "plugin";
-        if (value.Contains("prompt")) return "prompt";
+        if (value.Contains("instruction")) return "instruction";
         if (value.Contains("pin")) return "pin";
         if (value.Contains("project") || value.Contains("build") || value.Contains("extension")) return "studio";
         if (value.Contains("scheduled") || value.Contains("plan")) return "plan";

@@ -8,6 +8,7 @@
  */
 
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Avalonia;
@@ -212,6 +213,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Stores suppress selection conversation update locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private bool _suppressSelectionConversationUpdate;
+    /// <summary>
+    /// Stores whether there are unresolved errors after sending, shown as a floating resolve button.
+    /// </summary>
+    private bool _hasErrorsToResolve;
 
     public ChatPageViewModel(
         HavenMode mode,
@@ -275,6 +280,7 @@ public sealed class ChatPageViewModel : ObservableObject
         MoveLessonUpCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, -1));
         MoveLessonDownCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, 1));
         UseStarterCommand = new RelayCommand<string>(text => { if (!string.IsNullOrWhiteSpace(text)) Composer = text; });
+        ResolveErrorsCommand = new AsyncRelayCommand(ResolveErrorsAsync);
     }
 
     /// <summary>
@@ -900,6 +906,14 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Gets or updates use starter command, the bindable or domain state represented by this property.
     /// </summary>
     public RelayCommand<string> UseStarterCommand { get; }
+    /// <summary>
+    /// Reports whether there are unresolved errors after a send, exposing a floating resolve button.
+    /// </summary>
+    public bool HasErrorsToResolve { get => _hasErrorsToResolve; private set { if (SetProperty(ref _hasErrorsToResolve, value)) RaisePropertyChanged(nameof(HasErrorsToResolve)); } }
+    /// <summary>
+    /// Gets or updates resolve errors command, the bindable or domain state represented by this property.
+    /// </summary>
+    public AsyncRelayCommand ResolveErrorsCommand { get; }
 
     /// <summary>
     /// Performs initialize asynchronously so I/O does not block the caller's thread.
@@ -1144,6 +1158,9 @@ public sealed class ChatPageViewModel : ObservableObject
             var registeredContext = await BuildRegisteredContextAsync(prompt, _sendCancellation.Token);
             var containerContext = await BuildContainerContextAsync(_sendCancellation.Token);
             var containerInstructions = BuildContainerInstructions();
+            var deltaBuffer = new StringBuilder();
+            var flushTimer = Task.Delay(50, _sendCancellation.Token);
+
             await foreach (var item in _sessions.SendAsync(
                                _conversation, prepared.Prompt, model, SelectedEffort, active, agent, agentInstructions,
                                SelectedDuo, SelectedContainer?.RootPath, containerContext, containerInstructions,
@@ -1152,48 +1169,73 @@ public sealed class ChatPageViewModel : ObservableObject
                                permissionApproved ? PermissionMode.FullAccess : _preferences.CommandPermission,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission))
             {
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                switch (item.Kind)
                 {
-                    switch (item.Kind)
-                    {
-                        case ChatStreamEventKind.UserMessage when item.Message is not null:
-                            Messages.Add(new MessageBubbleViewModel(item.Message, ShowConfidence));
-                            RaiseMessageStateChanged();
-                            break;
-                        case ChatStreamEventKind.AssistantStarted:
-                            streaming = MessageBubbleViewModel.Streaming(item.MessageId ?? Guid.NewGuid(), item.Agent ?? "Haven", item.Model ?? model.Name);
-                            Messages.Add(streaming);
-                            RaiseMessageStateChanged();
-                            break;
-                        case ChatStreamEventKind.AssistantDelta when streaming is not null:
-                            streaming.Append(item.Delta ?? string.Empty);
-                            break;
-                        case ChatStreamEventKind.AssistantCompleted when streaming is not null:
-                            completedMessage = item.Message;
-                            FinaliseAssistant(streaming, item.Message);
-                            break;
-                        case ChatStreamEventKind.ToolActivity when item.ToolActivity is not null:
-                            var activity = new ToolActivityViewModel(
-                                item.ToolActivity.Title,
-                                item.ToolActivity.Detail,
-                                item.ToolActivity.Succeeded,
-                                $"{item.ToolActivity.Duration.TotalSeconds:0.0}s",
-                                item.ToolActivity.LinesAdded,
-                                item.ToolActivity.LinesRemoved);
-                            streaming?.Activities.Add(activity);
-                            EditStep++;
-                            LinesAdded += item.ToolActivity.LinesAdded;
-                            LinesRemoved += item.ToolActivity.LinesRemoved;
-                            break;
-                        case ChatStreamEventKind.PreflightFailed:
-                            var missing = string.Join(", ", item.PreflightResult?.Missing.Select(x => x.Capability) ?? []);
-                            var suggestion = item.PreflightResult?.SuggestedModel?.Name;
-                            Status = suggestion is null
-                                ? $"Model preflight stopped the request. Missing: {missing}."
-                                : $"Model preflight stopped the request. Missing: {missing}. Suggested: {suggestion}.";
-                            break;
-                    }
-                });
+                    case ChatStreamEventKind.AssistantDelta when streaming is not null:
+                        deltaBuffer.Append(item.Delta ?? string.Empty);
+                        if (flushTimer.IsCompleted)
+                        {
+                            var text = deltaBuffer.ToString();
+                            deltaBuffer.Clear();
+                            await Dispatcher.UIThread.InvokeAsync(() => streaming.Append(text));
+                            flushTimer = Task.Delay(50, _sendCancellation.Token);
+                        }
+                        break;
+                    default:
+                        if (deltaBuffer.Length > 0)
+                        {
+                            var text = deltaBuffer.ToString();
+                            deltaBuffer.Clear();
+                            await Dispatcher.UIThread.InvokeAsync(() => streaming!.Append(text));
+                        }
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            switch (item.Kind)
+                            {
+                                case ChatStreamEventKind.UserMessage when item.Message is not null:
+                                    Messages.Add(new MessageBubbleViewModel(item.Message, ShowConfidence));
+                                    RaiseMessageStateChanged();
+                                    break;
+                                case ChatStreamEventKind.AssistantStarted:
+                                    streaming = MessageBubbleViewModel.Streaming(item.MessageId ?? Guid.NewGuid(), item.Agent ?? "Haven", item.Model ?? model.Name);
+                                    Messages.Add(streaming);
+                                    RaiseMessageStateChanged();
+                                    break;
+                                case ChatStreamEventKind.AssistantCompleted when streaming is not null:
+                                    completedMessage = item.Message;
+                                    FinaliseAssistant(streaming, item.Message);
+                                    break;
+                                case ChatStreamEventKind.ToolActivity when item.ToolActivity is not null:
+                                    var activity = new ToolActivityViewModel(
+                                        item.ToolActivity.Title,
+                                        item.ToolActivity.Detail,
+                                        item.ToolActivity.Succeeded,
+                                        $"{item.ToolActivity.Duration.TotalSeconds:0.0}s",
+                                        item.ToolActivity.LinesAdded,
+                                        item.ToolActivity.LinesRemoved);
+                                    streaming?.Activities.Add(activity);
+                                    EditStep++;
+                                    LinesAdded += item.ToolActivity.LinesAdded;
+                                    LinesRemoved += item.ToolActivity.LinesRemoved;
+                                    break;
+                                case ChatStreamEventKind.PreflightFailed:
+                                    var missing = string.Join(", ", item.PreflightResult?.Missing.Select(x => x.Capability) ?? []);
+                                    var suggestion = item.PreflightResult?.SuggestedModel?.Name;
+                                    Status = suggestion is null
+                                        ? $"Model preflight stopped the request. Missing: {missing}."
+                                        : $"Model preflight stopped the request. Missing: {missing}. Suggested: {suggestion}.";
+                                    break;
+                            }
+                        });
+                        break;
+                }
+            }
+
+            if (deltaBuffer.Length > 0)
+            {
+                var text = deltaBuffer.ToString();
+                deltaBuffer.Clear();
+                await Dispatcher.UIThread.InvokeAsync(() => streaming!.Append(text));
             }
             if (completedMessage is not null && streaming is not null && !IsTemporary)
             {
@@ -1203,6 +1245,7 @@ public sealed class ChatPageViewModel : ObservableObject
                 await _conversations.AddMessageAsync(completedMessage with { Content = streaming.Content, MetadataJson = metadata }, _sendCancellation.Token);
             }
             if (!Status.StartsWith("Model preflight", StringComparison.Ordinal)) Status = "Ready";
+            HasErrorsToResolve = false;
             foreach (var plugin in Plugins.Where(x => x.IsActive && !x.Persists)) plugin.IsActive = false;
             foreach (var activePrompt in Prompts.Where(x => x.IsActive && !x.Persists)) activePrompt.IsActive = false;
             IsComputerPermissionPending = false;
@@ -1215,7 +1258,7 @@ public sealed class ChatPageViewModel : ObservableObject
             ConversationChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (OperationCanceledException) { Status = "Stopped"; streaming?.MarkStopped(); }
-        catch (Exception ex) { Status = $"Request failed: {ex.Message}"; streaming?.MarkFailed(ex.Message); }
+        catch (Exception ex) { Status = $"Request failed: {ex.Message}"; streaming?.MarkFailed(ex.Message); HasErrorsToResolve = true; }
         finally
         {
             IsSending = false;
@@ -2064,6 +2107,24 @@ public sealed class ChatPageViewModel : ObservableObject
         await UpdateContextUsageAsync(CancellationToken.None);
         Status = $"Compacted {compactable.Length} older messages into a durable summary.";
     }
+
+    /// <summary>
+    /// Re-sends the last user message with an explicit instruction to fix all errors that occurred.
+    /// </summary>
+    private async Task ResolveErrorsAsync()
+    {
+        HasErrorsToResolve = false;
+        if (SelectedModel is null) return;
+        var lastUserMessage = Messages.LastOrDefault(item => item.Role == MessageRole.User);
+        if (lastUserMessage is null) return;
+        Composer = "Please review and resolve all errors from the previous response. Fix any issues and try again.";
+        if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// Clears the floating resolve-errors button so the UI hides it.
+    /// </summary>
+    public void ClearErrorsToResolve() => HasErrorsToResolve = false;
 
     /// <summary>
     /// Performs update context usage asynchronously so I/O does not block the caller's thread.

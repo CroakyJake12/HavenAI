@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Pages.Archive.ArchivePage"
+             Loaded="OnLoaded">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="900" Margin="34,30" Spacing="18">
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock x:Name="TitleText" Classes="heading" />
+          <TextBlock Text="Archived items stay local and can be restored." Classes="muted" />
+        </StackPanel>
+        <Button Grid.Column="1" x:Name="RefreshButton" Content="Refresh" />
+      </Grid>
+
+      <StackPanel x:Name="ItemsPanel" Spacing="8" />
+
+      <TextBlock x:Name="StatusText" Classes="muted" />
+    </StackPanel>
+  </ScrollViewer>
+
+</UserControl>

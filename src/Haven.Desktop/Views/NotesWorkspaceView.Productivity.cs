@@ -99,7 +99,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void BuildProductivityInspector()
     {
-        if (_viewModel.Document is not { } document) return;
+        if (_page.Document is not { } document) return;
         _informationPanel.Children.Add(SectionHeading("DOCUMENT PRODUCTIVITY"));
         _informationPanel.Children.Add(BuildTemplateAndFileTools(document));
         _informationPanel.Children.Add(BuildLocalFindReplace(document));
@@ -312,7 +312,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildHeaderFooterTools(NotesDocument document)
     {
-        var section = _viewModel.CurrentSection;
+        var section = _page.CurrentSection;
         if (section is null) return ToolCard("Headers and footers", new TextBlock { Text = "Select a section.", Classes = { "muted" } });
         var advanced = LoadAdvancedState(document);
         var variants = advanced.SectionHeaders.TryGetValue(section.Id, out var saved)
@@ -431,7 +431,7 @@ public sealed partial class NotesWorkspaceView
         var name = new TextBox { PlaceholderText = "Bookmark name" };
         var add = ActionButton("Add bookmark", () =>
         {
-            if (_viewModel.SelectedBlock is not { } block) return Task.CompletedTask;
+            if (_page.SelectedBlock is not { } block) return Task.CompletedTask;
             var anchor = BeginWholeDocumentEdit();
             if (anchor is null) return Task.CompletedTask;
             document.Bookmarks.Add(new NotesBookmark
@@ -457,7 +457,7 @@ public sealed partial class NotesWorkspaceView
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Create from selection", () =>
         {
-            if (_viewModel.SelectedBlock is not { } block) return Task.CompletedTask;
+            if (_page.SelectedBlock is not { } block) return Task.CompletedTask;
             var anchor = BeginWholeDocumentEdit();
             if (anchor is null) return Task.CompletedTask;
             var displayName = string.IsNullOrWhiteSpace(name.Text) ? "Custom style " + (document.Styles.Count + 1) : name.Text.Trim();
@@ -576,7 +576,7 @@ public sealed partial class NotesWorkspaceView
                 value.Privacy.AllowWorkspaceContext = workspace.IsChecked == true;
                 value.Privacy.AllowWebResearch = web.IsChecked == true;
             }, "Changed Notes privacy permissions");
-            _viewModel.AllowDocumentContext = context.IsChecked == true;
+            _page.AllowDocumentContext = context.IsChecked == true;
         }
         ai.IsCheckedChanged += (_, _) => Commit();
         external.IsCheckedChanged += (_, _) => Commit();
@@ -612,7 +612,7 @@ public sealed partial class NotesWorkspaceView
     {
         var compare = ActionButton("Compare selected version", async () =>
         {
-            if (_viewModel.Document is not { } current || _viewModel.SelectedVersion is not { } selected)
+            if (_page.Document is not { } current || _page.SelectedVersion is not { } selected)
             {
                 _status.Text = "Select a saved version first.";
                 return;
@@ -707,7 +707,7 @@ public sealed partial class NotesWorkspaceView
                 var suggestion = issue.Suggestions[index];
                 actions.Children.Add(ActionButton("Apply “" + suggestion + "”", () =>
                 {
-                    if (_viewModel.Document is not { } document) return Task.CompletedTask;
+                    if (_page.Document is not { } document) return Task.CompletedTask;
                     var anchor = BeginWholeDocumentEdit();
                     if (anchor is null) return Task.CompletedTask;
                     var revisionsBefore = document.Revisions.Count;
@@ -806,17 +806,16 @@ public sealed partial class NotesWorkspaceView
                 FontStyle = style.Character.Italic ? FontStyle.Italic : FontStyle.Normal,
                 TextTrimming = TextTrimming.CharacterEllipsis
             });
-            row.Children.Add(WithColumn(ActionButton("Apply", () =>
+            row.Children.Add(WithColumn(ActionButton("Apply", async () =>
             {
-                if (_viewModel.SelectedBlock is not { } block) return Task.CompletedTask;
-                _viewModel.BeginBlockEdit(block);
+                if (_page.SelectedBlock is not { } block) return;
+                await _page.BeginBlockEditAsync(block);
                 block.StyleId = style.Id;
                 block.Paragraph = Clone(style.Paragraph);
                 if (block.Runs.Count == 0) block.Runs.Add(new NotesTextRun { Text = block.PlainText });
                 foreach (var run in block.Runs) ApplyCharacterStyle(run, style.Character);
-                _viewModel.CommitBlockEdit(block, "Applied style " + style.Name);
+                await _page.CommitBlockEditAsync(block, "Applied style " + style.Name);
                 RefreshAll();
-                return Task.CompletedTask;
             }, "Apply this style to the selected block"), 1));
             var remove = ActionButton("×", () =>
             {
@@ -878,9 +877,9 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private NotesFindOptions CurrentFindOptions() => _localFindScope switch
     {
-        "Current section" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, SectionId: _viewModel.CurrentSection?.Id),
-        "Current page" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, PageId: _viewModel.CurrentPage?.Id),
-        "Selected block" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, BlockId: _viewModel.SelectedBlock?.Id),
+        "Current section" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, SectionId: _page.CurrentSection?.Id),
+        "Current page" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, PageId: _page.CurrentPage?.Id),
+        "Selected block" => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord, BlockId: _page.SelectedBlock?.Id),
         _ => new NotesFindOptions(_localFindRegex, _localFindMatchCase, _localFindWholeWord)
     };
 
@@ -900,7 +899,7 @@ public sealed partial class NotesWorkspaceView
                 await stream.FlushAsync(CancellationToken.None);
                 stream.Flush(flushToDisk: true);
             }
-            await _viewModel.ImportDocumentAsync(temporary, CancellationToken.None);
+            await _page.ImportDocumentAsync(temporary, CancellationToken.None);
             _status.Text = reason + ".";
             RefreshAll();
         }
@@ -947,18 +946,18 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private async Task SaveNativeCopyAsync()
     {
-        if (_viewModel.Document is null) return;
+        if (_page.Document is null) return;
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (storage is null) return;
         var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Save editable Haven Notes copy",
-            SuggestedFileName = SafeFileName(_viewModel.Document.Title) + " copy.haven-notes.json",
+            SuggestedFileName = SafeFileName(_page.Document.Title) + " copy.haven-notes.json",
             FileTypeChoices = [new FilePickerFileType("Haven Notes") { Patterns = ["*.haven-notes.json"] }]
         });
         var path = file?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) return;
-        await _viewModel.ExportDocumentAsync(path, CancellationToken.None);
+        await _page.ExportDocumentAsync(path, CancellationToken.None);
         RefreshStatusOnly();
     }
 
@@ -1018,14 +1017,14 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void NavigateToBlock(Guid sectionId, Guid pageId, Guid blockId)
     {
-        if (_viewModel.Document is not { } document) return;
+        if (_page.Document is not { } document) return;
         var section = document.Sections.FirstOrDefault(value => value.Id == sectionId);
         var page = section?.Pages.FirstOrDefault(value => value.Id == pageId);
         var block = page?.Blocks.FirstOrDefault(value => value.Id == blockId);
         if (section is null || page is null || block is null) return;
-        _viewModel.CurrentSection = section;
-        _viewModel.CurrentPage = page;
-        _viewModel.SelectedBlock = block;
+        _page.CurrentSection = section;
+        _page.CurrentPage = page;
+        _page.SelectedBlock = block;
         QueueRefresh();
     }
 
@@ -1034,7 +1033,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void NavigateToBlock(Guid blockId)
     {
-        if (_viewModel.Document is not { } document) return;
+        if (_page.Document is not { } document) return;
         foreach (var section in document.Sections)
         foreach (var page in section.Pages)
         {
@@ -1050,8 +1049,8 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private NotesBlock? BeginWholeDocumentEdit()
     {
-        var anchor = _viewModel.SelectedBlock ?? _viewModel.Blocks.FirstOrDefault();
-        if (anchor is not null) BeginEditing(anchor);
+        var anchor = _page.SelectedBlock ?? _page.Blocks.FirstOrDefault();
+        if (anchor is not null) _ = BeginEditingAsync(anchor);
         return anchor;
     }
 
@@ -1060,10 +1059,10 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void CompleteWholeDocumentEdit(NotesBlock anchor, bool changed, string summary)
     {
-        if (changed) EndEditing(anchor, summary);
+        if (changed) _ = EndEditingAsync(anchor, summary);
         else
         {
-            _viewModel.CancelBlockEdit(anchor);
+            _page.CancelBlockEdit(anchor);
             if (_activeEditBlockId == anchor.Id) _activeEditBlockId = null;
         }
     }

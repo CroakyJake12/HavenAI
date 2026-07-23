@@ -8,6 +8,7 @@
  * Maintenance: Voice ids beginning `kokoro:` are part of saved Call metadata and must remain stable.
  */
 
+using System.Text.RegularExpressions;
 using Haven.Application;
 using Haven.Core;
 using KokoroSharp;
@@ -98,9 +99,6 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
             var spokenText = PrepareForSpeech(text);
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            // CallCoordinator already supplies phrase-sized chunks. Using the
-            // unsegmented path here avoids KokoroSharp's documented quality loss
-            // from segmenting the same short phrase a second time.
             var handle = engine.Speak(spokenText, voice, new KokoroTTSPipelineConfig
             {
                 Speed = ResolveSpeed(id, spokenText),
@@ -113,6 +111,7 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
                 lock (_stateGate) engine.StopPlayback();
                 completion.TrySetCanceled(cancellationToken);
             });
+
             await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -146,7 +145,7 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
                 return _voiceProfiles[voiceId] = primary;
 
             var companion = KokoroVoiceManager.GetVoice(companionId);
-            return _voiceProfiles[voiceId] = KokoroVoiceManager.Mix([(primary, 9), (companion, 1)]);
+            return _voiceProfiles[voiceId] = KokoroVoiceManager.Mix([(primary, 7), (companion, 3)]);
         }
     }
 
@@ -157,7 +156,29 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
             .Replace("**", string.Empty, StringComparison.Ordinal)
             .Replace("__", string.Empty, StringComparison.Ordinal)
             .Replace("`", string.Empty, StringComparison.Ordinal)
-            .Replace(" — ", ", ", StringComparison.Ordinal);
+            .Replace(" — ", ", ", StringComparison.Ordinal)
+            .Replace(" - ", ", ", StringComparison.Ordinal);
+
+        // Convert filler words and hesitation sounds to natural speech
+        value = Regex.Replace(value, @"\b(m{2,})\b", "hmm", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\b(uh{2,})\b", "uh", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\b(er{2,})\b", "er", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\b(hmm{2,})\b", "hmm", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\b(um{2,})\b", "um", RegexOptions.IgnoreCase);
+
+        // Convert repeated punctuation to single with pause
+        value = Regex.Replace(value, @"([.!?]){2,}", "$1", RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"[,]{2,}", ",", RegexOptions.IgnoreCase);
+
+        // Handle common abbreviations that get mispronounced
+        value = value.Replace("e.g.", "for example", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("i.e.", "that is", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("etc.", "etcetera", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("vs.", "versus", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("Dr.", "Doctor", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("Mr.", "Mister", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("Mrs.", "Missus", StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("Ms.", "Miss", StringComparison.OrdinalIgnoreCase);
 
         if (value.Length > 0 && value[^1] is not ('.' or '!' or '?' or '…' or ':' or ';'))
             value += ".";
@@ -168,21 +189,29 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
     {
         var speed = voiceId switch
         {
-            "af_nova" => 0.99f,
-            "af_sky" => 0.98f,
-            "af_bella" => 0.97f,
-            "am_michael" => 0.98f,
-            "am_adam" => 0.99f,
-            "bf_emma" => 0.97f,
-            "bm_george" => 0.96f,
-            _ => 0.98f
+            "af_nova" => 1.08f,
+            "af_sky" => 1.09f,
+            "af_bella" => 1.07f,
+            "am_michael" => 1.08f,
+            "am_adam" => 1.08f,
+            "bf_emma" => 1.07f,
+            "bm_george" => 1.06f,
+            _ => 1.08f
         };
 
         var value = text.Trim();
-        if (value.Length <= 36) speed -= 0.02f;
-        if (value.EndsWith('?')) speed -= 0.01f;
-        if (value.EndsWith('!')) speed += 0.01f;
-        return Math.Clamp(speed, 0.93f, 1.02f);
+        // Slow down for questions (more thoughtful)
+        if (value.EndsWith('?')) speed -= 0.03f;
+        // Speed up for exclamations (more energetic)
+        if (value.EndsWith('!')) speed += 0.02f;
+        // Slow down slightly for very short phrases
+        if (value.Length <= 20) speed -= 0.02f;
+        // Slow down for emotional content
+        if (value.Contains("sorry", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("unfortunately", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("sadly", StringComparison.OrdinalIgnoreCase))
+            speed -= 0.02f;
+        return Math.Clamp(speed, 1.02f, 1.12f);
     }
 
     private async Task WarmCachedModelSafelyAsync()

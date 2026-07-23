@@ -77,7 +77,7 @@ public sealed class NotesReadAloudController(
             if (RuntimeSafetyState.IsSafeMode)
                 throw new InvalidOperationException("Notes read aloud is disabled while Haven recovery safe mode is active.");
             if (calls.IsActive)
-                throw new InvalidOperationException("End the active Haven Call before starting Notes read aloud.");
+                throw new InvalidOperationException("End the active Haven Voice before starting Notes read aloud.");
             if (!speech.IsAvailable)
                 throw new InvalidOperationException(speech.UnavailableReason ?? "Local speech output is unavailable.");
             if (IsActive)

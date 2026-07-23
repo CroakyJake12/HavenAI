@@ -10,6 +10,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Haven.Core;
+using Haven.Desktop.Views.Pages.Chat;
+using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop.ViewModels;
 
@@ -21,16 +23,16 @@ public static class MainWindowModeNavigationExtensions
     /// <summary>
     /// Stores mode profile prefix locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private const string ModeProfilePrefix = "Mode profile · ";
+    private const string ModeProfilePrefix = "App profile · ";
     /// <summary>
     /// Stores snapshots locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private static readonly ConditionalWeakTable<ChatPageViewModel, ModeActivationSnapshot> Snapshots = new();
+    private static readonly ConditionalWeakTable<ChatPage, ModeActivationSnapshot> Snapshots = new();
 
     /// <summary>
     /// Performs open mode definition asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    public static async Task OpenModeDefinitionAsync(this MainWindowViewModel shell, ModeDefinition mode)
+    public static async Task OpenModeDefinitionAsync(this MainView shell, ModeDefinition mode)
     {
         ArgumentNullException.ThrowIfNull(shell);
         ArgumentNullException.ThrowIfNull(mode);
@@ -75,7 +77,7 @@ public static class MainWindowModeNavigationExtensions
     /// <summary>
     /// Performs the apply mode profile step owned by this component.
     /// </summary>
-    internal static void ApplyModeProfile(ChatPageViewModel chat, ModeDefinition mode)
+    internal static void ApplyModeProfile(ChatPage chat, ModeDefinition mode)
     {
         ArgumentNullException.ThrowIfNull(chat);
         ArgumentNullException.ThrowIfNull(mode);
@@ -118,7 +120,7 @@ public static class MainWindowModeNavigationExtensions
     /// <summary>
     /// Performs the clear mode profile step owned by this component.
     /// </summary>
-    internal static void ClearModeProfile(ChatPageViewModel chat)
+    internal static void ClearModeProfile(ChatPage chat)
     {
         foreach (var oldProfile in chat.Prompts
                      .Where(prompt => prompt.Name.StartsWith(ModeProfilePrefix, StringComparison.OrdinalIgnoreCase))
@@ -134,7 +136,7 @@ public static class MainWindowModeNavigationExtensions
     /// <summary>
     /// Performs navigate to base workspace asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private static async Task NavigateToBaseWorkspaceAsync(MainWindowViewModel shell, HavenMode baseMode)
+    private static async Task NavigateToBaseWorkspaceAsync(MainView shell, HavenMode baseMode)
     {
         switch (baseMode)
         {

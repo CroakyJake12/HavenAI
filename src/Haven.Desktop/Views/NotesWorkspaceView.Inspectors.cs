@@ -50,27 +50,27 @@ public sealed partial class NotesWorkspaceView
         });
         var model = new ComboBox
         {
-            ItemsSource = _viewModel.Models,
-            SelectedItem = _viewModel.SelectedModelName
+            ItemsSource = _page.Models,
+            SelectedItem = _page.SelectedModelName
         };
-        model.SelectionChanged += (_, _) => _viewModel.SelectedModelName = model.SelectedItem as string ?? string.Empty;
+        model.SelectionChanged += (_, _) => _page.SelectedModelName = model.SelectedItem as string ?? string.Empty;
         _aiPanel.Children.Add(model);
         var instruction = new TextBox
         {
-            Text = _viewModel.AiInstruction,
+            Text = _page.AiInstruction,
             PlaceholderText = "Explain, rewrite, plan, check consistency, create revision cards…",
             AcceptsReturn = true,
             MinHeight = 90,
             TextWrapping = TextWrapping.Wrap
         };
-        instruction.TextChanged += (_, _) => _viewModel.AiInstruction = instruction.Text ?? string.Empty;
+        instruction.TextChanged += (_, _) => _page.AiInstruction = instruction.Text ?? string.Empty;
         _aiPanel.Children.Add(instruction);
         var context = new CheckBox
         {
             Content = "Allow the model to receive this document's text context",
-            IsChecked = _viewModel.AllowDocumentContext
+            IsChecked = _page.AllowDocumentContext
         };
-        context.IsCheckedChanged += (_, _) => _viewModel.AllowDocumentContext = context.IsChecked == true;
+        context.IsCheckedChanged += (_, _) => _page.AllowDocumentContext = context.IsChecked == true;
         _aiPanel.Children.Add(context);
         _aiPanel.Children.Add(new TextBlock
         {
@@ -82,17 +82,17 @@ public sealed partial class NotesWorkspaceView
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         buttons.Children.Add(ActionButton("Create proposal", async () =>
         {
-            await _viewModel.ProposeAiCommand.ExecuteAsync();
+            await _page.ProposeAiCommand.ExecuteAsync();
             RefreshInspector();
         }, "Generate a review-only proposal"));
         buttons.Children.Add(ActionButton("Cancel", () =>
         {
-            _viewModel.CancelAiCommand.Execute(null);
+            _page.CancelAiCommand.Execute(null);
             return Task.CompletedTask;
         }, "Cancel the active AI request"));
         _aiPanel.Children.Add(buttons);
 
-        if (_viewModel.PendingAiChange is { } change)
+        if (_page.PendingAiChange is { } change)
             _aiPanel.Children.Add(BuildStandardAiProposal(change));
 
         BuildMediaAiInspector();
@@ -103,7 +103,7 @@ public sealed partial class NotesWorkspaceView
             Classes = { "eyebrow" },
             Margin = new Thickness(0, 8, 0, 0)
         });
-        foreach (var history in _viewModel.AiHistory.OrderByDescending(item => item.CreatedAt).Take(20))
+        foreach (var history in _page.AiHistory.OrderByDescending(item => item.CreatedAt).Take(20))
         {
             var target = NotesMediaAiReview.TryGetTarget(history, out var mediaTarget)
                 ? " · media " + NotesMediaAiReview.DisplayName(mediaTarget).ToLowerInvariant()
@@ -146,12 +146,12 @@ public sealed partial class NotesWorkspaceView
                 {
                     ActionButton("Approve and apply", async () =>
                     {
-                        await _viewModel.ApproveAiCommand.ExecuteAsync();
+                        await _page.ApproveAiCommand.ExecuteAsync();
                         RefreshAll();
                     }, "Apply this exact proposal and create a version"),
                     ActionButton("Reject", () =>
                     {
-                        _viewModel.RejectAiCommand.Execute(null);
+                        _page.RejectAiCommand.Execute(null);
                         RefreshAll();
                         return Task.CompletedTask;
                     }, "Reject without changing document content", danger: true)
@@ -165,7 +165,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private void BuildMediaAiInspector()
     {
-        if (_viewModel.Document is not { } document || _viewModel.SelectedBlock is not { Media: not null } block) return;
+        if (_page.Document is not { } document || _page.SelectedBlock is not { Media: not null } block) return;
         _aiPanel.Children.Add(new TextBlock
         {
             Text = "MEDIA ACCESSIBILITY AI",
@@ -210,7 +210,7 @@ public sealed partial class NotesWorkspaceView
                 mediaStatus.Text = "Creating a review-only media proposal…";
                 await NotesMediaAiReview.ProposeAsync(
                     service,
-                    _viewModel,
+                    _page,
                     block,
                     selectedTarget,
                     mediaInstruction.Text ?? string.Empty,
@@ -265,14 +265,13 @@ public sealed partial class NotesWorkspaceView
                 {
                     ActionButton("Approve media proposal", async () =>
                     {
-                        await NotesMediaAiReview.ApplyAsync(_viewModel, block, change, CancellationToken.None);
+                        await NotesMediaAiReview.ApplyAsync(_page, block, change, CancellationToken.None);
                         RefreshAll();
                     }, "Apply exactly this proposed media accessibility value and save a version"),
-                    ActionButton("Reject media proposal", () =>
+                    ActionButton("Reject media proposal", async () =>
                     {
-                        NotesMediaAiReview.Reject(_viewModel, block, change);
+                        await NotesMediaAiReview.RejectAsync(_page, block, change);
                         RefreshAll();
-                        return Task.CompletedTask;
                     }, "Reject without changing media accessibility content", danger: true)
                 }
             }
@@ -296,12 +295,12 @@ public sealed partial class NotesWorkspaceView
         _reviewPanel.Children.Add(commentBox);
         _reviewPanel.Children.Add(ActionButton("Add comment", () =>
         {
-            _viewModel.AddCommentCommand.Execute(commentBox.Text);
+            _page.AddCommentCommand.Execute(commentBox.Text);
             commentBox.Text = string.Empty;
             RefreshInspector();
             return Task.CompletedTask;
         }, "Add a review comment to the selected block"));
-        foreach (var comment in _viewModel.Comments.OrderByDescending(item => item.CreatedAt))
+        foreach (var comment in _page.Comments.OrderByDescending(item => item.CreatedAt))
         {
             var row = new StackPanel { Spacing = 3 };
             row.Children.Add(new TextBlock
@@ -315,7 +314,7 @@ public sealed partial class NotesWorkspaceView
             {
                 row.Children.Add(ActionButton("Resolve", () =>
                 {
-                    _viewModel.ResolveCommentCommand.Execute(comment);
+                    _page.ResolveCommentCommand.Execute(comment);
                     RefreshInspector();
                     return Task.CompletedTask;
                 }, "Resolve comment"));
@@ -331,14 +330,14 @@ public sealed partial class NotesWorkspaceView
         });
         _reviewPanel.Children.Add(ActionButton("Add source", () =>
         {
-            _viewModel.AddCitationCommand.Execute(null);
+            _page.AddCitationCommand.Execute(null);
             RefreshInspector();
             return Task.CompletedTask;
         }, "Add a bibliography source"));
-        foreach (var citation in _viewModel.Citations)
+        foreach (var citation in _page.Citations)
             _reviewPanel.Children.Add(BuildCitationEditor(citation));
 
-        if (_viewModel.SelectedBlock?.Flashcard is { } card)
+        if (_page.SelectedBlock?.Flashcard is { } card)
         {
             _reviewPanel.Children.Add(new TextBlock
             {
@@ -355,10 +354,10 @@ public sealed partial class NotesWorkspaceView
                 FontSize = 9
             });
             var ratings = new WrapPanel();
-            ratings.Children.Add(CommandButton("Again", _viewModel.ReviewAgainCommand));
-            ratings.Children.Add(CommandButton("Hard", _viewModel.ReviewHardCommand));
-            ratings.Children.Add(CommandButton("Good", _viewModel.ReviewGoodCommand));
-            ratings.Children.Add(CommandButton("Easy", _viewModel.ReviewEasyCommand));
+            ratings.Children.Add(CommandButton("Again", _page.ReviewAgainCommand));
+            ratings.Children.Add(CommandButton("Hard", _page.ReviewHardCommand));
+            ratings.Children.Add(CommandButton("Good", _page.ReviewGoodCommand));
+            ratings.Children.Add(CommandButton("Easy", _page.ReviewEasyCommand));
             _reviewPanel.Children.Add(ratings);
         }
     }
@@ -421,7 +420,7 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap,
             FontSize = 10
         });
-        foreach (var version in _viewModel.Versions)
+        foreach (var version in _page.Versions)
         {
             var button = new Button
             {
@@ -436,17 +435,17 @@ public sealed partial class NotesWorkspaceView
                     }
                 }
             };
-            button.Classes.Add(ReferenceEquals(version, _viewModel.SelectedVersion) ? "accent" : "sidebar");
+            button.Classes.Add(ReferenceEquals(version, _page.SelectedVersion) ? "accent" : "sidebar");
             button.Click += (_, _) =>
             {
-                _viewModel.SelectedVersion = version;
+                _page.SelectedVersion = version;
                 BuildVersionsInspector();
             };
             _versionsPanel.Children.Add(button);
         }
         _versionsPanel.Children.Add(ActionButton("Restore selected version", async () =>
         {
-            await _viewModel.RestoreVersionCommand.ExecuteAsync();
+            await _page.RestoreVersionCommand.ExecuteAsync();
             RefreshAll();
         }, "Restore as a new current version"));
     }
@@ -469,8 +468,8 @@ public sealed partial class NotesWorkspaceView
             if (reusable.Parent is Panel parent) parent.Children.Remove(reusable);
         _informationPanel.Children.Clear();
         _informationPanel.Children.Add(new TextBlock { Text = "DOCUMENT INFORMATION", Classes = { "eyebrow" } });
-        _informationPanel.Children.Add(new TextBlock { Text = _viewModel.StatisticsLabel, FontWeight = FontWeight.SemiBold });
-        if (_viewModel.Document is not { } document) return;
+        _informationPanel.Children.Add(new TextBlock { Text = _page.StatisticsLabel, FontWeight = FontWeight.SemiBold });
+        if (_page.Document is not { } document) return;
         _informationPanel.Children.Add(new TextBlock
         {
             Text = $"Created {document.CreatedAt.LocalDateTime:g}\nUpdated {document.UpdatedAt.LocalDateTime:g}\nNative schema {document.SchemaVersion}\nDocument version {document.Version}",

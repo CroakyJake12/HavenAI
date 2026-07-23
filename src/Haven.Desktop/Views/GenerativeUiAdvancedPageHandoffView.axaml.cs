@@ -11,6 +11,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop.Views;
 
@@ -44,7 +45,7 @@ public sealed partial class GenerativeUiAdvancedPageHandoffView : UserControl, I
     private async void OnOpenStudioClicked(object? sender, RoutedEventArgs e)
     {
         if (_isOpening || _disposed) return;
-        if (TopLevel.GetTopLevel(this)?.DataContext is not MainWindowViewModel shell)
+        if (TopLevel.GetTopLevel(this)?.DataContext is not MainView shell)
         {
             StatusText.Text = "The Haven shell is not available, so the Studio handoff could not be opened.";
             return;

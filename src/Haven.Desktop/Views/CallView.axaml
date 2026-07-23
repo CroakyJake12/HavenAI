@@ -25,7 +25,7 @@
           <StackPanel Orientation="Horizontal" Spacing="10">
             <controls:HavenIcon IconKey="call" Width="24" Height="24"
                       Foreground="{DynamicResource HavenAccentBrush}"/>
-            <TextBlock Text="Haven Call" FontSize="24" FontWeight="SemiBold"/>
+            <TextBlock Text="Haven Voice" FontSize="24" FontWeight="SemiBold"/>
           </StackPanel>
           <TextBlock Text="A private local voice conversation with your Ollama model"
                      Foreground="{DynamicResource HavenMutedBrush}"/>
@@ -174,9 +174,9 @@
                            FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
               </StackPanel>
 
-              <ScrollViewer x:Name="TranscriptScroller" Padding="18" IsVisible="{Binding HasTranscript}">
-                <ItemsControl ItemsSource="{Binding Transcript}">
-                  <ItemsControl.ItemTemplate>
+              <ListBox x:Name="TranscriptScroller" Padding="18" IsVisible="{Binding HasTranscript}"
+                       BorderThickness="0" Background="Transparent">
+                  <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:CallTranscriptItemViewModel">
                       <Border Margin="0,0,0,14" Padding="14"
                               Background="{DynamicResource HavenPanel3Brush}"
@@ -198,9 +198,8 @@
                         </StackPanel>
                       </Border>
                     </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
+                  </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
 
             <Border Grid.Row="2" Padding="16" BorderBrush="{DynamicResource HavenLineBrush}"

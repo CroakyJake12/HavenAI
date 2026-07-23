@@ -19,9 +19,11 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Notes;
 
 namespace Haven.Desktop.Views;
+
+using NotesPageView = Pages.Notes.NotesPage;
 
 /// <summary>
 /// Represents notes workspace view and keeps its related state and behavior together.
@@ -29,9 +31,9 @@ namespace Haven.Desktop.Views;
 public sealed partial class NotesWorkspaceView : UserControl, IDisposable
 {
     /// <summary>
-    /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// Stores page locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly NotesWorkspaceViewModel _viewModel;
+    private readonly NotesPageView _page;
     /// <summary>
     /// Stores documents panel locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -114,18 +116,23 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// Stores active edit block id locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private Guid? _activeEditBlockId;
+    private bool _dirtyDocuments = true;
+    private bool _dirtySearch = true;
+    private bool _dirtyStructure = true;
+    private bool _dirtyBlocks = true;
+    private bool _dirtyInspector = true;
 
-    public NotesWorkspaceView(NotesWorkspaceViewModel viewModel)
+    public NotesWorkspaceView(NotesPageView page)
     {
-        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
-        DataContext = viewModel;
+        _page = page ?? throw new ArgumentNullException(nameof(page));
+        DataContext = page;
         AutomationProperties.SetName(this, "Haven Notes document workspace");
         Content = BuildLayout();
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
-        _viewModel.DocumentChanged += OnDocumentChanged;
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        _viewModel.SearchNavigationRequested += OnSearchNavigationRequested;
+        _page.DocumentChanged += OnDocumentChanged;
+        _page.PropertyChanged += OnViewModelPropertyChanged;
+        _page.SearchNavigationRequested += OnSearchNavigationRequested;
     }
 
     /// <summary>
@@ -170,11 +177,11 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             ColumnSpacing = 7,
             Margin = new Thickness(14, 10, 14, 0)
         };
-        panel.Children.Add(ActionButton("New", async () => await _viewModel.NewDocumentCommand.ExecuteAsync(), "Create a new local Notes document"));
+        panel.Children.Add(ActionButton("New", async () => await _page.NewDocumentCommand.ExecuteAsync(), "Create a new local Notes document"));
         panel.Children.Add(WithColumn(ActionButton("Import", ImportDocumentAsync, "Open or import a supported document into Haven Documents"), 1));
-        panel.Children.Add(WithColumn(ActionButton("Save", async () => await _viewModel.SaveCommand.ExecuteAsync(), "Save now; autosave also runs automatically"), 2));
-        panel.Children.Add(WithColumn(ActionButton("Undo", () => { _viewModel.UndoCommand.Execute(null); return Task.CompletedTask; }, "Undo the last document edit"), 3));
-        panel.Children.Add(WithColumn(ActionButton("Redo", () => { _viewModel.RedoCommand.Execute(null); return Task.CompletedTask; }, "Redo the last undone edit"), 4));
+        panel.Children.Add(WithColumn(ActionButton("Save", async () => await _page.SaveCommand.ExecuteAsync(), "Save now; autosave also runs automatically"), 2));
+        panel.Children.Add(WithColumn(ActionButton("Undo", () => { _page.UndoCommand.Execute(null); return Task.CompletedTask; }, "Undo the last document edit"), 3));
+        panel.Children.Add(WithColumn(ActionButton("Redo", () => { _page.RedoCommand.Execute(null); return Task.CompletedTask; }, "Redo the last undone edit"), 4));
         var identity = new StackPanel
         {
             Spacing = 1,
@@ -190,7 +197,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         panel.Children.Add(WithColumn(ActionButton("Navigation", ToggleLibraryPane, "Show or hide documents, search, sections and pages"), 6));
         panel.Children.Add(WithColumn(ActionButton("Advanced tools", ToggleInspectorPane, "Show or hide block, AI, review, version and document tools"), 7));
         panel.Children.Add(WithColumn(ActionButton("Export", ExportDocumentAsync, "Export the current document truthfully"), 8));
-        panel.Children.Add(WithColumn(ActionButton("Print", async () => await _viewModel.PrintAsync(CancellationToken.None), "Create a print-ready PDF and open the Windows print handler"), 9));
+        panel.Children.Add(WithColumn(ActionButton("Print", async () => await _page.PrintAsync(CancellationToken.None), "Create a print-ready PDF and open the Windows print handler"), 9));
         return panel;
     }
 
@@ -202,16 +209,16 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     private Control BuildDocumentRibbon()
     {
         var home = new WrapPanel { ItemHeight = 32, ItemWidth = 88 };
-        home.Children.Add(AddBlockButton("Paragraph", _viewModel.AddParagraphCommand));
-        home.Children.Add(AddBlockButton("Heading", _viewModel.AddHeadingCommand));
-        home.Children.Add(AddBlockButton("List", _viewModel.AddListCommand));
+        home.Children.Add(AddBlockButton("Paragraph", _page.AddParagraphCommand));
+        home.Children.Add(AddBlockButton("Heading", _page.AddHeadingCommand));
+        home.Children.Add(AddBlockButton("List", _page.AddListCommand));
 
         var insert = new WrapPanel { ItemHeight = 32, ItemWidth = 82 };
-        insert.Children.Add(AddBlockButton("Table", _viewModel.AddTableCommand));
-        insert.Children.Add(AddBlockButton("Equation", _viewModel.AddEquationCommand));
-        insert.Children.Add(AddBlockButton("Canvas", _viewModel.AddCanvasCommand));
-        insert.Children.Add(AddBlockButton("Flashcard", _viewModel.AddFlashcardCommand));
-        insert.Children.Add(AddBlockButton("HTML", _viewModel.AddHtmlCommand));
+        insert.Children.Add(AddBlockButton("Table", _page.AddTableCommand));
+        insert.Children.Add(AddBlockButton("Equation", _page.AddEquationCommand));
+        insert.Children.Add(AddBlockButton("Canvas", _page.AddCanvasCommand));
+        insert.Children.Add(AddBlockButton("Flashcard", _page.AddFlashcardCommand));
+        insert.Children.Add(AddBlockButton("HTML", _page.AddHtmlCommand));
         insert.Children.Add(ActionButton("Media", ImportMediaAsync, "Insert image, audio, video or document media"));
 
         static Control Group(string label, Control tools) => new StackPanel
@@ -240,7 +247,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         toolsGrid.Children.Add(WithColumn(Group("INSERT", insert), 1));
         toolsGrid.Children.Add(WithColumn(ActionButton("Delete document", () =>
         {
-            _viewModel.RequestDeleteDocumentCommand.Execute(null);
+            _page.RequestDeleteDocumentCommand.Execute(null);
             RefreshDeleteConfirmation();
             return Task.CompletedTask;
         }, "Move this document to recoverable trash", danger: true), 3));
@@ -280,7 +287,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         var searchButton = ActionButton("Search", SearchFromBoxAsync, "Search all local Notes documents");
         var clearSearch = ActionButton("Clear", () =>
         {
-            _viewModel.ClearSearchCommand.Execute(null);
+            _page.ClearSearchCommand.Execute(null);
             _searchBox.Text = string.Empty;
             RefreshSearchResults();
             return Task.CompletedTask;
@@ -298,8 +305,8 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
 
         var structureHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 5 };
         structureHeader.Children.Add(new TextBlock { Text = "STRUCTURE", Classes = { "eyebrow" }, VerticalAlignment = VerticalAlignment.Center });
-        structureHeader.Children.Add(WithColumn(ActionButton("+ Section", () => { _viewModel.AddSectionCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add document section"), 1));
-        structureHeader.Children.Add(WithColumn(ActionButton("+ Page", () => { _viewModel.AddPageCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add page to selected section"), 2));
+        structureHeader.Children.Add(WithColumn(ActionButton("+ Section", () => { _page.AddSectionCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add document section"), 1));
+        structureHeader.Children.Add(WithColumn(ActionButton("+ Page", () => { _page.AddPageCommand.Execute(null); QueueRefresh(); return Task.CompletedTask; }, "Add page to selected section"), 2));
 
         var structure = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 6 };
         structure.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _sectionsPanel });
@@ -319,7 +326,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
                     Children =
                     {
                         new TextBlock { Text = "DOCUMENTS", Classes = { "eyebrow" }, VerticalAlignment = VerticalAlignment.Center },
-                        WithColumn(ActionButton("+", async () => await _viewModel.NewDocumentCommand.ExecuteAsync(), "New document"), 1)
+                        WithColumn(ActionButton("+", async () => await _page.NewDocumentCommand.ExecuteAsync(), "New document"), 1)
                     }
                 },
                 new Border { MinHeight = 180, MaxHeight = 320, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _documentsPanel } },
@@ -348,8 +355,8 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         };
 
         _deleteConfirmation.Children.Add(new TextBlock { Text = "Move this document to recoverable trash?", VerticalAlignment = VerticalAlignment.Center });
-        _deleteConfirmation.Children.Add(WithColumn(ActionButton("Cancel", () => { _viewModel.CancelDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Cancel delete"), 1));
-        _deleteConfirmation.Children.Add(WithColumn(ActionButton("Move to trash", async () => { await _viewModel.DeleteDocumentCommand.ExecuteAsync(); RefreshDeleteConfirmation(); }, "Confirm recoverable delete", danger: true), 2));
+        _deleteConfirmation.Children.Add(WithColumn(ActionButton("Cancel", () => { _page.CancelDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Cancel delete"), 1));
+        _deleteConfirmation.Children.Add(WithColumn(ActionButton("Move to trash", async () => { await _page.DeleteDocumentCommand.ExecuteAsync(); RefreshDeleteConfirmation(); }, "Confirm recoverable delete", danger: true), 2));
 
         var page = new Border
         {
@@ -446,7 +453,8 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _initialized = true;
         try
         {
-            await _viewModel.InitializeAsync(CancellationToken.None);
+            await _page.InitializeAsync(CancellationToken.None);
+            MarkAllDirty();
             RefreshAll();
         }
         catch (Exception ex)
@@ -458,10 +466,10 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// <summary>
     /// Handles the detached from visual tree event raised by the UI or runtime.
     /// </summary>
-    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    private async void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        if (_activeEditBlockId is { } id && _viewModel.Blocks.FirstOrDefault(block => block.Id == id) is { } block)
-            _viewModel.CommitBlockEdit(block, "Edited Notes content");
+        if (_activeEditBlockId is { } id && _page.Blocks.FirstOrDefault(block => block.Id == id) is { } block)
+            await _page.CommitBlockEditAsync(block, "Edited Notes content");
         _activeEditBlockId = null;
     }
 
@@ -483,10 +491,10 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(NotesWorkspaceViewModel.Status)
-            or nameof(NotesWorkspaceViewModel.IsDirty)
-            or nameof(NotesWorkspaceViewModel.Document)
-            or nameof(NotesWorkspaceViewModel.PendingAiChange))
+        if (e.PropertyName is nameof(NotesPageView.Status)
+            or nameof(NotesPageView.IsDirty)
+            or nameof(NotesPageView.Document)
+            or nameof(NotesPageView.PendingAiChange))
             QueueRefresh();
     }
 
@@ -496,17 +504,30 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     private void OnSearchNavigationRequested(object? sender, NotesSearchHit e) => QueueRefresh();
 
     /// <summary>
+    /// Marks all panels as dirty so the next RefreshAll rebuilds them.
+    /// </summary>
+    private void MarkAllDirty()
+    {
+        _dirtyDocuments = true;
+        _dirtySearch = true;
+        _dirtyStructure = true;
+        _dirtyBlocks = true;
+        _dirtyInspector = true;
+    }
+
+    /// <summary>
     /// Performs the queue refresh step owned by this component.
     /// </summary>
     private void QueueRefresh()
     {
         if (_disposed || _refreshQueued) return;
+        MarkAllDirty();
         _refreshQueued = true;
-        Dispatcher.UIThread.Post(() =>
+        UiBatcher.Defer(() =>
         {
             _refreshQueued = false;
             if (!_disposed) RefreshAll();
-        }, DispatcherPriority.Background);
+        });
     }
 
     /// <summary>
@@ -514,14 +535,16 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void RefreshAll()
     {
-        RefreshStatusOnly();
-        RefreshDocuments();
-        RefreshSearchResults();
-        RefreshStructure();
-        RefreshBlocks();
-        BuildSelectedBlockInspector();
-        RefreshInspector();
-        RefreshDeleteConfirmation();
+        using (UiBatcher.BeginBatch())
+        {
+            RefreshStatusOnly();
+            if (_dirtyDocuments) { RefreshDocuments(); _dirtyDocuments = false; }
+            if (_dirtySearch) { RefreshSearchResults(); _dirtySearch = false; }
+            if (_dirtyStructure) { RefreshStructure(); _dirtyStructure = false; }
+            if (_dirtyBlocks) { RefreshBlocks(); _dirtyBlocks = false; }
+            if (_dirtyInspector) { BuildSelectedBlockInspector(); RefreshInspector(); _dirtyInspector = false; }
+            RefreshDeleteConfirmation();
+        }
     }
 
     /// <summary>
@@ -529,11 +552,11 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void RefreshStatusOnly()
     {
-        _status.Text = _viewModel.Status;
-        _saveState.Text = _viewModel.SaveState;
-        _statistics.Text = _viewModel.StatisticsLabel;
-        if (_viewModel.Document is not null && !_documentTitle.IsFocused)
-            _documentTitle.Text = _viewModel.Document.Title;
+        _status.Text = _page.Status;
+        _saveState.Text = _page.SaveState;
+        _statistics.Text = _page.StatisticsLabel;
+        if (_page.Document is not null && !_documentTitle.IsFocused)
+            _documentTitle.Text = _page.Document.Title;
     }
 
     /// <summary>
@@ -541,30 +564,32 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void RefreshDocuments()
     {
-        _documentsPanel.Children.Clear();
-        foreach (var document in _viewModel.Documents)
+        UiBatcher.RebuildChildren(_documentsPanel, panel =>
         {
-            var button = new Button
+            foreach (var document in _page.Documents)
             {
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = new StackPanel
+                var button = new Button
                 {
-                    Spacing = 2,
-                    Children =
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    Content = new StackPanel
                     {
-                        new TextBlock { Text = document.Title, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
-                        new TextBlock { Text = $"{document.WordCount:N0} words · v{document.Version} · {document.UpdatedAt.LocalDateTime:g}" + (document.HasRecovery ? " · recovered" : string.Empty), Classes = { "muted2" }, FontSize = 9 }
+                        Spacing = 2,
+                        Children =
+                        {
+                            new TextBlock { Text = document.Title, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                            new TextBlock { Text = $"{document.WordCount:N0} words · v{document.Version} · {document.UpdatedAt.LocalDateTime:g}" + (document.HasRecovery ? " · recovered" : string.Empty), Classes = { "muted2" }, FontSize = 9 }
+                        }
                     }
-                }
-            };
-            button.Classes.Add(_viewModel.Document?.Id == document.Id ? "accent" : "sidebar");
-            button.Click += async (_, _) =>
-            {
-                try { await _viewModel.OpenDocumentAsync(document.Id, CancellationToken.None); RefreshAll(); }
-                catch (Exception ex) { _status.Text = "Document could not open: " + ex.Message; }
-            };
-            _documentsPanel.Children.Add(button);
-        }
+                };
+                button.Classes.Add(_page.Document?.Id == document.Id ? "accent" : "sidebar");
+                button.Click += async (_, _) =>
+                {
+                    try { await _page.OpenDocumentAsync(document.Id, CancellationToken.None); MarkAllDirty(); RefreshAll(); }
+                    catch (Exception ex) { _status.Text = "Document could not open: " + ex.Message; }
+                };
+                panel.Children.Add(button);
+            }
+        });
     }
 
     /// <summary>
@@ -572,28 +597,30 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void RefreshSearchResults()
     {
-        _searchPanel.Children.Clear();
-        foreach (var hit in _viewModel.SearchResults)
+        UiBatcher.RebuildChildren(_searchPanel, panel =>
         {
-            var button = new Button
+            foreach (var hit in _page.SearchResults)
             {
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = new StackPanel
+                var button = new Button
                 {
-                    Spacing = 1,
-                    Children =
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    Content = new StackPanel
                     {
-                        new TextBlock { Text = hit.DocumentTitle + " · " + hit.BlockKind, FontWeight = FontWeight.SemiBold, FontSize = 10 },
-                        new TextBlock { Text = hit.Snippet, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9, MaxLines = 3 }
+                        Spacing = 1,
+                        Children =
+                        {
+                            new TextBlock { Text = hit.DocumentTitle + " · " + hit.BlockKind, FontWeight = FontWeight.SemiBold, FontSize = 10 },
+                            new TextBlock { Text = hit.Snippet, TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, FontSize = 9, MaxLines = 3 }
+                        }
                     }
-                }
-            };
-            button.Classes.Add("sidebar");
-            button.Click += (_, _) => _viewModel.SelectedSearchHit = hit;
-            _searchPanel.Children.Add(button);
-        }
-        if (_viewModel.SearchResults.Count == 0)
-            _searchPanel.Children.Add(new TextBlock { Text = "Search results appear here.", Classes = { "muted2" }, FontSize = 9, Margin = new Thickness(4) });
+                };
+                button.Classes.Add("sidebar");
+                button.Click += (_, _) => _page.SelectedSearchHit = hit;
+                panel.Children.Add(button);
+            }
+            if (_page.SearchResults.Count == 0)
+                panel.Children.Add(new TextBlock { Text = "Search results appear here.", Classes = { "muted2" }, FontSize = 9, Margin = new Thickness(4) });
+        });
     }
 
     /// <summary>
@@ -601,22 +628,26 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void RefreshStructure()
     {
-        _sectionsPanel.Children.Clear();
-        foreach (var section in _viewModel.Sections)
+        UiBatcher.RebuildChildren(_sectionsPanel, panel =>
         {
-            var button = new Button { Content = section.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-            button.Classes.Add(ReferenceEquals(section, _viewModel.CurrentSection) ? "accent" : "sidebar");
-            button.Click += (_, _) => _viewModel.SelectSection(section);
-            _sectionsPanel.Children.Add(button);
-        }
-        _pagesPanel.Children.Clear();
-        foreach (var page in _viewModel.Pages)
+            foreach (var section in _page.Sections)
+            {
+                var button = new Button { Content = section.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                button.Classes.Add(ReferenceEquals(section, _page.CurrentSection) ? "accent" : "sidebar");
+                button.Click += (_, _) => _page.SelectSection(section);
+                panel.Children.Add(button);
+            }
+        });
+        UiBatcher.RebuildChildren(_pagesPanel, panel =>
         {
-            var button = new Button { Content = page.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-            button.Classes.Add(ReferenceEquals(page, _viewModel.CurrentPage) ? "accent" : "sidebar");
-            button.Click += (_, _) => _viewModel.SelectPage(page);
-            _pagesPanel.Children.Add(button);
-        }
+            foreach (var page in _page.Pages)
+            {
+                var button = new Button { Content = page.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                button.Classes.Add(ReferenceEquals(page, _page.CurrentPage) ? "accent" : "sidebar");
+                button.Click += (_, _) => _page.SelectPage(page);
+                panel.Children.Add(button);
+            }
+        });
     }
 
     /// <summary>
@@ -626,9 +657,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     {
         foreach (var preview in _blocksPanel.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
         _blocksPanel.Children.Clear();
-        foreach (var block in _viewModel.Blocks)
+        foreach (var block in _page.Blocks)
             _blocksPanel.Children.Add(BuildDocumentBlock(block));
-        if (_viewModel.Blocks.Count == 0)
+        if (_page.Blocks.Count == 0)
             _blocksPanel.Children.Add(new TextBlock { Text = "Use the block toolbar to add content.", Classes = { "muted" }, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(20) });
     }
 
@@ -640,7 +671,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     private Control BuildDocumentBlock(NotesBlock block)
     {
         var advanced = NotesBlockEditorFactory.Build(
-            _viewModel, block, BeginEditing, EndEditing, QueueRefresh, ImportMediaAsync);
+            _page, block, BeginEditingAsync, EndEditingAsync, QueueRefresh, ImportMediaAsync);
         if (block.Kind is not (NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote))
             return advanced;
 
@@ -659,14 +690,14 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             PlaceholderText = block.Kind == NotesBlockKind.Heading ? "Heading" : "Start writing…"
         };
         AutomationProperties.SetName(editor, block.Kind == NotesBlockKind.Heading ? "Document heading" : "Document paragraph");
-        editor.GotFocus += (_, _) => BeginEditing(block);
+        editor.GotFocus += (_, _) => _ = BeginEditingAsync(block);
         editor.TextChanged += (_, _) =>
         {
             var text = editor.Text ?? string.Empty;
             if (block.Runs.Count == 1) block.Runs[0].Text = text;
-            _viewModel.UpdateBlockText(block, text);
+            _page.UpdateBlockText(block, text);
         };
-        editor.LostFocus += (_, _) => EndEditing(block, "Edited " + block.Kind);
+        editor.LostFocus += (_, _) => _ = EndEditingAsync(block, "Edited " + block.Kind);
 
         Control writingSurface = editor;
         if (block.Kind == NotesBlockKind.Quote)
@@ -699,30 +730,30 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private async Task SearchFromBoxAsync()
     {
-        _viewModel.SearchQuery = _searchBox.Text ?? string.Empty;
-        await _viewModel.SearchCommand.ExecuteAsync();
+        _page.SearchQuery = _searchBox.Text ?? string.Empty;
+        await _page.SearchCommand.ExecuteAsync();
         RefreshSearchResults();
     }
 
     /// <summary>
     /// Performs the begin editing step owned by this component.
     /// </summary>
-    private void BeginEditing(NotesBlock block)
+    private async Task BeginEditingAsync(NotesBlock block)
     {
         if (_activeEditBlockId == block.Id) return;
-        if (_activeEditBlockId is { } previousId && _viewModel.Blocks.FirstOrDefault(item => item.Id == previousId) is { } previous)
-            _viewModel.CommitBlockEdit(previous, "Edited " + previous.Kind);
+        if (_activeEditBlockId is { } previousId && _page.Blocks.FirstOrDefault(item => item.Id == previousId) is { } previous)
+            await _page.CommitBlockEditAsync(previous, "Edited " + previous.Kind);
         _activeEditBlockId = block.Id;
-        _viewModel.SelectedBlock = block;
-        _viewModel.BeginBlockEdit(block);
+        _page.SelectedBlock = block;
+        await _page.BeginBlockEditAsync(block);
     }
 
     /// <summary>
     /// Performs the end editing step owned by this component.
     /// </summary>
-    private void EndEditing(NotesBlock block, string summary)
+    private async Task EndEditingAsync(NotesBlock block, string summary)
     {
-        _viewModel.CommitBlockEdit(block, summary);
+        await _page.CommitBlockEditAsync(block, summary);
         if (_activeEditBlockId == block.Id) _activeEditBlockId = null;
         QueueRefresh();
     }
@@ -732,8 +763,8 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void BeginDocumentMetadataEdit()
     {
-        var anchor = _viewModel.SelectedBlock ?? _viewModel.Blocks.FirstOrDefault();
-        if (anchor is not null) BeginEditing(anchor);
+        var anchor = _page.SelectedBlock ?? _page.Blocks.FirstOrDefault();
+        if (anchor is not null) _ = BeginEditingAsync(anchor);
     }
 
     /// <summary>
@@ -742,9 +773,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     private void CommitMetadataEdit(string summary)
     {
         var anchor = _activeEditBlockId is { } id
-            ? _viewModel.Blocks.FirstOrDefault(item => item.Id == id)
-            : _viewModel.SelectedBlock;
-        if (anchor is not null) EndEditing(anchor, summary);
+            ? _page.Blocks.FirstOrDefault(item => item.Id == id)
+            : _page.SelectedBlock;
+        if (anchor is not null) _ = EndEditingAsync(anchor, summary);
     }
 
     /// <summary>
@@ -752,15 +783,15 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private void CommitDocumentTitle()
     {
-        if (_viewModel.Document is null) return;
+        if (_page.Document is null) return;
         var value = _documentTitle.Text?.Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
-            _documentTitle.Text = _viewModel.Document.Title;
+            _documentTitle.Text = _page.Document.Title;
             CommitMetadataEdit("Kept document title");
             return;
         }
-        _viewModel.Document.Title = value;
+        _page.Document.Title = value;
         CommitMetadataEdit("Renamed document");
     }
 
@@ -785,7 +816,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) return;
-        try { await _viewModel.ImportDocumentAsync(path, CancellationToken.None); RefreshAll(); }
+        try { await _page.ImportDocumentAsync(path, CancellationToken.None); MarkAllDirty(); RefreshAll(); }
         catch (Exception ex) { _status.Text = "Import failed: " + ex.Message; }
     }
 
@@ -794,13 +825,13 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private async Task ExportDocumentAsync()
     {
-        if (_viewModel.Document is null) return;
+        if (_page.Document is null) return;
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (storage is null) return;
         var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export Haven Notes",
-            SuggestedFileName = SafeFileName(_viewModel.Document.Title) + ".haven-notes.json",
+            SuggestedFileName = SafeFileName(_page.Document.Title) + ".haven-notes.json",
             FileTypeChoices =
             [
                 new FilePickerFileType("Haven Notes") { Patterns = ["*.haven-notes.json"] },
@@ -816,7 +847,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         });
         var path = file?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) return;
-        try { await _viewModel.ExportDocumentAsync(path, CancellationToken.None); RefreshStatusOnly(); }
+        try { await _page.ExportDocumentAsync(path, CancellationToken.None); RefreshStatusOnly(); }
         catch (Exception ex) { _status.Text = "Export failed: " + ex.Message; }
     }
 
@@ -841,14 +872,14 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(path)) return;
-        try { await _viewModel.ImportMediaAsync(path, CancellationToken.None); RefreshAll(); }
+        try { await _page.ImportMediaAsync(path, CancellationToken.None); MarkAllDirty(); RefreshAll(); }
         catch (Exception ex) { _status.Text = "Media import failed: " + ex.Message; }
     }
 
     /// <summary>
     /// Performs the refresh delete confirmation step owned by this component.
     /// </summary>
-    private void RefreshDeleteConfirmation() => _deleteConfirmation.IsVisible = _viewModel.IsDeleteConfirming;
+    private void RefreshDeleteConfirmation() => _deleteConfirmation.IsVisible = _page.IsDeleteConfirming;
 
     /// <summary>
     /// Performs the add block button step owned by this component.
@@ -964,11 +995,11 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _disposed = true;
         AttachedToVisualTree -= OnAttachedToVisualTree;
         DetachedFromVisualTree -= OnDetachedFromVisualTree;
-        _viewModel.DocumentChanged -= OnDocumentChanged;
-        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        _viewModel.SearchNavigationRequested -= OnSearchNavigationRequested;
+        _page.DocumentChanged -= OnDocumentChanged;
+        _page.PropertyChanged -= OnViewModelPropertyChanged;
+        _page.SearchNavigationRequested -= OnSearchNavigationRequested;
         foreach (var preview in this.GetVisualDescendants().OfType<NotesHtmlPreviewControl>()) preview.Dispose();
-        _viewModel.Dispose();
+        _page.Dispose();
         Content = null;
         GC.SuppressFinalize(this);
     }

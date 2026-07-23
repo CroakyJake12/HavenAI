@@ -17,6 +17,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell;
 using Haven.Desktop.Views;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -250,7 +251,7 @@ public sealed class GenerativeUiSlot : StackPanel
     /// </summary>
     private void OpenGeneratedPage(GeneratedPageDefinition definition)
     {
-        if (DataContext is not MainWindowViewModel shell) return;
+        if (DataContext is not MainView shell) return;
         var key = "generated-page-" + definition.Id;
         var existing = shell.OpenTabs.FirstOrDefault(tab => tab.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
@@ -268,7 +269,7 @@ public sealed class GenerativeUiSlot : StackPanel
     /// <summary>
     /// Runs execute shell command async while preserving the surrounding cancellation and error-handling contract.
     /// </summary>
-    private static Task ExecuteShellCommandAsync(MainWindowViewModel shell, string commandId)
+    private static Task ExecuteShellCommandAsync(MainView shell, string commandId)
     {
         System.Windows.Input.ICommand? command = commandId.ToLowerInvariant() switch
         {

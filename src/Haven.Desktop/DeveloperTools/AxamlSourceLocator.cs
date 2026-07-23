@@ -2,7 +2,7 @@
  * FILE DOCUMENTATION
  * Where: src/Haven.Desktop/DeveloperTools/AxamlSourceLocator.cs in the Desktop composition layer.
  * What: Maps selected runtime controls to authored AXAML and opens the best available local editor.
- * How: Exact x:Name matches take priority; unnamed controls resolve only when their type is unique.
+ * How: Exact x:Name matches take priority; ancestor context narrows the search; code-behind is a fallback.
  * Why: Source navigation must be useful without guessing or sending project data outside the machine.
  */
 
@@ -12,14 +12,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 
 namespace Haven.Desktop.DeveloperTools;
 
-internal sealed record AxamlSourceLocation(string FilePath, int Line, string Snippet, bool IsExact);
+internal sealed record AxamlSourceLocation(string FilePath, int Line, string Snippet, bool IsExact, string? Note = null);
 
-/// <summary>
-/// Locates an authored AXAML element from its runtime name or, as a fallback, a unique control type.
-/// </summary>
 internal static class AxamlSourceLocator
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
@@ -28,8 +26,62 @@ internal static class AxamlSourceLocator
     {
         var projectRoot = FindDesktopProjectRoot(AppContext.BaseDirectory);
         if (projectRoot is null) return null;
+
         var name = (visual as StyledElement)?.Name;
-        return Locate(projectRoot, name, visual.GetType().Name);
+        var typeName = visual.GetType().Name;
+
+        var ancestor = FindAncestorUserControlOrWindow(visual);
+        if (ancestor is not null)
+        {
+            var ancestorTypeName = ancestor.GetType().Name;
+            var result = LocateInAncestorScope(projectRoot, name, typeName, ancestorTypeName);
+            if (result is not null) return result;
+
+            return LocateCodeBehindFallback(projectRoot, ancestorTypeName);
+        }
+
+        return Locate(projectRoot, name, typeName);
+    }
+
+    private static Visual? FindAncestorUserControlOrWindow(Visual visual)
+    {
+        var current = visual.GetVisualParent<Visual>();
+        while (current is not null)
+        {
+            if (current is UserControl or Window)
+                return current;
+            current = current.GetVisualParent<Visual>();
+        }
+        return null;
+    }
+
+    private static AxamlSourceLocation? LocateInAncestorScope(
+        string projectRoot, string? name, string typeName, string ancestorTypeName)
+    {
+        var ancestorFile = FindAxamlFileForType(projectRoot, ancestorTypeName);
+        if (ancestorFile is null) return null;
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var namePattern = new Regex(
+                $"(?:x:Name|Name)\\s*=\\s*[\"']{Regex.Escape(name)}[\"']",
+                RegexOptions.CultureInvariant,
+                RegexTimeout);
+            var match = FindFirst(ancestorFile, namePattern, isExact: true);
+            if (match is not null) return match;
+        }
+
+        if (!string.IsNullOrWhiteSpace(typeName))
+        {
+            var typePattern = new Regex(
+                $"<(?:(?:[A-Za-z_][\\w.-]*):)?{Regex.Escape(typeName)}(?=[\\s>/])",
+                RegexOptions.CultureInvariant,
+                RegexTimeout);
+            var match = FindFirst(ancestorFile, typePattern, isExact: false);
+            if (match is not null) return match;
+        }
+
+        return null;
     }
 
     internal static AxamlSourceLocation? Locate(string projectRoot, string? name, string typeName)
@@ -46,16 +98,17 @@ internal static class AxamlSourceLocator
                 $"(?:x:Name|Name)\\s*=\\s*[\"']{Regex.Escape(name)}[\"']",
                 RegexOptions.CultureInvariant,
                 RegexTimeout);
-            AxamlSourceLocation? exact = null;
+            AxamlSourceLocation? first = null;
             foreach (var file in files)
             {
                 foreach (var match in FindAll(file, namePattern, isExact: true))
                 {
-                    if (exact is not null) return null;
-                    exact = match;
+                    if (first is not null)
+                        return first with { Note = "Ambiguous: multiple matches exist. This is the first one found." };
+                    first = match;
                 }
             }
-            if (exact is not null) return exact;
+            if (first is not null) return first;
         }
 
         if (string.IsNullOrWhiteSpace(typeName)) return null;
@@ -69,11 +122,46 @@ internal static class AxamlSourceLocator
             var matches = FindAll(file, typePattern, isExact: false);
             foreach (var match in matches)
             {
-                if (unique is not null) return null;
+                if (unique is not null)
+                    return unique with { Note = "Ambiguous: multiple type matches exist. This is the first one found." };
                 unique = match;
             }
         }
         return unique;
+    }
+
+    private static AxamlSourceLocation? LocateCodeBehindFallback(string projectRoot, string ancestorTypeName)
+    {
+        var axamlFile = FindAxamlFileForType(projectRoot, ancestorTypeName);
+        if (axamlFile is null)
+        {
+            return new AxamlSourceLocation(
+                string.Empty, 0,
+                "This control is built in C# code, not in AXAML. Check the code-behind file.",
+                IsExact: false,
+                Note: "code-only");
+        }
+
+        var codeBehind = axamlFile + ".cs";
+        if (File.Exists(codeBehind))
+        {
+            return new AxamlSourceLocation(
+                codeBehind, 1,
+                $"AXAML file found but no match within it. Code-behind: {Path.GetFileName(codeBehind)}",
+                IsExact: false,
+                Note: "code-behind");
+        }
+
+        return null;
+    }
+
+    private static string? FindAxamlFileForType(string projectRoot, string typeName)
+    {
+        if (!Directory.Exists(projectRoot)) return null;
+        var pattern = $"{typeName}.axaml";
+        return Directory.EnumerateFiles(projectRoot, "*.axaml", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(path))
+            .FirstOrDefault(path => string.Equals(Path.GetFileName(path), pattern, StringComparison.OrdinalIgnoreCase));
     }
 
     internal static string? FindDesktopProjectRoot(string startPath)
@@ -90,6 +178,13 @@ internal static class AxamlSourceLocator
 
             current = current.Parent;
         }
+        return null;
+    }
+
+    private static AxamlSourceLocation? FindFirst(string file, Regex pattern, bool isExact)
+    {
+        foreach (var match in FindAll(file, pattern, isExact))
+            return match;
         return null;
     }
 
@@ -159,6 +254,12 @@ internal static class SourceFileLauncher
 {
     public static bool TryOpen(AxamlSourceLocation location, out string message)
     {
+        if (location.FilePath.Length == 0)
+        {
+            message = location.Snippet;
+            return false;
+        }
+
         try
         {
             var code = FindOnPath(OperatingSystem.IsWindows() ? "code.cmd" : "code");

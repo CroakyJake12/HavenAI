@@ -20,15 +20,15 @@
     <!-- Header -->
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
-      <TextBlock Text="Mode Library" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource HavenTextBrush}" />
-      <TextBlock Text="Discover, pin, and create Haven modes." FontSize="12" Foreground="{DynamicResource HavenMutedBrush}" />
+      <TextBlock Text="App Library" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource HavenTextBrush}" />
+      <TextBlock Text="Discover, pin, and create Haven apps." FontSize="12" Foreground="{DynamicResource HavenMutedBrush}" />
     </StackPanel>
 
     <!-- Toolbar -->
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
       <Border Grid.Column="0" CornerRadius="6" Background="{DynamicResource HavenPanelBrush}" Padding="8,0" MaxWidth="300">
-        <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search modes..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
+        <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search apps..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
       </Border>
       <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="ghost" Margin="8,0" />
       <Button Grid.Column="2" Content="+ Create in Studio" Command="{Binding CreateInStudioCommand}" Classes="accent" />

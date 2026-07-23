@@ -187,7 +187,7 @@ public partial class CallView : UserControl
         {
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export Haven Call transcript",
+                Title = "Export Haven Voice transcript",
                 SuggestedFileName = $"haven-call-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
                 FileTypeChoices =
                 [
@@ -244,7 +244,8 @@ public partial class CallView : UserControl
     /// </summary>
     private void OnTranscriptCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        TranscriptScroller.ScrollToEnd();
+        if (TranscriptScroller.ItemCount > 0)
+            TranscriptScroller.ScrollIntoView(TranscriptScroller.ItemCount - 1);
         if (_transcriptExportButton is not null && DataContext is CallPageViewModel viewModel)
             _transcriptExportButton.IsEnabled = viewModel.Transcript.Count > 0;
     }

@@ -53,7 +53,7 @@ public sealed partial class NotesWorkspaceView
     {
         _blockPanel.Children.Clear();
         _blockPanel.Children.Add(new TextBlock { Text = "SELECTED BLOCK", Classes = { "eyebrow" } });
-        var block = _viewModel.SelectedBlock;
+        var block = _page.SelectedBlock;
         if (block is null)
         {
             _blockPanel.Children.Add(new TextBlock
@@ -137,12 +137,12 @@ public sealed partial class NotesWorkspaceView
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (_disposed) return;
-                        var liveBlock = _viewModel.Document?.Sections
+                        var liveBlock = _page.Document?.Sections
                             .SelectMany(section => section.Pages)
                             .SelectMany(page => page.Blocks)
                             .FirstOrDefault(value => value.Id == block.Id);
                         if (liveBlock is null) return;
-                        BeginEditing(liveBlock);
+                        _ = BeginEditingAsync(liveBlock);
                         var existing = liveBlock.Runs.Count > 0
                             ? string.Concat(liveBlock.Runs.Select(run => run.Text))
                             : liveBlock.PlainText;
@@ -166,7 +166,7 @@ public sealed partial class NotesWorkspaceView
                             liveBlock.Runs[^1].Text += separator + text;
                         }
                         liveBlock.PlainText = string.Concat(liveBlock.Runs.Select(run => run.Text));
-                        EndEditing(liveBlock, "Inserted local speech transcript");
+                        _ = EndEditingAsync(liveBlock, "Inserted local speech transcript");
                         RefreshAll();
                     }, DispatcherPriority.Send);
                 }, CancellationToken.None);
@@ -266,12 +266,12 @@ public sealed partial class NotesWorkspaceView
         void SavePreferences()
         {
             if (!ready) return;
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             block.Metadata[CodeLanguageKey] = language.SelectedItem as string ?? "Plain text";
             block.Metadata[CodeWrapKey] = (wrap.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
             block.Metadata[CodeLineNumbersKey] = (lineNumbers.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
             block.Metadata[CodeTabSizeKey] = Decimal.ToInt32(tabSize.Value ?? 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            EndEditing(block, "Changed code block settings");
+            _ = EndEditingAsync(block, "Changed code block settings");
             RebuildPreview();
         }
         language.SelectionChanged += (_, _) => SavePreferences();
@@ -284,7 +284,7 @@ public sealed partial class NotesWorkspaceView
         actions.Children.Add(ActionButton("Normalize indentation", () =>
         {
             var spaces = new string(' ', Decimal.ToInt32(tabSize.Value ?? 4));
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             if (block.Runs.Count == 0)
             {
                 block.PlainText = block.PlainText.Replace("\t", spaces, StringComparison.Ordinal);
@@ -295,7 +295,7 @@ public sealed partial class NotesWorkspaceView
                     run.Text = run.Text.Replace("\t", spaces, StringComparison.Ordinal);
                 block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
             }
-            EndEditing(block, "Normalized code indentation");
+            _ = EndEditingAsync(block, "Normalized code indentation");
             RebuildPreview();
             return Task.CompletedTask;
         }, "Replace tab characters with the selected number of spaces as one undoable edit"));
@@ -354,16 +354,16 @@ public sealed partial class NotesWorkspaceView
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Sort ↑", () =>
         {
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             NotesTableOperations.Sort(table, Math.Max(0, Decimal.ToInt32(column.Value ?? 1) - 1), descending: false);
-            EndEditing(block, "Sorted table ascending");
+            _ = EndEditingAsync(block, "Sorted table ascending");
             return Task.CompletedTask;
         }, "Sort the selected table column ascending"));
         actions.Children.Add(ActionButton("Sort ↓", () =>
         {
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             NotesTableOperations.Sort(table, Math.Max(0, Decimal.ToInt32(column.Value ?? 1) - 1), descending: true);
-            EndEditing(block, "Sorted table descending");
+            _ = EndEditingAsync(block, "Sorted table descending");
             return Task.CompletedTask;
         }, "Sort the selected table column descending"));
         actions.Children.Add(ActionButton("Sum", () =>
@@ -386,9 +386,9 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(Labeled("Tab-separated data", delimited));
         _blockPanel.Children.Add(ActionButton("Apply table data", () =>
         {
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             block.Table = NotesTableOperations.FromDelimitedText(delimited.Text ?? string.Empty);
-            EndEditing(block, "Imported tab-separated table data");
+            _ = EndEditingAsync(block, "Imported tab-separated table data");
             return Task.CompletedTask;
         }, "Replace the selected table with the tab-separated data above"));
     }
@@ -457,12 +457,12 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap,
             PlaceholderText = "Accessible transcript for audio or video"
         };
-        transcript.GotFocus += (_, _) => BeginEditing(block);
+        transcript.GotFocus += (_, _) => _ = BeginEditingAsync(block);
         transcript.LostFocus += (_, _) =>
         {
             transform.Transcript = transcript.Text ?? string.Empty;
             NotesMediaTransformStore.Save(block, transform);
-            EndEditing(block, "Edited media transcript");
+            _ = EndEditingAsync(block, "Edited media transcript");
         };
         _blockPanel.Children.Add(Labeled("Transcript", transcript));
 
@@ -474,12 +474,12 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap,
             PlaceholderText = "Captions or subtitle text"
         };
-        captions.GotFocus += (_, _) => BeginEditing(block);
+        captions.GotFocus += (_, _) => _ = BeginEditingAsync(block);
         captions.LostFocus += (_, _) =>
         {
             transform.Captions = captions.Text ?? string.Empty;
             NotesMediaTransformStore.Save(block, transform);
-            EndEditing(block, "Edited media captions");
+            _ = EndEditingAsync(block, "Edited media captions");
         };
         _blockPanel.Children.Add(Labeled("Captions", captions));
     }
@@ -516,9 +516,9 @@ public sealed partial class NotesWorkspaceView
         try
         {
             var replacement = await ResolveMediaService().ReplaceAsync(block.Media, path, CancellationToken.None);
-            BeginEditing(block);
+            _ = BeginEditingAsync(block);
             block.Media = replacement;
-            EndEditing(block, "Replaced managed media");
+            _ = EndEditingAsync(block, "Replaced managed media");
             RefreshAll();
         }
         catch (Exception ex)

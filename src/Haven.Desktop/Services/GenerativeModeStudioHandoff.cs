@@ -10,6 +10,7 @@
 using System.Text;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop.Services;
 
@@ -27,7 +28,7 @@ public static class GenerativeModeStudioHandoff
     /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public static async Task OpenAsync(
-        MainWindowViewModel shell,
+        MainView shell,
         string request,
         CancellationToken cancellationToken)
     {

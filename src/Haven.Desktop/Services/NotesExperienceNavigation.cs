@@ -16,9 +16,13 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
+using Haven.Desktop.Views.Shell;
+using Haven.Desktop.Views.Pages.Notes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Services;
+
+using NotesPageView = Views.Pages.Notes.NotesPage;
 
 /// <summary>
 /// Represents notes experience navigation and keeps its related state and behavior together.
@@ -28,7 +32,7 @@ public static class NotesExperienceNavigation
     /// <summary>
     /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    public static Task OpenAsync(MainWindowViewModel shell, NotesExperienceKind kind)
+    public static Task OpenAsync(MainView shell, NotesExperienceKind kind)
     {
         ArgumentNullException.ThrowIfNull(shell);
         var key = "notes-experience-" + kind.ToString().ToLowerInvariant();
@@ -44,10 +48,9 @@ public static class NotesExperienceNavigation
         if (kind == NotesExperienceKind.Notes)
         {
             var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
-            var viewModel = ActivatorUtilities.CreateInstance<NotesWorkspaceViewModel>(
+            page = ActivatorUtilities.CreateInstance<NotesPageView>(
                 services,
                 services.GetRequiredService<IProviderModelClient>());
-            page = new NotesWorkspaceView(viewModel);
         }
         else
         {

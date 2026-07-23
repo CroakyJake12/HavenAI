@@ -10,7 +10,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.ContainerSettings;
 
 namespace Haven.Desktop.Views;
 
@@ -22,11 +22,24 @@ public sealed partial class ContainerSettingsView : UserControl
     public ContainerSettingsView() => InitializeComponent();
 
     /// <summary>
+    /// Returns the named action buttons so adapter pages can wire event-bus proxies without visual-tree searches.
+    /// </summary>
+    public IReadOnlyDictionary<string, Button> GetActionButtons() => new Dictionary<string, Button>
+    {
+        ["Save"] = SaveButton,
+        ["Archive"] = ArchiveButton,
+        ["Delete"] = DeleteButton,
+        ["Discard"] = DiscardButton,
+        ["CancelDelete"] = CancelDeleteButton,
+        ["ConfirmDelete"] = ConfirmDeleteButton
+    };
+
+    /// <summary>
     /// Handles the browse folder clicked event raised by the UI or runtime.
     /// </summary>
     private async void OnBrowseFolderClicked(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not ContainerSettingsPageViewModel vm) return;
+        if (DataContext is not ContainerSettingsPage page) return;
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
         if (storage is null) return;
         var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -35,6 +48,6 @@ public sealed partial class ContainerSettingsView : UserControl
             AllowMultiple = false
         });
         var path = folders.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(path)) vm.SetRootPath(path);
+        if (!string.IsNullOrWhiteSpace(path)) page.SetRootPath(path);
     }
 }

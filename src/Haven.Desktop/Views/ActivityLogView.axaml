@@ -40,7 +40,7 @@
       <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
         <TextBlock Text="Activity Log" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
         <Button Content="Refresh" Command="{Binding RefreshCommand}"
-                Background="{DynamicResource PrimaryBrush}" Foreground="White" Padding="12,5"/>
+                Background="{DynamicResource HavenAccentBrush}" Foreground="White" Padding="12,5"/>
       </StackPanel>
 
       <!-- ============================================================
@@ -62,10 +62,9 @@
            - Timestamp (relative to now)
            Clicking an item opens that conversation in a new tab.
            ============================================================ -->
-      <Border Grid.Row="2" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="8">
-        <ScrollViewer>
-          <ItemsControl ItemsSource="{Binding FilteredItems}">
-            <ItemsControl.ItemTemplate>
+      <Border Grid.Row="2" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="8" Padding="8">
+          <ListBox ItemsSource="{Binding FilteredItems}" BorderThickness="0" Background="Transparent">
+            <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ActivityLogItem">
                 <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderThickness="0" Padding="10,8" Margin="0,0,0,2"
@@ -76,7 +75,7 @@
                     <TextBlock Grid.Column="0" Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
                                MaxLines="1" TextTrimming="CharacterEllipsis"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                      <Border Background="{DynamicResource StrokeBrush}" CornerRadius="4" Padding="6,2">
+                      <Border Background="{DynamicResource HavenLineBrush}" CornerRadius="4" Padding="6,2">
                         <TextBlock Text="{Binding Mode}" FontSize="10" Opacity="0.7"/>
                       </Border>
                       <TextBlock Text="{Binding MessageCount, StringFormat='{}{0} msgs'}"
@@ -93,16 +92,15 @@
                   </Grid>
                 </Button>
               </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+            </ListBox.ItemTemplate>
+          </ListBox>
       </Border>
 
       <!-- ============================================================
            ROW 3: STATUS BAR
            Shows total conversation count or filtered count.
            ============================================================ -->
-      <Border Grid.Row="3" Background="{DynamicResource SurfaceCardBrush}"
+      <Border Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}"
               CornerRadius="8" Padding="12,8" Margin="0,8,0,0">
         <TextBlock Text="{Binding StatusMessage}" Opacity="0.7"/>
       </Border>

@@ -325,11 +325,11 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
     /// </summary>
     public string SurfaceIcon => Surface switch
     {
-        SurfaceKind.Browse => "\uE774",
-        SurfaceKind.Plan => "\uE7BA",
-        SurfaceKind.Phone or SurfaceKind.Do => "\uE717",
-        SurfaceKind.Chat => "\uE8AB",
-        _ => "\uE790"
+        SurfaceKind.Browse => "globe",
+        SurfaceKind.Plan => "calendar",
+        SurfaceKind.Phone or SurfaceKind.Do => "phone",
+        SurfaceKind.Chat => "chat",
+        _ => "home"
     };
 
     /// <summary>

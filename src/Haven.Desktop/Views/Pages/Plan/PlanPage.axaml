@@ -1,0 +1,212 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Pages.Plan.PlanPage">
+
+  <Grid ColumnDefinitions="220,*,320" Background="{DynamicResource HavenBackgroundBrush}">
+
+    <!-- Column 0: Views list + Collections -->
+    <Border Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel>
+          <TextBlock Text="PLAN" Classes="eyebrow" />
+          <TextBlock Text="Views" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,12" />
+        </StackPanel>
+        <ItemsControl Grid.Row="1" x:Name="ViewsList" />
+        <ScrollViewer Grid.Row="2" Margin="0,22,0,8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="COLLECTIONS" Classes="eyebrow" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="Local" Classes="muted" FontSize="11" />
+            </Grid>
+            <ListBox x:Name="CollectionsList" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,9,0,0">
+              <TextBox x:Name="NewCollectionNameBox" PlaceholderText="New collection" />
+              <Button Grid.Column="1" Classes="icon" x:Name="CreateCollectionButton" ToolTip.Tip="Create collection">
+                <controls:HavenIcon IconKey="plus" Width="14" Height="14" />
+              </Button>
+            </Grid>
+            <TextBox x:Name="SelectedCollectionNameBox" PlaceholderText="Collection name" Margin="0,7,0,5" />
+            <Grid ColumnDefinitions="*,Auto">
+              <Button x:Name="RenameCollectionButton" Content="Rename" HorizontalContentAlignment="Left" />
+              <Button Grid.Column="1" x:Name="ArchiveCollectionRequestButton" Content="Archive" Margin="5,0,0,0" />
+            </Grid>
+            <Border Classes="card" Padding="9" Margin="0,7,0,0" IsVisible="False" x:Name="ArchiveConfirmPanel">
+              <StackPanel>
+                <TextBlock Text="Archive this collection? Tasks remain stored locally." Classes="muted" TextWrapping="Wrap" FontSize="10" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="5" Margin="0,6,0,0">
+                  <Button x:Name="CancelArchiveButton" Content="Cancel" />
+                  <Button Grid.Column="1" x:Name="ConfirmArchiveButton" Content="Archive" Classes="danger" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="3" Classes="card" Padding="12">
+          <TextBlock Text="Tasks stay local. Calendar accounts are optional and sync events only." Classes="muted" TextWrapping="Wrap" FontSize="11" />
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- Column 1: Title/period header, task/event creation, content area -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="28,24">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <StackPanel>
+          <TextBlock x:Name="TitleText" Classes="heading" />
+          <TextBlock x:Name="PeriodText" Classes="muted" Margin="0,3,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="icon" x:Name="PreviousPeriodButton" Margin="0,0,6,0" ToolTip.Tip="Previous period">
+          <controls:HavenIcon IconKey="chevron-left" Width="14" Height="14" />
+        </Button>
+        <Button Grid.Column="2" Content="Today" x:Name="TodayButton" Margin="0,0,6,0" />
+        <Button Grid.Column="3" Classes="icon" x:Name="NextPeriodButton" ToolTip.Tip="Next period">
+          <controls:HavenIcon IconKey="chevron-left" RenderTransform="rotate(180deg)" Width="14" Height="14" />
+        </Button>
+      </Grid>
+
+      <!-- Task creation -->
+      <Border Grid.Row="1" Classes="card" Margin="0,18,0,10" Padding="14">
+        <Grid ColumnDefinitions="*,160,130,Auto" ColumnSpacing="8">
+          <TextBox x:Name="NewTaskTitleBox" PlaceholderText="Add a task…" />
+          <CalendarDatePicker x:Name="NewTaskDueDatePicker" Grid.Column="1" PlaceholderText="Due date" />
+          <ComboBox x:Name="NewTaskPriorityCombo" Grid.Column="2" />
+          <Button Grid.Column="3" Content="Add task" Classes="primary" x:Name="CreateTaskButton" />
+        </Grid>
+      </Border>
+
+      <!-- Event creation -->
+      <Border Grid.Row="2" Classes="card" Margin="0,0,0,10" Padding="14">
+        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,150,145" ColumnSpacing="8" RowSpacing="8">
+          <TextBox x:Name="NewEventTitleBox" PlaceholderText="Add a calendar event…" />
+          <ComboBox x:Name="NewEventCalendarCombo" Grid.Column="1" PlaceholderText="Calendar" />
+          <CalendarDatePicker x:Name="NewEventDatePicker" Grid.Column="2" PlaceholderText="Date" />
+          <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,140,Auto,140,*,Auto" ColumnSpacing="8">
+            <TextBlock Text="Starts" Classes="muted" VerticalAlignment="Center" />
+            <TimePicker x:Name="NewEventStartPicker" Grid.Column="1" ClockIdentifier="24HourClock" MinWidth="140" />
+            <TextBlock Grid.Column="2" Text="Ends" Classes="muted" VerticalAlignment="Center" />
+            <TimePicker x:Name="NewEventEndPicker" Grid.Column="3" ClockIdentifier="24HourClock" MinWidth="140" />
+            <Button Grid.Column="5" Content="Add event" Classes="primary" x:Name="CreateEventButton" HorizontalContentAlignment="Center" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!-- Content area -->
+      <ScrollViewer Grid.Row="3">
+        <Grid>
+          <!-- Standard list view -->
+          <StackPanel x:Name="StandardListPanel">
+            <Grid ColumnDefinitions="*,Auto" Margin="2,6,2,8">
+              <TextBlock Text="TASKS" Classes="eyebrow" />
+              <TextBlock x:Name="TaskStatusText" Grid.Column="1" Classes="muted" FontSize="11" />
+            </Grid>
+            <ListBox x:Name="TaskItemsPanel" BorderThickness="0" Background="Transparent" />
+            <TextBlock Text="CALENDAR" Classes="eyebrow" Margin="2,16,2,8" />
+            <ListBox x:Name="EventItemsPanel" BorderThickness="0" Background="Transparent" />
+          </StackPanel>
+
+          <!-- Board view -->
+          <ItemsControl x:Name="BoardColumnsPanel" IsVisible="False" />
+
+          <!-- Calendar grid view -->
+          <ItemsControl x:Name="CalendarGridPanel" IsVisible="False" />
+        </Grid>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Column 2: Task/event editors, AI prompt, calendar accounts -->
+    <Border Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
+      <ScrollViewer>
+        <StackPanel>
+          <!-- Task editor -->
+          <Border Classes="card" IsVisible="False" x:Name="TaskEditorPanel" Padding="14" Margin="0,0,0,14">
+            <StackPanel>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="EDIT TASK" Classes="eyebrow" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseTaskEditorButton" ToolTip.Tip="Close task editor">
+                  <controls:HavenIcon IconKey="close" Width="13" Height="13" />
+                </Button>
+              </Grid>
+              <TextBox x:Name="TaskEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
+              <TextBox x:Name="TaskEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
+                <ComboBox x:Name="TaskEditorPriorityCombo" />
+                <ComboBox x:Name="TaskEditorStatusCombo" Grid.Column="1" />
+              </Grid>
+              <ComboBox x:Name="TaskEditorParentCombo" Margin="0,6,0,0" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
+                <CalendarDatePicker x:Name="TaskEditorStartsAtPicker" PlaceholderText="Start" />
+                <CalendarDatePicker x:Name="TaskEditorDueAtPicker" Grid.Column="1" PlaceholderText="Due" />
+              </Grid>
+              <CalendarDatePicker x:Name="TaskEditorReminderAtPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <TextBox x:Name="TaskEditorTagsBox" PlaceholderText="Tags, separated by commas" Margin="0,6,0,0" />
+              <TextBox x:Name="TaskEditorEstimateBox" PlaceholderText="Estimate in minutes" Margin="0,6,0,0" />
+              <TextBox x:Name="TaskEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=WEEKLY;BYDAY=MO" Margin="0,6,0,0" />
+              <TextBox x:Name="TaskEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <TextBlock x:Name="TaskEditorMessageText" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
+              <Button Content="Save task" Classes="primary" x:Name="SaveTaskButton" HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Border>
+
+          <!-- Event editor -->
+          <Border Classes="card" IsVisible="False" x:Name="EventEditorPanel" Padding="14" Margin="0,0,0,14">
+            <StackPanel>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="EDIT EVENT" Classes="eyebrow" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseEventEditorButton" ToolTip.Tip="Close event editor">
+                  <controls:HavenIcon IconKey="close" Width="13" Height="13" />
+                </Button>
+              </Grid>
+              <TextBox x:Name="EventEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
+              <TextBox x:Name="EventEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <TextBox x:Name="EventEditorLocationBox" PlaceholderText="Location" Margin="0,6,0,0" />
+              <CalendarDatePicker x:Name="EventEditorDatePicker" PlaceholderText="Date" Margin="0,6,0,0" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
+                <TimePicker x:Name="EventEditorStartPicker" ClockIdentifier="24HourClock" />
+                <TimePicker x:Name="EventEditorEndPicker" Grid.Column="1" ClockIdentifier="24HourClock" />
+              </Grid>
+              <CheckBox x:Name="EventEditorAllDayCheck" Content="All day" Margin="0,6,0,0" />
+              <CalendarDatePicker x:Name="EventEditorReminderPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <TextBox x:Name="EventEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=MONTHLY" Margin="0,6,0,0" />
+              <TextBox x:Name="EventEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <TextBlock x:Name="EventEditorMessageText" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
+              <Button Content="Save event" Classes="primary" x:Name="SaveEventButton" HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Border>
+
+          <!-- AI prompt -->
+          <TextBlock Text="PLAN WITH HAVEN" Classes="eyebrow" />
+          <TextBlock Text="AI assistance" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,4" />
+          <TextBlock Text="Ask Haven to break down a goal, organise a week, or resolve conflicts. You approve every edit." Classes="muted" TextWrapping="Wrap" />
+          <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104" Margin="0,14,0,8"
+                   PlaceholderText="Plan my college deadlines around work…" />
+          <Button Content="Draft changes" Classes="primary" x:Name="AskAiButton" HorizontalAlignment="Stretch" />
+
+          <!-- Proposal review -->
+          <Border Classes="card" Margin="0,14,0,0" IsVisible="False" x:Name="ProposalPanel" Padding="14">
+            <StackPanel>
+              <TextBlock Text="REVIEW PROPOSAL" Classes="eyebrow" />
+              <TextBlock x:Name="ProposalSummaryText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,7,0,10" />
+              <ItemsControl x:Name="ProposalChangesPanel" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,6,0,0">
+                <Button x:Name="DismissProposalButton" Content="Dismiss" />
+                <Button Grid.Column="1" x:Name="ApplyProposalButton" Content="Apply" Classes="primary" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- Calendar accounts -->
+          <TextBlock Text="CALENDAR ACCOUNTS" Classes="eyebrow" Margin="0,24,0,8" />
+          <ItemsControl x:Name="CalendarProvidersPanel" />
+
+          <!-- Sync conflicts -->
+          <StackPanel x:Name="ConflictsPanel" IsVisible="False" Margin="0,16,0,0">
+            <TextBlock Text="SYNC CONFLICTS" Classes="eyebrow" Margin="0,0,0,8" />
+            <TextBlock Text="Both Haven and the connected calendar changed these events. Choose which version to keep; nothing is overwritten automatically."
+                       Classes="muted" TextWrapping="Wrap" Margin="0,0,0,10" />
+            <ItemsControl x:Name="ConflictsItemsPanel" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

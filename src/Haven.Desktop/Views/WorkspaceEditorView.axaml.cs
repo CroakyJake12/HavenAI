@@ -9,7 +9,7 @@
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.WorkspaceEditor;
 
 namespace Haven.Desktop.Views;
 
@@ -25,7 +25,7 @@ public sealed partial class WorkspaceEditorView : UserControl
     /// </summary>
     private void OnEditorSelectionChanged(object? sender, RoutedEventArgs e)
     {
-        if (sender is TextBox box && DataContext is WorkspaceEditorPageViewModel vm)
-            vm.SetSelection(box.SelectedText ?? string.Empty);
+        if (sender is TextBox box && DataContext is WorkspaceEditorPage page)
+            page.SetSelection(box.SelectedText ?? string.Empty);
     }
 }

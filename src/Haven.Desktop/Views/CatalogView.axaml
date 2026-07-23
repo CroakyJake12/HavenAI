@@ -13,7 +13,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.CatalogView">
-  <!-- Catalog View — browse and create agents, plugins, or prompt templates -->
+  <!-- Catalog View — browse and create agents, plugins, or instruction templates -->
   <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="30,25">
 

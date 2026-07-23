@@ -15,9 +15,12 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Application;
 using Haven.Core;
-using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Notes;
 
 namespace Haven.Desktop.Controls;
+
+using DomainNotesPage = Haven.Core.NotesPage;
+using NotesPageView = Views.Pages.Notes.NotesPage;
 
 /// <summary>
 /// Represents notes document layout surface and keeps its related state and behavior together.
@@ -28,10 +31,10 @@ public static class NotesDocumentLayoutSurface
     /// Builds paginated from the currently available inputs.
     /// </summary>
     public static Control BuildPaginated(
-        NotesWorkspaceViewModel viewModel,
+        NotesPageView viewModel,
         NotesAdvancedDocumentState advanced,
-        Action<NotesBlock> beginEdit,
-        Action<NotesBlock, string> endEdit,
+        Func<NotesBlock, Task> beginEdit,
+        Func<NotesBlock, string, Task> endEdit,
         Action refresh,
         Func<Task> importMedia)
     {
@@ -153,10 +156,10 @@ public static class NotesDocumentLayoutSurface
     /// Builds freeform from the currently available inputs.
     /// </summary>
     public static Control BuildFreeform(
-        NotesWorkspaceViewModel viewModel,
+        NotesPageView viewModel,
         bool infinite,
-        Action<NotesBlock> beginEdit,
-        Action<NotesBlock, string> endEdit,
+        Func<NotesBlock, Task> beginEdit,
+        Func<NotesBlock, string, Task> endEdit,
         Action refresh,
         Func<Task> importMedia) =>
         new NotesFreeformPageControl(viewModel, infinite, beginEdit, endEdit, refresh, importMedia);
@@ -280,11 +283,11 @@ public sealed class NotesFreeformPageControl : UserControl
     /// <summary>
     /// Stores view model locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly NotesWorkspaceViewModel _viewModel;
+    private readonly NotesPageView _viewModel;
     /// <summary>
     /// Stores page locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly NotesPage _page;
+    private readonly DomainNotesPage _page;
     /// <summary>
     /// Stores surface locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -296,11 +299,11 @@ public sealed class NotesFreeformPageControl : UserControl
     /// <summary>
     /// Stores begin edit locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly Action<NotesBlock> _beginEdit;
+    private readonly Func<NotesBlock, Task> _beginEdit;
     /// <summary>
     /// Stores end edit locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly Action<NotesBlock, string> _endEdit;
+    private readonly Func<NotesBlock, string, Task> _endEdit;
     /// <summary>
     /// Stores refresh locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -319,10 +322,10 @@ public sealed class NotesFreeformPageControl : UserControl
     private double _zoom = 1;
 
     public NotesFreeformPageControl(
-        NotesWorkspaceViewModel viewModel,
+        NotesPageView viewModel,
         bool infinite,
-        Action<NotesBlock> beginEdit,
-        Action<NotesBlock, string> endEdit,
+        Func<NotesBlock, Task> beginEdit,
+        Func<NotesBlock, string, Task> endEdit,
         Action refresh,
         Func<Task> importMedia)
     {
@@ -479,14 +482,14 @@ public sealed class NotesFreeformPageControl : UserControl
         Point start = default;
         double originalX = 0;
         double originalY = 0;
-        handle.PointerPressed += (_, args) =>
+        handle.PointerPressed += async (_, args) =>
         {
             if (!args.GetCurrentPoint(handle).Properties.IsLeftButtonPressed) return;
             dragging = true;
             start = args.GetPosition(_surface);
             originalX = Canvas.GetLeft(frame);
             originalY = Canvas.GetTop(frame);
-            _beginEdit(block);
+            await _beginEdit(block);
             args.Pointer.Capture(handle);
             args.Handled = true;
         };
@@ -498,23 +501,23 @@ public sealed class NotesFreeformPageControl : UserControl
             Canvas.SetTop(frame, Math.Max(0, originalY + current.Y - start.Y));
             args.Handled = true;
         };
-        handle.PointerReleased += (_, args) =>
+        handle.PointerReleased += async (_, args) =>
         {
             if (!dragging) return;
             dragging = false;
             args.Pointer.Capture(null);
             Write(block, "freeform-x", Canvas.GetLeft(frame));
             Write(block, "freeform-y", Canvas.GetTop(frame));
-            _endEdit(block, "Moved freeform block");
+            await _endEdit(block, "Moved freeform block");
             args.Handled = true;
         };
-        handle.PointerCaptureLost += (_, _) =>
+        handle.PointerCaptureLost += async (_, _) =>
         {
             if (!dragging) return;
             dragging = false;
             Write(block, "freeform-x", Canvas.GetLeft(frame));
             Write(block, "freeform-y", Canvas.GetTop(frame));
-            _endEdit(block, "Moved freeform block");
+            await _endEdit(block, "Moved freeform block");
         };
     }
 
@@ -527,14 +530,14 @@ public sealed class NotesFreeformPageControl : UserControl
         Point start = default;
         double originalWidth = 0;
         double originalHeight = 0;
-        handle.PointerPressed += (_, args) =>
+        handle.PointerPressed += async (_, args) =>
         {
             if (!args.GetCurrentPoint(handle).Properties.IsLeftButtonPressed) return;
             resizing = true;
             start = args.GetPosition(_surface);
             originalWidth = frame.Bounds.Width;
             originalHeight = frame.Bounds.Height;
-            _beginEdit(block);
+            await _beginEdit(block);
             args.Pointer.Capture(handle);
             args.Handled = true;
         };
@@ -546,23 +549,23 @@ public sealed class NotesFreeformPageControl : UserControl
             frame.Height = Math.Clamp(originalHeight + current.Y - start.Y, 100, 1400);
             args.Handled = true;
         };
-        handle.PointerReleased += (_, args) =>
+        handle.PointerReleased += async (_, args) =>
         {
             if (!resizing) return;
             resizing = false;
             args.Pointer.Capture(null);
             Write(block, "freeform-width", frame.Width);
             Write(block, "freeform-height", frame.Height);
-            _endEdit(block, "Resized freeform block");
+            await _endEdit(block, "Resized freeform block");
             args.Handled = true;
         };
-        handle.PointerCaptureLost += (_, _) =>
+        handle.PointerCaptureLost += async (_, _) =>
         {
             if (!resizing) return;
             resizing = false;
             Write(block, "freeform-width", frame.Width);
             Write(block, "freeform-height", frame.Height);
-            _endEdit(block, "Resized freeform block");
+            await _endEdit(block, "Resized freeform block");
         };
     }
 
