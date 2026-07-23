@@ -4,22 +4,22 @@ using Haven.Core;
 namespace Haven.Desktop.ViewModels;
 
 /// <summary>
-/// Application-wide compact call widget state. A single instance can be hosted by the shell and
-/// attached to whichever conversation or project surface is currently active.
+/// Application-wide compact voice-call widget state. The shell owns one instance and
+/// attaches it to the currently active conversation without interrupting an active call.
 /// </summary>
 public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
 {
     private readonly ICallCoordinator _callCoordinator;
     private readonly IConversationRepository _conversations;
     private Guid? _parentConversationId;
+    private Conversation? _linkedCallConversation;
     private string _status = "Ready";
     private string _transcript = string.Empty;
+    private string? _callSummary;
     private bool _isOpen;
     private bool _isActive;
     private bool _isMuted;
     private double _audioLevel;
-    private Conversation? _linkedCallConversation;
-    private string? _callSummary;
 
     public InChatCallWidgetViewModel(
         ICallCoordinator callCoordinator,
@@ -56,13 +56,19 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Contains the complete current call transcript, including spoken user turns, typed turns
-    /// inserted into the call conversation, and Haven's spoken responses.
+    /// The unified call transcript supplied by the coordinator. It includes spoken user turns,
+    /// typed turns written to the call conversation, and Haven's spoken responses.
     /// </summary>
     public string Transcript
     {
         get => _transcript;
         private set => SetProperty(ref _transcript, value);
+    }
+
+    public string? CallSummary
+    {
+        get => _callSummary;
+        private set => SetProperty(ref _callSummary, value);
     }
 
     public bool IsOpen
@@ -94,11 +100,11 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                 IsOpen = true;
             }
 
-            RaisePropertyChanged(nameof(IsReady));
+            RaisePropertyChanged(nameof(IsVisible));
             RaisePropertyChanged(nameof(CanClose));
-            RaisePropertyChanged(nameof(CallButtonLabel));
             RaisePropertyChanged(nameof(IsStartButtonVisible));
             RaisePropertyChanged(nameof(IsEndButtonVisible));
+            RaisePropertyChanged(nameof(CallButtonLabel));
             StartCallCommand.RaiseCanExecuteChanged();
             EndCallCommand.RaiseCanExecuteChanged();
             ToggleMuteCommand.RaiseCanExecuteChanged();
@@ -112,27 +118,18 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _isMuted, value);
     }
 
-    public bool IsReady => !IsActive;
-    public bool CanClose => !IsActive;
-    public bool IsStartButtonVisible => !IsActive;
-    public bool IsEndButtonVisible => IsActive;
-
     public double AudioLevel
     {
         get => _audioLevel;
         private set => SetProperty(ref _audioLevel, value);
     }
 
+    public bool CanClose => !IsActive;
+    public bool IsStartButtonVisible => !IsActive;
+    public bool IsEndButtonVisible => IsActive;
     public string CallButtonLabel => IsActive ? "End" : "Start";
-
-    public string? CallSummary
-    {
-        get => _callSummary;
-        private set => SetProperty(ref _callSummary, value);
-    }
-
-    public Guid? LinkedCallConversationId => _linkedCallConversation?.Id;
     public Guid? ParentConversationId => _parentConversationId;
+    public Guid? LinkedCallConversationId => _linkedCallConversation?.Id;
 
     public AsyncRelayCommand OpenWidgetCommand { get; }
     public AsyncRelayCommand CloseWidgetCommand { get; }
@@ -143,9 +140,6 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public event EventHandler<Guid>? CallLinked;
     public event EventHandler? CallEnded;
 
-    /// <summary>
-    /// Updates the surface context without recreating the global widget or interrupting a call.
-    /// </summary>
     public void AttachConversation(Guid? conversationId)
     {
         _parentConversationId = conversationId;
@@ -155,17 +149,18 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public void Open()
     {
         IsOpen = true;
-        Status = IsActive ? Status : "Ready";
+        if (!IsActive)
+        {
+            Status = "Ready";
+        }
     }
 
     public void Close()
     {
-        if (!CanClose)
+        if (CanClose)
         {
-            return;
+            IsOpen = false;
         }
-
-        IsOpen = false;
     }
 
     private Task OpenWidgetAsync()
@@ -215,10 +210,10 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                 result.ConversationId,
                 CancellationToken.None);
 
+            Transcript = string.Empty;
+            CallSummary = null;
             IsActive = true;
             Status = "Active";
-            CallSummary = null;
-            Transcript = string.Empty;
             CallLinked?.Invoke(this, result.ConversationId);
         }
         catch (OperationCanceledException)
@@ -268,7 +263,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         }
 
         var next = !IsMuted;
-        await _callCoordinator.SetDumbAsync(next, CancellationToken.None);
+        await _callCoordinator.SetMutedAsync(next, CancellationToken.None);
         IsMuted = next;
     }
 
@@ -288,12 +283,6 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                     CallEnded?.Invoke(this, EventArgs.Empty);
                     break;
 
-                case CallState.Listening:
-                case CallState.Speaking:
-                    Status = args.State.ToString();
-                    IsActive = true;
-                    break;
-
                 default:
                     Status = args.State.ToString();
                     IsActive = true;
@@ -306,19 +295,14 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (args.IsDelta)
-            {
-                Transcript += args.Text;
-            }
-            else
-            {
-                Transcript = args.Text;
-            }
+            Transcript = args.IsDelta ? Transcript + args.Text : args.Text;
         });
     }
 
-    private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs args) =>
+    private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs args)
+    {
         Avalonia.Threading.Dispatcher.UIThread.Post(() => AudioLevel = args.Level);
+    }
 
     public void Dispose()
     {
