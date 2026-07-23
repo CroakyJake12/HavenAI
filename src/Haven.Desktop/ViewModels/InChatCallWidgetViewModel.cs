@@ -49,13 +49,21 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         _callCoordinator.AudioLevelChanged += OnAudioLevelChanged;
     }
 
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    public string Status
+    {
+        get => _status;
+        private set => SetProperty(ref _status, value);
+    }
 
     /// <summary>
     /// Contains the complete current call transcript, including spoken user turns, typed turns
     /// inserted into the call conversation, and Haven's spoken responses.
     /// </summary>
-    public string Transcript { get => _transcript; private set => SetProperty(ref _transcript, value); }
+    public string Transcript
+    {
+        get => _transcript;
+        private set => SetProperty(ref _transcript, value);
+    }
 
     public bool IsOpen
     {
@@ -98,16 +106,31 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsMuted { get => _isMuted; private set => SetProperty(ref _isMuted, value); }
+    public bool IsMuted
+    {
+        get => _isMuted;
+        private set => SetProperty(ref _isMuted, value);
+    }
+
     public bool IsReady => !IsActive;
     public bool CanClose => !IsActive;
     public bool IsStartButtonVisible => !IsActive;
     public bool IsEndButtonVisible => IsActive;
 
-    public double AudioLevel { get => _audioLevel; private set => SetProperty(ref _audioLevel, value); }
+    public double AudioLevel
+    {
+        get => _audioLevel;
+        private set => SetProperty(ref _audioLevel, value);
+    }
+
     public string CallButtonLabel => IsActive ? "End" : "Start";
 
-    public string? CallSummary { get => _callSummary; private set => SetProperty(ref _callSummary, value); }
+    public string? CallSummary
+    {
+        get => _callSummary;
+        private set => SetProperty(ref _callSummary, value);
+    }
+
     public Guid? LinkedCallConversationId => _linkedCallConversation?.Id;
     public Guid? ParentConversationId => _parentConversationId;
 
