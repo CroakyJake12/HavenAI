@@ -2,7 +2,9 @@ using Haven.Core;
 
 namespace Haven.Application;
 
-/// <summary>Tracks response progress and privacy-safe latency milestones without storing user content or secrets.</summary>
+/// <summary>
+/// Tracks response progress and privacy-safe latency milestones without storing user content or secrets.
+/// </summary>
 public sealed class ChatExecutionTracker : IAsyncDisposable
 {
     public static readonly TimeSpan VisibilityDelay = TimeSpan.FromSeconds(2);
@@ -13,33 +15,33 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<ChatEtaRequest, CancellationToken, Task<string?>>? _etaProvider;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
-    private ChatEtecutionStage _stage;
+
+    private ChatExecutionStage _stage;
     private string _status;
     private bool _visible;
     private bool _finished;
     private TimeSpan? _eta;
 
-    public ChatEtecutionTracker(
-        ChatEtecutionStage initialStage = ChatExecutionStage.Preparing,
+    public ChatExecutionTracker(
+        ChatExecutionStage initialStage = ChatExecutionStage.Preparing,
         Func<ChatEtaRequest, CancellationToken, Task<string?>>? etaProvider = null)
     {
         OperationId = Guid.NewGuid();
         Performance = new ChatPerformanceTrace(OperationId, _startedAt);
-        Performance.TryMark(ChatPerformanceMilestone.SendClicked, timestamp: _startedAt);
+        Performance.TryMark(
+            ChatPerformanceMilestone.SendClicked,
+            timestamp: _startedAt);
+
         _stage = initialStage;
         _status = ChatExecutionStageText.Get(initialStage);
         _etaProvider = etaProvider;
-        _log.Add(new(_startedAt, initialStage, _status));
+        _log.Add(new ChatExecutionLogEntry(_startedAt, initialStage, _status));
         MarkStageStart(initialStage);
         _ = RunTimersAsync(_lifetime.Token);
     }
 
     public Guid OperationId { get; }
 
-    /// <summary>
-    /// Detailed scalar-only latency trace. Callers should mark UI and provider milestones
-    /// at the point where they actually occur.
-    /// </summary>
     public ChatPerformanceTrace Performance { get; }
 
     public event Action<ChatExecutionSnapshot>? Changed;
@@ -68,7 +70,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
         bool succeeded = true,
         ChatPerformanceDimensions? performanceDimensions = null)
     {
-        ChatEtecutionSnapshot snapshot;
+        ChatExecutionSnapshot snapshot;
         lock (_gate)
         {
             if (_finished)
@@ -78,10 +80,17 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
 
             _stage = stage;
             _status = string.IsNullOrWhiteSpace(summary)
-                ? ChatEtecutionStageText.Get(stage)
+                ? ChatExecutionStageText.Get(stage)
                 : summary.Trim();
-            _log.Add(new(DateTimeOffset.UtcNow, stage, _status, TrimDetail(detail), succeeded));
-            snapshot = CreateSnapshot(DateTimeOffset.UtcNow);
+
+            var now = DateTimeOffset.UtcNow;
+            _log.Add(new ChatExecutionLogEntry(
+                now,
+                stage,
+                _status,
+                TrimDetail(detail),
+                succeeded));
+            snapshot = CreateSnapshot(now);
         }
 
         MarkStageStart(stage, performanceDimensions);
@@ -95,14 +104,14 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
         Performance.TryMark(
             ChatPerformanceMilestone.CompletionReceived,
             performanceDimensions);
-        Finish(ChatEtecutionStage.Completed, summary, true);
+        Finish(ChatExecutionStage.Completed, summary, succeeded: true);
     }
 
     public void Fail(string summary = "Failed", string? detail = null) =>
-        Finish(ChatExecutionStage.Failed, summary, false, detail);
+        Finish(ChatExecutionStage.Failed, summary, succeeded: false, detail);
 
     public void Cancel() =>
-        Finish(ChatExecutionStage.Cancelled, "Cancelled", false);
+        Finish(ChatExecutionStage.Cancelled, "Cancelled", succeeded: false);
 
     private void Finish(
         ChatExecutionStage stage,
@@ -122,7 +131,12 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
             _stage = stage;
             _status = summary;
             var now = DateTimeOffset.UtcNow;
-            _log.Add(new(now, stage, summary, TrimDetail(detail), succeeded));
+            _log.Add(new ChatExecutionLogEntry(
+                now,
+                stage,
+                summary,
+                TrimDetail(detail),
+                succeeded));
             snapshot = CreateSnapshot(now);
         }
 
@@ -137,16 +151,24 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
         switch (stage)
         {
             case ChatExecutionStage.LoadingModel:
-                Performance.TryMark(ChatPerformanceMilestone.ModelSelectionStarted, dimensions);
+                Performance.TryMark(
+                    ChatPerformanceMilestone.ModelSelectionStarted,
+                    dimensions);
                 break;
             case ChatExecutionStage.LoadingContext:
-                Performance.TryMark(ChatPerformanceMilestone.ContextAssemblyStarted, dimensions);
+                Performance.TryMark(
+                    ChatPerformanceMilestone.ContextAssemblyStarted,
+                    dimensions);
                 break;
-            case ChatEtecutionStage.SelectingCapabilities:
-                Performance.TryMark(ChatPerformanceMilestone.ToolSelectionStarted, dimensions);
+            case ChatExecutionStage.SelectingCapabilities:
+                Performance.TryMark(
+                    ChatPerformanceMilestone.ToolSelectionStarted,
+                    dimensions);
                 break;
             case ChatExecutionStage.Generating:
-                Performance.TryMark(ChatPerformanceMilestone.ProviderRequestStarted, dimensions);
+                Performance.TryMark(
+                    ChatPerformanceMilestone.ProviderRequestStarted,
+                    dimensions);
                 break;
         }
     }
@@ -157,7 +179,10 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
         {
             await Task.Delay(VisibilityDelay, cancellationToken).ConfigureAwait(false);
             PublishVisible();
-            await Task.Delay(EtaDelay - VisibilityDelay, cancellationToken).ConfigureAwait(false);
+
+            await Task.Delay(
+                EtaDelay - VisibilityDelay,
+                cancellationToken).ConfigureAwait(false);
             await RequestEtaAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -198,7 +223,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
                 return;
             }
 
-            request = new(
+            request = new ChatEtaRequest(
                 OperationId,
                 _stage,
                 _status,
@@ -209,7 +234,8 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
         string? answer;
         try
         {
-            answer = await _etaProvider(request, cancellationToken).ConfigureAwait(false);
+            answer = await _etaProvider(request, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -225,7 +251,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
             return;
         }
 
-        ChatEtecutionSnapshot snapshot;
+        ChatExecutionSnapshot snapshot;
         lock (_gate)
         {
             if (_finished)
@@ -271,7 +297,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
 
         _lifetime.Cancel();
         _lifetime.Dispose();
-        return default;
+        return ValueTask.CompletedTask;
     }
 }
 
