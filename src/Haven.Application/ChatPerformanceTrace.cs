@@ -38,27 +38,26 @@ public sealed record ChatPerformanceDimensions(
 {
     public ChatPerformanceDimensions Validate()
     {
-        static int? NonNegative(int? value, string parameterName)
-        {
-            if (value is < 0)
-            {
-                throw new ArgumentOutOfRangeException(parameterName, value, "Performance dimensions cannot be negative.");
-            }
-
-            return value;
-        }
-
-        _ = NonNegative(ToolSchemaBytes, nameof(ToolSchemaBytes));
-        _ = NonNegative(ToolCount, nameof(ToolCount));
-        _ = NonNegative(ContextCharacterCount, nameof(ContextCharacterCount));
-        _ = NonNegative(ContextTokenEstimate, nameof(ContextTokenEstimate));
+        ValidateNonNegative(ToolSchemaBytes, nameof(ToolSchemaBytes));
+        ValidateNonNegative(ToolCount, nameof(ToolCount));
+        ValidateNonNegative(ContextCharacterCount, nameof(ContextCharacterCount));
+        ValidateNonNegative(ContextTokenEstimate, nameof(ContextTokenEstimate));
         return this;
+    }
+
+    private static void ValidateNonNegative(int? value, string parameterName)
+    {
+        if (value is < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                value,
+                "Performance dimensions cannot be negative.");
+        }
     }
 }
 
-/// <summary>
-/// One immutable point in a chat performance trace.
-/// </summary>
+/// <summary>One immutable point in a chat performance trace.</summary>
 public sealed record ChatPerformanceMark(
     ChatPerformanceMilestone Milestone,
     DateTimeOffset Timestamp,
@@ -66,8 +65,8 @@ public sealed record ChatPerformanceMark(
     ChatPerformanceDimensions Dimensions);
 
 /// <summary>
-/// Captures the first occurrence of each chat milestone. The trace is thread-safe and
-/// intentionally stores only timings and bounded scalar dimensions.
+/// Captures the first occurrence of each chat milestone. The trace is thread-safe and stores only
+/// timings and bounded scalar dimensions.
 /// </summary>
 public sealed class ChatPerformanceTrace
 {
@@ -79,7 +78,9 @@ public sealed class ChatPerformanceTrace
     {
         if (operationId == Guid.Empty)
         {
-            throw new ArgumentException("A performance trace requires a non-empty operation id.", nameof(operationId));
+            throw new ArgumentException(
+                "A performance trace requires a non-empty operation id.",
+                nameof(operationId));
         }
 
         OperationId = operationId;
@@ -90,7 +91,7 @@ public sealed class ChatPerformanceTrace
 
     public DateTimeOffset StartedAt => _startedAt;
 
-    public ireadOnlyList<ChatPerformanceMark> Snapshot
+    public IReadOnlyList<ChatPerformanceMark> Snapshot
     {
         get
         {
@@ -111,9 +112,13 @@ public sealed class ChatPerformanceTrace
     {
         dimensions = (dimensions ?? new ChatPerformanceDimensions()).Validate();
         var occurredAt = timestamp ?? DateTimeOffset.UtcNow;
+
         if (occurredAt < _startedAt)
         {
-            throw new ArgumentOutOfRangeException(nameof(timestamp), occurredAt, "A milestone cannot occur before the trace starts.");
+            throw new ArgumentOutOfRangeException(
+                nameof(timestamp),
+                occurredAt,
+                "A milestone cannot occur before the trace starts.");
         }
 
         lock (_gate)
@@ -142,7 +147,9 @@ public sealed class ChatPerformanceTrace
         }
     }
 
-    public TimeSpan? DurationBetween(ChatPerformanceMilestone start, ChatPerformanceMilestone end)
+    public TimeSpan? DurationBetween(
+        ChatPerformanceMilestone start,
+        ChatPerformanceMilestone end)
     {
         lock (_gate)
         {
