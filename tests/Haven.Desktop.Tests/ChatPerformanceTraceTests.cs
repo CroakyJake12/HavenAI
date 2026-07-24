@@ -23,7 +23,7 @@ public sealed class ChatPerformanceTraceTests
             timestamp: startedAt.AddMilliseconds(60)));
 
         Assert.Equal(
-            TimeSpan.FromMilliseconds(40),
+            (TimeSpan?)TimeSpan.FromMilliseconds(40),
             trace.DurationBetween(
                 ChatPerformanceMilestone.SendClicked,
                 ChatPerformanceMilestone.UserBubbleRendered));
@@ -47,7 +47,7 @@ public sealed class ChatPerformanceTraceTests
         await using var tracker = new ChatExecutionTracker();
 
         tracker.Update(
-            ChatEtecutionStage.LoadingModel,
+            ChatExecutionStage.LoadingModel,
             performanceDimensions: new ChatPerformanceDimensions(IsWarmModel: false));
         tracker.Update(ChatExecutionStage.LoadingContext);
         tracker.Update(
@@ -56,15 +56,24 @@ public sealed class ChatPerformanceTraceTests
                 ToolSchemaBytes: 0,
                 Streaming: true,
                 ToolCount: 0));
-        tracker.Update(ChatEtecutionStage.Generating);
+        tracker.Update(ChatExecutionStage.Generating);
         tracker.Complete();
 
         Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.SendClicked));
-        Assert.Equal(false, tracker.Performance.Get(ChatPerformanceMilestone.ModelSelectionStarted)!.Dimensions.IsWarmModel);
-        Assert.Equal(
-            0,
-            tracker.Performance.Get(ChatPerformanceMilestone.ToolSelectionStarted)!.Dimensions.ToolCount.GetValueOrDefault());
-        Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.ProviderRequestStarted));
-        Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.CompletionReceived));
+
+        var modelMark = tracker.Performance.Get(
+            ChatPerformanceMilestone.ModelSelectionStarted);
+        Assert.NotNull(modelMark);
+        Assert.Equal(false, modelMark.Dimensions.IsWarmModel);
+
+        var toolMark = tracker.Performance.Get(
+            ChatPerformanceMilestone.ToolSelectionStarted);
+        Assert.NotNull(toolMark);
+        Assert.Equal(0, toolMark.Dimensions.ToolCount.GetValueOrDefault());
+
+        Assert.NotNull(tracker.Performance.Get(
+            ChatPerformanceMilestone.ProviderRequestStarted));
+        Assert.NotNull(tracker.Performance.Get(
+            ChatPerformanceMilestone.CompletionReceived));
     }
 }
