@@ -21,13 +21,19 @@ chat_patch = chat_patch_path.read_text(encoding="utf-8")
 old_stream_transform = '''    send_text = replace_once(
         send_text,
         "        if (!canUseTools)\\n        {\\n            await foreach",
-        "        if (!canUseTools)\\n        {\\n            var firstChunk = true;\\n            await foreach",
+        "        if (!canUseTools)\\n"
+        "        {\\n"
+        "            var firstChunk = true;\\n"
+        "            await foreach",
         "stream first chunk state",
     )'''
 new_stream_transform = '''    send_text = replace_once(
         send_text,
         "        else\\n        {\\n            await foreach",
-        "        else\\n        {\\n            var firstChunk = true;\\n            await foreach",
+        "        else\\n"
+        "        {\\n"
+        "            var firstChunk = true;\\n"
+        "            await foreach",
         "stream first chunk state",
     )'''
 chat_patch = replace_once(
