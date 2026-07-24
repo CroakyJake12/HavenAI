@@ -232,6 +232,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     /// </summary>
     private static object BuildPayload(OllamaChatRequest request, bool stream)
     {
+        var runtimeProfile = LocalInferenceRuntimeProfile.Create(
+            request.Effort,
+            request.Options?.ContextLimit ?? 32768);
         var messages = new List<object>();
         if (!string.IsNullOrWhiteSpace(request.SystemPrompt)) messages.Add(new { role = "system", content = request.SystemPrompt });
         messages.AddRange(request.Messages.Select(x => new { role = x.Role, content = x.Content, images = x.Images }));
@@ -242,10 +245,10 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
             stream,
             options = new
             {
-                num_ctx = Math.Clamp(request.Options?.ContextLimit ?? 32768, 2048, 262144),
+                num_ctx = runtimeProfile.ContextLimit,
                 temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
             },
-            keep_alive = "10m"
+            keep_alive = runtimeProfile.KeepAlive
         };
     }
 
@@ -254,6 +257,9 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
     /// </summary>
     private static object BuildToolPayload(OllamaToolRequest request)
     {
+        var runtimeProfile = LocalInferenceRuntimeProfile.Create(
+            request.Effort,
+            request.Options?.ContextLimit ?? 32768);
         var messages = new List<object>();
         if (!string.IsNullOrWhiteSpace(request.SystemPrompt)) messages.Add(new { role = "system", content = request.SystemPrompt });
         foreach (var message in request.Messages)
@@ -299,10 +305,10 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
             stream = false,
             options = new
             {
-                num_ctx = Math.Clamp(request.Options?.ContextLimit ?? 32768, 2048, 262144),
+                num_ctx = runtimeProfile.ContextLimit,
                 temperature = Math.Clamp(request.Options?.Temperature ?? 0.7, 0, 2)
             },
-            keep_alive = "10m"
+            keep_alive = runtimeProfile.KeepAlive
         };
     }
 
