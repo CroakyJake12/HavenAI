@@ -42,6 +42,46 @@ chat_patch = replace_once(
     new_stream_transform,
     "Chat streaming-state transformation",
 )
+
+old_view_model_guard = '''    if count != 1 and "AutoSwitchCompatibleModels" in text:
+        raise RuntimeError(
+            "ChatPageViewModel temporary fallback: expected one auto-switch block"
+        )
+'''
+new_view_model_guard = '''    if count != 1 and "AutoSwitchCompatibleModels" in text:
+        lines = text.splitlines(keepends=True)
+        auto_switch_index = next(
+            (index for index, line in enumerate(lines) if "AutoSwitchCompatibleModels" in line),
+            -1,
+        )
+        start_index = next(
+            (
+                index
+                for index in range(auto_switch_index, -1, -1)
+                if "var check = _preflight.Evaluate" in lines[index]
+            ),
+            -1,
+        )
+        end_index = next(
+            (
+                index
+                for index in range(auto_switch_index + 1, len(lines))
+                if "var model = SelectedModel ??" in lines[index]
+            ),
+            -1,
+        )
+        if start_index < 0 or end_index < 0:
+            raise RuntimeError(
+                "ChatPageViewModel temporary fallback: could not isolate the auto-switch block"
+            )
+        text = "".join(lines[:start_index] + lines[end_index:])
+'''
+chat_patch = replace_once(
+    chat_patch,
+    old_view_model_guard,
+    new_view_model_guard,
+    "Chat view-model temporary fallback guard",
+)
 chat_patch_path.write_text(chat_patch, encoding="utf-8", newline="\n")
 
 responsive_path = root / "src" / "Haven.Application" / "ResponsiveCallCoordinator.cs"
