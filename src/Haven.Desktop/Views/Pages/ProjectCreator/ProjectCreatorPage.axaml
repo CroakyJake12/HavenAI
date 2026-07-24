@@ -1,46 +1,139 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
-             x:Class="Haven.Desktop.Views.Pages.ProjectCreator.ProjectCreatorPage">
-
+             x:Class="Haven.Desktop.Views.Pages.ProjectCreator.ProjectCreatorPage"
+             AttachedToVisualTree="OnProjectCreatorAttached">
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel MaxWidth="980" Margin="34,30" Spacing="20">
       <StackPanel Spacing="5">
         <TextBlock Text="New project" Classes="heading" />
-        <TextBlock Text="Create a real local project, a package-ready library, or connect a folder that already exists." Classes="muted" />
+        <TextBlock Text="Create a real local project, a package-ready library, or connect a folder that already exists."
+                   Classes="muted" />
       </StackPanel>
 
       <UniformGrid Columns="3">
-        <Button x:Name="SelectDotNetButton" Margin="0,0,10,0" Padding="16" MinHeight="145" HorizontalContentAlignment="Stretch">
-          <StackPanel Spacing="8"><TextBlock Text="NEW .NET PROJECT" Classes="eyebrow" /><TextBlock Text="Create new project" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Choose a standard installed .NET template and create it in a local folder." Classes="muted" FontSize="11" /><TextBlock Text="Configure below" Foreground="{DynamicResource HavenAccentBrush}" /></StackPanel>
+        <Button x:Name="SelectDotNetButton"
+                Margin="0,0,10,0"
+                Padding="16"
+                MinHeight="145"
+                HorizontalContentAlignment="Stretch">
+          <StackPanel Spacing="8">
+            <TextBlock Text="NEW .NET PROJECT" Classes="eyebrow" />
+            <TextBlock Text="Create new project" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Choose an installed .NET template and create it in a local folder."
+                       Classes="muted" FontSize="11" />
+            <TextBlock Text="Configure below"
+                       Foreground="{DynamicResource HavenAccentBrush}" />
+          </StackPanel>
         </Button>
-        <Button x:Name="SelectPackageButton" Margin="0,0,10,0" Padding="16" MinHeight="145" HorizontalContentAlignment="Stretch">
-          <StackPanel Spacing="8"><TextBlock Text="NUGET" Classes="eyebrow" /><TextBlock Text="Create NuGet package" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Create a package-ready class library with metadata and run its first Release pack." Classes="muted" FontSize="11" /><TextBlock Text="Configure below" Foreground="{DynamicResource HavenAccentBrush}" /></StackPanel>
+
+        <Button x:Name="SelectPackageButton"
+                Margin="0,0,10,0"
+                Padding="16"
+                MinHeight="145"
+                HorizontalContentAlignment="Stretch"
+                IsVisible="False">
+          <StackPanel Spacing="8">
+            <TextBlock Text="NUGET CREATOR" Classes="eyebrow" />
+            <TextBlock Text="Create NuGet package" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Create a package-ready class library, configure metadata, and run its first Release pack."
+                       Classes="muted" FontSize="11" />
+            <TextBlock x:Name="VisualStudioReadyText"
+                       Text="Visual Studio detected"
+                       Foreground="{DynamicResource HavenAccentBrush}" />
+          </StackPanel>
         </Button>
+
+        <Border x:Name="ConnectVisualStudioCard"
+                Classes="card"
+                Padding="16"
+                Margin="0,0,10,0"
+                IsVisible="True">
+          <StackPanel Spacing="8">
+            <TextBlock Text="NUGET CREATOR" Classes="eyebrow" />
+            <TextBlock Text="Connect Visual Studio" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="NuGet Creator appears when a complete Visual Studio installation is detected or connected."
+                       Classes="muted" FontSize="11" />
+            <Button x:Name="ConnectVisualStudioButton"
+                    Content="Choose installation folder"
+                    HorizontalAlignment="Left" />
+            <TextBlock x:Name="VisualStudioStatusText"
+                       Classes="muted"
+                       FontSize="10"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
         <Border Classes="card" Padding="16">
-          <StackPanel Spacing="8"><TextBlock Text="LOCAL" Classes="eyebrow" /><TextBlock Text="Use existing project" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Connect an existing project file or any local source folder without copying it." Classes="muted" FontSize="11" /><Grid ColumnDefinitions="*,*" ColumnSpacing="7"><Button x:Name="OpenProjectFileButton" Content="Project file" /><Button Grid.Column="1" x:Name="OpenFolderButton" Content="Folder" /></Grid></StackPanel>
+          <StackPanel Spacing="8">
+            <TextBlock Text="LOCAL" Classes="eyebrow" />
+            <TextBlock Text="Use existing project" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Connect an existing project file or local source folder without copying it."
+                       Classes="muted" FontSize="11" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
+              <Button x:Name="OpenProjectFileButton" Content="Project file" />
+              <Button Grid.Column="1" x:Name="OpenFolderButton" Content="Folder" />
+            </Grid>
+          </StackPanel>
         </Border>
       </UniformGrid>
 
       <Border Classes="card">
         <StackPanel Spacing="12">
-          <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="CONFIGURE" Classes="eyebrow" /><TextBlock x:Name="KindLabel" Classes="sectionHeading" Margin="0,4,0,0" Text="New .NET project" /></StackPanel><TextBlock Grid.Column="1" Text="Local files only" Classes="muted" VerticalAlignment="Center" /></Grid>
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5"><TextBlock Text="Project name" Classes="muted" /><TextBox x:Name="ProjectNameBox" Text="MyProject" /></StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5"><TextBlock Text="Create inside" Classes="muted" /><Grid ColumnDefinitions="*,Auto" ColumnSpacing="7"><TextBox x:Name="DestinationBox" /><Button Grid.Column="1" x:Name="BrowseButton" Content="Browse..." /></Grid></StackPanel>
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+              <TextBlock Text="CONFIGURE" Classes="eyebrow" />
+              <TextBlock x:Name="KindLabel"
+                         Classes="sectionHeading"
+                         Margin="0,4,0,0"
+                         Text="New .NET project" />
+            </StackPanel>
+            <TextBlock Grid.Column="1"
+                       Text="Local files only"
+                       Classes="muted"
+                       VerticalAlignment="Center" />
           </Grid>
+
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Spacing="5">
+              <TextBlock Text="Project name" Classes="muted" />
+              <TextBox x:Name="ProjectNameBox" Text="MyProject" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="5">
+              <TextBlock Text="Create inside" Classes="muted" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                <TextBox x:Name="DestinationBox" />
+                <Button Grid.Column="1" x:Name="BrowseButton" Content="Browse…" />
+              </Grid>
+            </StackPanel>
+          </Grid>
+
           <StackPanel x:Name="TemplatePanel" Spacing="7">
             <TextBlock Text="Template" Classes="muted" />
             <WrapPanel x:Name="TemplateWrapPanel" />
-            <TextBlock x:Name="SelectedTemplateLabel" Foreground="{DynamicResource HavenAccentBrush}" FontSize="11" Text="Selected: Console app" />
+            <TextBlock x:Name="SelectedTemplateLabel"
+                       Foreground="{DynamicResource HavenAccentBrush}"
+                       FontSize="11"
+                       Text="Selected: Console app" />
           </StackPanel>
+
           <StackPanel x:Name="PackagePanel" Spacing="5" IsVisible="False">
             <TextBlock Text="Package description" Classes="muted" />
-            <TextBox x:Name="PackageDescriptionBox" PlaceholderText="What the package provides" />
+            <TextBox x:Name="PackageDescriptionBox"
+                     PlaceholderText="What the package provides" />
           </StackPanel>
+
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-            <TextBlock x:Name="StatusText" Classes="muted" VerticalAlignment="Center" Text="Choose how this local project should start." />
-            <Button Grid.Column="1" x:Name="CreateButton" Content="Create project" Classes="accent" MinWidth="150" IsEnabled="False" />
+            <TextBlock x:Name="StatusText"
+                       Classes="muted"
+                       VerticalAlignment="Center"
+                       Text="Choose how this local project should start."
+                       TextWrapping="Wrap" />
+            <Button Grid.Column="1"
+                    x:Name="CreateButton"
+                    Content="Create project"
+                    Classes="accent"
+                    MinWidth="150"
+                    IsEnabled="False" />
           </Grid>
         </StackPanel>
       </Border>

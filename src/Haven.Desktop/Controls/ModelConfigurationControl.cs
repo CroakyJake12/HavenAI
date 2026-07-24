@@ -113,7 +113,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// <summary>
     /// Stores effort percent locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private int _effortPercent = 60;
+    private int _effortPercent = 50;
     /// <summary>
     /// Stores updating effort locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -173,13 +173,13 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
         _effortSlider = new Slider
         {
-            Minimum = 20,
-            Maximum = 100,
+            Minimum = ReasoningScale.MinimumPercentage,
+            Maximum = ReasoningScale.MaximumPercentage,
             Value = _effortPercent,
-            TickFrequency = 20,
+            TickFrequency = ReasoningScale.StepSize,
             IsSnapToTickEnabled = true,
-            LargeChange = 20,
-            SmallChange = 20,
+            LargeChange = ReasoningScale.StepSize,
+            SmallChange = ReasoningScale.StepSize,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             MinHeight = 14,
             Background = new LinearGradientBrush
@@ -295,7 +295,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                 _effortDescription,
                 new TextBlock
                 {
-                    Text = "Effort snaps to 20% increments. Higher effort gives the model more time to reason before answering.",
+                    Text = "Reasoning has four levels: 25%, 50%, 75%, and 100%. The accuracy-preserving large-model runtime activates at 100%.",
                     Classes = { "muted2" },
                     FontSize = 9,
                     TextWrapping = TextWrapping.Wrap,
@@ -780,7 +780,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// </summary>
     private void OnEffortValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
-        var snapped = Math.Clamp((int)Math.Round(e.NewValue / 20d) * 20, 20, 100);
+        var snapped = ReasoningScale.SnapPercentage(e.NewValue);
         if (_effortPercent == snapped && Math.Abs(_effortSlider.Value - snapped) < 0.01) return;
         _effortPercent = snapped;
         if (Math.Abs(_effortSlider.Value - snapped) > 0.01) _effortSlider.Value = snapped;
@@ -798,36 +798,25 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// <summary>
     /// Performs the effort for percentage step owned by this component.
     /// </summary>
-    private static EffortLevel EffortForPercentage(int percentage) => percentage switch
-    {
-        <= 20 => EffortLevel.Low,
-        <= 60 => EffortLevel.Medium,
-        <= 80 => EffortLevel.High,
-        _ => EffortLevel.Max
-    };
+    private static EffortLevel EffortForPercentage(int percentage) =>
+        ReasoningScale.FromPercentage(percentage);
 
     /// <summary>
     /// Performs the percentage for effort step owned by this component.
     /// </summary>
-    private static int PercentageForEffort(EffortLevel effort) => effort switch
-    {
-        EffortLevel.Low => 20,
-        EffortLevel.Medium => 60,
-        EffortLevel.High => 80,
-        EffortLevel.Max => 100,
-        _ => 60
-    };
+    private static int PercentageForEffort(EffortLevel effort) =>
+        ReasoningScale.ToPercentage(effort);
 
     /// <summary>
     /// Performs the effort description step owned by this component.
     /// </summary>
     private static string EffortDescription(int percentage) => percentage switch
     {
-        20 => "Fastest responses, least accurate",
-        40 or 60 => "Balanced responses",
-        80 => "Slow responses, more accurate",
-        100 => "Slowest responses, most accurate",
-        _ => "Balanced responses"
+        25 => "Fastest responses with a small bounded context",
+        50 => "Balanced speed and reasoning",
+        75 => "Deeper reasoning with a larger bounded context",
+        100 => "Maximum reasoning with accuracy-preserving large-model runtime",
+        _ => "Balanced speed and reasoning"
     };
 
     /// <summary>

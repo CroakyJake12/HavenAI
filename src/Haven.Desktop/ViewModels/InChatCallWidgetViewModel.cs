@@ -1,247 +1,309 @@
-/*
- * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/ViewModels/InChatCallWidgetViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
- * What: This file owns InChatCallWidgetViewModel. Read the type and member comments below as a map of each responsibility.
- * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
- * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
- * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
- */
-
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
 /// <summary>
-/// Represents in chat call widget view model and keeps its related state and behavior together.
+/// Application-wide compact voice-call widget state. The shell owns one instance and
+/// attaches it to the currently active conversation without interrupting an active call.
 /// </summary>
 public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
 {
-    /// <summary>
-    /// Stores call coordinator locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private readonly ICallCoordinator _callCoordinator;
-    /// <summary>
-    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
     private readonly IConversationRepository _conversations;
-    /// <summary>
-    /// Stores parent conversation id locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private readonly Guid _parentConversationId;
-    /// <summary>
-    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _status = "Ready";
-    /// <summary>
-    /// Stores transcript locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private string _transcript = string.Empty;
-    /// <summary>
-    /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private bool _isActive;
-    /// <summary>
-    /// Stores is muted locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private bool _isMuted;
-    /// <summary>
-    /// Stores audio level locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private double _audioLevel;
-    /// <summary>
-    /// Stores linked call conversation locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
+    private Guid? _parentConversationId;
     private Conversation? _linkedCallConversation;
-    /// <summary>
-    /// Stores call summary locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
+    private string _status = "Ready";
+    private string _transcript = string.Empty;
     private string? _callSummary;
+    private bool _isOpen;
+    private bool _isActive;
+    private bool _isMuted;
+    private double _audioLevel;
 
     public InChatCallWidgetViewModel(
         ICallCoordinator callCoordinator,
         IConversationRepository conversations,
         Guid parentConversationId)
+        : this(callCoordinator, conversations, (Guid?)parentConversationId)
+    {
+    }
+
+    public InChatCallWidgetViewModel(
+        ICallCoordinator callCoordinator,
+        IConversationRepository conversations,
+        Guid? parentConversationId = null)
     {
         _callCoordinator = callCoordinator;
         _conversations = conversations;
         _parentConversationId = parentConversationId;
+
+        OpenWidgetCommand = new AsyncRelayCommand(OpenWidgetAsync);
+        CloseWidgetCommand = new AsyncRelayCommand(CloseWidgetAsync, () => CanClose);
         StartCallCommand = new AsyncRelayCommand(StartCallAsync, () => !IsActive);
         EndCallCommand = new AsyncRelayCommand(EndCallAsync, () => IsActive);
-        ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync);
+        ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync, () => IsActive);
+
         _callCoordinator.StateChanged += OnCallStateChanged;
         _callCoordinator.TranscriptChanged += OnTranscriptChanged;
         _callCoordinator.AudioLevelChanged += OnAudioLevelChanged;
     }
 
-    /// <summary>
-    /// Gets or updates status, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
-    /// <summary>
-    /// Gets or updates transcript, the bindable or domain state represented by this property.
-    /// </summary>
-    public string Transcript { get => _transcript; private set => SetProperty(ref _transcript, value); }
-    /// <summary>
-    /// Reports whether active applies to the current state.
-    /// </summary>
-    public bool IsActive { get => _isActive; private set { if (SetProperty(ref _isActive, value)) { RaisePropertyChanged(nameof(CallButtonLabel)); RaisePropertyChanged(nameof(IsReady)); } } }
-    /// <summary>
-    /// Reports whether muted applies to the current state.
-    /// </summary>
-    public bool IsMuted { get => _isMuted; private set => SetProperty(ref _isMuted, value); }
-    /// <summary>
-    /// Reports whether ready applies to the current state.
-    /// </summary>
-    public bool IsReady => !IsActive;
-    /// <summary>
-    /// Gets or updates audio level, the bindable or domain state represented by this property.
-    /// </summary>
-    public double AudioLevel { get => _audioLevel; private set => SetProperty(ref _audioLevel, value); }
-    /// <summary>
-    /// Gets or updates call button label, the bindable or domain state represented by this property.
-    /// </summary>
-    public string CallButtonLabel => IsActive ? "End call" : "Start call";
-    /// <summary>
-    /// Gets or updates call summary, the bindable or domain state represented by this property.
-    /// </summary>
-    public string? CallSummary { get => _callSummary; private set => SetProperty(ref _callSummary, value); }
-    /// <summary>
-    /// Gets or updates linked call conversation id, the bindable or domain state represented by this property.
-    /// </summary>
-    public Guid? LinkedCallConversationId => _linkedCallConversation?.Id;
-
-    /// <summary>
-    /// Gets or updates start call command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand StartCallCommand { get; }
-    /// <summary>
-    /// Gets or updates end call command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand EndCallCommand { get; }
-    /// <summary>
-    /// Gets or updates toggle mute command, the bindable or domain state represented by this property.
-    /// </summary>
-    public AsyncRelayCommand ToggleMuteCommand { get; }
-
-    /// <summary>
-    /// Stores call linked locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    public event EventHandler<Guid>? CallLinked;
-    /// <summary>
-    /// Stores call ended locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    public event EventHandler? CallEnded;
-
-    /// <summary>
-    /// Performs start call asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task StartCallAsync()
+    public string Status
     {
-        if (IsActive) return;
-        Status = "Connecting…";
-        try
-        {
-            var result = await _callCoordinator.StartAsync(
-                new CallStartOptions(Model: new ModelDescriptor("default", 0, "unknown", "", "", new HashSet<ToolCapability>(), DateTimeOffset.UtcNow)),
-                null,
-                CancellationToken.None);
-            if (result is not null)
-            {
-                _linkedCallConversation = await _conversations.GetAsync(result.ConversationId, CancellationToken.None);
-                IsActive = true;
-                Status = "Active";
-                CallLinked?.Invoke(this, result.ConversationId);
-            }
-            else
-            {
-                Status = "Failed to start";
-            }
-        }
-        catch (Exception ex)
-        {
-            Status = $"Error: {ex.Message}";
-        }
+        get => _status;
+        private set => SetProperty(ref _status, value);
     }
 
     /// <summary>
-    /// Performs end call asynchronously so I/O does not block the caller's thread.
+    /// The unified call transcript supplied by the coordinator. It includes spoken user turns,
+    /// typed turns written to the call conversation, and Haven's spoken responses.
     /// </summary>
+    public string Transcript
+    {
+        get => _transcript;
+        private set => SetProperty(ref _transcript, value);
+    }
+
+    public string? CallSummary
+    {
+        get => _callSummary;
+        private set => SetProperty(ref _callSummary, value);
+    }
+
+    public bool IsOpen
+    {
+        get => _isOpen;
+        private set
+        {
+            if (SetProperty(ref _isOpen, value))
+            {
+                RaisePropertyChanged(nameof(IsVisible));
+            }
+        }
+    }
+
+    public bool IsVisible => IsOpen || IsActive;
+
+    public bool IsActive
+    {
+        get => _isActive;
+        private set
+        {
+            if (!SetProperty(ref _isActive, value))
+            {
+                return;
+            }
+
+            if (value)
+            {
+                IsOpen = true;
+            }
+
+            RaisePropertyChanged(nameof(IsVisible));
+            RaisePropertyChanged(nameof(CanClose));
+            RaisePropertyChanged(nameof(IsStartButtonVisible));
+            RaisePropertyChanged(nameof(IsEndButtonVisible));
+            RaisePropertyChanged(nameof(CallButtonLabel));
+            StartCallCommand.RaiseCanExecuteChanged();
+            EndCallCommand.RaiseCanExecuteChanged();
+            ToggleMuteCommand.RaiseCanExecuteChanged();
+            CloseWidgetCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool IsMuted
+    {
+        get => _isMuted;
+        private set => SetProperty(ref _isMuted, value);
+    }
+
+    public double AudioLevel
+    {
+        get => _audioLevel;
+        private set => SetProperty(ref _audioLevel, value);
+    }
+
+    public bool CanClose => !IsActive;
+    public bool IsStartButtonVisible => !IsActive;
+    public bool IsEndButtonVisible => IsActive;
+    public string CallButtonLabel => IsActive ? "End" : "Start";
+    public Guid? ParentConversationId => _parentConversationId;
+    public Guid? LinkedCallConversationId => _linkedCallConversation?.Id;
+
+    public AsyncRelayCommand OpenWidgetCommand { get; }
+    public AsyncRelayCommand CloseWidgetCommand { get; }
+    public AsyncRelayCommand StartCallCommand { get; }
+    public AsyncRelayCommand EndCallCommand { get; }
+    public AsyncRelayCommand ToggleMuteCommand { get; }
+
+    public event EventHandler<Guid>? CallLinked;
+    public event EventHandler? CallEnded;
+
+    public void AttachConversation(Guid? conversationId)
+    {
+        _parentConversationId = conversationId;
+        RaisePropertyChanged(nameof(ParentConversationId));
+    }
+
+    public void Open()
+    {
+        IsOpen = true;
+        if (!IsActive)
+        {
+            Status = "Ready";
+        }
+    }
+
+    public void Close()
+    {
+        if (CanClose)
+        {
+            IsOpen = false;
+        }
+    }
+
+    private Task OpenWidgetAsync()
+    {
+        Open();
+        return Task.CompletedTask;
+    }
+
+    private Task CloseWidgetAsync()
+    {
+        Close();
+        return Task.CompletedTask;
+    }
+
+    private async Task StartCallAsync()
+    {
+        if (IsActive)
+        {
+            return;
+        }
+
+        IsOpen = true;
+        Status = "Connecting…";
+
+        try
+        {
+            var result = await _callCoordinator.StartAsync(
+                new CallStartOptions(
+                    Model: new ModelDescriptor(
+                        "default",
+                        0,
+                        "unknown",
+                        string.Empty,
+                        string.Empty,
+                        new HashSet<ToolCapability>(),
+                        DateTimeOffset.UtcNow)),
+                null,
+                CancellationToken.None);
+
+            if (result is null)
+            {
+                Status = "Failed to start";
+                return;
+            }
+
+            _linkedCallConversation = await _conversations.GetAsync(
+                result.ConversationId,
+                CancellationToken.None);
+
+            Transcript = string.Empty;
+            CallSummary = null;
+            IsActive = true;
+            Status = "Active";
+            CallLinked?.Invoke(this, result.ConversationId);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Cancelled";
+        }
+        catch (Exception exception)
+        {
+            Status = $"Error: {exception.Message}";
+        }
+    }
+
     private async Task EndCallAsync()
     {
-        if (!IsActive) return;
+        if (!IsActive)
+        {
+            return;
+        }
+
         Status = "Ending…";
+
         try
         {
             await _callCoordinator.EndAsync(CancellationToken.None);
             IsActive = false;
+            IsMuted = false;
+            AudioLevel = 0;
             Status = "Ended";
             CallSummary = "Call ended.";
             CallEnded?.Invoke(this, EventArgs.Empty);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            Status = $"Error: {ex.Message}";
+            Status = "Active";
+        }
+        catch (Exception exception)
+        {
+            Status = $"Error: {exception.Message}";
         }
     }
 
-    /// <summary>
-    /// Performs toggle mute asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task ToggleMuteAsync()
     {
-        if (!IsActive) return;
-        await _callCoordinator.SetMutedAsync(!IsMuted, CancellationToken.None);
-        IsMuted = !IsMuted;
+        if (!IsActive)
+        {
+            return;
+        }
+
+        var next = !IsMuted;
+        await _callCoordinator.SetMutedAsync(next, CancellationToken.None);
+        IsMuted = next;
     }
 
-    /// <summary>
-    /// Handles the call state changed event raised by the UI or runtime.
-    /// </summary>
-    private void OnCallStateChanged(object? sender, CallStateChangedEventArgs e)
+    private void OnCallStateChanged(object? sender, CallStateChangedEventArgs args)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (e.State == CallState.Idle || e.State == CallState.Error)
+            switch (args.State)
             {
-                IsActive = false;
-                Status = e.State == CallState.Error ? "Error" : "Ended";
-                CallSummary = "Call ended.";
-                CallEnded?.Invoke(this, EventArgs.Empty);
-            }
-            else if (e.State == CallState.Listening || e.State == CallState.Speaking)
-            {
-                Status = e.State.ToString();
-                IsActive = true;
+                case CallState.Idle:
+                case CallState.Error:
+                    IsActive = false;
+                    IsMuted = false;
+                    AudioLevel = 0;
+                    Status = args.State == CallState.Error ? "Error" : "Ended";
+                    CallSummary = "Call ended.";
+                    CallEnded?.Invoke(this, EventArgs.Empty);
+                    break;
+
+                default:
+                    Status = args.State.ToString();
+                    IsActive = true;
+                    break;
             }
         });
     }
 
-    /// <summary>
-    /// Handles the transcript changed event raised by the UI or runtime.
-    /// </summary>
-    private void OnTranscriptChanged(object? sender, CallTranscriptEventArgs e)
+    private void OnTranscriptChanged(object? sender, CallTranscriptEventArgs args)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (e.IsDelta)
-                Transcript += e.Text;
-            else
-                Transcript = e.Text;
+            Transcript = args.IsDelta ? Transcript + args.Text : args.Text;
         });
     }
 
-    /// <summary>
-    /// Handles the audio level changed event raised by the UI or runtime.
-    /// </summary>
-    private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs e)
+    private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs args)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => AudioLevel = e.Level);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => AudioLevel = args.Level);
     }
 
-    /// <summary>
-    /// Performs the dispose step owned by this component.
-    /// </summary>
     public void Dispose()
     {
         _callCoordinator.StateChanged -= OnCallStateChanged;
