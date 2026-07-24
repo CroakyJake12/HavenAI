@@ -47,16 +47,19 @@ public sealed record HavenRoutingRequest(
 public sealed record HavenRoutingDecision(
     HavenRoutingDestinationKind Destination,
     string? TargetKey,
-    bool KeepChatAs PrimarySurface,
+    bool KeepChatAsPrimarySurface,
     HavenContextTransfer Transfer);
 
 /// <summary>
-/// Enforces the product boundary: Go navigates, Chat converses and hosts capabilities, and Projects own persistent workspaces.
+/// Enforces the product boundary: Go navigates, Chat converses and hosts capabilities,
+/// and Projects own persistent workspaces.
 /// </summary>
 public static class HavenConversationRouter
 {
     public static HavenRoutingDecision Route(HavenRoutingRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         if (request.IsProjectRequest)
         {
             var destination = RequestsCreation(request.UserRequest)
@@ -74,21 +77,30 @@ public static class HavenConversationRouter
         if (request.Origin == HavenRoutingOrigin.Go)
         {
             if (request.IsExplicitNavigation || request.HasStrongModeIntent)
+            {
                 return new(HavenRoutingDestinationKind.Mode, request.ModeKey, false, request.Transfer);
+            }
 
             if (request.IsAmbiguous)
+            {
                 return new(HavenRoutingDestinationKind.Clarify, null, false, request.Transfer);
+            }
 
             return new(HavenRoutingDestinationKind.Chat, null, true, request.Transfer);
         }
 
-        return new(request.Origin == HavenRoutingOrigin.Project
-            ? HavenRoutingDestinationKind.Project
-            : HavenRoutingDestinationKind.Mode, request.ModeKey, false, request.Transfer);
+        return new(
+            request.Origin == HavenRoutingOrigin.Project
+                ? HavenRoutingDestinationKind.Project
+                : HavenRoutingDestinationKind.Mode,
+            request.ModeKey,
+            false,
+            request.Transfer);
     }
 
     private static bool RequestsCreation(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
         var text = value.Trim();
         return text.StartsWith("create a project", StringComparison.OrdinalIgnoreCase) ||
                text.StartsWith("new project", StringComparison.OrdinalIgnoreCase);
