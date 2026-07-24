@@ -22,6 +22,8 @@ public enum HavenRoutingDestinationKind
 
 /// <summary>
 /// Preserves the source conversation and relevant context when Go or Chat activates another surface.
+/// Destination and transfer reason are stamped by <see cref="How=HavenConversationRouter"/> so receivers
+/// do not have to infer why the hand-off occurred.
 /// </summary>
 public sealed record HavenContextTransfer(
     Guid? SourceConversationId,
@@ -32,7 +34,9 @@ public sealed record HavenContextTransfer(
     IReadOnlyList<Guid> PluginIds,
     IReadOnlyList<string> Instructions,
     string? ContextSummary,
-    string? ReturnRoute);
+    string? ReturnRoute,
+    HavenRoutingDestinationKind Destination = HavenRoutingDestinationKind.Chat,
+    string TransferReason = "");
 
 public sealed record HavenRoutingRequest(
     HavenRoutingOrigin Origin,
@@ -59,43 +63,94 @@ public static class HavenConversationRouter
     public static HavenRoutingDecision Route(HavenRoutingRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Transfer);
 
         if (request.IsProjectRequest)
         {
             var destination = RequestsCreation(request.UserRequest)
                 ? HavenRoutingDestinationKind.ProjectCreator
                 : HavenRoutingDestinationKind.Project;
-            return new(destination, request.ModeKey, false, request.Transfer);
+
+            return CreateDecision(
+                request,
+                destination,
+                request.ModeKey,
+                keepChatAsPrimarySurface: false,
+                destination == HavenRoutingDestinationKind.ProjectCreator
+                    ? "The request explicitly creates a project."
+                    : "The request targets an existing project.");
         }
 
         if (request.Origin == HavenRoutingOrigin.Chat)
         {
-            // Regular Chat keeps non-project capabilities inside the current conversation.
-            return new(HavenRoutingDestinationKind.Chat, request.ModeKey, true, request.Transfer);
+            return CreateDecision(
+                request,
+                HavenRoutingDestinationKind.Chat,
+                request.ModeKey,
+                keepChatAsPrimarySurface: true,
+                "Regular Chat keeps non-project capabilities in the current conversation.");
         }
 
         if (request.Origin == HavenRoutingOrigin.Go)
         {
             if (request.IsExplicitNavigation || request.HasStrongModeIntent)
             {
-                return new(HavenRoutingDestinationKind.Mode, request.ModeKey, false, request.Transfer);
+                return CreateDecision(
+                    request,
+                    HavenRoutingDestinationKind.Mode,
+                    request.ModeKey,
+                    keepChatAsPrimarySurface: false,
+                    request.IsExplicitNavigation
+                        ? "The request explicitly navigates to a mode."
+                        : "The request has strong mode intent.");
             }
 
             if (request.IsAmbiguous)
             {
-                return new(HavenRoutingDestinationKind.Clarify, null, false, request.Transfer);
+                return CreateDecision(
+                    request,
+                    HavenRoutingDestinationKind.Clarify,
+                    targetKey: null,
+                    keepChatAsPrimarySurface: false,
+                    "The request is ambiguous and requires clarification before navigation.");
             }
 
-            return new(HavenRoutingDestinationKind.Chat, null, true, request.Transfer);
+            return CreateDecision(
+                request,
+                HavenRoutingDestinationKind.Chat,
+                targetKey: null,
+                keepChatAsPrimarySurface: true,
+                "A generic Go request is handed to Chat for the response.");
         }
 
-        return new(
-            request.Origin == HavenRoutingOrigin.Project
-                ? HavenRoutingDestinationKind.Project
-                : HavenRoutingDestinationKind.Mode,
+        var fallbackDestination = request.Origin == HavenRoutingOrigin.Project
+            ? HavenRoutingDestinationKind.Project
+            : HavenRoutingDestinationKind.Mode;
+
+        return CreateDecision(
+            request,
+            fallbackDestination,
             request.ModeKey,
-            false,
-            request.Transfer);
+            keepChatAsPrimarySurface: false,
+            request.Origin == HavenRoutingOrigin.Project
+                ? "The request remains in its project workspace."
+                : "The request remains in its active mode.");
+    }
+
+    private static HavenRoutingDecision CreateDecision(
+        HavenRoutingRequest request,
+        HavenRoutingDestinationKind destination,
+        string? targetKey,
+        bool keepChatAsPrimarySurface,
+        string transferReason)
+    {
+        var transfer = request.Transfer with
+        {
+            Destination = destination,
+            TransferReason = transferReason
+        };
+
+        return new HavenRoutingDecision(destination, targetKey, keepChatAsPrimarySurface, transfer);
     }
 
     private static bool RequestsCreation(string value)
