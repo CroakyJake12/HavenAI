@@ -60,10 +60,10 @@ public sealed class ChatPerformanceTraceTests
         tracker.Complete();
 
         Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.SendClicked));
-        Assert.False(tracker.Performance.Get(ChatPerformanceMilestone.ModelSelectionStarted)!.Dimensions.IsWarmModel);
+        Assert.Equal(false, tracker.Performance.Get(ChatPerformanceMilestone.ModelSelectionStarted)!.Dimensions.IsWarmModel);
         Assert.Equal(
             0,
-            tracker.Performance.Get(ChatPerformanceMilestone.ToolSelectionStarted)!.Dimensions.ToolCount);
+            tracker.Performance.Get(ChatPerformanceMilestone.ToolSelectionStarted)!.Dimensions.ToolCount.GetValueOrDefault());
         Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.ProviderRequestStarted));
         Assert.NotNull(tracker.Performance.Get(ChatPerformanceMilestone.CompletionReceived));
     }
