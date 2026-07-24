@@ -1,9 +1,8 @@
 namespace Haven.Desktop.Views.Shell.NativePresentation;
 
 /// <summary>
-/// Identifies the New Haven destination that must own a selected legacy
-/// surface. The policy is pure so route regressions can be tested without
-/// creating Avalonia controls or starting platform services.
+/// Identifies the New Haven destination that owns a selected legacy presentation surface.
+/// The policy is pure so route regressions can be tested without creating Avalonia controls.
 /// </summary>
 public enum NativePresentationDestination
 {
@@ -15,9 +14,8 @@ public enum NativePresentationDestination
 }
 
 /// <summary>
-/// Maps the existing shell's selected surface to the native New Haven
-/// presentation. Matching is intentionally limited to concrete page and
-/// view-model names so unrelated controls are never replaced.
+/// Maps concrete legacy page and view-model names to their native New Haven presentation.
+/// Project detail pages intentionally remain outside this policy.
 /// </summary>
 public static class NativePresentationRoutePolicy
 {
@@ -42,12 +40,13 @@ public static class NativePresentationRoutePolicy
             return NativePresentationDestination.ProjectCreator;
         }
 
-        if (surfaceName.Equals("StudioProjectPage", StringComparison.OrdinalIgnoreCase) ||
-            surfaceName.Equals("WorkspaceHomeView", StringComparison.OrdinalIgnoreCase) ||
-            surfaceName.Contains("ProjectBrowser", StringComparison.OrdinalIgnoreCase) ||
-            dataContextName.Contains("WorkspaceHome", StringComparison.OrdinalIgnoreCase) ||
-            dataContextName.Contains("StudioHome", StringComparison.OrdinalIgnoreCase) ||
-            dataContextName.Contains("ProjectBrowser", StringComparison.OrdinalIgnoreCase))
+        if (surfaceName.Equals("WorkspaceHomeView", StringComparison.OrdinalIgnoreCase) ||
+            surfaceName.Equals("StudioHomePage", StringComparison.OrdinalIgnoreCase) ||
+            surfaceName.Equals("ProjectsPage", StringComparison.OrdinalIgnoreCase) ||
+            surfaceName.Equals("ProjectBrowserView", StringComparison.OrdinalIgnoreCase) ||
+            dataContextName.Equals("WorkspaceHomeViewModel", StringComparison.OrdinalIgnoreCase) ||
+            dataContextName.Equals("StudioHomePageViewModel", StringComparison.OrdinalIgnoreCase) ||
+            dataContextName.Equals("ProjectBrowserViewModel", StringComparison.OrdinalIgnoreCase))
         {
             return NativePresentationDestination.Projects;
         }
