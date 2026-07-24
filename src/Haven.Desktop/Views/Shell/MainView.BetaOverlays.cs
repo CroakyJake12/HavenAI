@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Shell.NativePresentation;
 using Haven.Desktop.Views.Shell.Overlays;
 
 namespace Haven.Desktop.Views.Shell;
@@ -164,11 +165,16 @@ public sealed partial class MainView
         }
     }
 
-    private static bool IsLegacyCallPage(object content) =>
-        string.Equals(
-            content.GetType().Name,
-            "CallPage",
-            StringComparison.Ordinal);
+    private static bool IsLegacyCallPage(object content)
+    {
+        var surfaceName = content.GetType().Name;
+        var dataContextName = content is Control control
+            ? control.DataContext?.GetType().Name
+            : surfaceName;
+
+        return NativePresentationRoutePolicy.Classify(surfaceName, dataContextName) ==
+               NativePresentationDestination.ChatCallWidget;
+    }
 
     private void DetachBetaOverlays()
     {
@@ -179,7 +185,6 @@ public sealed partial class MainView
         }
 
         _betaOverlaysAttached = false;
-
         _sessions.ExecutionChanged -= OnExecutionChanged;
         PageContent.PropertyChanged -= OnPageContentPropertyChanged;
 
