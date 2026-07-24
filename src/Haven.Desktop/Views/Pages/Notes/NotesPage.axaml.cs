@@ -15,7 +15,7 @@ namespace Haven.Desktop.Views.Pages.Notes;
 
 using DomainNotesPage = Haven.Core.NotesPage;
 
-public sealed partial class NotesPage : UserControl, IDisposable, INotifyPropertyChanged
+public partial class NotesPage : UserControl, IDisposable, INotifyPropertyChanged
 {
     public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -1137,3 +1137,4 @@ public sealed partial class NotesPage : UserControl, IDisposable, INotifyPropert
         GC.SuppressFinalize(this);
     }
 }
+
