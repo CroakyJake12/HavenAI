@@ -72,7 +72,7 @@ public static class ResolveProblemCatalog
         AddIf(signals.ModelFailed, new("model_failed", "Model request failed", "Retry the model request.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.ToolFailed, new("tool_failed", "Tool action failed", "Retry or reselect the capability.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.PluginUnavailable, new("plugin_unavailable", "Plugin unavailable", "Disable the plugin or install it.", ResolveProblemAction.ReselectCapability, false));
-        AddIf(signals.AttachmentFailed, new("model_failed", "Attachment could not be processed", "Remove the failed attachment and retry.", ResolveProblemAction.RemoveFailedAttachment, false));
+        AddIf(signals.AttachmentFailed, new("attachment_failed", "Attachment could not be processed", "Remove the failed attachment and retry.", ResolveProblemAction.RemoveFailedAttachment, false));
         AddIf(signals.ContextLimitReached, new("high_context", "Conversation context is full", "Compact older turns before retrying.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.ModelUnavailable, new("model_unavailable", "Selected model is unavailable", "Select a compatible installed model.", ResolveProblemAction.SelectCompatibleModel, false));
         AddIf(signals.PermissionRequired, new("permission_required", "Permission is required", "Review and approve the requested capability.", ResolveProblemAction.RequestPermission, false));
