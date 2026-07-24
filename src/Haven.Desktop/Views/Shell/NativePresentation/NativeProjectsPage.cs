@@ -120,9 +120,11 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         }
 
         _disposed = true;
+        AttachedToVisualTree -= OnAttached;
+        DetachedFromVisualTree -= OnDetached;
         _lifetime.Cancel();
-        _lifetime.Dispose();
         DetachNotifications();
+        _lifetime.Dispose();
         _searchBox.TextChanged -= OnSearchChanged;
         _refreshButton.Click -= OnRefreshClicked;
         _newProjectButton.Click -= OnNewProjectClicked;
