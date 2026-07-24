@@ -1,0 +1,128 @@
+name: Apply final code-behind UI pass
+
+on:
+  push:
+    branches: [haven-continuation]
+    paths:
+      - 'scripts/apply_final_codebehind_ui_pass.py.gz.part*'
+      - '.github/workflows/apply-final-codebehind-ui-pass.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: haven-continuation
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Reconstruct and apply UI pass
+        id: patch
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/final-codebehind-ui | Out-Null
+          $outputPath = Join-Path $env:RUNNER_TEMP 'apply-final-codebehind-ui-pass.py.gz'
+          $stream = [System.IO.File]::Create($outputPath)
+          try {
+            foreach ($index in 0..3) {
+              $partPath = "scripts/apply_final_codebehind_ui_pass.py.gz.part$index"
+              $bytes = [System.IO.File]::ReadAllBytes($partPath)
+              $stream.Write($bytes, 0, $bytes.Length)
+            }
+          }
+          finally {
+            $stream.Dispose()
+          }
+          $scriptPath = Join-Path $env:RUNNER_TEMP 'apply-final-codebehind-ui-pass.py'
+          python -c "import gzip,pathlib; source=pathlib.Path(r'$outputPath'); pathlib.Path(r'$scriptPath').write_bytes(gzip.decompress(source.read_bytes()))"
+          python $scriptPath 2>&1 | Tee-Object artifacts/final-codebehind-ui/PATCH.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Restore
+        id: restore
+        if: always() && steps.patch.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet restore Haven.sln 2>&1 | Tee-Object artifacts/final-codebehind-ui/RESTORE.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Release build
+        id: build
+        if: always() && steps.restore.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet build Haven.sln -c Release --no-restore 2>&1 | Tee-Object artifacts/final-codebehind-ui/BUILD.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Core tests
+        id: test
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet test tests/Haven.Core.Tests/Haven.Core.Tests.csproj -c Release --no-build 2>&1 | Tee-Object artifacts/final-codebehind-ui/TEST.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Record result
+        if: always()
+        shell: pwsh
+        run: |
+          $patch = '${{ steps.patch.outcome }}'
+          $restore = '${{ steps.restore.outcome }}'
+          $build = '${{ steps.build.outcome }}'
+          $test = '${{ steps.test.outcome }}'
+          @(
+            '# Final code-behind UI validation'
+            ''
+            '| Stage | Result |'
+            '|---|---|'
+            "| Code-behind transformation | $patch |"
+            "| Restore | $restore |"
+            "| Release build | $build |"
+            "| Core tests | $test |"
+          ) | Set-Content artifacts/final-codebehind-ui/VALIDATION.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          $success = $patch -eq 'success' -and $restore -eq 'success' -and $build -eq 'success' -and $test -eq 'success'
+          if ($success) {
+            git add src
+            git rm -f --ignor-unmatch `
+              scripts/apply_final_codebehind_ui_pass.py.gz.part0 `
+              scripts/apply_final_codebehind_ui_pass.py.gz.part1 `
+              scripts/apply_final_codebehind_ui_pass.py.gz.part2 `
+              scripts/apply_final_codebehind_ui_pass.py.gz.part3 `
+              scripts/extract_codebehind_ui_contracts.py `
+              .github/workflows/extract-codebehind-ui-contracts.yml `
+              .github/workflows/apply-final-codebehind-ui-pass.yml
+            git rm -r -f --ignor-unmatch artifacts/codebehind-ui-contracts
+            git commit -m "Apply final code-behind UI pass"
+          }
+          else {
+            git restore --worktree src
+            git add artifacts/final-codebehind-ui
+            git commit -m "Record final code-behind UI validation failure"
+          }
+
+          git fetch origin haven-continuation
+          git rebase origin/haven-continuation
+          git push origin HEAD:haven-continuation
+
+          if (-not $success) { exit 1 }
