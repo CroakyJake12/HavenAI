@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -26,48 +28,88 @@ public sealed partial class MainView
             DetachedFromVisualTree += OnBetaOverlayDetached;
         }
 
+        HideLegacyShellContextBar();
+
         if (_betaOverlaysAttached)
         {
             return;
         }
 
-        _betaOverlaysAttached = true;
-        OverlayHost.Background = null;
-        OverlayHost.IsVisible = true;
+        ChatExecutionStatusControl? executionStatus = null;
+        InChatCallWidgetViewModel? callViewModel = null;
 
-        _globalExecutionStatus = new ChatExecutionStatusControl
+        try
         {
-            Margin = new Thickness(24),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            MaxWidth = 720
-        };
+            executionStatus = new ChatExecutionStatusControl
+            {
+                Margin = new Thickness(24),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                MaxWidth = 720
+            };
 
-        _globalCallViewModel = new InChatCallWidgetViewModel(
-            _callCoordinator,
-            _conversations);
-        _globalCallViewModel.Open();
+            callViewModel = new InChatCallWidgetViewModel(
+                _callCoordinator,
+                _conversations);
+            callViewModel.Open();
 
-        var callWidget = new GlobalCallWidget(_globalCallViewModel)
+            var callWidget = new GlobalCallWidget(callViewModel)
+            {
+                Margin = new Thickness(24),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom
+            };
+
+            var overlayGrid = new Grid
+            {
+                Background = null
+            };
+            overlayGrid.Children.Add(executionStatus);
+            overlayGrid.Children.Add(callWidget);
+
+            OverlayHost.Background = null;
+            OverlayHost.Child = overlayGrid;
+
+            _globalExecutionStatus = executionStatus;
+            _globalCallViewModel = callViewModel;
+            _sessions.ExecutionChanged += OnExecutionChanged;
+            executionStatus.Snapshot = _sessions.CurrentExecution;
+
+            _betaOverlaysAttached = true;
+            OverlayHost.IsVisible = true;
+        }
+        catch (Exception exception)
         {
-            Margin = new Thickness(24),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom
-        };
+            Debug.WriteLine($"Unable to attach Haven beta overlays: {exception}");
 
-        var overlayGrid = new Grid();
-        overlayGrid.Children.Add(_globalExecutionStatus);
-        overlayGrid.Children.Add(callWidget);
-        OverlayHost.Child = overlayGrid;
+            executionStatus?.Dispose();
+            callViewModel?.Dispose();
+            OverlayHost.Child = null;
+            OverlayHost.Background = null;
+            OverlayHost.IsVisible = false;
+            _globalExecutionStatus = null;
+            _globalCallViewModel = null;
+            _betaOverlaysAttached = false;
+        }
+    }
 
-        _sessions.ExecutionChanged += OnExecutionChanged;
-        _globalExecutionStatus.Snapshot = _sessions.CurrentExecution;
+    private void HideLegacyShellContextBar()
+    {
+        ShellContextBar.IsVisible = false;
+        ShellContextBar.IsHitTestVisible = false;
+        ShellContextBar.Opacity = 0;
+        ShellContextBar.Width = 0;
+        ShellContextBar.Height = 0;
+        ShellContextBar.Margin = new Thickness(0);
     }
 
     private void DetachBetaOverlays()
     {
         if (!_betaOverlaysAttached)
         {
+            OverlayHost.Child = null;
+            OverlayHost.Background = null;
+            OverlayHost.IsVisible = false;
             return;
         }
 
@@ -78,6 +120,7 @@ public sealed partial class MainView
         _globalExecutionStatus = null;
         _globalCallViewModel = null;
         OverlayHost.Child = null;
+        OverlayHost.Background = null;
         OverlayHost.IsVisible = false;
     }
 
