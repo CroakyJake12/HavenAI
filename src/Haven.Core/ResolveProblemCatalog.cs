@@ -21,7 +21,7 @@ public enum ResolveProblemAction
     RemoveFailedAttachment,
     SelectCompatibleModel,
     RequestPermission,
-    UserCescribedCorrection
+    UserDescribedCorrection
 }
 
 /// <summary>
@@ -39,7 +39,8 @@ public sealed record ResolveProblemSignals(
     bool RepetitionDetected);
 
 /// <summary>
-/// Builds the Resolve Problems menu. Common quality problems are always present; runtime failures are adaptive.
+/// Builds the Resolve Problems menu. Common quality problems are always present;
+/// runtime failures are adaptive.
 /// </summary>
 public static class ResolveProblemCatalog
 {
@@ -56,18 +57,28 @@ public static class ResolveProblemCatalog
 
     public static IReadOnlyList<ResolveProblemDefinition> Build(ResolveProblemSignals signals)
     {
+        ArgumentNullException.ThrowIfNull(signals);
+
         var result = AlwaysVisible.ToList();
-        void AddIf(bool condition, ResolveProblemDefinition definition) { if (condition) result.Add(definition); }
+
+        void AddIf(bool condition, ResolveProblemDefinition definition)
+        {
+            if (condition)
+            {
+                result.Add(definition);
+            }
+        }
 
         AddIf(signals.ModelFailed, new("model_failed", "Model request failed", "Retry the model request.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.ToolFailed, new("tool_failed", "Tool action failed", "Retry or reselect the capability.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.PluginUnavailable, new("plugin_unavailable", "Plugin unavailable", "Disable the plugin or install it.", ResolveProblemAction.ReselectCapability, false));
-        AddIf(signals.AttachmentFailed, new("attachment_failed", "Attachment could not be processed", "Remove the failed attachment and retry.", ResolveProblemAction.RemoveFailedAttachment, false));
+        AddIf(signals.AttachmentFailed, new("model_failed", "Attachment could not be processed", "Remove the failed attachment and retry.", ResolveProblemAction.RemoveFailedAttachment, false));
         AddIf(signals.ContextLimitReached, new("high_context", "Conversation context is full", "Compact older turns before retrying.", ResolveProblemAction.RetryFailedOperation, false));
         AddIf(signals.ModelUnavailable, new("model_unavailable", "Selected model is unavailable", "Select a compatible installed model.", ResolveProblemAction.SelectCompatibleModel, false));
         AddIf(signals.PermissionRequired, new("permission_required", "Permission is required", "Review and approve the requested capability.", ResolveProblemAction.RequestPermission, false));
         AddIf(signals.ResponseStopped, new("response_stopped", "Response stopped early", "Retry the last turn.", ResolveProblemAction.RetryFailedOperation, false));
-        AddIf(signals.RepetitionDetected, new("repetition_detected", "Repetition detected in this response", "Retry from the last stable turn.", ResolveProblemAction.StopAndRegenerate, false);
+        AddIf(signals.RepetitionDetected, new("repetition_detected", "Repetition detected in this response", "Retry from the last stable turn.", ResolveProblemAction.StopAndRegenerate, false));
+
         return result;
     }
 }
