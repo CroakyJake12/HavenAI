@@ -1,0 +1,1045 @@
+# PATTERN: canUseTools
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:232 --
+  207:             images is { Count: > 0 },
+  208:             installed);
+  209: 
+  210:         if (!check.IsCompatible)
+  211:         {
+  212:             execution.Fail("Capability check failed", string.Join("; ", check.Missing.Select(item => item.Reason)));
+  213:             execution.Changed -= PublishExecution;
+  214:             yield return ChatStreamEvent.Preflight(check);
+  215:             yield break;
+  216:         }
+  217: 
+  218:         var toolDefinitions = needsTools
+  219:             ? modelPlan.Definitions
+  220:                 .Where(definition => IsToolSelectedForTurn(
+  221:                     modelPlan,
+  222:                     definition.Name,
+  223:                     requiredCapabilities))
+  224:                 .ToArray()
+  225:             : [];
+  226: 
+  227:         var computerPass = toolDefinitions.Any(definition =>
+  228:                 modelPlan.TryGetRuntime(definition.Name, out var runtime) &&
+  229:                 runtime == ToolRuntimeKind.Computer)
+  230:             ? computerPassCandidate
+  231:             : null;
+  232:         var canUseTools = toolDefinitions.Length > 0;
+  233: 
+  234:         execution.Update(ChatExecutionStage.LoadingContext, "Loading Context");
+  235:         var history = await conversations.GetContextMessagesAsync(
+  236:             conversation.Id,
+  237:             cancellationToken).ConfigureAwait(false);
+  238: 
+  239:         var contextBudget = (int)Math.Clamp(
+  240:             (long)(generationOptions?.ContextLimit ?? 32768) * 4L,
+  241:             8_000L,
+  242:             131_072L);
+  243:         var contextMessages = ChatContextWindow.Build(history, contextBudget);
+  244:         var requestMessages = contextMessages
+  245:             .Where(message => message.Role is MessageRole.User or MessageRole.Assistant)
+  246:             .Select(message => new OllamaMessage(
+  247:                 message.Role == MessageRole.User ? "user" : "assistant",
+  248:                 message.Content))
+  249:             .ToList();
+  250: 
+  251:         if (requestMessages.Count == 0 ||
+  252:             requestMessages[^1].Role != "user" ||
+  253:             requestMessages[^1].Content != prompt)
+  254:         {
+  255:             requestMessages.Add(new OllamaMessage("user", prompt, images));
+  256:         }
+  257:         else if (images is { Count: > 0 })
+  258:         {
+  259:             requestMessages[^1] = new OllamaMessage("user", prompt, images);
+  260:         }
+  261: 
+  262:         var system = BuildSystemPrompt(
+  263:             conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
+  264:             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
+  265:             projectContext, projectInstructions, registeredContext, computerPass is not null);
+  266:         var assistantId = Guid.NewGuid();
+  267:         var buffer = new StringBuilder();
+  268:         execution.Update(ChatExecutionStage.Thinking, "Thinking");
+  269:         yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
+  270: 
+  271:         if (canUseTools)
+  272:         {
+  273:             var turns = requestMessages.Select(message => new OllamaToolTurn(message.Role, message.Content, Images: message.Images)).ToList();
+  274:             var toolCallLimit = Math.Clamp(generationOptions?.ActionLimit ?? 24, 1, 100);
+  275:             var callsUsed = 0;
+  276:             var bridgeAttempted = false;
+  277:             WorkspaceToolResult? lastToolResult = null;
+  278:             OllamaToolCall? lastToolCall = null;
+  279: 
+  280:             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
+  281:             {
+  282:                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
+  283:                 {
+  284:                     execution.Update(
+  285:                         StageForTool(call.Name, runtime),
+  286:                         StatusForTool(call.Name),
+  287:                         DescribeTool(call));
+  288:                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+  289:                         return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  290:                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+  291:                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:271 --
+  246:             .Select(message => new OllamaMessage(
+  247:                 message.Role == MessageRole.User ? "user" : "assistant",
+  248:                 message.Content))
+  249:             .ToList();
+  250: 
+  251:         if (requestMessages.Count == 0 ||
+  252:             requestMessages[^1].Role != "user" ||
+  253:             requestMessages[^1].Content != prompt)
+  254:         {
+  255:             requestMessages.Add(new OllamaMessage("user", prompt, images));
+  256:         }
+  257:         else if (images is { Count: > 0 })
+  258:         {
+  259:             requestMessages[^1] = new OllamaMessage("user", prompt, images);
+  260:         }
+  261: 
+  262:         var system = BuildSystemPrompt(
+  263:             conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
+  264:             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
+  265:             projectContext, projectInstructions, registeredContext, computerPass is not null);
+  266:         var assistantId = Guid.NewGuid();
+  267:         var buffer = new StringBuilder();
+  268:         execution.Update(ChatExecutionStage.Thinking, "Thinking");
+  269:         yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
+  270: 
+  271:         if (canUseTools)
+  272:         {
+  273:             var turns = requestMessages.Select(message => new OllamaToolTurn(message.Role, message.Content, Images: message.Images)).ToList();
+  274:             var toolCallLimit = Math.Clamp(generationOptions?.ActionLimit ?? 24, 1, 100);
+  275:             var callsUsed = 0;
+  276:             var bridgeAttempted = false;
+  277:             WorkspaceToolResult? lastToolResult = null;
+  278:             OllamaToolCall? lastToolCall = null;
+  279: 
+  280:             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
+  281:             {
+  282:                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
+  283:                 {
+  284:                     execution.Update(
+  285:                         StageForTool(call.Name, runtime),
+  286:                         StatusForTool(call.Name),
+  287:                         DescribeTool(call));
+  288:                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+  289:                         return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  290:                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+  291:                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  292:                     if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+  293:                         return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+  294:                     if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+  295:                         return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+  296:                 }
+  297:                 var detail = modelPlan.GetUnavailableReason(call.Name);
+  298:                 return new WorkspaceToolResult(
+  299:                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+  300:                     "Tool error: " + detail);
+  301:             }
+  302: 
+  303:             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
+  304:             if (bootstrapCall is not null)
+  305:             {
+  306:                 callsUsed++;
+  307:                 lastToolCall = bootstrapCall;
+  308:                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
+  309:                 yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  310:                 var directResult = lastToolResult.Activity.Succeeded
+  311:                     ? CompletedActionMessage(bootstrapCall)
+  312:                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  313:                 buffer.Append(directResult);
+  314:                 yield return ChatStreamEvent.AssistantDelta(assistantId, directResult);
+  315:             }
+  316: 
+  317:             while (bootstrapCall is null && callsUsed < toolCallLimit)
+  318:             {
+  319:                 cancellationToken.ThrowIfCancellationRequested();
+  320:                 OllamaToolResponse? response = null;
+  321:                 var unsupportedToolSchema = false;
+  322:                 try
+  323:                 {
+  324:                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
+  325:                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+  326:                 }
+  327:                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
+  328:                 {
+  329:                     unsupportedToolSchema = true;
+  330:                 }
+
+# PATTERN: ExecuteToolAsync
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:280 --
+  255:             requestMessages.Add(new OllamaMessage("user", prompt, images));
+  256:         }
+  257:         else if (images is { Count: > 0 })
+  258:         {
+  259:             requestMessages[^1] = new OllamaMessage("user", prompt, images);
+  260:         }
+  261: 
+  262:         var system = BuildSystemPrompt(
+  263:             conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
+  264:             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
+  265:             projectContext, projectInstructions, registeredContext, computerPass is not null);
+  266:         var assistantId = Guid.NewGuid();
+  267:         var buffer = new StringBuilder();
+  268:         execution.Update(ChatExecutionStage.Thinking, "Thinking");
+  269:         yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
+  270: 
+  271:         if (canUseTools)
+  272:         {
+  273:             var turns = requestMessages.Select(message => new OllamaToolTurn(message.Role, message.Content, Images: message.Images)).ToList();
+  274:             var toolCallLimit = Math.Clamp(generationOptions?.ActionLimit ?? 24, 1, 100);
+  275:             var callsUsed = 0;
+  276:             var bridgeAttempted = false;
+  277:             WorkspaceToolResult? lastToolResult = null;
+  278:             OllamaToolCall? lastToolCall = null;
+  279: 
+  280:             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
+  281:             {
+  282:                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
+  283:                 {
+  284:                     execution.Update(
+  285:                         StageForTool(call.Name, runtime),
+  286:                         StatusForTool(call.Name),
+  287:                         DescribeTool(call));
+  288:                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+  289:                         return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  290:                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+  291:                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  292:                     if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+  293:                         return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+  294:                     if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+  295:                         return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+  296:                 }
+  297:                 var detail = modelPlan.GetUnavailableReason(call.Name);
+  298:                 return new WorkspaceToolResult(
+  299:                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+  300:                     "Tool error: " + detail);
+  301:             }
+  302: 
+  303:             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
+  304:             if (bootstrapCall is not null)
+  305:             {
+  306:                 callsUsed++;
+  307:                 lastToolCall = bootstrapCall;
+  308:                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
+  309:                 yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  310:                 var directResult = lastToolResult.Activity.Succeeded
+  311:                     ? CompletedActionMessage(bootstrapCall)
+  312:                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  313:                 buffer.Append(directResult);
+  314:                 yield return ChatStreamEvent.AssistantDelta(assistantId, directResult);
+  315:             }
+  316: 
+  317:             while (bootstrapCall is null && callsUsed < toolCallLimit)
+  318:             {
+  319:                 cancellationToken.ThrowIfCancellationRequested();
+  320:                 OllamaToolResponse? response = null;
+  321:                 var unsupportedToolSchema = false;
+  322:                 try
+  323:                 {
+  324:                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
+  325:                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+  326:                 }
+  327:                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
+  328:                 {
+  329:                     unsupportedToolSchema = true;
+  330:                 }
+  331: 
+  332:                 if (unsupportedToolSchema)
+  333:                 {
+  334:                     bridgeAttempted = true;
+  335:                     var bridged = LooksLikeToolRequest(prompt)
+  336:                         ? await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
+  337:                         : null;
+  338:                     if (bridged is not null)
+  339:                     {
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:308 --
+  283:                 {
+  284:                     execution.Update(
+  285:                         StageForTool(call.Name, runtime),
+  286:                         StatusForTool(call.Name),
+  287:                         DescribeTool(call));
+  288:                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+  289:                         return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  290:                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+  291:                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+  292:                     if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+  293:                         return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+  294:                     if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+  295:                         return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+  296:                 }
+  297:                 var detail = modelPlan.GetUnavailableReason(call.Name);
+  298:                 return new WorkspaceToolResult(
+  299:                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+  300:                     "Tool error: " + detail);
+  301:             }
+  302: 
+  303:             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
+  304:             if (bootstrapCall is not null)
+  305:             {
+  306:                 callsUsed++;
+  307:                 lastToolCall = bootstrapCall;
+  308:                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
+  309:                 yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  310:                 var directResult = lastToolResult.Activity.Succeeded
+  311:                     ? CompletedActionMessage(bootstrapCall)
+  312:                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  313:                 buffer.Append(directResult);
+  314:                 yield return ChatStreamEvent.AssistantDelta(assistantId, directResult);
+  315:             }
+  316: 
+  317:             while (bootstrapCall is null && callsUsed < toolCallLimit)
+  318:             {
+  319:                 cancellationToken.ThrowIfCancellationRequested();
+  320:                 OllamaToolResponse? response = null;
+  321:                 var unsupportedToolSchema = false;
+  322:                 try
+  323:                 {
+  324:                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
+  325:                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+  326:                 }
+  327:                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
+  328:                 {
+  329:                     unsupportedToolSchema = true;
+  330:                 }
+  331: 
+  332:                 if (unsupportedToolSchema)
+  333:                 {
+  334:                     bridgeAttempted = true;
+  335:                     var bridged = LooksLikeToolRequest(prompt)
+  336:                         ? await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
+  337:                         : null;
+  338:                     if (bridged is not null)
+  339:                     {
+  340:                         callsUsed++;
+  341:                         lastToolCall = bridged;
+  342:                         lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  343:                         yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  344:                         var bridgedResult = lastToolResult.Activity.Succeeded
+  345:                             ? CompletedActionMessage(bridged)
+  346:                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  347:                         buffer.Append(bridgedResult);
+  348:                         yield return ChatStreamEvent.AssistantDelta(assistantId, bridgedResult);
+  349:                     }
+  350:                     else
+  351:                     {
+  352:                         const string unsupported = "This local model cannot emit tool calls for that request. Choose a tool-capable model, or use a directly supported Computer Use launch request.";
+  353:                         buffer.Append(unsupported);
+  354:                         yield return ChatStreamEvent.AssistantDelta(assistantId, unsupported);
+  355:                     }
+  356:                     break;
+  357:                 }
+  358: 
+  359:                 if (response is null)
+  360:                     throw new InvalidOperationException("Ollama returned no tool response.");
+  361:                 if (response.ToolCalls.Count == 0)
+  362:                 {
+  363:                     if (!bridgeAttempted && callsUsed == 0 && LooksLikeToolRequest(prompt))
+  364:                     {
+  365:                         bridgeAttempted = true;
+  366:                         var bridged = await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
+  367:                         if (bridged is not null)
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:342 --
+  317:             while (bootstrapCall is null && callsUsed < toolCallLimit)
+  318:             {
+  319:                 cancellationToken.ThrowIfCancellationRequested();
+  320:                 OllamaToolResponse? response = null;
+  321:                 var unsupportedToolSchema = false;
+  322:                 try
+  323:                 {
+  324:                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
+  325:                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+  326:                 }
+  327:                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
+  328:                 {
+  329:                     unsupportedToolSchema = true;
+  330:                 }
+  331: 
+  332:                 if (unsupportedToolSchema)
+  333:                 {
+  334:                     bridgeAttempted = true;
+  335:                     var bridged = LooksLikeToolRequest(prompt)
+  336:                         ? await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
+  337:                         : null;
+  338:                     if (bridged is not null)
+  339:                     {
+  340:                         callsUsed++;
+  341:                         lastToolCall = bridged;
+  342:                         lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  343:                         yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  344:                         var bridgedResult = lastToolResult.Activity.Succeeded
+  345:                             ? CompletedActionMessage(bridged)
+  346:                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  347:                         buffer.Append(bridgedResult);
+  348:                         yield return ChatStreamEvent.AssistantDelta(assistantId, bridgedResult);
+  349:                     }
+  350:                     else
+  351:                     {
+  352:                         const string unsupported = "This local model cannot emit tool calls for that request. Choose a tool-capable model, or use a directly supported Computer Use launch request.";
+  353:                         buffer.Append(unsupported);
+  354:                         yield return ChatStreamEvent.AssistantDelta(assistantId, unsupported);
+  355:                     }
+  356:                     break;
+  357:                 }
+  358: 
+  359:                 if (response is null)
+  360:                     throw new InvalidOperationException("Ollama returned no tool response.");
+  361:                 if (response.ToolCalls.Count == 0)
+  362:                 {
+  363:                     if (!bridgeAttempted && callsUsed == 0 && LooksLikeToolRequest(prompt))
+  364:                     {
+  365:                         bridgeAttempted = true;
+  366:                         var bridged = await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
+  367:                         if (bridged is not null)
+  368:                         {
+  369:                             callsUsed++;
+  370:                             lastToolCall = bridged;
+  371:                             lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  372:                             yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  373:                             turns.Add(new OllamaToolTurn("assistant", string.Empty, [bridged]));
+  374:                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
+  375:                             continue;
+  376:                         }
+  377:                     }
+  378:                     var content = string.IsNullOrWhiteSpace(response.Content)
+  379:                         ? "The tool pass completed without a final model response. Review the activity above."
+  380:                         : response.Content;
+  381:                     if (lastToolResult?.Activity.Succeeded == true && lastToolCall is not null && ResponseContradictsCompletedAction(content))
+  382:                         content = CompletedActionMessage(lastToolCall);
+  383:                     buffer.Append(content);
+  384:                     yield return ChatStreamEvent.AssistantDelta(assistantId, content);
+  385:                     break;
+  386:                 }
+  387: 
+  388:                 turns.Add(new OllamaToolTurn("assistant", response.Content, response.ToolCalls));
+  389:                 if (!string.IsNullOrWhiteSpace(response.Content))
+  390:                 {
+  391:                     buffer.Append(response.Content);
+  392:                     yield return ChatStreamEvent.AssistantDelta(assistantId, response.Content);
+  393:                 }
+  394:                 foreach (var call in response.ToolCalls)
+  395:                 {
+  396:                     if (callsUsed >= toolCallLimit) break;
+  397:                     callsUsed++;
+  398:                     lastToolCall = call;
+  399:                     var result = await ExecuteToolAsync(call).ConfigureAwait(false);
+  400:                     lastToolResult = result;
+  401:                     yield return ChatStreamEvent.Activity(result.Activity);
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:371 --
+  346:                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  347:                         buffer.Append(bridgedResult);
+  348:                         yield return ChatStreamEvent.AssistantDelta(assistantId, bridgedResult);
+  349:                     }
+  350:                     else
+  351:                     {
+  352:                         const string unsupported = "This local model cannot emit tool calls for that request. Choose a tool-capable model, or use a directly supported Computer Use launch request.";
+  353:                         buffer.Append(unsupported);
+  354:                         yield return ChatStreamEvent.AssistantDelta(assistantId, unsupported);
+  355:                     }
+  356:                     break;
+  357:                 }
+  358: 
+  359:                 if (response is null)
+  360:                     throw new InvalidOperationException("Ollama returned no tool response.");
+  361:                 if (response.ToolCalls.Count == 0)
+  362:                 {
+  363:                     if (!bridgeAttempted && callsUsed == 0 && LooksLikeToolRequest(prompt))
+  364:                     {
+  365:                         bridgeAttempted = true;
+  366:                         var bridged = await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
+  367:                         if (bridged is not null)
+  368:                         {
+  369:                             callsUsed++;
+  370:                             lastToolCall = bridged;
+  371:                             lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  372:                             yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  373:                             turns.Add(new OllamaToolTurn("assistant", string.Empty, [bridged]));
+  374:                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
+  375:                             continue;
+  376:                         }
+  377:                     }
+  378:                     var content = string.IsNullOrWhiteSpace(response.Content)
+  379:                         ? "The tool pass completed without a final model response. Review the activity above."
+  380:                         : response.Content;
+  381:                     if (lastToolResult?.Activity.Succeeded == true && lastToolCall is not null && ResponseContradictsCompletedAction(content))
+  382:                         content = CompletedActionMessage(lastToolCall);
+  383:                     buffer.Append(content);
+  384:                     yield return ChatStreamEvent.AssistantDelta(assistantId, content);
+  385:                     break;
+  386:                 }
+  387: 
+  388:                 turns.Add(new OllamaToolTurn("assistant", response.Content, response.ToolCalls));
+  389:                 if (!string.IsNullOrWhiteSpace(response.Content))
+  390:                 {
+  391:                     buffer.Append(response.Content);
+  392:                     yield return ChatStreamEvent.AssistantDelta(assistantId, response.Content);
+  393:                 }
+  394:                 foreach (var call in response.ToolCalls)
+  395:                 {
+  396:                     if (callsUsed >= toolCallLimit) break;
+  397:                     callsUsed++;
+  398:                     lastToolCall = call;
+  399:                     var result = await ExecuteToolAsync(call).ConfigureAwait(false);
+  400:                     lastToolResult = result;
+  401:                     yield return ChatStreamEvent.Activity(result.Activity);
+  402:                     turns.Add(new OllamaToolTurn("tool", result.Output, ToolName: call.Name));
+  403:                 }
+  404:             }
+  405: 
+  406:             if (buffer.Length == 0)
+  407:             {
+  408:                 var limitMessage = $"Stopped after reaching the tool-call safety limit of {toolCallLimit}. Review the activity before continuing.";
+  409:                 buffer.Append(limitMessage);
+  410:                 yield return ChatStreamEvent.AssistantDelta(assistantId, limitMessage);
+  411:             }
+  412:         }
+  413:         else
+  414:         {
+  415:             var firstChunk = true;
+  416:             await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
+  417:             {
+  418:                 if (firstChunk)
+  419:                 {
+  420:                     execution.Update(ChatExecutionStage.Generating, "Writing Response");
+  421:                     firstChunk = false;
+  422:                 }
+  423: 
+  424:                 buffer.Append(chunk);
+  425:                 yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+  426:             }
+  427:         }
+  428: 
+  429:         var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, null, DateTimeOffset.UtcNow);
+  430:         if (!conversation.IsTemporary)
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:399 --
+  374:                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
+  375:                             continue;
+  376:                         }
+  377:                     }
+  378:                     var content = string.IsNullOrWhiteSpace(response.Content)
+  379:                         ? "The tool pass completed without a final model response. Review the activity above."
+  380:                         : response.Content;
+  381:                     if (lastToolResult?.Activity.Succeeded == true && lastToolCall is not null && ResponseContradictsCompletedAction(content))
+  382:                         content = CompletedActionMessage(lastToolCall);
+  383:                     buffer.Append(content);
+  384:                     yield return ChatStreamEvent.AssistantDelta(assistantId, content);
+  385:                     break;
+  386:                 }
+  387: 
+  388:                 turns.Add(new OllamaToolTurn("assistant", response.Content, response.ToolCalls));
+  389:                 if (!string.IsNullOrWhiteSpace(response.Content))
+  390:                 {
+  391:                     buffer.Append(response.Content);
+  392:                     yield return ChatStreamEvent.AssistantDelta(assistantId, response.Content);
+  393:                 }
+  394:                 foreach (var call in response.ToolCalls)
+  395:                 {
+  396:                     if (callsUsed >= toolCallLimit) break;
+  397:                     callsUsed++;
+  398:                     lastToolCall = call;
+  399:                     var result = await ExecuteToolAsync(call).ConfigureAwait(false);
+  400:                     lastToolResult = result;
+  401:                     yield return ChatStreamEvent.Activity(result.Activity);
+  402:                     turns.Add(new OllamaToolTurn("tool", result.Output, ToolName: call.Name));
+  403:                 }
+  404:             }
+  405: 
+  406:             if (buffer.Length == 0)
+  407:             {
+  408:                 var limitMessage = $"Stopped after reaching the tool-call safety limit of {toolCallLimit}. Review the activity before continuing.";
+  409:                 buffer.Append(limitMessage);
+  410:                 yield return ChatStreamEvent.AssistantDelta(assistantId, limitMessage);
+  411:             }
+  412:         }
+  413:         else
+  414:         {
+  415:             var firstChunk = true;
+  416:             await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
+  417:             {
+  418:                 if (firstChunk)
+  419:                 {
+  420:                     execution.Update(ChatExecutionStage.Generating, "Writing Response");
+  421:                     firstChunk = false;
+  422:                 }
+  423: 
+  424:                 buffer.Append(chunk);
+  425:                 yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+  426:             }
+  427:         }
+  428: 
+  429:         var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, null, DateTimeOffset.UtcNow);
+  430:         if (!conversation.IsTemporary)
+  431:             await conversations.AddMessageAsync(assistant, cancellationToken).ConfigureAwait(false);
+  432:         execution.Complete();
+  433:         execution.Changed -= PublishExecution;
+  434:         yield return ChatStreamEvent.AssistantCompleted(assistant);
+  435:     }
+  436: 
+  437:     /// <summary>
+  438:     /// Creates availability plan with the invariants required by its callers.
+  439:     /// </summary>
+  440:     private static HashSet<ToolCapability> CapabilitiesFromActivePlugins(
+  441:         IReadOnlyCollection<ActivePlugin> plugins)
+  442:     {
+  443:         var result = new HashSet<ToolCapability>();
+  444:         foreach (var plugin in plugins)
+  445:         {
+  446:             switch (plugin.Name.ToLowerInvariant())
+  447:             {
+  448:                 case "websearch":
+  449:                     result.Add(ToolCapability.WebSearch);
+  450:                     result.Add(ToolCapability.Browser);
+  451:                     break;
+  452:                 case "browseruse":
+  453:                     result.Add(ToolCapability.Browser);
+  454:                     break;
+  455:                 case "computeruse":
+  456:                     result.Add(ToolCapability.ComputerUse);
+  457:                     break;
+  458:                 case "automate":
+
+# PATTERN: ChatWithToolsAsync
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:324 --
+  299:                     new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+  300:                     "Tool error: " + detail);
+  301:             }
+  302: 
+  303:             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
+  304:             if (bootstrapCall is not null)
+  305:             {
+  306:                 callsUsed++;
+  307:                 lastToolCall = bootstrapCall;
+  308:                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
+  309:                 yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  310:                 var directResult = lastToolResult.Activity.Succeeded
+  311:                     ? CompletedActionMessage(bootstrapCall)
+  312:                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  313:                 buffer.Append(directResult);
+  314:                 yield return ChatStreamEvent.AssistantDelta(assistantId, directResult);
+  315:             }
+  316: 
+  317:             while (bootstrapCall is null && callsUsed < toolCallLimit)
+  318:             {
+  319:                 cancellationToken.ThrowIfCancellationRequested();
+  320:                 OllamaToolResponse? response = null;
+  321:                 var unsupportedToolSchema = false;
+  322:                 try
+  323:                 {
+  324:                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
+  325:                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+  326:                 }
+  327:                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
+  328:                 {
+  329:                     unsupportedToolSchema = true;
+  330:                 }
+  331: 
+  332:                 if (unsupportedToolSchema)
+  333:                 {
+  334:                     bridgeAttempted = true;
+  335:                     var bridged = LooksLikeToolRequest(prompt)
+  336:                         ? await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
+  337:                         : null;
+  338:                     if (bridged is not null)
+  339:                     {
+  340:                         callsUsed++;
+  341:                         lastToolCall = bridged;
+  342:                         lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  343:                         yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  344:                         var bridgedResult = lastToolResult.Activity.Succeeded
+  345:                             ? CompletedActionMessage(bridged)
+  346:                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
+  347:                         buffer.Append(bridgedResult);
+  348:                         yield return ChatStreamEvent.AssistantDelta(assistantId, bridgedResult);
+  349:                     }
+  350:                     else
+  351:                     {
+  352:                         const string unsupported = "This local model cannot emit tool calls for that request. Choose a tool-capable model, or use a directly supported Computer Use launch request.";
+  353:                         buffer.Append(unsupported);
+  354:                         yield return ChatStreamEvent.AssistantDelta(assistantId, unsupported);
+  355:                     }
+  356:                     break;
+  357:                 }
+  358: 
+  359:                 if (response is null)
+  360:                     throw new InvalidOperationException("Ollama returned no tool response.");
+  361:                 if (response.ToolCalls.Count == 0)
+  362:                 {
+  363:                     if (!bridgeAttempted && callsUsed == 0 && LooksLikeToolRequest(prompt))
+  364:                     {
+  365:                         bridgeAttempted = true;
+  366:                         var bridged = await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
+  367:                         if (bridged is not null)
+  368:                         {
+  369:                             callsUsed++;
+  370:                             lastToolCall = bridged;
+  371:                             lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
+  372:                             yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+  373:                             turns.Add(new OllamaToolTurn("assistant", string.Empty, [bridged]));
+  374:                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
+  375:                             continue;
+  376:                         }
+  377:                     }
+  378:                     var content = string.IsNullOrWhiteSpace(response.Content)
+  379:                         ? "The tool pass completed without a final model response. Review the activity above."
+  380:                         : response.Content;
+  381:                     if (lastToolResult?.Activity.Succeeded == true && lastToolCall is not null && ResponseContradictsCompletedAction(content))
+  382:                         content = CompletedActionMessage(lastToolCall);
+  383:                     buffer.Append(content);
+
+# PATTERN: CreateAvailabilityPlan
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:49 --
+   24:     ComputerToolRuntime computerTools,
+   25:     BrowserToolRuntime? browserTools = null,
+   26:     AutomationToolRuntime? automationTools = null,
+   27:     ToolAvailabilityPlanner? toolAvailability = null,
+   28:     ChatModelInventoryCache? modelInventory = null)
+   29: {
+   30:     private readonly ChatModelInventoryCache _modelInventory =
+   31:         modelInventory ?? new ChatModelInventoryCache(ollama);
+   32: 
+   33:     public event Action<ChatExecutionSnapshot>? ExecutionChanged;
+   34: 
+   35:     public ChatExecutionSnapshot? CurrentExecution { get; private set; }
+   36: 
+   37:     /// <summary>
+   38:     /// Retrieves tool availability for the current operation.
+   39:     /// </summary>
+   40:     public ToolAvailabilityPlan GetToolAvailability(
+   41:         HavenMode mode,
+   42:         string? workspaceRoot,
+   43:         IReadOnlyCollection<ActivePlugin> plugins,
+   44:         PermissionMode filePermission,
+   45:         PermissionMode commandPermission,
+   46:         PermissionMode browserPermission)
+   47:     {
+   48:         var computerPass = computerTools.CreatePass();
+   49:         return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
+   50:             computerPass.Definitions);
+   51:     }
+   52: 
+   53:     /// <summary>
+   54:     /// Reports whether activate plugin applies to the current state.
+   55:     /// </summary>
+   56:     public bool CanActivatePlugin(
+   57:         string pluginName,
+   58:         HavenMode mode,
+   59:         string? workspaceRoot,
+   60:         PermissionMode filePermission,
+   61:         PermissionMode commandPermission,
+   62:         PermissionMode browserPermission) =>
+   63:         GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
+   64:             Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
+   65: 
+   66:     /// <summary>
+   67:     /// Performs send asynchronously so I/O does not block the caller's thread.
+   68:     /// </summary>
+   69:     public async IAsyncEnumerable<ChatStreamEvent> SendAsync(
+   70:         Conversation conversation,
+   71:         string prompt,
+   72:         ModelDescriptor model,
+   73:         EffortLevel effort,
+   74:         IReadOnlyCollection<ActivePlugin> plugins,
+   75:         string agentName,
+   76:         string agentInstructions,
+   77:         DuoMode duoMode,
+   78:         string? workspaceRoot,
+   79:         string? projectContext,
+   80:         string? projectInstructions,
+   81:         IReadOnlyList<string>? images,
+   82:         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken,
+   83:         IReadOnlyCollection<ActivePrompt>? prompts = null,
+   84:         string? registeredContext = null,
+   85:         GenerationOptions? generationOptions = null,
+   86:         PermissionMode filePermission = PermissionMode.FullAccess,
+   87:         PermissionMode commandPermission = PermissionMode.FullAccess,
+   88:         PermissionMode browserPermission = PermissionMode.FullAccess,
+   89:         IReadOnlyCollection<ToolCapability>? explicitCapabilities = null)
+   90:     {
+   91:         ModelDescriptor etaModel = model;
+   92: 
+   93:         async Task<string?> EstimateEtaAsync(
+   94:             ChatEtaRequest request,
+   95:             CancellationToken token)
+   96:         {
+   97:             var activity = request.RecentActivity.Count == 0
+   98:                 ? "No completed steps yet."
+   99:                 : string.Join("; ", request.RecentActivity);
+  100:             var etaPrompt =
+  101:                 $"Estimate the remaining time for this task. Current stage: {request.CurrentStatus}. " +
+  102:                 $"Elapsed: {Math.Max(1, (int)request.Elapsed.TotalMinutes)} minutes. " +
+  103:                 $"Recent activity: {activity}. " +
+  104:                 "Return exactly one clear duration such as '8 minutes', '45 minutes', or '2 hours'. " +
+  105:                 "Do not return a range, explanation, uncertainty, or refusal.";
+  106: 
+  107:             return await ollama.CompleteAsync(
+  108:                 new OllamaChatRequest(
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:190 --
+  165:         var capabilitySelection = ChatCapabilitySelection.Create(
+  166:             prompt,
+  167:             selectedCapabilities);
+  168:         var requiredCapabilities = capabilitySelection.Required.ToHashSet();
+  169: 
+  170:         if (images is { Count: > 0 })
+  171:         {
+  172:             requiredCapabilities.Add(ToolCapability.Vision);
+  173:         }
+  174: 
+  175:         var needsTools = NeedsToolRuntime(requiredCapabilities);
+  176:         if (needsTools)
+  177:         {
+  178:             requiredCapabilities.Add(ToolCapability.Tools);
+  179:             requiredCapabilities.Remove(ToolCapability.Streaming);
+  180:         }
+  181: 
+  182:         var turnModel = ChatModelFallbackSelector.Select(
+  183:                 model,
+  184:                 installed,
+  185:                 requiredCapabilities)
+  186:             ?? model;
+  187:         etaModel = turnModel;
+  188: 
+  189:         var computerPassCandidate = computerTools.CreatePass();
+  190:         var availabilityPlan = CreateAvailabilityPlan(
+  191:             conversation.Mode,
+  192:             workspaceRoot,
+  193:             plugins,
+  194:             filePermission,
+  195:             commandPermission,
+  196:             browserPermission,
+  197:             computerPassCandidate.Definitions);
+  198: 
+  199:         var modelPlan = availabilityPlan.RestrictToModel(turnModel);
+  200:         var modelPlugins = FilterPluginsForTurn(
+  201:             modelPlan.FilterPlugins(plugins),
+  202:             requiredCapabilities);
+  203: 
+  204:         var check = preflight.Evaluate(
+  205:             turnModel,
+  206:             modelPlugins,
+  207:             images is { Count: > 0 },
+  208:             installed);
+  209: 
+  210:         if (!check.IsCompatible)
+  211:         {
+  212:             execution.Fail("Capability check failed", string.Join("; ", check.Missing.Select(item => item.Reason)));
+  213:             execution.Changed -= PublishExecution;
+  214:             yield return ChatStreamEvent.Preflight(check);
+  215:             yield break;
+  216:         }
+  217: 
+  218:         var toolDefinitions = needsTools
+  219:             ? modelPlan.Definitions
+  220:                 .Where(definition => IsToolSelectedForTurn(
+  221:                     modelPlan,
+  222:                     definition.Name,
+  223:                     requiredCapabilities))
+  224:                 .ToArray()
+  225:             : [];
+  226: 
+  227:         var computerPass = toolDefinitions.Any(definition =>
+  228:                 modelPlan.TryGetRuntime(definition.Name, out var runtime) &&
+  229:                 runtime == ToolRuntimeKind.Computer)
+  230:             ? computerPassCandidate
+  231:             : null;
+  232:         var canUseTools = toolDefinitions.Length > 0;
+  233: 
+  234:         execution.Update(ChatExecutionStage.LoadingContext, "Loading Context");
+  235:         var history = await conversations.GetContextMessagesAsync(
+  236:             conversation.Id,
+  237:             cancellationToken).ConfigureAwait(false);
+  238: 
+  239:         var contextBudget = (int)Math.Clamp(
+  240:             (long)(generationOptions?.ContextLimit ?? 32768) * 4L,
+  241:             8_000L,
+  242:             131_072L);
+  243:         var contextMessages = ChatContextWindow.Build(history, contextBudget);
+  244:         var requestMessages = contextMessages
+  245:             .Where(message => message.Role is MessageRole.User or MessageRole.Assistant)
+  246:             .Select(message => new OllamaMessage(
+  247:                 message.Role == MessageRole.User ? "user" : "assistant",
+  248:                 message.Content))
+  249:             .ToList();
+
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:599 --
+  574:         {
+  575:             return "Inspecting Code";
+  576:         }
+  577: 
+  578:         return "Using Tool";
+  579:     }
+  580: 
+  581:     private static string DescribeTool(OllamaToolCall call)
+  582:     {
+  583:         if (call.Name.Contains("command", StringComparison.OrdinalIgnoreCase) &&
+  584:             call.Arguments.TryGetValue("command", out var command) &&
+  585:             command.ValueKind == JsonValueKind.String &&
+  586:             !string.IsNullOrWhiteSpace(command.GetString()))
+  587:         {
+  588:             var value = command.GetString()!
+  589:                 .Replace('\r', ' ')
+  590:                 .Replace('\n', ' ')
+  591:                 .Trim();
+  592:             return "Running command: " +
+  593:                 (value.Length <= 180 ? value : value[..180] + "…");
+  594:         }
+  595: 
+  596:         return "Started " + call.Name.Replace('_', ' ') + ".";
+  597:     }
+  598: 
+  599:     private ToolAvailabilityPlan CreateAvailabilityPlan(
+  600:         HavenMode mode,
+  601:         string? workspaceRoot,
+  602:         IReadOnlyCollection<ActivePlugin> plugins,
+  603:         PermissionMode filePermission,
+  604:         PermissionMode commandPermission,
+  605:         PermissionMode browserPermission,
+  606:         IReadOnlyList<OllamaToolDefinition> computerDefinitions) =>
+  607:         (toolAvailability ?? ToolAvailabilityPlanner.Default).Create(
+  608:             new ToolAvailabilityContext(
+  609:                 mode,
+  610:                 workspaceRoot,
+  611:                 plugins,
+  612:                 filePermission,
+  613:                 commandPermission,
+  614:                 browserPermission,
+  615:                 OperatingSystem.IsWindows(),
+  616:                 browserTools is not null,
+  617:                 browserTools?.IsInteractiveAvailable == true,
+  618:                 automationTools is not null),
+  619:             new ToolDefinitionSources(
+  620:                 workspaceTools.Definitions,
+  621:                 computerDefinitions,
+  622:                 browserTools?.BackgroundDefinitions ?? [],
+  623:                 browserTools?.InteractiveDefinitions ?? [],
+  624:                 automationTools?.GetDefinitions(true, false) ?? [],
+  625:                 automationTools?.GetDefinitions(false, true) ?? []));
+  626: 
+  627:     /// <summary>
+  628:     /// Performs the approvable step owned by this component.
+  629:     /// </summary>
+  630:     private static PermissionMode Approvable(PermissionMode permission) =>
+  631:         permission == PermissionMode.Ask ? PermissionMode.FullAccess : permission;
+  632: 
+  633:     /// <summary>
+  634:     /// Performs the looks like tool request step owned by this component.
+  635:     /// </summary>
+  636:     private static bool LooksLikeToolRequest(string prompt)
+  637:     {
+  638:         var value = prompt.TrimStart();
+  639:         return new[] { "open ", "launch ", "start ", "click ", "type ", "press ", "focus ", "close ", "run " }
+  640:             .Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+  641:     }
+  642: 
+  643:     /// <summary>
+  644:     /// Reports whether unsupported tool schema applies to the current state.
+  645:     /// </summary>
+  646:     private static bool IsUnsupportedToolSchema(HttpRequestException exception) =>
+  647:         exception.Message.Contains("does not support tools", StringComparison.OrdinalIgnoreCase) ||
+  648:         exception.Message.Contains("tool support", StringComparison.OrdinalIgnoreCase);
+  649: 
+  650:     /// <summary>
+  651:     /// Performs the response contradicts completed action step owned by this component.
+  652:     /// </summary>
+  653:     private static bool ResponseContradictsCompletedAction(string response)
+  654:     {
+  655:         var value = response.ToLowerInvariant();
+  656:         return value.Contains("i can't directly", StringComparison.Ordinal) ||
+  657:                value.Contains("i cannot directly", StringComparison.Ordinal) ||
+  658:                value.Contains("i can guide you", StringComparison.Ordinal) ||
+
+# PATTERN: WorkspaceToolRuntime
+-- D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs:23 --
+    1: /*
+    2:  * FILE DOCUMENTATION
+    3:  * Where: src/Haven.Application/ChatSessionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+    4:  * What: This file owns ChatSessionService, ChatStreamEvent, ChatStreamEventKind. Read the type and member comments below as a map of each responsibility.
+    5:  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+    6:  * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+    7:  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+    8:  */
+    9: 
+   10: using System.Text;
+   11: using System.Text.Json;
+   12: using Haven.Core;
+   13: 
+   14: namespace Haven.Application;
+   15: 
+   16: /// <summary>
+   17: /// Represents chat session service and keeps its related state and behavior together.
+   18: /// </summary>
+   19: public sealed class ChatSessionService(
+   20:     IConversationRepository conversations,
+   21:     IOllamaClient ollama,
+   22:     CapabilityPreflightService preflight,
+   23:     WorkspaceToolRuntime workspaceTools,
+   24:     ComputerToolRuntime computerTools,
+   25:     BrowserToolRuntime? browserTools = null,
+   26:     AutomationToolRuntime? automationTools = null,
+   27:     ToolAvailabilityPlanner? toolAvailability = null,
+   28:     ChatModelInventoryCache? modelInventory = null)
+   29: {
+   30:     private readonly ChatModelInventoryCache _modelInventory =
+   31:         modelInventory ?? new ChatModelInventoryCache(ollama);
+   32: 
+   33:     public event Action<ChatExecutionSnapshot>? ExecutionChanged;
+   34: 
+   35:     public ChatExecutionSnapshot? CurrentExecution { get; private set; }
+   36: 
+   37:     /// <summary>
+   38:     /// Retrieves tool availability for the current operation.
+   39:     /// </summary>
+   40:     public ToolAvailabilityPlan GetToolAvailability(
+   41:         HavenMode mode,
+   42:         string? workspaceRoot,
+   43:         IReadOnlyCollection<ActivePlugin> plugins,
+   44:         PermissionMode filePermission,
+   45:         PermissionMode commandPermission,
+   46:         PermissionMode browserPermission)
+   47:     {
+   48:         var computerPass = computerTools.CreatePass();
+   49:         return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
+   50:             computerPass.Definitions);
+   51:     }
+   52: 
+   53:     /// <summary>
+   54:     /// Reports whether activate plugin applies to the current state.
+   55:     /// </summary>
+   56:     public bool CanActivatePlugin(
+   57:         string pluginName,
+   58:         HavenMode mode,
+   59:         string? workspaceRoot,
+   60:         PermissionMode filePermission,
+   61:         PermissionMode commandPermission,
+   62:         PermissionMode browserPermission) =>
+   63:         GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
+   64:             Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
+   65: 
+   66:     /// <summary>
+   67:     /// Performs send asynchronously so I/O does not block the caller's thread.
+   68:     /// </summary>
+   69:     public async IAsyncEnumerable<ChatStreamEvent> SendAsync(
+   70:         Conversation conversation,
+   71:         string prompt,
+   72:         ModelDescriptor model,
+   73:         EffortLevel effort,
+   74:         IReadOnlyCollection<ActivePlugin> plugins,
+   75:         string agentName,
+   76:         string agentInstructions,
+   77:         DuoMode duoMode,
+   78:         string? workspaceRoot,
+   79:         string? projectContext,
+   80:         string? projectInstructions,
+   81:         IReadOnlyList<string>? images,
+   82:         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken,
