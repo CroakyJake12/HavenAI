@@ -21,9 +21,11 @@ jobs:
         with:
           ref: gpt/new-haven-beta-pass
           fetch-depth: 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -55,8 +57,10 @@ jobs:
 
       - name: Restore
         run: dotnet restore Haven.sln
+
       - name: Build
         run: dotnet build Haven.sln -c Release --no-restore
+
       - name: Test
         run: dotnet test Haven.sln -c Release --no-build
 
