@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.Shell.Overlays.GlobalCallWidget">
+  <Border Width="360"
+          Padding="14"
+          IsVisible="{Binding IsVisible}"
+          Background="{DynamicResource HavenPanelBrush}"
+          BorderBrush="{DynamicResource HavenLineBrush}"
+          BorderThickness="1"
+          CornerRadius="18"
+          BoxShadow="0 14 32 0 #42000000">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="Haven Call"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Status}"
+                     FontSize="11"
+                     Opacity="0.68"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                Classes="chrome"
+                MinWidth="28"
+                MinHeight="28"
+                Padding="0"
+                Content="×"
+                ToolTip.Tip="Close call widget"
+                IsVisible="{Binding CanClose}"
+                Command="{Binding CloseWidgetCommand}" />
+      </Grid>
+
+      <Border Grid.Row="1"
+              Padding="10,8"
+              CornerRadius="10"
+              Background="{DynamicResource HavenPanelBrush}"
+              IsVisible="{Binding IsActive}">
+        <ScrollViewer MaxHeight="132"
+                      VerticalScrollBarVisibility="Auto">
+          <TextBlock Text="{Binding Transcript}"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Opacity="0.84" />
+        </ScrollViewer>
+      </Border>
+
+      <Grid Grid.Row="2"
+            ColumnDefinitions="Auto,*"
+            ColumnSpacing="10"
+            IsVisible="{Binding IsActive}">
+        <Button Command="{Binding ToggleMuteCommand}"
+                MinWidth="90"
+                Content="Mute / unmute" />
+        <ProgressBar Grid.Column="1"
+                     Minimum="0"
+                     Maximum="1"
+                     Value="{Binding AudioLevel}"
+                     VerticalAlignment="Center"
+                     Height="6" />
+      </Grid>
+
+      <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding CallSummary}"
+                   FontSize="10"
+                   Opacity="0.62"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" />
+        <Button Grid.Column="1"
+                IsVisible="{Binding IsStartButtonVisible}"
+                Command="{Binding StartCallCommand}"
+                Content="Start"
+                Foreground="White"
+                Background="#2E7D32"
+                BorderBrush="#2E7D32"
+                MinWidth="82" />
+        <Button Grid.Column="2"
+                IsVisible="{Binding IsEndButtonVisible}"
+                Command="{Binding EndCallCommand}"
+                Content="End"
+                Foreground="White"
+                Background="#C62828"
+                BorderBrush="#C62828"
+                MinWidth="82" />
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>
