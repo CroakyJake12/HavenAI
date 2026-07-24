@@ -61,7 +61,7 @@ public sealed class ChatExecutionStatusControl : UserControl, IDisposable
             _status.Opacity = _dimmed ? 0.46 : 0.88;
         };
 
-        this.GetObservable(SnapshotProperty).Subscribe(ApplySnapshot);
+
     }
 
     public ChatExecutionSnapshot? Snapshot
@@ -70,6 +70,14 @@ public sealed class ChatExecutionStatusControl : UserControl, IDisposable
         set => SetValue(SnapshotProperty, value);
     }
 
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == SnapshotProperty)
+        {
+            ApplySnapshot(Snapshot);
+        }
+    }
     private void ApplySnapshot(ChatExecutionSnapshot? snapshot)
     {
         var terminal = snapshot?.Stage is ChatExecutionStage.Completed
@@ -105,3 +113,4 @@ public sealed class ChatExecutionStatusControl : UserControl, IDisposable
         _pulse.Stop();
     }
 }
+
