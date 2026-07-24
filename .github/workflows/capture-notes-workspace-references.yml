@@ -35,43 +35,25 @@ jobs:
             $text = $text.Replace($old, '')
             $insertBefore = '    private void ApplySnapshot(ChatExecutionSnapshot? snapshot)'
             $override = @"
-          protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-        {
-            base.OnPropertyChanged(change);
-            if (change.Property == SnapshotProperty)
-            {
-                ApplySnapshot(Snapshot);
-            }
-        }
+              protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+              {
+                  base.OnPropertyChanged(change);
+                  if (change.Property == SnapshotProperty)
+                  {
+                      ApplySnapshot(Snapshot);
+                  }
+              }
 
-    "@
+          "@
             $text = $text.Replace($insertBefore, $override + $insertBefore)
             Set-Content $path $text -Encoding utf8
           }
 
           New-Item -ItemType Directory -Force artifacts/compiler-repair | Out-Null
-          python - <<'PY'
-          from pathlib import Path
-
-          out = []
-          for path in Path('src').rglob('*'):
-              if path.suffix not in {'.cs', '.axaml'}:
-                continue
-             try:
-                 lines = path.read_text(encoding='utf-8').splitlines()
-             except UnicodeDecodeError:
-                 continue
-             for index, line in enumerate(lines):
-                 if 'NotesWorkspaceViewModel' not in line:
-                     continue
-                 start = max(0, index - 8)
-                 end = min(len(lines), index + 9)
-                 out.append(f'# {path}:{index + 1}')
-                 for number, content in enumerate(lines[start:end], start + 1):
-                     out.append(f'{number:4d}: {content}')
-                 out.append('')
-          Path('artifacts/compiler-repair/notes-workspace-references.txt').write_text('\n'.join(out), encoding='utf-8')
-          PY
+          Get-ChildItem src -Recurse -File -Include *.cs,*.axaml |
+            Select-String -Pattern 'NotesWorkspaceViewModel' -Context 8,8 |
+            Out-String -Width 500 |
+            Set-Content artifacts/compiler-repair/notes-workspace-references.txt -Encoding utf8
 
       - name: Build for fresh diagnostics
         id: build
@@ -79,7 +61,8 @@ jobs:
         shell: pwsh
         run: |
           dotnet restore Haven.sln
-          dotnet build Haven.sln -c Release --no-restore 2>&1 | Tee-Object artifacts/compiler-repair/build.log
+          dotnet build Haven.sln -c Release --no-restore 2>&1 |
+            Tee-Object artifacts/compiler-repair/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Commit repair and diagnostics
