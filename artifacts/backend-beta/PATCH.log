@@ -1,7 +1,14 @@
 Traceback (most recent call last):
-  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 33, in <module>
-    chat_patch = replace_once(
-                 ^^^^^^^^^^^^^
-  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 13, in replace_once
-    raise RuntimeError(f"{label}: expected one match, found {count}")
-RuntimeError: Chat streaming-state transformation: expected one match, found 0
+  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 539, in <module>
+    main()
+  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 533, in main
+    patch_chat_view_model()
+  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 499, in patch_chat_view_model
+    raise RuntimeError(
+RuntimeError: ChatPageViewModel temporary fallback: expected one auto-switch block
+Traceback (most recent call last):
+  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 110, in <module>
+    subprocess.run(
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\python.exe', 'D:\\a\\HavenAI\\HavenAI\\scripts\\apply_beta_chat_patch.py']' returned non-zero exit status 1.
