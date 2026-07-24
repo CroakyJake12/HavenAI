@@ -95,3 +95,5 @@ jobs:
             "${{ steps.test.outcome }}"
           )
           if ($outcomes -contains "failure") { exit 1 }
+
+# Validation trigger 2
