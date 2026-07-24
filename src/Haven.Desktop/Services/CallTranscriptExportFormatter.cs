@@ -29,7 +29,7 @@ public static class CallTranscriptExportFormatter
         ArgumentNullException.ThrowIfNull(transcript);
         var items = transcript.ToArray();
         var builder = new StringBuilder();
-        builder.AppendLine("# Haven Voice Transcript");
+        builder.AppendLine("# Haven Call Transcript");
         builder.AppendLine();
         builder.AppendLine($"Exported: {exportedAt.ToLocalTime():f}");
         builder.AppendLine($"Turns: {items.Length}");
@@ -57,7 +57,7 @@ public static class CallTranscriptExportFormatter
         ArgumentNullException.ThrowIfNull(transcript);
         var items = transcript.ToArray();
         var builder = new StringBuilder();
-        builder.AppendLine("# Haven Voice Transcript");
+        builder.AppendLine("# Haven Call Transcript");
         builder.AppendLine();
         builder.AppendLine($"Exported: {exportedAt.ToLocalTime():f}");
         builder.AppendLine($"Turns: {items.Length}");

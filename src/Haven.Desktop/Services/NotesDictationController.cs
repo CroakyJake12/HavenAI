@@ -78,7 +78,7 @@ public sealed class NotesDictationController(
             if (RuntimeSafetyState.IsSafeMode)
                 throw new InvalidOperationException("Notes dictation is disabled while Haven recovery safe mode is active.");
             if (calls.IsActive)
-                throw new InvalidOperationException("End the active Haven Voice before starting Notes dictation.");
+                throw new InvalidOperationException("End the active Haven Call before starting Notes dictation.");
             if (!speechInput.IsAvailable)
                 throw new InvalidOperationException(speechInput.UnavailableReason ?? "Local microphone transcription is unavailable.");
 
@@ -91,7 +91,7 @@ public sealed class NotesDictationController(
             // The model lookup can take time. Re-check the shared Call boundary before
             // claiming the process-wide microphone service for Notes.
             if (calls.IsActive)
-                throw new InvalidOperationException("End the active Haven Voice before starting Notes dictation.");
+                throw new InvalidOperationException("End the active Haven Call before starting Notes dictation.");
 
             var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(TimeSpan.FromSeconds(60));

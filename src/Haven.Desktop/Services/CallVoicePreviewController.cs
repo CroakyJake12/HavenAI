@@ -45,7 +45,7 @@ public sealed class CallVoicePreviewController(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (calls?.IsActive == true)
-            throw new InvalidOperationException("End the active Haven Voice before previewing a voice.");
+            throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
         if (!speechOutput.IsAvailable)
             throw new InvalidOperationException(speechOutput.UnavailableReason ?? "Speech output is unavailable.");
         if (voice is null) throw new InvalidOperationException("Choose a voice before previewing it.");
@@ -57,7 +57,7 @@ public sealed class CallVoicePreviewController(
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (calls?.IsActive == true)
-                throw new InvalidOperationException("End the active Haven Voice before previewing a voice.");
+                throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
 
             previewCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _previewCancellation = previewCancellation;
@@ -76,7 +76,7 @@ public sealed class CallVoicePreviewController(
                 cancellationToken).ConfigureAwait(false);
 
             if (calls?.IsActive == true)
-                throw new InvalidOperationException("End the active Haven Voice before previewing a voice.");
+                throw new InvalidOperationException("End the active Haven Call before previewing a voice.");
 
             await speechOutput.SpeakAsync(
                 PreviewText,

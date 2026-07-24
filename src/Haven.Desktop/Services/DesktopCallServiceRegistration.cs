@@ -52,7 +52,9 @@ public static class DesktopCallServiceRegistration
             return provider.GetRequiredService<ResponsiveCallCoordinator>();
         });
 
-        services.AddSingleton<CallVoicePreviewController>();
+        services.AddSingleton<CallVoicePreviewController>(provider => new CallVoicePreviewController(
+            provider.GetRequiredService<ISpeechOutputService>(),
+            provider.GetRequiredService<IProductionDiagnostics>()));
         services.AddSingleton<CallCompletionController>();
         services.AddSingleton<NotesDictationController>();
         services.AddSingleton<NotesReadAloudController>();

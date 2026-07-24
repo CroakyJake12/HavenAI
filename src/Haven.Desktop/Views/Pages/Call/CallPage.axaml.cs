@@ -428,7 +428,7 @@ public sealed partial class CallPage : UserControl
         {
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export Haven Voice transcript",
+                Title = "Export Haven Call transcript",
                 SuggestedFileName = $"haven-call-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
                 FileTypeChoices =
                 [

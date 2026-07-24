@@ -35,6 +35,14 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     public ResponsiveCallCoordinator(
         CallCoordinator inner,
         ISpeechOutputService speechOutput,
+        CallOptimizedOllamaClient models)
+        : this(inner, speechOutput, NoOpSpeechOutputWarmup.Instance, models)
+    {
+    }
+
+    public ResponsiveCallCoordinator(
+        CallCoordinator inner,
+        ISpeechOutputService speechOutput,
         ISpeechOutputWarmup speechWarmup,
         CallOptimizedOllamaClient models)
     {
@@ -275,4 +283,15 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         await _inner.DisposeAsync().ConfigureAwait(false);
         GC.SuppressFinalize(this);
     }
+    private sealed class NoOpSpeechOutputWarmup : ISpeechOutputWarmup
+    {
+        public static NoOpSpeechOutputWarmup Instance { get; } = new();
+
+        public Task WarmAsync(string? voiceName, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
+    }
+
 }

@@ -272,6 +272,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
         _callCoordinator.StateChanged += OnCallStateChanged;
         BuildCommandPalette();
+        AttachBetaOverlays();
     }
 
     public event EventHandler<string>? CopyRequested;
@@ -512,7 +513,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         HavenSurface.Home => "Haven Home",
         HavenSurface.Chat or HavenSurface.Teach => "Haven Chat",
-        HavenSurface.Call => "Haven Voice",
+        HavenSurface.Call => "Haven Call",
         HavenSurface.Do => "Haven Do",
         HavenSurface.Studio => "Haven Studio",
         HavenSurface.Browse => "Haven Browse",
