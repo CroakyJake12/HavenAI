@@ -3,6 +3,7 @@ on:
   push:
     branches: [haven-continuation]
     paths:
+      - scripts/apply_continuation_backend_pass.py
       - scripts/run_continuation_backend_validation.py
       - .github/workflows/validate-continuation-backend.yml
   workflow_dispatch:
