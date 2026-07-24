@@ -83,10 +83,14 @@ public sealed partial class ProjectCreatorView : UserControl
         _dotNetButton = ChoiceButton(".NET project");
         _packageButton = ChoiceButton("NuGet package");
         _reviewButton = PrimaryButton("Review proposal");
-        _approveButton = PrimaryButton("Approve and create");
-        _chooseDestinationButton = SecondaryButton("Choose folder");
-        _openFolderButton = SecondaryButton("Open existing folder");
-        _openProjectFileButton = SecondaryButton("Open project file");
+        _approveButton = PrimaryButton(
+            "Approve and create");
+        _chooseDestinationButton = SecondaryButton(
+            "Choose folder");
+        _openFolderButton = SecondaryButton(
+            "Open existing folder");
+        _openProjectFileButton = SecondaryButton(
+            "Open project file");
 
         _templatePanel = new StackPanel { Spacing = 8 };
 
@@ -318,7 +322,7 @@ public sealed partial class ProjectCreatorView : UserControl
         {
             if (_viewModel is not null)
             {
-                await _viewModel.CreateCommand.ExecuteAsync(null);
+                await _viewModel.CreateCommand.ExecuteAsync();
             }
         };
 
