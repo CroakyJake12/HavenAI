@@ -1,9 +1,8 @@
 using System;
-using System.Diagnostics;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Threading;
+using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
@@ -16,8 +15,26 @@ public sealed partial class MainView
 {
     private bool _betaOverlayLifecycleWired;
     private bool _betaOverlaysAttached;
+    private bool _redirectingLegacyCallPage;
+    private object? _lastNonCallContent;
+    private Popup? _globalCallPopup;
+    private Popup? _globalExecutionPopup;
+    private GlobalCallWidget? _globalCallWidget;
     private ChatExecutionStatusControl? _globalExecutionStatus;
     private InChatCallWidgetViewModel? _globalCallViewModel;
+
+    public void OpenVoiceSession()
+    {
+        AttachBetaOverlays();
+
+        if (_globalCallViewModel is null || _globalCallPopup is null)
+        {
+            return;
+        }
+
+        _globalCallViewModel.Open();
+        _globalCallPopup.IsOpen = true;
+    }
 
     private void AttachBetaOverlays()
     {
@@ -28,6 +45,7 @@ public sealed partial class MainView
             DetachedFromVisualTree += OnBetaOverlayDetached;
         }
 
+        DisableLegacyOverlayHost();
         HideLegacyShellContextBar();
 
         if (_betaOverlaysAttached)
@@ -35,62 +53,59 @@ public sealed partial class MainView
             return;
         }
 
-        ChatExecutionStatusControl? executionStatus = null;
-        InChatCallWidgetViewModel? callViewModel = null;
+        _betaOverlaysAttached = true;
 
-        try
+        _globalCallViewModel = new InChatCallWidgetViewModel(
+            _callCoordinator,
+            _conversations);
+
+        _globalCallWidget = new GlobalCallWidget(_globalCallViewModel);
+
+        _globalCallPopup = new Popup
         {
-            executionStatus = new ChatExecutionStatusControl
-            {
-                Margin = new Thickness(24),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                MaxWidth = 720
-            };
+            PlacementTarget = ContentArea,
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            HorizontalOffset = -20,
+            VerticalOffset = -20,
+            IsLightDismissEnabled = false,
+            Child = _globalCallWidget,
+            IsOpen = false
+        };
 
-            callViewModel = new InChatCallWidgetViewModel(
-                _callCoordinator,
-                _conversations);
-            callViewModel.Open();
-
-            var callWidget = new GlobalCallWidget(callViewModel)
-            {
-                Margin = new Thickness(24),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom
-            };
-
-            var overlayGrid = new Grid
-            {
-                Background = null
-            };
-            overlayGrid.Children.Add(executionStatus);
-            overlayGrid.Children.Add(callWidget);
-
-            OverlayHost.Background = null;
-            OverlayHost.Child = overlayGrid;
-
-            _globalExecutionStatus = executionStatus;
-            _globalCallViewModel = callViewModel;
-            _sessions.ExecutionChanged += OnExecutionChanged;
-            executionStatus.Snapshot = _sessions.CurrentExecution;
-
-            _betaOverlaysAttached = true;
-            OverlayHost.IsVisible = true;
-        }
-        catch (Exception exception)
+        _globalExecutionStatus = new ChatExecutionStatusControl
         {
-            Debug.WriteLine($"Unable to attach Haven beta overlays: {exception}");
+            MaxWidth = 720
+        };
+        _globalExecutionStatus.Snapshot = _sessions.CurrentExecution;
 
-            executionStatus?.Dispose();
-            callViewModel?.Dispose();
-            OverlayHost.Child = null;
-            OverlayHost.Background = null;
-            OverlayHost.IsVisible = false;
-            _globalExecutionStatus = null;
-            _globalCallViewModel = null;
-            _betaOverlaysAttached = false;
+        _globalExecutionPopup = new Popup
+        {
+            PlacementTarget = ContentArea,
+            Placement = PlacementMode.BottomEdgeAlignedLeft,
+            HorizontalOffset = 20,
+            VerticalOffset = -20,
+            IsLightDismissEnabled = false,
+            Child = _globalExecutionStatus,
+            IsOpen = true
+        };
+
+        _sessions.ExecutionChanged += OnExecutionChanged;
+        _globalCallViewModel.PropertyChanged += OnGlobalCallPropertyChanged;
+        PageContent.PropertyChanged += OnPageContentPropertyChanged;
+
+        var currentContent = PageContent.Content;
+        if (currentContent is not null && !IsLegacyCallPage(currentContent))
+        {
+            _lastNonCallContent = currentContent;
         }
+    }
+
+    private void DisableLegacyOverlayHost()
+    {
+        OverlayHost.IsVisible = false;
+        OverlayHost.IsHitTestVisible = false;
+        OverlayHost.Child = null;
+        OverlayHost.Background = null;
     }
 
     private void HideLegacyShellContextBar()
@@ -103,30 +118,104 @@ public sealed partial class MainView
         ShellContextBar.Margin = new Thickness(0);
     }
 
+    private void OnGlobalCallPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not nameof(InChatCallWidgetViewModel.IsVisible) &&
+            e.PropertyName is not nameof(InChatCallWidgetViewModel.IsOpen) &&
+            e.PropertyName is not nameof(InChatCallWidgetViewModel.IsActive))
+        {
+            return;
+        }
+
+        if (_globalCallPopup is not null && _globalCallViewModel is not null)
+        {
+            _globalCallPopup.IsOpen = _globalCallViewModel.IsVisible;
+        }
+    }
+
+    private void OnPageContentPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != ContentControl.ContentProperty || _redirectingLegacyCallPage)
+        {
+            return;
+        }
+
+        var content = PageContent.Content;
+        if (content is null)
+        {
+            return;
+        }
+
+        if (!IsLegacyCallPage(content))
+        {
+            _lastNonCallContent = content;
+            return;
+        }
+
+        _redirectingLegacyCallPage = true;
+        try
+        {
+            PageContent.Content = _lastNonCallContent;
+            OpenVoiceSession();
+        }
+        finally
+        {
+            _redirectingLegacyCallPage = false;
+        }
+    }
+
+    private static bool IsLegacyCallPage(object content) =>
+        string.Equals(
+            content.GetType().Name,
+            "CallPage",
+            StringComparison.Ordinal);
+
     private void DetachBetaOverlays()
     {
         if (!_betaOverlaysAttached)
         {
-            OverlayHost.Child = null;
-            OverlayHost.Background = null;
-            OverlayHost.IsVisible = false;
+            DisableLegacyOverlayHost();
             return;
         }
 
         _betaOverlaysAttached = false;
+
         _sessions.ExecutionChanged -= OnExecutionChanged;
-        _globalExecutionStatus?.Dispose();
+        PageContent.PropertyChanged -= OnPageContentPropertyChanged;
+
+        if (_globalCallViewModel is not null)
+        {
+            _globalCallViewModel.PropertyChanged -= OnGlobalCallPropertyChanged;
+        }
+
+        if (_globalCallPopup is not null)
+        {
+            _globalCallPopup.IsOpen = false;
+            _globalCallPopup.Child = null;
+        }
+
+        if (_globalExecutionPopup is not null)
+        {
+            _globalExecutionPopup.IsOpen = false;
+            _globalExecutionPopup.Child = null;
+        }
+
+        _globalCallWidget?.Dispose();
         _globalCallViewModel?.Dispose();
-        _globalExecutionStatus = null;
+        _globalExecutionStatus?.Dispose();
+
+        _globalCallPopup = null;
+        _globalExecutionPopup = null;
+        _globalCallWidget = null;
         _globalCallViewModel = null;
-        OverlayHost.Child = null;
-        OverlayHost.Background = null;
-        OverlayHost.IsVisible = false;
+        _globalExecutionStatus = null;
+
+        DisableLegacyOverlayHost();
     }
 
     private void OnExecutionChanged(ChatExecutionSnapshot snapshot)
     {
-        Dispatcher.UIThread.Post(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             if (_globalExecutionStatus is not null)
             {

@@ -1,48 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
-             x:Class="Haven.Desktop.Views.Pages.WorkspaceHome.WorkspaceHomePage"
-             Loaded="OnLoaded">
-
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel MaxWidth="1120" Margin="34,30" Spacing="22">
-
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-        <StackPanel>
-          <TextBlock x:Name="TitleText" Classes="heading" />
-          <TextBlock x:Name="SubtitleText" Classes="muted" Margin="0,5,0,0" />
-        </StackPanel>
-        <Button Grid.Column="1" x:Name="RefreshButton" Content="Refresh" Classes="ghost" VerticalAlignment="Center" />
-        <Button Grid.Column="2" x:Name="CreateButton" Classes="accent" VerticalAlignment="Center" />
-      </Grid>
-
-      <StackPanel Spacing="10">
-        <TextBlock x:Name="CollectionHeading" Classes="sectionHeading" />
-        <Border x:Name="EmptyStateCard" Classes="card" IsVisible="False">
-          <TextBlock Text="No workspaces yet. Create one, then connect its folder from settings." Classes="muted" />
-        </Border>
-        <WrapPanel x:Name="ItemsPanel" ItemWidth="340" />
-      </StackPanel>
-
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-        <Border Classes="card">
-          <StackPanel Spacing="9">
-            <TextBlock Text="Active Scheduled Actions" Classes="sectionHeading" />
-            <TextBlock x:Name="NoAutomationsText" Text="Nothing scheduled for this workspace." Classes="muted" />
-            <StackPanel x:Name="AutomationsPanel" Spacing="4" />
-          </StackPanel>
-        </Border>
-        <Border Grid.Column="1" Classes="card">
-          <StackPanel Spacing="9">
-            <TextBlock Text="Shared Macros" Classes="sectionHeading" />
-            <TextBlock x:Name="NoMacrosText" Text="No macros are shared with this workspace." Classes="muted" />
-            <StackPanel x:Name="MacrosPanel" Spacing="4" />
-          </StackPanel>
-        </Border>
-      </Grid>
-
-      <TextBlock x:Name="StatusText" Classes="muted" />
-    </StackPanel>
-  </ScrollViewer>
-
+             x:Class="Haven.Desktop.Views.Pages.WorkspaceHome.WorkspaceHomePage">
+  <Grid x:Name="CodeBehindHost" />
 </UserControl>

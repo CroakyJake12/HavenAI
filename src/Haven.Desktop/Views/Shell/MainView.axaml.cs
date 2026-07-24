@@ -1777,7 +1777,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Shortcut: item.Shortcut));
         var featuredActions = new DynamicActionToolbar.ToolbarAction[]
         {
-            new("Start Voice Session", "call", () => _ = OpenCallAsync(), "Start a live voice session.", Description: "Start a live voice session.", IsFeatured: true),
+            new("Voice session", "call", () => _ = OpenCallAsync(), "Start a live voice session.", Description: "Start a live voice session.", IsFeatured: true),
             new("Open Notifications", "bell", TopRail.ShowNotifications, "Review priority and unread notifications.", Description: "Review priority and unread notifications.", IsFeatured: true),
             new("Open App (In New Tab)", "rocket", () => _ = ShowAppLauncherAsync(true), "Choose an app without replacing this tab.", Description: "Choose an app without replacing this tab.", IsFeatured: true),
             new("Open App (Current Tab)", "rocket", () => _ = ShowAppLauncherAsync(false), "Choose an app for the current tab.", Description: "Choose an app for the current tab.", IsFeatured: true),

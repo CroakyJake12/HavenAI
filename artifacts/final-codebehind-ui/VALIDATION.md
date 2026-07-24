@@ -4,5 +4,5 @@
 |---|---|
 | Transformation | success |
 | Restore | success |
-| Release build | failure |
-| Core tests | failure |
+| Release build | success |
+| Core tests | success |

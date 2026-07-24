@@ -1,11 +1,17 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Application;
 using Haven.Core;
-using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
 
 namespace Haven.Desktop.Views.Pages.WorkspaceHome;
@@ -21,6 +27,13 @@ public sealed partial class WorkspaceHomePage : UserControl
     private readonly IProjectIntelligenceService? _projectIntelligence;
     private readonly Func<ContainerDefinition, Task> _open;
     private readonly Func<Task>? _create;
+
+    private readonly List<ContainerDefinition> _items = [];
+    private TextBox? _searchBox;
+    private StackPanel? _sections;
+    private TextBlock? _statusText;
+    private Border? _emptyState;
+    private HashSet<Guid> _pinnedIds = [];
 
     public WorkspaceHomePage(
         HavenEventBus bus,
@@ -44,178 +57,436 @@ public sealed partial class WorkspaceHomePage : UserControl
         _create = create;
 
         InitializeComponent();
-        ApplyModeDefaults();
-        WireEvents();
+        BuildProjectsUi();
+
+        Loaded += async (_, _) => await RefreshAsync();
     }
 
-    private void OnLoaded(object? sender, RoutedEventArgs e) => _ = RefreshAsync();
-
-    private static IBrush? Brush(string key) =>
-        Avalonia.Application.Current?.TryFindResource(key, out var value) == true ? value as IBrush : null;
-
-    private void ApplyModeDefaults()
+    private void BuildProjectsUi()
     {
-        var isWorkspace = _mode is HavenMode.Do or HavenMode.Studio;
-        TitleText.Text = isWorkspace ? "Workspaces" : _mode == HavenMode.Teach ? "Teach" : "Projects";
-        SubtitleText.Text = isWorkspace ? "Manage project workspaces with context, automations, and macros." : "Your learning subjects and conversations.";
-        CollectionHeading.Text = isWorkspace ? "Workspaces" : "Subjects";
-        CreateButton.Content = _create is not null ? "Create" : "+";
-    }
-
-    private void WireEvents()
-    {
-        _bus.RegisterElement("WorkspaceHome.Actions.Refresh", RefreshButton);
-        _bus.WirePointerEvents("WorkspaceHome.Actions.Refresh", RefreshButton);
-        RefreshButton.Click += async (_, _) =>
+        var title = new TextBlock
         {
-            _bus.Fire("WorkspaceHome.Actions.Refresh");
-            await RefreshAsync();
+            Text = "Projects",
+            FontSize = 30,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center
         };
 
-        _bus.RegisterElement("WorkspaceHome.Actions.Create", CreateButton);
-        _bus.WirePointerEvents("WorkspaceHome.Actions.Create", CreateButton);
-        CreateButton.Click += async (_, _) =>
+        var subtitle = new TextBlock
         {
-            _bus.Fire("WorkspaceHome.Actions.Create");
-            if (_create is not null) await _create();
+            Text = "Pick up where you left off or start something new.",
+            FontSize = 13,
+            Opacity = 0.66,
+            HorizontalAlignment = HorizontalAlignment.Center
         };
+
+        _searchBox = new TextBox
+        {
+            PlaceholderText = "Search projects",
+            MinHeight = 42,
+            MaxWidth = 720,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        _searchBox.TextChanged += (_, _) => RenderProjects();
+
+        var refreshButton = new Button { Content = "Refresh" };
+        refreshButton.Classes.Add("ghost");
+        refreshButton.Click += async (_, _) => await RefreshAsync();
+
+        var createButton = new Button
+        {
+            Content = "Create New Project",
+            IsVisible = _create is not null,
+            MinHeight = 42
+        };
+        createButton.Classes.Add("accent");
+        createButton.Click += async (_, _) =>
+        {
+            if (_create is not null)
+            {
+                await _create();
+            }
+        };
+
+        var actionRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Spacing = 8,
+            Children = { refreshButton, createButton }
+        };
+
+        _sections = new StackPanel { Spacing = 24 };
+
+        _emptyState = new Border
+        {
+            IsVisible = false,
+            Padding = new Thickness(24),
+            CornerRadius = new CornerRadius(18),
+            Background = Brush("HavenPanelBrush"),
+            BorderBrush = Brush("HavenLineBrush"),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = "No projects match this search.",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Opacity = 0.66
+            }
+        };
+
+        _statusText = new TextBlock
+        {
+            FontSize = 11,
+            Opacity = 0.58,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+
+        var content = new StackPanel
+        {
+            MaxWidth = 1120,
+            Margin = new Thickness(34, 28),
+            Spacing = 16
+        };
+        content.Children.Add(title);
+        content.Children.Add(subtitle);
+        content.Children.Add(_searchBox);
+        content.Children.Add(actionRow);
+        content.Children.Add(_sections);
+        content.Children.Add(_emptyState);
+        content.Children.Add(_statusText);
+
+        CodeBehindHost.Children.Clear();
+        CodeBehindHost.Children.Add(new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = content
+        });
     }
 
     private async Task RefreshAsync()
     {
-        ItemsPanel.Children.Clear();
-        AutomationsPanel.Children.Clear();
-        MacrosPanel.Children.Clear();
-        StatusText.Text = "Loading…";
+        if (_statusText is null)
+        {
+            return;
+        }
+
+        _statusText.Text = "Loading projects…";
 
         try
         {
-            var items = await _containers.GetByModeAsync(_mode, CancellationToken.None);
-            foreach (var item in items)
-                ItemsPanel.Children.Add(await CreateWorkspaceCardAsync(item));
+            var items = await _containers.GetByModeAsync(
+                _mode,
+                CancellationToken.None);
 
-            EmptyStateCard.IsVisible = items.Count == 0;
+            _items.Clear();
+            _items.AddRange(items.Where(item => !item.IsArchived));
+            _pinnedIds = await LoadPinnedContainerIdsAsync();
 
-            var automations = await _automations.GetAllAsync(CancellationToken.None);
-            foreach (var auto in automations.Where(a => a.IsEnabled))
-            {
-                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Avalonia.Thickness(0, 4, 0, 0) };
-                row.Children.Add(new TextBlock { Text = auto.Name });
-                var nextRun = new TextBlock { Text = auto.NextRunAt?.LocalDateTime.ToString("g") ?? "Not scheduled", Classes = { "muted" } };
-                Grid.SetColumn(nextRun, 1);
-                row.Children.Add(nextRun);
-                AutomationsPanel.Children.Add(row);
-            }
-            NoAutomationsText.IsVisible = AutomationsPanel.Children.Count == 0;
-
-            var macros = await _workspaceState.GetMacrosAsync(null, CancellationToken.None);
-            foreach (var macro in macros)
-            {
-                var stack = new StackPanel { Margin = new Avalonia.Thickness(0, 4, 0, 0) };
-                stack.Children.Add(new TextBlock { Text = macro.Name });
-                stack.Children.Add(new TextBlock { Text = macro.Description, Classes = { "muted" }, FontSize = 11 });
-                MacrosPanel.Children.Add(stack);
-            }
-            NoMacrosText.IsVisible = MacrosPanel.Children.Count == 0;
-
-            StatusText.Text = $"{items.Count} workspace{(items.Count == 1 ? "" : "s")}";
+            RenderProjects();
+            _statusText.Text = _items.Count == 1
+                ? "1 project"
+                : $"{_items.Count} projects";
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            StatusText.Text = $"Failed to load: {ex.Message}";
+            _statusText.Text = $"Could not load projects: {exception.Message}";
+            _items.Clear();
+            RenderProjects();
         }
     }
 
-    private async Task<Border> CreateWorkspaceCardAsync(ContainerDefinition item)
+    private void RenderProjects()
     {
-        var qName = $"WorkspaceHome.List.Item{ItemsPanel.Children.Count}";
-
-        var nameBlock = new TextBlock { Text = item.Name, FontSize = 18, FontWeight = FontWeight.SemiBold };
-        var accentBadge = new TextBlock { Text = _mode.ToString(), Classes = { "eyebrow" } };
-
-        var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        headerGrid.Children.Add(nameBlock);
-        Grid.SetColumn(accentBadge, 1);
-        headerGrid.Children.Add(accentBadge);
-
-        var pathBlock = new TextBlock { Text = item.RootPath ?? "", Classes = { "muted" }, FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1 };
-        var contextBlock = new TextBlock { Text = item.Context, Classes = { "soft" }, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
-
-        var infoBorder = new Border
+        if (_sections is null || _emptyState is null)
         {
-            Background = Brush("HavenPanel2Brush"),
-            CornerRadius = new CornerRadius(9), Padding = new Avalonia.Thickness(9)
-        };
-        var infoStack = new StackPanel();
-        infoStack.Children.Add(new TextBlock { Text = "CREATED", Classes = { "eyebrow" } });
-        infoStack.Children.Add(new TextBlock { Text = item.CreatedAt.ToLocalTime().ToString("d"), FontSize = 11 });
-        infoBorder.Child = infoStack;
+            return;
+        }
 
-        var updatedBorder = new Border
+        _sections.Children.Clear();
+
+        var query = _searchBox?.Text?.Trim();
+        var filtered = _items
+            .Where(item => string.IsNullOrWhiteSpace(query) ||
+                           item.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                           (item.RootPath?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                           item.Context.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToArray();
+
+        var pinned = filtered
+            .Where(item => _pinnedIds.Contains(item.Id))
+            .ToArray();
+
+        var regular = filtered
+            .Where(item => !_pinnedIds.Contains(item.Id))
+            .ToArray();
+
+        AddProjectSection("Pinned", pinned, "Projects you marked for quick access.");
+        AddProjectSection("Projects", regular, null);
+
+        _emptyState.IsVisible = filtered.Length == 0;
+    }
+
+    private void AddProjectSection(
+        string title,
+        IReadOnlyList<ContainerDefinition> items,
+        string? subtitle)
+    {
+        if (items.Count == 0 || _sections is null)
         {
-            Background = Brush("HavenPanel2Brush"),
-            CornerRadius = new CornerRadius(9), Padding = new Avalonia.Thickness(9)
-        };
-        var updatedStack = new StackPanel();
-        updatedStack.Children.Add(new TextBlock { Text = "UPDATED", Classes = { "eyebrow" } });
-        updatedStack.Children.Add(new TextBlock { Text = item.UpdatedAt.ToLocalTime().ToString("d"), FontSize = 11 });
-        updatedBorder.Child = updatedStack;
+            return;
+        }
 
-        var pillsGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 8 };
-        pillsGrid.Children.Add(infoBorder);
-        Grid.SetColumn(updatedBorder, 1);
-        pillsGrid.Children.Add(updatedBorder);
-
-        var openButton = new Button { Content = "Open", Classes = { "accent" }, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var archiveButton = new Button { Content = "Archive", Classes = { "ghost" } };
-
-        openButton.RegisterWithEvents($"{qName}.Open", _bus);
-        openButton.Click += async (_, _) =>
+        var heading = new StackPanel { Spacing = 2 };
+        heading.Children.Add(new TextBlock
         {
-            _bus.Fire($"{qName}.Open");
-            await _open(item);
-        };
+            Text = title,
+            FontSize = 19,
+            FontWeight = FontWeight.SemiBold
+        });
 
-        archiveButton.RegisterWithEvents($"{qName}.Archive", _bus);
-        archiveButton.Click += async (_, _) =>
+        if (!string.IsNullOrWhiteSpace(subtitle))
         {
-            _bus.Fire($"{qName}.Archive");
-            await ArchiveAsync(item);
+            heading.Children.Add(new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 11,
+                Opacity = 0.6
+            });
+        }
+
+        var wrap = new WrapPanel
+        {
+            ItemWidth = 350,
+            HorizontalAlignment = HorizontalAlignment.Left
         };
 
-        var buttonGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 7 };
-        buttonGrid.Children.Add(openButton);
+        foreach (var item in items)
+        {
+            wrap.Children.Add(CreateProjectCard(item));
+        }
+
+        var section = new StackPanel { Spacing = 10 };
+        section.Children.Add(heading);
+        section.Children.Add(wrap);
+        _sections.Children.Add(section);
+    }
+
+    private Control CreateProjectCard(ContainerDefinition item)
+    {
+        var title = new TextBlock
+        {
+            Text = item.Name,
+            FontSize = 18,
+            FontWeight = FontWeight.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+
+        var badge = new Border
+        {
+            Padding = new Thickness(8, 3),
+            CornerRadius = new CornerRadius(999),
+            Background = Brush("HavenBlueSoftBrush"),
+            Child = new TextBlock
+            {
+                Text = _mode == HavenMode.Studio ? "STUDIO" : _mode.ToString().ToUpperInvariant(),
+                FontSize = 9,
+                FontWeight = FontWeight.SemiBold,
+                Opacity = 0.72
+            }
+        };
+
+        var header = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 8
+        };
+        header.Children.Add(title);
+        Grid.SetColumn(badge, 1);
+        header.Children.Add(badge);
+
+        var path = new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(item.RootPath)
+                ? "No folder selected"
+                : item.RootPath,
+            FontSize = 11,
+            Opacity = 0.6,
+            MaxLines = 1,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+
+        var context = new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(item.Context)
+                ? "No project description yet."
+                : item.Context,
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+            MaxLines = 3,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+
+        var updated = new TextBlock
+        {
+            Text = $"Updated {item.UpdatedAt.ToLocalTime():g}",
+            FontSize = 10,
+            Opacity = 0.56
+        };
+
+        var openButton = new Button
+        {
+            Content = "Open",
+            MinWidth = 84
+        };
+        openButton.Classes.Add("accent");
+        openButton.Click += async (_, _) => await _open(item);
+
+        var archiveButton = new Button
+        {
+            Content = "Archive"
+        };
+        archiveButton.Classes.Add("ghost");
+        archiveButton.Click += async (_, _) => await ArchiveAsync(item);
+
+        var actions = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 8
+        };
+        actions.Children.Add(openButton);
         Grid.SetColumn(archiveButton, 1);
-        buttonGrid.Children.Add(archiveButton);
+        actions.Children.Add(archiveButton);
 
-        var contentStack = new StackPanel { Spacing = 9 };
-        contentStack.Children.Add(headerGrid);
-        contentStack.Children.Add(pathBlock);
-        contentStack.Children.Add(contextBlock);
-        contentStack.Children.Add(pillsGrid);
-        contentStack.Children.Add(buttonGrid);
+        var stack = new StackPanel { Spacing = 10 };
+        stack.Children.Add(header);
+        stack.Children.Add(path);
+        stack.Children.Add(context);
+        stack.Children.Add(updated);
+        stack.Children.Add(actions);
 
-        var border = new Border
+        var card = new Border
         {
-            Classes = { "card" }, Width = 330, Margin = new Avalonia.Thickness(0, 0, 12, 12),
-            Child = contentStack
+            Width = 338,
+            MinHeight = 210,
+            Margin = new Thickness(0, 0, 12, 12),
+            Padding = new Thickness(18),
+            CornerRadius = new CornerRadius(20),
+            Background = Brush("HavenPanelBrush"),
+            BorderBrush = Brush("HavenLineBrush"),
+            BorderThickness = new Thickness(1),
+            Child = stack
         };
-        border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
-        border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
-        return border;
+
+        card.PointerPressed += async (_, eventArgs) =>
+        {
+            if (eventArgs.GetCurrentPoint(card).Properties.PointerUpdateKind ==
+                Avalonia.Input.PointerUpdateKind.LeftButtonPressed)
+            {
+                await _open(item);
+            }
+        };
+
+        return card;
     }
 
     private async Task ArchiveAsync(ContainerDefinition item)
     {
         try
         {
-            await _containers.UpsertAsync(item with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
+            await _containers.UpsertAsync(
+                item with
+                {
+                    IsArchived = true,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                },
+                CancellationToken.None);
+
             await RefreshAsync();
-            StatusText.Text = $"Archived \"{item.Name}\".";
+            if (_statusText is not null)
+            {
+                _statusText.Text = $"Archived “{item.Name}”.";
+            }
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            StatusText.Text = $"Archive failed: {ex.Message}";
+            if (_statusText is not null)
+            {
+                _statusText.Text = $"Archive failed: {exception.Message}";
+            }
         }
     }
+
+    private async Task<HashSet<Guid>> LoadPinnedContainerIdsAsync()
+    {
+        var ids = new HashSet<Guid>();
+
+        try
+        {
+            var repositoryType = _conversations.GetType();
+            var method = repositoryType
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(candidate =>
+                    candidate.Name == "GetByModeAsync" &&
+                    candidate.GetParameters().Length == 2);
+
+            object? taskObject;
+            if (method is not null)
+            {
+                taskObject = method.Invoke(
+                    _conversations,
+                    [_mode, CancellationToken.None]);
+            }
+            else
+            {
+                method = repositoryType
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .FirstOrDefault(candidate =>
+                        candidate.Name == "GetAllAsync" &&
+                        candidate.GetParameters().Length == 1);
+
+                taskObject = method?.Invoke(
+                    _conversations,
+                    [CancellationToken.None]);
+            }
+
+            if (taskObject is not Task task)
+            {
+                return ids;
+            }
+
+            await task.ConfigureAwait(true);
+            var result = taskObject.GetType()
+                .GetProperty("Result")
+                ?.GetValue(taskObject);
+
+            if (result is not IEnumerable conversations)
+            {
+                return ids;
+            }
+
+            foreach (var conversation in conversations.Cast<object>())
+            {
+                var type = conversation.GetType();
+                var pinned = type.GetProperty("IsPinned")?.GetValue(conversation) as bool? ?? false;
+                var containerId = type.GetProperty("ContainerId")?.GetValue(conversation);
+
+                if (pinned && containerId is Guid id)
+                {
+                    ids.Add(id);
+                }
+            }
+        }
+        catch
+        {
+            // Pinned data is optional; the section remains hidden when unavailable.
+        }
+
+        return ids;
+    }
+
+    private static IBrush? Brush(string key) =>
+        Avalonia.Application.Current?.TryFindResource(key, out var value) == true
+            ? value as IBrush
+            : null;
 }
