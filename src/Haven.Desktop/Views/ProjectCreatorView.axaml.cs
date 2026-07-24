@@ -2,10 +2,8 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Haven.Desktop.ViewModels;
 
@@ -71,10 +69,11 @@ public sealed partial class ProjectCreatorView : UserControl
 
         _projectNameBox = FieldTextBox("Project name");
         _destinationBox = FieldTextBox("Destination folder");
+
         _packageDescriptionBox = new TextBox
         {
             Watermark = "Short package description",
-            AcceptReturn = true,
+            AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             MinHeight = 72,
             Padding = new Thickness(12)
@@ -82,7 +81,7 @@ public sealed partial class ProjectCreatorView : UserControl
         AutomationProperties.SetName(_packageDescriptionBox, "Package description");
 
         _dotNetButton = ChoiceButton(".NET project");
-        _packageButton = ChoiceButton("NuGeT package");
+        _packageButton = ChoiceButton("NuGet package");
         _reviewButton = PrimaryButton("Review proposal");
         _approveButton = PrimaryButton("Approve and create");
         _chooseDestinationButton = SecondaryButton("Choose folder");
@@ -90,6 +89,7 @@ public sealed partial class ProjectCreatorView : UserControl
         _openProjectFileButton = SecondaryButton("Open project file");
 
         _templatePanel = new StackPanel { Spacing = 8 };
+
         _packageDescriptionCard = Card(
             new StackPanel
             {
@@ -136,8 +136,8 @@ public sealed partial class ProjectCreatorView : UserControl
 
         WireUiEvents();
         DataContextChanged += OnDataContextChanged;
-        DetachedFromVisualTree += OnDetachedFromVisualTree;
         AttachedToVisualTree += OnAttachedToVisualTree;
+        DetachedFromVisualTree += OnDetachedFromVisualTree;
         Dispatcher.UIThread.Post(AttachCurrentViewModel);
     }
 
@@ -150,14 +150,12 @@ public sealed partial class ProjectCreatorView : UserControl
             Children = { _dotNetButton, _packageButton }
         };
 
-        var destinationGrid = new Grid
+        var destinationRow = new StackPanel
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 10
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children = { _destinationBox, _chooseDestinationButton }
         };
-        destinationGrid.Children.Add(_destinationBox);
-        Grid.SetColumn(_chooseDestinationButton, 1);
-        destinationGrid.Children.Add(_chooseDestinationButton);
 
         var form = Card(
             new StackPanel
@@ -173,13 +171,19 @@ public sealed partial class ProjectCreatorView : UserControl
                     Label("Project name"),
                     _projectNameBox,
                     Label("Destination"),
-                    destinationGrid,
+                    destinationRow,
                     Label("Template"),
                     _templatePanel,
                     _packageDescriptionCard
                 }
             });
 
+        var existingActions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children = { _openFolderButton, _openProjectFileButton }
+        };
         var existing = Card(
             new StackPanel
             {
@@ -193,25 +197,17 @@ public sealed partial class ProjectCreatorView : UserControl
                         Foreground = MutedBrush,
                         TextWrapping = TextWrapping.Wrap
                     },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 10,
-                        Children = { _openFolderButton, _openProjectFileButton }
-                    }
+                    existingActions
                 }
             });
 
-        var actionRow = new Grid
+        var actionRow = new StackPanel
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
-            ColumnSpacing = 10
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+            Children = { _reviewButton, _approveButton }
         };
-        actionRow.Children.Add(_statusText);
-        Grid.SetColumn(_reviewButton, 1);
-        actionRow.Children.Add(_reviewButton);
-        Grid.SetEolumn(_approveButton, 2);
-        actionRow.Children.Add(_approveButton);
 
         var content = new StackPanel
         {
@@ -238,6 +234,7 @@ public sealed partial class ProjectCreatorView : UserControl
                 form,
                 _proposalCard,
                 existing,
+                _statusText,
                 actionRow
             }
         };
@@ -258,7 +255,9 @@ public sealed partial class ProjectCreatorView : UserControl
             Padding = new Thickness(12),
             Child = new TextBlock
             {
-                Text = "Nothing below runs until you choose Approve and create. Editing any input invalidates this proposal.",
+                Text =
+                    "Nothing below runs until you choose Approve and create.\n" +
+                    "Editing any input invalidates this proposal.",
                 TextWrapping = TextWrapping.Wrap
             }
         };
@@ -311,6 +310,7 @@ public sealed partial class ProjectCreatorView : UserControl
                 _viewModel.PackageDescription = _packageDescriptionBox.Text ?? string.Empty;
             }
         };
+
         _dotNetButton.Click += (_, _) => _viewModel?.SelectDotNetCommand.Execute(null);
         _packageButton.Click += (_, _) => _viewModel?.SelectPackageCommand.Execute(null);
         _reviewButton.Click += (_, _) => _viewModel?.PrepareProposalCommand.Execute(null);
@@ -321,6 +321,7 @@ public sealed partial class ProjectCreatorView : UserControl
                 await _viewModel.CreateCommand.ExecuteAsync(null);
             }
         };
+
         _chooseDestinationButton.Click += OnChooseDestinationClicked;
         _openFolderButton.Click += OnOpenFolderClicked;
         _openProjectFileButton.Click += OnOpenProjectFileClicked;
