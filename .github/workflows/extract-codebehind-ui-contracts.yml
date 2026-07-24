@@ -15,11 +15,11 @@ jobs:
   extract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout4v4
+      - uses: actions/checkout@v4
         with:
           ref: haven-continuation
           fetch-depth: 1
-      - uses: actions/setup-pythn@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python scripts/extract_codebehind_ui_contracts.py
