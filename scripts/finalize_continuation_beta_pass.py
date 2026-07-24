@@ -55,11 +55,10 @@ if build == 0:
         ],
     )
 
-
 def status(code: int) -> str:
     return "success" if code == 0 else "failure"
 
-(out / "VALIDATION.md").write_text(
+(OUT / "VALIDATION.md").write_text(
     "\n".join(
         [
             "# Final beta-pass validation",
@@ -94,24 +93,17 @@ subprocess.run(
 )
 
 if build == 0:
-    subprocess.run(
-        ["git", "add", "src", "tests", "scripts", str(OUT.relative_to(ROOT))],
-        cwd=ROOT,
-        check=True,
-    )
+    subprocess.run(["git", "add", "src", "tests", "scripts", str(OUT.relative_to(ROOT))], cwd=ROOT, check=True)
     message = "Finalize validated beta backend and visible UI"
 else:
-    subprocess.run(["sgit", "restore", "--worktree", "src"], cwd=ROOT, check=False)
-    subprocess.run(
-        ["git", "add", str(OUT.relative_to(ROOT))],
-        cwd=ROOT,
-        check=True,
-    )
+    subprocess.run(["git", "restore", "--worktree", "src"], cwd=ROOT, check=False)
+    subprocess.run(["git", "add", str(OUT.relative_to(ROOT))], cwd=ROOT, check=True)
     message = "Record final beta-pass validation"
 
 staged = subprocess.run(
     ["git", "diff", "--cached", "--quiet"],
-    cwd=ROOT,).returncode
+    cwd=ROOT,
+).returncode
 if staged != 0:
     subprocess.run(["git", "commit", "-m", message], cwd=ROOT, check=True)
     subprocess.run(["git", "fetch", "origin", "haven-continuation"], cwd=ROOT, check=True)
