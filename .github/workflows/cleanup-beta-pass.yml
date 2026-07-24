@@ -21,7 +21,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          paths (
+          paths=(
             '.github/workflows/apply-backend-beta-pass.yml'
             '.github/workflows/apply-beta-chat-orchestration.yml'
             '.github/workflows/apply-continuation-call-backend.yml'
