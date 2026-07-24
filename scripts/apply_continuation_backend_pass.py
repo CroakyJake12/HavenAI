@@ -82,20 +82,26 @@ chat_patch = replace_once(
     new_view_model_guard,
     "Chat view-model temporary fallback guard",
 )
-chat_patch_path.write_text(chat_patch, encoding="utf-8", newline="\n")
+chat_patch = replace_once(
+    chat_patch,
+    "check.Message",
+    'string.Join("; ", check.Missing.Select(item => item.Reason))',
+    "Chat preflight failure detail",
+)
+chat_path_path.write_text(chat_patch, encoding="utf-8", newline="\n")
 
 responsive_path = root / "src" / "Haven.Application" / "ResponsiveCallCoordinator.cs"
 responsive = responsive_path.read_text(encoding="utf-8")
 constructor_anchor = "    public ResponsiveCallCoordinator(\n        CallCoordinator inner,"
-constructor_overload = '''    public ResponsiveCallCoordinator(
-        CallCoordinator inner,
+constructor_overload = '''    public ResponsiveCallCoordinator(CollCoordinator inner,
         ISpeechOutputService speechOutput,
         CallOptimizedOllamaClient models)
         : this(inner, speechOutput, NoOpSpeechOutputWarmup.Instance, models)
     {
     }
 
-'''
+$'
+[deco ifreation]
 if "NoOpSpeechOutputWarmup.Instance" not in responsive:
     responsive = replace_once(
         responsive,
