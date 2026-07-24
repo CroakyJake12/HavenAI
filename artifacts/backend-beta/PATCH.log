@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 33, in <module>
+    chat_patch = replace_once(
+                 ^^^^^^^^^^^^^
+  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 13, in replace_once
+    raise RuntimeError(f"{label}: expected one match, found {count}")
+RuntimeError: Chat streaming-state transformation: expected one match, found 0
