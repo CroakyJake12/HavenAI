@@ -13,7 +13,7 @@ public sealed partial class ProjectCreatorView
 {
     private void OnAttachedToVisualTree(
         object? sender,
-        Avalonia.VisualTree.VisualTreeAttachmentEventArgs e)
+        Avalonia.VisualTreeAttachmentEventArgs e)
     {
         Dispatcher.UIThread.Post(AttachCurrentViewModel);
     }
@@ -47,7 +47,7 @@ public sealed partial class ProjectCreatorView
 
     private void OnDetachedFromVisualTree(
         object? sender,
-        Avalonia.VisualTree.VisualTreeAttachmentEventArgs e)
+        Avalonia.VisualTreeAttachmentEventArgs e)
     {
         if (_viewModel is not null)
         {
