@@ -2,6 +2,6 @@
 
 | Stage | Result |
 |---|---|
-| Patch | failure |
-| Restore | failure |
+| Patch | success |
+| Restore | success |
 | Build | failure |

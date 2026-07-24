@@ -1,0 +1,10 @@
+  Haven.Core -> D:\a\HavenAI\HavenAI\src\Haven.Core\bin\Release\net10.0\Haven.Core.dll
+D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs(212,61): error CS1061: 'CapabilityPreflightResult' does not contain a definition for 'Message' and no accessible extension method 'Message' accepting a first argument of type 'CapabilityPreflightResult' could be found (are you missing a using directive or an assembly reference?) [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+
+Build FAILED.
+
+D:\a\HavenAI\HavenAI\src\Haven.Application\ChatSessionService.cs(212,61): error CS1061: 'CapabilityPreflightResult' does not contain a definition for 'Message' and no accessible extension method 'Message' accepting a first argument of type 'CapabilityPreflightResult' could be found (are you missing a using directive or an assembly reference?) [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:16.27
