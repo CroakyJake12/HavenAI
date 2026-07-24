@@ -240,7 +240,7 @@ def patch_chat_session() -> None:
     text = text[:early_start] + new_early + text[system_start:]
 
     helper_start = text.index(
-        "    private static WorkspaceToolResult UnavailableToolResult(",
+        "    private ToolAvailabilityPlan CreateAvailabilityPlan(",
         system_start,
     )
     helpers = r'''    private static HashSet<ToolCapability> CapabilitiesFromActivePlugins(
@@ -537,3 +537,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -141,7 +141,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
     {
         _lifetime.Cancel();
         _lifetime.Dispose();
-        return ValueTask.CompletdTask;
+        return default;
     }
 }
 
@@ -151,3 +151,4 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
     string CurrentStatus,
     TimeSpan Elapsed,
     IReadOnlyList<string> RecentActivity);
+

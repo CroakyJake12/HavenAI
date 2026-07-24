@@ -87,7 +87,7 @@ public sealed class GlobalOperationStatus
         {
             if (_current is not null)
             {
-                _current.Changed -= OnTrackerChanged;
+                _current!.Changed -= OnTrackerChanged;
             }
 
             _current = tracker;
@@ -103,12 +103,12 @@ public sealed class GlobalOperationStatus
 
         lock (_gate)
         {
-            if (!ReferenceEquals.Equals(_current, tracker))
+            if (!ReferenceEquals(_current, tracker))
             {
                 return;
             }
 
-            _current.Changed -= OnTrackerChanged;
+            _current!.Changed -= OnTrackerChanged;
             _current = null;
         }
 
@@ -118,3 +118,4 @@ public sealed class GlobalOperationStatus
     private void OnTrackerChanged(object? sender, EventArgs args) =>
         Changed?.Invoke(this, EventArgs.Empty);
 }
+
