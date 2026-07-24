@@ -1,0 +1,14 @@
+  Haven.Core -> D:\a\HavenAI\HavenAI\src\Haven.Core\bin\Release\net10.0\Haven.Core.dll
+D:\a\HavenAI\HavenAI\src\Haven.Application\ChatExecutionTracker.cs(144,26): error CS0117: 'ValueTask' does not contain a definition for 'CompletdTask' [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Application\ModelInventoryCache.cs(106,18): error CS0119: 'object.ReferenceEquals(object?, object?)' is a method, which is not valid in the given context [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Application\ModelInventoryCache.cs(111,13): error CS8602: Dereference of a possibly null reference. [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+
+Build FAILED.
+
+D:\a\HavenAI\HavenAI\src\Haven.Application\ChatExecutionTracker.cs(144,26): error CS0117: 'ValueTask' does not contain a definition for 'CompletdTask' [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Application\ModelInventoryCache.cs(106,18): error CS0119: 'object.ReferenceEquals(object?, object?)' is a method, which is not valid in the given context [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Application\ModelInventoryCache.cs(111,13): error CS8602: Dereference of a possibly null reference. [D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj]
+    0 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:20.33
