@@ -27,73 +27,46 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Apply patch
-        id: patch
-        continue-on-error: true
+
+      - name: Repair stale anchors and compile blockers
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force artifacts/beta-chat | Out-Null
-          python scripts/apply_beta_chat_patch.py 2>&1 | Tee-Object artifacts/beta-chat/PATCH.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tracker = 'src/Haven.Application/ChatExecutionTracker.cs'
+          $text = Get-Content $tracker -Raw
+          $text = $text.Replace('return ValueTask.CompletedTask;', 'return default;')
+          Set-Content $tracker $text -Encoding utf8
+
+          $cache = 'src/Haven.Application/ModelInventoryCache.cs'
+          $text = Get-Content $cache -Raw
+          $text = $text.Replace('!ReferenceEquals.Equals(_current, tracker)', '!ReferenceEquals(_current, tracker)')
+          $text = $text.Replace('_current.Changed -= OnTrackerChanged;', '_current!.Changed -= OnTrackerChanged;')
+          Set-Content $cache $text -Encoding utf8
+
+          $patch = 'scripts/apply_beta_chat_patch.py'
+          $text = Get-Content $patch -Raw
+          $text = $text.Replace(
+            '    private static WorkspaceToolResult UnavailableToolResult(',
+            '    private ToolAvailabilityPlan CreateAvailabilityPlan(')
+          Set-Content $patch $text -Encoding utf8
+
+      - name: Apply Chat orchestration patch
+        shell: pwsh
+        run: python scripts/apply_beta_chat_patch.py
+
       - name: Restore
-        id: restore
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          dotnet restore Haven.sln 2>&1 | Tee-Object artifacts/beta-chat/RESTORE.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: dotnet restore Haven.sln
       - name: Build
-        id: build
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          dotnet build Haven.sln -c Release --no-restore 2>&1 | Tee-Object artifacts/beta-chat/BUILD.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: dotnet build Haven.sln -c Release --no-restore
       - name: Test
-        id: test
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          dotnet test Haven.sln -c Release --no-build --logger "trx;LogFileName=beta-chat.trx" 2>&1 | Tee-Object artifacts/beta-chat/TEST.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Write validation
-        if: always()
-        shell: pwsh
-        run: |
-          @(
-            "# Beta Chat orchestration validation",
-            "",
-            "| Stage | Result |",
-            "|---|---|",
-            "| Patch | ${{ steps.patch.outcome }} |",
-            "| Restore | ${{ steps.restore.outcome }} |",
-            "| Build | ${{ steps.build.outcome }} |",
-            "| Test | ${{ steps.test.outcome }} |"
-          ) | Set-Content artifacts/beta-chat/VALIDATION.md
-      - name: Commit results
-        if: always()
+        run: dotnet test Haven.sln -c Release --no-build
+
+      - name: Commit validated changes
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src tests scripts artifacts/beta-chat
+          git add src tests scripts
           if (-not (git diff --cached --quiet)) {
             git commit -m "Apply validated beta chat orchestration"
             git push origin HEAD:gpt/new-haven-beta-pass
           }
-      - name: Fail on validation error
-        if: always()
-        shell: pwsh
-        run: |
-          $outcomes = @(
-            "${{ steps.patch.outcome }}",
-            "${{ steps.restore.outcome }}",
-            "${{ steps.build.outcome }}",
-            "${{ steps.test.outcome }}"
-          )
-          if ($outcomes -contains "failure") { exit 1 }
-
-# Validation trigger 2
