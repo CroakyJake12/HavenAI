@@ -1,0 +1,72 @@
+# D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\ChatPageViewModel.cs:1147
+ 1112:         }
+ 1113:         if (string.IsNullOrWhiteSpace(prompt))
+ 1114:         {
+ 1115:             Composer = string.Empty;
+ 1116:             return;
+ 1117:         }
+ 1118:         DetectMissingPlugin(prompt);
+ 1119:         if (!permissionApproved && TryRequestToolPermission(prompt, originalPrompt)) return;
+ 1120:         if (Prompts.Any(item => item.IsActive && item.Name.Equals("Context", StringComparison.OrdinalIgnoreCase)))
+ 1121:         {
+ 1122:             Composer = string.Empty;
+ 1123:             await RegisterContextAsync(prompt);
+ 1124:             return;
+ 1125:         }
+ 1126:         if (_preferences.AutoCompactContext && ContextPercent >= _preferences.CompactAtPercent)
+ 1127:             await CompactContextAsync(true);
+ 1128:         Composer = string.Empty;
+ 1129:         _sendCancellation = new CancellationTokenSource();
+ 1130:         IsSending = true;
+ 1131:         EditStep = 0;
+ 1132:         LinesAdded = 0;
+ 1133:         LinesRemoved = 0;
+ 1134:         Status = $"{(IsAgentPluginActive ? SelectedAgent?.Name : "Default") ?? "Default"} is working…";
+ 1135:         MessageBubbleViewModel? streaming = null;
+ 1136:         ChatMessage? completedMessage = null;
+ 1137: 
+ 1138:         try
+ 1139:         {
+ 1140:             var prepared = await PrepareAttachmentAsync(prompt, _sendCancellation.Token);
+ 1141:             prepared = await AddGroupResourceImagesAsync(prepared, _sendCancellation.Token);
+ 1142:             if (Messages.Count == 0)
+ 1143:                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
+ 1144:             var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
+ 1145:             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
+ 1146:             var check = _preflight.Evaluate(SelectedModel, active, prepared.Images is { Count: > 0 }, Models);
+ 1147:             if (!check.IsCompatible && _preferences.AutoSwitchCompatibleModels && check.SuggestedModel is not null)
+ 1148:             {
+ 1149:                 var previous = SelectedModel.Name;
+ 1150:                 SelectedModel = Models.FirstOrDefault(model => model.Name.Equals(check.SuggestedModel.Name, StringComparison.OrdinalIgnoreCase)) ?? check.SuggestedModel;
+ 1151:                 Messages.Add(MessageBubbleViewModel.SystemNotice($"Switched from {previous} to {SelectedModel.Name} because the active tools require {string.Join(", ", check.Missing.Select(item => item.Capability))}."));
+ 1152:                 RaiseMessageStateChanged();
+ 1153:             }
+ 1154:             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
+ 1155:             var selectedAgent = ResolveAgent(prompt);
+ 1156:             var agent = IsAgentPluginActive ? selectedAgent?.Name ?? "Default" : "Default";
+ 1157:             var agentInstructions = IsAgentPluginActive ? selectedAgent?.Instructions ?? string.Empty : string.Empty;
+ 1158:             var registeredContext = await BuildRegisteredContextAsync(prompt, _sendCancellation.Token);
+ 1159:             var containerContext = await BuildContainerContextAsync(_sendCancellation.Token);
+ 1160:             var containerInstructions = BuildContainerInstructions();
+ 1161:             var deltaBuffer = new StringBuilder();
+ 1162:             var flushTimer = Task.Delay(50, _sendCancellation.Token);
+ 1163: 
+ 1164:             await foreach (var item in _sessions.SendAsync(
+ 1165:                                _conversation, prepared.Prompt, model, SelectedEffort, active, agent, agentInstructions,
+ 1166:                                SelectedDuo, SelectedContainer?.RootPath, containerContext, containerInstructions,
+ 1167:                                prepared.Images, _sendCancellation.Token, activePrompts, registeredContext, _preferences.GenerationOptions,
+ 1168:                                permissionApproved ? PermissionMode.FullAccess : _preferences.FilePermission,
+ 1169:                                permissionApproved ? PermissionMode.FullAccess : _preferences.CommandPermission,
+ 1170:                                permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission))
+ 1171:             {
+ 1172:                 switch (item.Kind)
+ 1173:                 {
+ 1174:                     case ChatStreamEventKind.AssistantDelta when streaming is not null:
+ 1175:                         deltaBuffer.Append(item.Delta ?? string.Empty);
+ 1176:                         if (flushTimer.IsCompleted)
+ 1177:                         {
+ 1178:                             var text = deltaBuffer.ToString();
+ 1179:                             deltaBuffer.Clear();
+ 1180:                             await Dispatcher.UIThread.InvokeAsync(() => streaming.Append(text));
+ 1181:                             flushTimer = Task.Delay(50, _sendCancellation.Token);
+ 1182:                         }
