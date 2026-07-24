@@ -43,7 +43,7 @@ public sealed class ReasoningScaleTests
     [Theory]
     [InlineData(EffortLevel.Low, 8_192)]
     [InlineData(EffortLevel.Medium, 16_384)]
-    [InlineData(EffortLevel.High, 32_768]
+    [InlineData(EffortLevel.High, 32_768)]
     public void LowerProfilesRemainLatencyBounded(EffortLevel effort, int expectedLimit)
     {
         var profile = LocalInferenceRuntimeProfile.Create(effort, 131_072);
