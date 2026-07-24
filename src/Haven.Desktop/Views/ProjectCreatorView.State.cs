@@ -1,4 +1,9 @@
 using System.ComponentModel;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Desktop.ViewModels;
 
@@ -64,11 +69,11 @@ public sealed partial class ProjectCreatorView
 
     private void RefreshFromViewModel()
     {
-        var vm = _viewModel;
+        var viewModel = _viewModel;
         _syncing = true;
         try
         {
-            if (vm is null)
+            if (viewModel is null)
             {
                 SetFormEnabled(false);
                 _statusText.Text = "Project creator is unavailable.";
@@ -76,30 +81,30 @@ public sealed partial class ProjectCreatorView
                 return;
             }
 
-            SetText(_promptBox, vm.Prompt);
-            SetText(_projectNameBox, vm.ProjectName);
-            SetText(_destinationBox, vm.DestinationFolder);
-            SetText(_packageDescriptionBox, vm.PackageDescription);
-            _statusText.Text = vm.Status;
+            SetText(_promptBox, viewModel.Prompt);
+            SetText(_projectNameBox, viewModel.ProjectName);
+            SetText(_destinationBox, viewModel.DestinationFolder);
+            SetText(_packageDescriptionBox, viewModel.PackageDescription);
+            _statusText.Text = viewModel.Status;
 
-            _dotNetButton.IsEnabled = vm.SelectDotNetCommand.CanExecute(null);
-            _packageButton.IsEnabled = vm.SelectPackageCommand.CanExecute(null);
-            _reviewButton.IsEnabled = vm.PrepareProposalCommand.CanExecute(null);
-            _approveButton.IsEnabled = vm.CreateCommand.CanExecute(null);
-            _chooseDestinationButton.IsEnabled = !vm.IsBusy;
-            _openFolderButton.IsEnabled = !vm.IsBusy;
-            _openProjectFileButton.IsEnabled = !vm.IsBusy;
-            _promptBox.IsEnabled = !vm.IsBusy;
-            _projectNameBox.IsEnabled = !vm.IsBusy;
-            _destinationBox.IsEnabled = !vm.IsBusy;
-            _packageDescriptionBox.IsEnabled = !vm.IsBusy;
+            _dotNetButton.IsEnabled = viewModel.SelectDotNetCommand.CanExecute(null);
+            _packageButton.IsEnabled = viewModel.SelectPackageCommand.CanExecute(null);
+            _reviewButton.IsEnabled = viewModel.PrepareProposalCommand.CanExecute(null);
+            _approveButton.IsEnabled = viewModel.CreateCommand.CanExecute(null);
+            _chooseDestinationButton.IsEnabled = !viewModel.IsBusy;
+            _openFolderButton.IsEnabled = !viewModel.IsBusy;
+            _openProjectFileButton.IsEnabled = !viewModel.IsBusy;
+            _promptBox.IsEnabled = !viewModel.IsBusy;
+            _projectNameBox.IsEnabled = !viewModel.IsBusy;
+            _destinationBox.IsEnabled = !viewModel.IsBusy;
+            _packageDescriptionBox.IsEnabled = !viewModel.IsBusy;
 
-            ApplyChoiceState(_dotNetButton, vm.IsDotNetProject);
-            ApplyChoiceState(_packageButton, vm.IsNuGetPackage);
+            ApplyChoiceState(_dotNetButton, viewModel.IsDotNetProject);
+            ApplyChoiceState(_packageButton, viewModel.IsNuGetPackage);
 
-            _packageDescriptionCard.IsVisible = vm.IsNuGetPackage;
-            RebuildTemplateButtons(vm);
-            RenderProposal(vm.Proposal);
+            _packageDescriptionCard.IsVisible = viewModel.IsNuGetPackage;
+            RebuildTemplateButtons(viewModel);
+            RenderProposal(viewModel.Proposal);
         }
         finally
         {
@@ -107,67 +112,73 @@ public sealed partial class ProjectCreatorView
         }
     }
 
-    private void RebuildTemplateButtons(ProjectCreatorPageViewModel vm)
+    private void RebuildTemplateButtons(ProjectCreatorPageViewModel viewModel)
     {
         if (_templateButtons.Count == 0)
         {
-            foreach (var template in vm.Templates)
+            foreach (var template in viewModel.Templates)
             {
-                var button = new Avalonia.Controls.Button
+                var capturedTemplate = template;
+                var button = new Button
                 {
-                    HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                    Padding = new Avalonia.Thickness(12),
-                    Content = new Avalonia.Controls.StackPanel
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Padding = new Thickness(12),
+                    Content = new StackPanel
                     {
                         Spacing = 3,
                         Children =
                         {
-                            new Avalonia.Controls.TextBlock
+                            new TextBlock
                             {
-                                Text = template.Name,
-                                FontWeight = Avalonia.Media.FontWeight.SemiBold
+                                Text = capturedTemplate.Name,
+                                FontWeight = FontWeight.SemiBold
                             },
-                            new Avalonia.Controls.TextBlock
+                            new TextBlock
                             {
-                                Text = template.Description,
+                                Text = capturedTemplate.Description,
                                 Foreground = MutedBrush,
-                                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                                TextWrapping = TextWrapping.Wrap
                             }
                         }
                     }
                 };
-                AutomationProperties.SetName(button, $Use {template.Name} template");
+                AutomationProperties.SetName(button, $"Use {capturedTemplate.Name} template");
                 button.Click += (_, _) =>
                 {
                     var current = _viewModel;
-                    var selected = current?.Templates.FirstOrDefault(
-                        item => string.Equals(
-                            item.Name,
-                            template.Name,
-                            StringComparison.Ordinal));
-                    if (selected is not null)
+                    if (current is not null &&
+                        current.SelectTemplateCommand.CanExecute(capturedTemplate))
                     {
-                        current!.SelectTemplateCommand.Execute(selected);
+                        current.SelectTemplateCommand.Execute(capturedTemplate);
                     }
                 };
-                _templateButtons.Add(template.Name, button);
+
+                _templateButtons.Add(capturedTemplate.Name, button);
                 _templatePanel.Children.Add(button);
             }
         }
 
-        foreach (var pair in _templateButtons)
+        foreach (var template in viewModel.Templates)
         {
-            pair.Value.IsEnabled =
-                vm.IsDotNetProject &&
-                vm.SelectTemplateCommand.CanExecute(
-                    vm.Templates.First(item => item.Name == pair.Key));
-            ApplyChoiceState(pair.Value,
-                vm.IsDotNetProject &&
-                string.Equals(vm.SelectedTemplate, pair.Key, StringComparison.Ordinal));
+            if (!_templateButtons.TryGetValue(template.Name, out var button))
+            {
+                continue;
+            }
+
+            button.IsEnabled =
+                viewModel.IsDotNetProject &&
+                viewModel.SelectTemplateCommand.CanExecute(template);
+            ApplyChoiceState(
+                button,
+                viewModel.IsDotNetProject &&
+                string.Equals(
+                    viewModel.SelectedTemplate,
+                    template.Name,
+                    StringComparison.Ordinal));
         }
 
-        _templatePanel.IsVisible = vm.IsDotNetProject;
+        _templatePanel.IsVisible = viewModel.IsDotNetProject;
     }
 
     private void RenderProposal(ProjectCreationProposal? proposal)
@@ -188,7 +199,8 @@ public sealed partial class ProjectCreatorView
 
         _renderedProposal = proposal;
         _proposalSummary.Text = proposal.Summary;
-        _proposalTarget.Text = $Target: {proposal.TargetFolder}\nTemplate: {proposal.TemplateName};
+        _proposalTarget.Text =
+            $"Target: {proposal.TargetFolder}\nTemplate: {proposal.TemplateName}";
 
         _proposalFiles.Children.Clear();
         foreach (var file in proposal.Files)
@@ -200,29 +212,29 @@ public sealed partial class ProjectCreatorView
         foreach (var command in proposal.Commands)
         {
             _proposalCommands.Children.Add(
-                new Avalonia.Controls.Border
+                new Border
                 {
                     Background = Brush("#F5F7F4"),
                     BorderBrush = BorderBrush,
-                    BorderThickness = new Avalonia.Thickness(1),
-                    CornerRadius = new Avalonia.CornerRadius(8),
-                    Padding = new Avalonia.Thickness(12),
-                    Child = new Avalonia.Controls.StackPanel
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Child = new StackPanel
                     {
                         Spacing = 4,
                         Children =
                         {
-                            new Avalonia.Controls.SelectableTextBlock
+                            new SelectableTextBlock
                             {
                                 Text = command.DisplayText,
-                                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                                TextWrapping = TextWrapping.Wrap
                             },
-                            new Avalonia.Controls.TextBlock
+                            new TextBlock
                             {
-                                Text = $Working directory: {command.WorkingDirectory},
+                                Text = $"Working directory: {command.WorkingDirectory}",
                                 Foreground = MutedBrush,
                                 FontSize = 12,
-                                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                                TextWrapping = TextWrapping.Wrap
                             }
                         }
                     }
