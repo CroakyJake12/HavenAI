@@ -17,7 +17,7 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
     private static readonly IBrush PageBrush = Brush("#FBFDF7");
     private static readonly IBrush CardBrush = Brush("#FFFFFF");
     private static readonly IBrush MutedBrush = Brush("#687076");
-    private static readonly IBrush BorderBrush = Brush("#E4E9E1");
+    private new static readonly IBrush BorderBrush = Brush("#E4E9E1");
     private static readonly IBrush AccentBrush = Brush("#111111");
     private static readonly IBrush CyanBrush = Brush("#62DDE7");
     private static readonly IBrush UnreadBrush = Brush("#E7F9FB");
