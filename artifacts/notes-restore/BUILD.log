@@ -1,0 +1,39 @@
+  Haven.Core -> D:\a\HavenAI\HavenAI\src\Haven.Core\bin\Release\net10.0\Haven.Core.dll
+  Haven.Application -> D:\a\HavenAI\HavenAI\src\Haven.Application\bin\Release\net10.0\Haven.Application.dll
+  Haven.Automations -> D:\a\HavenAI\HavenAI\src\Haven.Automations\bin\Release\net10.0\Haven.Automations.dll
+  Haven.Browser -> D:\a\HavenAI\HavenAI\src\Haven.Browser\bin\Release\net10.0\Haven.Browser.dll
+  Haven.Infrastructure -> D:\a\HavenAI\HavenAI\src\Haven.Infrastructure\bin\Release\net10.0\Haven.Infrastructure.dll
+C:\Users\runneradmin\.nuget\packages\webrtcvadsharp\1.3.2\build\WebRtcVadSharp.targets(4,3): warning : This project's platform is set to '', but it requires a native DLL (WebRtcVad.dll). Defaulting to 'x64' binaries. Explicitly choose a platform in the project's Build properties to remove this warning. [D:\a\HavenAI\HavenAI\src\Haven.Infrastructure\Haven.Infrastructure.csproj]
+  Haven.Core.Tests -> D:\a\HavenAI\HavenAI\tests\Haven.Core.Tests\bin\Release\net10.0\Haven.Core.Tests.dll
+  Haven.AutomationWorker -> D:\a\HavenAI\HavenAI\src\Haven.AutomationWorker\bin\Release\net10.0\Haven.AutomationWorker.dll
+  Haven.Infrastructure.Tests -> D:\a\HavenAI\HavenAI\tests\Haven.Infrastructure.Tests\bin\Release\net10.0\Haven.Infrastructure.Tests.dll
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1570,22): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesEquationRenderResult' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1575,21): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesEquationRenderer' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1642,22): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesHtmlSandboxResult' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1647,21): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesHtmlSandbox' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1570,47): error CS8863: Only a single partial type declaration may have a parameter list [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1592,45): error CS0111: Type 'NotesEquationRenderer' already defines a member called 'Render' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1613,27): error CS0111: Type 'NotesEquationRenderer' already defines a member called 'ReplaceSuperscripts' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1642,44): error CS8863: Only a single partial type declaration may have a parameter list [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1652,42): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'Build' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1682,25): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'ContainsNetworkReference' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1695,27): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'Fallback' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+
+Build FAILED.
+
+C:\Users\runneradmin\.nuget\packages\webrtcvadsharp\1.3.2\build\WebRtcVadSharp.targets(4,3): warning : This project's platform is set to '', but it requires a native DLL (WebRtcVad.dll). Defaulting to 'x64' binaries. Explicitly choose a platform in the project's Build properties to remove this warning. [D:\a\HavenAI\HavenAI\src\Haven.Infrastructure\Haven.Infrastructure.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1570,22): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesEquationRenderResult' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1575,21): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesEquationRenderer' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1642,22): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesHtmlSandboxResult' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1647,21): error CS0101: The namespace 'Haven.Desktop.ViewModels' already contains a definition for 'NotesHtmlSandbox' [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1570,47): error CS8863: Only a single partial type declaration may have a parameter list [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1592,45): error CS0111: Type 'NotesEquationRenderer' already defines a member called 'Render' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1613,27): error CS0111: Type 'NotesEquationRenderer' already defines a member called 'ReplaceSuperscripts' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1642,44): error CS8863: Only a single partial type declaration may have a parameter list [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1652,42): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'Build' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1682,25): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'ContainsNetworkReference' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+D:\a\HavenAI\HavenAI\src\Haven.Desktop\ViewModels\NotesWorkspaceViewModel.cs(1695,27): error CS0111: Type 'NotesHtmlSandbox' already defines a member called 'Fallback' with the same parameter types [D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj]
+    1 Warning(s)
+    11 Error(s)
+
+Time Elapsed 00:00:43.14

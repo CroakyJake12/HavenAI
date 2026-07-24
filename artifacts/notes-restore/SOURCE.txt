@@ -1,0 +1,2 @@
+Commit=f4718f02042b8f0609b5653721b30735f2d264ce
+Path=src/Haven.Desktop/ViewModels/NotesWorkspaceViewModel.cs
