@@ -153,7 +153,7 @@
                 Command="{Binding ResolveErrorsCommand}">
           <StackPanel Orientation="Horizontal" Spacing="7">
             <controls:HavenIcon IconKey="warning" Width="14" Height="14" Foreground="#FF6B6B"/>
-            <TextBlock Text="Resolve Errors" VerticalAlignment="Center" FontWeight="SemiBold"/>
+            <TextBlock Text="Resolve Problems" VerticalAlignment="Center" FontWeight="SemiBold"/>
           </StackPanel>
         </Button>
 

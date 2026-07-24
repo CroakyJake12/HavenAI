@@ -68,7 +68,7 @@ public static class ChatCapabilityIntentClassifier
         if (ContainsAny(value, "open app", "launch ", "click ", "type into", "press ", "share screen"))
             result.Add(ToolCapability.ComputerUse);
 
-        if (ContainsAny(value, "inspect code", "edit code", "edit file", "run tests", "build project", "run command"))
+        if (ContainsAny(value, "inspect code", "edit code", "edit file", "create file", "create a file", "create the file", "write file", "write a file", "save file", "run tests", "build project", "run command"))
             result.Add(ToolCapability.Tools);
 
         if (ContainsAny(value, "image", "photo", "screenshot", "camera"))
