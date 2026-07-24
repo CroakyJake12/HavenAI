@@ -186,7 +186,7 @@ def patch_chat_session() -> None:
 
         if (!check.IsCompatible)
         {
-            execution.Fail("Capability check failed", check.Message);
+            execution.Fail("Capability check failed", string.Join("; ", check.Missing.Select(item => item.Reason)));
             execution.Changed -= PublishExecution;
             yield return ChatStreamEvent.Preflight(check);
             yield break;
@@ -426,8 +426,8 @@ def patch_chat_session() -> None:
 
     send_text = replace_once(
         send_text,
-        "        if (!canUseTools)\n        {\n            await foreach",
-        "        if (!canUseTools)\n"
+        "        else\n        {\n            await foreach",
+        "        else\n"
         "        {\n"
         "            var firstChunk = true;\n"
         "            await foreach",
@@ -496,9 +496,17 @@ def patch_chat_view_model() -> None:
     )
     text, count = re.subn(pattern, replacement, text, count=1, flags=re.DOTALL)
     if count != 1 and "AutoSwitchCompatibleModels" in text:
-        raise RuntimeError(
-            "ChatPageViewModel temporary fallback: expected one auto-switch block"
+        lines = text.splitlines(keepends=True)
+        auto_index = next(i for i, line in enumerate(lines) if "AutoSwitchCompatibleModels" in line)
+        start = next(
+            i for i in range(auto_index, -1, -1)
+            if "var check = _preflight.Evaluate" in lines[i]
         )
+        end = next(
+            i for i in range(auto_index + 1, len(lines))
+            if "var model = SelectedModel ??" in lines[i]
+        )
+        text = "".join(lines[:start] + lines[end:])
 
     text = text.replace(
         'Status = $"{(IsAgentPluginActive ? SelectedAgent?.Name : "Default") ?? "Default"} is working…";',

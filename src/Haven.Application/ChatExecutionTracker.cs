@@ -139,6 +139,7 @@ public sealed class ChatExecutionTracker : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        if (!_finished) Cancel();
         _lifetime.Cancel();
         _lifetime.Dispose();
         return default;

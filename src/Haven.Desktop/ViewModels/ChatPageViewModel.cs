@@ -1131,7 +1131,7 @@ public sealed class ChatPageViewModel : ObservableObject
         EditStep = 0;
         LinesAdded = 0;
         LinesRemoved = 0;
-        Status = $"{(IsAgentPluginActive ? SelectedAgent?.Name : "Default") ?? "Default"} is working…";
+        Status = "Preparing…";
         MessageBubbleViewModel? streaming = null;
         ChatMessage? completedMessage = null;
 
@@ -1143,14 +1143,6 @@ public sealed class ChatPageViewModel : ObservableObject
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
             var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
-            var check = _preflight.Evaluate(SelectedModel, active, prepared.Images is { Count: > 0 }, Models);
-            if (!check.IsCompatible && _preferences.AutoSwitchCompatibleModels && check.SuggestedModel is not null)
-            {
-                var previous = SelectedModel.Name;
-                SelectedModel = Models.FirstOrDefault(model => model.Name.Equals(check.SuggestedModel.Name, StringComparison.OrdinalIgnoreCase)) ?? check.SuggestedModel;
-                Messages.Add(MessageBubbleViewModel.SystemNotice($"Switched from {previous} to {SelectedModel.Name} because the active tools require {string.Join(", ", check.Missing.Select(item => item.Capability))}."));
-                RaiseMessageStateChanged();
-            }
             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
             var selectedAgent = ResolveAgent(prompt);
             var agent = IsAgentPluginActive ? selectedAgent?.Name ?? "Default" : "Default";
