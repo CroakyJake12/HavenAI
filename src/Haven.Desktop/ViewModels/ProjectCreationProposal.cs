@@ -5,7 +5,7 @@ using Haven.Desktop.Services;
 namespace Haven.Desktop.ViewModels;
 
 /// <summary>
-/// One reviewable, non-executing project creation plan. Commands are previews only until the user approves.
+/// A reviewable, non-executing project creation plan. Commands are previews only until approved.
 /// </summary>
 public sealed record ProjectCreationProposal(
     ProjectCreationKind Kind,
@@ -49,13 +49,12 @@ public sealed record ProjectCreationCommandPreview(
 }
 
 /// <summary>
-/// Converts the creator form and optional natural-language request into a deterministic preview.
-/// This type never creates files or starts processes.
+/// Converts creator inputs into a deterministic preview without creating files or starting processes.
 /// </summary>
 public static class ProjectCreationProposalPlanner
 {
-    private static readonly IReadOnlyDictionary<string, string> DotNetTemplates =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> DotNetTemplates =
+        new(StringComparer.OrdinalIgnoreCase)
         {
             ["Console app"] = "console",
             ["Class library"] = "classlib",
@@ -75,7 +74,6 @@ public static class ProjectCreationProposalPlanner
         var cleanParent = ValidateParentFolder(parentFolder);
         var cleanPrompt = prompt?.Trim() ?? string.Empty;
         var cleanDescription = packageDescription?.Trim() ?? string.Empty;
-
         var (kind, templateName) = InferKindAndTemplate(
             fallbackKind,
             cleanPrompt,
@@ -89,7 +87,12 @@ public static class ProjectCreationProposalPlanner
         }
 
         var files = BuildFiles(kind, templateName, cleanName);
-        var commands = BuildCommands(kind, templateName, cleanName, cleanParent, targetFolder);
+        var commands = BuildCommands(
+            kind,
+            templateName,
+            cleanName,
+            cleanParent,
+            targetFolder);
         var summary = BuildSummary(kind, templateName, cleanName, cleanPrompt);
 
         return new ProjectCreationProposal(
@@ -119,17 +122,18 @@ public static class ProjectCreationProposalPlanner
         string selectedTemplate,
         string packageDescription)
     {
-        var normalizedParent = NormalizePathForFingerprint(parentFolder);
         var payload = string.Join(
             "\n",
-            ((int)fallbackKind).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ((int)fallbackKind).ToString(
+                System.Globalization.CultureInfo.InvariantCulture),
             prompt?.Trim() ?? string.Empty,
             projectName?.Trim() ?? string.Empty,
-            normalizedParent,
+            NormalizePathForFingerprint(parentFolder),
             selectedTemplate?.Trim() ?? string.Empty,
             packageDescription?.Trim() ?? string.Empty);
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
     }
 
     private static (ProjectCreationKind Kind, string TemplateName) InferKindAndTemplate(
@@ -139,7 +143,11 @@ public static class ProjectCreationProposalPlanner
     {
         var normalized = prompt.ToLowerInvariant();
 
-        if (ContainsAny(normalized, "nuget", "package library", "publishable package"))
+        if (ContainsAny(
+                normalized,
+                "nuget",
+                "package library",
+                "publishable package"))
         {
             return (ProjectCreationKind.NuGetPackage, "Class library");
         }
@@ -149,17 +157,32 @@ public static class ProjectCreationProposalPlanner
             return (ProjectCreationKind.DotNetProject, "Web API");
         }
 
-        if (ContainsAny(normalized, "worker", "background service", "scheduled service", "daemon"))
+        if (ContainsAny(
+                normalized,
+                "worker",
+                "background service",
+                "scheduled service",
+                "daemon"))
         {
             return (ProjectCreationKind.DotNetProject, "Worker service");
         }
 
-        if (ContainsAny(normalized, "class library", "shared library", "reusable library", "sdk"))
+        if (ContainsAny(
+                normalized,
+                "class library",
+                "shared library",
+                "reusable library",
+                "sdk"))
         {
             return (ProjectCreationKind.DotNetProject, "Class library");
         }
 
-        if (ContainsAny(normalized, "console", "command line", "command-line", "cli"))
+        if (ContainsAny(
+                normalized,
+                "console",
+                "command line",
+                "command-line",
+                "cli"))
         {
             return (ProjectCreationKind.DotNetProject, "Console app");
         }
@@ -169,26 +192,31 @@ public static class ProjectCreationProposalPlanner
             return (ProjectCreationKind.NuGetPackage, "Class library");
         }
 
-        var template = DotNetTemplates.ContainsKey(selectedTemplate ?? string.Empty)
-            ? selectedTemplate
-            : "Console app";
+        var templateName =
+            !string.IsNullOrWhiteSpace(selectedTemplate) &&
+            DotNetTemplates.ContainsKey(selectedTemplate)
+                ? selectedTemplate
+                : "Console app";
 
-        return (ProjectCreationKind.DotNetProject, template);
+        return (ProjectCreationKind.DotNetProject, templateName);
     }
 
-    private static IReadOnlyList<ProjectCreationFilePreview> BuildFiles(
+    private static List<ProjectCreationFilePreview> BuildFiles(
         ProjectCreationKind kind,
         string templateName,
         string projectName)
     {
-        var projectFile = $";{projectName}.csproj"[1..];
+        var projectFile = $"{projectName}.csproj";
+
         if (kind == ProjectCreationKind.NuGetPackage)
         {
             return
             [
                 new(projectFile, "Package metadata and build configuration"),
                 new("Class1.cs", "Initial public library type"),
-                new($"bin/Release/{projectName}.0.1.0.nupkg", "Package produced after the approved Release pack")
+                new(
+                    $"bin/Release/{projectName}.0.1.0.nupkg",
+                    "Package produced after the approved Release pack")
             ];
         }
 
@@ -199,7 +227,9 @@ public static class ProjectCreationProposalPlanner
                 new(projectFile, "Web SDK project configuration"),
                 new("Program.cs", "HTTP application entry point"),
                 new("appsettings.json", "Application settings"),
-                new("Properties/launchSettings.json", "Local launch profile")
+                new(
+                    "Properties/launchSettings.json",
+                    "Local launch profile")
             ],
             "Worker service" =>
             [
@@ -221,7 +251,7 @@ public static class ProjectCreationProposalPlanner
         };
     }
 
-    private static IReadOnlyList<ProjectCreationCommandPreview> BuildCommands(
+    private static List<ProjectCreationCommandPreview> BuildCommands(
         ProjectCreationKind kind,
         string templateName,
         string projectName,
@@ -272,9 +302,10 @@ public static class ProjectCreationProposalPlanner
         var name = value?.Trim() ?? string.Empty;
         if (name.Length is < 1 or > 80 ||
             name is "." or ".." ||
-            name.Any(character =>
-                !(char.IsLetterOrDigit(character) ||
-                  character is '_' or '.' or '-')))
+            name.Any(
+                character =>
+                    !(char.IsLetterOrDigit(character) ||
+                      character is '_' or '.' or '-')))
         {
             throw new ArgumentException(
                 "Use 1-80 letters, numbers, dots, underscores, or hyphens for the project name.",
@@ -288,7 +319,9 @@ public static class ProjectCreationProposalPlanner
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Choose a destination folder before reviewing the proposal.", nameof(value));
+            throw new ArgumentException(
+                "Choose a destination folder before reviewing the proposal.",
+                nameof(value));
         }
 
         var parent = Path.GetFullPath(value.Trim());
@@ -304,8 +337,12 @@ public static class ProjectCreationProposalPlanner
     private static bool IsDirectChild(string target, string parent) =>
         string.Equals(
             Path.GetDirectoryName(
-                target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                target.TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar)),
+            parent.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar),
             OperatingSystem.IsWindows()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal);
@@ -319,8 +356,9 @@ public static class ProjectCreationProposalPlanner
 
         try
         {
-            return Path.GetFullPath(value.Trim())
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return Path.GetFullPath(value.Trim()).TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar);
         }
         catch
         {
@@ -328,9 +366,12 @@ public static class ProjectCreationProposalPlanner
         }
     }
 
-    private static bool ContainsAny(string value, params string[] candidates) =>
-        candidates.Any(candidate => value.Contains(candidate, StringComparison.Ordinal));
+    private static bool ContainsAny(
+        string value,
+        params string[] candidates) =>
+        candidates.Any(
+            candidate => value.Contains(candidate, StringComparison.Ordinal));
 
     private static string Quote(string value) =>
-        $"""{value.Replace(""", "\\"", StringComparison.Ordinal)}""";
+        $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
 }
