@@ -3,7 +3,7 @@
 | Stage | Result |
 |---|---|
 | Patch | success |
-| Restore | failure |
+| Restore | success |
 | Build | failure |
 | Test | failure |
 
