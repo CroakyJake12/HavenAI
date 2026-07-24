@@ -1,2 +1,3 @@
-Applied New Haven beta chat orchestration patch.
-Applied Chat orchestration, call DI fallbacks, and Haven Call naming.
+  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 114
+    private sealed class NoOpSpeechOutputWarmup : ISpeechOutputWarmup
+IndentationError: unexpected indent
