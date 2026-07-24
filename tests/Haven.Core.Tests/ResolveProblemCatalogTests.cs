@@ -19,7 +19,7 @@ public sealed class ResolveProblemCatalogTests
     public void AdaptiveProblems_AppearOnlyWhenSignalled()
     {
         var result = ResolveProblemCatalog.Build(new(
-            false, true, false, false, false, false, true, false, false);
+            false, true, false, false, false, false, true, false, false));
 
         Assert.Contains(result, item => item.Key == "tool_failed" && !item.IsAlwaysVisible);
         Assert.Contains(result, item => item.Key == "permission_required" && !item.IsAlwaysVisible);
