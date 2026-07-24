@@ -49,6 +49,24 @@ try:
 finally:
     patch_file.unlink(missing_ok=True)
 
+
+if patch == 0:
+    corrective_files = [
+        ROOT / "src/Haven.Desktop/Views/Pages/WorkspaceHome/WorkspaceHomePage.axaml.cs",
+        ROOT / "src/Haven.Desktop/Views/Pages/ProjectCreator/ProjectCreatorPage.GitHub.cs",
+        ROOT / "src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs",
+    ]
+    for source in corrective_files:
+        text = source.read_text(encoding="utf-8")
+        text = text.replace("Watermark =", "PlaceholderText =")
+        if source.name == "WorkspaceHomePage.axaml.cs" and "using Avalonia.Controls.Primitives;" not in text:
+            text = text.replace(
+                "using Avalonia.Controls;\n",
+                "using Avalonia.Controls;\nusing Avalonia.Controls.Primitives;\n",
+                1,
+            )
+        source.write_text(text, encoding="utf-8", newline="\n")
+
 restore = run("RESTORE", ["dotnet", "restore", "Haven.sln"]) if patch == 0 else -1
 build = (
     run("BUILD", ["dotnet", "build", "Haven.sln", "-c", "Release", "--no-restore"])
