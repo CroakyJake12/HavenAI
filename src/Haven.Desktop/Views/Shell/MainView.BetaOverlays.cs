@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -16,13 +17,16 @@ public sealed partial class MainView
 {
     private bool _betaOverlayLifecycleWired;
     private bool _betaOverlaysAttached;
-    private bool _redirectingLegacyCallPage;
+    private bool _redirectingLegacyPresentation;
     private object? _lastNonCallContent;
+    private object? _legacyProjectsContent;
     private Popup? _globalCallPopup;
     private Popup? _globalExecutionPopup;
     private GlobalCallWidget? _globalCallWidget;
     private ChatExecutionStatusControl? _globalExecutionStatus;
     private InChatCallWidgetViewModel? _globalCallViewModel;
+    private NativeProjectsPage? _nativeProjectsPage;
+    private readonly NativeProjectUiStateStore _nativeProjectUiStateStore = new();
 
     public void OpenVoiceSession()
     {
@@ -51,6 +55,7 @@ public sealed partial class MainView
 
         if (_betaOverlaysAttached)
         {
+            RedirectLegacyPresentation(PageContent.Content);
             return;
         }
 
@@ -94,11 +99,7 @@ public sealed partial class MainView
         _globalCallViewModel.PropertyChanged += OnGlobalCallPropertyChanged;
         PageContent.PropertyChanged += OnPageContentPropertyChanged;
 
-        var currentContent = PageContent.Content;
-        if (currentContent is not null && !IsLegacyCallPage(currentContent))
-        {
-            _lastNonCallContent = currentContent;
-        }
+        RedirectLegacyPresentation(PageContent.Content);
     }
 
     private void DisableLegacyOverlayHost()
@@ -136,24 +137,46 @@ public sealed partial class MainView
 
     private void OnPageContentPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property != ContentControl.ContentProperty || _redirectingLegacyCallPage)
+        if (e.Property != ContentControl.ContentProperty || _redirectingLegacyPresentation)
         {
             return;
         }
 
-        var content = PageContent.Content;
-        if (content is null)
+        RedirectLegacyPresentation(PageContent.Content);
+    }
+
+    private void RedirectLegacyPresentation(object? content)
+    {
+        if (content is null || _redirectingLegacyPresentation)
         {
             return;
         }
 
-        if (!IsLegacyCallPage(content))
+        var destination = ClassifyLegacyPresentation(content);
+        switch (destination)
         {
-            _lastNonCallContent = content;
-            return;
-        }
+            case NativePresentationDestination.ChatCallWidget:
+                RedirectLegacyCallPage();
+                return;
 
-        _redirectingLegacyCallPage = true;
+            case NativePresentationDestination.Projects:
+                ReplaceLegacyProjectsPage(content);
+                return;
+
+            default:
+                if (!ReferenceEquals(content, _nativeProjectsPage))
+                {
+                    DisposeNativeProjectsPage();
+                }
+
+                _lastNonCallContent = content;
+                return;
+        }
+    }
+
+    private void RedirectLegacyCallPage()
+    {
+        _redirectingLegacyPresentation = true;
         try
         {
             PageContent.Content = _lastNonCallContent;
@@ -161,19 +184,144 @@ public sealed partial class MainView
         }
         finally
         {
-            _redirectingLegacyCallPage = false;
+            _redirectingLegacyPresentation = false;
         }
     }
 
-    private static bool IsLegacyCallPage(object content)
+    private void ReplaceLegacyProjectsPage(object legacyContent)
+    {
+        if (legacyContent is NativeProjectsPage)
+        {
+            _lastNonCallContent = legacyContent;
+            return;
+        }
+
+        _legacyProjectsContent = legacyContent;
+        DisposeNativeProjectsPage();
+
+        var nativePage = new NativeProjectsPage(
+            legacyContent,
+            ReadFallbackProjects,
+            OpenProjectCreatorFallbackAsync,
+            OpenProjectFallbackAsync,
+            ArchiveProjectFallbackAsync,
+            _nativeProjectUiStateStore);
+
+        _nativeProjectsPage = nativePage;
+
+        _redirectingLegacyPresentation = true;
+        try
+        {
+            PageContent.Content = nativePage;
+            _lastNonCallContent = nativePage;
+        }
+        finally
+        {
+            _redirectingLegacyPresentation = false;
+        }
+    }
+
+    private static NativePresentationDestination ClassifyLegacyPresentation(object content)
     {
         var surfaceName = content.GetType().Name;
         var dataContextName = content is Control control
             ? control.DataContext?.GetType().Name
             : surfaceName;
 
-        return NativePresentationRoutePolicy.Classify(surfaceName, dataContextName) ==
-               NativePresentationDestination.ChatCallWidget;
+        return NativePresentationRoutePolicy.Classify(surfaceName, dataContextName);
+    }
+
+    private IEnumerable<object> ReadFallbackProjects()
+    {
+        return NativePresentationReflection.ReadCollection(
+            this,
+            "Projects",
+            "ProjectItems",
+            "ProjectCards",
+            "Workspaces",
+            "Containers");
+    }
+
+    private async Task OpenProjectCreatorFallbackAsync()
+    {
+        var handled = await NativePresentationReflection.ExecuteCommandAsync(
+            this,
+            null,
+            "NewProjectCommand",
+            "CreateProjectCommand",
+            "OpenProjectCreatorCommand",
+            "NewContainerCommand");
+
+        if (handled)
+        {
+            return;
+        }
+
+        var invocation = await NativePresentationReflection.InvokeAsync(
+            this,
+            ["OpenProjectCreatorAsync", "OpenProjectCreator", "OpenNewContainer", "CreateProjectAsync"],
+            Array.Empty<object?>());
+
+        if (!invocation.Invoked)
+        {
+            throw new InvalidOperationException("The project creator route is unavailable.");
+        }
+    }
+
+    private async Task OpenProjectFallbackAsync(object project)
+    {
+        var handled = await NativePresentationReflection.ExecuteCommandAsync(
+            this,
+            project,
+            "OpenProjectCommand",
+            "SelectProjectCommand",
+            "OpenContainerCommand",
+            "SelectContainerCommand");
+
+        if (handled)
+        {
+            return;
+        }
+
+        var invocation = await NativePresentationReflection.InvokeAsync(
+            this,
+            ["OpenProjectAsync", "OpenProject", "OpenContainerAsync", "OpenContainer"],
+            project);
+
+        if (!invocation.Invoked)
+        {
+            throw new InvalidOperationException("The selected project could not be opened.");
+        }
+    }
+
+    private async Task ArchiveProjectFallbackAsync(object project)
+    {
+        var handled = await NativePresentationReflection.ExecuteCommandAsync(
+            this,
+            project,
+            "ArchiveProjectCommand",
+            "ArchiveContainerCommand");
+
+        if (handled)
+        {
+            return;
+        }
+
+        var invocation = await NativePresentationReflection.InvokeAsync(
+            this,
+            ["ArchiveProjectAsync", "ArchiveProject", "ArchiveContainerAsync", "ArchiveContainer"],
+            project);
+
+        if (!invocation.Invoked)
+        {
+            throw new InvalidOperationException("The selected project could not be archived.");
+        }
+    }
+
+    private void DisposeNativeProjectsPage()
+    {
+        _nativeProjectsPage?.Dispose();
+        _nativeProjectsPage = null;
     }
 
     private void DetachBetaOverlays()
@@ -204,6 +352,9 @@ public sealed partial class MainView
             _globalExecutionPopup.IsOpen = false;
             _globalExecutionPopup.Child = null;
         }
+
+        DisposeNativeProjectsPage();
+        _legacyProjectsContent = null;
 
         _globalCallWidget?.Dispose();
         _globalCallViewModel?.Dispose();
