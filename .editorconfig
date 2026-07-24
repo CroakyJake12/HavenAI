@@ -10,3 +10,8 @@
 # LanguageServerRequestException exposes the JSON-RPC error payload as Data for
 # compatibility with existing callers. It intentionally hides Exception.Data.
 dotnet_diagnostic.CS0114.severity = none
+
+[src/Haven.Desktop/Views/ProjectCreatorView.axaml.cs]
+# The code-behind view uses a private palette field named BorderBrush. It never exposes or replaces
+# TemplatedControl.BorderBrush, so suppress the hiding diagnostic only for this file.
+dotnet_diagnostic.CS0108.severity = none
