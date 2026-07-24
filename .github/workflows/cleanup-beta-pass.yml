@@ -1,0 +1,99 @@
+name: Clean beta-pass scaffolding
+on:
+  push:
+    branches: [haven-continuation]
+    paths:
+      - .github/workflows/cleanup-beta-pass.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Clean beta-pass scaffolding') }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: haven-continuation
+          fetch-depth: 1
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Remove temporary beta-pass files
+        shell: pwsh
+        run: |
+          $paths = @(
+            ".github/workflows/apply-backend-beta-pass.yml",
+            ".github/workflows/apply-beta-chat-orchestration.yml",
+            ".github/workflows/apply-continuation-call-backend.yml",
+            ".github/workflows/apply-continuation-chat-backend.yml",
+            ".github/workflows/apply-new-haven-beta-pass.yml",
+            ".github/workflows/apply-reasoning-runtime-profile.yml",
+            ".github/workflows/capture-chat-autoswitch.yml",
+            ".github/workflows/capture-chat-tool-path.yml",
+            ".github/workflows/capture-notes-workspace-references.yml",
+            ".github/workflows/finalize-beta-contracts.yml",
+            ".github/workflows/finalize-continuation-beta-pass.yml",
+            ".github/workflows/merge-beta-pass-into-haven-continuation.yml",
+            ".github/workflows/move-beta-pass-onto-haven-continuation.yml",
+            ".github/workflows/patch-notes-page-inheritance.yml",
+            ".github/workflows/repair-beta-feature-pass.yml",
+            ".github/workflows/restore-notes-source.yml",
+            ".github/workflows/restore-notes-workspace-viewmodel.yml",
+            ".github/workflows/validate-continuation-backend.yml",
+            ".github/workflows/validate-continuation-call-backend.yml",
+            ".github/workflows/validate-continuation-ui-pass.yml",
+            ".github/workflows/validate-continuation.yml",
+            ".github/workflows/validate-focused-chat-backend.yml",
+            ".github/workflows/validate-haven-continuation.yml",
+            ".github/workflows/validate-notes-compatibility.yml",
+            ".github/workflows/cleanup-beta-pass.yml",
+            "scripts/apply_beta_chat_patch.py",
+            "scripts/apply_beta_chat_patch.py.gz",
+            "scripts/apply_continuation_backend_pass.py",
+            "scripts/apply_continuation_call_backend.py",
+            "scripts/apply_continuation_chat_backend.py",
+            "scripts/apply_continuation_ui_pass.py",
+            "scripts/apply_reasoning_profile_patch.py",
+            "scripts/capture_chat_autoswitch.py",
+            "scripts/capture_chat_tool_path.py",
+            "scripts/finalize_continuation_beta_pass.py",
+            "scripts/fix_final_beta_contracts.py",
+            "scripts/run_continuation_backend_validation.py",
+            "scripts/validate_continuation_call_backend.py",
+            "scripts/validate_continuation_ui_pass.py",
+            "scripts/validate_focused_chat_backend.py",
+            "artifacts/backend-beta",
+            "artifacts/beta-chat",
+            "artifacts/beta-feature-pass",
+            "artifacts/call-backend",
+            "artifacts/compiler-repair",
+            "artifacts/continuation-validation",
+            "artifacts/final-beta-pass",
+            "artifacts/focused-chat",
+            "artifacts/haven-continuation-build",
+            "artifacts/new-haven-beta",
+            "artifacts/notes-compatibility",
+            "artifacts/notes-restore",
+            "artifacts/reasoning-runtime",
+            "artifacts/ui-beta"
+          )
+          foreach ($path in $paths) {
+            git rm -r --ignore-unmatch -- $path
+          }
+      - name: Restore
+        run: dotnet restore Haven.sln
+      - name: Build
+        run: dotnet build Haven.sln -c Release --no-restore
+      - name: Core tests
+        run: dotnet test tests/Haven.Core.Tests/Haven.Core.Tests.csproj -c Release --no-build
+      - name: Commit cleanup
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Clean beta-pass scaffolding"
+            git push origin HEAD:haven-continuation
+          }
