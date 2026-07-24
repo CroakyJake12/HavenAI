@@ -2,8 +2,7 @@ name: Apply reasoning runtime profile
 
 on:
   push:
-    branches:
-      - gpt/new-haven-beta-pass
+    branches: [gpt/new-haven-beta-pass]
     paths:
       - scripts/apply_reasoning_profile_patch.py
       - .github/workflows/apply-reasoning-runtime-profile.yml
@@ -38,15 +37,9 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts/reasoning-runtime | Out-Null
-          try {
-            python scripts/apply_reasoning_profile_patch.py 2>&1 |
-              Tee-Object artifacts/reasoning-runtime/PATCH.log
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          catch {
-            $_ | Out-String | Set-Content artifacts/reasoning-runtime/PATCH-ERROR.txt
-            exit 1
-          }
+          python scripts/apply_reasoning_profile_patch.py 2>&1 |
+            Tee-Object artifacts/reasoning-runtime/PATCH.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Restore
         id: restore
@@ -54,7 +47,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          dotnet restore HavenAI.slnx 2>&1 |
+          dotnet restore Haven.sln 2>&1 |
             Tee-Object artifacts/reasoning-runtime/RESTORE.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -64,7 +57,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          dotnet build HavenAI.slnx -c Release --no-restore 2>&1 |
+          dotnet build Haven.sln -c Release --no-restore 2>&1 |
             Tee-Object artifacts/reasoning-runtime/BUILD.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -74,7 +67,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          dotnet test HavenAI.slnx -c Release --no-build --logger "trx;LogFileName=reasoning-runtime.trx" 2>&1 |
+          dotnet test Haven.sln -c Release --no-build --logger "trx;LogFileName=reasoning-runtime.trx" 2>&1 |
             Tee-Object artifacts/reasoning-runtime/TEST.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -108,16 +101,6 @@ jobs:
             git commit -m "Apply four-step reasoning runtime profile"
             git push origin HEAD:gpt/new-haven-beta-pass
           }
-
-      - name: Upload validation
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: reasoning-runtime-validation
-          path: |
-            artifacts/reasoning-runtime
-            **/TestResults/reasoning-runtime.trx
-          if-no-files-found: warn
 
       - name: Fail on validation error
         if: always()
