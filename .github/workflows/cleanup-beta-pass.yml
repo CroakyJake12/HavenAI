@@ -12,7 +12,7 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message || '', 'Remove beta-pass temporary scaffolding') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout*v4
+      - uses: actions/checkout@v4
         with:
           ref: haven-continuation
           fetch-depth: 1
