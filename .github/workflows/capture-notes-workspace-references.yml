@@ -1,0 +1,60 @@
+name: Capture Notes workspace references
+
+on:
+  push:
+    branches: [haven-continuation]
+    paths:
+      - .github/workflows/capture-notes-workspace-references.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Capture Notes workspace compiler references') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout*v4
+        with:
+          ref: haven-continuation
+          fetch-depth: 1
+
+      - name: Capture matches with context
+        shell: bash
+        run: |
+          mkdir -p artifacts/compiler-repair
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('src')
+          out = []
+          for path in root.rglob('*'):
+              if path.suffix not in {'.cs', '.axaml'}:
+                continue
+             try:
+                 lines = path.read_text(encoding='utf-8').splitlines()
+             except UnicodeDecodeError:
+                 continue
+             for index, line in enumerate(lines):
+                 if 'NotesWorkspaceViewModel' not in line:
+                     continue
+                 start = max(0, index - 8)
+                 end = min(len(lines), index + 9)
+                 out.append(f'# {path}:{index + 1}')
+                 for number, content in enumerate(lines[start:end], start + 1):
+                     out.append(f'{number:4d}: {content}')
+                 out.append('')
+          Path('artifacts/compiler-repair/notes-workspace-references.txt').write_text('\n'.join(out), encoding='utf-8')
+          PY
+
+      - name: Commit diagnostic
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/compiler-repair/notes-workspace-references.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Capture Notes workspace compiler references"
+            git push origin HEAD:haven-continuation
+          fi
