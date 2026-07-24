@@ -12,7 +12,7 @@ using Avalonia.VisualTree;
 
 namespace Haven.Desktop.Views.Shell.NativePresentation;
 
-internal sealed partial class NativeProjectsPage
+internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
 {
     private static readonly IBrush PageBrush = Brush("#FBFDF7");
     private static readonly IBrush CardBrush = Brush("#FFFFFF");
