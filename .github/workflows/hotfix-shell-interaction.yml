@@ -1,0 +1,54 @@
+name: Fix shell interaction and widget regressions
+
+on:
+  push:
+    branches: [haven-continuation]
+    paths:
+      - .github/workflows/hotfix-shell-interaction.yml
+      - scripts/hotfix_shell_interaction.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Fix shell interaction and widget regressions') }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: haven-continuation
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Apply hotfix
+        run: python scripts/hotfix_shell_interaction.py
+
+      - name: Restore
+        run: dotnet restore Haven.sln
+
+      - name: Release build
+        run: dotnet build Haven.sln -c Release --no-restore
+
+      - name: Commit validated source
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/hotfix-shell-interaction.yml scripts/hotfix_shell_interaction.py
+          git add src/Haven.Desktop/Views/Shell/MainView.axaml
+          git add src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs
+          git add src/Haven.Desktop/Views/Pages/Call/CallPage.axaml
+          git commit -m "Fix shell interaction and widget regressions"
+          git fetch origin haven-continuation
+          git rebase origin/haven-continuation
+          git push origin HEAD:haven-continuation
