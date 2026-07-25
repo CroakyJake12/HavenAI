@@ -34,7 +34,7 @@ internal static class NativePresentationReflection
                 return property.GetValue(target);
             }
 
-            var field = type.GetField(name, AnyInstanc);
+            var field = type.GetField(name, AnyInstance);
             if (field is not null)
             {
                 return field.GetValue(target);
@@ -71,7 +71,7 @@ internal static class NativePresentationReflection
 
         foreach (var name in names)
         {
-            var field = type.GetField(name, AnyInstanc);
+            var field = type.GetField(name, AnyInstance);
             if (field is null || field.IsInitOnly)
             {
                 continue;
@@ -141,7 +141,7 @@ internal static class NativePresentationReflection
 
     public static DateTimeOffset? Timestamp(object? target, params string[] names)
     {
-        var value = Get(target, names);
+        var text = Get(target, names);
         return value switch
         {
             DateTimeOffset timestamp => timestamp,
@@ -153,7 +153,7 @@ internal static class NativePresentationReflection
 
     public static bool Boolean(object? target, bool fallback, params string[] names)
     {
-        var value = Get(target, names);
+        var text = Get(target, names);
         return value switch
         {
             bool flag => flag,
@@ -220,7 +220,7 @@ internal static class NativePresentationReflection
         foreach (var methodName in methodNames)
         {
             var methods = type
-                .GetMethods(AnyInstanc)
+                .GetMethods(AnyInstance)
                 .Where(method => string.Equals(method.Name, methodName, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(method => method.GetParameters().Length);
 
@@ -243,7 +243,7 @@ internal static class NativePresentationReflection
     {
         foreach (var name in names)
         {
-            var value = Get(target, name);
+            var text = Get(target, name);
             var items = Enumerate(value).ToArray();
             if (items.Length > 0)
             {
@@ -288,7 +288,7 @@ internal static class NativePresentationReflection
             {
                 await valueTask.ConfigureAwait(false);
                 return valueTask.GetType().IsGenericType
-                    ? valueTask.GetType().GetProperty("Result", PublicInstanc)?.GetValue(valueTask)
+                    ? valueTask.GetType().GetProperty("Result", PublicInstance)?.GetValue(valueTask)
                     : null;
             }
         }
