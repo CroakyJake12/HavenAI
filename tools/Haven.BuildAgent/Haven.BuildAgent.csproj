@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Haven.BuildAgent</AssemblyName>
+    <RootNamespace>Haven.BuildAgent</RootNamespace>
+  </PropertyGroup>
+</Project>
