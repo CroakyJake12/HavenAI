@@ -58,7 +58,7 @@ public sealed partial class ProjectCreatorView : UserControl
 
         _promptBox = new TextBox
         {
-            Watermark = "Describe what you want to build…",
+            PlaceholderText = "Describe what you want to build…",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             MinHeight = 104,
@@ -72,7 +72,7 @@ public sealed partial class ProjectCreatorView : UserControl
 
         _packageDescriptionBox = new TextBox
         {
-            Watermark = "Short package description",
+            PlaceholderText = "Short package description",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             MinHeight = 72,
@@ -83,14 +83,10 @@ public sealed partial class ProjectCreatorView : UserControl
         _dotNetButton = ChoiceButton(".NET project");
         _packageButton = ChoiceButton("NuGet package");
         _reviewButton = PrimaryButton("Review proposal");
-        _approveButton = PrimaryButton(
-            "Approve and create");
-        _chooseDestinationButton = SecondaryButton(
-            "Choose folder");
-        _openFolderButton = SecondaryButton(
-            "Open existing folder");
-        _openProjectFileButton = SecondaryButton(
-            "Open project file");
+        _approveButton = PrimaryButton("Approve and create");
+        _chooseDestinationButton = SecondaryButton("Choose folder");
+        _openFolderButton = SecondaryButton("Open existing folder");
+        _openProjectFileButton = SecondaryButton("Open project file");
 
         _templatePanel = new StackPanel { Spacing = 8 };
 
@@ -325,7 +321,6 @@ public sealed partial class ProjectCreatorView : UserControl
                 await _viewModel.CreateCommand.ExecuteAsync();
             }
         };
-
         _chooseDestinationButton.Click += OnChooseDestinationClicked;
         _openFolderButton.Click += OnOpenFolderClicked;
         _openProjectFileButton.Click += OnOpenProjectFileClicked;
