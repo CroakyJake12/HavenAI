@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Haven Build and Visual Test Agent
+  version: 1.0.0
+  description: >-
+    Builds, tests, launches, captures, and visually checks the allow-listed Haven desktop application.
+    This API does not accept arbitrary shell commands or arbitrary filesystem paths.
+servers:
+  - url: https://REPLACE-WITH-YOUR-HTTPS-ENDPOINT.example.com
+security:
+  - HavenAgentKey: []
+paths:
+  /health:
+    get:
+      operationId: getHavenAgentHealth
+      summary: Check whether the Haven build agent is online
+      responses:
+        '200':
+          description: Agent status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /api/profiles:
+    get:
+      operationId: listHavenAgentProfiles
+      summary: List allowed build, run, and mockup profiles
+      responses:
+        '200':
+          description: Configured profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /api/jobs/build:
+    post:
+      operationId: startHavenBuild
+      summary: Start an allow-listed Haven build
+      description: Start the job, then poll getHavenJob until status is succeeded or failed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildRequest'
+      responses:
+        '202':
+          description: Build queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSnapshot'
+  /api/jobs/test:
+    post:
+      operationId: startHavenTests
+      summary: Start the allow-listed Haven test suite
+      description: Start the job, then poll getHavenJob until status is succeeded or failed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestRequest'
+      responses:
+        '202':
+          description: Test job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSnapshot'
+  /api/jobs/{jobId}:
+    get:
+      operationId: getHavenJob
+      summary: Get a build or test job and its diagnostics
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current job state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSnapshot'
+  /api/runs/start:
+    post:
+      operationId: startHavenApplication
+      summary: Launch the allow-listed Haven desktop application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRunRequest'
+      responses:
+        '200':
+          description: Haven launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+  /api/runs:
+    get:
+      operationId: listHavenRuns
+      summary: List Haven processes launched by the agent
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunSnapshot'
+  /api/runs/{runId}:
+    get:
+      operationId: getHavenRun
+      summary: Get one launched Haven process
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+  /api/runs/{runId}/stop:
+    post:
+      operationId: stopHavenApplication
+      summary: Stop a Haven process launched by the agent
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Stopped run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+  /api/captures:
+    post:
+      operationId: captureHavenWindow
+      summary: Capture only the Haven application window
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureRequest'
+      responses:
+        '200':
+          description: Screenshot details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureResult'
+  /api/visual/compare:
+    post:
+      operationId: compareHavenToMockup
+      summary: Capture Haven and compare it with a configured mockup
+      description: >-
+        Performs a local pixel comparison and, when configured, a semantic visual review through the OpenAI API.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisualCompareRequest'
+      responses:
+        '200':
+          description: Visual comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualComparisonResult'
+components:
+  securitySchemes:
+    HavenAgentKey:
+      type: apiKey
+      in: header
+      name: X-Haven-Agent-Key
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    BuildRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        profile:
+          type: string
+          default: haven
+        configuration:
+          type: string
+          enum: [Debug, Release]
+          default: Debug
+        verbosity:
+          type: string
+          enum: [quiet, minimal, normal, detailed, diagnostic]
+          default: minimal
+    TestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        profile:
+          type: string
+          default: haven
+        configuration:
+          type: string
+          enum: [Debug, Release]
+          default: Debug
+        verbosity:
+          type: string
+          enum: [quiet, minimal, normal, detailed, diagnostic]
+          default: minimal
+        noBuild:
+          type: boolean
+          default: false
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        profile:
+          type: string
+          default: haven-desktop
+        configuration:
+          type: string
+          enum: [Debug, Release]
+          default: Debug
+        freshDataProfile:
+          type: boolean
+          default: true
+    CaptureRequest:
+      type: object
+      additionalProperties: false
+      required: [runId]
+      properties:
+        runId:
+          type: string
+          format: uuid
+        waitSeconds:
+          type: integer
+          minimum: 1
+          maximum: 60
+          default: 20
+    VisualCompareRequest:
+      type: object
+      additionalProperties: false
+      required: [runId, referenceKey]
+      properties:
+        runId:
+          type: string
+          format: uuid
+        referenceKey:
+          type: string
+          description: A key returned by listHavenAgentProfiles, such as dashboard or projects.
+        useAiReview:
+          type: boolean
+          default: true
+        waitSeconds:
+          type: integer
+          minimum: 1
+          maximum: 60
+          default: 20
+        pixelThreshold:
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 20
+        focus:
+          type: string
+          maxLength: 2000
+          description: Optional UI areas or behaviours that deserve particular attention.
+    BuildDiagnostic:
+      type: object
+      additionalProperties: true
+      properties:
+        severity:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        file:
+          type: [string, 'null']
+        line:
+          type: [integer, 'null']
+        column:
+          type: [integer, 'null']
+        project:
+          type: [string, 'null']
+        origin:
+          type: [string, 'null']
+    JobSnapshot:
+      type: object
+      additionalProperties: true
+      required: [id, kind, status, createdAt, diagnostics]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        exitCode:
+          type: [integer, 'null']
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildDiagnostic'
+        tests:
+          type: [object, 'null']
+          additionalProperties: true
+        consoleLogUrl:
+          type: [string, 'null']
+        msBuildLogUrl:
+          type: [string, 'null']
+        binaryLogUrl:
+          type: [string, 'null']
+        testResultsUrl:
+          type: [string, 'null']
+        failure:
+          type: [string, 'null']
+    RunSnapshot:
+      type: object
+      additionalProperties: true
+      required: [id, profile, configuration, status, processId, startedAt, logUrl]
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile:
+          type: string
+        configuration:
+          type: string
+        status:
+          type: string
+        processId:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        exitedAt:
+          type: [string, 'null']
+          format: date-time
+        exitCode:
+          type: [integer, 'null']
+        logUrl:
+          type: string
+        dataProfilePath:
+          type: [string, 'null']
+        failure:
+          type: [string, 'null']
+    CaptureResult:
+      type: object
+      additionalProperties: true
+      required: [runId, width, height, capturedAt, artifactUrl]
+      properties:
+        runId:
+          type: string
+          format: uuid
+        width:
+          type: integer
+        height:
+          type: integer
+        capturedAt:
+          type: string
+          format: date-time
+        artifactUrl:
+          type: string
+    VisualComparisonResult:
+      type: object
+      additionalProperties: true
+      required: [actual, referenceKey, pixelComparison, aiReviewStatus]
+      properties:
+        actual:
+          $ref: '#/components/schemas/CaptureResult'
+        referenceKey:
+          type: string
+        pixelComparison:
+          type: object
+          additionalProperties: true
+        aiReviewStatus:
+          type: string
+          enum: [completed, disabled, not_configured]
+        aiReview:
+          type: [string, 'null']
