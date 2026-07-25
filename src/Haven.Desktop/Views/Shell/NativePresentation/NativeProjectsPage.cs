@@ -64,7 +64,7 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
 
         _searchBox = new TextBox
         {
-            Watermark = "Search projects",
+            PlaceholderText = "Search projects",
             MinWidth = 260,
             Height = 42,
             VerticalContentAlignment = VerticalAlignment.Center
