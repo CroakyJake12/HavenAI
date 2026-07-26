@@ -55,6 +55,16 @@ public sealed class HavenIcon : PathIcon
     public static bool IsKnown(string? key) => !string.IsNullOrWhiteSpace(key) && Icons.ContainsKey(key);
 
     /// <summary>
+    /// Returns icon geometry for code-built controls that need to use Avalonia's
+    /// concrete PathIcon theme directly. Unknown keys receive the visible info icon.
+    /// </summary>
+    public static Geometry GeometryFor(string? key)
+    {
+        var normalized = string.IsNullOrWhiteSpace(key) ? "info" : key.Trim();
+        return Icons.TryGetValue(normalized, out var geometry) ? geometry : Icons["info"];
+    }
+
+    /// <summary>
     /// Performs the resolve icon step owned by this component.
     /// </summary>
     private void ResolveIcon()

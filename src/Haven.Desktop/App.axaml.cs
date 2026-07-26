@@ -17,6 +17,9 @@ namespace Haven.Desktop;
 
 public sealed partial class App : Avalonia.Application
 {
+#if DEBUG
+    private static int _developerToolsAttached;
+#endif
     private ServiceProvider? _services;
     private IStartupRecoveryCoordinator? _startupRecovery;
     private IProductionDiagnostics? _productionDiagnostics;
@@ -27,7 +30,11 @@ public sealed partial class App : Avalonia.Application
     {
         AvaloniaXamlLoader.Load(this);
         #if DEBUG
-            this.AttachDeveloperTools();
+            // Avalonia's developer-tools service is process-wide. Headless tests create
+            // multiple isolated App instances in one process, so attaching per instance
+            // causes cleanup failures after otherwise successful tests.
+            if (Interlocked.Exchange(ref _developerToolsAttached, 1) == 0)
+                this.AttachDeveloperTools();
         #endif
     }
 
@@ -75,6 +82,7 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
+        collection.AddSingleton<ComputerUseOverlayCoordinator>();
         collection.AddSingleton<AutomationDeliveryController>();
         collection.AddSingleton<GenerativeUiThemeRuntime>();
         collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
@@ -86,6 +94,7 @@ public sealed partial class App : Avalonia.Application
             ValidateScopes = true
         });
         Services = _services;
+        _services.GetRequiredService<ComputerUseOverlayCoordinator>();
         Subscribe.EventBus = _services.GetRequiredService<HavenEventBus>();
         _startupRecovery = _services.GetRequiredService<IStartupRecoveryCoordinator>();
         _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();

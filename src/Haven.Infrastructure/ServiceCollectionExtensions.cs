@@ -105,6 +105,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILanguageServerClientFactory, LanguageServerClientFactory>();
         services.AddSingleton<ProductionCodeIntelligenceService>();
         services.AddSingleton<ICodeIntelligenceService, SafeModeCodeIntelligenceService>();
+        services.AddSingleton<IComputerUseSessionController, ComputerUseSessionController>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
         services.AddHttpClient<OllamaClient>(client =>
         {

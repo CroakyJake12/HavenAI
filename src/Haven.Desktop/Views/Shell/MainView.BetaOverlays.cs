@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Shell.NativePresentation;
 using Haven.Desktop.Views.Shell.Overlays;
 
@@ -20,8 +22,7 @@ public sealed partial class MainView
     private bool _redirectingLegacyPresentation;
     private object? _lastNonCallContent;
     private object? _legacyProjectsContent;
-    private Popup? _globalCallPopup;
-    private Popup? _globalExecutionPopup;
+    private TranslateTransform? _globalCallTranslation;
     private GlobalCallWidget? _globalCallWidget;
     private ChatExecutionStatusControl? _globalExecutionStatus;
     private InChatCallWidgetViewModel? _globalCallViewModel;
@@ -32,13 +33,58 @@ public sealed partial class MainView
     {
         AttachBetaOverlays();
 
-        if (_globalCallViewModel is null || _globalCallPopup is null)
+        if (_globalCallViewModel is null || _globalCallWidget is null)
         {
             return;
         }
 
         _globalCallViewModel.Open();
-        _globalCallPopup.IsOpen = true;
+        _globalCallWidget.IsVisible = true;
+    }
+
+    private async Task OpenVoiceSessionFromActionAsync()
+    {
+        AttachBetaOverlays();
+        if (_globalCallViewModel is null)
+        {
+            return;
+        }
+
+        Guid? conversationId = null;
+        ModelDescriptor? selectedModel = null;
+        if (CurrentPage is NewChatPage chat)
+        {
+            conversationId = chat.ConversationId;
+            selectedModel = chat.SelectedModel;
+        }
+
+        selectedModel ??= CurrentChat.SelectedModel;
+        if (selectedModel is null)
+        {
+            try
+            {
+                var models = await _ollama.GetModelsAsync(CancellationToken.None);
+                selectedModel = models.FirstOrDefault(model => model.Supports(ToolCapability.Text))
+                    ?? models.FirstOrDefault();
+            }
+            catch
+            {
+                // The model card and disabled Start button expose the unavailable
+                // state without navigating away or fabricating a default model.
+            }
+        }
+
+        // Voice is an application action, not a navigation destination. It can
+        // float over Home, Projects, Study, Research, or any other current page.
+        _globalCallViewModel.AttachConversation(conversationId, selectedModel);
+
+        if (_globalCallViewModel.IsOpen && !_globalCallViewModel.IsActive)
+        {
+            _globalCallViewModel.Close();
+            return;
+        }
+
+        OpenVoiceSession();
     }
 
     private void AttachBetaOverlays()
@@ -66,40 +112,45 @@ public sealed partial class MainView
             _conversations);
 
         _globalCallWidget = new GlobalCallWidget(_globalCallViewModel);
-
-        _globalCallPopup = new Popup
-        {
-            PlacementTarget = ContentArea,
-            Placement = PlacementMode.BottomEdgeAlignedRight,
-            HorizontalOffset = -20,
-            VerticalOffset = -20,
-            IsLightDismissEnabled = false,
-            Child = _globalCallWidget,
-            IsOpen = false
-        };
+        _globalCallWidget.DragDelta += OnGlobalCallDragDelta;
+        _globalCallTranslation = new TranslateTransform();
+        _globalCallWidget.HorizontalAlignment = HorizontalAlignment.Right;
+        _globalCallWidget.VerticalAlignment = VerticalAlignment.Bottom;
+        _globalCallWidget.Margin = new Thickness(20);
+        _globalCallWidget.RenderTransform = _globalCallTranslation;
+        _globalCallWidget.IsVisible = false;
+        _globalCallWidget.SetValue(Panel.ZIndexProperty, 30);
+        NativeOverlayLayer.Children.Add(_globalCallWidget);
 
         _globalExecutionStatus = new ChatExecutionStatusControl
         {
-            MaxWidth = 720
+            MaxWidth = 720,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(20)
         };
         _globalExecutionStatus.Snapshot = _sessions.CurrentExecution;
-
-        _globalExecutionPopup = new Popup
-        {
-            PlacementTarget = ContentArea,
-            Placement = PlacementMode.BottomEdgeAlignedLeft,
-            HorizontalOffset = 20,
-            VerticalOffset = -20,
-            IsLightDismissEnabled = false,
-            Child = _globalExecutionStatus,
-            IsOpen = true
-        };
+        _globalExecutionStatus.SetValue(Panel.ZIndexProperty, 20);
+        NativeOverlayLayer.Children.Add(_globalExecutionStatus);
 
         _sessions.ExecutionChanged += OnExecutionChanged;
         _globalCallViewModel.PropertyChanged += OnGlobalCallPropertyChanged;
         PageContent.PropertyChanged += OnPageContentPropertyChanged;
 
         RedirectLegacyPresentation(PageContent.Content);
+    }
+
+    private void OnGlobalCallDragDelta(object? sender, Vector delta)
+    {
+        if (_globalCallTranslation is null || _globalCallWidget is null)
+        {
+            return;
+        }
+
+        var availableWidth = Math.Max(0, NativeOverlayLayer.Bounds.Width - _globalCallWidget.Bounds.Width - 40);
+        var availableHeight = Math.Max(0, NativeOverlayLayer.Bounds.Height - _globalCallWidget.Bounds.Height - 40);
+        _globalCallTranslation.X = Math.Clamp(_globalCallTranslation.X + delta.X, -availableWidth, 0);
+        _globalCallTranslation.Y = Math.Clamp(_globalCallTranslation.Y + delta.Y, -availableHeight, 0);
     }
 
     private void DisableLegacyOverlayHost()
@@ -129,9 +180,9 @@ public sealed partial class MainView
             return;
         }
 
-        if (_globalCallPopup is not null && _globalCallViewModel is not null)
+        if (_globalCallWidget is not null && _globalCallViewModel is not null)
         {
-            _globalCallPopup.IsOpen = _globalCallViewModel.IsVisible;
+            _globalCallWidget.IsVisible = _globalCallViewModel.IsVisible;
         }
     }
 
@@ -180,7 +231,12 @@ public sealed partial class MainView
         try
         {
             PageContent.Content = _lastNonCallContent;
-            OpenVoiceSession();
+            // A retired/restored Call tab must never activate Voice. Voice is opened
+            // exclusively from Actions; the legacy route is discarded silently.
+            if (_lastNonCallContent is null)
+            {
+                _ = OpenGoAsync();
+            }
         }
         finally
         {
@@ -196,18 +252,7 @@ public sealed partial class MainView
             return;
         }
 
-        _legacyProjectsContent = legacyContent;
-        DisposeNativeProjectsPage();
-
-        var nativePage = new NativeProjectsPage(
-            legacyContent,
-            ReadFallbackProjects,
-            OpenProjectCreatorFallbackAsync,
-            OpenProjectFallbackAsync,
-            ArchiveProjectFallbackAsync,
-            _nativeProjectUiStateStore);
-
-        _nativeProjectsPage = nativePage;
+        var nativePage = CreateNativeProjectsPage(legacyContent);
 
         _redirectingLegacyPresentation = true;
         try
@@ -219,6 +264,23 @@ public sealed partial class MainView
         {
             _redirectingLegacyPresentation = false;
         }
+    }
+
+    private NativeProjectsPage CreateNativeProjectsPage(object source)
+    {
+        _legacyProjectsContent = source;
+        DisposeNativeProjectsPage();
+
+        var nativePage = new NativeProjectsPage(
+            source,
+            ReadFallbackProjects,
+            OpenProjectCreatorFallbackAsync,
+            OpenProjectFallbackAsync,
+            ArchiveProjectFallbackAsync,
+            _nativeProjectUiStateStore);
+
+        _nativeProjectsPage = nativePage;
+        return nativePage;
     }
 
     private static NativePresentationDestination ClassifyLegacyPresentation(object content)
@@ -341,27 +403,22 @@ public sealed partial class MainView
             _globalCallViewModel.PropertyChanged -= OnGlobalCallPropertyChanged;
         }
 
-        if (_globalCallPopup is not null)
-        {
-            _globalCallPopup.IsOpen = false;
-            _globalCallPopup.Child = null;
-        }
-
-        if (_globalExecutionPopup is not null)
-        {
-            _globalExecutionPopup.IsOpen = false;
-            _globalExecutionPopup.Child = null;
-        }
+        if (_globalCallWidget is not null) NativeOverlayLayer.Children.Remove(_globalCallWidget);
+        if (_globalExecutionStatus is not null) NativeOverlayLayer.Children.Remove(_globalExecutionStatus);
 
         DisposeNativeProjectsPage();
         _legacyProjectsContent = null;
+
+        if (_globalCallWidget is not null)
+        {
+            _globalCallWidget.DragDelta -= OnGlobalCallDragDelta;
+        }
 
         _globalCallWidget?.Dispose();
         _globalCallViewModel?.Dispose();
         _globalExecutionStatus?.Dispose();
 
-        _globalCallPopup = null;
-        _globalExecutionPopup = null;
+        _globalCallTranslation = null;
         _globalCallWidget = null;
         _globalCallViewModel = null;
         _globalExecutionStatus = null;

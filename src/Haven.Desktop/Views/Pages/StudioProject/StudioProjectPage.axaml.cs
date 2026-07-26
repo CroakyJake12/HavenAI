@@ -29,6 +29,8 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     private readonly IModeRegistry? _modeRegistry;
     private readonly ICatalogRepository? _catalog;
     private readonly IOllamaClient? _ollama;
+    private readonly Func<Task> _backToProjects;
+    private readonly Func<Conversation, Task> _openConversation;
     private string _status = "Loading project state…";
     private ProjectStateSnapshot? _state;
     private ReleaseRiskReport? _risk;
@@ -63,7 +65,9 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         Func<string, Task> startChat,
         IModeRegistry? modeRegistry = null,
         ICatalogRepository? catalog = null,
-        IOllamaClient? ollama = null)
+        IOllamaClient? ollama = null,
+        Func<Task>? backToProjects = null,
+        Func<Conversation, Task>? openConversation = null)
     {
         _project = project;
         _conversations = conversations;
@@ -76,6 +80,8 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         _modeRegistry = modeRegistry;
         _catalog = catalog;
         _ollama = ollama;
+        _backToProjects = backToProjects ?? (() => Task.CompletedTask);
+        _openConversation = openConversation ?? (_ => Task.CompletedTask);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         OpenFileCommand = new AsyncRelayCommand<WorkspaceFileItemViewModel>(item => item is null ? Task.CompletedTask : _openFile(item));
         AskAiAboutFileCommand = new AsyncRelayCommand<WorkspaceFileItemViewModel>(item => item is null ? Task.CompletedTask : _startChat($"Analyze this file and explain what it does: {item.RelativePath}"));
@@ -90,6 +96,11 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         BuildCommand = new AsyncRelayCommand(BuildAsync);
         TestCommand = new AsyncRelayCommand(TestAsync);
         StartChatCommand = new AsyncRelayCommand(() => _startChat(string.Empty));
+        StartChatWithPromptCommand = new AsyncRelayCommand<string>(prompt =>
+            _startChat(prompt ?? string.Empty));
+        BackToProjectsCommand = new AsyncRelayCommand(_backToProjects);
+        OpenConversationCommand = new AsyncRelayCommand<Conversation>(conversation =>
+            conversation is null ? Task.CompletedTask : _openConversation(conversation));
         InitializeGitCommand = new AsyncRelayCommand(InitializeGitAsync);
         ConnectGitCommand = new AsyncRelayCommand(ConnectGitAsync, () => !string.IsNullOrWhiteSpace(GitRemoteUrl));
         ForecastRiskCommand = new AsyncRelayCommand(ForecastRiskAsync);
@@ -143,6 +154,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         : _state.HasUncommittedWork ? "Review the changed files and run the Release Risk Forecaster before publishing."
         : "Start from the recommended action, or open a file directly in Haven's editor.";
     public ObservableCollection<WorkspaceFileItemViewModel> Files { get; } = [];
+    public ObservableCollection<Conversation> ProjectConversations { get; } = [];
     public ObservableCollection<DecisionItemViewModel> Decisions { get; } = [];
     public ObservableCollection<AutomationSummaryViewModel> ActiveAutomations { get; } = [];
     public IReadOnlyList<ProjectFeatureCardViewModel> Features { get; }
@@ -169,6 +181,9 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     public AsyncRelayCommand BuildCommand { get; }
     public AsyncRelayCommand TestCommand { get; }
     public AsyncRelayCommand StartChatCommand { get; }
+    public AsyncRelayCommand<string> StartChatWithPromptCommand { get; }
+    public AsyncRelayCommand BackToProjectsCommand { get; }
+    public AsyncRelayCommand<Conversation> OpenConversationCommand { get; }
     public AsyncRelayCommand InitializeGitCommand { get; }
     public AsyncRelayCommand ConnectGitCommand { get; }
     public AsyncRelayCommand ForecastRiskCommand { get; }
@@ -221,7 +236,13 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         if (!HasRoot) { Status = "This project has no accessible folder. Open Project settings to connect one."; return; }
         _state = await _intelligence.GetStateAsync(RootPath, CancellationToken.None);
         RaiseStateProperties();
-        var recent = (await _conversations.GetRecentAsync(HavenMode.Studio, 300, CancellationToken.None)).Where(item => item.ContainerId == ProjectId).ToArray();
+        var recent = (await _conversations.GetRecentAsync(HavenMode.Studio, 300, CancellationToken.None))
+            .Where(item => item.ContainerId == ProjectId)
+            .OrderByDescending(item => item.UpdatedAt)
+            .ToArray();
+        ProjectConversations.Clear();
+        foreach (var conversation in recent)
+            ProjectConversations.Add(conversation);
         LastMeaningfulTask = recent.FirstOrDefault()?.Title ?? "No project conversation yet";
         RelevantConversation = recent.FirstOrDefault()?.Title ?? "Start a project chat";
         RaisePropertyChanged(nameof(LastMeaningfulTask));

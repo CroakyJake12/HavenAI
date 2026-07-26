@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views.Shell.NativePresentation;
 
@@ -161,143 +162,148 @@ internal sealed partial class NativeProjectsPage
         var pinned = filtered
             .Where(row => row.IsPinned)
             .ToArray();
+        var unread = filtered
+            .Where(row => !row.IsPinned && row.IsUnread)
+            .ToArray();
+        var remaining = filtered
+            .Where(row => !row.IsPinned && !row.IsUnread)
+            .ToArray();
 
         _pinnedPanel.Children.Clear();
         foreach (var row in pinned)
         {
-            _pinnedPanel.Children.Add(BuildPinnedRow(row));
+            _pinnedPanel.Children.Add(BuildProjectTile(row, ProjectTileKind.Pinned));
+        }
+
+        _unreadPanel.Children.Clear();
+        foreach (var row in unread)
+        {
+            _unreadPanel.Children.Add(BuildProjectTile(row, ProjectTileKind.Unread));
         }
 
         _projectPanel.Children.Clear();
-        foreach (var row in filtered)
+        foreach (var row in remaining)
         {
-            _projectPanel.Children.Add(BuildProjectCard(row));
+            _projectPanel.Children.Add(BuildProjectTile(row, ProjectTileKind.Standard));
         }
 
         _pinnedHeading.IsVisible = pinned.Length > 0;
         _pinnedPanel.IsVisible = pinned.Length > 0;
-        _projectHeading.Text = filtered.Length == 1 ? "1 project" : $"{filtered.Length} projects";
+        _unreadHeading.IsVisible = unread.Length > 0;
+        _unreadPanel.IsVisible = unread.Length > 0;
+        _projectHeading.IsVisible = remaining.Length > 0;
+        _projectPanel.IsVisible = remaining.Length > 0;
         _emptyState.IsVisible = filtered.Length == 0;
 
         SetStatus(string.Empty);
     }
 
-    private Control BuildProjectCard(ProjectRow row)
+    private Control BuildProjectTile(ProjectRow row, ProjectTileKind kind)
     {
+        var icon = new HavenIcon
+        {
+            IconKey = ProjectIcon(row),
+            Width = 56,
+            Height = 56,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
         var title = new TextBlock
         {
             Text = row.Name,
-            FontSize = 19,
-            FontWeight = FontWeight.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        };
-
-        var unread = new Border
-        {
-            Width = 8,
-            Height = 8,
-            CornerRadius = new CornerRadius(4),
-            Background = CyanBrush,
-            Margin = new Thickness(8, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            IsVisible = row.IsUnread
-        };
-        AutomationProperties.SetName(unread, row.IsUnread ? "Unread project activity" : "No unread project activity");
-
-        var titleRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 2,
-            Children = { title, unread }
-        };
-
-        var path = new TextBlock
-        {
-            Text = row.RootPath,
-            Foreground = MutedBrush,
-            FontSize = 12,
+            FontSize = 17,
+            FontWeight = FontWeight.Bold,
+            TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = 340
+            MaxWidth = 205,
+            HorizontalAlignment = HorizontalAlignment.Center
         };
-
-        var summary = new TextBlock
+        var activity = new TextBlock
         {
-            Text = row.Summary,
-            TextWrapping = TextWrapping.Wrap,
-            MaxHeight = 48,
-            Margin = new Thickness(0, 10, 0, 0)
-        };
-
-        var metrics = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*"),
-            Margin = new Thickness(0, 14, 0, 0)
-        };
-        var branch = BuildMetric("BRANCH", row.Branch);
-        var state = BuildMetric("STATE", row.State);
-        Grid.SetColumn(state, 1);
-        metrics.Children.Add(branch);
-        metrics.Children.Add(state);
-
-        var recommendation = new TextBlock
-        {
-            Text = row.RecommendedAction,
+            Text = kind == ProjectTileKind.Unread ? "Updated " + FormatActivity(row.UpdatedAt) : row.State,
+            FontSize = 11,
             Foreground = MutedBrush,
-            FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 12, 0, 0)
+            TextAlignment = TextAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxWidth = 205,
+            HorizontalAlignment = HorizontalAlignment.Center
         };
-
-        var open = Button("Open", true);
-        open.Click += async (_, _) => await OpenProjectAsync(row);
-        AutomationProperties.SetName(open, $"Open {row.Name}");
-
-        var pin = LinkButton(row.IsPinned ? "Unpin" : "Pin");
-        pin.Click += async (_, _) => await SetPinnedAsync(row, !row.IsPinned);
-        AutomationProperties.SetName(pin, row.IsPinned ? $"Unpin {row.Name}" : $"Pin {row.Name}");
-
-        var readState = LinkButton(row.IsUnread ? "Mark read" : "Mark unread");
-        readState.Click += async (_, _) => await SetReadStateAsync(row, markUnread: !row.IsUnread);
-        AutomationProperties.SetName(
-            readState,
-            row.IsUnread ? $"Mark {row.Name} as read" : $"Mark {row.Name} as unread");
-
-        var archive = LinkButton("Archive");
-        archive.Click += async (_, _) => await ArchiveProjectAsync(row);
-        AutomationProperties.SetName(archive, $"Archive {row.Name}");
-
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Margin = new Thickness(0, 16, 0, 0),
-            Children = { open, pin, readState, archive }
-        };
-
         var content = new StackPanel
         {
-            Children =
-            {
-                titleRow,
-                path,
-                summary,
-                metrics,
-                recommendation,
-                actions
-            }
+            Spacing = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Children = { icon, title, activity }
         };
-
-        return new Border
+        var tile = new Button
         {
-            Width = 380,
-            MinHeight = 250,
-            Margin = new Thickness(0, 0, 12, 12),
+            Width = 240,
+            Height = 176,
+            Margin = new Thickness(0, 0, 14, 14),
             Padding = new Thickness(18),
-            BorderBrush = BorderBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Background = row.IsUnread ? UnreadBrush : CardBrush,
-            Child = content
+            BorderBrush = kind == ProjectTileKind.Unread ? Brush("#F3F58E") : BorderBrush,
+            BorderThickness = new Thickness(kind == ProjectTileKind.Unread ? 2 : 1),
+            CornerRadius = new CornerRadius(22),
+            Background = kind switch
+            {
+                ProjectTileKind.Pinned => Brush("#DDF9FB"),
+                ProjectTileKind.Unread => Brush("#FEFFA6"),
+                _ => CardBrush
+            },
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = content
         };
+        ToolTip.SetTip(tile, BuildProjectTooltip(row));
+        tile.Click += async (_, _) => await OpenProjectAsync(row);
+        tile.ContextMenu = BuildProjectContextMenu(row);
+        AutomationProperties.SetName(
+            tile,
+            $"Open {row.Name}{(row.IsUnread ? ", unread changes" : string.Empty)}");
+        return tile;
+    }
+
+    private ContextMenu BuildProjectContextMenu(ProjectRow row)
+    {
+        var open = new MenuItem { Header = "Open" };
+        open.Click += async (_, _) => await OpenProjectAsync(row);
+
+        var pin = new MenuItem { Header = row.IsPinned ? "Unpin" : "Pin" };
+        pin.Click += async (_, _) => await SetPinnedAsync(row, !row.IsPinned);
+
+        var readState = new MenuItem { Header = row.IsUnread ? "Mark read" : "Mark unread" };
+        readState.Click += async (_, _) => await SetReadStateAsync(row, markUnread: !row.IsUnread);
+
+        var archive = new MenuItem { Header = "Archive" };
+        archive.Click += async (_, _) => await ArchiveProjectAsync(row);
+
+        return new ContextMenu { ItemsSource = new object[] { open, pin, readState, archive } };
+    }
+
+    private static Control BuildProjectTooltip(ProjectRow row) => new StackPanel
+    {
+        MaxWidth = 380,
+        Spacing = 4,
+        Children =
+        {
+            new TextBlock { Text = row.Name, FontWeight = FontWeight.Bold },
+            new TextBlock { Text = row.RootPath, Foreground = MutedBrush, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = row.Summary, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = $"{row.Branch} · {row.State}", Foreground = MutedBrush }
+        }
+    };
+
+    private static string ProjectIcon(ProjectRow row)
+    {
+        var combined = (row.Name + " " + row.Summary).ToLowerInvariant();
+        if (combined.Contains("photo") || combined.Contains("film") || combined.Contains("camera")) return "image";
+        if (combined.Contains("code") || combined.Contains("app") || combined.Contains("software")) return "code";
+        return "folder";
+    }
+
+    private enum ProjectTileKind
+    {
+        Standard,
+        Pinned,
+        Unread
     }
 }

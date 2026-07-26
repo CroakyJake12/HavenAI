@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Haven.Desktop.Controls;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views;
@@ -25,10 +26,11 @@ public sealed partial class ProjectCreatorView : UserControl
 
     private readonly ScrollViewer _rootScroll;
     private readonly TextBox _promptBox;
+    private readonly TextBox _templateSearchBox;
     private readonly TextBox _projectNameBox;
     private readonly TextBox _destinationBox;
     private readonly TextBox _packageDescriptionBox;
-    private readonly StackPanel _templatePanel;
+    private readonly WrapPanel _templatePanel;
     private readonly Border _packageDescriptionCard;
     private readonly Border _proposalCard;
     private readonly TextBlock _proposalSummary;
@@ -43,7 +45,9 @@ public sealed partial class ProjectCreatorView : UserControl
     private readonly Button _chooseDestinationButton;
     private readonly Button _openFolderButton;
     private readonly Button _openProjectFileButton;
+    private readonly Button _detailsToggleButton;
     private readonly Dictionary<string, Button> _templateButtons = new(StringComparer.Ordinal);
+    private Border _detailsCard = null!;
 
     private ProjectCreatorPageViewModel? _viewModel;
     private ProjectCreationProposal? _renderedProposal;
@@ -61,11 +65,23 @@ public sealed partial class ProjectCreatorView : UserControl
             PlaceholderText = "Describe what you want to build…",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 104,
-            MaxHeight = 180,
-            Padding = new Thickness(14)
+            MinHeight = 58,
+            MaxHeight = 130,
+            Padding = new Thickness(18),
+            CornerRadius = new CornerRadius(24)
         };
+        _promptBox.PlaceholderText = "Describe Your Project";
         AutomationProperties.SetName(_promptBox, "Project request");
+
+        _templateSearchBox = new TextBox
+        {
+            PlaceholderText = "Search Templates",
+            MinHeight = 58,
+            Padding = new Thickness(18),
+            CornerRadius = new CornerRadius(20),
+            FontSize = 16
+        };
+        AutomationProperties.SetName(_templateSearchBox, "Search project templates");
 
         _projectNameBox = FieldTextBox("Project name");
         _destinationBox = FieldTextBox("Destination folder");
@@ -87,8 +103,14 @@ public sealed partial class ProjectCreatorView : UserControl
         _chooseDestinationButton = SecondaryButton("Choose folder");
         _openFolderButton = SecondaryButton("Open existing folder");
         _openProjectFileButton = SecondaryButton("Open project file");
+        _detailsToggleButton = IconButton("plus", "Project name, destination, and type");
 
-        _templatePanel = new StackPanel { Spacing = 8 };
+        _templatePanel = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            ItemWidth = 224,
+            ItemHeight = 164
+        };
 
         _packageDescriptionCard = Card(
             new StackPanel
@@ -150,33 +172,40 @@ public sealed partial class ProjectCreatorView : UserControl
             Children = { _dotNetButton, _packageButton }
         };
 
-        var destinationRow = new StackPanel
+        var destinationRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 10
+        };
+        destinationRow.Children.Add(_destinationBox);
+        Grid.SetColumn(_chooseDestinationButton, 1);
+        destinationRow.Children.Add(_chooseDestinationButton);
+
+        var approvalRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children = { _destinationBox, _chooseDestinationButton }
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { _approveButton }
         };
 
-        var form = Card(
+        _detailsCard = Card(
             new StackPanel
             {
                 Spacing = 14,
                 Children =
                 {
-                    Heading("Project details", 20),
-                    Label("What should Haven create?"),
-                    _promptBox,
+                    Heading("Project setup", 20),
                     Label("Project type"),
                     typeRow,
                     Label("Project name"),
                     _projectNameBox,
                     Label("Destination"),
                     destinationRow,
-                    Label("Template"),
-                    _templatePanel,
-                    _packageDescriptionCard
+                    _packageDescriptionCard,
+                    approvalRow
                 }
-            });
+            }, padding: 20);
+        _detailsCard.IsVisible = false;
 
         var existingActions = new StackPanel
         {
@@ -201,41 +230,72 @@ public sealed partial class ProjectCreatorView : UserControl
                 }
             });
 
-        var actionRow = new StackPanel
+        _reviewButton.Content = new HavenIcon
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 10,
-            Children = { _reviewButton, _approveButton }
+            IconKey = "send",
+            Width = 24,
+            Height = 24,
+            Foreground = Brushes.Black
         };
+        _reviewButton.Width = 62;
+        _reviewButton.Height = 62;
+        _reviewButton.CornerRadius = new CornerRadius(22);
+        _reviewButton.Background = Brush("#62E6EF");
+        _reviewButton.Foreground = Brushes.Black;
+        AutomationProperties.SetName(_reviewButton, "Review project proposal");
+
+        var composer = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 10,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+        composer.Children.Add(_detailsToggleButton);
+        Grid.SetColumn(_promptBox, 1);
+        composer.Children.Add(_promptBox);
+        Grid.SetColumn(_reviewButton, 2);
+        composer.Children.Add(_reviewButton);
+
+        var installedTemplates = new StackPanel { Spacing = 10 };
+        if (IsVisualStudioInstalled())
+        {
+            installedTemplates.Children.Add(Heading("From an Installed App: Microsoft Visual Studio", 14));
+            var packageTile = TemplateTile(
+                "NuGet Package",
+                "plus",
+                "Create a package project using the installed .NET tooling.");
+            packageTile.Click += (_, _) =>
+            {
+                _viewModel?.SelectPackageCommand.Execute(null);
+                _detailsCard.IsVisible = true;
+            };
+            installedTemplates.Children.Add(packageTile);
+        }
 
         var content = new StackPanel
         {
-            Width = 960,
-            MaxWidth = 960,
-            Spacing = 20,
+            Width = 1200,
+            MaxWidth = 1200,
+            Spacing = 18,
             Margin = new Thickness(32, 28, 32, 48),
             Children =
             {
                 new TextBlock
                 {
-                    Text = "New project",
-                    FontSize = 32,
-                    FontWeight = FontWeight.SemiBold
+                    Text = "Create New Project",
+                    FontSize = 34,
+                    FontWeight = FontWeight.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center
                 },
-                new TextBlock
-                {
-                    Text = "Describe the result, review the exact local changes, then approve creation.",
-                    Foreground = MutedBrush,
-                    FontSize = 15,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, -12, 0, 0)
-                },
-                form,
+                _templateSearchBox,
+                Heading("Generic", 14),
+                _templatePanel,
+                installedTemplates,
+                _detailsCard,
                 _proposalCard,
                 existing,
+                composer,
                 _statusText,
-                actionRow
             }
         };
 
@@ -289,6 +349,8 @@ public sealed partial class ProjectCreatorView : UserControl
                 _viewModel.Prompt = _promptBox.Text ?? string.Empty;
             }
         };
+        _templateSearchBox.TextChanged += (_, _) => ApplyTemplateFilter();
+        _detailsToggleButton.Click += (_, _) => _detailsCard.IsVisible = !_detailsCard.IsVisible;
         _projectNameBox.TextChanged += (_, _) =>
         {
             if (!_syncing && _viewModel is not null)
@@ -324,5 +386,91 @@ public sealed partial class ProjectCreatorView : UserControl
         _chooseDestinationButton.Click += OnChooseDestinationClicked;
         _openFolderButton.Click += OnOpenFolderClicked;
         _openProjectFileButton.Click += OnOpenProjectFileClicked;
+    }
+
+    private void ApplyTemplateFilter()
+    {
+        var query = (_templateSearchBox.Text ?? string.Empty).Trim();
+        foreach (var template in _templateButtons)
+        {
+            var option = _viewModel?.Templates.FirstOrDefault(item => item.Name == template.Key);
+            var displayName = DisplayTemplateName(template.Key);
+            template.Value.IsVisible = query.Length == 0 ||
+                displayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                (option?.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false);
+        }
+    }
+
+    private static bool IsVisualStudioInstalled()
+    {
+        var installer = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Microsoft Visual Studio",
+            "Installer",
+            "vswhere.exe");
+        return File.Exists(installer);
+    }
+
+    private static string DisplayTemplateName(string templateName) => templateName switch
+    {
+        "Console app" => "Blank Project",
+        "Class library" => "Library",
+        "Web API" => "Website",
+        "Worker service" => "Worker",
+        _ => templateName
+    };
+
+    private static string TemplateIcon(string templateName) => templateName switch
+    {
+        "Console app" => "file",
+        "Class library" => "folder",
+        "Web API" => "browser",
+        "Worker service" => "automations",
+        _ => "file"
+    };
+
+    private static Button TemplateTile(string title, string icon, string description)
+    {
+        var button = new Button
+        {
+            Width = 210,
+            Height = 150,
+            Margin = new Thickness(0, 0, 14, 14),
+            Padding = new Thickness(16),
+            CornerRadius = new CornerRadius(24),
+            Background = Brush("#DFFBFD"),
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            Content = new StackPanel
+            {
+                Spacing = 10,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Children =
+                {
+                    new HavenIcon
+                    {
+                        IconKey = icon,
+                        Width = 48,
+                        Height = 48,
+                        Foreground = Brushes.Black
+                    },
+                    Heading(title, 16),
+                    new TextBlock
+                    {
+                        Text = description,
+                        FontSize = 10,
+                        Foreground = MutedBrush,
+                        TextWrapping = TextWrapping.Wrap,
+                        TextAlignment = TextAlignment.Center,
+                        MaxHeight = 28
+                    }
+                }
+            }
+        };
+        AutomationProperties.SetName(button, $"Use {title} template");
+        return button;
     }
 }

@@ -168,37 +168,59 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     {
         if (x < 0 || y < 0 || x > 100000 || y > 100000) throw new ArgumentOutOfRangeException(nameof(x), "Valid non-negative coordinates are required.");
         var normalized = button.Trim().ToLowerInvariant();
-        var flags = normalized switch { "right" => "0x0008,0x0010", "middle" => "0x0020,0x0040", _ => "0x0002,0x0004" };
-        var script = Utf8Variable("title", windowTitle) + TargetWindowPrelude + $"$x={x};$y={y};$flags=@({flags});" +
+        var messages = normalized switch
+        {
+            "right" => "$down=0x0204;$up=0x0205;$keyState=0x0002;",
+            "middle" => "$down=0x0207;$up=0x0208;$keyState=0x0010;",
+            _ => "$down=0x0201;$up=0x0202;$keyState=0x0001;"
+        };
+        var script = Utf8Variable("title", windowTitle) + TargetWindowPrelude + $"$x={x};$y={y};" + messages +
             """
+            Add-Type -AssemblyName UIAutomationClient
+            Add-Type -AssemblyName UIAutomationTypes
             Add-Type @'
             using System;
             using System.Runtime.InteropServices;
             /// <summary>
-            /// Represents haven mouse and keeps its related state and behavior together.
+            /// Sends target-bound pointer messages without moving the user's physical cursor.
             /// </summary>
-            public static class HavenMouse {
+            public static class HavenVirtualPointer {
               /// <summary>
               /// Represents rect and keeps its related state and behavior together.
               /// </summary>
-              [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-              [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
               [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out Rect rect);
+              [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr handle, ref Point point);
+              [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam);
               public struct Rect { public int Left, Top, Right, Bottom; }
+              public struct Point { public int X, Y; }
             }
             '@
-            $rect = New-Object HavenMouse+Rect
-            [HavenMouse]::GetWindowRect($target.MainWindowHandle, [ref]$rect) | Out-Null
+            $rect = New-Object HavenVirtualPointer+Rect
+            [HavenVirtualPointer]::GetWindowRect($target.MainWindowHandle, [ref]$rect) | Out-Null
             if ($x -lt $rect.Left -or $x -gt $rect.Right -or $y -lt $rect.Top -or $y -gt $rect.Bottom) { throw 'Coordinates are outside the target window' }
             $shell = New-Object -ComObject WScript.Shell
             $shell.AppActivate($target.Id) | Out-Null
             [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
             Start-Sleep -Milliseconds 180
             if ([HavenWindow]::GetForegroundWindow() -ne $target.MainWindowHandle) { throw 'Target window was not foreground' }
-            [HavenMouse]::SetCursorPos($x, $y) | Out-Null
-            Start-Sleep -Milliseconds 100
-            $flags | ForEach-Object { [HavenMouse]::mouse_event([uint32]$_, 0, 0, 0, [UIntPtr]::Zero) }
-            [pscustomobject]@{ windowTitle=$target.MainWindowTitle; x=$x; y=$y } | ConvertTo-Json -Compress
+
+            $method = 'virtual-window-message'
+            $point = New-Object Windows.Point($x, $y)
+            $element = [System.Windows.Automation.AutomationElement]::FromPoint($point)
+            $pattern = $null
+            if ($element -and $element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+              ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+              $method = 'ui-automation-invoke'
+            } else {
+              $client = New-Object HavenVirtualPointer+Point
+              $client.X = $x
+              $client.Y = $y
+              if (![HavenVirtualPointer]::ScreenToClient($target.MainWindowHandle, [ref]$client)) { throw 'Could not translate the virtual pointer into the target window' }
+              $lParam = [IntPtr](($client.Y -shl 16) -bor ($client.X -band 0xFFFF))
+              [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$down, [IntPtr]$keyState, $lParam) | Out-Null
+              [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$up, [IntPtr]::Zero, $lParam) | Out-Null
+            }
+            [pscustomobject]@{ windowTitle=$target.MainWindowTitle; x=$x; y=$y; virtualCursor=$true; method=$method } | ConvertTo-Json -Compress
             """;
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }

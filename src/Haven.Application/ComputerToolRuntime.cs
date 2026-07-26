@@ -17,8 +17,15 @@ namespace Haven.Application;
 /// <summary>
 /// Represents computer tool runtime and keeps its related state and behavior together.
 /// </summary>
-public sealed class ComputerToolRuntime(IComputerToolService tools)
+public sealed class ComputerToolRuntime(
+    IComputerToolService tools,
+    IComputerUseSessionController sessions)
 {
+    public ComputerToolRuntime(IComputerToolService tools)
+        : this(tools, new ComputerUseSessionController())
+    {
+    }
+
     /// <summary>
     /// Stores direct launch pattern locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -70,7 +77,12 @@ public sealed class ComputerToolRuntime(IComputerToolService tools)
     /// <summary>
     /// Creates pass with the invariants required by its callers.
     /// </summary>
-    public ComputerToolPass CreatePass() => new(tools, ToolDefinitions, DirectLaunchPattern, ComputerUseSuffix);
+    public ComputerToolPass CreatePass() => new(
+        tools,
+        sessions,
+        ToolDefinitions,
+        DirectLaunchPattern,
+        ComputerUseSuffix);
 
     /// <summary>
     /// Performs the definition step owned by this component.
@@ -93,9 +105,10 @@ public sealed class ComputerToolRuntime(IComputerToolService tools)
 /// </summary>
 public sealed class ComputerToolPass(
     IComputerToolService tools,
+    IComputerUseSessionController sessions,
     IReadOnlyList<OllamaToolDefinition> definitions,
     Regex directLaunchPattern,
-    Regex computerUseSuffix)
+    Regex computerUseSuffix) : IDisposable
 {
     /// <summary>
     /// Stores mutation limit locally so this component can preserve the dependency, cache, or state between member calls.
@@ -113,6 +126,7 @@ public sealed class ComputerToolPass(
     /// Stores mutation count locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private int _mutationCount;
+    private IDisposable? _session;
 
     /// <summary>
     /// Gets or updates definitions, the bindable or domain state represented by this property.
@@ -142,21 +156,33 @@ public sealed class ComputerToolPass(
     /// </summary>
     public async Task<WorkspaceToolResult> ExecuteAsync(OllamaToolCall call, CancellationToken cancellationToken)
     {
+        _session ??= sessions.BeginSession();
+        int? cursorX = call.Name == "computer_click" ? Integer(call, "x", -1) : null;
+        int? cursorY = call.Name == "computer_click" ? Integer(call, "y", -1) : null;
+        sessions.UpdateAction(
+            HumanLabel(call.Name),
+            cursorX is >= 0 ? cursorX : null,
+            cursorY is >= 0 ? cursorY : null);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            sessions.StopToken);
+        await sessions.WaitIfPausedAsync(operation.Token).ConfigureAwait(false);
+
         var started = Stopwatch.GetTimestamp();
         try
         {
             BeforeAction(call.Name);
             var output = call.Name switch
             {
-                "computer_snapshot" => await tools.SnapshotAsync(cancellationToken).ConfigureAwait(false),
-                "computer_list_windows" => await tools.ListWindowsAsync(cancellationToken).ConfigureAwait(false),
-                "computer_launch_app" => await tools.LaunchAppAsync(RequiredText(call, "name"), cancellationToken).ConfigureAwait(false),
-                "computer_focus_window" => await tools.FocusWindowAsync(RequiredText(call, "title"), cancellationToken).ConfigureAwait(false),
-                "computer_invoke" => await tools.InvokeAsync(RequiredText(call, "window_title"), Text(call, "name"), Text(call, "automation_id"), cancellationToken).ConfigureAwait(false),
-                "computer_click" => await tools.ClickAsync(RequiredText(call, "window_title"), Integer(call, "x", -1), Integer(call, "y", -1), Text(call, "button", "left"), cancellationToken).ConfigureAwait(false),
-                "computer_type" => await tools.TypeAsync(RequiredText(call, "window_title"), RequiredText(call, "text"), cancellationToken).ConfigureAwait(false),
-                "computer_press" => await tools.PressAsync(RequiredText(call, "window_title"), RequiredText(call, "keys"), cancellationToken).ConfigureAwait(false),
-                "computer_close_window" => await tools.CloseWindowAsync(RequiredText(call, "title"), cancellationToken).ConfigureAwait(false),
+                "computer_snapshot" => await tools.SnapshotAsync(operation.Token).ConfigureAwait(false),
+                "computer_list_windows" => await tools.ListWindowsAsync(operation.Token).ConfigureAwait(false),
+                "computer_launch_app" => await tools.LaunchAppAsync(RequiredText(call, "name"), operation.Token).ConfigureAwait(false),
+                "computer_focus_window" => await tools.FocusWindowAsync(RequiredText(call, "title"), operation.Token).ConfigureAwait(false),
+                "computer_invoke" => await tools.InvokeAsync(RequiredText(call, "window_title"), Text(call, "name"), Text(call, "automation_id"), operation.Token).ConfigureAwait(false),
+                "computer_click" => await tools.ClickAsync(RequiredText(call, "window_title"), Integer(call, "x", -1), Integer(call, "y", -1), Text(call, "button", "left"), operation.Token).ConfigureAwait(false),
+                "computer_type" => await tools.TypeAsync(RequiredText(call, "window_title"), RequiredText(call, "text"), operation.Token).ConfigureAwait(false),
+                "computer_press" => await tools.PressAsync(RequiredText(call, "window_title"), RequiredText(call, "keys"), operation.Token).ConfigureAwait(false),
+                "computer_close_window" => await tools.CloseWindowAsync(RequiredText(call, "title"), operation.Token).ConfigureAwait(false),
                 _ => throw new InvalidOperationException($"Unknown computer tool '{call.Name}'.")
             };
             AfterAction(call.Name, true);
@@ -168,8 +194,8 @@ public sealed class ComputerToolPass(
                         ? "computer_list_windows"
                         : "computer_snapshot";
                     var verification = verificationTool == "computer_list_windows"
-                        ? await tools.ListWindowsAsync(cancellationToken).ConfigureAwait(false)
-                        : await tools.SnapshotAsync(cancellationToken).ConfigureAwait(false);
+                        ? await tools.ListWindowsAsync(operation.Token).ConfigureAwait(false)
+                        : await tools.SnapshotAsync(operation.Token).ConfigureAwait(false);
                     AfterAction(verificationTool, true);
                     output += "\nPost-action verification:\n" + verification;
                 }
@@ -287,5 +313,11 @@ public sealed class ComputerToolPass(
     {
         var line = value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Completed";
         return line.Length <= 320 ? line : line[..317] + "…";
+    }
+
+    public void Dispose()
+    {
+        _session?.Dispose();
+        _session = null;
     }
 }

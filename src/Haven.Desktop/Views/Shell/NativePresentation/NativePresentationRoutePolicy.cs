@@ -41,10 +41,12 @@ public static class NativePresentationRoutePolicy
         }
 
         if (surfaceName.Equals("WorkspaceHomeView", StringComparison.OrdinalIgnoreCase) ||
+            surfaceName.Equals("WorkspaceHomePageViewModel", StringComparison.OrdinalIgnoreCase) ||
             surfaceName.Equals("StudioHomePage", StringComparison.OrdinalIgnoreCase) ||
             surfaceName.Equals("ProjectsPage", StringComparison.OrdinalIgnoreCase) ||
             surfaceName.Equals("ProjectBrowserView", StringComparison.OrdinalIgnoreCase) ||
             dataContextName.Equals("WorkspaceHomeViewModel", StringComparison.OrdinalIgnoreCase) ||
+            dataContextName.Equals("WorkspaceHomePageViewModel", StringComparison.OrdinalIgnoreCase) ||
             dataContextName.Equals("StudioHomePageViewModel", StringComparison.OrdinalIgnoreCase) ||
             dataContextName.Equals("ProjectBrowserViewModel", StringComparison.OrdinalIgnoreCase))
         {

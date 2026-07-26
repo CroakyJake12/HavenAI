@@ -119,37 +119,17 @@ public sealed partial class ProjectCreatorView
             foreach (var template in viewModel.Templates)
             {
                 var capturedTemplate = template;
-                var button = new Button
-                {
-                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Padding = new Thickness(12),
-                    Content = new StackPanel
-                    {
-                        Spacing = 3,
-                        Children =
-                        {
-                            new TextBlock
-                            {
-                                Text = capturedTemplate.Name,
-                                FontWeight = FontWeight.SemiBold
-                            },
-                            new TextBlock
-                            {
-                                Text = capturedTemplate.Description,
-                                Foreground = MutedBrush,
-                                TextWrapping = TextWrapping.Wrap
-                            }
-                        }
-                    }
-                };
-                AutomationProperties.SetName(button, $"Use {capturedTemplate.Name} template");
+                var button = TemplateTile(
+                    DisplayTemplateName(capturedTemplate.Name),
+                    TemplateIcon(capturedTemplate.Name),
+                    capturedTemplate.Description);
                 button.Click += (_, _) =>
                 {
                     var current = _viewModel;
                     if (current is not null &&
                         current.SelectTemplateCommand.CanExecute(capturedTemplate))
                     {
+                        current.SelectDotNetCommand.Execute(null);
                         current.SelectTemplateCommand.Execute(capturedTemplate);
                     }
                 };
@@ -157,6 +137,8 @@ public sealed partial class ProjectCreatorView
                 _templateButtons.Add(capturedTemplate.Name, button);
                 _templatePanel.Children.Add(button);
             }
+
+            ApplyTemplateFilter();
         }
 
         foreach (var template in viewModel.Templates)
@@ -166,9 +148,7 @@ public sealed partial class ProjectCreatorView
                 continue;
             }
 
-            button.IsEnabled =
-                viewModel.IsDotNetProject &&
-                viewModel.SelectTemplateCommand.CanExecute(template);
+            button.IsEnabled = viewModel.SelectTemplateCommand.CanExecute(template);
             ApplyChoiceState(
                 button,
                 viewModel.IsDotNetProject &&
@@ -178,7 +158,7 @@ public sealed partial class ProjectCreatorView
                     StringComparison.Ordinal));
         }
 
-        _templatePanel.IsVisible = viewModel.IsDotNetProject;
+        _templatePanel.IsVisible = true;
     }
 
     private void RenderProposal(ProjectCreationProposal? proposal)
@@ -198,6 +178,7 @@ public sealed partial class ProjectCreatorView
         }
 
         _renderedProposal = proposal;
+        _detailsCard.IsVisible = true;
         _proposalSummary.Text = proposal.Summary;
         _proposalTarget.Text =
             $"Target: {proposal.TargetFolder}\nTemplate: {proposal.TemplateName}";

@@ -31,9 +31,11 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
     private readonly CancellationTokenSource _lifetime = new();
 
     private readonly TextBox _searchBox;
-    private readonly StackPanel _pinnedPanel;
+    private readonly WrapPanel _pinnedPanel;
+    private readonly WrapPanel _unreadPanel;
     private readonly WrapPanel _projectPanel;
     private readonly TextBlock _pinnedHeading;
+    private readonly TextBlock _unreadHeading;
     private readonly TextBlock _projectHeading;
     private readonly Border _emptyState;
     private readonly TextBlock _status;
@@ -64,33 +66,42 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
 
         _searchBox = new TextBox
         {
-            PlaceholderText = "Search projects",
-            MinWidth = 260,
-            Height = 42,
+            PlaceholderText = "Search Projects",
+            MinWidth = 640,
+            MaxWidth = 920,
+            Height = 64,
+            Padding = new Thickness(54, 12, 18, 12),
+            CornerRadius = new CornerRadius(18),
+            BorderBrush = BorderBrush,
+            Background = Brush("#FCFCFC"),
+            FontSize = 17,
+            FontWeight = FontWeight.SemiBold,
             VerticalContentAlignment = VerticalAlignment.Center
         };
         _searchBox.Classes.Add("native-project-search");
         _searchBox.TextChanged += OnSearchChanged;
         AutomationProperties.SetName(_searchBox, "Search projects");
 
-        _refreshButton = Button("Refresh", false);
+        _refreshButton = IconButton("refresh", "Refresh projects");
         _refreshButton.Click += OnRefreshClicked;
         AutomationProperties.SetName(_refreshButton, "Refresh projects");
 
-        _newProjectButton = Button("New project", true);
+        _newProjectButton = Button("Create New Project", false);
+        _newProjectButton.MinWidth = 620;
+        _newProjectButton.MinHeight = 58;
+        _newProjectButton.FontSize = 17;
+        _newProjectButton.FontWeight = FontWeight.SemiBold;
         _newProjectButton.Click += OnNewProjectClicked;
         AutomationProperties.SetName(_newProjectButton, "Create a new project");
 
-        _pinnedHeading = Heading("Pinned", 20);
-        _pinnedPanel = new StackPanel { Spacing = 10 };
+        _pinnedHeading = Heading("Pinned Projects", 16);
+        _pinnedPanel = ProjectTilePanel();
 
-        _projectHeading = Heading("All projects", 20);
-        _projectPanel = new WrapPanel
-        {
-            Orientation = Orientation.Horizontal,
-            ItemWidth = 390,
-            ItemHeight = double.NaN
-        };
+        _unreadHeading = Heading("Unread Changes", 16);
+        _unreadPanel = ProjectTilePanel();
+
+        _projectHeading = Heading("All Projects", 16);
+        _projectPanel = ProjectTilePanel();
 
         _emptyState = BuildEmptyState();
         _status = new TextBlock

@@ -31,6 +31,14 @@ public sealed class ModeSeedService
     /// </summary>
     public async Task SeedBuiltInModesAsync(CancellationToken cancellationToken)
     {
+        // Call is an in-chat action, not a mode. Remove the retired seeded entry so
+        // existing profiles cannot keep surfacing it in launchers or mode libraries.
+        await _registry.DeleteModeByKeyAsync("call", cancellationToken).ConfigureAwait(false);
+        // The old Do entry has been replaced by Research inside the shared Chat
+        // experience. Keep HavenMode.Do as the persisted compatibility value while
+        // removing the retired launcher entry and wording.
+        await _registry.DeleteModeByKeyAsync("do", cancellationToken).ConfigureAwait(false);
+
         var existing = await _registry.GetModesAsync(cancellationToken).ConfigureAwait(false);
         var existingKeys = existing.Select(m => m.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
 

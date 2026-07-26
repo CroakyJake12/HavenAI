@@ -1094,7 +1094,6 @@ public sealed partial class WorkspaceChromeHost
             HavenSurface.Teach => "teach",
             HavenSurface.Do => "tasks",
             HavenSurface.Studio => "studio",
-            HavenSurface.Call => "call",
             HavenSurface.Browse => "browse",
             HavenSurface.Plan => "plan",
             HavenSurface.Training => "training",
@@ -1407,7 +1406,7 @@ public sealed partial class WorkspaceChromeHost
                 };
             }
 
-            if (button.Name is "ExperienceCallButton" or "ExperiencePlanButton" or "ExperienceBrowseButton")
+            if (button.Name is "ExperiencePlanButton" or "ExperienceBrowseButton")
                 button.IsVisible = true;
 
             if (button.Name is "ExperienceChatButton" or "ExperiencePlanButton")
@@ -1448,7 +1447,6 @@ public sealed partial class WorkspaceChromeHost
             "ExperienceHomeButton" => "home",
             "ExperienceChatButton" => "chat",
             "ExperienceStudioButton" => "studio",
-            "ExperienceCallButton" => "call",
             "ExperiencePlanButton" => "plan",
             "ExperienceBrowseButton" => "browse",
             "ExperienceNotesButton" => "notes",

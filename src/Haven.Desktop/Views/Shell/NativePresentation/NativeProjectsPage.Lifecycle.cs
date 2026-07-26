@@ -205,7 +205,7 @@ internal sealed partial class NativeProjectsPage
                 {
                     var invocation = await NativePresentationReflection.InvokeAsync(
                         _source,
-                        ["ConnectExistingAsync", "ConnectFolderAsync", "AddExistingProjectAsync", "ImportProjectAsync"],
+                        ["AddPathAsync", "ConnectExistingAsync", "ConnectFolderAsync", "AddExistingProjectAsync", "ImportProjectAsync"],
                         path);
                     handled = invocation.Invoked;
                 }

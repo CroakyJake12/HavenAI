@@ -60,7 +60,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _sessions = sessions;
         _versioning = versioning;
         _preferences = preferences;
-        _conversation = CreateConversation();
+        _conversation = CreateConversation(HavenMode.Chat);
 
         InitializeComponent();
         WireEvents();
@@ -74,6 +74,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public event EventHandler<AddMenuSelection>? AddCatalogItemSelected;
 
     public string? SelectedModelName => _selectedModel?.Name;
+    public ModelDescriptor? SelectedModel => _selectedModel;
+    public Guid ConversationId => _conversation.Id;
+    public Conversation CurrentConversation => _conversation;
     public bool IsTemporary => _conversation.IsTemporary;
     public bool HasStarted => _messages.Count > 0;
 
@@ -122,15 +125,56 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     public void FocusComposer() => InstructionBox.Focus();
 
-    public void StartFreshConversation()
+    public void StartFreshConversation(Guid? chatGroupId = null)
+    {
+        ResetToFreshConversation(HavenMode.Chat, chatGroupId, null);
+        _ = PersistFreshConversationAsync(_conversation);
+        NotifyFreshConversationReady();
+    }
+
+    public async Task StartFreshConversationAsync(Guid? chatGroupId = null)
+    {
+        ResetToFreshConversation(HavenMode.Chat, chatGroupId, null);
+        await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        NotifyFreshConversationReady();
+    }
+
+    public async Task StartFreshConversationAsync(
+        HavenMode mode,
+        Guid? containerId,
+        Guid? lessonId = null)
+    {
+        ResetToFreshConversation(mode, containerId, lessonId);
+        await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        NotifyFreshConversationReady();
+    }
+
+    private void ResetToFreshConversation(HavenMode mode, Guid? containerId, Guid? lessonId)
     {
         _sendCancellation?.Cancel();
-        _conversation = CreateConversation();
+        _conversation = CreateConversation(mode, containerId, lessonId);
         _messages.Clear();
         _streamingMessages.Clear();
         _pendingInstruction = null;
         StatusText.Text = string.Empty;
         RefreshMessages();
+    }
+
+    private async Task PersistFreshConversationAsync(Conversation conversation)
+    {
+        try
+        {
+            await _conversations.UpsertConversationAsync(conversation, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            await SetStatusAsync("The new chat could not be saved yet. It will be retried when you send a message.");
+        }
+    }
+
+    private void NotifyFreshConversationReady()
+    {
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
         FocusComposer();
     }
 
@@ -147,6 +191,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
         RefreshMessages();
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
         FocusComposer();
     }
 
@@ -1141,7 +1186,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     private async void ShowExistingChatPicker(Control anchor, ChatMessage message)
     {
-        var recent = (await _conversations.GetRecentAsync(HavenMode.Chat, 12, CancellationToken.None))
+        var recent = (await _conversations.GetRecentAsync(_conversation.Mode, 12, CancellationToken.None))
             .Where(item => item.Id != _conversation.Id && !item.IsArchived)
             .ToArray();
         var panel = new StackPanel { Width = 330, Spacing = 3, Margin = new Thickness(8) };
@@ -1199,16 +1244,31 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private async Task SetStatusAsync(string status) =>
         await Dispatcher.UIThread.InvokeAsync(() => StatusText.Text = status);
 
-    private static Conversation CreateConversation()
+    private static Conversation CreateConversation(
+        HavenMode mode,
+        Guid? containerId = null,
+        Guid? lessonId = null)
     {
         var now = DateTimeOffset.UtcNow;
+        var kind = mode switch
+        {
+            HavenMode.Teach when lessonId is not null => ConversationKind.LessonChat,
+            HavenMode.Teach => ConversationKind.QuickChat,
+            HavenMode.Do => ConversationKind.Task,
+            HavenMode.Studio => ConversationKind.StudioChat,
+            _ => ConversationKind.Chat
+        };
+        if (mode == HavenMode.Teach && lessonId is null)
+        {
+            containerId = null;
+        }
         return new Conversation(
             Guid.NewGuid(),
-            HavenMode.Chat,
-            ConversationKind.Chat,
-            "New chat",
-            null,
-            null,
+            mode,
+            kind,
+            mode == HavenMode.Teach ? "New study chat" : mode == HavenMode.Do ? "New research" : "New chat",
+            containerId,
+            lessonId,
             false,
             false,
             now,

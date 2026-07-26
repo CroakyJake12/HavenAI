@@ -543,7 +543,15 @@ public sealed class CallCoordinator : ICallCoordinator
         }
 
         if (fatalError is not null)
-            await FailAsync(fatalError.Message).ConfigureAwait(false);
+        {
+            // A provider/model failure belongs to this turn, not to the lifetime of the
+            // voice session. Keep the microphone and call open so the user can retry,
+            // change the model, or continue typing instead of silently ending the call.
+            if (IsActive && State != CallState.Paused)
+                SetState(CallState.Listening, $"Message failed: {fatalError.Message} Â· call remains active");
+
+            throw new InvalidOperationException(fatalError.Message, fatalError);
+        }
     }
 
     /// <summary>

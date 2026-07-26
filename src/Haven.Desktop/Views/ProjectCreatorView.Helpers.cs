@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views;
 
@@ -13,6 +14,7 @@ public sealed partial class ProjectCreatorView
         foreach (var control in new Control[]
                 {
                     _promptBox,
+                    _templateSearchBox,
                     _projectNameBox,
                     _destinationBox,
                     _packageDescriptionBox,
@@ -22,7 +24,8 @@ public sealed partial class ProjectCreatorView
                     _approveButton,
                     _chooseDestinationButton,
                     _openFolderButton,
-                    _openProjectFileButton
+                    _openProjectFileButton,
+                    _detailsToggleButton
                 })
         {
             control.IsEnabled = enabled;
@@ -96,6 +99,29 @@ public sealed partial class ProjectCreatorView
             CornerRadius = new CornerRadius(9)
         };
         AutomationProperties.SetName(button, text);
+        return button;
+    }
+
+    private static Button IconButton(string iconKey, string automationName)
+    {
+        var button = new Button
+        {
+            Content = new HavenIcon
+            {
+                IconKey = iconKey,
+                Width = 24,
+                Height = 24,
+                Foreground = Brushes.Black
+            },
+            Width = 62,
+            Height = 62,
+            Padding = new Thickness(12),
+            CornerRadius = new CornerRadius(31),
+            Background = CardBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1)
+        };
+        AutomationProperties.SetName(button, automationName);
         return button;
     }
 

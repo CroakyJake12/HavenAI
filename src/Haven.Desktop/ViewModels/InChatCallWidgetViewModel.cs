@@ -3,6 +3,13 @@ using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+public sealed record VoiceTranscriptTurn(
+    Guid MessageId,
+    MessageRole Role,
+    string Content,
+    bool IsFinal,
+    bool WasInterrupted);
+
 /// <summary>
 /// Application-wide compact voice-call widget state. The shell owns one instance and
 /// attaches it to the currently active conversation without interrupting an active call.
@@ -12,6 +19,13 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     private readonly ICallCoordinator _callCoordinator;
     private readonly IConversationRepository _conversations;
     private Guid? _parentConversationId;
+    private ModelDescriptor? _selectedModel;
+    private CallAudioDevice? _selectedInputDevice;
+    private CallVoice? _selectedVoice;
+    private EffortLevel _effort = EffortLevel.Low;
+    private int _speechSpeedPercent = 100;
+    private string _typedTranscript = string.Empty;
+    private readonly List<VoiceTranscriptTurn> _transcriptTurns = [];
     private Conversation? _linkedCallConversation;
     private string _status = "Ready";
     private string _transcript = string.Empty;
@@ -40,9 +54,18 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
 
         OpenWidgetCommand = new AsyncRelayCommand(OpenWidgetAsync);
         CloseWidgetCommand = new AsyncRelayCommand(CloseWidgetAsync, () => CanClose);
-        StartCallCommand = new AsyncRelayCommand(StartCallAsync, () => !IsActive);
+        StartCallCommand = new AsyncRelayCommand(StartCallAsync, () => !IsActive && _selectedModel is not null);
         EndCallCommand = new AsyncRelayCommand(EndCallAsync, () => IsActive);
-        ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync, () => IsActive);
+        ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync);
+        ToggleScreenShareCommand = new AsyncRelayCommand(
+            ToggleScreenShareAsync,
+            () => IsActive && CanShareScreen);
+        SubmitTextCommand = new AsyncRelayCommand(
+            SubmitTextAsync,
+            () => IsActive && !string.IsNullOrWhiteSpace(TypedTranscript));
+
+        _selectedInputDevice = InputDevices.FirstOrDefault(item => item.IsDefault) ?? InputDevices.FirstOrDefault();
+        _selectedVoice = Voices.FirstOrDefault(item => item.IsDefault) ?? Voices.FirstOrDefault();
 
         _callCoordinator.StateChanged += OnCallStateChanged;
         _callCoordinator.TranscriptChanged += OnTranscriptChanged;
@@ -108,6 +131,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             StartCallCommand.RaiseCanExecuteChanged();
             EndCallCommand.RaiseCanExecuteChanged();
             ToggleMuteCommand.RaiseCanExecuteChanged();
+            ToggleScreenShareCommand.RaiseCanExecuteChanged();
+            SubmitTextCommand.RaiseCanExecuteChanged();
             CloseWidgetCommand.RaiseCanExecuteChanged();
         }
     }
@@ -124,6 +149,69 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _audioLevel, value);
     }
 
+    public IReadOnlyList<VoiceTranscriptTurn> TranscriptTurns => _transcriptTurns;
+
+    public IReadOnlyList<CallAudioDevice> InputDevices => _callCoordinator.Capabilities.InputDevices;
+    public IReadOnlyList<CallVoice> Voices => _callCoordinator.Capabilities.Voices;
+    public bool CanShareScreen => _callCoordinator.Capabilities.CanShareScreen;
+    public bool IsScreenSharing => _callCoordinator.IsScreenSharing;
+    public string ScreenShareStatus => IsScreenSharing
+        ? "Screen or app is being shared"
+        : CanShareScreen
+            ? "Choose a screen or app to share"
+            : _callCoordinator.Capabilities.ScreenShareUnavailableReason ?? "Screen sharing is unavailable";
+    public string SelectedModelName => _selectedModel?.Name ?? "No model available";
+
+    public CallAudioDevice? SelectedInputDevice
+    {
+        get => _selectedInputDevice;
+        set => SetProperty(ref _selectedInputDevice, value);
+    }
+
+    public CallVoice? SelectedVoice
+    {
+        get => _selectedVoice;
+        set => SetProperty(ref _selectedVoice, value);
+    }
+
+    public EffortLevel Effort
+    {
+        get => _effort;
+        set
+        {
+            if (SetProperty(ref _effort, value))
+            {
+                RaisePropertyChanged(nameof(ReasoningPercent));
+            }
+        }
+    }
+
+    public int ReasoningPercent => Effort switch
+    {
+        EffortLevel.Low => 25,
+        EffortLevel.Medium => 50,
+        EffortLevel.High => 75,
+        _ => 100
+    };
+
+    public int SpeechSpeedPercent
+    {
+        get => _speechSpeedPercent;
+        set => SetProperty(ref _speechSpeedPercent, Math.Clamp(value, 50, 200));
+    }
+
+    public string TypedTranscript
+    {
+        get => _typedTranscript;
+        set
+        {
+            if (SetProperty(ref _typedTranscript, value))
+            {
+                SubmitTextCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
     public bool CanClose => !IsActive;
     public bool IsStartButtonVisible => !IsActive;
     public bool IsEndButtonVisible => IsActive;
@@ -136,6 +224,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand StartCallCommand { get; }
     public AsyncRelayCommand EndCallCommand { get; }
     public AsyncRelayCommand ToggleMuteCommand { get; }
+    public AsyncRelayCommand ToggleScreenShareCommand { get; }
+    public AsyncRelayCommand SubmitTextCommand { get; }
 
     public event EventHandler<Guid>? CallLinked;
     public event EventHandler? CallEnded;
@@ -144,6 +234,14 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     {
         _parentConversationId = conversationId;
         RaisePropertyChanged(nameof(ParentConversationId));
+    }
+
+    public void AttachConversation(Guid? conversationId, ModelDescriptor? selectedModel)
+    {
+        _selectedModel = selectedModel;
+        RaisePropertyChanged(nameof(SelectedModelName));
+        StartCallCommand.RaiseCanExecuteChanged();
+        AttachConversation(conversationId);
     }
 
     public void Open()
@@ -182,21 +280,24 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (_selectedModel is null)
+        {
+            Status = "No compatible model is available";
+            return;
+        }
+
         IsOpen = true;
+        var startMuted = IsMuted;
         Status = "Connecting…";
 
         try
         {
             var result = await _callCoordinator.StartAsync(
                 new CallStartOptions(
-                    Model: new ModelDescriptor(
-                        "default",
-                        0,
-                        "unknown",
-                        string.Empty,
-                        string.Empty,
-                        new HashSet<ToolCapability>(),
-                        DateTimeOffset.UtcNow)),
+                    Model: _selectedModel,
+                    InputDeviceId: SelectedInputDevice?.Id,
+                    VoiceName: SelectedVoice?.Name,
+                    Effort: Effort),
                 null,
                 CancellationToken.None);
 
@@ -211,9 +312,16 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                 CancellationToken.None);
 
             Transcript = string.Empty;
+            _transcriptTurns.Clear();
+            RaisePropertyChanged(nameof(TranscriptTurns));
             CallSummary = null;
             IsActive = true;
             Status = "Active";
+            if (startMuted)
+            {
+                await _callCoordinator.SetMutedAsync(true, CancellationToken.None);
+                IsMuted = true;
+            }
             CallLinked?.Invoke(this, result.ConversationId);
         }
         catch (OperationCanceledException)
@@ -241,6 +349,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             IsActive = false;
             IsMuted = false;
             AudioLevel = 0;
+            RaisePropertyChanged(nameof(IsScreenSharing));
+            RaisePropertyChanged(nameof(ScreenShareStatus));
             Status = "Ended";
             CallSummary = "Call ended.";
             CallEnded?.Invoke(this, EventArgs.Empty);
@@ -259,12 +369,71 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     {
         if (!IsActive)
         {
+            IsMuted = !IsMuted;
             return;
         }
 
         var next = !IsMuted;
         await _callCoordinator.SetMutedAsync(next, CancellationToken.None);
         IsMuted = next;
+    }
+
+    private async Task ToggleScreenShareAsync()
+    {
+        if (!IsActive || !CanShareScreen)
+        {
+            return;
+        }
+
+        Status = IsScreenSharing ? "Stopping share…" : "Choosing what to share…";
+        try
+        {
+            if (IsScreenSharing)
+            {
+                await _callCoordinator.StopScreenShareAsync(CancellationToken.None);
+            }
+            else
+            {
+                await _callCoordinator.StartScreenShareAsync(CancellationToken.None);
+            }
+
+            RaisePropertyChanged(nameof(IsScreenSharing));
+            RaisePropertyChanged(nameof(ScreenShareStatus));
+            ToggleScreenShareCommand.RaiseCanExecuteChanged();
+            Status = "Active";
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Active";
+        }
+        catch (Exception exception)
+        {
+            Status = $"Share error: {exception.Message}";
+        }
+    }
+
+    private async Task SubmitTextAsync()
+    {
+        var text = TypedTranscript.Trim();
+        if (!IsActive || text.Length == 0)
+        {
+            return;
+        }
+
+        TypedTranscript = string.Empty;
+        try
+        {
+            await _callCoordinator.SubmitTextAsync(text, CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            TypedTranscript = text;
+        }
+        catch (Exception exception)
+        {
+            TypedTranscript = text;
+            Status = $"Message error: {exception.Message}";
+        }
     }
 
     private void OnCallStateChanged(object? sender, CallStateChangedEventArgs args)
@@ -278,14 +447,20 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                     IsActive = false;
                     IsMuted = false;
                     AudioLevel = 0;
+                    RaisePropertyChanged(nameof(IsScreenSharing));
+                    RaisePropertyChanged(nameof(ScreenShareStatus));
                     Status = args.State == CallState.Error ? "Error" : "Ended";
                     CallSummary = "Call ended.";
                     CallEnded?.Invoke(this, EventArgs.Empty);
                     break;
 
                 default:
-                    Status = args.State.ToString();
+                    Status = args.Status;
                     IsActive = true;
+                    IsMuted = _callCoordinator.IsMuted;
+                    RaisePropertyChanged(nameof(IsScreenSharing));
+                    RaisePropertyChanged(nameof(ScreenShareStatus));
+                    ToggleScreenShareCommand.RaiseCanExecuteChanged();
                     break;
             }
         });
@@ -295,7 +470,32 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            Transcript = args.IsDelta ? Transcript + args.Text : args.Text;
+            var index = _transcriptTurns.FindIndex(turn => turn.MessageId == args.MessageId);
+            if (index < 0)
+            {
+                _transcriptTurns.Add(new VoiceTranscriptTurn(
+                    args.MessageId,
+                    args.Role,
+                    args.Text,
+                    args.IsFinal,
+                    args.WasInterrupted));
+            }
+            else
+            {
+                var current = _transcriptTurns[index];
+                var content = args.IsDelta ? current.Content + args.Text : args.Text;
+                _transcriptTurns[index] = current with
+                {
+                    Content = content,
+                    IsFinal = args.IsFinal,
+                    WasInterrupted = args.WasInterrupted
+                };
+            }
+
+            Transcript = string.Join(
+                Environment.NewLine,
+                _transcriptTurns.Select(turn => turn.Content));
+            RaisePropertyChanged(nameof(TranscriptTurns));
         });
     }
 

@@ -19,7 +19,6 @@ public enum HavenSurface
     Home,
     Chat,
     Teach,
-    Call,
     Do,
     Studio,
     Browse,

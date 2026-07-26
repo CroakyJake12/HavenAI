@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views.Shell.NativePresentation;
 
@@ -17,37 +18,31 @@ internal sealed partial class NativeProjectsPage
 
     private Control BuildLayout()
     {
-        var title = Heading("Projects", 32);
-        var subtitle = new TextBlock
-        {
-            Text = "Your active workspaces, recent activity, and the next useful step.",
-            Foreground = MutedBrush,
-            FontSize = 15,
-            Margin = new Thickness(0, 3, 0, 0)
-        };
+        var title = Heading("Projects", 38);
+        title.HorizontalAlignment = HorizontalAlignment.Center;
 
-        var headerText = new StackPanel
+        var searchHost = new Grid
         {
-            Spacing = 0,
-            Children = { title, subtitle }
-        };
-
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { _searchBox, _refreshButton, _newProjectButton }
-        };
-
-        var header = new Grid
-        {
+            MaxWidth = 1000,
+            HorizontalAlignment = HorizontalAlignment.Center,
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(0, 0, 0, 26)
+            Margin = new Thickness(0, 22, 0, 22)
         };
-        header.Children.Add(headerText);
-        Grid.SetColumn(actions, 1);
-        header.Children.Add(actions);
+        searchHost.Children.Add(_searchBox);
+        searchHost.Children.Add(new HavenIcon
+        {
+            IconKey = "search",
+            Width = 25,
+            Height = 25,
+            Margin = new Thickness(18, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+            Opacity = 0.78
+        });
+        Grid.SetColumn(_refreshButton, 1);
+        _refreshButton.Margin = new Thickness(10, 6, 0, 6);
+        searchHost.Children.Add(_refreshButton);
 
         var pinnedSection = new StackPanel
         {
@@ -55,24 +50,41 @@ internal sealed partial class NativeProjectsPage
             Children = { _pinnedHeading, _pinnedPanel }
         };
 
+        var unreadSection = new StackPanel
+        {
+            Spacing = 12,
+            Margin = new Thickness(0, 26, 0, 0),
+            Children = { _unreadHeading, _unreadPanel }
+        };
+
         var allSection = new StackPanel
         {
             Spacing = 12,
-            Margin = new Thickness(0, 24, 0, 0),
+            Margin = new Thickness(0, 26, 0, 0),
             Children = { _projectHeading, _projectPanel, _emptyState }
+        };
+
+        var createHost = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 38, 0, 8),
+            Child = _newProjectButton
         };
 
         var content = new StackPanel
         {
             Spacing = 0,
-            MaxWidth = 1320,
+            MaxWidth = 1380,
             HorizontalAlignment = HorizontalAlignment.Center,
             Children =
             {
-                header,
+                title,
+                searchHost,
                 pinnedSection,
+                unreadSection,
                 allSection,
-                _status
+                _status,
+                createHost
             }
         };
 
@@ -82,7 +94,7 @@ internal sealed partial class NativeProjectsPage
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = new Border
             {
-                Padding = new Thickness(42, 34, 42, 54),
+                Padding = new Thickness(38, 36, 38, 42),
                 Child = content
             }
         };
@@ -126,52 +138,6 @@ internal sealed partial class NativeProjectsPage
                     }
                 }
             }
-        };
-    }
-
-    private Control BuildPinnedRow(ProjectRow row)
-    {
-        var open = LinkButton(row.Name);
-        open.HorizontalAlignment = HorizontalAlignment.Left;
-        open.Click += async (_, _) => await OpenProjectAsync(row);
-
-        var unread = new Border
-        {
-            Background = CyanBrush,
-            Width = 8,
-            Height = 8,
-            CornerRadius = new CornerRadius(4),
-            VerticalAlignment = VerticalAlignment.Center,
-            IsVisible = row.IsUnread
-        };
-
-        var content = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            Children =
-            {
-                unread,
-                open,
-                new TextBlock
-                {
-                    Text = FormatActivity(row.UpdatedAt),
-                    Foreground = MutedBrush,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    FontSize = 12
-                }
-            }
-        };
-        Grid.SetColumn(open, 1);
-        Grid.SetColumn(content.Children[2], 2);
-
-        return new Border
-        {
-            Background = CardBrush,
-            BorderBrush = BorderBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(14, 10),
-            Child = content
         };
     }
 
@@ -222,6 +188,30 @@ internal sealed partial class NativeProjectsPage
         };
         return button;
     }
+
+    private static Button IconButton(string icon, string accessibleName)
+    {
+        var button = new Button
+        {
+            Width = 52,
+            Height = 52,
+            Padding = new Thickness(14),
+            CornerRadius = new CornerRadius(16),
+            Background = CardBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            Content = new HavenIcon { IconKey = icon, Width = 20, Height = 20 }
+        };
+        AutomationProperties.SetName(button, accessibleName);
+        return button;
+    }
+
+    private static WrapPanel ProjectTilePanel() => new()
+    {
+        Orientation = Orientation.Horizontal,
+        ItemWidth = 254,
+        ItemHeight = 190
+    };
 
     private static Button LinkButton(string text) =>
         new()

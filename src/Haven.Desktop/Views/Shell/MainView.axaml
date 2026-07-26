@@ -28,6 +28,14 @@
                              IsVisible="True"
                              Margin="0,0,10,0"/>
 
+            <!-- New Haven owns a separate code-behind sidebar. The shell only
+                 supplies a named host; no Classic sidebar visuals participate. -->
+            <ContentControl x:Name="NativeSidebarHost"
+                            Grid.Column="0"
+                            Width="286"
+                            IsVisible="False"
+                            Margin="0,0,10,0"/>
+
             <!-- Content area -->
             <Grid Grid.Column="1">
                 <Border x:Name="ContentArea"
@@ -127,6 +135,13 @@
                         </Grid>
                     </Grid>
                 </Border>
+
+                <!-- New Haven overlays remain in the MainView visual tree. A named
+                     code-behind host prevents Popup top-levels from escaping the
+                     rounded workspace frame while keeping all behavior binding-free. -->
+                <Grid x:Name="NativeOverlayLayer"
+                      Panel.ZIndex="20"
+                      ClipToBounds="True"/>
 
                 <!-- Overlay host -->
                 <Border x:Name="OverlayHost"

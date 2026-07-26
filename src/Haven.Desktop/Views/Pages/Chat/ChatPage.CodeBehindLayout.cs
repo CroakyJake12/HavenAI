@@ -163,20 +163,6 @@ public sealed partial class ChatPage
         modelButton.Classes.Add("chip");
         modelButton.Click += (_, _) => ShowFinalModelMenu(modelButton);
 
-        var voiceButton = new Button
-        {
-            Content = "Voice session",
-            Padding = new Thickness(12, 6)
-        };
-        voiceButton.Classes.Add("chip");
-        voiceButton.Click += (_, _) =>
-        {
-            this.GetVisualAncestors()
-                .OfType<MainView>()
-                .FirstOrDefault()
-                ?.OpenVoiceSession();
-        };
-
         var title = new TextBlock
         {
             Text = "Chat",
@@ -190,7 +176,7 @@ public sealed partial class ChatPage
             Orientation = Orientation.Horizontal,
             Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Children = { voiceButton, modelButton }
+            Children = { modelButton }
         };
 
         var header = new Grid

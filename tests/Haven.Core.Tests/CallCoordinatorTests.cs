@@ -84,6 +84,30 @@ public sealed class CallCoordinatorTests
         Assert.Contains("already active", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task FailedTypedTurnKeepsCallActiveForRetry()
+    {
+        var calls = new MemoryCallRepository();
+        var ollama = new FakeOllamaClient([]) { ThrowOnStream = true };
+        await using var coordinator = new CallCoordinator(
+            calls,
+            new MemoryConversationRepository(),
+            ollama,
+            new FakeSpeechInput(),
+            new FakeSpeechOutput(),
+            new FakeScreenShare());
+        var session = await coordinator.StartAsync(
+            new CallStartOptions(Model()), null, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            coordinator.SubmitTextAsync("Keep this call open", CancellationToken.None));
+
+        Assert.True(coordinator.IsActive);
+        Assert.Equal(CallState.Listening, coordinator.State);
+        Assert.Equal(CallSessionStatus.Active, calls.Items[session.Id].Status);
+        Assert.Null(calls.Items[session.Id].EndedAt);
+    }
+
     /// <summary>
     /// Performs the interrupt cancels generation and persists only marked partial transcript step owned by this component.
     /// </summary>
@@ -389,6 +413,7 @@ public sealed class CallCoordinatorTests
         /// Gets or updates wait after first chunk, the bindable or domain state represented by this property.
         /// </summary>
         public bool WaitAfterFirstChunk { get; set; }
+        public bool ThrowOnStream { get; set; }
         /// <summary>
         /// Gets or updates first chunk, the bindable or domain state represented by this property.
         /// </summary>
@@ -412,6 +437,9 @@ public sealed class CallCoordinatorTests
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             LastRequest = request;
+            if (ThrowOnStream)
+                throw new InvalidOperationException("Provider request failed.");
+
             for (var index = 0; index < chunks.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();

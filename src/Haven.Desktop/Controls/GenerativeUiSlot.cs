@@ -277,7 +277,6 @@ public sealed class GenerativeUiSlot : StackPanel
             "new-chat" => shell.NewChatCommand,
             "chat" => shell.NavigateChatCommand,
             "teach" => shell.NavigateTeachCommand,
-            "call" => shell.NavigateCallCommand,
             "do" => shell.NavigateDoCommand,
             "studio" => shell.NavigateStudioCommand,
             "browse" => shell.NavigateBrowserCommand,

@@ -103,6 +103,19 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
     }
 
     /// <summary>
+    /// Deletes a mode and its cascading versions, grants, pins, and usage records by key.
+    /// </summary>
+    public async Task DeleteModeByKeyAsync(string key, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM mode_definitions WHERE lower(key)=lower($key);";
+        command.Parameters.AddWithValue("$key", key.Trim());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Retrieves versions async for the current operation.
     /// </summary>
     public async Task<IReadOnlyList<ModeVersion>> GetVersionsAsync(Guid modeId, CancellationToken cancellationToken)

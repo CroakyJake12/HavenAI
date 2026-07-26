@@ -78,6 +78,46 @@ public sealed class ComputerToolRuntimeTests
         Assert.Equal(fullSnapshot, result.Output);
     }
 
+    [Fact]
+    public async Task ComputerUseSessionPauseAndStopGateRealOperations()
+    {
+        using var controller = new ComputerUseSessionController();
+        using var session = controller.BeginSession();
+
+        controller.TogglePause();
+        var wait = controller.WaitIfPausedAsync(CancellationToken.None);
+
+        Assert.True(controller.State.IsPaused);
+        Assert.False(wait.IsCompleted);
+
+        controller.TogglePause();
+        await wait;
+        controller.Stop();
+
+        Assert.False(controller.State.IsActive);
+        Assert.True(controller.StopToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task ComputerClickPublishesVirtualCursorWithoutOwningPhysicalPointerState()
+    {
+        using var controller = new ComputerUseSessionController();
+        using var pass = new ComputerToolRuntime(new RecordingComputerTools(), controller).CreatePass();
+
+        var result = await pass.ExecuteAsync(Call("computer_click", new
+        {
+            window_title = "Calculator",
+            x = 480,
+            y = 320,
+            button = "left"
+        }), CancellationToken.None);
+
+        Assert.True(result.Activity.Succeeded);
+        Assert.True(controller.State.IsActive);
+        Assert.Equal(480, controller.State.CursorX);
+        Assert.Equal(320, controller.State.CursorY);
+    }
+
     /// <summary>
     /// Performs the call step owned by this component.
     /// </summary>

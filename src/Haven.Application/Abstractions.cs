@@ -303,6 +303,7 @@ public interface IModeRegistry
     Task<ModeDefinition?> GetModeByKeyAsync(string key, CancellationToken cancellationToken);
     Task<ModeDefinition?> GetModeByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpsertModeAsync(ModeDefinition mode, CancellationToken cancellationToken);
+    Task DeleteModeByKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<IReadOnlyList<ModeVersion>> GetVersionsAsync(Guid modeId, CancellationToken cancellationToken);
     Task AddVersionAsync(ModeVersion version, CancellationToken cancellationToken);
     Task<IReadOnlyList<ModePermissionGrant>> GetGrantsAsync(Guid modeId, CancellationToken cancellationToken);

@@ -48,6 +48,7 @@ public static class MainWindowModeNavigationExtensions
                 ClearModeProfile(shell.CurrentChat);
                 return;
             case "do":
+            case "research":
                 await shell.NavigateDoCommand.ExecuteAsync();
                 ClearModeProfile(shell.CurrentChat);
                 return;
@@ -63,9 +64,6 @@ public static class MainWindowModeNavigationExtensions
                 return;
             case "training":
                 shell.NavigateTrainingCommand.Execute(null);
-                return;
-            case "call":
-                await shell.NavigateCallCommand.ExecuteAsync();
                 return;
         }
 

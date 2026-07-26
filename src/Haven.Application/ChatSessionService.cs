@@ -45,7 +45,7 @@ public sealed class ChatSessionService(
         PermissionMode commandPermission,
         PermissionMode browserPermission)
     {
-        var computerPass = computerTools.CreatePass();
+        using var computerPass = computerTools.CreatePass();
         return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
             computerPass.Definitions);
     }
@@ -186,7 +186,7 @@ public sealed class ChatSessionService(
             ?? model;
         etaModel = turnModel;
 
-        var computerPassCandidate = computerTools.CreatePass();
+        using var computerPassCandidate = computerTools.CreatePass();
         var availabilityPlan = CreateAvailabilityPlan(
             conversation.Mode,
             workspaceRoot,

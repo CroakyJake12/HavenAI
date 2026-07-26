@@ -42,7 +42,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private static readonly HashSet<string> FixedModeKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "chat", "teach", "do", "studio", "call", "plan", "browse"
+        "chat", "teach", "research", "studio", "plan", "browse"
     };
 
     /// <summary>
@@ -237,7 +237,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                                             new TextBlock { Text = "Choose an experience or pin up to six modes", FontSize = 24, FontWeight = FontWeight.SemiBold },
                                             new TextBlock
                                             {
-                                                Text = "Chat, Teach and Do share one Chat experience menu because they use the same conversation workspace. Home always remains fixed above every configurable item.",
+                                                Text = "Chat, Study and Research live inside one Chat experience because they share the same conversation workspace. Home always remains fixed above every configurable item.",
                                                 Classes = { "muted" },
                                                 FontSize = 11,
                                                 TextWrapping = TextWrapping.Wrap
@@ -326,12 +326,8 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _experienceButtons.Children.Clear();
         _pinnedButtons.Children.Clear();
 
-        _experienceButtons.Children.Add(GroupButton("▰", "Chat, Teach and Do", "ExperienceChatButton", BuiltIn("chat", "teach", "do")));
+        _experienceButtons.Children.Add(GroupButton("▰", "Chat", "ExperienceChatButton", BuiltIn("chat", "teach", "research")));
         _experienceButtons.Children.Add(GroupButton("⌘", "Studio", "ExperienceStudioButton", BuiltIn("studio")));
-        _experienceButtons.Children.Add(DirectButton("☎", "Call", "ExperienceCallButton", async () =>
-        {
-            if (_shell is not null) await _shell.NavigateCallCommand.ExecuteAsync();
-        }));
         _experienceButtons.Children.Add(PlanButton());
         _experienceButtons.Children.Add(DirectButton("◉", "Browse", "ExperienceBrowseButton", () =>
         {
@@ -673,7 +669,6 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 "ExperienceHomeButton" => _shell.CurrentSurface == HavenSurface.Home,
                 "ExperienceChatButton" => _shell.CurrentSurface is HavenSurface.Chat or HavenSurface.Teach or HavenSurface.Do,
                 "ExperienceStudioButton" => _shell.CurrentSurface == HavenSurface.Studio,
-                "ExperienceCallButton" => _shell.CurrentSurface == HavenSurface.Call,
                 "ExperiencePlanButton" => _shell.CurrentSurface == HavenSurface.Plan,
                 "ExperienceBrowseButton" => _shell.CurrentSurface == HavenSurface.Browse,
                 _ when button.Name?.StartsWith("PinnedMode_", StringComparison.Ordinal) == true => IsPinnedModeActive(button.Name[11..]),

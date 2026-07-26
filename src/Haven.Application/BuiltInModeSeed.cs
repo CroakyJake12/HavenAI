@@ -29,13 +29,13 @@ public sealed class BuiltInModeSeed
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000002"),
-            "teach", "Teach", "Structured lessons and knowledge checks", "book",
+            "teach", "Study", "Structured lessons and knowledge checks", "book",
             HavenMode.Teach, "[\"Teach\"]", "[]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000003"),
-            "do", "Do", "Task completion with approvals and audit trail", "rocket",
+            "research", "Research", "Source-driven investigation, comparison and reporting", "search",
             HavenMode.Do, "[\"Do\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\",\"Macro\"]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
@@ -61,12 +61,6 @@ public sealed class BuiltInModeSeed
             Guid.Parse("a0000000-0000-0000-0000-000000000007"),
             "training", "Training", "Autonomous agent sessions with scoring", "target",
             HavenMode.Do, "[\"Training\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
-            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
-            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
-        new ModeDefinition(
-            Guid.Parse("a0000000-0000-0000-0000-000000000008"),
-            "call", "Call", "Voice conversations with local models", "phone",
-            HavenMode.Chat, "[\"Chat\"]", "[]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
