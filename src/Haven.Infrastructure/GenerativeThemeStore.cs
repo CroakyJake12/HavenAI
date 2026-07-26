@@ -311,7 +311,7 @@ public sealed class GenerativeThemeStore(
             var initial = new GenerativeThemeSelection(
                 SelectionSchemaVersion,
                 BuiltInThemes.Default.Id,
-                GenerativeThemeAppearance.Light,
+                GenerativeThemeAppearance.Dark,
                 DateTimeOffset.UtcNow);
             await WriteAtomicJsonAsync(_selectionPath, initial, cancellationToken).ConfigureAwait(false);
             return initial;
@@ -337,7 +337,7 @@ public sealed class GenerativeThemeStore(
             var fallback = new GenerativeThemeSelection(
                 SelectionSchemaVersion,
                 BuiltInThemes.Default.Id,
-                GenerativeThemeAppearance.Light,
+                GenerativeThemeAppearance.Dark,
                 DateTimeOffset.UtcNow);
             await WriteAtomicJsonAsync(_selectionPath, fallback, cancellationToken).ConfigureAwait(false);
             return fallback;
