@@ -94,6 +94,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISpeechOutputService, SystemSpeechOutputService>();
         services.AddSingleton<IScreenShareService, UnsupportedScreenShareService>();
         services.AddHttpClient<ISpeechModelManager, WhisperModelManager>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddSingleton<CallOptimizedOllamaClient>();
         services.AddSingleton<CallCoordinator>();
         services.AddSingleton<ResponsiveCallCoordinator>();
         services.AddSingleton<ICallCoordinator>(provider => provider.GetRequiredService<ResponsiveCallCoordinator>());
