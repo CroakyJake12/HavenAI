@@ -42,7 +42,7 @@ public sealed class SafeGenerativeThemeStore(
               ?? throw new InvalidDataException("Haven has no built-in Generative UI theme available for selection recovery.");
         var repairedAppearance = validAppearance
             ? selection.Appearance
-            : GenerativeThemeAppearance.Light;
+            : GenerativeThemeAppearance.Dark;
 
         await inner.SelectAsync(
             repairedTheme,
