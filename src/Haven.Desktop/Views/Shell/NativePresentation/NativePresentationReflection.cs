@@ -141,7 +141,7 @@ internal static class NativePresentationReflection
 
     public static DateTimeOffset? Timestamp(object? target, params string[] names)
     {
-        var text = Get(target, names);
+        var value = Get(target, names);
         return value switch
         {
             DateTimeOffset timestamp => timestamp,
@@ -153,7 +153,7 @@ internal static class NativePresentationReflection
 
     public static bool Boolean(object? target, bool fallback, params string[] names)
     {
-        var text = Get(target, names);
+        var value = Get(target, names);
         return value switch
         {
             bool flag => flag,
@@ -243,7 +243,7 @@ internal static class NativePresentationReflection
     {
         foreach (var name in names)
         {
-            var text = Get(target, name);
+            var value = Get(target, name);
             var items = Enumerate(value).ToArray();
             if (items.Length > 0)
             {
