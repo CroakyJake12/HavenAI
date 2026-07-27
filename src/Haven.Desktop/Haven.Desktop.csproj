@@ -37,4 +37,31 @@
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="Styles\**\*.axaml" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Interface\Overlay\" />
+    <Folder Include="Interface\Pages\Data\" />
+    <Folder Include="Interface\Pages\Configure\" />
+    <Folder Include="Interface\Pages\Imagine\" />
+    <Folder Include="Interface\Pages\Browse\" />
+    <Folder Include="Interface\Pages\Translate\" />
+    <Folder Include="Interface\Pages\Vision\" />
+    <Folder Include="Interface\Pages\Play\" />
+    <Folder Include="Interface\Pages\Planner\" />
+    <Folder Include="Interface\Pages\Tasks\" />
+    <Folder Include="Interface\Pages\Optimise\" />
+    <Folder Include="Interface\Pages\Present\" />
+    <Folder Include="Interface\Pages\Write\" />
+    <Folder Include="Interface\Pages\Studio\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Interface\Pages\Chat\Chat.axaml.cs">
+      <DependentUpon>Chat.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Interface\Pages\Go\Go.axaml.cs">
+      <DependentUpon>Go.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Interface\Pages\Home\Dashboard.axaml.cs">
+      <DependentUpon>Dashboard.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 </Project>

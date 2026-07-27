@@ -1,6 +1,6 @@
 /*
  * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/Controls/NotesHtmlPreviewControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * Where: src/Haven.OldHaven/Controls/NotesHtmlPreviewControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
  * What: This file owns NotesHtmlPreviewControl. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.

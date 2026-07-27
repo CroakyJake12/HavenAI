@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Haven.OldHaven.MainWindow"
+        Title="Haven Classic"
+        Width="1440" Height="920"
+        MinWidth="1050" MinHeight="700"
+        Icon="/Assets/haven.ico"
+        RequestedThemeVariant="Dark">
+    <TextBlock Text="Haven Classic - Coming Soon" 
+               HorizontalAlignment="Center" 
+               VerticalAlignment="Center"
+               FontSize="24" />
+</Window>

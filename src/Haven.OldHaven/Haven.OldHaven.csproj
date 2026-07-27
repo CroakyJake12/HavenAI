@@ -17,6 +17,7 @@
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
     <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <ProjectReference Include="..\Haven.Desktop\Haven.Desktop.csproj" />
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />

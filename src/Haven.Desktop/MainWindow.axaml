@@ -6,8 +6,16 @@
         Width="1440" Height="920"
         MinWidth="1050" MinHeight="700"
         Icon="/Assets/haven.ico"
-        Background="#F1F8E9"
         RequestedThemeVariant="Light">
+	
+	<Window.Background>
+		<LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+			<GradientStop Color="#FFFFFFFF" Offset="0" />
+			<GradientStop Color="#FFF8FFF9" Offset="0.42" />
+			<GradientStop Color="#FFCBFFD3" Offset="0.84" />
+			<GradientStop Color="#FFBEFAF8" Offset="1" />
+		</LinearGradientBrush>
+	</Window.Background>
 
     <ContentControl x:Name="MainContent"/>
 
