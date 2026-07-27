@@ -1,34 +1,116 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Macros.MacrosPage"
              Loaded="OnLoaded">
 
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel MaxWidth="930" Margin="34,30" Spacing="18">
+  <Grid Background="#FFFFF2">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="34,28" Spacing="22">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+          <StackPanel>
+            <TextBlock Text="Haven Tasks" Classes="heading" FontSize="40" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="22" Margin="0,14,0,0">
+              <Button x:Name="RunTabButton" Content="Run" Background="Transparent" />
+              <Button x:Name="EditTabButton" Content="Edit" Background="Transparent" />
+            </StackPanel>
+          </StackPanel>
+          <Button Grid.Column="1" x:Name="RequestButton" Content="Run a One-Time Request" MinWidth="250" />
+          <Button Grid.Column="2" x:Name="CreateReusableButton" Content="+ Create a Re-Usable Task" Classes="accent" MinWidth="270" />
+        </Grid>
 
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel>
-          <TextBlock Text="Macros" Classes="heading" />
-          <TextBlock Text="Explicit, click-to-run reusable actions. Macros never run on a schedule." Classes="muted" />
+        <StackPanel x:Name="DashboardPanel" Spacing="22">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Manual Tasks" Classes="sectionHeading" />
+            <WrapPanel x:Name="ManualItemsPanel" Orientation="Horizontal" />
+          </StackPanel>
+
+          <StackPanel Spacing="10">
+            <TextBlock Text="Automatic Tasks" Classes="sectionHeading" />
+            <WrapPanel x:Name="AutomaticItemsPanel" Orientation="Horizontal" />
+          </StackPanel>
+
+          <TextBlock x:Name="EmptyText"
+                     Text="No reusable tasks yet. Create one to give Haven a repeatable set of instructions."
+                     Classes="muted" />
         </StackPanel>
-        <Button Grid.Column="1" x:Name="RefreshButton" Content="Refresh" />
+
+        <Border x:Name="EditorPanel" IsVisible="False" Classes="card" Padding="18">
+          <Grid ColumnDefinitions="360,*" ColumnSpacing="26">
+            <StackPanel Spacing="12">
+              <TextBlock x:Name="EditorTitle" Text="Create Task" FontSize="30" FontWeight="Bold" />
+              <TextBlock Text="Name" FontWeight="SemiBold" />
+              <TextBox x:Name="NameBox" PlaceholderText="Task Name" />
+              <TextBlock Text="Goal" FontWeight="SemiBold" />
+              <TextBox x:Name="GoalBox" PlaceholderText="Your Desired Outcome" />
+              <TextBlock Text="Rules" FontWeight="SemiBold" />
+              <TextBox x:Name="RulesBox"
+                       PlaceholderText="Define rules that must be followed."
+                       AcceptsReturn="True"
+                       MinHeight="110" />
+              <TextBlock Text="Type" FontWeight="SemiBold" />
+              <ComboBox x:Name="TypeBox" SelectedIndex="0">
+                <ComboBoxItem Content="Manual" />
+                <ComboBoxItem Content="Automatic" />
+              </ComboBox>
+              <StackPanel x:Name="TriggerPanel" IsVisible="False" Spacing="6">
+                <TextBlock Text="Trigger" FontWeight="SemiBold" />
+                <TextBox x:Name="TriggerBox"
+                         PlaceholderText="Time, location, connected API event, or another trigger"
+                         AcceptsReturn="True"
+                         MinHeight="70" />
+              </StackPanel>
+              <Button x:Name="TestButton" Content="Test Task" Classes="accent" />
+              <Button x:Name="ViewScriptButton" Content="View Action Script" />
+            </StackPanel>
+
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <TextBlock Text="Ask Haven to configure, test, or explain this task."
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" x:Name="DiscardButton" Content="Discard Changes" />
+                <Button Grid.Column="2" x:Name="SaveButton" Content="Save Changes" Classes="accent" />
+              </Grid>
+              <Border Grid.Row="1" Background="#FFFDF4" CornerRadius="18" Padding="18">
+                <StackPanel VerticalAlignment="Bottom" Spacing="8">
+                  <TextBlock Text="Haven" FontWeight="Bold" />
+                  <TextBlock x:Name="AssistantText"
+                             Text="Ask me anything about this task! I can configure the task, test it, and explain parts of the task."
+                             TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+              <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox x:Name="AssistantBox" PlaceholderText="Ask Haven Anything" />
+                <Button Grid.Column="1" x:Name="AssistantSendButton" Content="Send" Classes="accent" />
+              </Grid>
+            </Grid>
+          </Grid>
+        </Border>
+
+        <TextBlock x:Name="StatusText" Classes="muted" />
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border x:Name="ScriptOverlay"
+            IsVisible="False"
+            Background="#F7FFFFFF"
+            Margin="38"
+            CornerRadius="28"
+            Padding="24">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+        <TextBlock Text="Edit Script" HorizontalAlignment="Center" FontSize="34" FontWeight="Bold" />
+        <TextBox Grid.Row="1"
+                 x:Name="ScriptBox"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas"
+                 MinHeight="420" />
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+          <Button x:Name="DocumentationButton" Content="View Documentation" />
+          <Button Grid.Column="1" x:Name="CancelScriptButton" Content="Cancel" />
+          <Button Grid.Column="2" x:Name="SaveScriptButton" Content="Save" Classes="accent" />
+        </Grid>
       </Grid>
-
-      <Border Classes="card">
-        <StackPanel Spacing="8">
-          <TextBlock Text="Create macro" Classes="sectionHeading" />
-          <TextBox x:Name="NewNameBox" PlaceholderText="Name" />
-          <TextBox x:Name="NewDescriptionBox" PlaceholderText="Description" />
-          <TextBox x:Name="NewInstructionBox" PlaceholderText="Exact action to send to Haven" AcceptsReturn="True" MinHeight="80" />
-          <Button x:Name="CreateButton" Content="Create macro" Classes="accent" HorizontalAlignment="Left" />
-        </StackPanel>
-      </Border>
-
-      <StackPanel x:Name="ItemsPanel" Spacing="9" />
-
-      <TextBlock x:Name="StatusText" Classes="muted" />
-    </StackPanel>
-  </ScrollViewer>
-
+    </Border>
+  </Grid>
 </UserControl>
