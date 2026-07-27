@@ -70,17 +70,6 @@
                 <Button x:Name="AppsButton" Classes="icon compact" Width="42" Height="42" ToolTip.Tip="Apps">
                     <controls:HavenIcon IconKey="rocket" Width="18" Height="18"/>
                 </Button>
-                <Button x:Name="TasksButton"
-                        Classes="subtle"
-                        Width="88"
-                        Height="42"
-                        ToolTip.Tip="Open Haven Tasks"
-                        Click="OnTasksClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <controls:HavenIcon IconKey="tasks" Width="17" Height="17"/>
-                        <TextBlock Text="Tasks" FontWeight="ExtraBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
                 <Button x:Name="RecentButton" Classes="icon compact" Width="42" Height="42" ToolTip.Tip="Recent">
                     <controls:HavenIcon IconKey="clock" Width="18" Height="18"/>
                 </Button>
