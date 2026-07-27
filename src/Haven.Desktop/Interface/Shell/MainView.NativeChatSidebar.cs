@@ -6,9 +6,9 @@ public sealed partial class MainView
 {
     private NativeChatSidebar? _nativeChatSidebar;
 
-    private void InitialiseNativeChatSidebar()
+    private void InitialiseNativeChatSidebarP()
     {
-        _nativeChatSidebar = new NativeChatSidebar(
+        _nativeChatSidebar = new NativeChatSidebar 
             _conversations,
             _containers,
             OpenNativeConversationAsync,
@@ -16,7 +16,6 @@ public sealed partial class MainView
             OpenChatGroupAsync,
             SwitchNativeChatModeAsync);
 
-        TopRail.TasksRequested += (_, _) => OpenTasksDashboard();
         NativeSidebarHost.Content = _nativeChatSidebar;
     }
 }
