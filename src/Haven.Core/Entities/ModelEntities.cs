@@ -1,0 +1,82 @@
+namespace Haven.Core;
+
+/// <summary>
+/// Represents a model descriptor.
+/// </summary>
+public sealed record ModelDescriptor(
+    string Name,
+    long SizeBytes,
+    string Family,
+    string ParameterSize,
+    string Quantization,
+    IReadOnlySet<ToolCapability> Capabilities,
+    DateTimeOffset ModifiedAt)
+{
+    /// <summary>
+    /// Checks whether the model supports a capability.
+    /// </summary>
+    public bool Supports(ToolCapability capability) => Capabilities.Contains(capability);
+    /// <summary>
+    /// Human-readable size label.
+    /// </summary>
+    public string SizeLabel => FormatBytes(SizeBytes);
+    /// <summary>
+    /// Estimated RAM label.
+    /// </summary>
+    public string EstimatedRamLabel => $"Approx. {FormatBytes((long)(SizeBytes * 1.25))} RAM";
+
+    /// <summary>
+    /// Formats bytes into a human-readable string.
+    /// </summary>
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var value = (double)Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+        return $"{value:0.#} {units[unit]}";
+    }
+}
+
+/// <summary>
+/// Represents an active plugin.
+/// </summary>
+public sealed record ActivePlugin(string Name, string IconKey, bool Persists, string Instructions = "");
+/// <summary>
+/// Represents an active prompt.
+/// </summary>
+public sealed record ActivePrompt(string Name, string IconKey, bool Persists, string Instructions = "");
+
+/// <summary>
+/// Represents a capability requirement.
+/// </summary>
+public sealed record CapabilityRequirement(ToolCapability Capability, string Reason);
+
+/// <summary>
+/// Represents a capability preflight result.
+/// </summary>
+public sealed record CapabilityPreflightResult(
+    bool IsCompatible,
+    IReadOnlyList<CapabilityRequirement> Requirements,
+    IReadOnlyList<CapabilityRequirement> Missing,
+    ModelDescriptor? SuggestedModel)
+{
+    /// <summary>
+    /// Creates a compatible result.
+    /// </summary>
+    public static CapabilityPreflightResult Compatible(IReadOnlyList<CapabilityRequirement> requirements) =>
+        new(true, requirements, Array.Empty<CapabilityRequirement>(), null);
+}
+
+/// <summary>
+/// Represents tool activity.
+/// </summary>
+public sealed record ToolActivity(
+    Guid Id,
+    string Title,
+    string Detail,
+    bool Succeeded,
+    TimeSpan Duration,
+    DateTimeOffset Timestamp,
+    int LinesAdded = 0,
+    int LinesRemoved = 0);
