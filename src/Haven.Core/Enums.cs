@@ -12,7 +12,7 @@ namespace Haven.Core;
 /// <summary>
 /// Lists the supported haven mode values used to make state explicit and type-safe.
 /// </summary>
-public enum HavenMode { Chat = 0, Teach = 1, Do = 2, Studio = 3 }
+public enum HavenMode { Chat = 0, Teach = 1, Go = 2, Do = Go, Studio = 3 }
 /// <summary>
 /// Lists the supported duo mode values used to make state explicit and type-safe.
 /// </summary>
@@ -133,7 +133,7 @@ public enum ConversationPlacement { Auto = 0, Dock = 1, Floating = 2, Background
 /// <summary>
 /// Lists the supported surface kind values used to make state explicit and type-safe.
 /// </summary>
-public enum SurfaceKind { Chat = 0, Do = 1, Teach = 2, Studio = 3, Browse = 4, Plan = 5, Phone = 6, Dashboard = 7, Training = 8 }
+public enum SurfaceKind { Chat = 0, Go = 1, Do = Go, Teach = 2, Studio = 3, Browse = 4, Plan = 5, Phone = 6, Dashboard = 7, Training = 8 }
 /// <summary>
 /// Lists the supported intent classification values used to make state explicit and type-safe.
 /// </summary>
