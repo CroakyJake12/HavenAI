@@ -1,3 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: Directory.Build.props in the repository support layer.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

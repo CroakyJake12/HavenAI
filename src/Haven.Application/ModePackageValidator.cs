@@ -1,25 +1,49 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ModePackageValidator.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ModePackageValidator. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents mode package validator and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModePackageValidator : IModePackageValidator
 {
+    /// <summary>
+    /// Stores valid step kinds locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ValidStepKinds = new(StringComparer.OrdinalIgnoreCase)
     {
         "chat", "tool", "browser", "planner", "filesystem", "command", "condition", "parallel"
     };
 
+    /// <summary>
+    /// Stores valid ui layouts locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ValidUiLayouts = new(StringComparer.OrdinalIgnoreCase)
     {
         "chat", "dashboard", "wizard", "kanban", "list", "custom"
     };
 
+    /// <summary>
+    /// Stores reserved keys locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "chat", "teach", "do", "studio", "browse", "plan", "training", "home", "settings", "admin"
     };
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     public ModePackageValidationResult Validate(DeclarativeModeDefinition definition)
     {
         var errors = new List<string>();

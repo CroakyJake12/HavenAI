@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WindowsComputerToolService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WindowsComputerToolService, HavenForeground, HavenMouse, Rect, HavenClose, HavenWindow, Regexes. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -5,8 +14,14 @@ using Haven.Application;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents windows computer tool service and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class WindowsComputerToolService(IWorkspaceToolService processes) : IComputerToolService
 {
+    /// <summary>
+    /// Performs snapshot asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> SnapshotAsync(CancellationToken cancellationToken) => RunPowerShellAsync(
         """
         Add-Type -AssemblyName UIAutomationClient
@@ -14,6 +29,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         Add-Type @'
         using System;
         using System.Runtime.InteropServices;
+        /// <summary>
+        /// Represents haven foreground and keeps its related state and behavior together.
+        /// </summary>
         public static class HavenForeground { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); }
         '@
         $handle = [HavenForeground]::GetForegroundWindow()
@@ -38,10 +56,16 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         [pscustomobject]@{ windowTitle=$root.Current.Name; elements=$out } | ConvertTo-Json -Depth 4 -Compress
         """, TimeSpan.FromSeconds(45), cancellationToken);
 
+    /// <summary>
+    /// Performs list windows asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ListWindowsAsync(CancellationToken cancellationToken) => RunPowerShellAsync(
         "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Select-Object Id,ProcessName,MainWindowTitle | ConvertTo-Json -Depth 3 -Compress",
         TimeSpan.FromSeconds(20), cancellationToken);
 
+    /// <summary>
+    /// Performs launch app asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken)
     {
         var script = Utf8Variable("wanted", name) +
@@ -75,6 +99,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs focus window asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> FocusWindowAsync(string title, CancellationToken cancellationToken)
     {
         var script = Utf8Variable("title", title) + TargetWindowPrelude +
@@ -94,6 +121,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs invoke asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> InvokeAsync(string windowTitle, string name, string automationId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(automationId))
@@ -131,39 +161,73 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(25), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs click asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> ClickAsync(string windowTitle, int x, int y, string button, CancellationToken cancellationToken)
     {
         if (x < 0 || y < 0 || x > 100000 || y > 100000) throw new ArgumentOutOfRangeException(nameof(x), "Valid non-negative coordinates are required.");
         var normalized = button.Trim().ToLowerInvariant();
-        var flags = normalized switch { "right" => "0x0008,0x0010", "middle" => "0x0020,0x0040", _ => "0x0002,0x0004" };
-        var script = Utf8Variable("title", windowTitle) + TargetWindowPrelude + $"$x={x};$y={y};$flags=@({flags});" +
+        var messages = normalized switch
+        {
+            "right" => "$down=0x0204;$up=0x0205;$keyState=0x0002;",
+            "middle" => "$down=0x0207;$up=0x0208;$keyState=0x0010;",
+            _ => "$down=0x0201;$up=0x0202;$keyState=0x0001;"
+        };
+        var script = Utf8Variable("title", windowTitle) + TargetWindowPrelude + $"$x={x};$y={y};" + messages +
             """
+            Add-Type -AssemblyName UIAutomationClient
+            Add-Type -AssemblyName UIAutomationTypes
             Add-Type @'
             using System;
             using System.Runtime.InteropServices;
-            public static class HavenMouse {
-              [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-              [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
+            /// <summary>
+            /// Sends target-bound pointer messages without moving the user's physical cursor.
+            /// </summary>
+            public static class HavenVirtualPointer {
+              /// <summary>
+              /// Represents rect and keeps its related state and behavior together.
+              /// </summary>
               [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out Rect rect);
+              [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr handle, ref Point point);
+              [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam);
               public struct Rect { public int Left, Top, Right, Bottom; }
+              public struct Point { public int X, Y; }
             }
             '@
-            $rect = New-Object HavenMouse+Rect
-            [HavenMouse]::GetWindowRect($target.MainWindowHandle, [ref]$rect) | Out-Null
+            $rect = New-Object HavenVirtualPointer+Rect
+            [HavenVirtualPointer]::GetWindowRect($target.MainWindowHandle, [ref]$rect) | Out-Null
             if ($x -lt $rect.Left -or $x -gt $rect.Right -or $y -lt $rect.Top -or $y -gt $rect.Bottom) { throw 'Coordinates are outside the target window' }
             $shell = New-Object -ComObject WScript.Shell
             $shell.AppActivate($target.Id) | Out-Null
             [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
             Start-Sleep -Milliseconds 180
             if ([HavenWindow]::GetForegroundWindow() -ne $target.MainWindowHandle) { throw 'Target window was not foreground' }
-            [HavenMouse]::SetCursorPos($x, $y) | Out-Null
-            Start-Sleep -Milliseconds 100
-            $flags | ForEach-Object { [HavenMouse]::mouse_event([uint32]$_, 0, 0, 0, [UIntPtr]::Zero) }
-            [pscustomobject]@{ windowTitle=$target.MainWindowTitle; x=$x; y=$y } | ConvertTo-Json -Compress
+
+            $method = 'virtual-window-message'
+            $point = New-Object Windows.Point($x, $y)
+            $element = [System.Windows.Automation.AutomationElement]::FromPoint($point)
+            $pattern = $null
+            if ($element -and $element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+              ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+              $method = 'ui-automation-invoke'
+            } else {
+              $client = New-Object HavenVirtualPointer+Point
+              $client.X = $x
+              $client.Y = $y
+              if (![HavenVirtualPointer]::ScreenToClient($target.MainWindowHandle, [ref]$client)) { throw 'Could not translate the virtual pointer into the target window' }
+              $lParam = [IntPtr](($client.Y -shl 16) -bor ($client.X -band 0xFFFF))
+              [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$down, [IntPtr]$keyState, $lParam) | Out-Null
+              [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$up, [IntPtr]::Zero, $lParam) | Out-Null
+            }
+            [pscustomobject]@{ windowTitle=$target.MainWindowTitle; x=$x; y=$y; virtualCursor=$true; method=$method } | ConvertTo-Json -Compress
             """;
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs type asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> TypeAsync(string windowTitle, string text, CancellationToken cancellationToken)
     {
         if (text.Length == 0) throw new ArgumentException("text is required.", nameof(text));
@@ -183,6 +247,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs press asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> PressAsync(string windowTitle, string keys, CancellationToken cancellationToken)
     {
         var sequence = ToSendKeys(keys);
@@ -200,6 +267,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs close window asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<string> CloseWindowAsync(string title, CancellationToken cancellationToken)
     {
         var script = Utf8Variable("title", title) + TargetWindowPrelude +
@@ -208,6 +278,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             Add-Type @'
             using System;
             using System.Runtime.InteropServices;
+            /// <summary>
+            /// Represents haven close and keeps its related state and behavior together.
+            /// </summary>
             public static class HavenClose { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam); }
             '@
             [HavenClose]::PostMessage($target.MainWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
@@ -217,6 +290,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
     }
 
+    /// <summary>
+    /// Runs run power shell async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> RunPowerShellAsync(string script, TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Computer Use currently requires Windows.");
@@ -237,6 +313,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return result.StandardOutput.Trim();
     }
 
+    /// <summary>
+    /// Performs the clean power shell error step owned by this component.
+    /// </summary>
     private static string CleanPowerShellError(string value)
     {
         if (!value.Contains("CLIXML", StringComparison.OrdinalIgnoreCase))
@@ -254,12 +333,18 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             ?? "The Windows desktop action failed.";
     }
 
+    /// <summary>
+    /// Performs the utf8 variable step owned by this component.
+    /// </summary>
     private static string Utf8Variable(string name, string value)
     {
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
         return $"${name}=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}'));";
     }
 
+    /// <summary>
+    /// Performs the to send keys step owned by this component.
+    /// </summary>
     private static string ToSendKeys(string keys)
     {
         var normalized = keys.Trim().ToUpperInvariant().Replace(" ", string.Empty, StringComparison.Ordinal);
@@ -297,10 +382,16 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         return prefix + key;
     }
 
+    /// <summary>
+    /// Stores target window prelude locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const string TargetWindowPrelude = """
         Add-Type @'
         using System;
         using System.Runtime.InteropServices;
+        /// <summary>
+        /// Represents haven window and keeps its related state and behavior together.
+        /// </summary>
         public static class HavenWindow {
           [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr handle);
           [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr handle, int command);
@@ -321,8 +412,14 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         if (!$target) { throw 'Target window was not found' }
         """;
 
+    /// <summary>
+    /// Represents regexes and keeps its related state and behavior together.
+    /// </summary>
     private static partial class Regexes
     {
+        /// <summary>
+        /// Performs the function key step owned by this component.
+        /// </summary>
         [System.Text.RegularExpressions.GeneratedRegex(@"^F([1-9]|1[0-2])$")]
         public static partial System.Text.RegularExpressions.Regex FunctionKey();
     }

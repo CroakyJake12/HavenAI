@@ -1,9 +1,21 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ChatSessionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ChatSessionService, ChatStreamEvent, ChatStreamEventKind. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents chat session service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ChatSessionService(
     IConversationRepository conversations,
     IOllamaClient ollama,
@@ -12,8 +24,19 @@ public sealed class ChatSessionService(
     ComputerToolRuntime computerTools,
     BrowserToolRuntime? browserTools = null,
     AutomationToolRuntime? automationTools = null,
-    ToolAvailabilityPlanner? toolAvailability = null)
+    ToolAvailabilityPlanner? toolAvailability = null,
+    ChatModelInventoryCache? modelInventory = null)
 {
+    private readonly ChatModelInventoryCache _modelInventory =
+        modelInventory ?? new ChatModelInventoryCache(ollama);
+
+    public event Action<ChatExecutionSnapshot>? ExecutionChanged;
+
+    public ChatExecutionSnapshot? CurrentExecution { get; private set; }
+
+    /// <summary>
+    /// Retrieves tool availability for the current operation.
+    /// </summary>
     public ToolAvailabilityPlan GetToolAvailability(
         HavenMode mode,
         string? workspaceRoot,
@@ -22,11 +45,14 @@ public sealed class ChatSessionService(
         PermissionMode commandPermission,
         PermissionMode browserPermission)
     {
-        var computerPass = computerTools.CreatePass();
+        using var computerPass = computerTools.CreatePass();
         return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
             computerPass.Definitions);
     }
 
+    /// <summary>
+    /// Reports whether activate plugin applies to the current state.
+    /// </summary>
     public bool CanActivatePlugin(
         string pluginName,
         HavenMode mode,
@@ -37,6 +63,9 @@ public sealed class ChatSessionService(
         GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
             Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
 
+    /// <summary>
+    /// Performs send asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> SendAsync(
         Conversation conversation,
         string prompt,
@@ -56,9 +85,108 @@ public sealed class ChatSessionService(
         GenerationOptions? generationOptions = null,
         PermissionMode filePermission = PermissionMode.FullAccess,
         PermissionMode commandPermission = PermissionMode.FullAccess,
-        PermissionMode browserPermission = PermissionMode.FullAccess)
+        PermissionMode browserPermission = PermissionMode.FullAccess,
+        IReadOnlyCollection<ToolCapability>? explicitCapabilities = null)
     {
-        var computerPassCandidate = computerTools.CreatePass();
+        ModelDescriptor etaModel = model;
+
+        async Task<string?> EstimateEtaAsync(
+            ChatEtaRequest request,
+            CancellationToken token)
+        {
+            var activity = request.RecentActivity.Count == 0
+                ? "No completed steps yet."
+                : string.Join("; ", request.RecentActivity);
+            var etaPrompt =
+                $"Estimate the remaining time for this task. Current stage: {request.CurrentStatus}. " +
+                $"Elapsed: {Math.Max(1, (int)request.Elapsed.TotalMinutes)} minutes. " +
+                $"Recent activity: {activity}. " +
+                "Return exactly one clear duration such as '8 minutes', '45 minutes', or '2 hours'. " +
+                "Do not return a range, explanation, uncertainty, or refusal.";
+
+            return await ollama.CompleteAsync(
+                new OllamaChatRequest(
+                    etaModel.Name,
+                    [new OllamaMessage("user", etaPrompt)],
+                    effort,
+                    "Return one concrete remaining-time duration and nothing else."),
+                token).ConfigureAwait(false);
+        }
+
+        await using var execution = new ChatExecutionTracker(
+            ChatExecutionStage.Preparing,
+            EstimateEtaAsync);
+
+        void PublishExecution(ChatExecutionSnapshot snapshot)
+        {
+            CurrentExecution = snapshot;
+            ExecutionChanged?.Invoke(snapshot);
+        }
+
+        execution.Changed += PublishExecution;
+
+        var now = DateTimeOffset.UtcNow;
+        var userMessage = new ChatMessage(
+            Guid.NewGuid(),
+            conversation.Id,
+            MessageRole.User,
+            prompt,
+            null,
+            null,
+            null,
+            now);
+
+        // Yield before model discovery, context loading, or network preflight so the
+        // user's message is visible immediately.
+        yield return ChatStreamEvent.User(userMessage);
+
+        if (!conversation.IsTemporary)
+        {
+            await conversations.UpsertConversationAsync(
+                conversation with { UpdatedAt = now },
+                cancellationToken).ConfigureAwait(false);
+            await conversations.AddMessageAsync(
+                userMessage,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        execution.Update(ChatExecutionStage.LoadingModel, "Loading Model");
+        var installed = await _modelInventory.GetAsync(
+            forceRefresh: false,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        execution.Update(
+            ChatExecutionStage.SelectingCapabilities,
+            "Selecting Capabilities");
+
+        var selectedCapabilities = explicitCapabilities is { Count: > 0 }
+            ? explicitCapabilities.ToHashSet()
+            : CapabilitiesFromActivePlugins(plugins);
+        var capabilitySelection = ChatCapabilitySelection.Create(
+            prompt,
+            selectedCapabilities);
+        var requiredCapabilities = capabilitySelection.Required.ToHashSet();
+
+        if (images is { Count: > 0 })
+        {
+            requiredCapabilities.Add(ToolCapability.Vision);
+        }
+
+        var needsTools = NeedsToolRuntime(requiredCapabilities);
+        if (needsTools)
+        {
+            requiredCapabilities.Add(ToolCapability.Tools);
+            requiredCapabilities.Remove(ToolCapability.Streaming);
+        }
+
+        var turnModel = ChatModelFallbackSelector.Select(
+                model,
+                installed,
+                requiredCapabilities)
+            ?? model;
+        etaModel = turnModel;
+
+        using var computerPassCandidate = computerTools.CreatePass();
         var availabilityPlan = CreateAvailabilityPlan(
             conversation.Mode,
             workspaceRoot,
@@ -67,46 +195,78 @@ public sealed class ChatSessionService(
             commandPermission,
             browserPermission,
             computerPassCandidate.Definitions);
-        var availablePlugins = availabilityPlan.FilterPlugins(plugins);
-        var installed = await ollama.GetModelsAsync(cancellationToken).ConfigureAwait(false);
-        var check = preflight.Evaluate(model, availablePlugins, images is { Count: > 0 }, installed);
+
+        var modelPlan = availabilityPlan.RestrictToModel(turnModel);
+        var modelPlugins = FilterPluginsForTurn(
+            modelPlan.FilterPlugins(plugins),
+            requiredCapabilities);
+
+        var check = preflight.Evaluate(
+            turnModel,
+            modelPlugins,
+            images is { Count: > 0 },
+            installed);
+
         if (!check.IsCompatible)
         {
+            execution.Fail("Capability check failed", string.Join("; ", check.Missing.Select(item => item.Reason)));
+            execution.Changed -= PublishExecution;
             yield return ChatStreamEvent.Preflight(check);
             yield break;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var userMessage = new ChatMessage(Guid.NewGuid(), conversation.Id, MessageRole.User, prompt, null, null, null, now);
-        if (!conversation.IsTemporary)
-        {
-            await conversations.UpsertConversationAsync(conversation with { UpdatedAt = now }, cancellationToken).ConfigureAwait(false);
-            await conversations.AddMessageAsync(userMessage, cancellationToken).ConfigureAwait(false);
-        }
-        yield return ChatStreamEvent.User(userMessage);
+        var toolDefinitions = needsTools
+            ? modelPlan.Definitions
+                .Where(definition => IsToolSelectedForTurn(
+                    modelPlan,
+                    definition.Name,
+                    requiredCapabilities))
+                .ToArray()
+            : [];
 
-        var history = await conversations.GetContextMessagesAsync(conversation.Id, cancellationToken).ConfigureAwait(false);
-        var requestMessages = history
+        var computerPass = toolDefinitions.Any(definition =>
+                modelPlan.TryGetRuntime(definition.Name, out var runtime) &&
+                runtime == ToolRuntimeKind.Computer)
+            ? computerPassCandidate
+            : null;
+        var canUseTools = toolDefinitions.Length > 0;
+
+        execution.Update(ChatExecutionStage.LoadingContext, "Loading Context");
+        var history = await conversations.GetContextMessagesAsync(
+            conversation.Id,
+            cancellationToken).ConfigureAwait(false);
+
+        var contextBudget = (int)Math.Clamp(
+            (long)(generationOptions?.ContextLimit ?? 32768) * 4L,
+            8_000L,
+            131_072L);
+        var contextMessages = ChatContextWindow.Build(history, contextBudget);
+        var requestMessages = contextMessages
             .Where(message => message.Role is MessageRole.User or MessageRole.Assistant)
-            .Select(message => new OllamaMessage(message.Role == MessageRole.User ? "user" : "assistant", message.Content))
+            .Select(message => new OllamaMessage(
+                message.Role == MessageRole.User ? "user" : "assistant",
+                message.Content))
             .ToList();
-        if (images is { Count: > 0 } && requestMessages.Count > 0 && requestMessages[^1].Role == "user" && requestMessages[^1].Content == prompt)
-            requestMessages[^1] = new OllamaMessage("user", prompt, images);
-        else if (conversation.IsTemporary || requestMessages.Count == 0 || requestMessages[^1].Content != prompt)
-            requestMessages.Add(new OllamaMessage("user", prompt, images));
 
-        var modelPlan = availabilityPlan.RestrictToModel(model);
-        var modelPlugins = modelPlan.FilterPlugins(availablePlugins);
-        var toolDefinitions = modelPlan.Definitions;
-        var computerPass = modelPlan.HasRuntime(ToolRuntimeKind.Computer) ? computerPassCandidate : null;
-        var canUseTools = toolDefinitions.Count > 0;
+        if (requestMessages.Count == 0 ||
+            requestMessages[^1].Role != "user" ||
+            requestMessages[^1].Content != prompt)
+        {
+            requestMessages.Add(new OllamaMessage("user", prompt, images));
+        }
+        else if (images is { Count: > 0 })
+        {
+            requestMessages[^1] = new OllamaMessage("user", prompt, images);
+        }
+
         var system = BuildSystemPrompt(
             conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
             projectContext, projectInstructions, registeredContext, computerPass is not null);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
-        yield return ChatStreamEvent.AssistantStarted(assistantId, model.Name, agentName);
+        execution.Update(ChatExecutionStage.Thinking, "Thinking");
+        yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
 
         if (canUseTools)
         {
@@ -121,6 +281,10 @@ public sealed class ChatSessionService(
             {
                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
                 {
+                    execution.Update(
+                        StageForTool(call.Name, runtime),
+                        StatusForTool(call.Name),
+                        DescribeTool(call));
                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
                         return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
@@ -158,7 +322,7 @@ public sealed class ChatSessionService(
                 try
                 {
                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
-                        model.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
+                        turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
                 }
                 catch (HttpRequestException ex) when (IsUnsupportedToolSchema(ex))
                 {
@@ -169,7 +333,7 @@ public sealed class ChatSessionService(
                 {
                     bridgeAttempted = true;
                     var bridged = LooksLikeToolRequest(prompt)
-                        ? await TryBridgeToolCallAsync(ollama, model, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
+                        ? await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false)
                         : null;
                     if (bridged is not null)
                     {
@@ -199,7 +363,7 @@ public sealed class ChatSessionService(
                     if (!bridgeAttempted && callsUsed == 0 && LooksLikeToolRequest(prompt))
                     {
                         bridgeAttempted = true;
-                        var bridged = await TryBridgeToolCallAsync(ollama, model, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
+                        var bridged = await TryBridgeToolCallAsync(ollama, turnModel, effort, prompt, toolDefinitions, generationOptions, cancellationToken).ConfigureAwait(false);
                         if (bridged is not null)
                         {
                             callsUsed++;
@@ -248,17 +412,188 @@ public sealed class ChatSessionService(
         }
         else
         {
-            await foreach (var chunk in ollama.StreamChatAsync(new(model.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
+            var firstChunk = true;
+            await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
             {
+                if (firstChunk)
+                {
+                    execution.Update(ChatExecutionStage.Generating, "Writing Response");
+                    firstChunk = false;
+                }
+
                 buffer.Append(chunk);
                 yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
             }
         }
 
-        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, model.Name, null, DateTimeOffset.UtcNow);
+        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, null, DateTimeOffset.UtcNow);
         if (!conversation.IsTemporary)
             await conversations.AddMessageAsync(assistant, cancellationToken).ConfigureAwait(false);
+        execution.Complete();
+        execution.Changed -= PublishExecution;
         yield return ChatStreamEvent.AssistantCompleted(assistant);
+    }
+
+    /// <summary>
+    /// Creates availability plan with the invariants required by its callers.
+    /// </summary>
+    private static HashSet<ToolCapability> CapabilitiesFromActivePlugins(
+        IReadOnlyCollection<ActivePlugin> plugins)
+    {
+        var result = new HashSet<ToolCapability>();
+        foreach (var plugin in plugins)
+        {
+            switch (plugin.Name.ToLowerInvariant())
+            {
+                case "websearch":
+                    result.Add(ToolCapability.WebSearch);
+                    result.Add(ToolCapability.Browser);
+                    break;
+                case "browseruse":
+                    result.Add(ToolCapability.Browser);
+                    break;
+                case "computeruse":
+                    result.Add(ToolCapability.ComputerUse);
+                    break;
+                case "automate":
+                case "macro":
+                case "test":
+                    result.Add(ToolCapability.Tools);
+                    break;
+            }
+        }
+
+        return result;
+    }
+
+    private static bool NeedsToolRuntime(
+        IReadOnlySet<ToolCapability> capabilities) =>
+        capabilities.Contains(ToolCapability.Tools) ||
+        capabilities.Contains(ToolCapability.Browser) ||
+        capabilities.Contains(ToolCapability.WebSearch) ||
+        capabilities.Contains(ToolCapability.ComputerUse);
+
+    private static IReadOnlyCollection<ActivePlugin> FilterPluginsForTurn(
+        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlySet<ToolCapability> capabilities)
+    {
+        if (NeedsToolRuntime(capabilities))
+        {
+            return plugins;
+        }
+
+        return plugins
+            .Where(plugin => plugin.Name is not (
+                "Automate" or
+                "BrowserUse" or
+                "ComputerUse" or
+                "Macro" or
+                "Test" or
+                "WebSearch"))
+            .ToArray();
+    }
+
+    private static bool IsToolSelectedForTurn(
+        ToolAvailabilityPlan plan,
+        string toolName,
+        IReadOnlySet<ToolCapability> capabilities)
+    {
+        if (!plan.TryGetRuntime(toolName, out var runtime))
+        {
+            return false;
+        }
+
+        return runtime switch
+        {
+            ToolRuntimeKind.Browser =>
+                capabilities.Contains(ToolCapability.Browser) ||
+                capabilities.Contains(ToolCapability.WebSearch),
+            ToolRuntimeKind.Computer =>
+                capabilities.Contains(ToolCapability.ComputerUse),
+            ToolRuntimeKind.Workspace or ToolRuntimeKind.Automation =>
+                capabilities.Contains(ToolCapability.Tools),
+            _ => false
+        };
+    }
+
+    private static ChatExecutionStage StageForTool(
+        string toolName,
+        ToolRuntimeKind runtime)
+    {
+        if (toolName.Contains("test", StringComparison.OrdinalIgnoreCase))
+        {
+            return ChatExecutionStage.Testing;
+        }
+
+        if (toolName.Contains("command", StringComparison.OrdinalIgnoreCase))
+        {
+            return ChatExecutionStage.RunningCommand;
+        }
+
+        if (toolName.Contains("write", StringComparison.OrdinalIgnoreCase) ||
+            toolName.Contains("replace", StringComparison.OrdinalIgnoreCase) ||
+            toolName.Contains("change_set", StringComparison.OrdinalIgnoreCase))
+        {
+            return ChatExecutionStage.EditingFiles;
+        }
+
+        return runtime switch
+        {
+            ToolRuntimeKind.Browser => ChatExecutionStage.Browsing,
+            ToolRuntimeKind.Workspace => ChatExecutionStage.InspectingCode,
+            _ => ChatExecutionStage.RunningTool
+        };
+    }
+
+    private static string StatusForTool(string toolName)
+    {
+        if (toolName.Contains("test", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Testing";
+        }
+
+        if (toolName.Contains("command", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Running Command";
+        }
+
+        if (toolName.Contains("write", StringComparison.OrdinalIgnoreCase) ||
+            toolName.Contains("replace", StringComparison.OrdinalIgnoreCase) ||
+            toolName.Contains("change_set", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Editing Files";
+        }
+
+        if (toolName.StartsWith("browser_", StringComparison.Ordinal))
+        {
+            return "Using Browser";
+        }
+
+        if (toolName.StartsWith("workspace_", StringComparison.Ordinal) ||
+            toolName is "read_file" or "list_files" or "search_files")
+        {
+            return "Inspecting Code";
+        }
+
+        return "Using Tool";
+    }
+
+    private static string DescribeTool(OllamaToolCall call)
+    {
+        if (call.Name.Contains("command", StringComparison.OrdinalIgnoreCase) &&
+            call.Arguments.TryGetValue("command", out var command) &&
+            command.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(command.GetString()))
+        {
+            var value = command.GetString()!
+                .Replace('\r', ' ')
+                .Replace('\n', ' ')
+                .Trim();
+            return "Running command: " +
+                (value.Length <= 180 ? value : value[..180] + "…");
+        }
+
+        return "Started " + call.Name.Replace('_', ' ') + ".";
     }
 
     private ToolAvailabilityPlan CreateAvailabilityPlan(
@@ -289,9 +624,15 @@ public sealed class ChatSessionService(
                 automationTools?.GetDefinitions(true, false) ?? [],
                 automationTools?.GetDefinitions(false, true) ?? []));
 
+    /// <summary>
+    /// Performs the approvable step owned by this component.
+    /// </summary>
     private static PermissionMode Approvable(PermissionMode permission) =>
         permission == PermissionMode.Ask ? PermissionMode.FullAccess : permission;
 
+    /// <summary>
+    /// Performs the looks like tool request step owned by this component.
+    /// </summary>
     private static bool LooksLikeToolRequest(string prompt)
     {
         var value = prompt.TrimStart();
@@ -299,10 +640,16 @@ public sealed class ChatSessionService(
             .Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Reports whether unsupported tool schema applies to the current state.
+    /// </summary>
     private static bool IsUnsupportedToolSchema(HttpRequestException exception) =>
         exception.Message.Contains("does not support tools", StringComparison.OrdinalIgnoreCase) ||
         exception.Message.Contains("tool support", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs the response contradicts completed action step owned by this component.
+    /// </summary>
     private static bool ResponseContradictsCompletedAction(string response)
     {
         var value = response.ToLowerInvariant();
@@ -315,6 +662,9 @@ public sealed class ChatSessionService(
                value.Contains("cannot open applications", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Performs the completed action message step owned by this component.
+    /// </summary>
     private static string CompletedActionMessage(OllamaToolCall call) => call.Name switch
     {
         "computer_launch_app" => $"Done — opened {ArgumentText(call, "name", "the application")}.",
@@ -326,11 +676,17 @@ public sealed class ChatSessionService(
         _ => "Done — the requested tool action completed."
     };
 
+    /// <summary>
+    /// Performs the argument text step owned by this component.
+    /// </summary>
     private static string ArgumentText(OllamaToolCall call, string name, string fallback) =>
         call.Arguments.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
             ? value.GetString()!
             : fallback;
 
+    /// <summary>
+    /// Attempts to bridge tool call async and reports the result without using failure for normal control flow.
+    /// </summary>
     private static async Task<OllamaToolCall?> TryBridgeToolCallAsync(
         IOllamaClient ollama,
         ModelDescriptor model,
@@ -367,6 +723,9 @@ public sealed class ChatSessionService(
         }
     }
 
+    /// <summary>
+    /// Builds system prompt from the currently available inputs.
+    /// </summary>
     private static string BuildSystemPrompt(
         Conversation conversation,
         IReadOnlyCollection<ActivePlugin> plugins,
@@ -427,6 +786,9 @@ public sealed class ChatSessionService(
     }
 }
 
+/// <summary>
+/// Represents chat stream event and keeps its related state and behavior together.
+/// </summary>
 public sealed record ChatStreamEvent(
     ChatStreamEventKind Kind,
     ChatMessage? Message = null,
@@ -437,12 +799,33 @@ public sealed record ChatStreamEvent(
     CapabilityPreflightResult? PreflightResult = null,
     ToolActivity? ToolActivity = null)
 {
+    /// <summary>
+    /// Performs the user step owned by this component.
+    /// </summary>
     public static ChatStreamEvent User(ChatMessage message) => new(ChatStreamEventKind.UserMessage, Message: message);
+    /// <summary>
+    /// Performs the assistant started step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantStarted(Guid id, string model, string agent) => new(ChatStreamEventKind.AssistantStarted, MessageId: id, Model: model, Agent: agent);
+    /// <summary>
+    /// Performs the assistant delta step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantDelta(Guid id, string delta) => new(ChatStreamEventKind.AssistantDelta, MessageId: id, Delta: delta);
+    /// <summary>
+    /// Performs the assistant completed step owned by this component.
+    /// </summary>
     public static ChatStreamEvent AssistantCompleted(ChatMessage message) => new(ChatStreamEventKind.AssistantCompleted, Message: message);
+    /// <summary>
+    /// Performs the preflight step owned by this component.
+    /// </summary>
     public static ChatStreamEvent Preflight(CapabilityPreflightResult result) => new(ChatStreamEventKind.PreflightFailed, PreflightResult: result);
+    /// <summary>
+    /// Performs the activity step owned by this component.
+    /// </summary>
     public static ChatStreamEvent Activity(ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, ToolActivity: activity);
 }
 
+/// <summary>
+/// Lists the supported chat stream event kind values used to make state explicit and type-safe.
+/// </summary>
 public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ToolActivity, PreflightFailed }

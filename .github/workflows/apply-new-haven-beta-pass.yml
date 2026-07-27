@@ -1,0 +1,90 @@
+name: Apply beta patch
+on:
+  push:
+    branches: [gpt/new-haven-beta-pass]
+    paths:
+      - scripts/apply_beta_chat_patch.py.gz
+      - .github/workflows/apply-new-haven-beta-pass.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Apply beta chat orchestration patch') }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/new-haven-beta-pass
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - id: patch
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $i=[IO.File]::OpenRead('scripts/apply_beta_chat_patch.py.gz')
+          $g=[IO.Compression.GzipStream]::new($i,[IO.Compression.CompressionMode]::Decompress)
+          $o=[IO.File]::Create('scripts/apply_beta_chat_patch.py')
+          $g.CopyTo($o)
+          $o.Dispose(); $g.Dispose(); $i.Dispose()
+          python scripts/apply_beta_chat_patch.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - id: restore
+        if: always()
+        continue-on-error: true
+        run: dotnet restore HavenAI.slnx
+      - id: build
+        if: always()
+        continue-on-error: true
+        run: dotnet build HavenAI.slnx -c Release --no-restore
+      - id: test
+        if: always()
+        continue-on-error: true
+        run: dotnet test HavenAI.slnx -c Release --no-build --logger "trx;LogFileName=new-haven-beta.trx"
+      - if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/new-haven-beta | Out-Null
+          @(
+            '# New Haven beta validation',
+            '',
+            '| Stage | Result |',
+            '|---|---|',
+            '| Patch | ${{ steps.patch.outcome }} |',
+            '| Restore | ${{ steps.restore.outcome }} |',
+            '| Build | ${{ steps.build.outcome }} |',
+            '| Test | ${{ steps.test.outcome }} |'
+          ) | Set-Content artifacts/new-haven-beta/VALIDATION.md
+      - if: always()
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts src tests artifacts/new-haven-beta
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'Apply beta chat orchestration patch'
+            git push origin HEAD:gpt/new-haven-beta-pass
+          }
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-haven-beta-validation
+          path: |
+            **/TestResults/new-haven-beta.trx
+            artifacts/new-haven-beta/VALIDATION.md
+          if-no-files-found: warn
+      - if: always()
+        shell: pwsh
+        run: |
+          $failed=@(
+            '${{ steps.patch.outcome }}',
+            '${{ steps.restore.outcome }}',
+            '${{ steps.build.outcome }}',
+            '${{ steps.test.outcome }}'
+          ) -contains 'failure'
+          if ($failed) { exit 1 }

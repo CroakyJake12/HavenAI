@@ -1,7 +1,19 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/VersionedAtomicSettingsStore.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns IVersionedSettingsStore, SettingsExportManifest, VersionedAtomicSettingsStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Defines the versioned settings store contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IVersionedSettingsStore
 {
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken) where T : class;
@@ -11,18 +23,45 @@ public interface IVersionedSettingsStore
     Task<SettingsImportResult> ImportAsync(SettingsExportManifest manifest, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents settings export manifest and keeps its related state and behavior together.
+/// </summary>
 public sealed class SettingsExportManifest
 {
+    /// <summary>
+    /// Gets or updates version, the bindable or domain state represented by this property.
+    /// </summary>
     public int Version { get; init; } = 1;
+    /// <summary>
+    /// Gets or updates exported at, the bindable or domain state represented by this property.
+    /// </summary>
     public string ExportedAt { get; init; } = DateTimeOffset.UtcNow.ToString("O");
+    /// <summary>
+    /// Gets or updates settings, the bindable or domain state represented by this property.
+    /// </summary>
     public Dictionary<string, string> Settings { get; init; } = new();
 }
 
+/// <summary>
+/// Represents versioned atomic settings store and keeps its related state and behavior together.
+/// </summary>
 public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppPaths _paths;
+    /// <summary>
+    /// Stores lock locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
+    /// <summary>
+    /// Stores settings locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Dictionary<string, string> _settings = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores version locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _version;
 
     public VersionedAtomicSettingsStore(IAppPaths paths)
@@ -51,6 +90,9 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
         finally { _lock.Release(); }
     }
 
+    /// <summary>
+    /// Performs remove asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RemoveAsync(string key, CancellationToken cancellationToken)
     {
         await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -66,12 +108,18 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
         finally { _lock.Release(); }
     }
 
+    /// <summary>
+    /// Performs export asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SettingsExportManifest> ExportAsync(CancellationToken cancellationToken)
     {
         await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
         return new SettingsExportManifest { Version = _version, Settings = new Dictionary<string, string>(_settings) };
     }
 
+    /// <summary>
+    /// Performs import asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<SettingsImportResult> ImportAsync(SettingsExportManifest manifest, CancellationToken cancellationToken)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -95,6 +143,9 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
         finally { _lock.Release(); }
     }
 
+    /// <summary>
+    /// Performs ensure loaded asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
         if (_settings.Count > 0) return;
@@ -133,6 +184,9 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
         finally { _lock.Release(); }
     }
 
+    /// <summary>
+    /// Performs persist asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task PersistAsync(CancellationToken cancellationToken)
     {
         var path = GetSettingsPath();
@@ -155,5 +209,8 @@ public sealed class VersionedAtomicSettingsStore : IVersionedSettingsStore
         File.Move(tempPath, path);
     }
 
+    /// <summary>
+    /// Retrieves settings path for the current operation.
+    /// </summary>
     private string GetSettingsPath() => Path.Combine(_paths.DataDirectory, "settings.json");
 }

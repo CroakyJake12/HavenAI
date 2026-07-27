@@ -1,14 +1,27 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/CatalogView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.CatalogView. Its visual vocabulary includes: Grid, StackPanel, TextBlock, Button, Border, HavenIcon, TextBox, CheckBox, ScrollViewer, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate.
+  Data flow: Binding expressions read or update these view-model paths: Title, Subtitle, RefreshCommand, CanUploadPlugin, CreateLabel, ToggleCreateCommand, CanCreateItems, IsCreating, BuilderTitle, BuilderPrompt, BuilderHint, BuildWithAiCommand, NewName, NewDescription, NewInstructions, IsAgentCatalog, NewModel, NewPersists, IsPluginCatalog, CreateCommand, Status, Items, IconKey, Name, Description, Meta, CanDuplicate, CanDelete.
+  Interaction: Direct event handlers in this file are: OnUploadPluginClicked.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.CatalogView">
-  <!-- Catalog View — browse and create agents, plugins, or prompt templates -->
+  <!-- Catalog View — browse and create agents, plugins, or instruction templates -->
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="30,25">
 
     <!-- ============================================================
          ROW 0: HEADER
          Page title + subtitle, Refresh / Upload / Create buttons
          ============================================================ -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
       <StackPanel>
         <TextBlock Text="{Binding Title}" Classes="heading" />
@@ -25,6 +38,7 @@
          Agent-specific: preferred model selector.
          Plugin-specific: "keep active between messages" checkbox.
          ============================================================ -->
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Grid.Row="1" Classes="card" Margin="0,20,0,12" IsVisible="{Binding IsCreating}">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10" ColumnSpacing="10">
         <!-- Builder header + close button -->
@@ -65,6 +79,7 @@
     </Border>
 
     <!-- Status message -->
+    <!-- Section: Hosts the TextBlock portion of this view at this position in the visual tree. -->
     <TextBlock Grid.Row="2" Text="{Binding Status}" Classes="muted" FontSize="11" Margin="2,2,0,12" />
 
     <!-- ============================================================
@@ -75,6 +90,7 @@
          - Meta info (model, capabilities, etc.)
          - Duplicate + Delete buttons
          ============================================================ -->
+    <!-- Section: Keeps the region usable when content exceeds the available window size. -->
     <ScrollViewer Grid.Row="3">
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="340" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>

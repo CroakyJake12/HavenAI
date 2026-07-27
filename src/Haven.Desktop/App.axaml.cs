@@ -1,11 +1,15 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Haven.Application;
 using Haven.Automations;
 using Haven.Browser;
-using Haven.Desktop.ViewModels;
+using Haven.Core;
+using Haven.Desktop.Events;
 using Haven.Desktop.Services;
+using Haven.Desktop.Views.Shell;
 using Haven.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,63 +17,287 @@ namespace Haven.Desktop;
 
 public sealed partial class App : Avalonia.Application
 {
+#if DEBUG
+    private static int _developerToolsAttached;
+#endif
     private ServiceProvider? _services;
+    private IStartupRecoveryCoordinator? _startupRecovery;
+    private IProductionDiagnostics? _productionDiagnostics;
+    private bool _exceptionHooksAttached;
+    internal static IServiceProvider? Services { get; private set; }
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+        #if DEBUG
+            // Avalonia's developer-tools service is process-wide. Headless tests create
+            // multiple isolated App instances in one process, so attaching per instance
+            // causes cleanup failures after otherwise successful tests.
+            if (Interlocked.Exchange(ref _developerToolsAttached, 1) == 0)
+                this.AttachDeveloperTools();
+        #endif
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
         var collection = new ServiceCollection();
         collection.AddHavenInfrastructure();
         collection.AddHavenPlannerInfrastructure();
-        collection.AddSingleton<IScreenShareService, WindowsGraphicsCaptureService>();
+        collection.AddHavenDesktopCallServices();
         collection.AddHavenAutomations();
         collection.AddSingleton<BrowserSessionService>();
         collection.AddSingleton<BrowserDataService>();
+        collection.AddSingleton<BrowserNavigationPolicy>();
+        collection.AddSingleton<IBrowserNavigationPolicy>(provider => provider.GetRequiredService<BrowserNavigationPolicy>());
+        collection.AddSingleton<BrowserAutomationStore>();
+        collection.AddSingleton<IBrowserAutomationStore>(provider => provider.GetRequiredService<BrowserAutomationStore>());
+        collection.AddSingleton<BrowserDownloadTransport>();
+        collection.AddSingleton<BrowserBackgroundPageLoader>();
+        collection.AddSingleton(provider => new BrowserAutomationService(
+            provider.GetRequiredService<BrowserSessionService>(),
+            provider.GetRequiredService<IBrowserNavigationPolicy>(),
+            provider.GetRequiredService<IBrowserAutomationStore>(),
+            provider.GetRequiredService<BrowserDownloadTransport>(),
+            provider.GetRequiredService<BrowserBackgroundPageLoader>()));
+        collection.AddSingleton(provider => new SafeModeBrowserAutomationService(
+            provider.GetRequiredService<BrowserAutomationService>(),
+            provider.GetRequiredService<IProductionDiagnostics>()));
+        collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
+        collection.AddSingleton<BrowserCompletionService>();
         collection.AddSingleton<BrowserToolRuntime>();
         collection.AddSingleton<AutomationToolRuntime>();
         collection.AddSingleton<CapabilityPreflightService>();
         collection.AddSingleton<WorkspaceToolRuntime>();
         collection.AddSingleton<ComputerToolRuntime>();
-        collection.AddSingleton<ChatSessionService>();
+        collection.AddSingleton<ChatSessionService>(provider => new ChatSessionService(
+            provider.GetRequiredService<IConversationRepository>(),
+            provider.GetRequiredService<ProviderRoutingModelClient>(),
+            provider.GetRequiredService<CapabilityPreflightService>(),
+            provider.GetRequiredService<WorkspaceToolRuntime>(),
+            provider.GetRequiredService<ComputerToolRuntime>(),
+            provider.GetRequiredService<BrowserToolRuntime>(),
+            provider.GetRequiredService<AutomationToolRuntime>()));
         collection.AddSingleton<UserPreferencesService>();
+        collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
-        collection.AddSingleton<MainWindowViewModel>();
-        _services = collection.BuildServiceProvider();
+        collection.AddSingleton<ComputerUseOverlayCoordinator>();
+        collection.AddSingleton<AutomationDeliveryController>();
+        collection.AddSingleton<GenerativeUiThemeRuntime>();
+        collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
+        collection.AddSingleton<HavenEventBus>();
+        collection.AddSingleton<MainView>();
+        _services = collection.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+        Services = _services;
+        _services.GetRequiredService<ComputerUseOverlayCoordinator>();
+        Subscribe.EventBus = _services.GetRequiredService<HavenEventBus>();
+        _startupRecovery = _services.GetRequiredService<IStartupRecoveryCoordinator>();
+        _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();
+        AttachExceptionHooks();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = _services.GetRequiredService<MainWindowViewModel>();
-            var window = new MainWindow { DataContext = vm };
-            desktop.MainWindow = window;
-            window.Opened += async (_, _) => await InitialiseAsync(vm);
-            desktop.Exit += async (_, _) =>
+            // The launcher is temporary. Only the chosen Haven window should end the application.
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            // Show launcher picker
+            var preferences = _services.GetRequiredService<UserPreferencesService>();
+            var themeStore = _services.GetRequiredService<IGenerativeThemeStore>();
+            // The launcher is always a neutral light surface. The selected version applies
+            // its own base appearance immediately before the main visual tree is built.
+            preferences.ApplyTheme("light", save: false);
+            var picker = new LauncherPicker(preferences, themeStore);
+            var launcherWindow = new Window
             {
-                if (_services is not null)
-                    await _services.DisposeAsync();
+                Title = "Haven",
+                Width = 700,
+                Height = 640,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = picker,
+                Background = new SolidColorBrush(Color.Parse("#F1F8E9")),
+                CanResize = false
             };
+
+            picker.LaunchRequested += (_, useNewHaven) =>
+            {
+                if (!ReferenceEquals(desktop.MainWindow, launcherWindow)) return;
+                var appearance = useNewHaven
+                    ? GenerativeThemeAppearance.Light
+                    : GenerativeThemeAppearance.Dark;
+                preferences.ApplyTheme(useNewHaven ? "new-haven" : "obsidian", save: false);
+                MainWindow window;
+                if (useNewHaven)
+                {
+                    // New Haven - light theme with new UI
+                    var mainView = _services.GetRequiredService<MainView>();
+                    mainView.ApplyEdition(HavenShellEdition.New);
+                    window = new MainWindow { DataContext = mainView };
+                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
+                        mainView,
+                        preferences.GenerativeUiEnabled,
+                        appearance);
+                }
+                else
+                {
+                    // Classic Haven - dark theme with full feature set
+                    var mainView = _services.GetRequiredService<MainView>();
+                    mainView.ApplyEdition(HavenShellEdition.Classic);
+                    window = new MainWindow { DataContext = mainView };
+                    window.Background = new SolidColorBrush(Color.Parse("#181818"));
+                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
+                        mainView,
+                        preferences.GenerativeUiEnabled,
+                        appearance);
+                }
+
+                desktop.MainWindow = window;
+                desktop.Exit += OnDesktopExit;
+                window.Closed += (_, _) => desktop.Shutdown();
+                window.Show();
+                launcherWindow.Close();
+            };
+
+            desktop.MainWindow = launcherWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task InitialiseAsync(MainWindowViewModel vm)
+    private async Task InitialiseSelectedHaven(
+        MainView shell,
+        bool generativeUiEnabled,
+        GenerativeThemeAppearance appearance)
     {
+        var correlationId = Guid.NewGuid().ToString("N");
         try
         {
             var services = _services ?? throw new InvalidOperationException("Haven services have not been initialized.");
+            var recovery = _startupRecovery ?? services.GetRequiredService<IStartupRecoveryCoordinator>();
+            var recoveryState = await recovery.BeginStartupAsync(CancellationToken.None);
+            if (generativeUiEnabled)
+            {
+                await services.GetRequiredService<IGenerativeThemeStore>()
+                    .SetAppearanceAsync(appearance, CancellationToken.None);
+                await services.GetRequiredService<GenerativeUiThemeRuntime>()
+                    .InitializeAsync(CancellationToken.None);
+            }
+
+            BrowserAutomationRegistry.Register(
+                services.GetRequiredService<BrowserSessionService>(),
+                services.GetRequiredService<IBrowserAutomationService>());
+
             var lifecycle = services.GetRequiredService<IApplicationLifecycle>();
-            await lifecycle.CrashRecoveryAsync(CancellationToken.None).ConfigureAwait(false);
-            await lifecycle.StartupAsync(CancellationToken.None).ConfigureAwait(false);
-            await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None).ConfigureAwait(false);
+            await lifecycle.CrashRecoveryAsync(CancellationToken.None);
+            await lifecycle.StartupAsync(CancellationToken.None);
+            await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
-            await vm.InitializeAsync(migration, CancellationToken.None);
+            await shell.InitializeAsync(migration, CancellationToken.None);
+            await services.GetRequiredService<AutomationDeliveryController>().StartAsync(CancellationToken.None);
+
+            if (recoveryState.IsSafeMode)
+            {
+                services.GetRequiredService<NotificationService>().Show(
+                    "Haven recovery safe mode",
+                    recoveryState.Reason + " Local Ollama chat and read-only workspace inspection remain available.",
+                    ToastKind.Warning,
+                    TimeSpan.FromSeconds(30));
+            }
+
+            await recovery.MarkStartupCompletedAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
-            vm.SetStartupError(ex.Message);
+            await LogExceptionAsync("startup-failed", ex, correlationId);
         }
+    }
+
+    private async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    {
+        var services = _services;
+        var recovery = _startupRecovery;
+        try
+        {
+            if (_productionDiagnostics is not null)
+            {
+                await _productionDiagnostics.WriteAsync(
+                    ReliabilitySeverity.Information,
+                    "desktop",
+                    "shutdown-begin",
+                    "Haven began coordinated shutdown.",
+                    cancellationToken: CancellationToken.None);
+            }
+
+            if (recovery is not null)
+                await recovery.MarkCleanShutdownAsync(CancellationToken.None);
+            if (services is not null)
+                await services.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[Haven shutdown] " + ex);
+        }
+        finally
+        {
+            Subscribe.EventBus?.Dispose();
+            Subscribe.EventBus = null;
+            _services = null;
+            Services = null;
+            _productionDiagnostics = null;
+            _startupRecovery = null;
+            DetachExceptionHooks();
+        }
+    }
+
+    private void AttachExceptionHooks()
+    {
+        if (_exceptionHooksAttached) return;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        _exceptionHooksAttached = true;
+    }
+
+    private void DetachExceptionHooks()
+    {
+        if (!_exceptionHooksAttached) return;
+        AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+        _exceptionHooksAttached = false;
+    }
+
+    private void OnUnhandledException(object sender, UnhandledExceptionEventArgs eventArgs)
+    {
+        var exception = eventArgs.ExceptionObject as Exception
+                        ?? new InvalidOperationException("The runtime reported a non-Exception unhandled failure.");
+        try { _ = LogExceptionAsync(eventArgs.IsTerminating ? "unhandled-terminating" : "unhandled", exception, Guid.NewGuid().ToString("N")); }
+        catch { }
+    }
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs eventArgs)
+    {
+        try { _ = LogExceptionAsync("unobserved-task", eventArgs.Exception, Guid.NewGuid().ToString("N")); }
+        catch { }
+        finally { eventArgs.SetObserved(); }
+    }
+
+    private async Task LogExceptionAsync(string eventName, Exception exception, string correlationId)
+    {
+        if (_productionDiagnostics is null) return;
+        await _productionDiagnostics.WriteAsync(
+            ReliabilitySeverity.Critical,
+            "desktop",
+            eventName,
+            exception.ToString(),
+            new Dictionary<string, string>
+            {
+                ["exceptionType"] = exception.GetType().FullName ?? exception.GetType().Name,
+                ["hResult"] = exception.HResult.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            },
+            correlationId,
+            CancellationToken.None);
     }
 }

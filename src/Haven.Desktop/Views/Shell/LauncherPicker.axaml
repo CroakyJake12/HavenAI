@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Shell.LauncherPicker"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center">
+
+    <Border Background="#F1F8E9"
+            CornerRadius="24"
+            Padding="48"
+            Width="600"
+            MaxWidth="600">
+        <StackPanel Spacing="32">
+
+            <!-- Header -->
+            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                <Image Source="/Assets/haven-32.png" Width="48" Height="48" HorizontalAlignment="Center"/>
+                <TextBlock Text="Haven" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Choose which version to launch" Classes="muted" HorizontalAlignment="Center" FontSize="14"/>
+            </StackPanel>
+
+            <!-- Options -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+
+                <!-- New Haven -->
+                <Button x:Name="NewHavenButton"
+                        HorizontalContentAlignment="Stretch"
+                        MinHeight="180"
+                        CornerRadius="16"
+                        Background="#FFFFFF"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1">
+                    <StackPanel Spacing="12" Margin="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#E8F5E9" CornerRadius="10" Width="40" Height="40">
+                                <controls:HavenIcon IconKey="rocket" Width="20" Height="20"
+                                                  Foreground="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="New Haven" FontWeight="Bold" FontSize="18"/>
+                                <TextBlock Text="Phase 1" Classes="muted" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="Fresh redesign with light theme, Go mode, morph transitions, notifications, and dynamic action toolbar."
+                                   TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Includes: Chat, Notifications, Morph Transitions" FontSize="11" Foreground="#4CAF50"/>
+                            <TextBlock Text="Coming next: Studio workspace, Plan, Browser" FontSize="11" Foreground="#999999"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Button>
+
+                <!-- Classic Haven -->
+                <Button x:Name="ClassicHavenButton"
+                        Grid.Column="1"
+                        HorizontalContentAlignment="Stretch"
+                        MinHeight="180"
+                        CornerRadius="16"
+                        Background="#FFFFFF"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1">
+                    <StackPanel Spacing="12" Margin="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#E3F2FD" CornerRadius="10" Width="40" Height="40">
+                                <controls:HavenIcon IconKey="home" Width="20" Height="20"
+                                                  Foreground="#2196F3" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Classic Haven" FontWeight="Bold" FontSize="18"/>
+                                <TextBlock Text="Full feature set" Classes="muted" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="The complete Haven experience with all modes, studio, browser, planner, training, and more."
+                                   TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="All features available" FontSize="11" Foreground="#2196F3"/>
+                            <TextBlock Text="Dark theme with Mica backdrop" FontSize="11" Foreground="#999999"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Button>
+
+            </Grid>
+
+            <Border Background="#FFFFFFFF"
+                    BorderBrush="#DDE5DD"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="16,13">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="7">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Generative UI" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="Allow generated themes to replace the launcher-selected Haven appearance."
+                                   Foreground="#666666" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch x:Name="GenerativeUiToggle"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center" />
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10">
+                        <Button x:Name="ResetGenerativeUiButton"
+                                Content="Reset to Haven Default Light"
+                                Padding="12,6" />
+                        <TextBlock x:Name="GenerativeUiStatusText"
+                                   VerticalAlignment="Center"
+                                   Foreground="#4CAF50"
+                                   FontSize="11" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Footer -->
+            <TextBlock Text="You can switch between versions at any time from the launcher."
+                       Classes="muted" FontSize="11" HorizontalAlignment="Center"/>
+
+        </StackPanel>
+    </Border>
+</UserControl>

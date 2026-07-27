@@ -1,10 +1,28 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/FilesystemActionService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns FilesystemActionService, FilesystemActionResult, CommandExecutionResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents filesystem action service and keeps its related state and behavior together.
+/// </summary>
 public sealed class FilesystemActionService
 {
+    /// <summary>
+    /// Stores workspace tools locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IWorkspaceToolService _workspaceTools;
+    /// <summary>
+    /// Stores activity log locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IActivityLogRepository _activityLog;
 
     public FilesystemActionService(IWorkspaceToolService workspaceTools, IActivityLogRepository activityLog)
@@ -13,6 +31,9 @@ public sealed class FilesystemActionService
         _activityLog = activityLog;
     }
 
+    /// <summary>
+    /// Performs read file asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<FilesystemActionResult> ReadFileAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken)
     {
         try
@@ -33,6 +54,9 @@ public sealed class FilesystemActionService
         }
     }
 
+    /// <summary>
+    /// Performs write file asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<FilesystemActionResult> WriteFileAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
     {
         try
@@ -53,6 +77,9 @@ public sealed class FilesystemActionService
         }
     }
 
+    /// <summary>
+    /// Performs search files asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<FilesystemActionResult> SearchFilesAsync(string workspaceRoot, string pattern, CancellationToken cancellationToken)
     {
         try
@@ -73,6 +100,9 @@ public sealed class FilesystemActionService
         }
     }
 
+    /// <summary>
+    /// Runs run command async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<CommandExecutionResult> RunCommandAsync(string command, string arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
     {
         try
@@ -94,9 +124,18 @@ public sealed class FilesystemActionService
         }
     }
 
+    /// <summary>
+    /// Performs the escape json step owned by this component.
+    /// </summary>
     private static string EscapeJson(string value) =>
         value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
 }
 
+/// <summary>
+/// Represents filesystem action result and keeps its related state and behavior together.
+/// </summary>
 public sealed record FilesystemActionResult(bool Succeeded, string? Content, string Message);
+/// <summary>
+/// Represents command execution result and keeps its related state and behavior together.
+/// </summary>
 public sealed record CommandExecutionResult(int ExitCode, string StandardOutput, string StandardError, bool TimedOut);

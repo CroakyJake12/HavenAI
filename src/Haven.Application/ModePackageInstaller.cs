@@ -1,13 +1,37 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ModePackageInstaller.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ModePackageInstaller. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents mode package installer and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModePackageInstaller : IModePackageInstaller
 {
+    /// <summary>
+    /// Stores registry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry _registry;
+    /// <summary>
+    /// Stores usage locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeUsageRepository _usage;
+    /// <summary>
+    /// Stores pins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPinRepository _pins;
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppPaths _paths;
 
     public ModePackageInstaller(
@@ -22,6 +46,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         _paths = paths;
     }
 
+    /// <summary>
+    /// Performs install asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ModePackageInstallResult> InstallAsync(ModePackageManifest manifest, CancellationToken cancellationToken)
     {
         var existing = await _registry.GetModeByKeyAsync(manifest.Id, cancellationToken).ConfigureAwait(false);
@@ -86,6 +113,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         };
     }
 
+    /// <summary>
+    /// Performs update asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ModePackageInstallResult> UpdateAsync(Guid modeId, ModePackageManifest manifest, CancellationToken cancellationToken)
     {
         var existing = await _registry.GetModeByIdAsync(modeId, cancellationToken).ConfigureAwait(false);
@@ -123,6 +153,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         };
     }
 
+    /// <summary>
+    /// Performs rollback asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<bool> RollbackAsync(Guid modeId, CancellationToken cancellationToken)
     {
         var versions = await _registry.GetVersionsAsync(modeId, cancellationToken).ConfigureAwait(false);
@@ -145,6 +178,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         return true;
     }
 
+    /// <summary>
+    /// Performs uninstall asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<bool> UninstallAsync(Guid modeId, CancellationToken cancellationToken)
     {
         var mode = await _registry.GetModeByIdAsync(modeId, cancellationToken).ConfigureAwait(false);
@@ -159,6 +195,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         return true;
     }
 
+    /// <summary>
+    /// Retrieves installed modes async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<InstalledModeInfo>> GetInstalledModesAsync(CancellationToken cancellationToken)
     {
         var modes = await _registry.GetModesAsync(cancellationToken).ConfigureAwait(false);
@@ -174,6 +213,9 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         }).ToArray();
     }
 
+    /// <summary>
+    /// Performs save manifest asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SaveManifestAsync(Guid modeId, ModePackageManifest manifest, CancellationToken cancellationToken)
     {
         var dir = Path.Combine(_paths.DataDirectory, "mode-packages");
@@ -183,10 +225,22 @@ public sealed class ModePackageInstaller : IModePackageInstaller
         await File.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves manifest path for the current operation.
+    /// </summary>
     private string GetManifestPath(Guid modeId) =>
         Path.Combine(_paths.DataDirectory, "mode-packages", modeId.ToString("N") + ".json");
 
+    /// <summary>
+    /// Performs the parse major step owned by this component.
+    /// </summary>
     private static int ParseMajor(string version) => version.Split('.') is { Length: >= 1 } parts && int.TryParse(parts[0], out var v) ? v : 1;
+    /// <summary>
+    /// Performs the parse minor step owned by this component.
+    /// </summary>
     private static int ParseMinor(string version) => version.Split('.') is { Length: >= 2 } parts && int.TryParse(parts[1], out var v) ? v : 0;
+    /// <summary>
+    /// Performs the parse patch step owned by this component.
+    /// </summary>
     private static int ParsePatch(string version) => version.Split('.') is { Length: >= 3 } parts && int.TryParse(parts[2], out var v) ? v : 0;
 }

@@ -1,10 +1,21 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Controls/MarkdownView.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * What: This file owns MarkdownView, LatexFormatter. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 
 namespace Haven.Desktop.Controls;
 
@@ -15,10 +26,16 @@ namespace Haven.Desktop.Controls;
 /// </summary>
 public sealed partial class MarkdownView : UserControl
 {
+    /// <summary>
+    /// Stores markdown property locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
-    private readonly StackPanel _blocks = new() { Spacing = 8 };
+    /// <summary>
+    /// Stores blocks locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
+    private readonly StackPanel _blocks = new() { Spacing = 10 };
 
     static MarkdownView()
     {
@@ -38,6 +55,9 @@ public sealed partial class MarkdownView : UserControl
         set => SetValue(MarkdownProperty, value);
     }
 
+    /// <summary>
+    /// Performs the render step owned by this component.
+    /// </summary>
     private void Render()
     {
         _blocks.Children.Clear();
@@ -177,7 +197,7 @@ public sealed partial class MarkdownView : UserControl
                         TextAlignment = TextAlignment.Right,
                         Margin = new Thickness(0, 1, 7, 0)
                     });
-                    var text = CreateRichText(content.Trim(), 14, FontWeight.Normal, 0);
+                    var text = CreateRichText(content.Trim(), 14, FontWeight.Medium, 0);
                     Grid.SetColumn(text, 1);
                     row.Children.Add(text);
                     list.Children.Add(row);
@@ -203,7 +223,7 @@ public sealed partial class MarkdownView : UserControl
                     Background = Brush("HavenPanel2Brush", "#111721"),
                     CornerRadius = new CornerRadius(0, 8, 8, 0),
                     Padding = new Thickness(12, 8),
-                    Child = CreateRichText(quote.ToString(), 13, FontWeight.Normal, 0, FontStyle.Italic)
+                    Child = CreateRichText(quote.ToString(), 13, FontWeight.Medium, 0, FontStyle.Italic)
                 });
                 continue;
             }
@@ -216,10 +236,13 @@ public sealed partial class MarkdownView : UserControl
                 paragraph.Append(lines[index].Trim());
                 index++;
             }
-            _blocks.Children.Add(CreateRichText(paragraph.ToString(), 14, FontWeight.Normal, 0));
+            _blocks.Children.Add(CreateRichText(paragraph.ToString(), 14, FontWeight.Medium, 0));
         }
     }
 
+    /// <summary>
+    /// Creates code block with the invariants required by its callers.
+    /// </summary>
     private Control CreateCodeBlock(string code, string language)
     {
         var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto") };
@@ -256,6 +279,9 @@ public sealed partial class MarkdownView : UserControl
         };
     }
 
+    /// <summary>
+    /// Creates math block with the invariants required by its callers.
+    /// </summary>
     private Control CreateMathBlock(string latex)
     {
         return new Border
@@ -278,6 +304,9 @@ public sealed partial class MarkdownView : UserControl
         };
     }
 
+    /// <summary>
+    /// Creates table with the invariants required by its callers.
+    /// </summary>
     private Control CreateTable(IReadOnlyList<string> rows)
     {
         var values = rows.Select(SplitTableRow).ToArray();
@@ -307,6 +336,9 @@ public sealed partial class MarkdownView : UserControl
         return new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Child = grid };
     }
 
+    /// <summary>
+    /// Creates rich text with the invariants required by its callers.
+    /// </summary>
     private TextBlock CreateRichText(string text, double size, FontWeight weight, double bottomMargin, FontStyle style = FontStyle.Normal)
     {
         var block = new TextBlock
@@ -314,8 +346,8 @@ public sealed partial class MarkdownView : UserControl
             FontSize = size,
             FontWeight = weight,
             FontStyle = style,
-            LineHeight = Math.Max(19, size * 1.55),
-            Foreground = Brush("HavenTextSoftBrush", "#C9D2DE"),
+            LineHeight = Math.Max(22, size * 1.65),
+            Foreground = Brush("HavenTextBrush", "#F5F7FA"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, bottomMargin)
         };
@@ -324,6 +356,9 @@ public sealed partial class MarkdownView : UserControl
         return block;
     }
 
+    /// <summary>
+    /// Performs the add inlines step owned by this component.
+    /// </summary>
     private void AddInlines(InlineCollection inlines, string text)
     {
         var position = 0;
@@ -360,9 +395,39 @@ public sealed partial class MarkdownView : UserControl
                 var link = LinkPattern().Match(token);
                 if (link.Success)
                 {
-                    var run = new Run($"{link.Groups[1].Value} ({link.Groups[2].Value})");
-                    run.Foreground = Brush("HavenBlueBrush", "#5AA6FF");
-                    inlines.Add(run);
+                    var label = link.Groups[1].Value;
+                    var target = link.Groups[2].Value;
+                    var hyperlink = new HyperlinkButton
+                    {
+                        Content = new TextBlock
+                        {
+                            Text = label,
+                            Foreground = Brush("HavenBlueBrush", "#5AA6FF"),
+                            TextDecorations = TextDecorations.Underline
+                        },
+                        Padding = new Thickness(0),
+                        MinHeight = 0,
+                        Background = Brushes.Transparent,
+                        BorderThickness = new Thickness(0)
+                    };
+
+                    if (TryResolveLocalFile(target, out var sourcePath))
+                    {
+                        ToolTip.SetTip(hyperlink, "Save " + Path.GetFileName(sourcePath));
+                        hyperlink.Click += async (_, args) => await SaveLinkedFileAsync(sourcePath, args);
+                    }
+                    else if (Uri.TryCreate(target, UriKind.Absolute, out var uri)
+                             && uri.Scheme is "http" or "https" or "mailto")
+                    {
+                        hyperlink.NavigateUri = uri;
+                        ToolTip.SetTip(hyperlink, target);
+                    }
+                    else
+                    {
+                        hyperlink.IsEnabled = false;
+                        ToolTip.SetTip(hyperlink, "The linked file is not available on this device.");
+                    }
+                    inlines.Add(new InlineUIContainer(hyperlink));
                 }
                 else inlines.Add(new Run(token));
             }
@@ -387,6 +452,52 @@ public sealed partial class MarkdownView : UserControl
         if (position < text.Length) inlines.Add(new Run(text[position..]));
     }
 
+    /// <summary>
+    /// Resolves only existing local files. This deliberately rejects missing and
+    /// relative targets so model-written Markdown cannot turn a click into an
+    /// unexpected filesystem probe.
+    /// </summary>
+    private static bool TryResolveLocalFile(string target, out string path)
+    {
+        path = string.Empty;
+        try
+        {
+            var candidate = target.StartsWith("sandbox:", StringComparison.OrdinalIgnoreCase)
+                ? Uri.UnescapeDataString(target[8..])
+                : Uri.TryCreate(target, UriKind.Absolute, out var uri) && uri.IsFile
+                    ? uri.LocalPath
+                    : Uri.UnescapeDataString(target);
+            if (!Path.IsPathFullyQualified(candidate) || !File.Exists(candidate)) return false;
+            path = Path.GetFullPath(candidate);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or UriFormatException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Copies a generated file only after the user chooses its destination.</summary>
+    private async Task SaveLinkedFileAsync(string sourcePath, RoutedEventArgs args)
+    {
+        args.Handled = true;
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return;
+        var destination = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save generated file",
+            SuggestedFileName = Path.GetFileName(sourcePath),
+            ShowOverwritePrompt = true
+        });
+        var destinationPath = destination?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(destinationPath)) return;
+        await using var source = File.OpenRead(sourcePath);
+        await using var output = File.Create(destinationPath);
+        await source.CopyToAsync(output);
+    }
+
+    /// <summary>
+    /// Performs the brush step owned by this component.
+    /// </summary>
     private IBrush Brush(string key, string fallback)
     {
         if (Avalonia.Application.Current?.TryFindResource(key, ActualThemeVariant, out var resource) == true && resource is IBrush brush)
@@ -394,6 +505,9 @@ public sealed partial class MarkdownView : UserControl
         return new SolidColorBrush(Color.Parse(fallback));
     }
 
+    /// <summary>
+    /// Performs the starts block step owned by this component.
+    /// </summary>
     private static bool StartsBlock(string[] lines, int index)
     {
         var line = lines[index];
@@ -404,41 +518,77 @@ public sealed partial class MarkdownView : UserControl
                ListPattern().IsMatch(line) || IsRule(line) || IsTableHeader(lines, index);
     }
 
+    /// <summary>
+    /// Reports whether rule applies to the current state.
+    /// </summary>
     private static bool IsRule(string line)
     {
         var compact = line.Trim().Replace(" ", string.Empty, StringComparison.Ordinal);
         return compact.Length >= 3 && (compact.All(character => character == '-') || compact.All(character => character == '*') || compact.All(character => character == '_'));
     }
 
+    /// <summary>
+    /// Reports whether table header applies to the current state.
+    /// </summary>
     private static bool IsTableHeader(string[] lines, int index) =>
         index + 1 < lines.Length && lines[index].Contains('|') && TableDividerPattern().IsMatch(lines[index + 1]);
 
+    /// <summary>
+    /// Performs the split table row step owned by this component.
+    /// </summary>
     private static string[] SplitTableRow(string line) => line.Trim().Trim('|').Split('|').Select(cell => cell.Trim()).ToArray();
 
+    /// <summary>
+    /// Performs the heading pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^(#{1,6})\s+(.+)$")]
     private static partial Regex HeadingPattern();
 
+    /// <summary>
+    /// Performs the list pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^\s*((?:\d+[.)])|[-*+])\s+(.+)$")]
     private static partial Regex ListPattern();
 
+    /// <summary>
+    /// Performs the task pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^\[([ xX])\]\s+(.+)$")]
     private static partial Regex TaskPattern();
 
+    /// <summary>
+    /// Performs the table divider pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")]
     private static partial Regex TableDividerPattern();
 
+    /// <summary>
+    /// Performs the inline pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"(\*\*.+?\*\*|__.+?__|(?<!\*)\*[^*\n]+?\*(?!\*)|(?<!_)_[^_\n]+?_(?!_)|`[^`\n]+`|!\[[^\]]*\]\([^\s)]+\)|\[[^\]]+\]\([^\s)]+\)|\\\(.+?\\\)|(?<!\$)\$(?!\$).+?(?<!\$)\$(?!\$)|\n)")]
     private static partial Regex InlinePattern();
 
+    /// <summary>
+    /// Performs the link pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^\[([^\]]+)\]\(([^\s)]+)\)$")]
     private static partial Regex LinkPattern();
 
+    /// <summary>
+    /// Performs the image pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^!\[([^\]]*)\]\(([^\s)]+)\)$")]
     private static partial Regex ImagePattern();
 }
 
+/// <summary>
+/// Represents latex formatter and keeps its related state and behavior together.
+/// </summary>
 internal static partial class LatexFormatter
 {
+    /// <summary>
+    /// Stores commands locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, string> Commands = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["alpha"] = "α", ["beta"] = "β", ["gamma"] = "γ", ["delta"] = "δ", ["epsilon"] = "ε", ["theta"] = "θ",
@@ -452,12 +602,18 @@ internal static partial class LatexFormatter
         ["forall"] = "∀", ["exists"] = "∃", ["land"] = "∧", ["lor"] = "∨", ["neg"] = "¬", ["degree"] = "°"
     };
 
+    /// <summary>
+    /// Stores superscript locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<char, char> Superscript = new Dictionary<char, char>
     {
         ['0'] = '⁰', ['1'] = '¹', ['2'] = '²', ['3'] = '³', ['4'] = '⁴', ['5'] = '⁵', ['6'] = '⁶', ['7'] = '⁷', ['8'] = '⁸', ['9'] = '⁹',
         ['+'] = '⁺', ['-'] = '⁻', ['='] = '⁼', ['('] = '⁽', [')'] = '⁾', ['n'] = 'ⁿ', ['i'] = 'ⁱ'
     };
 
+    /// <summary>
+    /// Stores subscript locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<char, char> Subscript = new Dictionary<char, char>
     {
         ['0'] = '₀', ['1'] = '₁', ['2'] = '₂', ['3'] = '₃', ['4'] = '₄', ['5'] = '₅', ['6'] = '₆', ['7'] = '₇', ['8'] = '₈', ['9'] = '₉',
@@ -465,6 +621,9 @@ internal static partial class LatexFormatter
         ['j'] = 'ⱼ', ['k'] = 'ₖ', ['l'] = 'ₗ', ['m'] = 'ₘ', ['n'] = 'ₙ', ['o'] = 'ₒ', ['p'] = 'ₚ', ['r'] = 'ᵣ', ['s'] = 'ₛ', ['t'] = 'ₜ', ['u'] = 'ᵤ', ['v'] = 'ᵥ', ['x'] = 'ₓ'
     };
 
+    /// <summary>
+    /// Performs the format step owned by this component.
+    /// </summary>
     public static string Format(string latex)
     {
         if (string.IsNullOrWhiteSpace(latex)) return string.Empty;
@@ -473,6 +632,9 @@ internal static partial class LatexFormatter
         return Regex.Replace(value, @"\s+", " ").Trim();
     }
 
+    /// <summary>
+    /// Performs the format expression step owned by this component.
+    /// </summary>
     private static string FormatExpression(string source, ref int index, char? terminator = null)
     {
         var builder = new StringBuilder();
@@ -518,6 +680,9 @@ internal static partial class LatexFormatter
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs the read command step owned by this component.
+    /// </summary>
     private static string ReadCommand(string source, ref int index)
     {
         index++;
@@ -556,6 +721,9 @@ internal static partial class LatexFormatter
         return Commands.TryGetValue(command, out var symbol) ? symbol : command;
     }
 
+    /// <summary>
+    /// Performs the read operand step owned by this component.
+    /// </summary>
     private static string ReadOperand(string source, ref int index)
     {
         while (index < source.Length && char.IsWhiteSpace(source[index])) index++;
@@ -565,6 +733,9 @@ internal static partial class LatexFormatter
         return source[index++].ToString();
     }
 
+    /// <summary>
+    /// Attempts to read group and reports the result without using failure for normal control flow.
+    /// </summary>
     private static bool TryReadGroup(string source, ref int index, char open, char close, out string value)
     {
         while (index < source.Length && char.IsWhiteSpace(source[index])) index++;
@@ -591,9 +762,15 @@ internal static partial class LatexFormatter
         return true;
     }
 
+    /// <summary>
+    /// Performs the format fraction part step owned by this component.
+    /// </summary>
     private static string FormatFractionPart(string value) =>
         value.IndexOfAny([' ', '+', '-', '=', '±', '∓']) >= 0 ? $"({value})" : value;
 
+    /// <summary>
+    /// Performs the convert script step owned by this component.
+    /// </summary>
     private static string ConvertScript(string value, IReadOnlyDictionary<char, char> map)
     {
         var builder = new StringBuilder(value.Length);

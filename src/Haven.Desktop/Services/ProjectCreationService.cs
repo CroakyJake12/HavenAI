@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/Services/ProjectCreationService.cs, in the Desktop services layer, adapting application behavior to Windows and Avalonia concerns.
+ * What: This file owns ProjectCreationService, ProjectCreationKind, ProjectCreationRequest, ProjectCreationResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Haven.Application;
@@ -5,8 +14,14 @@ using Haven.Core;
 
 namespace Haven.Desktop.Services;
 
+/// <summary>
+/// Represents project creation service and keeps its related state and behavior together.
+/// </summary>
 public sealed partial class ProjectCreationService(IWorkspaceToolService processes, IContainerRepository containers)
 {
+    /// <summary>
+    /// Stores templates locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, string> Templates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Console app"] = "console",
@@ -15,6 +30,9 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         ["Worker service"] = "worker"
     };
 
+    /// <summary>
+    /// Creates async with the invariants required by its callers.
+    /// </summary>
     public async Task<ProjectCreationResult> CreateAsync(ProjectCreationRequest request, CancellationToken cancellationToken)
     {
         var name = ValidateName(request.Name);
@@ -59,6 +77,9 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         }
     }
 
+    /// <summary>
+    /// Performs connect asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ProjectCreationResult> ConnectAsync(string path, CancellationToken cancellationToken)
     {
         var canonical = File.Exists(path) ? Path.GetDirectoryName(Path.GetFullPath(path))! : Path.GetFullPath(path);
@@ -70,6 +91,9 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         return new ProjectCreationResult(definition, $"Connected {definition.Name} to {canonical}.");
     }
 
+    /// <summary>
+    /// Performs register asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<ContainerDefinition> RegisterAsync(string name, string root, CancellationToken cancellationToken)
     {
         var existing = await containers.GetByModeAsync(HavenMode.Studio, cancellationToken).ConfigureAwait(false);
@@ -81,6 +105,9 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         return definition;
     }
 
+    /// <summary>
+    /// Performs the configure package project step owned by this component.
+    /// </summary>
     private static void ConfigurePackageProject(string root, string name, string description)
     {
         var projectFile = Directory.EnumerateFiles(root, "*.csproj", SearchOption.TopDirectoryOnly).Single();
@@ -97,6 +124,9 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         document.Save(projectFile);
     }
 
+    /// <summary>
+    /// Validates name before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static string ValidateName(string value)
     {
         var name = value.Trim();
@@ -105,11 +135,17 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         return name;
     }
 
+    /// <summary>
+    /// Reports whether direct child applies to the current state.
+    /// </summary>
     private static bool IsDirectChild(string target, string parent) =>
         string.Equals(Path.GetDirectoryName(target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
             parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
+    /// <summary>
+    /// Performs the diagnostic step owned by this component.
+    /// </summary>
     private static string Diagnostic(ProcessResult result)
     {
         var value = string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError;
@@ -117,11 +153,23 @@ public sealed partial class ProjectCreationService(IWorkspaceToolService process
         return value.Length <= 1200 ? value : value[^1200..];
     }
 
+    /// <summary>
+    /// Performs the project name pattern step owned by this component.
+    /// </summary>
     [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$")]
     private static partial Regex ProjectNamePattern();
 }
 
+/// <summary>
+/// Lists the supported project creation kind values used to make state explicit and type-safe.
+/// </summary>
 public enum ProjectCreationKind { DotNetProject, NuGetPackage }
 
+/// <summary>
+/// Represents project creation request and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProjectCreationRequest(ProjectCreationKind Kind, string Name, string ParentFolder, string TemplateName, string PackageDescription);
+/// <summary>
+/// Represents project creation result and keeps its related state and behavior together.
+/// </summary>
 public sealed record ProjectCreationResult(ContainerDefinition Project, string Message);

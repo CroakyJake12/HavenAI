@@ -1,8 +1,10 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Infrastructure/Haven.Infrastructure.csproj in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <!-- WebRtcVadSharp includes native x86/x64 binaries; Haven ships Windows x64. -->
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Haven.Core\Haven.Core.csproj" />
     <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />

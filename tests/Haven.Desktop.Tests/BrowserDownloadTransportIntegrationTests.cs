@@ -1,0 +1,158 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/BrowserDownloadTransportIntegrationTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns BrowserDownloadTransportIntegrationTests, LoopbackTestPolicy. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using Haven.Application;
+using Haven.Browser;
+using Haven.Core;
+
+namespace Haven.Desktop.Tests;
+
+/// <summary>
+/// Represents browser download transport integration tests and keeps its related state and behavior together.
+/// </summary>
+public sealed class BrowserDownloadTransportIntegrationTests : IDisposable
+{
+    /// <summary>
+    /// Stores directory locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
+    private readonly string _directory = Path.Combine(Path.GetTempPath(), "haven-download-integration-tests-" + Guid.NewGuid().ToString("N"));
+
+    public BrowserDownloadTransportIntegrationTests() => Directory.CreateDirectory(_directory);
+
+    /// <summary>
+    /// Performs the approved download uses sanitized header name hash and confined destination step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task ApprovedDownloadUsesSanitizedHeaderNameHashAndConfinedDestination()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var body = Encoding.UTF8.GetBytes("verified browser download");
+        var server = ServeFileAsync(listener, body, "filename*=UTF-8''..%2FCON%E2%80%AE.txt", CancellationToken.None);
+        var target = new Uri($"http://127.0.0.1:{port}/payload");
+        var action = CreateDownloadAction(target);
+        var transport = new BrowserDownloadTransport(new LoopbackTestPolicy(), _directory);
+
+        var record = await transport.DownloadAsync(action, CancellationToken.None);
+        await server;
+
+        Assert.Equal("_CON.txt", record.FileName);
+        Assert.Equal(body.LongLength, record.SizeBytes);
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant(), record.Sha256);
+        Assert.Equal(body, await File.ReadAllBytesAsync(record.StoredPath, TestContext.Current.CancellationToken));
+        Assert.StartsWith(Path.GetFullPath(_directory) + Path.DirectorySeparatorChar, Path.GetFullPath(record.StoredPath), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(Directory.EnumerateFiles(_directory), path => path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Performs the approved download removes stale partial before saving and allocates collision name step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task ApprovedDownloadRemovesStalePartialBeforeSavingAndAllocatesCollisionName()
+    {
+        var existing = Path.Combine(_directory, "report.txt");
+        await File.WriteAllTextAsync(existing, "existing", TestContext.Current.CancellationToken);
+        var stale = BrowserDownloadFilePolicy.CreatePartialPath(existing);
+        await File.WriteAllTextAsync(stale, "partial", TestContext.Current.CancellationToken);
+        File.SetLastWriteTimeUtc(stale, DateTime.UtcNow - BrowserDownloadFilePolicy.PartialFileRetention - TimeSpan.FromMinutes(2));
+
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var body = Encoding.UTF8.GetBytes("replacement");
+        var server = ServeFileAsync(listener, body, "filename=\"report.txt\"", CancellationToken.None);
+        var target = new Uri($"http://127.0.0.1:{port}/report");
+        var transport = new BrowserDownloadTransport(new LoopbackTestPolicy(), _directory);
+
+        var record = await transport.DownloadAsync(CreateDownloadAction(target), CancellationToken.None);
+        await server;
+
+        Assert.False(File.Exists(stale));
+        Assert.Equal("report (2).txt", record.FileName);
+        Assert.Equal("existing", await File.ReadAllTextAsync(existing, TestContext.Current.CancellationToken));
+        Assert.Equal("replacement", await File.ReadAllTextAsync(record.StoredPath, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Creates download action with the invariants required by its callers.
+    /// </summary>
+    private static BrowserPendingAction CreateDownloadAction(Uri target)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new BrowserPendingAction(
+            Guid.NewGuid(), BrowserActionKind.Download, target.GetLeftPart(UriPartial.Authority),
+            "Download test file", target.ToString(), null, BrowserActionState.Approved,
+            now, now.AddMinutes(10), now, null);
+    }
+
+    /// <summary>
+    /// Performs serve file asynchronously so I/O does not block the caller's thread.
+    /// </summary>
+    private static async Task ServeFileAsync(TcpListener listener, byte[] body, string contentDispositionParameter, CancellationToken cancellationToken)
+    {
+        using var client = await listener.AcceptTcpClientAsync(cancellationToken);
+        await using var stream = client.GetStream();
+        await DrainRequestAsync(stream, cancellationToken);
+        var headers = Encoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: application/octet-stream\r\n" +
+            $"Content-Disposition: attachment; {contentDispositionParameter}\r\n" +
+            $"Content-Length: {body.Length}\r\n" +
+            "Connection: close\r\n\r\n");
+        await stream.WriteAsync(headers, cancellationToken);
+        await stream.WriteAsync(body, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Performs drain request asynchronously so I/O does not block the caller's thread.
+    /// </summary>
+    private static async Task DrainRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var delimiter = "\r\n\r\n"u8.ToArray();
+        var matched = 0;
+        var buffer = new byte[1];
+        while (matched < delimiter.Length)
+        {
+            var read = await stream.ReadAsync(buffer, cancellationToken);
+            if (read == 0) throw new EndOfStreamException();
+            matched = buffer[0] == delimiter[matched] ? matched + 1 : buffer[0] == delimiter[0] ? 1 : 0;
+        }
+    }
+
+    /// <summary>
+    /// Represents loopback test policy and keeps its related state and behavior together.
+    /// </summary>
+    private sealed class LoopbackTestPolicy : IBrowserNavigationPolicy
+    {
+        /// <summary>
+        /// Performs assess asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public Task<BrowserNavigationAssessment> AssessAsync(Uri address, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new BrowserNavigationAssessment(address, true, "test-pinned", ["127.0.0.1"]));
+        }
+    }
+
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
+    public void Dispose()
+    {
+        try { Directory.Delete(_directory, true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+}

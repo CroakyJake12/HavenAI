@@ -1,0 +1,17 @@
+# FILE DOCUMENTATION
+# Where: .editorconfig at the repository root, inherited by every project below it.
+# What: This file narrows compiler/editor diagnostics for explicitly documented compatibility cases.
+# Why: Keeping the exception here makes the deviation visible and prevents source files from scattering pragma directives.
+# Maintenance: Add the narrowest possible path section and explain why a diagnostic is safe to change.
+
+# Haven compiler diagnostics that are intentionally scoped to one compatibility surface.
+
+[src/Haven.Infrastructure/LanguageServerProtocolClient.cs]
+# LanguageServerRequestException exposes the JSON-RPC error payload as Data for
+# compatibility with existing callers. It intentionally hides Exception.Data.
+dotnet_diagnostic.CS0114.severity = none
+
+[src/Haven.Desktop/Views/ProjectCreatorView.axaml.cs]
+# The code-behind view uses a private palette field named BorderBrush. It never exposes or replaces
+# TemplatedControl.BorderBrush, so suppress the hiding diagnostic only for this file.
+dotnet_diagnostic.CS0108.severity = none

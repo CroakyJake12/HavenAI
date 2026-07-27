@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/CallPageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns CallPageViewModel, CallTranscriptItemViewModel, WaveformBarViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -6,16 +15,43 @@ using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents call page view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallPageViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Stores coordinator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICallCoordinator _coordinator;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores speech models locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ISpeechModelManager _speechModels;
+    /// <summary>
+    /// Stores initialization gate locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly SemaphoreSlim _initializationGate = new(1, 1);
+    /// <summary>
+    /// Stores transcript by id locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Dictionary<Guid, CallTranscriptItemViewModel> _transcriptById = [];
+    /// <summary>
+    /// Stores initialized locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _initialized;
+    /// <summary>
+    /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _disposed;
 
+    /// <summary>
+    /// Stores selected model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ModelDescriptor? _selectedModel;
     public ModelDescriptor? SelectedModel
     {
@@ -28,6 +64,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores selected speech model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private SpeechModelInfo? _selectedSpeechModel;
     public SpeechModelInfo? SelectedSpeechModel
     {
@@ -40,6 +79,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores selected input device locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallAudioDevice? _selectedInputDevice;
     public CallAudioDevice? SelectedInputDevice
     {
@@ -47,6 +89,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _selectedInputDevice, value);
     }
 
+    /// <summary>
+    /// Stores selected output device locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallAudioDevice? _selectedOutputDevice;
     public CallAudioDevice? SelectedOutputDevice
     {
@@ -54,13 +99,27 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _selectedOutputDevice, value);
     }
 
+    /// <summary>
+    /// Stores selected voice locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallVoice? _selectedVoice;
     public CallVoice? SelectedVoice
     {
         get => _selectedVoice;
-        set => SetProperty(ref _selectedVoice, value);
+        set
+        {
+            if (!SetProperty(ref _selectedVoice, value)) return;
+            RaisePropertyChanged(nameof(SelectedVoiceDescription));
+        }
     }
+    /// <summary>Explains the quality, privacy and one-time setup cost of the selected voicebank.</summary>
+    public string SelectedVoiceDescription => SelectedVoice?.Id.StartsWith("kokoro:", StringComparison.OrdinalIgnoreCase) == true
+        ? "Neural, expressive and fully local. The compact voice model downloads once on first preview."
+        : "Windows system voice. Instant and offline, but less conversational than Haven Neural.";
 
+    /// <summary>
+    /// Stores input mode locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallInputMode _inputMode = CallInputMode.HandsFree;
     public CallInputMode InputMode
     {
@@ -68,6 +127,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _inputMode, value);
     }
 
+    /// <summary>
+    /// Stores enable speech output locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _enableSpeechOutput = true;
     public bool EnableSpeechOutput
     {
@@ -75,6 +137,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _enableSpeechOutput, value);
     }
 
+    /// <summary>
+    /// Stores typed transcript locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _typedTranscript = string.Empty;
     public string TypedTranscript
     {
@@ -87,6 +152,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores call state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CallState _callState = CallState.Idle;
     public CallState CallState
     {
@@ -99,9 +167,18 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = "Ready to call";
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
+    /// <summary>
+    /// Stores is downloading speech model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isDownloadingSpeechModel;
     public bool IsDownloadingSpeechModel
     {
@@ -113,6 +190,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores speech model download progress locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _speechModelDownloadProgress;
     public double SpeechModelDownloadProgress
     {
@@ -120,6 +200,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _speechModelDownloadProgress, value);
     }
 
+    /// <summary>
+    /// Stores is push to talk pressed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isPushToTalkPressed;
     public bool IsPushToTalkPressed
     {
@@ -131,59 +214,179 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores screen preview locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Bitmap? _screenPreview;
+    /// <summary>
+    /// Gets or updates screen preview, the bindable or domain state represented by this property.
+    /// </summary>
     public Bitmap? ScreenPreview => _screenPreview;
+    /// <summary>
+    /// Reports whether screen preview applies to the current state.
+    /// </summary>
     public bool HasScreenPreview => _screenPreview is not null;
 
+    /// <summary>
+    /// Gets or updates available models, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ModelDescriptor> AvailableModels { get; } = [];
+    /// <summary>
+    /// Gets or updates available speech models, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<SpeechModelInfo> AvailableSpeechModels { get; } = [];
+    /// <summary>
+    /// Gets or updates input devices, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CallAudioDevice> InputDevices { get; } = [];
+    /// <summary>
+    /// Gets or updates output devices, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CallAudioDevice> OutputDevices { get; } = [];
+    /// <summary>
+    /// Gets or updates voices, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CallVoice> Voices { get; } = [];
+    /// <summary>
+    /// Gets or updates transcript, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CallTranscriptItemViewModel> Transcript { get; } = [];
+    /// <summary>
+    /// Gets or updates waveform bars, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<WaveformBarViewModel> WaveformBars { get; } = [];
 
+    /// <summary>
+    /// Gets or updates input modes, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<CallInputMode> InputModes { get; } = Enum.GetValues<CallInputMode>();
 
+    /// <summary>
+    /// Reports whether active applies to the current state.
+    /// </summary>
     public bool IsActive => _coordinator.IsActive;
+    /// <summary>
+    /// Reports whether not active applies to the current state.
+    /// </summary>
     public bool IsNotActive => !IsActive;
+    /// <summary>
+    /// Reports whether paused applies to the current state.
+    /// </summary>
     public bool IsPaused => CallState == CallState.Paused;
+    /// <summary>
+    /// Reports whether muted applies to the current state.
+    /// </summary>
     public bool IsMuted => _coordinator.IsMuted;
+    /// <summary>
+    /// Reports whether sharing applies to the current state.
+    /// </summary>
     public bool IsSharing => _coordinator.IsScreenSharing;
+    /// <summary>
+    /// Reports whether speech input applies to the current state.
+    /// </summary>
     public bool HasSpeechInput => _coordinator.Capabilities.HasSpeechInput;
+    /// <summary>
+    /// Reports whether speech output applies to the current state.
+    /// </summary>
     public bool HasSpeechOutput => _coordinator.Capabilities.HasSpeechOutput;
+    /// <summary>
+    /// Reports whether share screen applies to the current state.
+    /// </summary>
     public bool CanShareScreen => _coordinator.Capabilities.CanShareScreen;
+    /// <summary>
+    /// Reports whether transcript applies to the current state.
+    /// </summary>
     public bool HasTranscript => Transcript.Count > 0;
+    /// <summary>
+    /// Reports whether start applies to the current state.
+    /// </summary>
     public bool CanStart => !IsActive && SelectedModel is not null;
+    /// <summary>
+    /// Reports whether send text applies to the current state.
+    /// </summary>
     public bool CanSendText => IsActive && !string.IsNullOrWhiteSpace(TypedTranscript);
+    /// <summary>
+    /// Gets or updates state label, the bindable or domain state represented by this property.
+    /// </summary>
     public string StateLabel => CallState.ToString();
+    /// <summary>
+    /// Gets or updates mute label, the bindable or domain state represented by this property.
+    /// </summary>
     public string MuteLabel => IsMuted ? "Unmute" : "Mute";
+    /// <summary>
+    /// Gets or updates pause label, the bindable or domain state represented by this property.
+    /// </summary>
     public string PauseLabel => IsPaused ? "Resume" : "Pause";
+    /// <summary>
+    /// Gets or updates share label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ShareLabel => IsSharing ? "Stop sharing" : "Share screen";
+    /// <summary>
+    /// Gets or updates push to talk label, the bindable or domain state represented by this property.
+    /// </summary>
     public string PushToTalkLabel => IsPushToTalkPressed ? "Release to send" : "Hold to talk";
+    /// <summary>
+    /// Gets or updates speech input status, the bindable or domain state represented by this property.
+    /// </summary>
     public string SpeechInputStatus => HasSpeechInput
         ? "Local microphone transcription ready"
         : _coordinator.Capabilities.SpeechInputUnavailableReason ?? "Microphone transcription unavailable";
+    /// <summary>
+    /// Gets or updates speech output status, the bindable or domain state represented by this property.
+    /// </summary>
     public string SpeechOutputStatus => HasSpeechOutput
-        ? "Local speech output ready"
+        ? "Haven Neural and Windows voicebanks ready"
         : _coordinator.Capabilities.SpeechOutputUnavailableReason ?? "Speech output unavailable";
+    /// <summary>
+    /// Gets or updates screen share status, the bindable or domain state represented by this property.
+    /// </summary>
     public string ScreenShareStatus => CanShareScreen
         ? "Windows screen picker ready"
         : _coordinator.Capabilities.ScreenShareUnavailableReason ?? "Screen sharing unavailable";
+    /// <summary>
+    /// Gets or updates show speech model setup, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowSpeechModelSetup => SelectedSpeechModel?.IsInstalled == false;
+    /// <summary>
+    /// Gets or updates speech model status, the bindable or domain state represented by this property.
+    /// </summary>
     public string SpeechModelStatus => SelectedSpeechModel is null
         ? "Choose a local speech model"
         : SelectedSpeechModel.IsInstalled
             ? $"Installed · {FormatBytes(SelectedSpeechModel.ApproximateSizeBytes)}"
             : $"Download required · about {FormatBytes(SelectedSpeechModel.ApproximateSizeBytes)}";
 
+    /// <summary>
+    /// Gets or updates start call command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand StartCallCommand { get; }
+    /// <summary>
+    /// Gets or updates end call command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand EndCallCommand { get; }
+    /// <summary>
+    /// Gets or updates pause resume command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand PauseResumeCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle mute command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ToggleMuteCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle screen share command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand ToggleScreenShareCommand { get; }
+    /// <summary>
+    /// Gets or updates send transcript command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SendTranscriptCommand { get; }
+    /// <summary>
+    /// Gets or updates download speech model command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand DownloadSpeechModelCommand { get; }
+    /// <summary>
+    /// Gets or updates interrupt command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand InterruptCommand { get; }
 
     public CallPageViewModel(
@@ -217,6 +420,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         _coordinator.ScreenPreviewChanged += OnScreenPreviewChanged;
     }
 
+    /// <summary>
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync()
     {
         if (_initialized || _disposed) return;
@@ -253,6 +459,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task BeginPushToTalkAsync()
     {
         if (!IsActive || IsPushToTalkPressed) return;
@@ -267,6 +476,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task EndPushToTalkAsync()
     {
         if (!IsPushToTalkPressed) return;
@@ -281,6 +493,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs load ollama models asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<IReadOnlyList<ModelDescriptor>> LoadOllamaModelsAsync()
     {
         var models = await _ollama.GetModelsAsync(CancellationToken.None).ConfigureAwait(false);
@@ -293,6 +508,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         return models;
     }
 
+    /// <summary>
+    /// Performs start call asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task StartCallAsync()
     {
         if (SelectedModel is null) return;
@@ -320,6 +538,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs end call asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task EndCallAsync()
     {
         try { await _coordinator.EndAsync(CancellationToken.None).ConfigureAwait(false); }
@@ -327,19 +548,31 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         await RunOnUiThreadAsync(RaiseCallProperties).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs pause resume asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task PauseResumeAsync() => RunCoordinatorActionAsync(
         IsPaused
             ? () => _coordinator.ResumeAsync(CancellationToken.None)
             : () => _coordinator.PauseAsync(CancellationToken.None));
 
+    /// <summary>
+    /// Performs toggle mute asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task ToggleMuteAsync() => RunCoordinatorActionAsync(
         () => _coordinator.SetMutedAsync(!IsMuted, CancellationToken.None));
 
+    /// <summary>
+    /// Performs toggle screen share asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private Task ToggleScreenShareAsync() => RunCoordinatorActionAsync(
         IsSharing
             ? () => _coordinator.StopScreenShareAsync(CancellationToken.None)
             : () => _coordinator.StartScreenShareAsync(CancellationToken.None));
 
+    /// <summary>
+    /// Runs run coordinator action async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunCoordinatorActionAsync(Func<Task> action)
     {
         try { await action().ConfigureAwait(false); }
@@ -347,6 +580,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         await RunOnUiThreadAsync(RaiseCallProperties).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs send transcript asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SendTranscriptAsync()
     {
         var text = TypedTranscript.Trim();
@@ -356,6 +592,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         catch (Exception ex) { await RunOnUiThreadAsync(() => Status = ex.Message).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs download speech model asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DownloadSpeechModelAsync()
     {
         if (SelectedSpeechModel is null) return;
@@ -384,6 +623,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Handles the state changed event raised by the UI or runtime.
+    /// </summary>
     private void OnStateChanged(object? sender, CallStateChangedEventArgs e) => RunOnUiThread(() =>
     {
         CallState = e.State;
@@ -392,6 +634,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         RaiseCallProperties();
     });
 
+    /// <summary>
+    /// Handles the transcript changed event raised by the UI or runtime.
+    /// </summary>
     private void OnTranscriptChanged(object? sender, CallTranscriptEventArgs e) => RunOnUiThread(() =>
     {
         if (!_transcriptById.TryGetValue(e.MessageId, out var item))
@@ -418,9 +663,15 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(HasTranscript));
     });
 
+    /// <summary>
+    /// Handles the audio level changed event raised by the UI or runtime.
+    /// </summary>
     private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs e) =>
         RunOnUiThread(() => UpdateWaveform(e.Level));
 
+    /// <summary>
+    /// Handles the screen preview changed event raised by the UI or runtime.
+    /// </summary>
     private void OnScreenPreviewChanged(object? sender, ScreenShareSnapshotEventArgs e)
     {
         try
@@ -436,6 +687,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the raise call properties step owned by this component.
+    /// </summary>
     private void RaiseCallProperties()
     {
         RaisePropertyChanged(nameof(IsActive));
@@ -457,6 +711,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         InterruptCommand.RaiseCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Performs the raise capability properties step owned by this component.
+    /// </summary>
     private void RaiseCapabilityProperties()
     {
         RaisePropertyChanged(nameof(HasSpeechInput));
@@ -467,9 +724,15 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(ScreenShareStatus));
     }
 
+    /// <summary>
+    /// Performs the update waveform for state step owned by this component.
+    /// </summary>
     private void UpdateWaveformForState(CallState state) =>
         UpdateWaveform(state is CallState.Listening or CallState.Transcribing or CallState.Speaking ? 0.35 : 0);
 
+    /// <summary>
+    /// Performs the update waveform step owned by this component.
+    /// </summary>
     private void UpdateWaveform(double level)
     {
         for (var index = 0; index < WaveformBars.Count; index++)
@@ -479,6 +742,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the set screen preview step owned by this component.
+    /// </summary>
     private void SetScreenPreview(Bitmap? preview)
     {
         if (_disposed)
@@ -500,29 +766,44 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
         foreach (var value in values) target.Add(value);
     }
 
+    /// <summary>
+    /// Runs run on ui thread while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static void RunOnUiThread(Action action)
     {
         if (Dispatcher.UIThread.CheckAccess()) action();
         else Dispatcher.UIThread.Post(action);
     }
 
+    /// <summary>
+    /// Runs run on ui thread async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static Task RunOnUiThreadAsync(Action action) =>
         Dispatcher.UIThread.CheckAccess()
             ? RunImmediately(action)
             : Dispatcher.UIThread.InvokeAsync(action).GetTask();
 
+    /// <summary>
+    /// Runs run immediately while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static Task RunImmediately(Action action)
     {
         action();
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the format bytes step owned by this component.
+    /// </summary>
     private static string FormatBytes(long bytes)
     {
         var megabytes = bytes / (1024d * 1024d);
         return megabytes >= 1024 ? $"{megabytes / 1024:0.0} GB" : $"{megabytes:0} MB";
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -538,6 +819,9 @@ public sealed class CallPageViewModel : ObservableObject, IDisposable
     }
 }
 
+/// <summary>
+/// Represents call transcript item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class CallTranscriptItemViewModel(
     Guid id,
     MessageRole role,
@@ -545,22 +829,64 @@ public sealed class CallTranscriptItemViewModel(
     bool isPartial,
     DateTimeOffset timestamp) : ObservableObject
 {
+    /// <summary>
+    /// Stores text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _text = text;
+    /// <summary>
+    /// Stores is partial locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isPartial = isPartial;
+    /// <summary>
+    /// Stores was interrupted locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _wasInterrupted;
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; } = id;
+    /// <summary>
+    /// Gets or updates role, the bindable or domain state represented by this property.
+    /// </summary>
     public MessageRole Role { get; } = role;
+    /// <summary>
+    /// Reports whether user applies to the current state.
+    /// </summary>
     public bool IsUser => Role == MessageRole.User;
+    /// <summary>
+    /// Gets or updates speaker, the bindable or domain state represented by this property.
+    /// </summary>
     public string Speaker => IsUser ? "You" : "Haven";
+    /// <summary>
+    /// Gets or updates time label, the bindable or domain state represented by this property.
+    /// </summary>
     public string TimeLabel { get; } = timestamp.ToString("HH:mm");
+    /// <summary>
+    /// Gets or updates text, the bindable or domain state represented by this property.
+    /// </summary>
     public string Text { get => _text; set => SetProperty(ref _text, value); }
+    /// <summary>
+    /// Reports whether partial applies to the current state.
+    /// </summary>
     public bool IsPartial { get => _isPartial; set => SetProperty(ref _isPartial, value); }
+    /// <summary>
+    /// Gets or updates was interrupted, the bindable or domain state represented by this property.
+    /// </summary>
     public bool WasInterrupted { get => _wasInterrupted; set => SetProperty(ref _wasInterrupted, value); }
 }
 
+/// <summary>
+/// Represents waveform bar view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class WaveformBarViewModel(double height) : ObservableObject
 {
+    /// <summary>
+    /// Stores height locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private double _height = height;
+    /// <summary>
+    /// Gets or updates height, the bindable or domain state represented by this property.
+    /// </summary>
     public double Height { get => _height; set => SetProperty(ref _height, value); }
 }

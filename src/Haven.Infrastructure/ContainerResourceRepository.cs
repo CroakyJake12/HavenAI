@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ContainerResourceRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ContainerResourceRepository, ResourceType. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Security.Cryptography;
 using System.Text;
 using System.IO.Compression;
@@ -8,11 +17,23 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents container resource repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnectionFactory factory) : IContainerResourceRepository
 {
+    /// <summary>
+    /// Stores maximum resource bytes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const long MaximumResourceBytes = 25L * 1024 * 1024;
+    /// <summary>
+    /// Stores maximum prompt characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaximumPromptCharacters = 180_000;
 
+    /// <summary>
+    /// Stores supported types locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, ResourceType> SupportedTypes =
         new Dictionary<string, ResourceType>(StringComparer.OrdinalIgnoreCase)
         {
@@ -32,6 +53,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
             [".webp"] = Image("image/webp"), [".gif"] = Image("image/gif"), [".bmp"] = Image("image/bmp")
         };
 
+    /// <summary>
+    /// Retrieves by container async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ContainerResource>> GetByContainerAsync(Guid containerId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -41,6 +65,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         return await ReadAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs add asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ContainerResource> AddAsync(Guid containerId, string sourcePath, CancellationToken cancellationToken)
     {
         if (containerId == Guid.Empty) throw new ArgumentException("The container identifier cannot be empty.", nameof(containerId));
@@ -99,6 +126,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         }
     }
 
+    /// <summary>
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -119,6 +149,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         TryDelete(GetStoredPath(item));
     }
 
+    /// <summary>
+    /// Retrieves stored path for the current operation.
+    /// </summary>
     public string GetStoredPath(ContainerResource resource)
     {
         if (!string.Equals(resource.StoredName, Path.GetFileName(resource.StoredName), StringComparison.Ordinal))
@@ -126,6 +159,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         return Path.Combine(paths.DataDirectory, "container-resources", resource.ContainerId.ToString("N"), resource.StoredName);
     }
 
+    /// <summary>
+    /// Builds prompt context async from the currently available inputs.
+    /// </summary>
     public async Task<string> BuildPromptContextAsync(Guid containerId, CancellationToken cancellationToken)
     {
         var resources = await GetByContainerAsync(containerId, cancellationToken).ConfigureAwait(false);
@@ -150,6 +186,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         return result.ToString();
     }
 
+    /// <summary>
+    /// Performs read docx text asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ReadDocxTextAsync(string path, CancellationToken cancellationToken)
     {
         try
@@ -172,6 +211,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         }
     }
 
+    /// <summary>
+    /// Performs find by hash asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<ContainerResource?> FindByHashAsync(Guid containerId, string hash, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -182,6 +224,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         return (await ReadAsync(command, cancellationToken).ConfigureAwait(false)).FirstOrDefault();
     }
 
+    /// <summary>
+    /// Performs read asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<ContainerResource>> ReadAsync(SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<ContainerResource>();
@@ -193,6 +238,9 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         return result;
     }
 
+    /// <summary>
+    /// Performs the add parameters step owned by this component.
+    /// </summary>
     private static void AddParameters(SqliteCommand command, ContainerResource item)
     {
         command.Parameters.AddWithValue("$id", item.Id.ToString());
@@ -206,9 +254,24 @@ public sealed class ContainerResourceRepository(IAppPaths paths, ISqliteConnecti
         command.Parameters.AddWithValue("$createdAt", item.CreatedAt.ToString("O"));
     }
 
+    /// <summary>
+    /// Performs the text step owned by this component.
+    /// </summary>
     private static ResourceType Text(string mediaType) => new(mediaType, ContainerResourceKind.Text);
+    /// <summary>
+    /// Performs the document step owned by this component.
+    /// </summary>
     private static ResourceType Document(string mediaType) => new(mediaType, ContainerResourceKind.Document);
+    /// <summary>
+    /// Performs the image step owned by this component.
+    /// </summary>
     private static ResourceType Image(string mediaType) => new(mediaType, ContainerResourceKind.Image);
+    /// <summary>
+    /// Attempts to delete and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryDelete(string path) { try { File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+    /// <summary>
+    /// Represents resource type and keeps its related state and behavior together.
+    /// </summary>
     private sealed record ResourceType(string MediaType, ContainerResourceKind Kind);
 }

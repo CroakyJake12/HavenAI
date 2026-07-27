@@ -1,8 +1,20 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ApplicationLifecycleService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns IApplicationLifecycle, ApplicationLifecycleService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Defines the application lifecycle contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IApplicationLifecycle
 {
     bool IsStartupComplete { get; }
@@ -13,13 +25,34 @@ public interface IApplicationLifecycle
     bool IsSafeMode { get; }
 }
 
+/// <summary>
+/// Represents application lifecycle service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ApplicationLifecycleService : IApplicationLifecycle
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppPaths _paths;
+    /// <summary>
+    /// Stores database locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppDatabase _database;
+    /// <summary>
+    /// Stores diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppDiagnostics _diagnostics;
+    /// <summary>
+    /// Stores active resources locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly HashSet<string> _activeResources = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores is startup complete locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _isStartupComplete;
+    /// <summary>
+    /// Stores is safe mode locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _isSafeMode;
 
     public ApplicationLifecycleService(IAppPaths paths, IAppDatabase database, IAppDiagnostics diagnostics)
@@ -29,9 +62,18 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         _diagnostics = diagnostics;
     }
 
+    /// <summary>
+    /// Reports whether startup complete applies to the current state.
+    /// </summary>
     public bool IsStartupComplete => Volatile.Read(ref _isStartupComplete) == 1;
+    /// <summary>
+    /// Reports whether safe mode applies to the current state.
+    /// </summary>
     public bool IsSafeMode => Volatile.Read(ref _isSafeMode) == 1;
 
+    /// <summary>
+    /// Performs startup asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task StartupAsync(CancellationToken cancellationToken)
     {
         try
@@ -54,6 +96,9 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         }
     }
 
+    /// <summary>
+    /// Performs shutdown asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ShutdownAsync(CancellationToken cancellationToken)
     {
         try
@@ -67,6 +112,9 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         }
     }
 
+    /// <summary>
+    /// Performs crash recovery asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task CrashRecoveryAsync(CancellationToken cancellationToken)
     {
         var startupMarker = GetStartupMarkerPath();
@@ -82,20 +130,35 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         if (File.Exists(shutdownMarker)) File.Delete(shutdownMarker);
     }
 
+    /// <summary>
+    /// Performs mark clean shutdown asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MarkCleanShutdownAsync()
     {
         var path = GetShutdownMarkerPath();
         await File.WriteAllTextAsync(path, DateTimeOffset.UtcNow.ToString("O")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the register resource step owned by this component.
+    /// </summary>
     public void RegisterResource(string resourceId) { lock (_activeResources) _activeResources.Add(resourceId); }
+    /// <summary>
+    /// Performs the release resource step owned by this component.
+    /// </summary>
     public void ReleaseResource(string resourceId) { lock (_activeResources) _activeResources.Remove(resourceId); }
 
+    /// <summary>
+    /// Performs the release all resources step owned by this component.
+    /// </summary>
     private void ReleaseAllResources()
     {
         lock (_activeResources) _activeResources.Clear();
     }
 
+    /// <summary>
+    /// Performs check previous shutdown asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CheckPreviousShutdownAsync(CancellationToken cancellationToken)
     {
         var startupMarker = GetStartupMarkerPath();
@@ -111,6 +174,9 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         if (File.Exists(shutdownMarker)) File.Delete(shutdownMarker);
     }
 
+    /// <summary>
+    /// Runs run sqlite integrity check async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunSqliteIntegrityCheckAsync(CancellationToken cancellationToken)
     {
         try
@@ -124,6 +190,9 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         }
     }
 
+    /// <summary>
+    /// Runs run pre migration backups async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task RunPreMigrationBackupsAsync(CancellationToken cancellationToken)
     {
         var backupDir = Path.Combine(_paths.DataDirectory, "backups");
@@ -138,6 +207,12 @@ public sealed class ApplicationLifecycleService : IApplicationLifecycle
         }
     }
 
+    /// <summary>
+    /// Retrieves startup marker path for the current operation.
+    /// </summary>
     private string GetStartupMarkerPath() => Path.Combine(_paths.DataDirectory, ".startup");
+    /// <summary>
+    /// Retrieves shutdown marker path for the current operation.
+    /// </summary>
     private string GetShutdownMarkerPath() => Path.Combine(_paths.DataDirectory, ".shutdown");
 }

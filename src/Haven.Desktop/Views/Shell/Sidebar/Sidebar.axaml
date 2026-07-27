@@ -1,0 +1,653 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Shell.Sidebar.Sidebar"
+             x:Name="SidebarRoot">
+
+    <Border Background="{DynamicResource HavenPanelBrush}"
+            BorderBrush="Transparent"
+            BorderThickness="0"
+            CornerRadius="12">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12,13,12,11">
+
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="6"
+                  Margin="0,0,0,9"
+                  IsVisible="{Binding !IsProjectOpen}">
+                <Button Classes="product"
+                        x:Name="ChatTypeButton"
+                        IsVisible="{Binding IsChatProduct}"
+                        HorizontalContentAlignment="Stretch">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="9">
+                        <controls:HavenIcon IconKey="chat"
+                                            Width="18"
+                                            Height="18"
+                                            Foreground="{DynamicResource HavenMutedBrush}"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ChatTypeLabel}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <controls:HavenIcon Grid.Column="2"
+                                            IconKey="chevron-down"
+                                            Width="12"
+                                            Height="12"
+                                            Foreground="{DynamicResource HavenMutedBrush}"
+                                            VerticalAlignment="Center" />
+                    </Grid>
+                    <Button.Flyout>
+                        <Flyout FlyoutPresenterTheme="{StaticResource HavenAcrylicFlyoutPresenterTheme}">
+                            <StackPanel Spacing="2">
+                                <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                        Command="{Binding NavigateChatCommand}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                                        <controls:HavenIcon IconKey="chat" Width="18" Height="18"
+                                                            Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Haven Chat" FontWeight="SemiBold" />
+                                            <TextBlock Text="Chat with Haven" Classes="muted" FontSize="10" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                                <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                        Command="{Binding NavigateTeachCommand}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                                        <controls:HavenIcon IconKey="call" Width="18" Height="18"
+                                                            Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Teach" FontWeight="SemiBold" />
+                                            <TextBlock Text="Learn with Haven" Classes="muted" FontSize="10" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button Grid.Column="1"
+                        Classes="chrome"
+                        Command="{Binding ToggleSidebarCommand}"
+                        ToolTip.Tip="Collapse sidebar">
+                    <controls:HavenIcon IconKey="chevron-left"
+                                        Width="14"
+                                        Height="14" />
+                </Button>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="6"
+                  Margin="0,0,0,9"
+                  IsVisible="{Binding IsProjectOpen}">
+                <Button Classes="projectIdentity"
+                        x:Name="ProjectIdentityButton"
+                        Command="{Binding NavigateProjectHomeCommand}"
+                        HorizontalContentAlignment="Stretch">
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="10">
+                        <controls:HavenIcon IconKey="folder"
+                                            Width="19"
+                                            Height="19"
+                                            Foreground="{DynamicResource HavenMutedBrush}"
+                                            VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1"
+                                    Spacing="1"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActiveProjectName}"
+                                       FontWeight="SemiBold"
+                                       MaxLines="1"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding ActiveProjectRoot}"
+                                       Classes="muted2"
+                                       FontSize="9"
+                                       MaxLines="1"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Button Grid.Column="1"
+                        Classes="chrome"
+                        Command="{Binding ToggleSidebarCommand}"
+                        ToolTip.Tip="Collapse sidebar">
+                    <controls:HavenIcon IconKey="chevron-left"
+                                        Width="14"
+                                        Height="14" />
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="7"
+                  IsVisible="{Binding !IsProjectOpen}">
+                <Button Classes="primary"
+                        x:Name="NewChatFullButton"
+                        Command="{Binding NewChatCommand}"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                Spacing="8">
+                        <controls:HavenIcon IconKey="plus"
+                                            Width="15"
+                                            Height="15"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding NewItemLabel}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="7"
+                  IsVisible="{Binding IsProjectOpen}">
+                <Button Classes="primary"
+                        x:Name="NewProjectChatButton"
+                        Command="{Binding NewProjectChatCommand}"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                Spacing="8">
+                        <controls:HavenIcon IconKey="plus"
+                                            Width="15"
+                                            Height="15"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Text="New project chat"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="1"
+                        Classes="icon"
+                        x:Name="ProjectHomeButton"
+                        Command="{Binding NavigateProjectHomeCommand}"
+                        ToolTip.Tip="Project home">
+                    <controls:HavenIcon IconKey="home"
+                                        Width="17"
+                                        Height="17" />
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="2"
+                  Margin="0,8">
+                <TextBox Text="{Binding SearchQuery}"
+                         Classes="sidebarSearch"
+                         x:Name="SearchBox"
+                         PlaceholderText="Search chats" />
+                <controls:HavenIcon IconKey="search"
+                                    Width="16"
+                                    Height="16"
+                                    Margin="12,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource HavenMutedBrush}"
+                                    IsHitTestVisible="False" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="3"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="3">
+
+                    <StackPanel IsVisible="{Binding !IsProjectOpen}">
+                        <StackPanel Margin="0,0,0,12">
+                            <Button Classes="sidebar"
+                                    x:Name="QuickChatsButton"
+                                    HorizontalAlignment="Stretch"
+                                    IsVisible="{Binding IsTeach}"
+                                    Command="{Binding CurrentChat.SelectQuickChatsCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <controls:HavenIcon IconKey="chat" Width="17" Height="17" />
+                                    <TextBlock Text="Quick Chats" />
+                                </StackPanel>
+                            </Button>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="9,0,3,5">
+                                <TextBlock Text="{Binding ContainerHeading}" Classes="eyebrow" />
+                                <Button Grid.Column="1"
+                                        Classes="chrome"
+                                        x:Name="NewContainerButton"
+                                        Command="{Binding NewContainerCommand}"
+                                        ToolTip.Tip="New container">
+                                    <controls:HavenIcon IconKey="plus"
+                                                        Width="14"
+                                                        Height="14" />
+                                </Button>
+                            </Grid>
+
+                            <ListBox ItemsSource="{Binding CurrentChat.Containers}"
+                                     BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Classes="sidebar"
+                                                HorizontalAlignment="Stretch"
+                                                Command="{Binding $parent[ListBox].DataContext.SelectContainerCommand}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="{Binding Name}" />
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Open"
+                                                              Command="{Binding $parent[ListBox].DataContext.SelectContainerCommand}"
+                                                              CommandParameter="{Binding}" />
+                                                    <Separator />
+                                                    <MenuItem Header="Archive"
+                                                              Command="{Binding $parent[ListBox].DataContext.DeleteContainerCommand}"
+                                                              CommandParameter="{Binding}" />
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock Text="Pinned"
+                               Classes="eyebrow"
+                               Margin="9,0,0,5"
+                               IsVisible="{Binding HasPinnedConversations}" />
+                    <ListBox ItemsSource="{Binding PinnedConversations}"
+                             BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,1">
+                                    <Grid>
+                                        <Button Classes="sidebar"
+                                                Classes.sidebarActive="{Binding IsActive}"
+                                                Command="{Binding OpenCommand}"
+                                                HorizontalAlignment="Stretch"
+                                                IsVisible="{Binding IsNormal}">
+                                            <Grid ColumnDefinitions="3,8,*">
+                                                <Border Background="{DynamicResource HavenNubBrush}"
+                                                        CornerRadius="2"
+                                                        IsVisible="{Binding IsActive}"
+                                                        Margin="0,2,0,2" />
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="{Binding Title}"
+                                                               MaxLines="1"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Meta}"
+                                                               Classes="muted2"
+                                                               FontSize="9" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+                                                    <MenuItem Header="Unpin" Command="{Binding TogglePinCommand}" />
+                                                    <MenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
+                                                    <MenuItem Header="Branch" Command="{Binding BranchCommand}" />
+                                                    <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+                                                    <Separator />
+                                                    <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                              IsVisible="{Binding IsRenaming}"
+                                              ColumnSpacing="4">
+                                            <TextBox Text="{Binding DraftTitle}" />
+                                            <Button Grid.Column="1"
+                                                    Classes="icon"
+                                                    Command="{Binding SaveRenameCommand}"
+                                                    ToolTip.Tip="Save name">
+                                                <controls:HavenIcon IconKey="check"
+                                                                    Width="14"
+                                                                    Height="14" />
+                                            </Button>
+                                            <Button Grid.Column="2"
+                                                    Classes="icon"
+                                                    Command="{Binding CancelRenameCommand}"
+                                                    ToolTip.Tip="Cancel rename">
+                                                <controls:HavenIcon IconKey="close"
+                                                                    Width="14"
+                                                                    Height="14" />
+                                            </Button>
+                                        </Grid>
+                                        <Border Classes="permission"
+                                                IsVisible="{Binding IsDeleteConfirming}">
+                                            <StackPanel Spacing="5">
+                                                <TextBlock Text="Delete this chat permanently?" FontSize="11" />
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Button Content="Cancel" Command="{Binding CancelDeleteCommand}" />
+                                                    <Button Content="Delete" Classes="danger" Command="{Binding ConfirmDeleteCommand}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Text="{Binding RecentHeading}"
+                               Classes="eyebrow"
+                               Margin="9,11,0,5"
+                               IsVisible="{Binding HasRecentConversations}" />
+                    <TextBlock Text="No project chats yet. Use New project chat above."
+                               Classes="muted"
+                               FontSize="10"
+                               Margin="9,0,4,7"
+                               IsVisible="{Binding ShowNoProjectChats}" />
+                    <ListBox ItemsSource="{Binding RecentConversations}"
+                             BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,1">
+                                    <Grid>
+                                        <Button Classes="sidebar"
+                                                Classes.sidebarActive="{Binding IsActive}"
+                                                Command="{Binding OpenCommand}"
+                                                HorizontalAlignment="Stretch"
+                                                IsVisible="{Binding IsNormal}">
+                                            <Grid ColumnDefinitions="3,8,*">
+                                                <Border Background="{DynamicResource HavenNubBrush}"
+                                                        CornerRadius="2"
+                                                        IsVisible="{Binding IsActive}"
+                                                        Margin="0,2,0,2" />
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="{Binding Title}"
+                                                               MaxLines="1"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Meta}"
+                                                               Classes="muted2"
+                                                               FontSize="9" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+                                                    <MenuItem Header="{Binding PinLabel}" Command="{Binding TogglePinCommand}" />
+                                                    <MenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
+                                                    <MenuItem Header="Branch" Command="{Binding BranchCommand}" />
+                                                    <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+                                                    <Separator />
+                                                    <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                              IsVisible="{Binding IsRenaming}"
+                                              ColumnSpacing="4">
+                                            <TextBox Text="{Binding DraftTitle}" />
+                                            <Button Grid.Column="1"
+                                                    Classes="icon"
+                                                    Command="{Binding SaveRenameCommand}"
+                                                    ToolTip.Tip="Save name">
+                                                <controls:HavenIcon IconKey="check"
+                                                                    Width="14"
+                                                                    Height="14" />
+                                            </Button>
+                                            <Button Grid.Column="2"
+                                                    Classes="icon"
+                                                    Command="{Binding CancelRenameCommand}"
+                                                    ToolTip.Tip="Cancel rename">
+                                                <controls:HavenIcon IconKey="close"
+                                                                    Width="14"
+                                                                    Height="14" />
+                                            </Button>
+                                        </Grid>
+                                        <Border Classes="permission"
+                                                IsVisible="{Binding IsDeleteConfirming}">
+                                            <StackPanel Spacing="5">
+                                                <TextBlock Text="Delete this chat permanently?" FontSize="11" />
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Button Content="Cancel" Command="{Binding CancelDeleteCommand}" />
+                                                    <Button Content="Delete" Classes="danger" Command="{Binding ConfirmDeleteCommand}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel IsVisible="{Binding IsProjectOpen}" Margin="0,12,0,0">
+                        <Grid ColumnDefinitions="*,Auto"
+                              Margin="9,0,3,6">
+                            <TextBlock Text="Project files"
+                                       Classes="eyebrow"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1"
+                                    Classes="chrome"
+                                    x:Name="RefreshFilesButton"
+                                    Command="{Binding ActiveProjectRefreshCommand}"
+                                    ToolTip.Tip="Refresh project files">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="6">
+                                    <controls:HavenIcon IconKey="refresh"
+                                                        Width="13"
+                                                        Height="13"
+                                                        VerticalAlignment="Center" />
+                                    <TextBlock Text="Refresh"
+                                               FontSize="10"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                        <ListBox ItemsSource="{Binding ActiveProjectFiles}"
+                                 BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Classes="sidebar"
+                                            HorizontalAlignment="Stretch"
+                                            Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.OpenFileCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Ask AI about this file"
+                                                          Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.AskAiAboutFileCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Reveal in Explorer"
+                                                          Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.RevealInExplorerCommand}"
+                                                          CommandParameter="{Binding}" />
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="10">
+                                            <controls:HavenIcon IconKey="file"
+                                                                Width="17"
+                                                                Height="17"
+                                                                Foreground="{DynamicResource HavenMutedBrush}"
+                                                                VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="1"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}"
+                                                           MaxLines="1"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Folder}"
+                                                           Classes="muted2"
+                                                           FontSize="9"
+                                                           MaxLines="1"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="4"
+                        Spacing="6"
+                        Margin="0,9,0,0"
+                        IsVisible="{Binding IsProjectOpen}">
+                <Border Height="1"
+                        Background="{DynamicResource HavenLineBrush}"
+                        Margin="7,0,7,3" />
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="6">
+                    <Button Classes="sidebarUtility"
+                            x:Name="BuildButton"
+                            Command="{Binding ActiveProjectBuildCommand}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="build"
+                                                Width="15"
+                                                Height="15"
+                                                VerticalAlignment="Center" />
+                            <TextBlock Text="Build"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="1"
+                            Classes="sidebarUtility"
+                            x:Name="TestButton"
+                            Command="{Binding ActiveProjectTestCommand}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="test"
+                                                Width="15"
+                                                Height="15"
+                                                VerticalAlignment="Center" />
+                            <TextBlock Text="Test"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+                <Button Classes="sidebarUtility"
+                        x:Name="ProjectSettingsButton"
+                        Command="{Binding NavigateContainerSettingsCommand}"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center">
+                        <controls:HavenIcon IconKey="settings"
+                                            Width="15"
+                                            Height="15"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Text="Project settings"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="sidebarUtility"
+                        x:Name="StudioHomeButton"
+                        Command="{Binding NavigateHomeCommand}"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center">
+                        <controls:HavenIcon IconKey="home"
+                                            Width="15"
+                                            Height="15"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Text="Studio Home"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <StackPanel Grid.Row="4"
+                        Spacing="6"
+                        Margin="0,9,0,0"
+                        IsVisible="{Binding !IsProjectOpen}">
+                <Border Height="1"
+                        Background="{DynamicResource HavenLineBrush}"
+                        Margin="7,0,7,3" />
+                <UniformGrid Columns="2">
+                    <Button Classes="sidebarUtility"
+                            x:Name="AgentsFullButton"
+                            Margin="0,0,3,3">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="agents"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="Agent" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="RightEdgeAlignedTop">
+                                <StackPanel Spacing="2">
+                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                            Command="{Binding NavigateAgentsCommand}">
+                                        <TextBlock Text="Search" />
+                                    </Button>
+                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                            Command="{Binding NavigateAgentsCommand}">
+                                        <TextBlock Text="Personalities" />
+                                    </Button>
+                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                            Command="{Binding NavigateAgentsCommand}">
+                                        <TextBlock Text="Tools" />
+                                    </Button>
+                                    <Separator />
+                                    <TextBlock Text="Create new Agents in Studio" Classes="muted" FontSize="10" Margin="8,4,8,4" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button Classes="sidebarUtility"
+                            x:Name="PluginsButton"
+                            Command="{Binding NavigatePluginsCommand}"
+                            Margin="3,0,0,3">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="plugin"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="Plugin" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebarUtility"
+                            x:Name="PromptsButton"
+                            Command="{Binding NavigatePromptsCommand}"
+                            Margin="0,0,3,3">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="prompt"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="Instructions" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebarUtility"
+                            x:Name="MoreToolsButton"
+                            Command="{Binding OpenCommandPaletteCommand}"
+                            Margin="3,0,0,3">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="more"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="More tools" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebarUtility"
+                            x:Name="ArchiveButton"
+                            Command="{Binding NavigateArchiveCommand}"
+                            Margin="0,0,3,0">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="archive"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="Archive" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebarUtility"
+                            x:Name="SettingsFullButton"
+                            Command="{Binding NavigateSettingsCommand}"
+                            Margin="3,0,0,0">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="7"
+                                    HorizontalAlignment="Center">
+                            <controls:HavenIcon IconKey="settings"
+                                                Width="15"
+                                                Height="15" />
+                            <TextBlock Text="Settings" />
+                        </StackPanel>
+                    </Button>
+                </UniformGrid>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

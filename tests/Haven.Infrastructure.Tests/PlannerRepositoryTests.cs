@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Infrastructure.Tests/PlannerRepositoryTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns PlannerRepositoryTests, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Application;
 using Haven.Core;
@@ -5,10 +14,19 @@ using Haven.Infrastructure;
 
 namespace Haven.Infrastructure.Tests;
 
+/// <summary>
+/// Represents planner repository tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class PlannerRepositoryTests : IDisposable
 {
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly TestPaths _paths = new();
 
+    /// <summary>
+    /// Performs the defaults tasks hierarchy and events round trip step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DefaultsTasksHierarchyAndEventsRoundTrip()
     {
@@ -36,6 +54,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         _ = database;
     }
 
+    /// <summary>
+    /// Performs the rejects cycles and read only event edits step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RejectsCyclesAndReadOnlyEventEdits()
     {
@@ -65,6 +86,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => repository.UpsertEventAsync(newRemoteEvent, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the completing recurring task advances it and records history step owned by this component.
+    /// </summary>
     [Fact]
     public async Task CompletingRecurringTaskAdvancesItAndRecordsHistory()
     {
@@ -88,6 +112,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Equal(due.ToUniversalTime(), history[0].OccurrenceDueAt?.ToUniversalTime());
     }
 
+    /// <summary>
+    /// Performs the recurring event appears in later calendar range step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RecurringEventAppearsInLaterCalendarRange()
     {
@@ -103,6 +130,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Equal(first.AddDays(14), occurrence.StartsAt);
     }
 
+    /// <summary>
+    /// Performs the due reminder is returned only until marked delivered step owned by this component.
+    /// </summary>
     [Fact]
     public async Task DueReminderIsReturnedOnlyUntilMarkedDelivered()
     {
@@ -117,6 +147,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Empty(await repository.GetDueRemindersAsync(now, 20, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the remote calendar writes queue outbox and sync state round trips step owned by this component.
+    /// </summary>
     [Fact]
     public async Task RemoteCalendarWritesQueueOutboxAndSyncStateRoundTrips()
     {
@@ -139,6 +172,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Equal("google-token", (await repository.GetSyncCursorAsync(account.Id, calendar.Id, CancellationToken.None))?.SyncCursor);
     }
 
+    /// <summary>
+    /// Performs the provider ingestion does not echo back into outbox step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProviderIngestionDoesNotEchoBackIntoOutbox()
     {
@@ -155,6 +191,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Equal(item.Id, (await repository.GetEventByProviderIdAsync(calendar.Id, "remote-event", CancellationToken.None))?.Id);
     }
 
+    /// <summary>
+    /// Performs the conflict keep provider applies remote version and cancels pending write step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConflictKeepProviderAppliesRemoteVersionAndCancelsPendingWrite()
     {
@@ -182,6 +221,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.False(await repository.HasUnresolvedConflictAsync(original.Id, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the conflict keep haven queues chosen edit and recreates remote deletion step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConflictKeepHavenQueuesChosenEditAndRecreatesRemoteDeletion()
     {
@@ -208,6 +250,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Equal("create", Assert.Single(await repository.GetDueOutboxAsync(account.Id, now.AddHours(1), 20, CancellationToken.None)).Operation);
     }
 
+    /// <summary>
+    /// Performs the conflict duplicate keeps provider and creates private haven copy step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ConflictDuplicateKeepsProviderAndCreatesPrivateHavenCopy()
     {
@@ -237,6 +282,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Empty(await repository.GetDueOutboxAsync(account.Id, now.AddHours(1), 20, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the windows token store encrypts and round trips for current user step owned by this component.
+    /// </summary>
     [Fact]
     public async Task WindowsTokenStoreEncryptsAndRoundTripsForCurrentUser()
     {
@@ -254,6 +302,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.Null(await store.GetAsync(accountId, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Performs the proposal application is atomic step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProposalApplicationIsAtomic()
     {
@@ -268,6 +319,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         Assert.DoesNotContain(await repository.GetTasksAsync(new PlannerTaskQuery(IncludeCompleted: true), CancellationToken.None), task => task.Title == "Should roll back");
     }
 
+    /// <summary>
+    /// Performs the proposal validation and unconfigured provider fail safely step owned by this component.
+    /// </summary>
     [Fact]
     public async Task ProposalValidationAndUnconfiguredProviderFailSafely()
     {
@@ -305,6 +359,9 @@ public sealed class PlannerRepositoryTests : IDisposable
         return (database, new PlannerRepository(database));
     }
 
+    /// <summary>
+    /// Performs insert provider event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task InsertProviderEventAsync(PlannerEvent item)
     {
         var database = new SqliteDatabase(_paths);
@@ -326,12 +383,21 @@ public sealed class PlannerRepositoryTests : IDisposable
         await command.ExecuteNonQueryAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs the new task step owned by this component.
+    /// </summary>
     private static PlannerTask NewTask(Guid collectionId, string title, DateTimeOffset now) =>
         new(Guid.NewGuid(), collectionId, null, title, string.Empty, PlannerPriority.None, PlannerTaskStatus.Planned, "[]", null,
             null, null, null, null, null, 0, now, now);
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() => _paths.Dispose();
 
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
     private sealed class TestPaths : IAppPaths, IDisposable
     {
         public TestPaths()
@@ -344,12 +410,33 @@ public sealed class PlannerRepositoryTests : IDisposable
             LogsDirectory = Path.Combine(DataDirectory, "logs");
             LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
         }
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
         public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
         public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
         public string LegacyStatePath { get; }
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
         public void Dispose() { try { Directory.Delete(DataDirectory, true); } catch (IOException) { } }
     }
 }

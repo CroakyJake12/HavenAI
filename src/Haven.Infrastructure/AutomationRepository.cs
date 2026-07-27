@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/AutomationRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns AutomationRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents automation repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAutomationRepository
 {
+    /// <summary>
+    /// Retrieves all async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<AutomationDefinition>> GetAllAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -13,6 +28,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         return await ReadAutomationsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves due async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<AutomationDefinition>> GetDueAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -27,6 +45,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         return await ReadAutomationsAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAsync(AutomationDefinition automation, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -53,6 +74,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
     }
 
 
+    /// <summary>
+    /// Performs delete asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -62,6 +86,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Attempts to acquire lease async and reports the result without using failure for normal control flow.
+    /// </summary>
     public async Task<bool> TryAcquireLeaseAsync(Guid automationId, string leaseToken, DateTimeOffset leaseUntil, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -77,6 +104,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
 
+    /// <summary>
+    /// Performs complete run asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task CompleteRunAsync(AutomationRun run, DateTimeOffset? nextRunAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -112,6 +142,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves runs async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<AutomationRun>> GetRunsAsync(Guid automationId, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -130,6 +163,9 @@ public sealed class AutomationRepository(ISqliteConnectionFactory factory) : IAu
         return result;
     }
 
+    /// <summary>
+    /// Performs read automations asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<IReadOnlyList<AutomationDefinition>> ReadAutomationsAsync(Microsoft.Data.Sqlite.SqliteCommand command, CancellationToken cancellationToken)
     {
         var result = new List<AutomationDefinition>();

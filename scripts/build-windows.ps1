@@ -1,41 +1,89 @@
+# FILE DOCUMENTATION
+# Where: scripts/build-windows.ps1 in the repository tooling area used by developers and continuous integration.
+# What: This file automates or configures the repository operation described by its commands and keys.
+# How: Read from top to bottom: inputs and environment first, validation/processing next, and explicit success or failure output last.
+# Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
 [CmdletBinding()]
 param(
-    [string]$Configuration = "Release",
-    [string]$Runtime = "win-x64"
+    [ValidateSet('Debug', 'Release')]
+    [string]$Configuration = 'Release',
+
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9.-]*$')]
+    [string]$Runtime = 'win-x64'
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$artifacts = Join-Path $root "artifacts"
+$artifacts = Join-Path $root 'artifacts'
 $publish = Join-Path $artifacts $Runtime
-$zip = Join-Path $artifacts "Haven-windows-x64.zip"
+$zip = Join-Path $artifacts ("Haven-$Runtime.zip")
+
+function Invoke-DotNet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    & dotnet @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    }
+}
 
 Push-Location $root
 try {
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        throw ".NET SDK was not found. Install .NET 10 SDK 10.0.301 or a compatible later patch."
+        throw '.NET SDK was not found. Install .NET 10 SDK 10.0.301 or a compatible later patch.'
     }
 
     Remove-Item $publish -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item $zip -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $publish -Force | Out-Null
 
-    dotnet --info
-    dotnet restore .\Haven.sln
-    dotnet build .\Haven.sln -c $Configuration --no-restore
-    dotnet test .\Haven.sln -c $Configuration --no-build
+    Invoke-DotNet -Arguments @('--info')
+    Invoke-DotNet -Arguments @('restore', '.\Haven.sln')
+    Invoke-DotNet -Arguments @('build', '.\Haven.sln', '-c', $Configuration, '--no-restore')
+    Invoke-DotNet -Arguments @('test', '.\Haven.sln', '-c', $Configuration, '--no-build')
 
-    dotnet publish .\src\Haven.Desktop\Haven.Desktop.csproj `
-        -c $Configuration -r $Runtime --self-contained true --no-restore `
-        -o $publish -p:PublishReadyToRun=false -p:DebugType=None -p:DebugSymbols=false
+    # Runtime-specific assets are required before a self-contained publish that
+    # uses --no-restore. Restore each executable for the requested RID explicitly.
+    Invoke-DotNet -Arguments @(
+        'restore',
+        '.\src\Haven.Desktop\Haven.Desktop.csproj',
+        '-r', $Runtime)
+    Invoke-DotNet -Arguments @(
+        'restore',
+        '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj',
+        '-r', $Runtime)
 
-    dotnet publish .\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj `
-        -c $Configuration -r $Runtime --self-contained true --no-restore `
-        -o $publish -p:PublishReadyToRun=false -p:DebugType=None -p:DebugSymbols=false
+    Invoke-DotNet -Arguments @(
+        'publish',
+        '.\src\Haven.Desktop\Haven.Desktop.csproj',
+        '-c', $Configuration,
+        '-r', $Runtime,
+        '--self-contained', 'true',
+        '--no-restore',
+        '-o', $publish,
+        '-p:PublishReadyToRun=false',
+        '-p:DebugType=None',
+        '-p:DebugSymbols=false')
 
-    Copy-Item .\README.md $publish
-    Copy-Item .\docs\PASS9-VALIDATION.md $publish
-    Compress-Archive -Path (Join-Path $publish "*") -DestinationPath $zip -CompressionLevel Optimal
+    Invoke-DotNet -Arguments @(
+        'publish',
+        '.\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj',
+        '-c', $Configuration,
+        '-r', $Runtime,
+        '--self-contained', 'true',
+        '--no-restore',
+        '-o', $publish,
+        '-p:PublishReadyToRun=false',
+        '-p:DebugType=None',
+        '-p:DebugSymbols=false')
+
+    Copy-Item '.\README.md' $publish
+    Copy-Item '.\docs\PASS9-VALIDATION.md' $publish
+    Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -CompressionLevel Optimal
     Write-Host "Created $zip" -ForegroundColor Green
 }
 finally {

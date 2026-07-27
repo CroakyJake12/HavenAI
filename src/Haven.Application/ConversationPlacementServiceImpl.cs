@@ -1,12 +1,36 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ConversationPlacementServiceImpl.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ConversationPlacementService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents conversation placement service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ConversationPlacementService : IConversationPlacementService
 {
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores moves locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationMoveRepository _moves;
+    /// <summary>
+    /// Stores modes locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry _modes;
+    /// <summary>
+    /// Stores activity log locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IActivityLogRepository _activityLog;
 
     public ConversationPlacementService(
@@ -21,6 +45,9 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         _activityLog = activityLog;
     }
 
+    /// <summary>
+    /// Performs move asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationPlacementResult> MoveAsync(
         Guid conversationId,
         Guid? targetModeId,
@@ -73,11 +100,17 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         return new ConversationPlacementResult(true, $"Conversation moved to {targetPlacement}.", updatedConversation, warnings);
     }
 
+    /// <summary>
+    /// Retrieves history async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ConversationMove>> GetHistoryAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         return await _moves.GetMovesAsync(conversationId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs undo asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<ConversationPlacementResult> UndoAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var history = await _moves.GetMovesAsync(conversationId, cancellationToken).ConfigureAwait(false);
@@ -118,6 +151,9 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         return new ConversationPlacementResult(true, "Move undone.", restored, []);
     }
 
+    /// <summary>
+    /// Retrieves valid destinations async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlacementDestination>> GetValidDestinationsAsync(
         HavenMode currentMode,
         CancellationToken cancellationToken)
@@ -141,6 +177,9 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         return destinations;
     }
 
+    /// <summary>
+    /// Performs find mode id asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<Guid?> FindModeIdAsync(HavenMode mode, CancellationToken cancellationToken)
     {
         var key = mode switch
@@ -155,6 +194,9 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         return modeDef?.Id;
     }
 
+    /// <summary>
+    /// Performs the escape json step owned by this component.
+    /// </summary>
     private static string EscapeJson(string value) =>
         value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
 }

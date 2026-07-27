@@ -1,0 +1,135 @@
+name: Apply beta chat orchestration
+
+on:
+  push:
+    branches: [gpt/new-haven-beta-pass]
+    paths:
+      - scripts/apply_beta_chat_patch.py
+      - .github/workflows/apply-beta-chat-orchestration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Record beta Chat validation') }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/new-haven-beta-pass
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Prepare report folder
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts/beta-chat | Out-Null
+
+      - name: Repair stale anchors and compile blockers
+        id: repair
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $tracker = 'src/Haven.Application/ChatExecutionTracker.cs'
+          $text = Get-Content $tracker -Raw
+          $text = $text.Replace('return ValueTask.CompletedTask;', 'return default;')
+          Set-Content $tracker $text -Encoding utf8
+
+          $cache = 'src/Haven.Application/ModelInventoryCache.cs'
+          $text = Get-Content $cache -Raw
+          $text = $text.Replace('!ReferenceEquals.Equals(_current, tracker)', '!ReferenceEquals(_current, tracker)')
+          $text = $text.Replace('_current.Changed -= OnTrackerChanged;', '_current!.Changed -= OnTrackerChanged;')
+          Set-Content $cache $text -Encoding utf8
+
+          $patch = 'scripts/apply_beta_chat_patch.py'
+          $text = Get-Content $patch -Raw
+          $text = $text.Replace(
+            '    private static WorkspaceToolResult UnavailableToolResult(',
+            '    private ToolAvailabilityPlan CreateAvailabilityPlan(')
+          Set-Content $patch $text -Encoding utf8
+
+      - name: Apply Chat orchestration patch
+        id: patch
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python scripts/apply_beta_chat_patch.py 2>&1 |
+            Tee-Object artifacts/beta-chat/PATCH.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Restore
+        id: restore
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet restore Haven.sln 2>&1 |
+            Tee-Object artifacts/beta-chat/RESTORE.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet build Haven.sln -c Release --no-restore 2>&1 |
+            Tee-Object artifacts/beta-chat/BUILD.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet test Haven.sln -c Release --no-build 2>&1 |
+            Tee-Object artifacts/beta-chat/TEST.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Write validation report
+        if: always()
+        shell: pwsh
+        run: |
+          @(
+            '# Beta Chat orchestration validation',
+            '',
+            '| Stage | Result |',
+            '|---|---|',
+            '| Repair | ${{ steps.repair.outcome }} |',
+            '| Patch | ${{ steps.patch.outcome }} |',
+            '| Restore | ${{ steps.restore.outcome }} |',
+            '| Build | ${{ steps.build.outcome }} |',
+            '| Test | ${{ steps.test.outcome }} |'
+          ) | Set-Content artifacts/beta-chat/VALIDATION.md
+
+      - name: Record source and validation result
+        if: always()
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests scripts artifacts/beta-chat
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Record beta Chat validation"
+            git push origin HEAD:gpt/new-haven-beta-pass
+          }
+
+      - name: Fail when validation failed
+        if: always()
+        shell: pwsh
+        run: |
+          $outcomes = @(
+            '${{ steps.repair.outcome }}',
+            '${{ steps.patch.outcome }}',
+            '${{ steps.restore.outcome }}',
+            '${{ steps.build.outcome }}',
+            '${{ steps.test.outcome }}'
+          )
+          if ($outcomes -contains 'failure') { exit 1 }

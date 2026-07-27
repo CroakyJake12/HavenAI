@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/UserPreferencesService.cs, in the Desktop composition layer, which starts and wires the Avalonia application.
+ * What: This file owns HavenThemePreset, HavenPreferenceSnapshot, UserPreferencesService, Preferences. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Media;
@@ -7,6 +16,9 @@ using Haven.Core;
 
 namespace Haven.Desktop;
 
+/// <summary>
+/// Represents haven theme preset and keeps its related state and behavior together.
+/// </summary>
 public sealed record HavenThemePreset(
     string Id,
     string Name,
@@ -22,6 +34,9 @@ public sealed record HavenThemePreset(
     string NubColor = "#00000000",
     bool CardBorder = false);
 
+/// <summary>
+/// Represents haven preference snapshot and keeps its related state and behavior together.
+/// </summary>
 public sealed record HavenPreferenceSnapshot(
     bool AutoSwitchCompatibleModels,
     bool ShowAgenticInChat,
@@ -31,6 +46,7 @@ public sealed record HavenPreferenceSnapshot(
     int CompactAtPercent,
     bool AdaptiveHelp,
     bool BrowserSideAssistant,
+    bool AutoWakeOllama,
     double Temperature,
     int ContextLimit,
     int ActionLimit,
@@ -39,12 +55,27 @@ public sealed record HavenPreferenceSnapshot(
     PermissionMode BrowserPermission,
     PermissionMode ComputerPermission);
 
+/// <summary>
+/// Represents user preferences service and keeps its related state and behavior together.
+/// </summary>
 public sealed class UserPreferencesService
 {
+    /// <summary>
+    /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores path locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly string _path;
+    /// <summary>
+    /// Stores preferences locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Preferences _preferences;
 
+    /// <summary>
+    /// Stores legacy theme ids locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> LegacyThemeIds = new(StringComparer.OrdinalIgnoreCase) { "midnight", "graphite", "ocean", "forest" };
 
     public UserPreferencesService(IAppPaths paths)
@@ -57,6 +88,9 @@ public sealed class UserPreferencesService
         ApplyTheme(_preferences.ThemeId, save: false);
     }
 
+    /// <summary>
+    /// Gets or updates built in themes, the bindable or domain state represented by this property.
+    /// </summary>
     private static IReadOnlyList<HavenThemePreset> BuiltInThemes { get; } =
     [
         new("system", "System", "Follows your OS theme and accent color",
@@ -71,33 +105,96 @@ public sealed class UserPreferencesService
             "#0D1510", "#121E17", "#18281E", "#ECF5EF", "#7FA38D", "#4ECC7A", "#7AEAA3", false, "#4ECC7A", false),
         new("rose", "Rose", "Warm dark with pink accent",
             "#181114", "#22161A", "#2D1C22", "#FBF0F2", "#A38088", "#FF6B8A", "#FF9AB5", false, "#FF6B8A", false),
+        new("new-haven", "New Haven", "Phase 1 mockup palette",
+            "#F1F8E9", "#FFFFFF", "#F7F7F7", "#050505", "#646464", "#6FE9F0", "#0078D4", true, "#6FE9F0", false),
         new("light", "Light", "Clean Windows 11 Mica light",
             "#F3F3F3", "#FFFFFF", "#F9F9F9", "#1A1A1A", "#616161", "#005FB8", "#0078D4", true, "#005FB8", true),
         new("midnight", "Midnight", "Original deep teal theme",
             "#080B10", "#0D1118", "#111721", "#EDF2F7", "#8B98AA", "#72E0BD", "#5AA6FF", false, "#72E0BD", false)
     ];
 
+    /// <summary>
+    /// Gets or updates themes, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<HavenThemePreset> Themes => BuiltInThemes.Concat(_preferences.CustomThemes).ToArray();
+    /// <summary>
+    /// Gets or updates theme id, the bindable or domain state represented by this property.
+    /// </summary>
     public string ThemeId => _preferences.ThemeId;
+    /// <summary>
+    /// Gets or updates default model, the bindable or domain state represented by this property.
+    /// </summary>
     public string? DefaultModel => _preferences.DefaultModel;
+    /// <summary>
+    /// Gets or updates default effort, the bindable or domain state represented by this property.
+    /// </summary>
     public EffortLevel DefaultEffort => Enum.TryParse<EffortLevel>(_preferences.DefaultEffort, true, out var effort) ? effort : EffortLevel.Medium;
+    /// <summary>
+    /// Gets or updates auto switch compatible models, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AutoSwitchCompatibleModels => _preferences.AutoSwitchCompatibleModels;
+    /// <summary>
+    /// Gets or updates show agentic in chat, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowAgenticInChat => _preferences.ShowAgenticInChat;
+    /// <summary>
+    /// Gets or updates vertical tabs, the bindable or domain state represented by this property.
+    /// </summary>
     public bool VerticalTabs => _preferences.VerticalTabs;
+    /// <summary>
+    /// Gets or updates confidence meter, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ConfidenceMeter => _preferences.ConfidenceMeter;
+    /// <summary>
+    /// Gets or updates auto compact context, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AutoCompactContext => _preferences.AutoCompactContext;
+    /// <summary>
+    /// Gets or updates compact at percent, the bindable or domain state represented by this property.
+    /// </summary>
     public int CompactAtPercent => Math.Clamp(_preferences.CompactAtPercent, 50, 95);
+    /// <summary>
+    /// Gets or updates adaptive help, the bindable or domain state represented by this property.
+    /// </summary>
     public bool AdaptiveHelp => _preferences.AdaptiveHelp;
+    /// <summary>
+    /// Gets or updates browser side assistant, the bindable or domain state represented by this property.
+    /// </summary>
     public bool BrowserSideAssistant => _preferences.BrowserSideAssistant;
+    /// <summary>Reports whether Haven should start Ollama when a local-model send finds it offline.</summary>
+    public bool AutoWakeOllama => _preferences.AutoWakeOllama;
+    /// <summary>Reports whether Generative UI may replace Haven's launcher-selected base theme.</summary>
+    public bool GenerativeUiEnabled => _preferences.GenerativeUiEnabled;
+    /// <summary>
+    /// Gets or updates generation options, the bindable or domain state represented by this property.
+    /// </summary>
     public GenerationOptions GenerationOptions => new(Math.Clamp(_preferences.Temperature, 0, 2), Math.Clamp(_preferences.ContextLimit, 2048, 262144), Math.Clamp(_preferences.ActionLimit, 1, 100));
+    /// <summary>
+    /// Gets or updates file permission, the bindable or domain state represented by this property.
+    /// </summary>
     public PermissionMode FilePermission => ParsePermission(_preferences.FilePermission);
+    /// <summary>
+    /// Gets or updates command permission, the bindable or domain state represented by this property.
+    /// </summary>
     public PermissionMode CommandPermission => ParsePermission(_preferences.CommandPermission);
+    /// <summary>
+    /// Gets or updates browser permission, the bindable or domain state represented by this property.
+    /// </summary>
     public PermissionMode BrowserPermission => ParsePermission(_preferences.BrowserPermission);
+    /// <summary>
+    /// Gets or updates computer permission, the bindable or domain state represented by this property.
+    /// </summary>
     public PermissionMode ComputerPermission => ParsePermission(_preferences.ComputerPermission);
+    /// <summary>
+    /// Gets or updates snapshot, the bindable or domain state represented by this property.
+    /// </summary>
     public HavenPreferenceSnapshot Snapshot => new(AutoSwitchCompatibleModels, ShowAgenticInChat, VerticalTabs, ConfidenceMeter,
-        AutoCompactContext, CompactAtPercent, AdaptiveHelp, BrowserSideAssistant, GenerationOptions.Temperature,
+        AutoCompactContext, CompactAtPercent, AdaptiveHelp, BrowserSideAssistant, AutoWakeOllama, GenerationOptions.Temperature,
         GenerationOptions.ContextLimit, GenerationOptions.ActionLimit, FilePermission, CommandPermission, BrowserPermission, ComputerPermission);
 
+    /// <summary>
+    /// Performs the apply theme step owned by this component.
+    /// </summary>
     public void ApplyTheme(string themeId, bool save = true)
     {
         var themes = Themes;
@@ -168,6 +265,9 @@ public sealed class UserPreferencesService
         if (save) Save();
     }
 
+    /// <summary>
+    /// Retrieves system accent color for the current operation.
+    /// </summary>
     private static Color? GetSystemAccentColor()
     {
         try
@@ -201,12 +301,18 @@ public sealed class UserPreferencesService
         return Color.Parse("#0078D4");
     }
 
+    /// <summary>
+    /// Performs the set model defaults step owned by this component.
+    /// </summary>
     public void SetModelDefaults(string? model, EffortLevel effort)
     {
         _preferences = _preferences with { DefaultModel = string.IsNullOrWhiteSpace(model) ? null : model, DefaultEffort = effort.ToString() };
         Save();
     }
 
+    /// <summary>
+    /// Performs the set advanced model options step owned by this component.
+    /// </summary>
     public void SetAdvancedModelOptions(double temperature, int contextLimit, int actionLimit)
     {
         _preferences = _preferences with
@@ -218,8 +324,11 @@ public sealed class UserPreferencesService
         Save();
     }
 
+    /// <summary>
+    /// Performs the set feature options step owned by this component.
+    /// </summary>
     public void SetFeatureOptions(bool autoSwitch, bool showAgenticInChat, bool verticalTabs, bool confidenceMeter,
-        bool autoCompact, int compactAtPercent, bool adaptiveHelp, bool browserSideAssistant)
+        bool autoCompact, int compactAtPercent, bool adaptiveHelp, bool browserSideAssistant, bool autoWakeOllama)
     {
         _preferences = _preferences with
         {
@@ -230,11 +339,24 @@ public sealed class UserPreferencesService
             AutoCompactContext = autoCompact,
             CompactAtPercent = Math.Clamp(compactAtPercent, 50, 95),
             AdaptiveHelp = adaptiveHelp,
-            BrowserSideAssistant = browserSideAssistant
+            BrowserSideAssistant = browserSideAssistant,
+            AutoWakeOllama = autoWakeOllama
         };
         Save();
     }
 
+    /// <summary>
+    /// Enables or disables Generative UI theme application at startup.
+    /// </summary>
+    public void SetGenerativeUiEnabled(bool enabled)
+    {
+        _preferences = _preferences with { GenerativeUiEnabled = enabled };
+        Save();
+    }
+
+    /// <summary>
+    /// Performs the set tool permissions step owned by this component.
+    /// </summary>
     public void SetToolPermissions(PermissionMode file, PermissionMode command, PermissionMode browser, PermissionMode computer)
     {
         _preferences = _preferences with
@@ -247,6 +369,9 @@ public sealed class UserPreferencesService
         Save();
     }
 
+    /// <summary>
+    /// Performs the save custom theme step owned by this component.
+    /// </summary>
     public HavenThemePreset SaveCustomTheme(HavenThemePreset theme)
     {
         _ = Color.Parse(theme.Background);
@@ -268,6 +393,9 @@ public sealed class UserPreferencesService
         return saved;
     }
 
+    /// <summary>
+    /// Performs the load step owned by this component.
+    /// </summary>
     private Preferences Load()
     {
         try
@@ -281,6 +409,9 @@ public sealed class UserPreferencesService
         }
     }
 
+    /// <summary>
+    /// Performs the save step owned by this component.
+    /// </summary>
     private void Save()
     {
         try
@@ -293,38 +424,117 @@ public sealed class UserPreferencesService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
+    /// <summary>
+    /// Performs the set step owned by this component.
+    /// </summary>
     private static void Set(Avalonia.Application application, string key, Color value) => application.Resources[key] = new SolidColorBrush(value);
 
+    /// <summary>
+    /// Performs the mix step owned by this component.
+    /// </summary>
     private static Color Mix(Color first, Color second, double weight)
     {
         byte Blend(byte a, byte b) => (byte)Math.Clamp(Math.Round(a * (1 - weight) + b * weight), 0, 255);
         return Color.FromArgb(255, Blend(first.R, second.R), Blend(first.G, second.G), Blend(first.B, second.B));
     }
 
+    /// <summary>
+    /// Performs the parse permission step owned by this component.
+    /// </summary>
     private static PermissionMode ParsePermission(string? value) =>
         Enum.TryParse<PermissionMode>(value, true, out var mode) ? mode : PermissionMode.Ask;
 
+    /// <summary>
+    /// Represents preferences and keeps its related state and behavior together.
+    /// </summary>
     private sealed record Preferences
     {
+        /// <summary>
+        /// Gets or updates default, the bindable or domain state represented by this property.
+        /// </summary>
         public static Preferences Default => new();
+        /// <summary>
+        /// Gets or updates theme id, the bindable or domain state represented by this property.
+        /// </summary>
         public string ThemeId { get; init; } = "system";
+        /// <summary>
+        /// Gets or updates default model, the bindable or domain state represented by this property.
+        /// </summary>
         public string? DefaultModel { get; init; }
+        /// <summary>
+        /// Gets or updates default effort, the bindable or domain state represented by this property.
+        /// </summary>
         public string DefaultEffort { get; init; } = EffortLevel.Medium.ToString();
+        /// <summary>
+        /// Gets or updates auto switch compatible models, the bindable or domain state represented by this property.
+        /// </summary>
         public bool AutoSwitchCompatibleModels { get; init; } = true;
+        /// <summary>
+        /// Gets or updates show agentic in chat, the bindable or domain state represented by this property.
+        /// </summary>
         public bool ShowAgenticInChat { get; init; }
+        /// <summary>
+        /// Gets or updates vertical tabs, the bindable or domain state represented by this property.
+        /// </summary>
         public bool VerticalTabs { get; init; }
+        /// <summary>
+        /// Gets or updates confidence meter, the bindable or domain state represented by this property.
+        /// </summary>
         public bool ConfidenceMeter { get; init; } = true;
+        /// <summary>
+        /// Gets or updates auto compact context, the bindable or domain state represented by this property.
+        /// </summary>
         public bool AutoCompactContext { get; init; } = true;
+        /// <summary>
+        /// Gets or updates compact at percent, the bindable or domain state represented by this property.
+        /// </summary>
         public int CompactAtPercent { get; init; } = 82;
+        /// <summary>
+        /// Gets or updates adaptive help, the bindable or domain state represented by this property.
+        /// </summary>
         public bool AdaptiveHelp { get; init; } = true;
+        /// <summary>
+        /// Gets or updates browser side assistant, the bindable or domain state represented by this property.
+        /// </summary>
         public bool BrowserSideAssistant { get; init; } = true;
+        /// <summary>Gets whether local-model sends may launch Ollama automatically.</summary>
+        public bool AutoWakeOllama { get; init; } = true;
+        /// <summary>
+        /// Gets whether Generative UI is allowed to override the base Haven theme.
+        /// Disabled is the safe default for existing preference files that predate this setting.
+        /// </summary>
+        public bool GenerativeUiEnabled { get; init; }
+        /// <summary>
+        /// Gets or updates temperature, the bindable or domain state represented by this property.
+        /// </summary>
         public double Temperature { get; init; } = 0.7;
+        /// <summary>
+        /// Gets or updates context limit, the bindable or domain state represented by this property.
+        /// </summary>
         public int ContextLimit { get; init; } = 32768;
+        /// <summary>
+        /// Gets or updates action limit, the bindable or domain state represented by this property.
+        /// </summary>
         public int ActionLimit { get; init; } = 24;
+        /// <summary>
+        /// Gets or updates file permission, the bindable or domain state represented by this property.
+        /// </summary>
         public string FilePermission { get; init; } = PermissionMode.Ask.ToString();
+        /// <summary>
+        /// Gets or updates command permission, the bindable or domain state represented by this property.
+        /// </summary>
         public string CommandPermission { get; init; } = PermissionMode.Ask.ToString();
+        /// <summary>
+        /// Gets or updates browser permission, the bindable or domain state represented by this property.
+        /// </summary>
         public string BrowserPermission { get; init; } = PermissionMode.Ask.ToString();
+        /// <summary>
+        /// Gets or updates computer permission, the bindable or domain state represented by this property.
+        /// </summary>
         public string ComputerPermission { get; init; } = PermissionMode.Ask.ToString();
+        /// <summary>
+        /// Gets or updates custom themes, the bindable or domain state represented by this property.
+        /// </summary>
         public IReadOnlyList<HavenThemePreset> CustomThemes { get; init; } = [];
     }
 }

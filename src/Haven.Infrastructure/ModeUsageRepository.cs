@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/ModeUsageRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns ModeUsageRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents mode usage repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModeUsageRepository(ISqliteConnectionFactory factory) : IModeUsageRepository
 {
+    /// <summary>
+    /// Performs record usage asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RecordUsageAsync(Guid modeId, DateOnly date, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -20,6 +35,9 @@ public sealed class ModeUsageRepository(ISqliteConnectionFactory factory) : IMod
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves recent usage async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModeUsage>> GetRecentUsageAsync(int days, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -33,6 +51,9 @@ public sealed class ModeUsageRepository(ISqliteConnectionFactory factory) : IMod
         return results;
     }
 
+    /// <summary>
+    /// Retrieves total use count async for the current operation.
+    /// </summary>
     public async Task<int> GetTotalUseCountAsync(Guid modeId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -42,6 +63,9 @@ public sealed class ModeUsageRepository(ISqliteConnectionFactory factory) : IMod
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Retrieves usage by mode async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModeUsage>> GetUsageByModeAsync(Guid modeId, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -56,6 +80,9 @@ public sealed class ModeUsageRepository(ISqliteConnectionFactory factory) : IMod
         return results;
     }
 
+    /// <summary>
+    /// Performs the read usage step owned by this component.
+    /// </summary>
     private static ModeUsage ReadUsage(Microsoft.Data.Sqlite.SqliteDataReader reader) => new(
         Guid.Parse(reader.String("id")),
         Guid.Parse(reader.String("mode_id")),

@@ -1,0 +1,11 @@
+  Determining projects to restore...
+  Restored D:\a\HavenAI\HavenAI\tests\Haven.Infrastructure.Tests\Haven.Infrastructure.Tests.csproj (in 30.92 sec).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Core\Haven.Core.csproj (in 4 ms).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Browser\Haven.Browser.csproj (in 3 ms).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.AutomationWorker\Haven.AutomationWorker.csproj (in 9.02 sec).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Automations\Haven.Automations.csproj (in 3 ms).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Application\Haven.Application.csproj (in 2 ms).
+  Restored D:\a\HavenAI\HavenAI\tests\Haven.Core.Tests\Haven.Core.Tests.csproj (in 6.46 sec).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Infrastructure\Haven.Infrastructure.csproj (in 5 ms).
+  Restored D:\a\HavenAI\HavenAI\src\Haven.Desktop\Haven.Desktop.csproj (in 8.85 sec).
+  Restored D:\a\HavenAI\HavenAI\tests\Haven.Desktop.Tests\Haven.Desktop.Tests.csproj (in 59.23 sec).

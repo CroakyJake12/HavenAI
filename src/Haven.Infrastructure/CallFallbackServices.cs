@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/CallFallbackServices.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns UnavailableSpeechInputService, UnsupportedScreenShareService, SystemSpeechOutputService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Speech.Synthesis;
 using System.Runtime.Versioning;
 using Haven.Application;
@@ -11,22 +20,43 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class UnavailableSpeechInputService : ISpeechInputService
 {
+    /// <summary>
+    /// Reports whether available applies to the current state.
+    /// </summary>
     public bool IsAvailable => false;
+    /// <summary>
+    /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string UnavailableReason =>
         "Local microphone transcription is not installed. Use typed transcript mode or install the Haven speech runtime.";
+    /// <summary>
+    /// Gets or updates devices, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<CallAudioDevice> Devices { get; } = [];
 
+    /// <summary>
+    /// Performs start asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StartAsync(
         SpeechInputOptions options,
         Func<SpeechInputEvent, CancellationToken, Task> onEvent,
         CancellationToken cancellationToken) => Task.CompletedTask;
 
+    /// <summary>
+    /// Performs begin push to talk asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task BeginPushToTalkAsync(CancellationToken cancellationToken) =>
         Task.FromException(new NotSupportedException(UnavailableReason));
 
+    /// <summary>
+    /// Performs end push to talk asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task EndPushToTalkAsync(CancellationToken cancellationToken) =>
         Task.FromException(new NotSupportedException(UnavailableReason));
 
+    /// <summary>
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
@@ -36,22 +66,49 @@ public sealed class UnavailableSpeechInputService : ISpeechInputService
 /// </summary>
 public sealed class UnsupportedScreenShareService : IScreenShareService
 {
+    /// <summary>
+    /// Reports whether supported applies to the current state.
+    /// </summary>
     public bool IsSupported => false;
+    /// <summary>
+    /// Reports whether sharing applies to the current state.
+    /// </summary>
     public bool IsSharing => false;
+    /// <summary>
+    /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string UnavailableReason =>
         OperatingSystem.IsWindows()
             ? "The Windows screen-capture adapter is not installed."
             : "Screen sharing currently requires Windows.";
+    /// <summary>
+    /// Gets or updates current source, the bindable or domain state represented by this property.
+    /// </summary>
     public ScreenShareSource? CurrentSource => null;
+    /// <summary>
+    /// Gets or updates source closed, the bindable or domain state represented by this property.
+    /// </summary>
     public event EventHandler? SourceClosed { add { } remove { } }
+    /// <summary>
+    /// Gets or updates snapshot available, the bindable or domain state represented by this property.
+    /// </summary>
     public event EventHandler<ScreenShareSnapshotEventArgs>? SnapshotAvailable { add { } remove { } }
 
+    /// <summary>
+    /// Performs start with system picker asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken) =>
         Task.FromException<ScreenShareSource>(new PlatformNotSupportedException(UnavailableReason));
 
+    /// <summary>
+    /// Retrieves latest snapshot async for the current operation.
+    /// </summary>
     public Task<ScreenShareSnapshot?> GetLatestSnapshotAsync(CancellationToken cancellationToken) =>
         Task.FromResult<ScreenShareSnapshot?>(null);
 
+    /// <summary>
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
@@ -60,19 +117,40 @@ public sealed class UnsupportedScreenShareService : IScreenShareService
 /// </summary>
 public sealed class SystemSpeechOutputService : ISpeechOutputService
 {
+    /// <summary>
+    /// Stores sync locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly object _sync = new();
+    /// <summary>
+    /// Stores active synthesizer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private SpeechSynthesizer? _activeSynthesizer;
 
+    /// <summary>
+    /// Reports whether available applies to the current state.
+    /// </summary>
     public bool IsAvailable => OperatingSystem.IsWindows();
+    /// <summary>
+    /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string? UnavailableReason => IsAvailable
         ? null
         : "Speech output currently requires Windows.";
 
+    /// <summary>
+    /// Gets or updates devices, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<CallAudioDevice> Devices { get; } =
         [new("default", "System default output", true)];
 
+    /// <summary>
+    /// Gets or updates voices, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<CallVoice> Voices => OperatingSystem.IsWindows() ? ReadVoices() : [];
 
+    /// <summary>
+    /// Performs speak asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task SpeakAsync(
         string text,
         string? voiceName,
@@ -117,12 +195,18 @@ public sealed class SystemSpeechOutputService : ISpeechOutputService
         }
     }
 
+    /// <summary>
+    /// Performs stop asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows()) StopActiveSynthesizer();
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs the stop active synthesizer step owned by this component.
+    /// </summary>
     [SupportedOSPlatform("windows")]
     private void StopActiveSynthesizer()
     {
@@ -133,6 +217,9 @@ public sealed class SystemSpeechOutputService : ISpeechOutputService
         catch (Exception) { /* a concurrent completion already disposed it */ }
     }
 
+    /// <summary>
+    /// Performs the read voices step owned by this component.
+    /// </summary>
     [SupportedOSPlatform("windows")]
     private IReadOnlyList<CallVoice> ReadVoices()
     {

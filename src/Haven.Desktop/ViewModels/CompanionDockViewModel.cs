@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/CompanionDockViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns CompanionDockViewModel, CompanionCardViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Threading;
@@ -6,14 +15,38 @@ using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents companion dock view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class CompanionDockViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Stores dock locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICompanionDockService _dock;
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores refresh timer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly DispatcherTimer _refreshTimer;
+    /// <summary>
+    /// Stores is expanded locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isExpanded;
+    /// <summary>
+    /// Stores is collapsed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isCollapsed = true;
+    /// <summary>
+    /// Stores selected card locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CompanionCardViewModel? _selectedCard;
+    /// <summary>
+    /// Stores selected index locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _selectedIndex;
 
     public CompanionDockViewModel(
@@ -31,6 +64,9 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
             async (_, _) => await RefreshCardsAsync());
     }
 
+    /// <summary>
+    /// Gets or updates cards, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<CompanionCardViewModel> Cards { get; }
 
     public bool IsExpanded
@@ -71,17 +107,44 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _selectedIndex, value);
     }
 
+    /// <summary>
+    /// Reports whether cards applies to the current state.
+    /// </summary>
     public bool HasCards => Cards.Count > 0;
+    /// <summary>
+    /// Gets or updates card count, the bindable or domain state represented by this property.
+    /// </summary>
     public int CardCount => Cards.Count;
 
+    /// <summary>
+    /// Gets or updates toggle expand command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleExpandCommand { get; }
+    /// <summary>
+    /// Gets or updates select card command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<CompanionCardViewModel> SelectCardCommand { get; }
+    /// <summary>
+    /// Gets or updates close card command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<CompanionCardViewModel> CloseCardCommand { get; }
+    /// <summary>
+    /// Gets or updates expand card command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<CompanionCardViewModel> ExpandCardCommand { get; }
 
+    /// <summary>
+    /// Performs the start step owned by this component.
+    /// </summary>
     public void Start() => _refreshTimer.Start();
+    /// <summary>
+    /// Performs the stop step owned by this component.
+    /// </summary>
     public void Stop() => _refreshTimer.Stop();
 
+    /// <summary>
+    /// Performs dock asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DockAsync(Guid conversationId, SurfaceKind surface, string title, CancellationToken cancellationToken)
     {
         var existing = Cards.FirstOrDefault(c => c.ConversationId == conversationId);
@@ -97,6 +160,9 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         if (Cards.Count == 1) SelectedCard = card;
     }
 
+    /// <summary>
+    /// Performs undock asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UndockAsync(Guid conversationId, CancellationToken cancellationToken = default)
     {
         var card = Cards.FirstOrDefault(c => c.ConversationId == conversationId);
@@ -110,12 +176,18 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(CardCount));
     }
 
+    /// <summary>
+    /// Performs close card asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CloseCardAsync(CompanionCardViewModel? card, CancellationToken cancellationToken)
     {
         if (card is null) return;
         await UndockAsync(card.ConversationId, cancellationToken);
     }
 
+    /// <summary>
+    /// Performs the select card step owned by this component.
+    /// </summary>
     private void SelectCard(CompanionCardViewModel? card)
     {
         if (card is null) return;
@@ -123,6 +195,9 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         card.IsExpanded = true;
     }
 
+    /// <summary>
+    /// Performs the close card step owned by this component.
+    /// </summary>
     private void CloseCard(CompanionCardViewModel? card)
     {
         if (card is null) return;
@@ -134,12 +209,18 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(CardCount));
     }
 
+    /// <summary>
+    /// Performs the expand card step owned by this component.
+    /// </summary>
     private void ExpandCard(CompanionCardViewModel? card)
     {
         if (card is null) return;
         card.IsExpanded = !card.IsExpanded;
     }
 
+    /// <summary>
+    /// Performs refresh cards asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshCardsAsync()
     {
         foreach (var card in Cards)
@@ -157,6 +238,9 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose()
     {
         _refreshTimer.Stop();
@@ -165,11 +249,26 @@ public sealed class CompanionDockViewModel : ObservableObject, IDisposable
     }
 }
 
+/// <summary>
+/// Represents companion card view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class CompanionCardViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Stores is expanded locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isExpanded;
+    /// <summary>
+    /// Stores is pinned locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isPinned;
+    /// <summary>
+    /// Stores title locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _title;
+    /// <summary>
+    /// Stores updated at locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DateTimeOffset _updatedAt;
 
     public CompanionCardViewModel(
@@ -188,7 +287,13 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
         TogglePinCommand = new RelayCommand(() => IsPinned = !IsPinned);
     }
 
+    /// <summary>
+    /// Gets or updates conversation id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid ConversationId { get; }
+    /// <summary>
+    /// Gets or updates surface, the bindable or domain state represented by this property.
+    /// </summary>
     public SurfaceKind Surface { get; }
 
     public string Title
@@ -215,15 +320,21 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _isPinned, value);
     }
 
+    /// <summary>
+    /// Gets or updates surface icon, the bindable or domain state represented by this property.
+    /// </summary>
     public string SurfaceIcon => Surface switch
     {
-        SurfaceKind.Browse => "\uE774",
-        SurfaceKind.Plan => "\uE7BA",
-        SurfaceKind.Phone or SurfaceKind.Do => "\uE717",
-        SurfaceKind.Chat => "\uE8AB",
-        _ => "\uE790"
+        SurfaceKind.Browse => "globe",
+        SurfaceKind.Plan => "calendar",
+        SurfaceKind.Phone or SurfaceKind.Do => "phone",
+        SurfaceKind.Chat => "chat",
+        _ => "home"
     };
 
+    /// <summary>
+    /// Gets or updates surface label, the bindable or domain state represented by this property.
+    /// </summary>
     public string SurfaceLabel => Surface switch
     {
         SurfaceKind.Browse => "Browser",
@@ -234,9 +345,21 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
         _ => "Activity"
     };
 
+    /// <summary>
+    /// Gets or updates close command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand CloseCommand { get; }
+    /// <summary>
+    /// Gets or updates expand command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ExpandCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle pin command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand TogglePinCommand { get; }
 
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
     public void Dispose() { }
 }

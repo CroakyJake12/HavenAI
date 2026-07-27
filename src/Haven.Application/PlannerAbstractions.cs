@@ -1,7 +1,19 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/PlannerAbstractions.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns PlannerTaskQuery, IPlannerRepository, PlannerProposalValidation, IPlannerProposalService, CalendarProviderConfiguration, CalendarAuthorizationResult, CalendarSyncRequest, CalendarSyncResult, ICalendarSyncProvider, ICalendarSyncProviderRegistry, CalendarTokenEnvelope, ICalendarTokenStore, ICalendarProviderTransport, ICalendarSyncStore. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents planner task query and keeps its related state and behavior together.
+/// </summary>
 public sealed record PlannerTaskQuery(
     Guid? CollectionId = null,
     PlannerTaskStatus? Status = null,
@@ -10,6 +22,9 @@ public sealed record PlannerTaskQuery(
     bool IncludeCompleted = false,
     string? Search = null);
 
+/// <summary>
+/// Defines the planner repository contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IPlannerRepository
 {
     Task EnsureDefaultsAsync(CancellationToken cancellationToken);
@@ -42,11 +57,20 @@ public interface IPlannerRepository
     Task ApplyProposalAsync(PlannerChangeProposal proposal, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents planner proposal validation and keeps its related state and behavior together.
+/// </summary>
 public sealed record PlannerProposalValidation(bool IsValid, IReadOnlyList<string> Errors)
 {
+    /// <summary>
+    /// Gets or updates valid, the bindable or domain state represented by this property.
+    /// </summary>
     public static PlannerProposalValidation Valid { get; } = new(true, []);
 }
 
+/// <summary>
+/// Defines the planner proposal service contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface IPlannerProposalService
 {
     OllamaToolDefinition ToolDefinition { get; }
@@ -55,19 +79,37 @@ public interface IPlannerProposalService
     Task ApplyAsync(PlannerChangeProposal proposal, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Represents calendar provider configuration and keeps its related state and behavior together.
+/// </summary>
 public sealed record CalendarProviderConfiguration(
     CalendarProviderKind Provider,
     string? ClientId,
     Uri RedirectUri,
     IReadOnlyList<string> Scopes)
 {
+    /// <summary>
+    /// Reports whether configured applies to the current state.
+    /// </summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
 }
 
+/// <summary>
+/// Represents calendar authorization result and keeps its related state and behavior together.
+/// </summary>
 public sealed record CalendarAuthorizationResult(bool Succeeded, CalendarSyncStatus Status, string Message);
+/// <summary>
+/// Represents calendar sync request and keeps its related state and behavior together.
+/// </summary>
 public sealed record CalendarSyncRequest(Guid AccountId, bool FullSync, DateTimeOffset WindowStart, DateTimeOffset WindowEnd);
+/// <summary>
+/// Represents calendar sync result and keeps its related state and behavior together.
+/// </summary>
 public sealed record CalendarSyncResult(bool Succeeded, CalendarSyncStatus Status, int Added, int Updated, int Deleted, int Conflicts, string Message);
 
+/// <summary>
+/// Defines the calendar sync provider contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICalendarSyncProvider
 {
     CalendarProviderKind Kind { get; }
@@ -78,14 +120,23 @@ public interface ICalendarSyncProvider
     Task DisconnectAsync(Guid accountId, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Defines the calendar sync provider registry contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICalendarSyncProviderRegistry
 {
     IReadOnlyList<ICalendarSyncProvider> Providers { get; }
     ICalendarSyncProvider Get(CalendarProviderKind kind);
 }
 
+/// <summary>
+/// Represents calendar token envelope and keeps its related state and behavior together.
+/// </summary>
 public sealed record CalendarTokenEnvelope(string AccessToken, string? RefreshToken, DateTimeOffset ExpiresAt, string Scope);
 
+/// <summary>
+/// Defines the calendar token store contract so callers depend on a capability rather than one implementation.
+/// </summary>
 public interface ICalendarTokenStore
 {
     Task SaveAsync(Guid accountId, CalendarTokenEnvelope token, CancellationToken cancellationToken);

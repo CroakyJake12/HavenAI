@@ -1,0 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: tests/Haven.Infrastructure.Tests/Directory.Build.props in the automated test suite, where executable examples protect behavior against regressions.
+  What: This MSBuild/XML file declares project inputs, dependencies, and build behavior.
+  Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
+-->
+<Project>
+  <Import Project="../../Directory.Build.props" />
+</Project>

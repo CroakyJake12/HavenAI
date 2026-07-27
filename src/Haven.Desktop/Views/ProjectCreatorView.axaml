@@ -1,61 +1,9 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Haven.Desktop.Views.ProjectCreatorView">
-  <!-- Project Creator — create new .NET projects, NuGet packages, or connect existing folders -->
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel MaxWidth="980" Margin="34,30" Spacing="20">
-      <!-- Page header -->
-      <StackPanel Spacing="5">
-        <TextBlock Text="New project" Classes="heading" />
-        <TextBlock Text="Create a real local project, a package-ready library, or connect a folder that already exists." Classes="muted" />
-      </StackPanel>
-
-      <!-- ============================================================
-           PROJECT TYPE SELECTOR — 3 options in a row
-           1. New .NET Project — choose a template and create
-           2. NuGet Package — package-ready class library
-           3. Use Existing — connect a local folder or project file
-           ============================================================ -->
-      <UniformGrid Columns="3">
-        <!-- New .NET Project option -->
-        <Button Margin="0,0,10,0" Padding="16" MinHeight="145" HorizontalContentAlignment="Stretch" Command="{Binding SelectDotNetCommand}">
-          <StackPanel Spacing="8"><TextBlock Text="NEW .NET PROJECT" Classes="eyebrow" /><TextBlock Text="Create new project" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Choose a standard installed .NET template and create it in a local folder." Classes="muted" FontSize="11" /><TextBlock Text="Configure below" Foreground="{DynamicResource HavenAccentBrush}" /></StackPanel>
-        </Button>
-        <!-- NuGet Package option -->
-        <Button Margin="0,0,10,0" Padding="16" MinHeight="145" HorizontalContentAlignment="Stretch" Command="{Binding SelectPackageCommand}">
-          <StackPanel Spacing="8"><TextBlock Text="NUGET" Classes="eyebrow" /><TextBlock Text="Create NuGet package" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Create a package-ready class library with metadata and run its first Release pack." Classes="muted" FontSize="11" /><TextBlock Text="Configure below" Foreground="{DynamicResource HavenAccentBrush}" /></StackPanel>
-        </Button>
-        <!-- Use Existing Project/Folder -->
-        <Border Classes="card" Padding="16">
-          <StackPanel Spacing="8"><TextBlock Text="LOCAL" Classes="eyebrow" /><TextBlock Text="Use existing project" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="Connect an existing project file or any local source folder without copying it." Classes="muted" FontSize="11" /><Grid ColumnDefinitions="*,*" ColumnSpacing="7"><Button Content="Project file" Click="OnOpenProjectFileClicked" /><Button Grid.Column="1" Content="Folder" Click="OnOpenFolderClicked" /></Grid></StackPanel>
-        </Border>
-      </UniformGrid>
-
-      <!-- ============================================================
-           CONFIGURATION PANEL
-           Project name + destination folder + template selector (for .NET)
-           + package description (for NuGet) + status + Create button
-           ============================================================ -->
-      <Border Classes="card">
-        <StackPanel Spacing="12">
-          <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="CONFIGURE" Classes="eyebrow" /><TextBlock Text="{Binding KindLabel}" Classes="sectionHeading" Margin="0,4,0,0" /></StackPanel><TextBlock Grid.Column="1" Text="Local files only" Classes="muted" VerticalAlignment="Center" /></Grid>
-          <!-- Project name + destination folder -->
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-            <StackPanel Spacing="5"><TextBlock Text="Project name" Classes="muted" /><TextBox Text="{Binding ProjectName}" /></StackPanel>
-            <StackPanel Grid.Column="1" Spacing="5"><TextBlock Text="Create inside" Classes="muted" /><Grid ColumnDefinitions="*,Auto" ColumnSpacing="7"><TextBox Text="{Binding DestinationFolder}" /><Button Grid.Column="1" Content="Browse…" Click="OnChooseDestinationClicked" /></Grid></StackPanel>
-          </Grid>
-          <!-- .NET template selector (shown for .NET projects) -->
-          <StackPanel Spacing="7" IsVisible="{Binding IsDotNetProject}">
-            <TextBlock Text="Template" Classes="muted" />
-            <ItemsControl ItemsSource="{Binding Templates}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Button Classes="choice" Margin="0,0,7,7" Command="{Binding $parent[UserControl].DataContext.SelectTemplateCommand}" CommandParameter="{Binding}"><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="9" /></StackPanel></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-            <TextBlock Text="{Binding SelectedTemplate, StringFormat='Selected: {0}'}" Foreground="{DynamicResource HavenAccentBrush}" FontSize="11" />
-          </StackPanel>
-          <!-- NuGet package description (shown for NuGet packages) -->
-          <StackPanel Spacing="5" IsVisible="{Binding IsNuGetPackage}"><TextBlock Text="Package description" Classes="muted" /><TextBox Text="{Binding PackageDescription}" PlaceholderText="What the package provides" /></StackPanel>
-          <!-- Status + Create button -->
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10"><TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" /><Button Grid.Column="1" Content="Create project" Classes="accent" Command="{Binding CreateCommand}" MinWidth="150" /></Grid>
-        </StackPanel>
-      </Border>
-    </StackPanel>
-  </ScrollViewer>
+<UserControl
+    x:Class="Haven.Desktop.Views.ProjectCreatorView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer
+      x:Name="RootScroll"
+      HorizontalScrollBarVisibility="Disabled"
+      VerticalScrollBarVisibility="Auto" />
 </UserControl>

@@ -1,26 +1,41 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ModeLibraryView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ModeLibraryView. Its visual vocabulary includes: Grid, StackPanel, TextBlock, Border, TextBox, Button, ScrollViewer, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, TextBlock.Text, MultiBinding, Binding.
+  Data flow: Binding expressions read or update these view-model paths: SearchQuery, RefreshCommand, CreateInStudioCommand, Items, IconKey, Name, IsPinned, SourceLabel, Description, PinLabel, Status.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              x:Class="Haven.Desktop.Views.ModeLibraryView"
              x:DataType="vm:ModeLibraryPageViewModel">
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24,20">
 
     <!-- Header -->
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
-      <TextBlock Text="Mode Library" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource HavenTextBrush}" />
-      <TextBlock Text="Discover, pin, and create Haven modes." FontSize="12" Foreground="{DynamicResource HavenMutedBrush}" />
+      <TextBlock Text="App Library" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource HavenTextBrush}" />
+      <TextBlock Text="Discover, pin, and create Haven apps." FontSize="12" Foreground="{DynamicResource HavenMutedBrush}" />
     </StackPanel>
 
     <!-- Toolbar -->
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
       <Border Grid.Column="0" CornerRadius="6" Background="{DynamicResource HavenPanelBrush}" Padding="8,0" MaxWidth="300">
-        <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search modes..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
+        <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search apps..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
       </Border>
       <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="ghost" Margin="8,0" />
       <Button Grid.Column="2" Content="+ Create in Studio" Command="{Binding CreateInStudioCommand}" Classes="accent" />
     </Grid>
 
     <!-- Mode Cards -->
+    <!-- Section: Keeps the region usable when content exceeds the available window size. -->
     <ScrollViewer Grid.Row="2">
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
@@ -73,6 +88,7 @@
     </ScrollViewer>
 
     <!-- Status Bar -->
+    <!-- Section: Hosts the TextBlock portion of this view at this position in the visual tree. -->
     <TextBlock Grid.Row="3" Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource HavenMutedBrush}" Margin="0,8,0,0" />
   </Grid>
 </UserControl>

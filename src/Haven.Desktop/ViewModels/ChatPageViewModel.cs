@@ -1,61 +1,222 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/ChatPageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns ChatPageViewModel, PreparedAttachment, MessageBubbleViewModel, AgentItemViewModel, PluginItemViewModel, PromptItemViewModel, CatalogVisibility, ContainerItemViewModel, LessonItemViewModel, LessonGroupViewModel, ToolActivityViewModel, InlineQuestionViewModel, AttachmentItemViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Avalonia;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents chat page view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ChatPageViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores image extensions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".png", ".jpg", ".jpeg", ".webp", ".gif" };
+    /// <summary>
+    /// Stores conversations locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IConversationRepository _conversations;
+    /// <summary>
+    /// Stores containers locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IContainerRepository _containers;
+    /// <summary>
+    /// Stores catalog locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ICatalogRepository _catalog;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores sessions locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ChatSessionService _sessions;
+    /// <summary>
+    /// Stores preferences locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly UserPreferencesService _preferences;
+    /// <summary>
+    /// Stores preflight locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly CapabilityPreflightService _preflight;
+    /// <summary>
+    /// Stores workspace state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IWorkspaceStateRepository _workspaceState;
+    /// <summary>
+    /// Stores project intelligence locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IProjectIntelligenceService _projectIntelligence;
+    /// <summary>
+    /// Stores container resources locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IContainerResourceRepository? _containerResources;
+    /// <summary>
+    /// Stores send cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _sendCancellation;
+    /// <summary>
+    /// Stores lesson load cancellation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private CancellationTokenSource? _lessonLoadCancellation;
+    /// <summary>
+    /// Stores conversation locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private Conversation _conversation;
+    /// <summary>
+    /// Stores composer locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _composer = string.Empty;
+    /// <summary>
+    /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _status = "Connecting to Ollama…";
+    /// <summary>Stores whether the composer should display the local-model offline warning.</summary>
+    private bool _isOllamaOfflineWarningVisible;
+    /// <summary>
+    /// Stores selected model locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ModelDescriptor? _selectedModel;
+    /// <summary>
+    /// Stores selected agent locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private AgentItemViewModel? _selectedAgent;
+    /// <summary>
+    /// Stores selected effort locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private EffortLevel _selectedEffort = EffortLevel.Medium;
+    /// <summary>
+    /// Stores selected duo locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private DuoMode _selectedDuo = DuoMode.Solo;
+    /// <summary>
+    /// Stores is sending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isSending;
+    /// <summary>
+    /// Stores is temporary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isTemporary;
+    /// <summary>
+    /// Stores is plugin picker open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isPluginPickerOpen;
+    /// <summary>
+    /// Stores is prompt picker open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isPromptPickerOpen;
+    /// <summary>
+    /// Stores is model picker open locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isModelPickerOpen;
+    /// <summary>
+    /// Stores is computer permission pending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isComputerPermissionPending;
+    /// <summary>
+    /// Stores attachment summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _attachmentSummary = string.Empty;
+    /// <summary>
+    /// Stores selected container locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private ContainerItemViewModel? _selectedContainer;
+    /// <summary>
+    /// Stores selected lesson locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private LessonItemViewModel? _selectedLesson;
+    /// <summary>
+    /// Stores agent notice locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _agentNotice = "The selected agent will handle the next message.";
+    /// <summary>
+    /// Stores model search locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _modelSearch = string.Empty;
+    /// <summary>
+    /// Stores missing plugin name locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _missingPluginName = string.Empty;
+    /// <summary>
+    /// Stores missing plugin reason locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _missingPluginReason = string.Empty;
+    /// <summary>
+    /// Stores is tool permission pending locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isToolPermissionPending;
+    /// <summary>
+    /// Stores tool permission request locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _toolPermissionRequest = string.Empty;
+    /// <summary>
+    /// Stores permission retry prompt locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string? _permissionRetryPrompt;
+    /// <summary>
+    /// Stores approved tool permission once locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _approvedToolPermissionOnce;
+    /// <summary>
+    /// Stores retry prompt locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string? _retryPrompt;
+    /// <summary>
+    /// Stores retry after computer permission locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _retryAfterComputerPermission;
+    /// <summary>
+    /// Stores inline question locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private InlineQuestionViewModel? _inlineQuestion;
+    /// <summary>
+    /// Stores context tokens locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _contextTokens;
+    /// <summary>
+    /// Stores context summary locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _contextSummary = string.Empty;
+    /// <summary>
+    /// Stores edit step locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _editStep;
+    /// <summary>
+    /// Stores lines added locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _linesAdded;
+    /// <summary>
+    /// Stores lines removed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int _linesRemoved;
+    /// <summary>
+    /// Stores suppress selection conversation update locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _suppressSelectionConversationUpdate;
+    /// <summary>
+    /// Stores whether there are unresolved errors after sending, shown as a floating resolve button.
+    /// </summary>
+    private bool _hasErrorsToResolve;
 
     public ChatPageViewModel(
         HavenMode mode,
@@ -119,12 +280,25 @@ public sealed class ChatPageViewModel : ObservableObject
         MoveLessonUpCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, -1));
         MoveLessonDownCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, 1));
         UseStarterCommand = new RelayCommand<string>(text => { if (!string.IsNullOrWhiteSpace(text)) Composer = text; });
+        ResolveErrorsCommand = new AsyncRelayCommand(ResolveErrorsAsync);
     }
 
+    /// <summary>
+    /// Stores conversation changed locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? ConversationChanged;
 
+    /// <summary>
+    /// Gets or updates mode, the bindable or domain state represented by this property.
+    /// </summary>
     public HavenMode Mode { get; }
+    /// <summary>
+    /// Gets or updates mode title, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Teach", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
+    /// <summary>
+    /// Gets or updates mode subtitle, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModeSubtitle => Mode switch
     {
         HavenMode.Chat => "Private conversation with your local models",
@@ -133,6 +307,9 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Studio => "Inspect, edit, run, test and repair local projects",
         _ => string.Empty
     };
+    /// <summary>
+    /// Gets or updates empty title, the bindable or domain state represented by this property.
+    /// </summary>
     public string EmptyTitle => Mode switch
     {
         HavenMode.Chat => "What’s on your mind?",
@@ -141,6 +318,9 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Studio => "What are we building?",
         _ => "How can Haven help?"
     };
+    /// <summary>
+    /// Gets or updates starter one, the bindable or domain state represented by this property.
+    /// </summary>
     public string StarterOne => Mode switch
     {
         HavenMode.Studio => "Explain this project and identify the riskiest areas.",
@@ -148,6 +328,9 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Teach => "Teach me a topic step by step.",
         _ => "Explain this clearly."
     };
+    /// <summary>
+    /// Gets or updates starter two, the bindable or domain state represented by this property.
+    /// </summary>
     public string StarterTwo => Mode switch
     {
         HavenMode.Studio => ">Plan Create a precise implementation plan.",
@@ -155,6 +338,9 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Teach => "Create a retrieval quiz for this lesson.",
         _ => "Help me think through a decision."
     };
+    /// <summary>
+    /// Gets or updates starter three, the bindable or domain state represented by this property.
+    /// </summary>
     public string StarterThree => Mode switch
     {
         HavenMode.Studio => ">Debug Diagnose the error in my latest build.",
@@ -162,6 +348,9 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Teach => "Explain this using examples, then test me.",
         _ => "Summarise the important points."
     };
+    /// <summary>
+    /// Gets or updates starter four, the bindable or domain state represented by this property.
+    /// </summary>
     public string StarterFour => Mode switch
     {
         HavenMode.Studio => "@Agent @WebSearch >Report Research a topic thoroughly.",
@@ -169,51 +358,174 @@ public sealed class ChatPageViewModel : ObservableObject
         HavenMode.Teach => "Build a structured learning plan.",
         _ => "Compare a few possible approaches."
     };
+    /// <summary>
+    /// Gets or updates new chat title, the bindable or domain state represented by this property.
+    /// </summary>
     public string NewChatTitle => Mode switch { HavenMode.Teach => "Quick chat", HavenMode.Do => "New task", HavenMode.Studio => "New studio chat", _ => "New chat" };
+    /// <summary>
+    /// Gets or updates container label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ContainerLabel => Mode switch { HavenMode.Chat => "Chat group", HavenMode.Teach => "Subject", HavenMode.Do => "Task group", _ => "Project" };
+    /// <summary>
+    /// Gets or updates new container label, the bindable or domain state represented by this property.
+    /// </summary>
     public string NewContainerLabel => "+ " + ContainerLabel;
+    /// <summary>
+    /// Reports whether teach applies to the current state.
+    /// </summary>
     public bool IsTeach => Mode == HavenMode.Teach;
+    /// <summary>
+    /// Reports whether do applies to the current state.
+    /// </summary>
     public bool IsDo => Mode == HavenMode.Do;
+    /// <summary>
+    /// Reports whether studio applies to the current state.
+    /// </summary>
     public bool IsStudio => Mode == HavenMode.Studio;
+    /// <summary>
+    /// Reports whether containers applies to the current state.
+    /// </summary>
     public bool HasContainers => Mode is HavenMode.Chat or HavenMode.Teach or HavenMode.Do or HavenMode.Studio;
+    /// <summary>
+    /// Reports whether any containers applies to the current state.
+    /// </summary>
     public bool HasAnyContainers => Containers.Count > 0;
+    /// <summary>
+    /// Reports whether subjects applies to the current state.
+    /// </summary>
     public bool HasSubjects => IsTeach && Containers.Count > 0;
+    /// <summary>
+    /// Reports whether no subjects applies to the current state.
+    /// </summary>
     public bool HasNoSubjects => IsTeach && Containers.Count == 0;
+    /// <summary>
+    /// Reports whether selected subject applies to the current state.
+    /// </summary>
     public bool HasSelectedSubject => IsTeach && SelectedContainer is not null;
+    /// <summary>
+    /// Reports whether lessons applies to the current state.
+    /// </summary>
     public bool HasLessons => IsTeach && Lessons.Count > 0;
+    /// <summary>
+    /// Reports whether no lessons applies to the current state.
+    /// </summary>
     public bool HasNoLessons => IsTeach && SelectedContainer is not null && Lessons.Count == 0;
+    /// <summary>
+    /// Gets or updates show teach empty state, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowTeachEmptyState => IsTeach && (SelectedContainer is null || Lessons.Count == 0);
+    /// <summary>
+    /// Gets or updates teach empty state title, the bindable or domain state represented by this property.
+    /// </summary>
     public string TeachEmptyStateTitle => Containers.Count == 0 ? "Create your first subject" : SelectedContainer is null ? "Choose a subject" : "No lessons yet";
+    /// <summary>
+    /// Gets or updates teach empty state message, the bindable or domain state represented by this property.
+    /// </summary>
     public string TeachEmptyStateMessage => Containers.Count == 0
         ? "Subjects organise structured lessons. Quick Chats always remain available outside a subject."
         : SelectedContainer is null
             ? "Open a subject to see its lessons, or continue with a Quick Chat."
             : "Add a lesson to this subject, or use Quick Chats for an unstructured question.";
+    /// <summary>
+    /// Gets or updates supports duo, the bindable or domain state represented by this property.
+    /// </summary>
     public bool SupportsDuo => Mode is HavenMode.Do or HavenMode.Studio;
+    /// <summary>
+    /// Reports whether workspace root applies to the current state.
+    /// </summary>
     public bool HasWorkspaceRoot => HasContainers && !string.IsNullOrWhiteSpace(SelectedContainer?.RootPath);
+    /// <summary>
+    /// Reports whether workspace tools ready applies to the current state.
+    /// </summary>
     public bool IsWorkspaceToolsReady => Mode is HavenMode.Do or HavenMode.Studio && HasWorkspaceRoot;
+    /// <summary>
+    /// Reports whether agent plugin active applies to the current state.
+    /// </summary>
     public bool IsAgentPluginActive => Plugins.Any(x => x.Name == "Agent" && x.IsActive);
+    /// <summary>
+    /// Reports whether duo plugin active applies to the current state.
+    /// </summary>
     public bool IsDuoPluginActive => Plugins.Any(x => x.Name == "DuoMode" && x.IsActive);
+    /// <summary>
+    /// Reports whether messages applies to the current state.
+    /// </summary>
     public bool HasMessages => Messages.Count > 0;
+    /// <summary>
+    /// Reports whether empty applies to the current state.
+    /// </summary>
     public bool IsEmpty => !HasMessages;
+    /// <summary>
+    /// Reports whether not sending applies to the current state.
+    /// </summary>
     public bool IsNotSending => !IsSending;
+    /// <summary>
+    /// Gets or updates conversation id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid ConversationId => _conversation.Id;
+    /// <summary>
+    /// Gets or updates conversation title, the bindable or domain state represented by this property.
+    /// </summary>
     public string ConversationTitle => _conversation.Title;
+    /// <summary>
+    /// Gets or updates current scope, the bindable or domain state represented by this property.
+    /// </summary>
     public ConversationScope? CurrentScope => Mode is HavenMode.Chat or HavenMode.Teach ? ConversationScope.From(_conversation) : null;
 
+    /// <summary>
+    /// Gets or updates messages, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<MessageBubbleViewModel> Messages { get; } = [];
+    /// <summary>
+    /// Gets or updates models, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ModelDescriptor> Models { get; } = [];
+    /// <summary>
+    /// Gets or updates agents, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<AgentItemViewModel> Agents { get; } = [];
+    /// <summary>
+    /// Gets or updates plugins, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PluginItemViewModel> Plugins { get; } = [];
+    /// <summary>
+    /// Gets or updates plugin suggestions, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PluginItemViewModel> PluginSuggestions { get; } = [];
+    /// <summary>
+    /// Gets or updates prompts, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PromptItemViewModel> Prompts { get; } = [];
+    /// <summary>
+    /// Gets or updates prompt suggestions, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PromptItemViewModel> PromptSuggestions { get; } = [];
+    /// <summary>
+    /// Gets or updates containers, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ContainerItemViewModel> Containers { get; } = [];
+    /// <summary>
+    /// Gets or updates lessons, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<LessonItemViewModel> Lessons { get; } = [];
+    /// <summary>
+    /// Gets or updates lesson groups, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<LessonGroupViewModel> LessonGroups { get; } = [];
+    /// <summary>
+    /// Gets or updates attachments, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<AttachmentItemViewModel> Attachments { get; } = [];
+    /// <summary>
+    /// Gets or updates effort levels, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<EffortLevel> EffortLevels { get; } = Enum.GetValues<EffortLevel>();
+    /// <summary>
+    /// Gets or updates duo modes, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<DuoMode> DuoModes { get; } = [DuoMode.PingPong, DuoMode.Collaborate, DuoMode.Supervise];
+    /// <summary>
+    /// Gets or updates filtered models, the bindable or domain state represented by this property.
+    /// </summary>
     public IEnumerable<ModelDescriptor> FilteredModels => string.IsNullOrWhiteSpace(ModelSearch) ? Models : Models.Where(model =>
         model.Name.Contains(ModelSearch, StringComparison.OrdinalIgnoreCase) || model.Family.Contains(ModelSearch, StringComparison.OrdinalIgnoreCase));
 
@@ -228,32 +540,123 @@ public sealed class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Gets or updates status, the bindable or domain state represented by this property.
+    /// </summary>
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    /// <summary>
+    /// Gets or updates attachment summary, the bindable or domain state represented by this property.
+    /// </summary>
     public string AttachmentSummary { get => _attachmentSummary; private set => SetProperty(ref _attachmentSummary, value); }
+    /// <summary>
+    /// Reports whether attachment applies to the current state.
+    /// </summary>
     public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentSummary);
+    /// <summary>
+    /// Reports whether plugin picker open applies to the current state.
+    /// </summary>
     public bool IsPluginPickerOpen { get => _isPluginPickerOpen; private set { if (SetProperty(ref _isPluginPickerOpen, value)) RaisePropertyChanged(nameof(IsPickerOverlayVisible)); } }
+    /// <summary>
+    /// Reports whether prompt picker open applies to the current state.
+    /// </summary>
     public bool IsPromptPickerOpen { get => _isPromptPickerOpen; private set { if (SetProperty(ref _isPromptPickerOpen, value)) RaisePropertyChanged(nameof(IsPickerOverlayVisible)); } }
+    /// <summary>
+    /// Reports whether picker overlay visible applies to the current state.
+    /// </summary>
     public bool IsPickerOverlayVisible => IsPluginPickerOpen || IsPromptPickerOpen;
+    /// <summary>
+    /// Reports whether model picker open applies to the current state.
+    /// </summary>
     public bool IsModelPickerOpen { get => _isModelPickerOpen; set => SetProperty(ref _isModelPickerOpen, value); }
+    /// <summary>
+    /// Gets or updates model search, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModelSearch { get => _modelSearch; set { if (SetProperty(ref _modelSearch, value)) RaisePropertyChanged(nameof(FilteredModels)); } }
+    /// <summary>
+    /// Reports whether computer permission pending applies to the current state.
+    /// </summary>
     public bool IsComputerPermissionPending { get => _isComputerPermissionPending; private set => SetProperty(ref _isComputerPermissionPending, value); }
+    /// <summary>
+    /// Gets or updates missing plugin name, the bindable or domain state represented by this property.
+    /// </summary>
     public string MissingPluginName { get => _missingPluginName; private set => SetProperty(ref _missingPluginName, value); }
+    /// <summary>
+    /// Gets or updates missing plugin reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string MissingPluginReason { get => _missingPluginReason; private set => SetProperty(ref _missingPluginReason, value); }
+    /// <summary>
+    /// Reports whether missing plugin notice applies to the current state.
+    /// </summary>
     public bool HasMissingPluginNotice => !string.IsNullOrWhiteSpace(MissingPluginName);
+    /// <summary>Reports whether a local model is selected but Ollama cannot currently be reached.</summary>
+    public bool IsOllamaOfflineWarningVisible
+    {
+        get => _isOllamaOfflineWarningVisible;
+        private set => SetProperty(ref _isOllamaOfflineWarningVisible, value);
+    }
+    /// <summary>
+    /// Reports whether tool permission pending applies to the current state.
+    /// </summary>
     public bool IsToolPermissionPending { get => _isToolPermissionPending; private set => SetProperty(ref _isToolPermissionPending, value); }
+    /// <summary>
+    /// Gets or updates tool permission request, the bindable or domain state represented by this property.
+    /// </summary>
     public string ToolPermissionRequest { get => _toolPermissionRequest; private set => SetProperty(ref _toolPermissionRequest, value); }
+    /// <summary>
+    /// Gets or updates inline question, the bindable or domain state represented by this property.
+    /// </summary>
     public InlineQuestionViewModel? InlineQuestion { get => _inlineQuestion; private set { if (SetProperty(ref _inlineQuestion, value)) RaisePropertyChanged(nameof(HasInlineQuestion)); } }
+    /// <summary>
+    /// Reports whether inline question applies to the current state.
+    /// </summary>
     public bool HasInlineQuestion => InlineQuestion is not null;
+    /// <summary>
+    /// Gets or updates context tokens, the bindable or domain state represented by this property.
+    /// </summary>
     public int ContextTokens { get => _contextTokens; private set => SetProperty(ref _contextTokens, value); }
+    /// <summary>
+    /// Gets or updates context limit, the bindable or domain state represented by this property.
+    /// </summary>
     public int ContextLimit => _preferences.GenerationOptions.ContextLimit;
+    /// <summary>
+    /// Gets or updates context percent, the bindable or domain state represented by this property.
+    /// </summary>
     public int ContextPercent => Math.Clamp((int)Math.Round(ContextTokens * 100d / Math.Max(1, ContextLimit)), 0, 100);
+    /// <summary>Shows the more useful remaining-capacity value in the compact header widget.</summary>
+    public int ContextRemainingPercent => 100 - ContextPercent;
+    /// <summary>
+    /// Gets or updates context label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ContextLabel => $"{ContextTokens:N0} / {ContextLimit:N0} tokens · {ContextPercent}%";
+    /// <summary>Explains the compact value without making the header itself verbose.</summary>
+    public string ContextRemainingLabel => $"{ContextRemainingPercent}% context remaining";
+    /// <summary>
+    /// Gets or updates context sweep, the bindable or domain state represented by this property.
+    /// </summary>
     public double ContextSweep => ContextPercent * 3.6;
+    /// <summary>
+    /// Gets or updates show confidence, the bindable or domain state represented by this property.
+    /// </summary>
     public bool ShowConfidence => _preferences.ConfidenceMeter;
+    /// <summary>
+    /// Reports whether edit progress visible applies to the current state.
+    /// </summary>
     public bool IsEditProgressVisible => IsSending && IsWorkspaceToolsReady;
+    /// <summary>
+    /// Gets or updates edit progress label, the bindable or domain state represented by this property.
+    /// </summary>
     public string EditProgressLabel => $"Step {Math.Max(1, EditStep)} · +{LinesAdded}/-{LinesRemoved} lines";
+    /// <summary>
+    /// Gets or updates edit step, the bindable or domain state represented by this property.
+    /// </summary>
     public int EditStep { get => _editStep; private set { if (SetProperty(ref _editStep, value)) RaisePropertyChanged(nameof(EditProgressLabel)); } }
+    /// <summary>
+    /// Gets or updates lines added, the bindable or domain state represented by this property.
+    /// </summary>
     public int LinesAdded { get => _linesAdded; private set { if (SetProperty(ref _linesAdded, value)) RaisePropertyChanged(nameof(EditProgressLabel)); } }
+    /// <summary>
+    /// Gets or updates lines removed, the bindable or domain state represented by this property.
+    /// </summary>
     public int LinesRemoved { get => _linesRemoved; private set { if (SetProperty(ref _linesRemoved, value)) RaisePropertyChanged(nameof(EditProgressLabel)); } }
 
     public ModelDescriptor? SelectedModel
@@ -278,6 +681,9 @@ public sealed class ChatPageViewModel : ObservableObject
                 : $"{value?.Name ?? "Default"} will handle the next message.";
         }
     }
+    /// <summary>
+    /// Gets or updates agent notice, the bindable or domain state represented by this property.
+    /// </summary>
     public string AgentNotice { get => _agentNotice; private set => SetProperty(ref _agentNotice, value); }
     public EffortLevel SelectedEffort
     {
@@ -288,6 +694,9 @@ public sealed class ChatPageViewModel : ObservableObject
             _preferences.SetModelDefaults(SelectedModel?.Name ?? _preferences.DefaultModel, value);
         }
     }
+    /// <summary>
+    /// Gets or updates selected duo, the bindable or domain state represented by this property.
+    /// </summary>
     public DuoMode SelectedDuo { get => _selectedDuo; set => SetProperty(ref _selectedDuo, value); }
 
     public ContainerItemViewModel? SelectedContainer
@@ -346,47 +755,169 @@ public sealed class ChatPageViewModel : ObservableObject
         {
             if (!SetProperty(ref _isTemporary, value)) return;
             RaisePropertyChanged(nameof(TemporaryLabel));
+            RaisePropertyChanged(nameof(TemporaryHeaderActionLabel));
             _conversation = _conversation with { IsTemporary = value };
         }
     }
 
+    /// <summary>
+    /// Gets or updates temporary label, the bindable or domain state represented by this property.
+    /// </summary>
     public string TemporaryLabel => IsTemporary ? "Temporary · history off" : "Saved locally";
+    /// <summary>Labels the empty-chat header action according to what clicking it will do.</summary>
+    public string TemporaryHeaderActionLabel => IsTemporary ? "Make Permanent" : "Make Temporary";
+    /// <summary>
+    /// Gets or updates send command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand SendCommand { get; }
+    /// <summary>
+    /// Gets or updates stop command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand StopCommand { get; }
+    /// <summary>
+    /// Gets or updates new chat command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand NewChatCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle temporary command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleTemporaryCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle plugin command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<PluginItemViewModel> TogglePluginCommand { get; }
+    /// <summary>
+    /// Gets or updates select plugin command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<PluginItemViewModel> SelectPluginCommand { get; }
+    /// <summary>
+    /// Gets or updates open plugin picker command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand OpenPluginPickerCommand { get; }
+    /// <summary>
+    /// Gets or updates toggle prompt command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<PromptItemViewModel> TogglePromptCommand { get; }
+    /// <summary>
+    /// Gets or updates select prompt command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<PromptItemViewModel> SelectPromptCommand { get; }
+    /// <summary>
+    /// Gets or updates open prompt picker command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand OpenPromptPickerCommand { get; }
+    /// <summary>
+    /// Gets or updates close pickers command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ClosePickersCommand { get; }
+    /// <summary>
+    /// Gets or updates open model picker command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand OpenModelPickerCommand { get; }
+    /// <summary>
+    /// Gets or updates close model picker command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand CloseModelPickerCommand { get; }
+    /// <summary>
+    /// Gets or updates select model command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<ModelDescriptor> SelectModelCommand { get; }
+    /// <summary>
+    /// Gets or updates retry with plugin command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand RetryWithPluginCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss missing plugin command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DismissMissingPluginCommand { get; }
+    /// <summary>
+    /// Gets or updates approve tool permission command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ApproveToolPermissionCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss tool permission command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DismissToolPermissionCommand { get; }
+    /// <summary>
+    /// Gets or updates compact context command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand CompactContextCommand { get; }
+    /// <summary>
+    /// Gets or updates answer inline question command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<string> AnswerInlineQuestionCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss inline question command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DismissInlineQuestionCommand { get; }
+    /// <summary>
+    /// Gets or updates enable computer use command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand EnableComputerUseCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss computer use command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand DismissComputerUseCommand { get; }
+    /// <summary>
+    /// Gets or updates remove attachment command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<AttachmentItemViewModel> RemoveAttachmentCommand { get; }
+    /// <summary>
+    /// Gets or updates select container command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<ContainerItemViewModel> SelectContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates delete container command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<ContainerItemViewModel> DeleteContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates select lesson command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<LessonItemViewModel> SelectLessonCommand { get; }
+    /// <summary>
+    /// Gets or updates select quick chats command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand SelectQuickChatsCommand { get; }
+    /// <summary>
+    /// Gets or updates refresh models command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand RefreshModelsCommand { get; }
+    /// <summary>
+    /// Gets or updates new container command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NewContainerCommand { get; }
+    /// <summary>
+    /// Gets or updates new lesson command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand NewLessonCommand { get; }
+    /// <summary>
+    /// Gets or updates delete lesson command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<LessonItemViewModel> DeleteLessonCommand { get; }
+    /// <summary>
+    /// Gets or updates move lesson up command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<LessonItemViewModel> MoveLessonUpCommand { get; }
+    /// <summary>
+    /// Gets or updates move lesson down command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<LessonItemViewModel> MoveLessonDownCommand { get; }
+    /// <summary>
+    /// Gets or updates use starter command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<string> UseStarterCommand { get; }
+    /// <summary>
+    /// Reports whether there are unresolved errors after a send, exposing a floating resolve button.
+    /// </summary>
+    public bool HasErrorsToResolve { get => _hasErrorsToResolve; private set { if (SetProperty(ref _hasErrorsToResolve, value)) RaisePropertyChanged(nameof(HasErrorsToResolve)); } }
+    /// <summary>
+    /// Gets or updates resolve errors command, the bindable or domain state represented by this property.
+    /// </summary>
+    public AsyncRelayCommand ResolveErrorsCommand { get; }
 
+    /// <summary>
+    /// Performs initialize asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         Containers.Clear();
@@ -396,6 +927,9 @@ public sealed class ChatPageViewModel : ObservableObject
         await UpdateContextUsageAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Performs refresh catalog asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
         var selectedAgentName = SelectedAgent?.Name;
@@ -421,6 +955,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(IsDuoPluginActive));
     }
 
+    /// <summary>
+    /// Performs refresh containers asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RefreshContainersAsync(CancellationToken cancellationToken)
     {
         if (!HasContainers) return;
@@ -448,6 +985,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaiseContainerStateChanged();
     }
 
+    /// <summary>
+    /// Performs the apply preferences step owned by this component.
+    /// </summary>
     public void ApplyPreferences(string? modelName, EffortLevel effort)
     {
         SelectedEffort = effort;
@@ -455,6 +995,9 @@ public sealed class ChatPageViewModel : ObservableObject
             SelectedModel = Models.FirstOrDefault(model => model.Name.Equals(modelName, StringComparison.OrdinalIgnoreCase)) ?? SelectedModel;
     }
 
+    /// <summary>
+    /// Performs the add attachment step owned by this component.
+    /// </summary>
     public void AddAttachment(string path)
     {
         if (Attachments.Any(item => string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase))) return;
@@ -465,11 +1008,17 @@ public sealed class ChatPageViewModel : ObservableObject
             : "Attachments ready. Text will be added to this request.";
     }
 
+    /// <summary>
+    /// Performs the add attachments step owned by this component.
+    /// </summary>
     public void AddAttachments(IEnumerable<string> paths)
     {
         foreach (var path in paths) AddAttachment(path);
     }
 
+    /// <summary>
+    /// Performs load conversation asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task LoadConversationAsync(Guid id, CancellationToken cancellationToken)
     {
         var conversation = await _conversations.GetAsync(id, cancellationToken);
@@ -514,8 +1063,14 @@ public sealed class ChatPageViewModel : ObservableObject
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshModelsAsync() => await RefreshModelsAsync(CancellationToken.None);
 
+    /// <summary>
+    /// Performs refresh models asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RefreshModelsAsync(CancellationToken cancellationToken)
     {
         var selectedName = SelectedModel?.Name ?? _preferences.DefaultModel;
@@ -528,14 +1083,21 @@ public sealed class ChatPageViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            SelectedModel = null;
+            SelectedModel = string.IsNullOrWhiteSpace(selectedName) || selectedName.Contains(':', StringComparison.Ordinal)
+                ? null
+                : new ModelDescriptor(selectedName, 0, "Ollama", string.Empty, string.Empty,
+                    new HashSet<ToolCapability>(), DateTimeOffset.MinValue);
             Status = $"Ollama unavailable: {ex.Message}";
         }
     }
 
+    /// <summary>
+    /// Performs send asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SendAsync()
     {
         if (SelectedModel is null || string.IsNullOrWhiteSpace(Composer)) return;
+        if (!await EnsureSelectedModelAvailableAsync()) return;
         var permissionApproved = _approvedToolPermissionOnce;
         _approvedToolPermissionOnce = false;
         var originalPrompt = Composer.Trim();
@@ -569,7 +1131,7 @@ public sealed class ChatPageViewModel : ObservableObject
         EditStep = 0;
         LinesAdded = 0;
         LinesRemoved = 0;
-        Status = $"{(IsAgentPluginActive ? SelectedAgent?.Name : "Default") ?? "Default"} is working…";
+        Status = "Preparing…";
         MessageBubbleViewModel? streaming = null;
         ChatMessage? completedMessage = null;
 
@@ -581,14 +1143,6 @@ public sealed class ChatPageViewModel : ObservableObject
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
             var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
-            var check = _preflight.Evaluate(SelectedModel, active, prepared.Images is { Count: > 0 }, Models);
-            if (!check.IsCompatible && _preferences.AutoSwitchCompatibleModels && check.SuggestedModel is not null)
-            {
-                var previous = SelectedModel.Name;
-                SelectedModel = Models.FirstOrDefault(model => model.Name.Equals(check.SuggestedModel.Name, StringComparison.OrdinalIgnoreCase)) ?? check.SuggestedModel;
-                Messages.Add(MessageBubbleViewModel.SystemNotice($"Switched from {previous} to {SelectedModel.Name} because the active tools require {string.Join(", ", check.Missing.Select(item => item.Capability))}."));
-                RaiseMessageStateChanged();
-            }
             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
             var selectedAgent = ResolveAgent(prompt);
             var agent = IsAgentPluginActive ? selectedAgent?.Name ?? "Default" : "Default";
@@ -596,6 +1150,9 @@ public sealed class ChatPageViewModel : ObservableObject
             var registeredContext = await BuildRegisteredContextAsync(prompt, _sendCancellation.Token);
             var containerContext = await BuildContainerContextAsync(_sendCancellation.Token);
             var containerInstructions = BuildContainerInstructions();
+            var deltaBuffer = new StringBuilder();
+            var flushTimer = Task.Delay(50, _sendCancellation.Token);
+
             await foreach (var item in _sessions.SendAsync(
                                _conversation, prepared.Prompt, model, SelectedEffort, active, agent, agentInstructions,
                                SelectedDuo, SelectedContainer?.RootPath, containerContext, containerInstructions,
@@ -604,55 +1161,83 @@ public sealed class ChatPageViewModel : ObservableObject
                                permissionApproved ? PermissionMode.FullAccess : _preferences.CommandPermission,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission))
             {
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                switch (item.Kind)
                 {
-                    switch (item.Kind)
-                    {
-                        case ChatStreamEventKind.UserMessage when item.Message is not null:
-                            Messages.Add(new MessageBubbleViewModel(item.Message, ShowConfidence));
-                            RaiseMessageStateChanged();
-                            break;
-                        case ChatStreamEventKind.AssistantStarted:
-                            streaming = MessageBubbleViewModel.Streaming(item.MessageId ?? Guid.NewGuid(), item.Agent ?? "Haven", item.Model ?? model.Name);
-                            Messages.Add(streaming);
-                            RaiseMessageStateChanged();
-                            break;
-                        case ChatStreamEventKind.AssistantDelta when streaming is not null:
-                            streaming.Append(item.Delta ?? string.Empty);
-                            break;
-                        case ChatStreamEventKind.AssistantCompleted when streaming is not null:
-                            completedMessage = item.Message;
-                            FinaliseAssistant(streaming, item.Message);
-                            break;
-                        case ChatStreamEventKind.ToolActivity when item.ToolActivity is not null:
-                            var activity = new ToolActivityViewModel(
-                                item.ToolActivity.Title,
-                                item.ToolActivity.Detail,
-                                item.ToolActivity.Succeeded,
-                                $"{item.ToolActivity.Duration.TotalSeconds:0.0}s",
-                                item.ToolActivity.LinesAdded,
-                                item.ToolActivity.LinesRemoved);
-                            streaming?.Activities.Add(activity);
-                            EditStep++;
-                            LinesAdded += item.ToolActivity.LinesAdded;
-                            LinesRemoved += item.ToolActivity.LinesRemoved;
-                            break;
-                        case ChatStreamEventKind.PreflightFailed:
-                            var missing = string.Join(", ", item.PreflightResult?.Missing.Select(x => x.Capability) ?? []);
-                            var suggestion = item.PreflightResult?.SuggestedModel?.Name;
-                            Status = suggestion is null
-                                ? $"Model preflight stopped the request. Missing: {missing}."
-                                : $"Model preflight stopped the request. Missing: {missing}. Suggested: {suggestion}.";
-                            break;
-                    }
-                });
+                    case ChatStreamEventKind.AssistantDelta when streaming is not null:
+                        deltaBuffer.Append(item.Delta ?? string.Empty);
+                        if (flushTimer.IsCompleted)
+                        {
+                            var text = deltaBuffer.ToString();
+                            deltaBuffer.Clear();
+                            await Dispatcher.UIThread.InvokeAsync(() => streaming.Append(text));
+                            flushTimer = Task.Delay(50, _sendCancellation.Token);
+                        }
+                        break;
+                    default:
+                        if (deltaBuffer.Length > 0)
+                        {
+                            var text = deltaBuffer.ToString();
+                            deltaBuffer.Clear();
+                            await Dispatcher.UIThread.InvokeAsync(() => streaming!.Append(text));
+                        }
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            switch (item.Kind)
+                            {
+                                case ChatStreamEventKind.UserMessage when item.Message is not null:
+                                    Messages.Add(new MessageBubbleViewModel(item.Message, ShowConfidence));
+                                    RaiseMessageStateChanged();
+                                    break;
+                                case ChatStreamEventKind.AssistantStarted:
+                                    streaming = MessageBubbleViewModel.Streaming(item.MessageId ?? Guid.NewGuid(), item.Agent ?? "Haven", item.Model ?? model.Name);
+                                    Messages.Add(streaming);
+                                    RaiseMessageStateChanged();
+                                    break;
+                                case ChatStreamEventKind.AssistantCompleted when streaming is not null:
+                                    completedMessage = item.Message;
+                                    FinaliseAssistant(streaming, item.Message);
+                                    break;
+                                case ChatStreamEventKind.ToolActivity when item.ToolActivity is not null:
+                                    var activity = new ToolActivityViewModel(
+                                        item.ToolActivity.Title,
+                                        item.ToolActivity.Detail,
+                                        item.ToolActivity.Succeeded,
+                                        $"{item.ToolActivity.Duration.TotalSeconds:0.0}s",
+                                        item.ToolActivity.LinesAdded,
+                                        item.ToolActivity.LinesRemoved);
+                                    streaming?.Activities.Add(activity);
+                                    EditStep++;
+                                    LinesAdded += item.ToolActivity.LinesAdded;
+                                    LinesRemoved += item.ToolActivity.LinesRemoved;
+                                    break;
+                                case ChatStreamEventKind.PreflightFailed:
+                                    var missing = string.Join(", ", item.PreflightResult?.Missing.Select(x => x.Capability) ?? []);
+                                    var suggestion = item.PreflightResult?.SuggestedModel?.Name;
+                                    Status = suggestion is null
+                                        ? $"Model preflight stopped the request. Missing: {missing}."
+                                        : $"Model preflight stopped the request. Missing: {missing}. Suggested: {suggestion}.";
+                                    break;
+                            }
+                        });
+                        break;
+                }
+            }
+
+            if (deltaBuffer.Length > 0)
+            {
+                var text = deltaBuffer.ToString();
+                deltaBuffer.Clear();
+                await Dispatcher.UIThread.InvokeAsync(() => streaming!.Append(text));
             }
             if (completedMessage is not null && streaming is not null && !IsTemporary)
             {
-                var metadata = JsonSerializer.Serialize(new { confidence = streaming.ConfidenceScore });
+                var metadata = streaming.ConfidenceScore is null
+                    ? null
+                    : JsonSerializer.Serialize(new { confidence = streaming.ConfidenceScore });
                 await _conversations.AddMessageAsync(completedMessage with { Content = streaming.Content, MetadataJson = metadata }, _sendCancellation.Token);
             }
             if (!Status.StartsWith("Model preflight", StringComparison.Ordinal)) Status = "Ready";
+            HasErrorsToResolve = false;
             foreach (var plugin in Plugins.Where(x => x.IsActive && !x.Persists)) plugin.IsActive = false;
             foreach (var activePrompt in Prompts.Where(x => x.IsActive && !x.Persists)) activePrompt.IsActive = false;
             IsComputerPermissionPending = false;
@@ -665,7 +1250,7 @@ public sealed class ChatPageViewModel : ObservableObject
             ConversationChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (OperationCanceledException) { Status = "Stopped"; streaming?.MarkStopped(); }
-        catch (Exception ex) { Status = $"Request failed: {ex.Message}"; streaming?.MarkFailed(ex.Message); }
+        catch (Exception ex) { Status = $"Request failed: {ex.Message}"; streaming?.MarkFailed(ex.Message); HasErrorsToResolve = true; }
         finally
         {
             IsSending = false;
@@ -674,6 +1259,76 @@ public sealed class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Makes a local model usable immediately before a send. Provider-qualified
+    /// names (for example, <c>openai:gpt-4.1</c>) are cloud models and therefore
+    /// bypass this local Ollama check entirely.
+    /// </summary>
+    private async Task<bool> EnsureSelectedModelAvailableAsync()
+    {
+        var selectedName = SelectedModel?.Name;
+        if (string.IsNullOrWhiteSpace(selectedName) || selectedName.Contains(':', StringComparison.Ordinal))
+        {
+            IsOllamaOfflineWarningVisible = false;
+            return true;
+        }
+
+        var wake = App.Services?.GetService<OllamaWakeService>();
+        if (wake is null) return true;
+
+        try
+        {
+            using var probe = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            if (await wake.IsAvailableAsync(probe.Token))
+            {
+                IsOllamaOfflineWarningVisible = false;
+                return true;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A timed-out probe is the same user-facing state as an offline endpoint.
+        }
+
+        if (!_preferences.AutoWakeOllama)
+        {
+            IsOllamaOfflineWarningVisible = true;
+            Status = "Ollama is offline. Start Ollama or enable automatic wake in Settings.";
+            return false;
+        }
+
+        Messages.Add(MessageBubbleViewModel.SystemNotice("Waking Up Model"));
+        RaiseMessageStateChanged();
+        Status = "Waking up Ollama...";
+
+        try
+        {
+            using var wakeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(18));
+            if (!await wake.EnsureAvailableAsync(wakeTimeout.Token))
+            {
+                IsOllamaOfflineWarningVisible = true;
+                Status = "Ollama could not be started. Open Ollama, then try again.";
+                return false;
+            }
+
+            await RefreshModelsAsync();
+            SelectedModel = Models.FirstOrDefault(model =>
+                model.Name.Equals(selectedName, StringComparison.OrdinalIgnoreCase)) ?? SelectedModel;
+            IsOllamaOfflineWarningVisible = false;
+            Status = "Ollama is ready.";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            IsOllamaOfflineWarningVisible = true;
+            Status = "Ollama did not become ready in time. Open Ollama, then try again.";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Performs prepare attachment asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<PreparedAttachment> PrepareAttachmentAsync(string prompt, CancellationToken cancellationToken)
     {
         if (Attachments.Count == 0) return new(prompt, null);
@@ -699,6 +1354,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return new(textContext.ToString(), images.Count == 0 ? null : images);
     }
 
+    /// <summary>
+    /// Performs add group resource images asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task<PreparedAttachment> AddGroupResourceImagesAsync(PreparedAttachment prepared, CancellationToken cancellationToken)
     {
         if (Mode != HavenMode.Chat || SelectedContainer is null || _containerResources is null) return prepared;
@@ -715,8 +1373,14 @@ public sealed class ChatPageViewModel : ObservableObject
         return prepared with { Images = images.Count == 0 ? null : images };
     }
 
+    /// <summary>
+    /// Performs the stop step owned by this component.
+    /// </summary>
     private void Stop() => _sendCancellation?.Cancel();
 
+    /// <summary>
+    /// Performs the new chat step owned by this component.
+    /// </summary>
     public void NewChat()
     {
         Stop();
@@ -736,6 +1400,9 @@ public sealed class ChatPageViewModel : ObservableObject
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs the new conversation step owned by this component.
+    /// </summary>
     private Conversation NewConversation(DateTimeOffset now)
     {
         var lesson = IsTeach ? SelectedLesson : null;
@@ -745,6 +1412,9 @@ public sealed class ChatPageViewModel : ObservableObject
             containerId, lesson?.Id, false, IsTemporary, now, now);
     }
 
+    /// <summary>
+    /// Performs the apply selection to conversation step owned by this component.
+    /// </summary>
     private void ApplySelectionToConversation(bool startNewWhenScopeChanges)
     {
         if (_suppressSelectionConversationUpdate) return;
@@ -763,6 +1433,9 @@ public sealed class ChatPageViewModel : ObservableObject
         if (changed) ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs the select quick chats step owned by this component.
+    /// </summary>
     private void SelectQuickChats()
     {
         if (!IsTeach) return;
@@ -770,12 +1443,18 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = "Quick Chats selected.";
     }
 
+    /// <summary>
+    /// Performs the toggle temporary step owned by this component.
+    /// </summary>
     private void ToggleTemporary()
     {
         IsTemporary = !IsTemporary;
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs the toggle plugin step owned by this component.
+    /// </summary>
     private void TogglePlugin(PluginItemViewModel? plugin)
     {
         if (plugin is null) return;
@@ -814,6 +1493,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(IsDuoPluginActive));
     }
 
+    /// <summary>
+    /// Performs the enable computer use step owned by this component.
+    /// </summary>
     private void EnableComputerUse()
     {
         var plugin = Plugins.FirstOrDefault(item => item.Name.Equals("ComputerUse", StringComparison.OrdinalIgnoreCase));
@@ -830,6 +1512,9 @@ public sealed class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs the dismiss computer use step owned by this component.
+    /// </summary>
     private void DismissComputerUse()
     {
         var plugin = Plugins.FirstOrDefault(item => item.Name.Equals("ComputerUse", StringComparison.OrdinalIgnoreCase));
@@ -839,6 +1524,9 @@ public sealed class ChatPageViewModel : ObservableObject
         _retryAfterComputerPermission = false;
     }
 
+    /// <summary>
+    /// Performs the select plugin step owned by this component.
+    /// </summary>
     private void SelectPlugin(PluginItemViewModel? plugin)
     {
         if (plugin is null) return;
@@ -850,6 +1538,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(IsDuoPluginActive));
     }
 
+    /// <summary>
+    /// Performs the open plugin picker step owned by this component.
+    /// </summary>
     private void OpenPluginPicker()
     {
         IsPromptPickerOpen = false;
@@ -859,6 +1550,9 @@ public sealed class ChatPageViewModel : ObservableObject
         IsPluginPickerOpen = true;
     }
 
+    /// <summary>
+    /// Performs the open prompt picker step owned by this component.
+    /// </summary>
     private void OpenPromptPicker()
     {
         IsPluginPickerOpen = false;
@@ -867,12 +1561,18 @@ public sealed class ChatPageViewModel : ObservableObject
         IsPromptPickerOpen = true;
     }
 
+    /// <summary>
+    /// Performs the close pickers step owned by this component.
+    /// </summary>
     private void ClosePickers()
     {
         IsPluginPickerOpen = false;
         IsPromptPickerOpen = false;
     }
 
+    /// <summary>
+    /// Performs the toggle prompt step owned by this component.
+    /// </summary>
     private void TogglePrompt(PromptItemViewModel? prompt)
     {
         if (prompt is null) return;
@@ -884,6 +1584,9 @@ public sealed class ChatPageViewModel : ObservableObject
         prompt.IsActive = !prompt.IsActive;
     }
 
+    /// <summary>
+    /// Performs the select prompt step owned by this component.
+    /// </summary>
     private void SelectPrompt(PromptItemViewModel? prompt)
     {
         if (prompt is null) return;
@@ -893,6 +1596,9 @@ public sealed class ChatPageViewModel : ObservableObject
         IsPromptPickerOpen = false;
     }
 
+    /// <summary>
+    /// Performs the update suggestions step owned by this component.
+    /// </summary>
     private void UpdateSuggestions(string text)
     {
         RefreshPluginAvailability();
@@ -920,6 +1626,9 @@ public sealed class ChatPageViewModel : ObservableObject
         ClosePickers();
     }
 
+    /// <summary>
+    /// Performs the refresh plugin availability step owned by this component.
+    /// </summary>
     private void RefreshPluginAvailability()
     {
         foreach (var plugin in Plugins)
@@ -936,11 +1645,17 @@ public sealed class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Reports whether runtime plugin applies to the current state.
+    /// </summary>
     private static bool IsRuntimePlugin(string name) => name.Equals("BrowserUse", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("WebSearch", StringComparison.OrdinalIgnoreCase) || name.Equals("ComputerUse", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("Automate", StringComparison.OrdinalIgnoreCase) || name.Equals("Macro", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("Test", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Runs runtime plugin reason while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static string RuntimePluginReason(string name) => name switch
     {
         "BrowserUse" => "@BrowserUse appears only while the native Browse host is attached and interactive browser permission is available.",
@@ -951,6 +1666,9 @@ public sealed class ChatPageViewModel : ObservableObject
         _ => $"@{name} is not available in this context."
     };
 
+    /// <summary>
+    /// Performs the resolve agent step owned by this component.
+    /// </summary>
     private AgentItemViewModel? ResolveAgent(string prompt)
     {
         if (!IsAgentPluginActive) return null;
@@ -973,6 +1691,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return matched;
     }
 
+    /// <summary>
+    /// Creates container async with the invariants required by its callers.
+    /// </summary>
     private async Task CreateContainerAsync()
     {
         if (!HasContainers) return;
@@ -1016,6 +1737,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = $"Created {name.ToLowerInvariant()}.";
     }
 
+    /// <summary>
+    /// Performs delete container asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteContainerAsync(ContainerItemViewModel? item)
     {
         if (item is null) return;
@@ -1027,6 +1751,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = $"Archived \"{item.Name}\". Restore it from Archive when needed.";
     }
 
+    /// <summary>
+    /// Creates lesson async with the invariants required by its callers.
+    /// </summary>
     private async Task CreateLessonAsync()
     {
         if (!IsTeach || SelectedContainer is null) return;
@@ -1042,6 +1769,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = "Created lesson.";
     }
 
+    /// <summary>
+    /// Performs delete lesson asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteLessonAsync(LessonItemViewModel? item)
     {
         if (!IsTeach || item is null) return;
@@ -1053,6 +1783,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = $"Deleted lesson \"{item.Name}\". Its chats are preserved in Quick Chats.";
     }
 
+    /// <summary>
+    /// Performs move lesson asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task MoveLessonAsync(LessonItemViewModel? item, int direction)
     {
         if (!IsTeach || item is null || direction == 0) return;
@@ -1077,6 +1810,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = "Lesson order updated.";
     }
 
+    /// <summary>
+    /// Performs the start lesson load step owned by this component.
+    /// </summary>
     private void StartLessonLoad(Guid subjectId)
     {
         CancelLessonLoad();
@@ -1084,6 +1820,9 @@ public sealed class ChatPageViewModel : ObservableObject
         _ = LoadLessonsSafelyAsync(subjectId, _lessonLoadCancellation.Token);
     }
 
+    /// <summary>
+    /// Performs load lessons safely asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LoadLessonsSafelyAsync(Guid subjectId, CancellationToken cancellationToken)
     {
         try { await LoadLessonsAsync(subjectId, cancellationToken); }
@@ -1099,6 +1838,9 @@ public sealed class ChatPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs load lessons asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task LoadLessonsAsync(Guid subjectId, CancellationToken cancellationToken)
     {
         var loaded = await _containers.GetLessonsAsync(subjectId, cancellationToken);
@@ -1110,6 +1852,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaiseTeachStateChanged();
     }
 
+    /// <summary>
+    /// Reports whether cancel lesson load is true for the current state.
+    /// </summary>
     private void CancelLessonLoad()
     {
         if (_lessonLoadCancellation is null) return;
@@ -1118,6 +1863,9 @@ public sealed class ChatPageViewModel : ObservableObject
         _lessonLoadCancellation = null;
     }
 
+    /// <summary>
+    /// Performs the rebuild lesson groups step owned by this component.
+    /// </summary>
     private void RebuildLessonGroups()
     {
         LessonGroups.Clear();
@@ -1126,6 +1874,9 @@ public sealed class ChatPageViewModel : ObservableObject
             LessonGroups.Add(new LessonGroupViewModel(group.Key, group.OrderBy(item => item.Definition.SortOrder).ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray()));
     }
 
+    /// <summary>
+    /// Performs the activate invocations step owned by this component.
+    /// </summary>
     private string ActivateInvocations(string prompt, out bool needsComputerApproval)
     {
         needsComputerApproval = false;
@@ -1151,6 +1902,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return prompt;
     }
 
+    /// <summary>
+    /// Runs execute slash commands async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private async Task<string> ExecuteSlashCommandsAsync(string prompt)
     {
         var matches = Regex.Matches(prompt, @"(?<!\S)/(?<name>[A-Za-z]+)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -1178,6 +1932,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return Regex.Replace(prompt, @"\s{2,}", " ").Trim();
     }
 
+    /// <summary>
+    /// Performs branch current asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task BranchCurrentAsync()
     {
         if (Messages.Count == 0)
@@ -1219,6 +1976,9 @@ public sealed class ChatPageViewModel : ObservableObject
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs archive current asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ArchiveCurrentAsync()
     {
         if (Messages.Count == 0) return;
@@ -1228,11 +1988,17 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = "Conversation archived. It remains available from the archive.";
     }
 
+    /// <summary>
+    /// Performs the use prompt step owned by this component.
+    /// </summary>
     public void UsePrompt(string text)
     {
         Composer = text;
     }
 
+    /// <summary>
+    /// Performs invoke asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task InvokeAsync(string instruction, string? pluginName = null)
     {
         if (!string.IsNullOrWhiteSpace(pluginName))
@@ -1244,6 +2010,9 @@ public sealed class ChatPageViewModel : ObservableObject
         await SendAsync();
     }
 
+    /// <summary>
+    /// Performs register context asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RegisterContextAsync(string content)
     {
         var now = DateTimeOffset.UtcNow;
@@ -1275,8 +2044,14 @@ public sealed class ChatPageViewModel : ObservableObject
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Performs compact context asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task CompactContextAsync() => CompactContextAsync(false);
 
+    /// <summary>
+    /// Performs compact context asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task CompactContextAsync(bool automatic)
     {
         if (SelectedModel is null) return;
@@ -1325,6 +2100,27 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = $"Compacted {compactable.Length} older messages into a durable summary.";
     }
 
+    /// <summary>
+    /// Re-sends the last user message with an explicit instruction to fix all errors that occurred.
+    /// </summary>
+    private async Task ResolveErrorsAsync()
+    {
+        HasErrorsToResolve = false;
+        if (SelectedModel is null) return;
+        var lastUserMessage = Messages.LastOrDefault(item => item.Role == MessageRole.User);
+        if (lastUserMessage is null) return;
+        Composer = "Please review and resolve all errors from the previous response. Fix any issues and try again.";
+        if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// Clears the floating resolve-errors button so the UI hides it.
+    /// </summary>
+    public void ClearErrorsToResolve() => HasErrorsToResolve = false;
+
+    /// <summary>
+    /// Performs update context usage asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpdateContextUsageAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<ChatMessage> messages;
@@ -1344,14 +2140,22 @@ public sealed class ChatPageViewModel : ObservableObject
         RaiseContextProperties();
     }
 
+    /// <summary>
+    /// Performs the raise context properties step owned by this component.
+    /// </summary>
     private void RaiseContextProperties()
     {
         RaisePropertyChanged(nameof(ContextLimit));
         RaisePropertyChanged(nameof(ContextPercent));
+        RaisePropertyChanged(nameof(ContextRemainingPercent));
         RaisePropertyChanged(nameof(ContextLabel));
+        RaisePropertyChanged(nameof(ContextRemainingLabel));
         RaisePropertyChanged(nameof(ContextSweep));
     }
 
+    /// <summary>
+    /// Builds registered context async from the currently available inputs.
+    /// </summary>
     private async Task<string> BuildRegisteredContextAsync(string prompt, CancellationToken cancellationToken)
     {
         var parts = new List<string>();
@@ -1375,6 +2179,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return string.Join("\n\n", parts);
     }
 
+    /// <summary>
+    /// Builds container context async from the currently available inputs.
+    /// </summary>
     private async Task<string> BuildContainerContextAsync(CancellationToken cancellationToken)
     {
         if (SelectedContainer is null || IsTeach && SelectedLesson is null) return string.Empty;
@@ -1388,6 +2195,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return string.Join("\n\n", parts);
     }
 
+    /// <summary>
+    /// Builds container instructions from the currently available inputs.
+    /// </summary>
     private string BuildContainerInstructions()
     {
         if (SelectedContainer is null || IsTeach && SelectedLesson is null) return string.Empty;
@@ -1400,6 +2210,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return string.Join("\n\n", parts);
     }
 
+    /// <summary>
+    /// Performs the raise container state changed step owned by this component.
+    /// </summary>
     private void RaiseContainerStateChanged()
     {
         RaisePropertyChanged(nameof(HasAnyContainers));
@@ -1408,6 +2221,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaiseTeachStateChanged();
     }
 
+    /// <summary>
+    /// Performs the raise teach state changed step owned by this component.
+    /// </summary>
     private void RaiseTeachStateChanged()
     {
         RaisePropertyChanged(nameof(HasSelectedSubject));
@@ -1418,6 +2234,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(TeachEmptyStateMessage));
     }
 
+    /// <summary>
+    /// Performs register error genome signal asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task RegisterErrorGenomeSignalAsync(string prompt, CancellationToken cancellationToken)
     {
         if (_conversation.IsTemporary || !Regex.IsMatch(prompt, @"\b(wrong|mistake|marked|feedback|error|incorrect|lost marks)\b", RegexOptions.IgnoreCase)) return;
@@ -1425,6 +2244,9 @@ public sealed class ChatPageViewModel : ObservableObject
             "Revision Error Genome signal", Truncate(prompt, 1200), "Captured from learner-provided marked work or correction signal.", DateTimeOffset.UtcNow), cancellationToken);
     }
 
+    /// <summary>
+    /// Performs the detect missing plugin step owned by this component.
+    /// </summary>
     private void DetectMissingPlugin(string prompt)
     {
         var required = RequiredPlugin(prompt);
@@ -1452,6 +2274,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return null;
     }
 
+    /// <summary>
+    /// Performs the retry with plugin step owned by this component.
+    /// </summary>
     private void RetryWithPlugin()
     {
         var item = Plugins.FirstOrDefault(plugin => plugin.Name.Equals(MissingPluginName, StringComparison.OrdinalIgnoreCase));
@@ -1468,6 +2293,9 @@ public sealed class ChatPageViewModel : ObservableObject
         if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
     }
 
+    /// <summary>
+    /// Performs the clear missing plugin step owned by this component.
+    /// </summary>
     private void ClearMissingPlugin()
     {
         MissingPluginName = string.Empty;
@@ -1476,6 +2304,9 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(HasMissingPluginNotice));
     }
 
+    /// <summary>
+    /// Attempts to request tool permission and reports the result without using failure for normal control flow.
+    /// </summary>
     private bool TryRequestToolPermission(string prompt, string originalPrompt)
     {
         var requested = new List<string>();
@@ -1498,6 +2329,9 @@ public sealed class ChatPageViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>
+    /// Performs the approve tool permission step owned by this component.
+    /// </summary>
     private void ApproveToolPermission()
     {
         if (string.IsNullOrWhiteSpace(_permissionRetryPrompt)) return;
@@ -1510,6 +2344,9 @@ public sealed class ChatPageViewModel : ObservableObject
         if (SendCommand.CanExecute(null)) SendCommand.Execute(null);
     }
 
+    /// <summary>
+    /// Performs the dismiss tool permission step owned by this component.
+    /// </summary>
     private void DismissToolPermission()
     {
         _permissionRetryPrompt = null;
@@ -1518,6 +2355,9 @@ public sealed class ChatPageViewModel : ObservableObject
         Status = "Tool action was not approved.";
     }
 
+    /// <summary>
+    /// Performs the finalise assistant step owned by this component.
+    /// </summary>
     private void FinaliseAssistant(MessageBubbleViewModel streaming, ChatMessage? message)
     {
         var content = streaming.Content;
@@ -1536,21 +2376,52 @@ public sealed class ChatPageViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException) { }
         }
-        var score = ComputeConfidence(content, streaming.Activities);
+        var prompt = Messages.LastOrDefault(item => item.Role == MessageRole.User)?.Content ?? string.Empty;
+        var score = ComputeConfidence(prompt, content, streaming.Activities, _preferences.GenerationOptions.Temperature);
         streaming.MarkComplete(_preferences.ConfidenceMeter ? score : null);
+        streaming.SetConfidenceAdvice(_preferences.ConfidenceMeter && score < 75 && _preferences.GenerationOptions.Temperature > 1.0
+            ? "Lower the model temperature in Advanced configurations for less creative, more consistent answers."
+            : string.Empty);
     }
 
-    private static int ComputeConfidence(string content, IEnumerable<ToolActivityViewModel> activities)
+    /// <summary>
+    /// Performs the compute confidence step owned by this component.
+    /// </summary>
+    private static int? ComputeConfidence(
+        string prompt,
+        string content,
+        IEnumerable<ToolActivityViewModel> activities,
+        double temperature)
     {
-        var score = 62;
+        // Confidence is useful for claims and work products, but it is visual
+        // noise for greetings, thanks and other purely conversational turns.
+        if (!NeedsConfidenceIndicator(prompt, content)) return null;
+
+        var score = 82;
         foreach (var activity in activities) score += activity.Succeeded ? 5 : -12;
         if (Regex.IsMatch(content, @"https?://|\[[^\]]+\]\([^)]+\)")) score += 10;
         if (Regex.IsMatch(content, @"\b(i'?m not sure|uncertain|might|possibly|cannot verify|unverified)\b", RegexOptions.IgnoreCase)) score -= 14;
         if (Regex.IsMatch(content, @"\b(verified|test(?:s)? passed|exit code 0|primary source)\b", RegexOptions.IgnoreCase)) score += 8;
-        if (content.Length < 20) score -= 5;
+        if (content.Length < 40) score -= 6;
+        // Ordinary temperatures should not suppress confidence. Only unusually
+        // creative sampling contributes a bounded penalty.
+        if (temperature > 1.0) score -= (int)Math.Round(Math.Min(18, (temperature - 1.0) * 18));
         return Math.Clamp(score, 5, 98);
     }
 
+    private static bool NeedsConfidenceIndicator(string prompt, string content)
+    {
+        var combined = prompt + "\n" + content;
+        if (Regex.IsMatch(prompt.Trim(), @"^(hi|hello|hey|thanks|thank you|ok|okay|good (morning|afternoon|evening)|how are you)[!.? ]*$", RegexOptions.IgnoreCase))
+            return false;
+        return Regex.IsMatch(combined,
+            @"\b(why|how|what|when|where|who|which|fact|source|research|code|bug|error|build|test|file|project|work|calculate|medical|medicine|health|legal|law|finance|money|safety|risk|verify|latest|current)\b|https?://|```",
+            RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Performs the answer inline question step owned by this component.
+    /// </summary>
     private void AnswerInlineQuestion(string? answer)
     {
         if (string.IsNullOrWhiteSpace(answer)) return;
@@ -1558,15 +2429,27 @@ public sealed class ChatPageViewModel : ObservableObject
         InlineQuestion = null;
     }
 
+    /// <summary>
+    /// Performs the looks like error step owned by this component.
+    /// </summary>
     private static bool LooksLikeError(string prompt) => Regex.IsMatch(prompt, @"\b(error|exception|failed|failure|crash|stack trace|cannot|could not|CS\d{4})\b", RegexOptions.IgnoreCase);
+    /// <summary>
+    /// Performs the truncate step owned by this component.
+    /// </summary>
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length] + "…";
 
+    /// <summary>
+    /// Performs the clear attachment step owned by this component.
+    /// </summary>
     private void ClearAttachment()
     {
         Attachments.Clear();
         UpdateAttachmentSummary();
     }
 
+    /// <summary>
+    /// Performs the remove attachment step owned by this component.
+    /// </summary>
     private void RemoveAttachment(AttachmentItemViewModel? item)
     {
         if (item is null) return;
@@ -1574,6 +2457,9 @@ public sealed class ChatPageViewModel : ObservableObject
         UpdateAttachmentSummary();
     }
 
+    /// <summary>
+    /// Performs the update attachment summary step owned by this component.
+    /// </summary>
     private void UpdateAttachmentSummary()
     {
         AttachmentSummary = Attachments.Count switch
@@ -1585,18 +2471,35 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(HasAttachment));
     }
 
+    /// <summary>
+    /// Performs the raise message state changed step owned by this component.
+    /// </summary>
     private void RaiseMessageStateChanged()
     {
         RaisePropertyChanged(nameof(HasMessages));
         RaisePropertyChanged(nameof(IsEmpty));
+        RaisePropertyChanged(nameof(ShowTemporaryHeaderAction));
+        RaisePropertyChanged(nameof(ShowContextHeaderWidget));
     }
 
+    /// <summary>Temporary-chat is a setup action and therefore appears only before the first turn.</summary>
+    public bool ShowTemporaryHeaderAction => !HasMessages;
+
+    /// <summary>Context usage becomes meaningful after the conversation contains at least one turn.</summary>
+    public bool ShowContextHeaderWidget => HasMessages;
+
+    /// <summary>
+    /// Builds title from the currently available inputs.
+    /// </summary>
     private static string BuildTitle(string prompt)
     {
         var firstLine = prompt.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "New chat";
         return firstLine.Length <= 58 ? firstLine : firstLine[..55] + "…";
     }
 
+    /// <summary>
+    /// Performs the kind for step owned by this component.
+    /// </summary>
     private static ConversationKind KindFor(HavenMode mode) => mode switch
     {
         HavenMode.Teach => ConversationKind.LessonChat,
@@ -1605,14 +2508,34 @@ public sealed class ChatPageViewModel : ObservableObject
         _ => ConversationKind.Chat
     };
 
+    /// <summary>
+    /// Represents prepared attachment and keeps its related state and behavior together.
+    /// </summary>
     private sealed record PreparedAttachment(string Prompt, IReadOnlyList<string>? Images);
 }
 
+/// <summary>
+/// Represents message bubble view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class MessageBubbleViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores content locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _content;
+    /// <summary>
+    /// Stores state locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _state;
+    /// <summary>
+    /// Stores confidence score locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private int? _confidenceScore;
+    /// <summary>Explains when an unusually creative temperature materially reduced the estimate.</summary>
+    private string _confidenceAdvice = string.Empty;
+    /// <summary>
+    /// Stores is compacted locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isCompacted;
 
     public MessageBubbleViewModel(ChatMessage message, bool showConfidence = true)
@@ -1636,29 +2559,114 @@ public sealed class MessageBubbleViewModel : ObservableObject
         Activities.CollectionChanged += (_, _) => RaisePropertyChanged(nameof(HasActivities));
     }
 
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id { get; }
+    /// <summary>
+    /// Gets or updates role, the bindable or domain state represented by this property.
+    /// </summary>
     public MessageRole Role { get; }
+    /// <summary>
+    /// Gets or updates agent name, the bindable or domain state represented by this property.
+    /// </summary>
     public string? AgentName { get; }
+    /// <summary>
+    /// Gets or updates model name, the bindable or domain state represented by this property.
+    /// </summary>
     public string? ModelName { get; }
+    /// <summary>
+    /// Creates d at with the invariants required by its callers.
+    /// </summary>
     public DateTimeOffset CreatedAt { get; }
+    /// <summary>
+    /// Gets or updates role label, the bindable or domain state represented by this property.
+    /// </summary>
     public string RoleLabel => Role switch { MessageRole.User => "YOU", MessageRole.Assistant => "HAVEN", MessageRole.Tool => "TOOL", _ => "SYSTEM" };
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => Role switch { MessageRole.User => "You", MessageRole.Assistant => AgentName ?? "Haven", MessageRole.Tool => "Activity", _ => "Haven" };
+    /// <summary>
+    /// Gets or updates avatar label, the bindable or domain state represented by this property.
+    /// </summary>
     public string AvatarLabel => Role switch { MessageRole.User => "Y", MessageRole.Assistant => "H", MessageRole.Tool => "A", _ => "H" };
+    /// <summary>
+    /// Gets or updates time label, the bindable or domain state represented by this property.
+    /// </summary>
     public string TimeLabel => CreatedAt.LocalDateTime.ToString("t");
+    /// <summary>
+    /// Gets or updates model label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ModelLabel => Role == MessageRole.Assistant && !string.IsNullOrWhiteSpace(ModelName) ? ModelName : string.Empty;
+    /// <summary>
+    /// Reports whether model label applies to the current state.
+    /// </summary>
     public bool HasModelLabel => !string.IsNullOrWhiteSpace(ModelLabel);
+    /// <summary>
+    /// Gets or updates rendered content, the bindable or domain state represented by this property.
+    /// </summary>
     public string RenderedContent => Content;
+    /// <summary>
+    /// Reports whether state applies to the current state.
+    /// </summary>
     public bool HasState => !string.IsNullOrWhiteSpace(State);
+    /// <summary>
+    /// Gets or updates activities, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<ToolActivityViewModel> Activities { get; } = [];
+    /// <summary>
+    /// Reports whether activities applies to the current state.
+    /// </summary>
     public bool HasActivities => Activities.Count > 0;
+    /// <summary>
+    /// Gets or updates confidence score, the bindable or domain state represented by this property.
+    /// </summary>
     public int? ConfidenceScore => _confidenceScore;
+    /// <summary>
+    /// Reports whether confidence applies to the current state.
+    /// </summary>
     public bool HasConfidence => _confidenceScore is not null;
+    /// <summary>
+    /// Gets or updates confidence label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ConfidenceLabel => _confidenceScore is null ? string.Empty : $"Confidence {_confidenceScore}%";
+    /// <summary>
+    /// Gets or updates confidence width, the bindable or domain state represented by this property.
+    /// </summary>
     public double ConfidenceWidth => (_confidenceScore ?? 0) * 1.6;
+    public string ConfidenceAdvice => _confidenceAdvice;
+    public bool HasConfidenceAdvice => !string.IsNullOrWhiteSpace(_confidenceAdvice);
+    /// <summary>
+    /// Reports whether compacted applies to the current state.
+    /// </summary>
     public bool IsCompacted => _isCompacted;
+    /// <summary>
+    /// Gets or updates content opacity, the bindable or domain state represented by this property.
+    /// </summary>
     public double ContentOpacity => IsCompacted ? 0.68 : 1;
+    /// <summary>
+    /// Gets or updates alignment, the bindable or domain state represented by this property.
+    /// </summary>
     public HorizontalAlignment Alignment => Role == MessageRole.User ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
+    /// <summary>
+    /// Gets or updates max bubble width, the bindable or domain state represented by this property.
+    /// </summary>
     public double MaxBubbleWidth => Role == MessageRole.User ? 720 : 10000;
+    /// <summary>
+    /// Gives user turns an accent-tinted speech bubble while assistant and system
+    /// turns continue to use the neutral conversational surface.
+    /// </summary>
+    public IBrush BubbleBackground => Role == MessageRole.User
+        ? new SolidColorBrush(Color.FromArgb(42, 124, 92, 255))
+        : new SolidColorBrush(Color.FromArgb(24, 255, 255, 255));
+    /// <summary>
+    /// Uses a tighter lower-right corner for sent messages so their silhouette reads
+    /// as a speech bubble without introducing decorative tails that steal space.
+    /// </summary>
+    public CornerRadius BubbleCornerRadius => Role == MessageRole.User
+        ? new CornerRadius(16, 5, 16, 16)
+        : new CornerRadius(5, 16, 16, 16);
     public string Content
     {
         get => _content;
@@ -1676,10 +2684,25 @@ public sealed class MessageBubbleViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Performs the streaming step owned by this component.
+    /// </summary>
     public static MessageBubbleViewModel Streaming(Guid id, string agent, string model) => new(id, MessageRole.Assistant, string.Empty, "Streaming…", agent, model);
+    /// <summary>
+    /// Performs the system notice step owned by this component.
+    /// </summary>
     public static MessageBubbleViewModel SystemNotice(string content) => new(Guid.NewGuid(), MessageRole.System, content, string.Empty, "Haven", null);
+    /// <summary>
+    /// Performs the append step owned by this component.
+    /// </summary>
     public void Append(string text) => Content += text;
+    /// <summary>
+    /// Performs the replace content step owned by this component.
+    /// </summary>
     public void ReplaceContent(string text) => Content = text;
+    /// <summary>
+    /// Performs the mark complete step owned by this component.
+    /// </summary>
     public void MarkComplete(int? confidence)
     {
         State = string.Empty;
@@ -1689,47 +2712,140 @@ public sealed class MessageBubbleViewModel : ObservableObject
         RaisePropertyChanged(nameof(ConfidenceLabel));
         RaisePropertyChanged(nameof(ConfidenceWidth));
     }
+    public void SetConfidenceAdvice(string advice)
+    {
+        _confidenceAdvice = advice;
+        RaisePropertyChanged(nameof(ConfidenceAdvice));
+        RaisePropertyChanged(nameof(HasConfidenceAdvice));
+    }
+    /// <summary>
+    /// Performs the mark compacted step owned by this component.
+    /// </summary>
     public void MarkCompacted()
     {
         _isCompacted = true;
         RaisePropertyChanged(nameof(IsCompacted));
         RaisePropertyChanged(nameof(ContentOpacity));
     }
+    /// <summary>
+    /// Performs the to message step owned by this component.
+    /// </summary>
     public ChatMessage ToMessage(Guid conversationId) => new(Id, conversationId, Role, Content, AgentName, ModelName,
         _confidenceScore is null ? null : JsonSerializer.Serialize(new { confidence = _confidenceScore }), CreatedAt, IsCompacted);
+    /// <summary>
+    /// Performs the mark complete step owned by this component.
+    /// </summary>
     public void MarkComplete() => State = string.Empty;
+    /// <summary>
+    /// Performs the mark stopped step owned by this component.
+    /// </summary>
     public void MarkStopped() => State = "Stopped";
+    /// <summary>
+    /// Performs the mark failed step owned by this component.
+    /// </summary>
     public void MarkFailed(string error) => State = $"Failed · {error}";
 
 }
 
+/// <summary>
+/// Represents agent item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class AgentItemViewModel(AgentDefinition definition)
 {
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => definition.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => definition.Name;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => definition.Description;
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey => definition.IconKey;
+    /// <summary>
+    /// Gets or updates instructions, the bindable or domain state represented by this property.
+    /// </summary>
     public string Instructions => definition.Instructions;
+    /// <summary>
+    /// Gets or updates detection rules, the bindable or domain state represented by this property.
+    /// </summary>
     public string DetectionRules => definition.DetectionRules;
+    /// <summary>
+    /// Performs the to string step owned by this component.
+    /// </summary>
     public override string ToString() => Name;
 }
 
+/// <summary>
+/// Represents plugin item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode mode, bool showAgenticInChat) : ObservableObject
 {
+    /// <summary>
+    /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isActive;
+    /// <summary>
+    /// Stores is runtime available locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isRuntimeAvailable = true;
+    /// <summary>
+    /// Stores availability reason locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _availabilityReason = string.Empty;
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => definition.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => definition.Name;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => definition.Description;
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey => definition.IconKey;
+    /// <summary>
+    /// Gets or updates instructions, the bindable or domain state represented by this property.
+    /// </summary>
     public string Instructions => definition.Instructions;
+    /// <summary>
+    /// Gets or updates persists, the bindable or domain state represented by this property.
+    /// </summary>
     public bool Persists => definition.Persists;
+    /// <summary>
+    /// Reports whether agentic applies to the current state.
+    /// </summary>
     public bool IsAgentic => definition.IsAgentic;
+    /// <summary>
+    /// Reports whether available in mode applies to the current state.
+    /// </summary>
     public bool IsAvailableInMode => CatalogVisibility.IsAllowed(definition.AllowedModesJson, mode);
+    /// <summary>
+    /// Gets or updates allowed modes label, the bindable or domain state represented by this property.
+    /// </summary>
     public string AllowedModesLabel => CatalogVisibility.Label(definition.AllowedModesJson);
+    /// <summary>
+    /// Reports whether runtime available applies to the current state.
+    /// </summary>
     public bool IsRuntimeAvailable => _isRuntimeAvailable;
+    /// <summary>
+    /// Gets or updates availability reason, the bindable or domain state represented by this property.
+    /// </summary>
     public string AvailabilityReason => _availabilityReason;
+    /// <summary>
+    /// Reports whether visible in picker applies to the current state.
+    /// </summary>
     public bool IsVisibleInPicker => IsAvailableInMode && IsRuntimeAvailable && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
     public IReadOnlyList<string> Conflicts
     {
@@ -1739,8 +2855,17 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
             catch (System.Text.Json.JsonException) { return []; }
         }
     }
+    /// <summary>
+    /// Reports whether active applies to the current state.
+    /// </summary>
     public bool IsActive { get => _isActive; set { if (SetProperty(ref _isActive, value)) RaisePropertyChanged(nameof(DisplayName)); } }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => $"@{Name}";
+    /// <summary>
+    /// Performs the set runtime availability step owned by this component.
+    /// </summary>
     public void SetRuntimeAvailability(bool available, string reason)
     {
         if (_isRuntimeAvailable == available && string.Equals(_availabilityReason, reason, StringComparison.Ordinal)) return;
@@ -1752,25 +2877,73 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
     }
 }
 
+/// <summary>
+/// Represents prompt item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class PromptItemViewModel(PromptDefinition definition, HavenMode mode, bool showAgenticInChat) : ObservableObject
 {
+    /// <summary>
+    /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isActive;
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => definition.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => definition.Name;
+    /// <summary>
+    /// Gets or updates description, the bindable or domain state represented by this property.
+    /// </summary>
     public string Description => definition.Description;
+    /// <summary>
+    /// Gets or updates icon key, the bindable or domain state represented by this property.
+    /// </summary>
     public string IconKey => definition.IconKey;
+    /// <summary>
+    /// Gets or updates instructions, the bindable or domain state represented by this property.
+    /// </summary>
     public string Instructions => definition.Instructions;
+    /// <summary>
+    /// Gets or updates persists, the bindable or domain state represented by this property.
+    /// </summary>
     public bool Persists => definition.Persists;
+    /// <summary>
+    /// Reports whether agentic applies to the current state.
+    /// </summary>
     public bool IsAgentic => definition.IsAgentic;
+    /// <summary>
+    /// Reports whether available in mode applies to the current state.
+    /// </summary>
     public bool IsAvailableInMode => CatalogVisibility.IsAllowed(definition.AllowedModesJson, mode);
+    /// <summary>
+    /// Gets or updates allowed modes label, the bindable or domain state represented by this property.
+    /// </summary>
     public string AllowedModesLabel => CatalogVisibility.Label(definition.AllowedModesJson);
+    /// <summary>
+    /// Reports whether visible in picker applies to the current state.
+    /// </summary>
     public bool IsVisibleInPicker => IsAvailableInMode && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
+    /// <summary>
+    /// Reports whether active applies to the current state.
+    /// </summary>
     public bool IsActive { get => _isActive; set { if (SetProperty(ref _isActive, value)) RaisePropertyChanged(nameof(DisplayName)); } }
+    /// <summary>
+    /// Gets or updates display name, the bindable or domain state represented by this property.
+    /// </summary>
     public string DisplayName => $">{Name}";
 }
 
+/// <summary>
+/// Represents catalog visibility and keeps its related state and behavior together.
+/// </summary>
 internal static class CatalogVisibility
 {
+    /// <summary>
+    /// Reports whether allowed applies to the current state.
+    /// </summary>
     public static bool IsAllowed(string json, HavenMode mode)
     {
         try
@@ -1781,6 +2954,9 @@ internal static class CatalogVisibility
         catch (JsonException) { return true; }
     }
 
+    /// <summary>
+    /// Performs the label step owned by this component.
+    /// </summary>
     public static string Label(string json)
     {
         try
@@ -1792,43 +2968,118 @@ internal static class CatalogVisibility
     }
 }
 
+/// <summary>
+/// Represents container item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class ContainerItemViewModel(ContainerDefinition definition)
 {
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public ContainerDefinition Definition => definition;
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => definition.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => definition.Name;
+    /// <summary>
+    /// Gets or updates root path, the bindable or domain state represented by this property.
+    /// </summary>
     public string? RootPath => definition.RootPath;
+    /// <summary>
+    /// Performs the to string step owned by this component.
+    /// </summary>
     public override string ToString() => Name;
 }
 
+/// <summary>
+/// Represents lesson item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class LessonItemViewModel(Lesson lesson)
 {
+    /// <summary>
+    /// Gets or updates definition, the bindable or domain state represented by this property.
+    /// </summary>
     public Lesson Definition => lesson;
+    /// <summary>
+    /// Gets or updates id, the bindable or domain state represented by this property.
+    /// </summary>
     public Guid Id => lesson.Id;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => lesson.Name;
+    /// <summary>
+    /// Gets or updates topic group, the bindable or domain state represented by this property.
+    /// </summary>
     public string TopicGroup => lesson.TopicGroup;
+    /// <summary>
+    /// Performs the to string step owned by this component.
+    /// </summary>
     public override string ToString() => Name;
 }
 
+/// <summary>
+/// Represents lesson group view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class LessonGroupViewModel(string name, IReadOnlyList<LessonItemViewModel> lessons)
 {
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => name;
+    /// <summary>
+    /// Gets or updates lessons, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<LessonItemViewModel> Lessons => lessons;
+    /// <summary>
+    /// Gets or updates count, the bindable or domain state represented by this property.
+    /// </summary>
     public int Count => lessons.Count;
 }
 
+/// <summary>
+/// Represents tool activity view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record ToolActivityViewModel(string Title, string Detail, bool Succeeded, string Duration, int LinesAdded = 0, int LinesRemoved = 0)
 {
+    /// <summary>
+    /// Gets or updates change label, the bindable or domain state represented by this property.
+    /// </summary>
     public string ChangeLabel => LinesAdded == 0 && LinesRemoved == 0 ? string.Empty : $"+{LinesAdded}/-{LinesRemoved}";
+    /// <summary>
+    /// Reports whether changes applies to the current state.
+    /// </summary>
     public bool HasChanges => LinesAdded != 0 || LinesRemoved != 0;
 }
 
+/// <summary>
+/// Represents inline question view model and keeps its related state and behavior together.
+/// </summary>
 public sealed record InlineQuestionViewModel(string Question, IReadOnlyList<string> Options);
 
+/// <summary>
+/// Represents attachment item view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class AttachmentItemViewModel(string path)
 {
+    /// <summary>
+    /// Gets or updates path, the bindable or domain state represented by this property.
+    /// </summary>
     public string Path => path;
+    /// <summary>
+    /// Gets or updates name, the bindable or domain state represented by this property.
+    /// </summary>
     public string Name => System.IO.Path.GetFileName(path);
+    /// <summary>
+    /// Reports whether image applies to the current state.
+    /// </summary>
     public bool IsImage => new[] { ".png", ".jpg", ".jpeg", ".webp", ".gif" }.Contains(System.IO.Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or updates kind label, the bindable or domain state represented by this property.
+    /// </summary>
     public string KindLabel => IsImage ? "Image" : "File";
 }

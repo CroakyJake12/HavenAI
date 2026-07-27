@@ -1,0 +1,118 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/CodeIntelligenceView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.CodeIntelligenceView. Its visual vocabulary includes: Border, StackPanel, Grid, TextBlock, ProgressBar, TextBox, Button, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, Separator, NumericUpDown, CheckBox.
+  Data flow: Binding expressions read or update these view-model paths: IsBusy, RelativePath, HasWorkspace, InspectCommand, DiagnosticsCommand, ServerStatus, SymbolQuery, SearchSymbolsCommand, InsertSymbolsCommand, InsertDiagnosticsCommand, Diagnostics, SeverityLabel, Location, Source, CodeLabel, Message, Symbols, Kind, Name, TabSize, InsertSpaces, PreviewFormatCommand, Formatter, ApplyFormatCommand, FormatDiff, HasFormatPreview, Status, ClearCommand.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.CodeIntelligenceView">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
+  <Border Background="{DynamicResource HavenPanel2Brush}"
+          BorderBrush="{DynamicResource HavenLineBrush}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Padding="12">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
+    <StackPanel Spacing="10">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="CODE INTELLIGENCE" Classes="eyebrow" />
+          <TextBlock Text="LSP diagnostics, project symbols, and reviewed transaction-backed formatting" FontWeight="SemiBold" />
+          <TextBlock Text="Language-server commands come only from trusted Haven settings, never from project files." Classes="muted" FontSize="9" />
+        </StackPanel>
+        <ProgressBar Grid.Column="1" Width="72" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+
+      <Grid ColumnDefinitions="2*,Auto,Auto" ColumnSpacing="7">
+        <TextBox Text="{Binding RelativePath}" PlaceholderText="Workspace-relative file, e.g. src/App.cs" IsEnabled="{Binding HasWorkspace}" />
+        <Button Grid.Column="1" Content="Inspect" Command="{Binding InspectCommand}" />
+        <Button Grid.Column="2" Content="Diagnostics" Classes="accent" Command="{Binding DiagnosticsCommand}" />
+      </Grid>
+      <TextBlock Text="{Binding ServerStatus}" Classes="muted2" FontSize="9" />
+
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+        <TextBox Text="{Binding SymbolQuery}" PlaceholderText="Search project symbols" IsEnabled="{Binding HasWorkspace}" />
+        <Button Grid.Column="1" Content="Find symbols" Command="{Binding SearchSymbolsCommand}" />
+        <Button Grid.Column="2" Content="Insert results" Command="{Binding InsertSymbolsCommand}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <StackPanel Spacing="5">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+            <TextBlock Text="DIAGNOSTICS" Classes="eyebrow" />
+            <Button Grid.Column="1" Content="Insert into composer" Command="{Binding InsertDiagnosticsCommand}" FontSize="9" Padding="7,3" />
+          </Grid>
+          <ItemsControl ItemsSource="{Binding Diagnostics}" MaxHeight="180">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="8" Padding="8" Margin="0,2">
+                  <StackPanel Spacing="2">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                      <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource HavenBlueBrush}" FontWeight="SemiBold" FontSize="9" />
+                      <TextBlock Grid.Column="1" Text="{Binding Location}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted2" FontSize="9" />
+                    </Grid>
+                    <TextBlock Text="{Binding CodeLabel}" Classes="muted2" FontSize="9" />
+                    <TextBlock Text="{Binding Message}" FontSize="10" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="5">
+          <TextBlock Text="SYMBOLS" Classes="eyebrow" />
+          <ItemsControl ItemsSource="{Binding Symbols}" MaxHeight="180">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="8" Padding="8" Margin="0,2">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <TextBlock Text="{Binding Kind}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" />
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Location}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted2" FontSize="9" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Grid>
+
+      <Separator />
+
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
+        <NumericUpDown Value="{Binding TabSize}" Minimum="1" Maximum="16" Increment="1" Width="76" />
+        <CheckBox Grid.Column="1" Content="Insert spaces" IsChecked="{Binding InsertSpaces}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="Preview formatting" Command="{Binding PreviewFormatCommand}" />
+        <TextBlock Grid.Column="3" Text="{Binding Formatter}" Classes="muted" VerticalAlignment="Center" />
+        <Button Grid.Column="4" Content="Apply reviewed diff" Classes="accent" Command="{Binding ApplyFormatCommand}" />
+      </Grid>
+      <TextBox Text="{Binding FormatDiff}"
+               IsReadOnly="True"
+               AcceptsReturn="True"
+               TextWrapping="NoWrap"
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               FontSize="10"
+               MinHeight="70"
+               MaxHeight="260"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               IsVisible="{Binding HasFormatPreview}" />
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Clear" Command="{Binding ClearCommand}" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -1,52 +1,84 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/WorkspaceToolService.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns WorkspaceToolService. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Text;
 using Haven.Application;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents workspace tool service and keeps its related state and behavior together.
+/// </summary>
 public sealed class WorkspaceToolService : IWorkspaceToolService
 {
+    /// <summary>
+    /// Stores max output characters locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private const int MaxOutputCharacters = 1_000_000;
 
+    /// <summary>
+    /// Performs the resolve workspace path step owned by this component.
+    /// </summary>
     public string ResolveWorkspacePath(string workspaceRoot, string relativePath)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot)) throw new ArgumentException("A workspace root is required.", nameof(workspaceRoot));
-        var root = Path.GetFullPath(workspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        // If the model passes an absolute path that is already inside the workspace, strip the root prefix.
+        if (string.IsNullOrWhiteSpace(relativePath)) throw new ArgumentException("A workspace-relative path is required.", nameof(relativePath));
+
+        var root = Path.GetFullPath(workspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
         if (Path.IsPathRooted(relativePath))
         {
-            var absCandidate = Path.GetFullPath(relativePath);
-            if (absCandidate.StartsWith(root, cmp))
-            {
-                relativePath = absCandidate[root.Length..];
-            }
-            else
-            {
+            var absoluteCandidate = Path.GetFullPath(relativePath);
+            if (!IsWithinRoot(root, absoluteCandidate, comparison))
                 throw new UnauthorizedAccessException("The requested path is outside the selected workspace.");
-            }
+            return absoluteCandidate;
         }
+
         var candidate = Path.GetFullPath(Path.Combine(root, relativePath));
-        if (!candidate.StartsWith(root, cmp))
+        if (!IsWithinRoot(root, candidate, comparison))
             throw new UnauthorizedAccessException("The requested path is outside the selected workspace.");
         return candidate;
     }
 
+    /// <summary>
+    /// Performs read text asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task<string> ReadTextAsync(string workspaceRoot, string relativePath, CancellationToken cancellationToken)
     {
         var path = ResolveWorkspacePath(workspaceRoot, relativePath);
         return await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs write text atomic asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task WriteTextAtomicAsync(string workspaceRoot, string relativePath, string content, CancellationToken cancellationToken)
     {
         var path = ResolveWorkspacePath(workspaceRoot, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + ".haven.tmp." + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(temporary, content, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
-        File.Move(temporary, path, true);
+        try
+        {
+            await File.WriteAllTextAsync(temporary, content, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            File.Move(temporary, path, true);
+        }
+        finally
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); } catch (IOException) { }
+        }
     }
 
+    /// <summary>
+    /// Performs search files asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task<IReadOnlyList<string>> SearchFilesAsync(string workspaceRoot, string searchPattern, CancellationToken cancellationToken)
     {
         var root = ResolveWorkspacePath(workspaceRoot, ".");
@@ -65,6 +97,9 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Runs run process async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<ProcessResult> RunProcessAsync(ProcessRequest request, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(request.WorkingDirectory)) throw new DirectoryNotFoundException(request.WorkingDirectory);
@@ -116,6 +151,19 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
         }
     }
 
+    /// <summary>
+    /// Reports whether within root applies to the current state.
+    /// </summary>
+    private static bool IsWithinRoot(string root, string candidate, StringComparison comparison)
+    {
+        if (candidate.Equals(root, comparison)) return true;
+        var prefix = root + Path.DirectorySeparatorChar;
+        return candidate.StartsWith(prefix, comparison);
+    }
+
+    /// <summary>
+    /// Performs read limited asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> ReadLimitedAsync(StreamReader reader, CancellationToken cancellationToken)
     {
         var buffer = new char[4096];
@@ -133,12 +181,18 @@ public sealed class WorkspaceToolService : IWorkspaceToolService
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Performs safe result asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task<string> SafeResultAsync(Task<string> task)
     {
         try { return await task.ConfigureAwait(false); }
         catch { return string.Empty; }
     }
 
+    /// <summary>
+    /// Attempts to kill and reports the result without using failure for normal control flow.
+    /// </summary>
     private static void TryKill(Process process)
     {
         try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }

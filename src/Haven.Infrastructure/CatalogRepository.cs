@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/CatalogRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns CatalogRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents catalog repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatalogRepository
 {
+    /// <summary>
+    /// Retrieves agents async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
@@ -22,6 +37,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         return result;
     }
 
+    /// <summary>
+    /// Retrieves plugins async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PluginDefinition>> GetPluginsAsync(CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
@@ -40,6 +58,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         return result;
     }
 
+    /// <summary>
+    /// Retrieves prompts async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
@@ -57,6 +78,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert agent asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -72,6 +96,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert plugin asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -88,6 +115,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert prompt asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -103,13 +133,34 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs set agent enabled asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("agents", id, enabled, cancellationToken);
+    /// <summary>
+    /// Performs set plugin enabled asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetPluginEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("plugins", id, enabled, cancellationToken);
+    /// <summary>
+    /// Performs set prompt enabled asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("prompts", id, enabled, cancellationToken);
+    /// <summary>
+    /// Performs delete custom agent asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("agents", id, cancellationToken);
+    /// <summary>
+    /// Performs delete custom plugin asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteCustomPluginAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("plugins", id, cancellationToken);
+    /// <summary>
+    /// Performs delete custom prompt asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("prompts", id, cancellationToken);
 
+    /// <summary>
+    /// Performs seed asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SeedAsync(CancellationToken cancellationToken)
     {
         foreach (var agent in AgentCatalog.BuiltIns) await UpsertBuiltInAgentAsync(agent, cancellationToken).ConfigureAwait(false);
@@ -118,6 +169,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await DisableRetiredBuiltInsAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert built in agent asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpsertBuiltInAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -132,6 +186,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert built in plugin asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpsertBuiltInPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -147,6 +204,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert built in prompt asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task UpsertBuiltInPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -162,6 +222,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs disable retired built ins asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DisableRetiredBuiltInsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -174,6 +237,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs set enabled asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SetEnabledAsync(string table, Guid id, bool enabled, CancellationToken cancellationToken)
     {
         if (table is not ("agents" or "plugins" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
@@ -186,6 +252,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete custom asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task DeleteCustomAsync(string table, Guid id, CancellationToken cancellationToken)
     {
         if (table is not ("agents" or "plugins" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
@@ -196,6 +265,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the bind agent step owned by this component.
+    /// </summary>
     private static void BindAgent(Microsoft.Data.Sqlite.SqliteCommand command, AgentDefinition agent)
     {
         command.Parameters.AddWithValue("$id", agent.Id.ToString());
@@ -212,6 +284,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         command.Parameters.AddWithValue("$updatedAt", agent.UpdatedAt.ToString("O"));
     }
 
+    /// <summary>
+    /// Performs the bind plugin step owned by this component.
+    /// </summary>
     private static void BindPlugin(Microsoft.Data.Sqlite.SqliteCommand command, PluginDefinition plugin)
     {
         command.Parameters.AddWithValue("$id", plugin.Id.ToString());
@@ -230,6 +305,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         command.Parameters.AddWithValue("$dashboardTilesJson", plugin.DashboardTilesJson);
     }
 
+    /// <summary>
+    /// Performs the bind prompt step owned by this component.
+    /// </summary>
     private static void BindPrompt(Microsoft.Data.Sqlite.SqliteCommand command, PromptDefinition prompt)
     {
         command.Parameters.AddWithValue("$id", prompt.Id.ToString());

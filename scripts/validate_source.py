@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# FILE DOCUMENTATION
+# Where: scripts/validate_source.py in the repository tooling area used by developers and continuous integration.
+# What: This file automates or configures the repository operation described by its commands and keys.
+# How: Read from top to bottom: inputs and environment first, validation/processing next, and explicit success or failure output last.
+# Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
 """Static validation that does not replace dotnet build/test."""
 from pathlib import Path
 import json

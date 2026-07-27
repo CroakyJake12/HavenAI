@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/TrainingRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns TrainingRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents training repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrainingRepository
 {
+    /// <summary>
+    /// Performs upsert run asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertRunAsync(TrainingRun run, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -36,6 +51,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves run async for the current operation.
+    /// </summary>
     public async Task<TrainingRun?> GetRunAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -46,6 +64,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadRun(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves recent runs async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<TrainingRun>> GetRecentRunsAsync(int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -59,6 +80,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         return results;
     }
 
+    /// <summary>
+    /// Performs delete run asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteRunAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -68,6 +92,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert attempt asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertAttemptAsync(TrainingAttempt attempt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -90,6 +117,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves attempts async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<TrainingAttempt>> GetAttemptsAsync(Guid runId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -103,6 +133,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         return results;
     }
 
+    /// <summary>
+    /// Performs the read run step owned by this component.
+    /// </summary>
     private static TrainingRun ReadRun(Microsoft.Data.Sqlite.SqliteDataReader reader) => new(
         Guid.Parse(reader.String("id")),
         reader.String("task_prompt"),
@@ -119,6 +152,9 @@ public sealed class TrainingRepository(ISqliteConnectionFactory factory) : ITrai
         reader.DateTimeOffset("created_at"),
         reader.NullableDateTimeOffset("completed_at"));
 
+    /// <summary>
+    /// Performs the read attempt step owned by this component.
+    /// </summary>
     private static TrainingAttempt ReadAttempt(Microsoft.Data.Sqlite.SqliteDataReader reader) => new(
         Guid.Parse(reader.String("id")),
         Guid.Parse(reader.String("training_run_id")),

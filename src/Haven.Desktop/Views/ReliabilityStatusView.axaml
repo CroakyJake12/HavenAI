@@ -1,0 +1,121 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ReliabilityStatusView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ReliabilityStatusView. Its visual vocabulary includes: Border, StackPanel, Grid, TextBlock, Button, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, ScrollViewer, ProgressBar.
+  Data flow: Binding expressions read or update these view-model paths: RefreshCommand, DatabaseStatus, StartupStatus, BackupStatus, Backups, Name, Schema, Size, Verification, IsVerified, IsRestoreConfirming, RestoreCandidate.Name, CancelRestoreConfirmationCommand, ConfirmRestoreCommand, HasPendingRestore, PendingRestoreStatus, CancelPendingRestoreCommand, Events, Time, Severity, Source, CorrelationId, Message, Status, IsBusy.
+  Interaction: Direct event handlers in this file are: OnCreateBundleClicked.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ReliabilityStatusView">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
+  <Border Classes="card">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
+    <StackPanel Spacing="11">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="RELIABILITY AND RECOVERY" Classes="eyebrow" />
+          <TextBlock Text="Database health, crash recovery, verified backups and redacted diagnostics" Classes="sectionHeading" Margin="0,4,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh checks" Command="{Binding RefreshCommand}" />
+        <Button Grid.Column="2" Content="Create support bundle" Classes="accent" Click="OnCreateBundleClicked" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+          <StackPanel Spacing="4">
+            <TextBlock Text="DATABASE" Classes="eyebrow" />
+            <TextBlock Text="{Binding DatabaseStatus}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+          <StackPanel Spacing="4">
+            <TextBlock Text="STARTUP RECOVERY" Classes="eyebrow" />
+            <TextBlock Text="{Binding StartupStatus}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="11">
+        <StackPanel Spacing="7">
+          <TextBlock Text="VERIFIED PRE-MIGRATION BACKUPS" Classes="eyebrow" />
+          <TextBlock Text="{Binding BackupStatus}" Classes="muted" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Backups}" MaxHeight="190">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="9" Margin="0,3">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Schema}" Classes="muted2" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding Size}" Classes="muted" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="3" Text="{Binding Verification}" Classes="muted2" VerticalAlignment="Center" />
+                  <Button Grid.Column="4"
+                          Content="Restore next launch"
+                          IsEnabled="{Binding IsVerified}"
+                          Command="{Binding $parent[UserControl].DataContext.RequestRestoreCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Border Classes="permission" IsVisible="{Binding IsRestoreConfirming}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Schedule this verified backup for restore?" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding RestoreCandidate.Name}" TextWrapping="Wrap" />
+              <TextBlock Text="Haven will not replace the live database. On the next launch it re-verifies this backup, creates an emergency copy of the current database, applies the restore before SQLite opens, verifies it again, then runs normal migrations."
+                         Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right">
+                <Button Content="Cancel" Command="{Binding CancelRestoreConfirmationCommand}" />
+                <Button Content="Schedule verified restore" Classes="danger" Command="{Binding ConfirmRestoreCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="permission" IsVisible="{Binding HasPendingRestore}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <StackPanel>
+                <TextBlock Text="RESTORE PENDING" Classes="eyebrow" />
+                <TextBlock Text="{Binding PendingRestoreStatus}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="Cancel pending restore" Command="{Binding CancelPendingRestoreCommand}" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+          <TextBlock Text="{Binding PendingRestoreStatus}" Classes="muted2" FontSize="9" IsVisible="{Binding HasPendingRestore}" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="RECENT REDACTED EVENTS" Classes="eyebrow" />
+        <TextBlock Text="URLs omit query strings and fragments. Secret-shaped fields are removed before the event reaches disk or this view." Classes="muted" FontSize="10" TextWrapping="Wrap" />
+        <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Events}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="9" Padding="9" Margin="0,0,0,5">
+                  <StackPanel Spacing="3">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+                      <TextBlock Text="{Binding Time}" Classes="muted2" FontSize="9" />
+                      <TextBlock Grid.Column="1" Text="{Binding Severity}" FontWeight="SemiBold" FontSize="9" />
+                      <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="3" Text="{Binding CorrelationId}" Classes="muted2" FontSize="9" />
+                    </Grid>
+                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="10" MaxLines="5" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <ProgressBar Grid.Column="1" Width="80" Height="5" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>

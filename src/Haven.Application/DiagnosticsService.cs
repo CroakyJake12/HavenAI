@@ -1,14 +1,38 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/DiagnosticsService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns DiagnosticsService, DiagnosticsReport, ErrorEntry, DiagnosticsCheckResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents diagnostics service and keeps its related state and behavior together.
+/// </summary>
 public sealed class DiagnosticsService
 {
+    /// <summary>
+    /// Stores diagnostics locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppDiagnostics _diagnostics;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IAppPaths _paths;
+    /// <summary>
+    /// Stores uptime locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly Stopwatch _uptime = Stopwatch.StartNew();
 
     public DiagnosticsService(IAppDiagnostics diagnostics, IOllamaClient ollama, IAppPaths paths)
@@ -18,6 +42,9 @@ public sealed class DiagnosticsService
         _paths = paths;
     }
 
+    /// <summary>
+    /// Retrieves report async for the current operation.
+    /// </summary>
     public async Task<DiagnosticsReport> GetReportAsync(CancellationToken cancellationToken)
     {
         var process = Process.GetCurrentProcess();
@@ -45,6 +72,9 @@ public sealed class DiagnosticsService
         };
     }
 
+    /// <summary>
+    /// Runs run health check async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     public async Task<DiagnosticsCheckResult> RunHealthCheckAsync(CancellationToken cancellationToken)
     {
         var issues = new List<string>();
@@ -82,23 +112,74 @@ public sealed class DiagnosticsService
     }
 }
 
+/// <summary>
+/// Represents diagnostics report and keeps its related state and behavior together.
+/// </summary>
 public sealed class DiagnosticsReport
 {
+    /// <summary>
+    /// Gets or updates generated at, the bindable or domain state represented by this property.
+    /// </summary>
     public DateTimeOffset GeneratedAt { get; set; }
+    /// <summary>
+    /// Gets or updates uptime, the bindable or domain state represented by this property.
+    /// </summary>
     public TimeSpan Uptime { get; set; }
+    /// <summary>
+    /// Gets or updates process id, the bindable or domain state represented by this property.
+    /// </summary>
     public int ProcessId { get; set; }
+    /// <summary>
+    /// Gets or updates working set mb, the bindable or domain state represented by this property.
+    /// </summary>
     public long WorkingSetMB { get; set; }
+    /// <summary>
+    /// Gets or updates thread count, the bindable or domain state represented by this property.
+    /// </summary>
     public int ThreadCount { get; set; }
+    /// <summary>
+    /// Gets or updates ollama available, the bindable or domain state represented by this property.
+    /// </summary>
     public bool OllamaAvailable { get; set; }
+    /// <summary>
+    /// Gets or updates ollama endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     public string OllamaEndpoint { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates installed models, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<string> InstalledModels { get; set; } = [];
+    /// <summary>
+    /// Gets or updates database path, the bindable or domain state represented by this property.
+    /// </summary>
     public string DatabasePath { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates data directory, the bindable or domain state represented by this property.
+    /// </summary>
     public string DataDirectory { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or updates database exists, the bindable or domain state represented by this property.
+    /// </summary>
     public bool DatabaseExists { get; set; }
+    /// <summary>
+    /// Gets or updates database size mb, the bindable or domain state represented by this property.
+    /// </summary>
     public long DatabaseSizeMB { get; set; }
+    /// <summary>
+    /// Gets or updates recent errors, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyList<ErrorEntry> RecentErrors { get; set; } = [];
+    /// <summary>
+    /// Gets or updates system info, the bindable or domain state represented by this property.
+    /// </summary>
     public IReadOnlyDictionary<string, string> SystemInfo { get; set; } = new Dictionary<string, string>();
 }
 
+/// <summary>
+/// Represents error entry and keeps its related state and behavior together.
+/// </summary>
 public sealed record ErrorEntry(string Component, string Error, DateTimeOffset Timestamp);
+/// <summary>
+/// Represents diagnostics check result and keeps its related state and behavior together.
+/// </summary>
 public sealed record DiagnosticsCheckResult(bool Healthy, IReadOnlyList<string> Issues, IReadOnlyList<string> Warnings, DateTimeOffset CheckedAt);

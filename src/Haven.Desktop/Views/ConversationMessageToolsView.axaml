@@ -1,0 +1,78 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/ConversationMessageToolsView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.ConversationMessageToolsView. Its visual vocabulary includes: Border, StackPanel, Grid, TextBlock, Button, ComboBox, ComboBox.ItemTemplate, DataTemplate, TextBox, Separator, ProgressBar, ItemsControl, ItemsControl.ItemTemplate.
+  Data flow: Binding expressions read or update these view-model paths: RefreshCommand, Messages, SelectedMessage, DisplayName, EditContent, CanEdit, EditModes, EditMode, ApplyEditCommand, RegenerationModes, RegenerationMode, CanRegenerate, RegenerateCommand, BookmarkLabel, ToggleBookmarkCommand, PreviousVersionCommand, NextVersionCommand, VersionLabel, IsBusy, Versions, Label, Preview, Status.
+  Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.ConversationMessageToolsView">
+  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
+  <Border Background="{DynamicResource HavenPanel2Brush}"
+          BorderBrush="{DynamicResource HavenLineBrush}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Padding="12">
+    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
+    <StackPanel Spacing="10">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="MESSAGE VERSIONS" Classes="eyebrow" />
+          <TextBlock Text="Edit user turns, regenerate responses, bookmark messages, and restore saved versions." Classes="muted" FontSize="10" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
+      </Grid>
+
+      <ComboBox ItemsSource="{Binding Messages}" SelectedItem="{Binding SelectedMessage}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate><TextBlock Text="{Binding DisplayName}" MaxWidth="760" TextTrimming="CharacterEllipsis" /></DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <Grid ColumnDefinitions="2*,*" ColumnSpacing="12">
+        <StackPanel Spacing="7">
+          <TextBlock Text="EDIT USER MESSAGE" Classes="eyebrow" />
+          <TextBox Text="{Binding EditContent}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62" MaxHeight="150" IsEnabled="{Binding CanEdit}" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+            <ComboBox ItemsSource="{Binding EditModes}" SelectedItem="{Binding EditMode}" IsEnabled="{Binding CanEdit}" />
+            <Button Grid.Column="1" Content="Apply edit" Classes="accent" Command="{Binding ApplyEditCommand}" />
+          </Grid>
+          <TextBlock Text="New Branch keeps the current path untouched. Overwrite Current Branch stores a recovery snapshot first." Classes="muted2" FontSize="9" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="7">
+          <TextBlock Text="RESPONSE ACTIONS" Classes="eyebrow" />
+          <ComboBox ItemsSource="{Binding RegenerationModes}" SelectedItem="{Binding RegenerationMode}" IsEnabled="{Binding CanRegenerate}" />
+          <Button Content="Regenerate response" Command="{Binding RegenerateCommand}" />
+          <Button Content="{Binding BookmarkLabel}" Command="{Binding ToggleBookmarkCommand}" />
+          <TextBlock Text="Older responses always regenerate into a new branch." Classes="muted2" FontSize="9" />
+        </StackPanel>
+      </Grid>
+
+      <Separator />
+
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+        <Button Content="Previous version" Command="{Binding PreviousVersionCommand}" />
+        <Button Grid.Column="1" Content="Next version" Command="{Binding NextVersionCommand}" />
+        <TextBlock Grid.Column="2" Text="{Binding VersionLabel}" Classes="muted" VerticalAlignment="Center" />
+        <ProgressBar Grid.Column="3" Width="60" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+      </Grid>
+      <ItemsControl ItemsSource="{Binding Versions}" MaxHeight="110">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+              <TextBlock Text="{Binding Label}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" />
+              <TextBlock Grid.Column="1" Text="{Binding Preview}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" />
+    </StackPanel>
+  </Border>
+</UserControl>

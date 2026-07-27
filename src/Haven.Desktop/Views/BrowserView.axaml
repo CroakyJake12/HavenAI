@@ -1,9 +1,22 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/BrowserView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.BrowserView. Its visual vocabulary includes: Grid, Border, ScrollViewer, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, StackPanel, ItemsControl.ItemTemplate, DataTemplate, Button, TextBlock, Button.ContextMenu, ContextMenu, MenuItem, TextBox, Button.Flyout, MenuFlyout, Separator, NativeWebView, SelectableTextBlock, CheckBox.
+  Data flow: Binding expressions read or update these view-model paths: HorizontalTabs, Tabs, IsSelected, IsPrivate, Title, NewTabCommand, NewPrivateTabCommand, BackCommand, ForwardCommand, HomeCommand, ReloadCommand, HardReloadCommand, StopCommand, Address, NavigateCommand, AddBookmarkCommand, ToggleBookmarksCommand, ToggleHistoryCommand, ToggleLoginsCommand, ToggleExtensionsCommand, PrintCommand, InspectCommand, ToggleAssistantCommand, ToggleSettingsCommand, HasNoBookmarks, Bookmarks, HasBookmarks, PrivacyLabel, SelectedTab.Group, Status, VerticalTabs, DisplayTitle, Group, IsAnyPanelOpen, IsBookmarksOpen, BookmarkSummary, BookmarkGroup, IsHistoryOpen, ClearHistoryCommand, History, VisitedAt, IsAssistantOpen, SummariseCommand, AssistantInput, AskAssistantCommand, AssistantOutput, IsSettingsOpen, HomePage, SearchTemplate, SaveHistory, OfferToSaveLogins, RestoreTabs, EnableExtensions, NewGroupName, CreateTabGroupCommand, SaveBrowserSettingsCommand, IsExtensionsOpen, ImportExtensionRequestedCommand, ConvertChromeExtensionRequestedCommand, Extensions, Name, Description, AllowedOrigins, IsLoginsOpen, LoginOrigin, LoginUsername, LoginPassword, SaveLoginCommand, Logins, Username, Origin.
+  Interaction: Direct event handlers in this file are: OnAddressKeyDown.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.BrowserView">
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
     <!-- Horizontal tabs remain the default. Switching tab orientation only moves the
          tab controls; the NativeWebView below stays mounted in one stable host. -->
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border IsVisible="{Binding HorizontalTabs}"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
@@ -55,9 +68,10 @@
       </Grid>
     </Border>
 
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6" Margin="10,8,10,6">
-      <Button Content="&#x2190;" Classes="icon" Command="{Binding BackCommand}" ToolTip.Tip="Back" />
-      <Button Grid.Column="1" Content="&#x2192;" Classes="icon" Command="{Binding ForwardCommand}" ToolTip.Tip="Forward" />
+      <Button Content="&#x2190;" Classes="icon" Command="{Binding BackCommand}" IsEnabled="{Binding CanGoBack}" ToolTip.Tip="Back" />
+      <Button Grid.Column="1" Content="&#x2192;" Classes="icon" Command="{Binding ForwardCommand}" IsEnabled="{Binding CanGoForward}" ToolTip.Tip="Forward" />
       <Button Grid.Column="2" Content="&#x2302;" Classes="icon" Command="{Binding HomeCommand}" ToolTip.Tip="Home" />
       <Button Grid.Column="3" Content="&#x21BB;" Classes="icon" Command="{Binding ReloadCommand}" ToolTip.Tip="Reload">
         <Button.ContextMenu>
@@ -92,6 +106,7 @@
 
     <!-- Persistent, discoverable bookmark bar. The manager at the right provides
          group selection and destructive actions; bookmark buttons open in the active tab. -->
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Grid.Row="2"
             Background="{DynamicResource HavenPanelBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
@@ -128,12 +143,14 @@
       </Grid>
     </Border>
 
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="14,4,14,7">
       <TextBlock Text="{Binding PrivacyLabel}" Classes="muted" FontSize="10" />
       <TextBlock Grid.Column="1" Text="{Binding SelectedTab.Group}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" Margin="0,0,14,0" />
       <TextBlock Grid.Column="2" Text="{Binding Status}" Classes="muted" FontSize="10" MaxWidth="440" TextTrimming="CharacterEllipsis" />
     </Grid>
 
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto">
       <!-- A true vertical tab rail. It uses the same tab collection and commands as
            the horizontal strip and never creates a second browser control. -->
@@ -191,11 +208,22 @@
       </Border>
 
       <Border Grid.Column="1"
-              Background="White"
+              Background="{DynamicResource HavenPanelBrush}"
               BorderBrush="{DynamicResource HavenLineStrongBrush}"
               BorderThickness="1,1,0,0"
               ClipToBounds="True">
-        <NativeWebView x:Name="NativeBrowser" />
+        <Grid>
+          <NativeWebView x:Name="NativeBrowser" />
+          <!-- Keep navigation transitions inside Haven's palette instead of exposing
+               the native host's default white surface while a page is being replaced. -->
+          <Border Background="{DynamicResource HavenPanelBrush}"
+                  IsVisible="{Binding IsLoading}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+              <ProgressBar Width="190" Height="4" IsIndeterminate="True" />
+              <TextBlock Text="Loading page…" Classes="muted" HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Grid>
       </Border>
 
       <Border Grid.Column="2"

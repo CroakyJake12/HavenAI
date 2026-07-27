@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:topRail="using:Haven.Desktop.Views.Shell.TopRail"
+             x:Class="Haven.Desktop.Views.Pages.Chat.NewChatPage">
+
+  <Grid ClipToBounds="True">
+    <Border CornerRadius="22">
+      <Border.Background>
+        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+          <GradientStop Color="#FFFFFFFF" Offset="0" />
+          <GradientStop Color="#FFF8FFF9" Offset="0.42" />
+          <GradientStop Color="#FFCBFFD3" Offset="0.84" />
+          <GradientStop Color="#FFBEFAF8" Offset="1" />
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+
+    <Grid Margin="54,28,54,28" RowDefinitions="*,Auto" RowSpacing="16">
+      <ScrollViewer x:Name="MessagesScroll"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="MessagesPanel" Spacing="18" MaxWidth="980" HorizontalAlignment="Stretch" />
+      </ScrollViewer>
+
+      <StackPanel Grid.Row="1" Spacing="8">
+        <Button x:Name="ResolveProblemsButton"
+                HorizontalAlignment="Center"
+                Classes="chip"
+                IsVisible="False"
+                MinHeight="38"
+                Padding="15,8"
+                CornerRadius="19"
+                Background="#DFFFFFFF"
+                BorderBrush="{DynamicResource HavenLineBrush}"
+                BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <controls:HavenIcon IconKey="warning" Width="16" Height="16"
+                                Foreground="{DynamicResource HavenTextBrush}" />
+            <TextBlock Text="Resolve Problems"
+                       FontWeight="Bold"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <TextBlock x:Name="StatusText"
+                   HorizontalAlignment="Center"
+                   Foreground="#FF4D4D4D"
+                   FontSize="11" />
+        <Grid HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10">
+          <topRail:AddMenu x:Name="AddButton"
+                           Width="58" Height="58" CornerRadius="29"
+                           Background="#DFFFFFFF"
+                           BorderBrush="{DynamicResource HavenLineBrush}"
+                           BorderThickness="1"
+                           Foreground="#FF050505" />
+          <TextBox x:Name="InstructionBox"
+                   Grid.Column="1"
+                   MinHeight="58" MaxHeight="150"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   CornerRadius="18"
+                   Background="#DFFFFFFF"
+                   BorderBrush="{DynamicResource HavenLineBrush}"
+                   BorderThickness="1"
+                   Foreground="#FF222222"
+                   PlaceholderText="Ask Haven Anything"
+                   VerticalContentAlignment="Center"
+                   FontSize="15"
+                   Padding="22,0" />
+          <Button x:Name="SendButton"
+                  Grid.Column="2"
+                  Width="64" Height="58" CornerRadius="20"
+                  Background="#FF6FE9F0"
+                  BorderBrush="#667ADDE3"
+                  BorderThickness="1">
+            <controls:HavenIcon IconKey="send" Width="27" Height="27" Foreground="#FF050505" />
+          </Button>
+        </Grid>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

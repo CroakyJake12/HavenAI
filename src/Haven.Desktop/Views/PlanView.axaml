@@ -1,12 +1,27 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.Desktop/Views/PlanView.axaml in the Avalonia Desktop visual layer.
+  What: This markup constructs Haven.Desktop.Views.PlanView. Its visual vocabulary includes: UserControl.Resources, DateTimeOffsetDateConverter, Grid, Border, StackPanel, TextBlock, ItemsControl, ItemsControl.ItemTemplate, DataTemplate, Button, ScrollViewer, ListBox, ListBox.ItemTemplate, HavenIcon, TextBox, CalendarDatePicker, ComboBox, ComboBox.ItemTemplate, TimePicker, ItemsControl.ItemsPanel, ItemsPanelTemplate, UniformGrid, CheckBox.
+  Data flow: Binding expressions read or update these view-model paths: Views, Name, Collections, SelectedCollection, NewCollectionName, CreateCollectionCommand, SelectedCollectionName, RenameCollectionCommand, RequestArchiveCollectionCommand, IsArchiveCollectionConfirming, CancelArchiveCollectionCommand, ArchiveCollectionCommand, Title, PeriodLabel, PreviousPeriodCommand, TodayCommand, NextPeriodCommand, NewTaskTitle, NewTaskDueDate, Priorities, NewTaskPriority, CreateTaskCommand, NewEventTitle, Calendars, SelectedCalendar, NewEventDate, NewEventStart, NewEventEnd, CreateEventCommand, ShowsStandardList, Status, Tasks, Meta, Events, Detail, CanDelete, BoardColumns, ShowsBoard, CountLabel, CalendarDays, ShowsCalendarGrid, DayName, DayNumber, Entries, Time, HasTaskEditor, CloseTaskEditorCommand, TaskEditor.Title, TaskEditor.Notes, TaskEditor.Priorities, TaskEditor.Priority, TaskEditor.Statuses, TaskEditor.Status, TaskEditor.Parents, TaskEditor.SelectedParent, TaskEditor.StartsAt, TaskEditor.DueAt, TaskEditor.ReminderAt, TaskEditor.Tags, TaskEditor.EstimatedMinutes, TaskEditor.RecurrenceRule, TaskEditor.TimeZoneId, TaskEditor.Message, TaskEditor.SaveCommand, HasEventEditor, CloseEventEditorCommand, EventEditor.Title, EventEditor.Notes, EventEditor.Location, EventEditor.Date, EventEditor.StartTime, EventEditor.EndTime, EventEditor.IsAllDay, EventEditor.ReminderAt, EventEditor.RecurrenceRule, EventEditor.TimeZoneId, EventEditor.Message, EventEditor.SaveCommand, EventEditor.CanSave, AiPrompt, AskAiCommand, HasPendingProposal, PendingProposalSummary, PendingChanges, Kind, Description, DismissProposalCommand, ApplyProposalCommand, Providers, HasConflicts, Conflicts, Detected, HavenVersion, ProviderVersion.
+  Interaction: Direct event handlers in this file are: TaskDrag_OnPointerPressed, CalendarEntryDrag_OnPointerPressed.
+  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
+  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
+  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
+-->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
              xmlns:converters="using:Haven.Desktop.Converters"
              x:Class="Haven.Desktop.Views.PlanView">
+  <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <UserControl.Resources>
+    <!-- Section: Hosts the DateTimeOffsetDateConverter portion of this view at this position in the visual tree. -->
     <converters:DateTimeOffsetDateConverter x:Key="DateTimeOffsetDateConverter" />
   </UserControl.Resources>
+  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid ColumnDefinitions="220,*,320" Background="{DynamicResource HavenBackgroundBrush}">
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel>
@@ -75,6 +90,7 @@
       </Grid>
     </Border>
 
+    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="28,24">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <StackPanel>
@@ -262,6 +278,7 @@
       </ScrollViewer>
     </Grid>
 
+    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
     <Border Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
       <ScrollViewer>
         <StackPanel>

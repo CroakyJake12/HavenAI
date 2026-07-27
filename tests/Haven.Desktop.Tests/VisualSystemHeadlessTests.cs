@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/VisualSystemHeadlessTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns VisualSystemHeadlessTests. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -12,8 +21,14 @@ using Xunit;
 
 namespace Haven.Desktop.Tests;
 
+/// <summary>
+/// Represents visual system headless tests and keeps its related state and behavior together.
+/// </summary>
 public sealed class VisualSystemHeadlessTests
 {
+    /// <summary>
+    /// Performs the global button and acrylic themes apply from the application step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void GlobalButtonAndAcrylicThemesApplyFromTheApplication()
     {
@@ -36,6 +51,9 @@ public sealed class VisualSystemHeadlessTests
         window.Close();
     }
 
+    /// <summary>
+    /// Performs the product icons resolve to closed visible geometry step owned by this component.
+    /// </summary>
     [AvaloniaTheory]
     [InlineData("home")]
     [InlineData("teach")]
@@ -55,6 +73,9 @@ public sealed class VisualSystemHeadlessTests
         Assert.True(icon.Data.Bounds.Height > 0);
     }
 
+    /// <summary>
+    /// Performs the haven icon uses the path icon theme and renders a visual step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void HavenIconUsesThePathIconThemeAndRendersAVisual()
     {
@@ -69,6 +90,9 @@ public sealed class VisualSystemHeadlessTests
         window.Close();
     }
 
+    /// <summary>
+    /// Performs the planner date converter round trips the local calendar day step owned by this component.
+    /// </summary>
     [Fact]
     public void PlannerDateConverterRoundTripsTheLocalCalendarDay()
     {
@@ -82,6 +106,9 @@ public sealed class VisualSystemHeadlessTests
         Assert.Equal(TimeZoneInfo.Local.GetUtcOffset(date), restored.Offset);
     }
 
+    /// <summary>
+    /// Performs the unknown icon keys use a visible fallback step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void UnknownIconKeysUseAVisibleFallback()
     {
@@ -92,6 +119,9 @@ public sealed class VisualSystemHeadlessTests
         Assert.True(icon.Data.Bounds.Height > 0);
     }
 
+    /// <summary>
+    /// Performs the first class surface views construct under headless avalonia step owned by this component.
+    /// </summary>
     [AvaloniaFact]
     public void FirstClassSurfaceViewsConstructUnderHeadlessAvalonia()
     {

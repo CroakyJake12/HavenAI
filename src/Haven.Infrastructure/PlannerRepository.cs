@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/PlannerRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns PlannerRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Text.Json;
 using Haven.Application;
@@ -6,8 +15,14 @@ using Microsoft.Data.Sqlite;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents planner repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlannerRepository, ICalendarSyncStore
 {
+    /// <summary>
+    /// Performs ensure defaults asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task EnsureDefaultsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -32,6 +47,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves collections async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerCollection>> GetCollectionsAsync(bool includeArchived, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -45,6 +63,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert collection asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertCollectionAsync(PlannerCollection collection, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(collection.Name)) throw new ArgumentException("Collection name is required.", nameof(collection));
@@ -64,6 +85,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs archive collection asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ArchiveCollectionAsync(Guid id, bool archived, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -75,6 +99,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves task async for the current operation.
+    /// </summary>
     public async Task<PlannerTask?> GetTaskAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -85,6 +112,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadTask(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves tasks async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerTask>> GetTasksAsync(PlannerTaskQuery query, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -112,6 +142,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert task asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertTaskAsync(PlannerTask task, CancellationToken cancellationToken)
     {
         ValidateTask(task);
@@ -122,6 +155,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs complete task asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task CompleteTaskAsync(Guid id, DateTimeOffset completedAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -132,6 +168,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete task asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteTaskAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -141,6 +180,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves completion history async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerTaskCompletion>> GetCompletionHistoryAsync(Guid taskId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -154,6 +196,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Retrieves calendars async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerCalendar>> GetCalendarsAsync(bool visibleOnly, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -165,6 +210,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert calendar asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertCalendarAsync(PlannerCalendar calendar, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(calendar.Name)) throw new ArgumentException("Calendar name is required.", nameof(calendar));
@@ -188,6 +236,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves events async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerEvent>> GetEventsAsync(DateTimeOffset rangeStart, DateTimeOffset rangeEnd, Guid? calendarId, CancellationToken cancellationToken)
     {
         if (rangeEnd <= rangeStart) throw new ArgumentException("The calendar range must end after it starts.", nameof(rangeEnd));
@@ -210,6 +261,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result.OrderBy(item => item.StartsAt).ThenBy(item => item.EndsAt).ToArray();
     }
 
+    /// <summary>
+    /// Retrieves event async for the current operation.
+    /// </summary>
     public async Task<PlannerEvent?> GetEventAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -220,6 +274,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadEvent(reader) : null;
     }
 
+    /// <summary>
+    /// Performs upsert event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertEventAsync(PlannerEvent plannerEvent, CancellationToken cancellationToken)
     {
         ValidateEvent(plannerEvent);
@@ -233,6 +290,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteEventAsync(Guid id, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -245,6 +305,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves calendar accounts async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<CalendarAccount>> GetCalendarAccountsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -256,6 +319,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs upsert calendar account asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertCalendarAccountAsync(CalendarAccount account, CancellationToken cancellationToken)
     {
         if (account.Provider == CalendarProviderKind.Local) throw new ArgumentException("Local calendars do not use provider accounts.", nameof(account));
@@ -279,6 +345,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves unresolved conflicts async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<CalendarConflict>> GetUnresolvedConflictsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -290,6 +359,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs resolve conflict asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ResolveConflictAsync(Guid id, CalendarConflictResolution resolution, DateTimeOffset resolvedAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -373,6 +445,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves due reminders async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<PlannerReminder>> GetDueRemindersAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
         if (limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(limit));
@@ -407,6 +482,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs mark reminder delivered asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task MarkReminderDeliveredAsync(PlannerReminder reminder, DateTimeOffset deliveredAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -419,6 +497,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves calendar async for the current operation.
+    /// </summary>
     public async Task<PlannerCalendar?> GetCalendarAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -429,6 +510,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadCalendar(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves calendar by provider id async for the current operation.
+    /// </summary>
     public async Task<PlannerCalendar?> GetCalendarByProviderIdAsync(Guid accountId, string providerCalendarId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -440,6 +524,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadCalendar(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves event by provider id async for the current operation.
+    /// </summary>
     public async Task<PlannerEvent?> GetEventByProviderIdAsync(Guid calendarId, string providerEventId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -451,6 +538,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadEvent(reader) : null;
     }
 
+    /// <summary>
+    /// Performs upsert provider event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertProviderEventAsync(PlannerEvent plannerEvent, CancellationToken cancellationToken)
     {
         ValidateEvent(plannerEvent);
@@ -461,6 +551,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete provider event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeleteProviderEventAsync(Guid calendarId, string providerEventId, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -472,6 +565,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves sync cursor async for the current operation.
+    /// </summary>
     public async Task<CalendarSyncCursor?> GetSyncCursorAsync(Guid accountId, Guid calendarId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -485,6 +581,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
             : null;
     }
 
+    /// <summary>
+    /// Performs upsert sync cursor asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertSyncCursorAsync(CalendarSyncCursor cursor, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -505,6 +604,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves due outbox async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<CalendarOutboxItem>> GetDueOutboxAsync(Guid accountId, DateTimeOffset now, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -521,6 +623,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return result;
     }
 
+    /// <summary>
+    /// Performs complete outbox asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task CompleteOutboxAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -530,6 +635,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs fail outbox asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task FailOutboxAsync(Guid id, string error, DateTimeOffset nextAttemptAt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -541,6 +649,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs add conflict asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task AddConflictAsync(CalendarConflict conflict, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -560,6 +671,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Reports whether unresolved conflict async applies to the current state.
+    /// </summary>
     public async Task<bool> HasUnresolvedConflictAsync(Guid eventId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -569,6 +683,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) != 0;
     }
 
+    /// <summary>
+    /// Performs apply proposal asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task ApplyProposalAsync(PlannerChangeProposal proposal, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -582,6 +699,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs apply change asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task ApplyChangeAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerProposedChange change, JsonElement payload, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -652,6 +772,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         }
     }
 
+    /// <summary>
+    /// Performs the new task step owned by this component.
+    /// </summary>
     private static PlannerTask NewTask(JsonElement value, DateTimeOffset now) => new(
         Guid.NewGuid(), RequiredGuid(value, "collectionId"), OptionalGuid(value, "parentTaskId"), RequiredString(value, "title"),
         OptionalString(value, "notes") ?? string.Empty, OptionalEnum(value, "priority", PlannerPriority.None),
@@ -659,6 +782,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         OptionalDate(value, "startsAt"), OptionalDate(value, "dueAt"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"),
         null, OptionalInt(value, "sortOrder") ?? 0, now, now, OptionalString(value, "timeZoneId") ?? "UTC");
 
+    /// <summary>
+    /// Performs the merge task step owned by this component.
+    /// </summary>
     private static PlannerTask MergeTask(PlannerTask task, JsonElement value, DateTimeOffset now) => task with
     {
         CollectionId = OptionalGuid(value, "collectionId") ?? task.CollectionId,
@@ -678,12 +804,18 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         UpdatedAt = now
     };
 
+    /// <summary>
+    /// Performs the new event step owned by this component.
+    /// </summary>
     private static PlannerEvent NewEvent(JsonElement value, DateTimeOffset now) => new(
         Guid.NewGuid(), RequiredGuid(value, "calendarId"), RequiredString(value, "title"), OptionalString(value, "notes") ?? string.Empty,
         OptionalString(value, "location") ?? string.Empty, RequiredDate(value, "startsAt"), RequiredDate(value, "endsAt"),
         OptionalBool(value, "isAllDay"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"), false, null, null,
         now, now, null, OptionalString(value, "timeZoneId") ?? "UTC");
 
+    /// <summary>
+    /// Performs the merge event step owned by this component.
+    /// </summary>
     private static PlannerEvent MergeEvent(PlannerEvent item, JsonElement value, DateTimeOffset now) => item with
     {
         CalendarId = OptionalGuid(value, "calendarId") ?? item.CalendarId,
@@ -699,6 +831,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         UpdatedAt = now
     };
 
+    /// <summary>
+    /// Validates task before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void ValidateTask(PlannerTask task)
     {
         if (task.Id == Guid.Empty || task.CollectionId == Guid.Empty) throw new ArgumentException("Task and collection IDs are required.", nameof(task));
@@ -712,6 +847,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         _ = ResolveTimeZone(task.TimeZoneId);
     }
 
+    /// <summary>
+    /// Validates event before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static void ValidateEvent(PlannerEvent plannerEvent)
     {
         if (plannerEvent.Id == Guid.Empty || plannerEvent.CalendarId == Guid.Empty) throw new ArgumentException("Event and calendar IDs are required.", nameof(plannerEvent));
@@ -721,6 +859,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         _ = ResolveTimeZone(plannerEvent.TimeZoneId);
     }
 
+    /// <summary>
+    /// Performs the expand recurring event step owned by this component.
+    /// </summary>
     private static IEnumerable<PlannerEvent> ExpandRecurringEvent(PlannerEvent item, DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
     {
         var duration = item.EndsAt - item.StartsAt;
@@ -734,12 +875,18 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         }
     }
 
+    /// <summary>
+    /// Performs the resolve time zone step owned by this component.
+    /// </summary>
     private static TimeZoneInfo ResolveTimeZone(string id)
     {
         try { return TimeZoneInfo.FindSystemTimeZoneById(string.IsNullOrWhiteSpace(id) ? "UTC" : id); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { throw new ArgumentException($"Unknown time zone '{id}'.", nameof(id), ex); }
     }
 
+    /// <summary>
+    /// Validates task hierarchy async before it crosses the next trust or persistence boundary.
+    /// </summary>
     private static async Task ValidateTaskHierarchyAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerTask task, CancellationToken cancellationToken)
     {
         if (task.ParentTaskId is null) return;
@@ -765,6 +912,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         if (!found) throw new InvalidOperationException("The selected parent task does not exist.");
     }
 
+    /// <summary>
+    /// Performs complete task asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task CompleteTaskAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerTask task, DateTimeOffset completedAt, CancellationToken cancellationToken)
     {
         await using (var history = connection.CreateCommand())
@@ -799,6 +949,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await UpsertTaskAsync(connection, transaction, updated, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Retrieves task async for the current operation.
+    /// </summary>
     private static async Task<PlannerTask?> GetTaskAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -809,6 +962,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadTask(reader) : null;
     }
 
+    /// <summary>
+    /// Retrieves event async for the current operation.
+    /// </summary>
     private static async Task<PlannerEvent?> GetEventAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -819,6 +975,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadEvent(reader) : null;
     }
 
+    /// <summary>
+    /// Performs ensure calendar writable asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task EnsureCalendarWritableAsync(SqliteConnection connection, SqliteTransaction transaction, Guid calendarId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -831,6 +990,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
             throw new InvalidOperationException("The selected provider calendar is read-only.");
     }
 
+    /// <summary>
+    /// Performs upsert task asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task UpsertTaskAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerTask task, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -864,6 +1026,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs upsert event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task UpsertEventAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerEvent item, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -896,12 +1061,18 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs soft delete event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task SoftDeleteEventAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, DateTimeOffset deletedAt, CancellationToken cancellationToken)
     {
         await ExecuteAsync(connection, transaction, "UPDATE planner_events SET deleted_at=$deletedAt,updated_at=$deletedAt WHERE id=$id;",
             cancellationToken, ("$deletedAt", Timestamp(deletedAt)), ("$id", id.ToString())).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs queue outbox if remote asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task QueueOutboxIfRemoteAsync(SqliteConnection connection, SqliteTransaction transaction, PlannerEvent item, string operation, CancellationToken cancellationToken)
     {
         Guid? accountId;
@@ -963,6 +1134,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs insert default collection asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private static async Task InsertDefaultCollectionAsync(SqliteConnection connection, SqliteTransaction transaction, Guid id, string name, int sortOrder, DateTimeOffset now, CancellationToken cancellationToken)
     {
         await ExecuteAsync(connection, transaction,
@@ -970,6 +1144,9 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
             cancellationToken, ("$id", id.ToString()), ("$name", name), ("$sortOrder", sortOrder), ("$now", Timestamp(now))).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
+    /// </summary>
     private static async Task ExecuteAsync(SqliteConnection connection, SqliteTransaction transaction, string sql, CancellationToken cancellationToken, params (string Name, object Value)[] values)
     {
         await using var command = connection.CreateCommand();
@@ -979,14 +1156,32 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the read collection step owned by this component.
+    /// </summary>
     private static PlannerCollection ReadCollection(SqliteDataReader reader) => new(reader.Guid("id"), reader.String("name"), reader.Int32("sort_order"), reader.Boolean("is_archived"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"));
+    /// <summary>
+    /// Performs the read task step owned by this component.
+    /// </summary>
     private static PlannerTask ReadTask(SqliteDataReader reader) => new(reader.Guid("id"), reader.Guid("collection_id"), reader.NullableGuid("parent_task_id"), reader.String("title"), reader.String("notes"),
         (PlannerPriority)reader.Int32("priority"), (PlannerTaskStatus)reader.Int32("status"), reader.String("tags_json"), NullableInt32(reader, "estimated_minutes"),
         reader.NullableDateTimeOffset("starts_at"), reader.NullableDateTimeOffset("due_at"), reader.NullableString("recurrence_rule"), reader.NullableDateTimeOffset("reminder_at"),
         reader.NullableDateTimeOffset("completed_at"), reader.Int32("sort_order"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.String("time_zone_id"));
+    /// <summary>
+    /// Performs the read calendar step owned by this component.
+    /// </summary>
     private static PlannerCalendar ReadCalendar(SqliteDataReader reader) => new(reader.Guid("id"), reader.NullableGuid("account_id"), (CalendarProviderKind)reader.Int32("provider"), reader.String("provider_calendar_id"), reader.String("name"), reader.String("color"), (CalendarPermission)reader.Int32("permission"), reader.Boolean("is_visible"), reader.DateTimeOffset("updated_at"));
+    /// <summary>
+    /// Performs the read event step owned by this component.
+    /// </summary>
     private static PlannerEvent ReadEvent(SqliteDataReader reader) => new(reader.Guid("id"), reader.Guid("calendar_id"), reader.String("title"), reader.String("notes"), reader.String("location"), reader.DateTimeOffset("starts_at"), reader.DateTimeOffset("ends_at"), reader.Boolean("is_all_day"), reader.NullableString("recurrence_rule"), reader.NullableDateTimeOffset("reminder_at"), reader.Boolean("is_read_only"), reader.NullableString("provider_event_id"), reader.NullableString("provider_etag"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.NullableDateTimeOffset("deleted_at"), reader.String("time_zone_id"));
+    /// <summary>
+    /// Performs the read account step owned by this component.
+    /// </summary>
     private static CalendarAccount ReadAccount(SqliteDataReader reader) => new(reader.Guid("id"), (CalendarProviderKind)reader.Int32("provider"), reader.String("display_name"), reader.String("account_identifier"), (CalendarSyncStatus)reader.Int32("status"), reader.NullableString("status_message"), reader.NullableDateTimeOffset("last_synced_at"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"));
+    /// <summary>
+    /// Performs the read conflict step owned by this component.
+    /// </summary>
     private static CalendarConflict ReadConflict(SqliteDataReader reader)
     {
         var ordinal = reader.GetOrdinal("resolution");
@@ -994,21 +1189,69 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         return new(reader.Guid("id"), reader.Guid("event_id"), reader.Guid("account_id"), reader.String("haven_snapshot_json"), reader.String("provider_snapshot_json"), reader.DateTimeOffset("detected_at"), reader.NullableDateTimeOffset("resolved_at"), resolution);
     }
 
+    /// <summary>
+    /// Performs the nullable int32 step owned by this component.
+    /// </summary>
     private static int? NullableInt32(SqliteDataReader reader, string name) { var ordinal = reader.GetOrdinal(name); return reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal); }
+    /// <summary>
+    /// Performs the timestamp step owned by this component.
+    /// </summary>
     private static string Timestamp(DateTimeOffset value) => value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Performs the db step owned by this component.
+    /// </summary>
     private static object Db(string? value) => (object?)value ?? DBNull.Value;
+    /// <summary>
+    /// Performs the db step owned by this component.
+    /// </summary>
     private static object Db(DateTimeOffset? value) => value is null ? DBNull.Value : Timestamp(value.Value);
+    /// <summary>
+    /// Performs the escape like step owned by this component.
+    /// </summary>
     private static string EscapeLike(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
+    /// <summary>
+    /// Performs the required id step owned by this component.
+    /// </summary>
     private static Guid RequiredId(PlannerProposedChange change) => change.EntityId ?? throw new InvalidOperationException($"{change.Kind} requires an entity ID.");
+    /// <summary>
+    /// Reports whether property applies to the current state.
+    /// </summary>
     private static bool HasProperty(JsonElement value, string name) => value.TryGetProperty(name, out _);
+    /// <summary>
+    /// Performs the required string step owned by this component.
+    /// </summary>
     private static string RequiredString(JsonElement value, string name) => OptionalString(value, name) ?? throw new InvalidOperationException($"{name} is required.");
+    /// <summary>
+    /// Performs the optional string step owned by this component.
+    /// </summary>
     private static string? OptionalString(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind != JsonValueKind.Null ? item.GetString() : null;
+    /// <summary>
+    /// Performs the required guid step owned by this component.
+    /// </summary>
     private static Guid RequiredGuid(JsonElement value, string name) => OptionalGuid(value, name) ?? throw new InvalidOperationException($"{name} is required.");
+    /// <summary>
+    /// Performs the optional guid step owned by this component.
+    /// </summary>
     private static Guid? OptionalGuid(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind != JsonValueKind.Null ? Guid.Parse(item.GetString()!) : null;
+    /// <summary>
+    /// Performs the optional int step owned by this component.
+    /// </summary>
     private static int? OptionalInt(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind != JsonValueKind.Null ? item.GetInt32() : null;
+    /// <summary>
+    /// Performs the optional bool step owned by this component.
+    /// </summary>
     private static bool OptionalBool(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind == JsonValueKind.True;
+    /// <summary>
+    /// Performs the required date step owned by this component.
+    /// </summary>
     private static DateTimeOffset RequiredDate(JsonElement value, string name) => OptionalDate(value, name) ?? throw new InvalidOperationException($"{name} is required.");
+    /// <summary>
+    /// Performs the optional date step owned by this component.
+    /// </summary>
     private static DateTimeOffset? OptionalDate(JsonElement value, string name) => value.TryGetProperty(name, out var item) && item.ValueKind != JsonValueKind.Null ? DateTimeOffset.Parse(item.GetString()!, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) : null;
     private static T OptionalEnum<T>(JsonElement value, string name, T fallback) where T : struct, Enum => value.TryGetProperty(name, out var item) && item.ValueKind != JsonValueKind.Null ? Enum.Parse<T>(item.GetString()!, true) : fallback;
+    /// <summary>
+    /// Performs the json value step owned by this component.
+    /// </summary>
     private static string JsonValue(JsonElement value, string name, string fallback) => value.TryGetProperty(name, out var item) ? item.GetRawText() : fallback;
 }

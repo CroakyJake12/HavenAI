@@ -1,9 +1,24 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Core/PlannerRecurrence.cs, in the dependency-free Core layer, where shared domain models and rules live.
+ * What: This file owns PlannerRecurrence. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: This code stays free of UI and storage dependencies so the same rule or data shape can be reused and tested everywhere.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 
 namespace Haven.Core;
 
+/// <summary>
+/// Represents planner recurrence and keeps its related state and behavior together.
+/// </summary>
 public static class PlannerRecurrence
 {
+    /// <summary>
+    /// Retrieves next occurrence for the current operation.
+    /// </summary>
     public static DateTimeOffset? GetNextOccurrence(DateTimeOffset occurrence, string? rule, string? timeZoneId = null)
     {
         if (string.IsNullOrWhiteSpace(rule)) return null;
@@ -31,12 +46,18 @@ public static class PlannerRecurrence
         return InZone(nextLocal, zone);
     }
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     public static void Validate(string? rule)
     {
         if (string.IsNullOrWhiteSpace(rule)) return;
         _ = GetNextOccurrence(DateTimeOffset.UtcNow, rule, "UTC");
     }
 
+    /// <summary>
+    /// Performs the next weekly step owned by this component.
+    /// </summary>
     private static DateTime NextWeekly(DateTime local, int interval, string? byDay)
     {
         if (string.IsNullOrWhiteSpace(byDay)) return local.AddDays(7 * interval);
@@ -55,8 +76,14 @@ public static class PlannerRecurrence
         return local.AddDays(daysToNextActiveWeek);
     }
 
+    /// <summary>
+    /// Performs the day index step owned by this component.
+    /// </summary>
     private static int DayIndex(DayOfWeek day) => ((int)day + 6) % 7;
 
+    /// <summary>
+    /// Performs the parse day step owned by this component.
+    /// </summary>
     private static DayOfWeek ParseDay(string value) => value switch
     {
         "MO" => DayOfWeek.Monday,
@@ -69,6 +96,9 @@ public static class PlannerRecurrence
         _ => throw new FormatException($"Unknown weekday '{value}'.")
     };
 
+    /// <summary>
+    /// Performs the resolve time zone step owned by this component.
+    /// </summary>
     private static TimeZoneInfo ResolveTimeZone(string? id)
     {
         if (string.IsNullOrWhiteSpace(id)) return TimeZoneInfo.Utc;
@@ -77,6 +107,9 @@ public static class PlannerRecurrence
         catch (InvalidTimeZoneException) { throw new FormatException($"Invalid time zone '{id}'."); }
     }
 
+    /// <summary>
+    /// Performs the in zone step owned by this component.
+    /// </summary>
     private static DateTimeOffset InZone(DateTime local, TimeZoneInfo zone)
     {
         if (zone.IsInvalidTime(local)) local = local.AddHours(1);

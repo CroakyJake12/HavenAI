@@ -1,19 +1,43 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ModeManifestValidator.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ModeManifestValidator, ModeManifestValidation. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Text.Json;
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents mode manifest validator and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModeManifestValidator
 {
+    /// <summary>
+    /// Stores allowed surfaces locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> AllowedSurfaces = new(StringComparer.OrdinalIgnoreCase)
         { "Chat", "Do", "Teach", "Studio", "Browse", "Plan", "Phone", "Dashboard", "Training" };
 
+    /// <summary>
+    /// Stores allowed capabilities locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> AllowedCapabilities = new(StringComparer.OrdinalIgnoreCase)
         { "Text", "Vision", "Tools", "Browser", "ComputerUse", "WebSearch", "Embeddings" };
 
+    /// <summary>
+    /// Stores reserved keys locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
         { "chat", "teach", "do", "studio", "browse", "plan", "training", "call", "home" };
 
+    /// <summary>
+    /// Validates this member before it crosses the next trust or persistence boundary.
+    /// </summary>
     public ModeManifestValidation Validate(ModeDefinition mode, string manifestJson)
     {
         var errors = new List<string>();
@@ -104,4 +128,7 @@ public sealed class ModeManifestValidator
     }
 }
 
+/// <summary>
+/// Represents mode manifest validation and keeps its related state and behavior together.
+/// </summary>
 public sealed record ModeManifestValidation(bool IsValid, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings);

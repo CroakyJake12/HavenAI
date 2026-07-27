@@ -1,3 +1,12 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/MicrosoftCalendarProviderTransport.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns MicrosoftCalendarProviderTransport, SyncCounts. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -8,6 +17,9 @@ using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents microsoft calendar provider transport and keeps its related state and behavior together.
+/// </summary>
 public sealed class MicrosoftCalendarProviderTransport(
     CalendarProviderConfiguration configuration,
     IHttpClientFactory httpClientFactory,
@@ -16,7 +28,13 @@ public sealed class MicrosoftCalendarProviderTransport(
     ICalendarTokenStore tokenStore)
     : OAuthCalendarTransportBase(configuration, httpClientFactory, repository, store, tokenStore)
 {
+    /// <summary>
+    /// Gets or updates authorization endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override Uri AuthorizationEndpoint { get; } = new("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");
+    /// <summary>
+    /// Gets or updates token endpoint, the bindable or domain state represented by this property.
+    /// </summary>
     protected override Uri TokenEndpoint { get; } = new("https://login.microsoftonline.com/common/oauth2/v2.0/token");
 
     protected override async Task<(string Identifier, string DisplayName)> GetIdentityAsync(string accessToken, CancellationToken cancellationToken)
@@ -31,6 +49,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         return (identifier, string.IsNullOrWhiteSpace(displayName) ? identifier : displayName);
     }
 
+    /// <summary>
+    /// Performs sync core asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     protected override async Task<CalendarSyncResult> SyncCoreAsync(CalendarAccount account, CalendarTokenEnvelope token, CalendarSyncRequest request, CancellationToken cancellationToken)
     {
         await DrainOutboxAsync(account, token, ApplyOutboxAsync, cancellationToken).ConfigureAwait(false);
@@ -43,6 +64,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         return new(counts.Conflicts == 0, CalendarSyncStatus.Ready, counts.Added, counts.Updated, counts.Deleted, counts.Conflicts, message);
     }
 
+    /// <summary>
+    /// Retrieves calendars async for the current operation.
+    /// </summary>
     private async Task<IReadOnlyList<PlannerCalendar>> GetCalendarsAsync(CalendarAccount account, string accessToken, CancellationToken cancellationToken)
     {
         var result = new List<PlannerCalendar>();
@@ -72,6 +96,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         return result;
     }
 
+    /// <summary>
+    /// Performs sync calendar asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task SyncCalendarAsync(CalendarAccount account, PlannerCalendar calendar, string accessToken, CalendarSyncRequest request, SyncCounts counts, CancellationToken cancellationToken)
     {
         var cursor = request.FullSync ? null : await Store.GetSyncCursorAsync(account.Id, calendar.Id, cancellationToken).ConfigureAwait(false);
@@ -98,6 +125,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         await Store.UpsertSyncCursorAsync(new CalendarSyncCursor(account.Id, calendar.Id, null, deltaLink, request.WindowStart, request.WindowEnd, DateTimeOffset.UtcNow), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs apply remote event asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyRemoteEventAsync(CalendarAccount account, PlannerCalendar calendar, CalendarSyncCursor? cursor, JsonElement remote, SyncCounts counts, CancellationToken cancellationToken)
     {
         var remoteId = RequiredString(remote, "id");
@@ -157,6 +187,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         if (existing is null) counts.Added++; else counts.Updated++;
     }
 
+    /// <summary>
+    /// Performs apply outbox asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyOutboxAsync(CalendarOutboxItem outbox, PlannerEvent item, string accessToken, CancellationToken cancellationToken)
     {
         var calendar = await Store.GetCalendarAsync(item.CalendarId, cancellationToken).ConfigureAwait(false)
@@ -192,6 +225,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs the graph event body step owned by this component.
+    /// </summary>
     private static object GraphEventBody(PlannerEvent item) => new
     {
         subject = item.Title,
@@ -204,6 +240,9 @@ public sealed class MicrosoftCalendarProviderTransport(
         reminderMinutesBeforeStart = item.ReminderAt is null ? 15 : Math.Max(0, (int)(item.StartsAt - item.ReminderAt.Value).TotalMinutes)
     };
 
+    /// <summary>
+    /// Performs the parse graph date step owned by this component.
+    /// </summary>
     private static DateTimeOffset ParseGraphDate(JsonElement value)
     {
         var text = RequiredString(value, "dateTime");
@@ -217,14 +256,23 @@ public sealed class MicrosoftCalendarProviderTransport(
         return new DateTimeOffset(local, zone.GetUtcOffset(local));
     }
 
+    /// <summary>
+    /// Performs the required string step owned by this component.
+    /// </summary>
     private static string RequiredString(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) && !string.IsNullOrWhiteSpace(property.GetString()) ? property.GetString()! : throw new JsonException($"Microsoft response omitted {name}.");
 
+    /// <summary>
+    /// Performs the graph color step owned by this component.
+    /// </summary>
     private static string GraphColor(string? color) => color?.ToLowerInvariant() switch
     {
         "lightblue" or "blue" => "#4285F4", "lightgreen" or "green" => "#55B685", "lightorange" or "orange" => "#F4A261",
         "lightred" or "red" => "#E76F51", "lightpurple" => "#9B72CF", _ => "#5B8DEF"
     };
 
+    /// <summary>
+    /// Represents sync counts and keeps its related state and behavior together.
+    /// </summary>
     private sealed class SyncCounts { public int Added; public int Updated; public int Deleted; public int Conflicts; }
 }

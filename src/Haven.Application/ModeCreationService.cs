@@ -1,12 +1,36 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Application/ModeCreationService.cs, in the Application layer, which coordinates use cases through abstractions without owning platform details.
+ * What: This file owns ModeCreationService, ModeCreationResult. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The implementation depends on interfaces so policy remains testable and platform-specific details can be replaced.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Core;
 
 namespace Haven.Application;
 
+/// <summary>
+/// Represents mode creation service and keeps its related state and behavior together.
+/// </summary>
 public sealed class ModeCreationService
 {
+    /// <summary>
+    /// Stores registry locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeRegistry _registry;
+    /// <summary>
+    /// Stores usage locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IModeUsageRepository _usage;
+    /// <summary>
+    /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IOllamaClient _ollama;
+    /// <summary>
+    /// Stores validator locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly ModeManifestValidator _validator;
 
     public ModeCreationService(IModeRegistry registry, IModeUsageRepository usage, IOllamaClient ollama, ModeManifestValidator validator)
@@ -17,6 +41,9 @@ public sealed class ModeCreationService
         _validator = validator;
     }
 
+    /// <summary>
+    /// Creates from description async with the invariants required by its callers.
+    /// </summary>
     public async Task<ModeCreationResult> CreateFromDescriptionAsync(
         string name,
         string description,
@@ -102,6 +129,9 @@ public sealed class ModeCreationService
         }
     }
 
+    /// <summary>
+    /// Creates from manifest async with the invariants required by its callers.
+    /// </summary>
     public async Task<ModeCreationResult> CreateFromManifestAsync(
         string name,
         string description,
@@ -140,6 +170,9 @@ public sealed class ModeCreationService
     }
 }
 
+/// <summary>
+/// Represents mode creation result and keeps its related state and behavior together.
+/// </summary>
 public sealed record ModeCreationResult(
     bool Succeeded,
     string Message,

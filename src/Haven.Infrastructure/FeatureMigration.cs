@@ -1,8 +1,20 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/FeatureMigration.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns FeatureMigration. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 namespace Haven.Infrastructure;
 
 /// <summary>Non-planner schema introduced with the integrated surfaces in migration 7.</summary>
 public static class FeatureMigration
 {
+    /// <summary>
+    /// Stores sql locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public const string Sql = """
         CREATE INDEX ix_conversations_scope_updated
             ON conversations(mode,kind,container_id,lesson_id,is_archived,is_temporary,updated_at DESC);

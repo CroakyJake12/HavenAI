@@ -1,0 +1,236 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: tests/Haven.Desktop.Tests/NotesAccessibilityTests.cs, in the automated test suite, where executable examples protect behavior against regressions.
+ * What: This file owns NotesAccessibilityTests, FakeModelClient, TestPaths. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: The test is intentionally close to the public behavior it protects, making failures describe a user-visible or architectural contract.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using Haven.Application;
+using Haven.Core;
+using Haven.Desktop.Services;
+using Haven.Desktop.ViewModels;
+using Haven.Desktop.Views;
+using Haven.Infrastructure;
+
+namespace Haven.Desktop.Tests;
+
+/// <summary>
+/// Represents notes accessibility tests and keeps its related state and behavior together.
+/// </summary>
+public sealed class NotesAccessibilityTests : IDisposable
+{
+    /// <summary>
+    /// Stores paths locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
+    private readonly TestPaths _paths = new();
+
+    /// <summary>
+    /// Performs the notes workspace and critical actions expose automation names step owned by this component.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task NotesWorkspaceAndCriticalActionsExposeAutomationNames()
+    {
+        await using var diagnostics = new ProductionDiagnostics(_paths);
+        var viewModel = CreateViewModel(diagnostics);
+        await viewModel.InitializeAsync(CancellationToken.None);
+        var table = new NotesBlock
+        {
+            Kind = NotesBlockKind.Table,
+            Table = NotesTableData.Create(2, 2)
+        };
+        var page = Assert.IsType<NotesPage>(viewModel.CurrentPage);
+        page.Blocks.Clear();
+        page.Blocks.Add(table);
+        viewModel.SelectedBlock = table;
+        var view = new NotesWorkspaceView(viewModel);
+        var window = new Window { Width = 1500, Height = 900, Content = view };
+        try
+        {
+            window.Show();
+            view.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Advanced tools"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Task.Delay(25);
+
+            Assert.Equal("Haven Notes document workspace", AutomationProperties.GetName(view));
+            var criticalLabels = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Save", "Import", "Export", "Print", "Delete document",
+                "Sort ↑", "Sort ↓", "Sum", "Apply table data"
+            };
+            var criticalButtons = view.GetVisualDescendants()
+                .OfType<Button>()
+                .Where(button => button.Content is string label && criticalLabels.Contains(label))
+                .ToArray();
+
+            Assert.Equal(criticalLabels.Count, criticalButtons.Length);
+            Assert.All(criticalButtons, button =>
+            {
+                Assert.True(button.Focusable);
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(button)));
+            });
+            Assert.Contains(view.GetVisualDescendants().OfType<TabControl>(), control => control.Focusable);
+        }
+        finally
+        {
+            window.Close();
+            view.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Performs the blank sibling routes have stable accessible identity and no fake editor controls step owned by this component.
+    /// </summary>
+    [AvaloniaFact]
+    public void BlankSiblingRoutesHaveStableAccessibleIdentityAndNoFakeEditorControls()
+    {
+        foreach (var kind in Enum.GetValues<NotesExperienceKind>().Where(value => value != NotesExperienceKind.Notes))
+        {
+            var view = new BlankNotesExperienceView(kind);
+            var window = new Window { Content = view };
+            try
+            {
+                window.Show();
+                Assert.True(view.Focusable);
+                Assert.Equal(NotesExperienceNavigation.DisplayName(kind), AutomationProperties.GetName(view));
+                Assert.Empty(view.GetVisualDescendants().OfType<TextBox>());
+                Assert.Empty(view.GetVisualDescendants().OfType<Button>());
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Performs the dispose step owned by this component.
+    /// </summary>
+    public void Dispose() => _paths.Dispose();
+
+    /// <summary>
+    /// Creates view model with the invariants required by its callers.
+    /// </summary>
+    private NotesWorkspaceViewModel CreateViewModel(IProductionDiagnostics diagnostics)
+    {
+        var validator = new NotesDocumentValidator();
+        var repository = new VerifiedNotesRepository(
+            new NotesRepository(_paths, validator, diagnostics),
+            _paths,
+            diagnostics);
+        var formats = new NotesImportExportService(validator, diagnostics);
+        var attachments = new SecureNotesAttachmentStore(
+            new NotesAttachmentStore(_paths, diagnostics),
+            _paths);
+        var model = new FakeModelClient();
+        return new NotesWorkspaceViewModel(
+            repository,
+            formats,
+            new NotesAiService(model, diagnostics),
+            attachments,
+            model,
+            diagnostics);
+    }
+
+    /// <summary>
+    /// Represents fake model client and keeps its related state and behavior together.
+    /// </summary>
+    private sealed class FakeModelClient : IOllamaClient
+    {
+        /// <summary>
+        /// Reports whether available async applies to the current state.
+        /// </summary>
+        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        /// <summary>
+        /// Retrieves models async for the current operation.
+        /// </summary>
+        public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ModelDescriptor>>([]);
+        /// <summary>
+        /// Performs stream chat asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public async IAsyncEnumerable<string> StreamChatAsync(
+            OllamaChatRequest request,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+        /// <summary>
+        /// Performs complete asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult("{\"proposedContent\":\"unchanged\",\"explanation\":\"test\",\"citationIds\":[]}");
+        /// <summary>
+        /// Performs chat with tools asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new OllamaToolResponse(string.Empty, []));
+        /// <summary>
+        /// Performs pull model asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public Task PullModelAsync(string model, IProgress<double>? progress, CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+        /// Performs delete model asynchronously so I/O does not block the caller's thread.
+        /// </summary>
+        public Task DeleteModelAsync(string model, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Represents test paths and keeps its related state and behavior together.
+    /// </summary>
+    private sealed class TestPaths : IAppPaths, IDisposable
+    {
+        public TestPaths()
+        {
+            DataDirectory = Path.Combine(Path.GetTempPath(), "haven-notes-accessibility-tests-" + Guid.NewGuid().ToString("N"));
+            DatabasePath = Path.Combine(DataDirectory, "haven.db");
+            BrowserProfileDirectory = Path.Combine(DataDirectory, "browser");
+            AttachmentsDirectory = Path.Combine(DataDirectory, "attachments");
+            LogsDirectory = Path.Combine(DataDirectory, "logs");
+            LegacyStatePath = Path.Combine(DataDirectory, "missing.json");
+            Directory.CreateDirectory(DataDirectory);
+            Directory.CreateDirectory(LogsDirectory);
+        }
+
+        /// <summary>
+        /// Gets or updates data directory, the bindable or domain state represented by this property.
+        /// </summary>
+        public string DataDirectory { get; }
+        /// <summary>
+        /// Gets or updates database path, the bindable or domain state represented by this property.
+        /// </summary>
+        public string DatabasePath { get; }
+        /// <summary>
+        /// Gets or updates browser profile directory, the bindable or domain state represented by this property.
+        /// </summary>
+        public string BrowserProfileDirectory { get; }
+        /// <summary>
+        /// Gets or updates attachments directory, the bindable or domain state represented by this property.
+        /// </summary>
+        public string AttachmentsDirectory { get; }
+        /// <summary>
+        /// Gets or updates logs directory, the bindable or domain state represented by this property.
+        /// </summary>
+        public string LogsDirectory { get; }
+        /// <summary>
+        /// Gets or updates legacy state path, the bindable or domain state represented by this property.
+        /// </summary>
+        public string LegacyStatePath { get; }
+
+        /// <summary>
+        /// Performs the dispose step owned by this component.
+        /// </summary>
+        public void Dispose()
+        {
+            try { Directory.Delete(DataDirectory, recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+}

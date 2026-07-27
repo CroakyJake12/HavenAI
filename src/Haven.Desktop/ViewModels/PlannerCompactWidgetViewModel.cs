@@ -1,15 +1,42 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Desktop/ViewModels/PlannerCompactWidgetViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
+ * What: This file owns PlannerCompactWidgetViewModel. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using System.Collections.ObjectModel;
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Desktop.ViewModels;
 
+/// <summary>
+/// Represents planner compact widget view model and keeps its related state and behavior together.
+/// </summary>
 public sealed class PlannerCompactWidgetViewModel : ObservableObject
 {
+    /// <summary>
+    /// Stores planner locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPlannerRepository _planner;
+    /// <summary>
+    /// Stores proposals locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private readonly IPlannerProposalService _proposals;
+    /// <summary>
+    /// Stores is expanded locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isExpanded;
+    /// <summary>
+    /// Stores quick capture text locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private string _quickCaptureText = string.Empty;
+    /// <summary>
+    /// Stores is busy locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     private bool _isBusy;
 
     public PlannerCompactWidgetViewModel(
@@ -28,8 +55,17 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
         OpenFullPlannerCommand = new RelayCommand(() => OpenFullPlannerRequested?.Invoke(this, EventArgs.Empty));
     }
 
+    /// <summary>
+    /// Gets or updates today tasks, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PlannerTaskItemViewModel> TodayTasks { get; }
+    /// <summary>
+    /// Gets or updates overdue tasks, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PlannerTaskItemViewModel> OverdueTasks { get; }
+    /// <summary>
+    /// Gets or updates pending proposals, the bindable or domain state represented by this property.
+    /// </summary>
     public ObservableCollection<PlannerChangeProposal> PendingProposals { get; }
 
     public bool IsExpanded
@@ -62,19 +98,52 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Reports whether today tasks applies to the current state.
+    /// </summary>
     public bool HasTodayTasks => TodayTasks.Count > 0;
+    /// <summary>
+    /// Reports whether overdue tasks applies to the current state.
+    /// </summary>
     public bool HasOverdueTasks => OverdueTasks.Count > 0;
+    /// <summary>
+    /// Reports whether proposals applies to the current state.
+    /// </summary>
     public bool HasProposals => PendingProposals.Count > 0;
+    /// <summary>
+    /// Reports whether any content applies to the current state.
+    /// </summary>
     public bool HasAnyContent => HasTodayTasks || HasOverdueTasks || HasProposals;
 
+    /// <summary>
+    /// Gets or updates toggle expand command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand ToggleExpandCommand { get; }
+    /// <summary>
+    /// Gets or updates quick capture command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand QuickCaptureCommand { get; }
+    /// <summary>
+    /// Gets or updates apply proposal command, the bindable or domain state represented by this property.
+    /// </summary>
     public AsyncRelayCommand<PlannerChangeProposal> ApplyProposalCommand { get; }
+    /// <summary>
+    /// Gets or updates dismiss proposal command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand<PlannerChangeProposal> DismissProposalCommand { get; }
+    /// <summary>
+    /// Gets or updates open full planner command, the bindable or domain state represented by this property.
+    /// </summary>
     public RelayCommand OpenFullPlannerCommand { get; }
 
+    /// <summary>
+    /// Stores open full planner requested locally so this component can preserve the dependency, cache, or state between member calls.
+    /// </summary>
     public event EventHandler? OpenFullPlannerRequested;
 
+    /// <summary>
+    /// Performs refresh asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task RefreshAsync()
     {
         IsBusy = true;
@@ -102,6 +171,9 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs quick capture asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task QuickCaptureAsync()
     {
         if (string.IsNullOrWhiteSpace(QuickCaptureText) || IsBusy) return;
@@ -123,6 +195,9 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>
+    /// Performs apply proposal asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     private async Task ApplyProposalAsync(PlannerChangeProposal? proposal)
     {
         if (proposal is null) return;
@@ -131,6 +206,9 @@ public sealed class PlannerCompactWidgetViewModel : ObservableObject
         await RefreshAsync();
     }
 
+    /// <summary>
+    /// Performs the dismiss proposal step owned by this component.
+    /// </summary>
     private void DismissProposal(PlannerChangeProposal? proposal)
     {
         if (proposal is null) return;

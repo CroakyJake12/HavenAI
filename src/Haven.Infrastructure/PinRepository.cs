@@ -1,10 +1,25 @@
+/*
+ * FILE DOCUMENTATION
+ * Where: src/Haven.Infrastructure/PinRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
+ * What: This file owns PinRepository. Read the type and member comments below as a map of each responsibility.
+ * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
+ * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
+ * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
+ */
+
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
+/// <summary>
+/// Represents pin repository and keeps its related state and behavior together.
+/// </summary>
 public sealed class PinRepository(ISqliteConnectionFactory factory) : IPinRepository
 {
+    /// <summary>
+    /// Retrieves pins async for the current operation.
+    /// </summary>
     public async Task<IReadOnlyList<ModePin>> GetPinsAsync(CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -21,6 +36,9 @@ public sealed class PinRepository(ISqliteConnectionFactory factory) : IPinReposi
         return results;
     }
 
+    /// <summary>
+    /// Performs upsert pin asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task UpsertPinAsync(ModePin pin, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -37,6 +55,9 @@ public sealed class PinRepository(ISqliteConnectionFactory factory) : IPinReposi
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs delete pin asynchronously so I/O does not block the caller's thread.
+    /// </summary>
     public async Task DeletePinAsync(Guid modeId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
