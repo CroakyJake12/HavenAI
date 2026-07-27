@@ -219,9 +219,9 @@ public sealed partial class TopRail : UserControl, IDisposable
             Placement = PlacementMode.BottomEdgeAlignedLeft,
             Content = new StackPanel
             {
-                Width = 200,
+                Width = 260,
                 Spacing = 3,
-                Margin = new Thickness(6),
+                Margin = new Thickness(12),
                 Children = { rename, close }
             }
         };
@@ -248,18 +248,19 @@ public sealed partial class TopRail : UserControl, IDisposable
             SelectionStart = 0,
             SelectionEnd = tab.Title.Length
         };
-        var save = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Right };
+        var save = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Stretch };
         save.Classes.Add("primary");
         var flyout = new Flyout
         {
             Placement = PlacementMode.Bottom,
             Content = new StackPanel
             {
-                Spacing = 9,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children =
                 {
-                    new TextBlock { Text = "Rename tab", FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = "Rename tab", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
                     input,
                     save
                 }

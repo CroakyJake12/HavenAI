@@ -82,7 +82,7 @@
                  HorizontalContentAlignment="Center"
                  VerticalContentAlignment="Center"
                  FontSize="16"
-                 FontWeight="SemiBold"
+                 FontWeight="Bold"
                  Padding="22,0" />
         <Button x:Name="SendButton"
                 Grid.Column="2"

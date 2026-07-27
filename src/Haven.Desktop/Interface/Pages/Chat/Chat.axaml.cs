@@ -304,12 +304,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Placement = PlacementMode.Top,
             Content = new StackPanel
             {
-                Width = 330,
-                Spacing = 10,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children =
                 {
-                    new TextBlock { Text = "Rename chat", FontSize = 17, FontWeight = FontWeight.ExtraBold },
+                    new TextBlock { Text = "Rename chat", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
                     editor,
                     save
                 }
@@ -339,12 +339,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Placement = PlacementMode.Top,
             Content = new StackPanel
             {
-                Width = 330,
-                Spacing = 10,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children =
                 {
-                    new TextBlock { Text = "Delete this chat?", FontSize = 17, FontWeight = FontWeight.ExtraBold },
+                    new TextBlock { Text = "Delete this chat?", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
                     new TextBlock { Text = "This permanently removes the conversation and its messages.", TextWrapping = TextWrapping.Wrap },
                     delete,
                     cancel
@@ -438,16 +438,16 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var panel = new StackPanel
         {
             Width = 380,
-            Spacing = 4,
+            Spacing = 3,
             Margin = new Thickness(12),
             Children =
             {
                 new TextBlock
                 {
                     Text = "Resolve Problems",
-                    FontSize = 19,
+                    FontSize = 20,
                     FontWeight = FontWeight.ExtraBold,
-                    Margin = new Thickness(8, 4, 8, 0)
+                    Margin = new Thickness(10, 5, 10, 8)
                 },
                 new TextBlock
                 {
@@ -455,7 +455,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                     FontSize = 12,
                     TextWrapping = TextWrapping.Wrap,
                     Foreground = ResourceBrush("HavenMutedTextBrush", Color.Parse("#FF666666")),
-                    Margin = new Thickness(8, 0, 8, 8)
+                    Margin = new Thickness(10, 0, 10, 8)
                 },
                 hallucinating,
                 looping,
@@ -480,29 +480,29 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     {
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("30,*"),
-            ColumnSpacing = 10
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 12
         };
         grid.Children.Add(new HavenIcon
         {
             IconKey = icon,
-            Width = 19,
-            Height = 19,
+            Width = 20,
+            Height = 20,
             Foreground = ResourceBrush("HavenTextBrush", Colors.Black),
             VerticalAlignment = VerticalAlignment.Center
         });
 
-        var copy = new StackPanel { Spacing = 2 };
+        var copy = new StackPanel { Spacing = 1 };
         copy.Children.Add(new TextBlock
         {
             Text = title,
-            FontSize = 13,
+            FontSize = 14,
             FontWeight = FontWeight.ExtraBold
         });
         copy.Children.Add(new TextBlock
         {
             Text = description,
-            FontSize = 11,
+            FontSize = 10,
             TextWrapping = TextWrapping.Wrap,
             Foreground = ResourceBrush("HavenMutedTextBrush", Color.Parse("#FF666666"))
         });
@@ -512,8 +512,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var button = new Button
         {
             Content = grid,
-            MinHeight = 58,
-            Padding = new Thickness(12, 9),
+            MinHeight = 48,
+            Padding = new Thickness(12, 10),
             CornerRadius = new CornerRadius(14),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
@@ -866,9 +866,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Placement = PlacementMode.BottomEdgeAlignedRight,
             Content = new StackPanel
             {
-                Width = 290,
-                Spacing = 2,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children = { edit, copy, branch, delete }
             }
         };
@@ -906,9 +906,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Placement = PlacementMode.BottomEdgeAlignedLeft,
             Content = new StackPanel
             {
-                Width = 310,
-                Spacing = 2,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children = { regenerate, copy, branch, forget }
             }
         };
@@ -990,19 +990,19 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var foreground = dangerous
             ? ResourceBrush("HavenDangerBrush", Color.Parse("#FFD32F2F"))
             : ResourceBrush("HavenTextBrush", Colors.Black);
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("28,*"), ColumnSpacing = 10 };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
         var glyph = new HavenIcon
         {
             IconKey = icon,
-            Width = 19,
-            Height = 19,
+            Width = 20,
+            Height = 20,
             Foreground = foreground,
             VerticalAlignment = VerticalAlignment.Center
         };
         var text = new TextBlock
         {
             Text = label,
-            FontSize = 13,
+            FontSize = 14,
             FontWeight = FontWeight.ExtraBold,
             Foreground = foreground,
             VerticalAlignment = VerticalAlignment.Center
@@ -1014,9 +1014,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var button = new Button
         {
             Content = grid,
-            MinHeight = 46,
-            Padding = new Thickness(10, 8),
-            CornerRadius = new CornerRadius(13),
+            MinHeight = 48,
+            Padding = new Thickness(12, 10),
+            CornerRadius = new CornerRadius(14),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
@@ -1048,7 +1048,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private void ShowSecondaryFlyout(Control anchor, IReadOnlyList<Button> actions)
     {
         _messageSecondaryFlyout?.Hide();
-        var panel = new StackPanel { Width = 290, Spacing = 2, Margin = new Thickness(8) };
+        var panel = new StackPanel { Width = 260, Spacing = 3, Margin = new Thickness(12) };
         foreach (var action in actions) panel.Children.Add(action);
         _messageSecondaryFlyout = new Flyout { Placement = PlacementMode.Left, Content = panel };
         _messageSecondaryFlyout.ShowAt(anchor);
@@ -1078,10 +1078,10 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             {
                 Width = 390,
                 Spacing = 10,
-                Margin = new Thickness(8),
+                Margin = new Thickness(12),
                 Children =
                 {
-                    new TextBlock { Text = "Edit message", FontSize = 17, FontWeight = FontWeight.ExtraBold },
+                    new TextBlock { Text = "Edit message", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
                     editor,
                     apply
                 }

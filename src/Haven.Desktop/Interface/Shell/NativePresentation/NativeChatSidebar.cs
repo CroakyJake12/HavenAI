@@ -529,9 +529,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             Placement = PlacementMode.TopEdgeAlignedLeft,
             Content = new StackPanel
             {
-                Width = 280,
-                Spacing = 10,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children = { SectionHeading("New " + groupName), editor, create }
             }
         };
@@ -592,9 +592,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         {
             Content = new StackPanel
             {
-                Width = 290,
-                Spacing = 10,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children = { SectionHeading("Rename"), editor, apply }
             }
         };
@@ -787,9 +787,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private static TextBlock SectionHeading(string text) => new()
     {
         Text = text,
-        FontWeight = FontWeight.Bold,
-        FontSize = 12,
-        Margin = new Thickness(6, 8, 0, 0)
+        FontWeight = FontWeight.ExtraBold,
+        FontSize = 20,
+        Margin = new Thickness(10, 5, 10, 8)
     };
 
     private static string ModeName(HavenMode mode) => mode switch
