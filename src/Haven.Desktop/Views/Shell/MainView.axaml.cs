@@ -506,7 +506,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public bool HasContainers => CurrentChat?.HasContainers ?? false;
     public bool HasAnyContainers => CurrentChat?.HasAnyContainers ?? false;
     public bool SupportsDuo => CurrentChat?.SupportsDuo ?? false;
-    public string ChatTypeLabel => CurrentSurface == HavenSurface.Teach ? "Teaching" : "General";
+    public string ChatTypeLabel => CurrentSurface == HavenSurface.Teach ? "Study" : "General";
 
     public string ProductName => CurrentSurface switch
     {
@@ -554,7 +554,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public string ContextLabel => CurrentChat?.ContextLabel ?? string.Empty;
     public string ContextRemainingLabel => CurrentChat?.ContextRemainingLabel ?? string.Empty;
 
-    public string RecentHeading => CurrentMode switch { HavenMode.Do => "Tasks", HavenMode.Teach => "Teaching chats", HavenMode.Studio when IsProjectOpen => "Project chats", HavenMode.Studio => "Standalone chats", _ => "Chats" };
+    public string RecentHeading => CurrentMode switch { HavenMode.Do => "Tasks", HavenMode.Teach => "Study chats", HavenMode.Studio when IsProjectOpen => "Project chats", HavenMode.Studio => "Standalone chats", _ => "Chats" };
 
     public string ContainerSettingsLabel => CurrentMode switch
     {
@@ -763,7 +763,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var page = await GetOrCreateChatAsync(mode);
         CurrentChat = page;
         if (showHome) await OpenModeHomeAsync();
-        else AddOrSelectTab(mode == HavenMode.Teach ? "chat-teach" : "chat-general", mode == HavenMode.Teach ? "Teaching" : "General chat", page, false, SurfaceForMode(mode));
+        else AddOrSelectTab(mode == HavenMode.Teach ? "chat-study" : "chat-general", mode == HavenMode.Teach ? "Study" : "General chat", page, false, SurfaceForMode(mode));
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
@@ -1348,7 +1348,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             ["new-chat"] = async () => { await NavigateModeAsync(HavenMode.Chat, false); StartNewConversation(); },
             ["chat"] = () => NavigateModeAsync(HavenMode.Chat, false),
-            ["teach"] = () => NavigateModeAsync(HavenMode.Teach, false),
+            ["study"] = () => NavigateModeAsync(HavenMode.Teach, false),
             ["plan"] = () => { OpenPlan(); return Task.CompletedTask; },
             ["browse"] = () => { OpenBrowser(); return Task.CompletedTask; },
             ["studio"] = () => NavigateModeAsync(HavenMode.Studio, true),

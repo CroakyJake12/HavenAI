@@ -295,7 +295,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates mode title, the bindable or domain state represented by this property.
     /// </summary>
-    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Teach", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
+    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Study", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
     /// <summary>
     /// Gets or updates mode subtitle, the bindable or domain state represented by this property.
     /// </summary>
@@ -325,7 +325,7 @@ public sealed class ChatPageViewModel : ObservableObject
     {
         HavenMode.Studio => "Explain this project and identify the riskiest areas.",
         HavenMode.Do => "Research and compare the best options.",
-        HavenMode.Teach => "Teach me a topic step by step.",
+        HavenMode.Teach => "Study a topic step by step.",
         _ => "Explain this clearly."
     };
     /// <summary>

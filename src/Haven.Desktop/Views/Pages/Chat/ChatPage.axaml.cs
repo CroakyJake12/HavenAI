@@ -206,7 +206,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     // ─── Mode properties ────────────────────────────────────────────
 
     public HavenMode Mode { get; }
-    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Teach", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
+    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Study", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
     public string ModeSubtitle => Mode switch
     {
         HavenMode.Chat => "Private conversation with your local models",
@@ -227,7 +227,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     {
         HavenMode.Studio => "Explain this project and identify the riskiest areas.",
         HavenMode.Do => "Research and compare the best options.",
-        HavenMode.Teach => "Teach me a topic step by step.",
+        HavenMode.Teach => "Study a topic step by step.",
         _ => "Explain this clearly."
     };
     public string StarterTwo => Mode switch

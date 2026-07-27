@@ -51,17 +51,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </Button>
-                                <Button Classes="sidebar" HorizontalAlignment="Stretch"
-                                        Command="{Binding NavigateTeachCommand}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
-                                        <controls:HavenIcon IconKey="call" Width="18" Height="18"
-                                                            Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="Teach" FontWeight="SemiBold" />
-                                            <TextBlock Text="Learn with Haven" Classes="muted" FontSize="10" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
+
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
