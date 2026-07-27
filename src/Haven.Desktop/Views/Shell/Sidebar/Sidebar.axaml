@@ -191,7 +191,7 @@
                             </Button>
 
                             <Grid ColumnDefinitions="*,Auto" Margin="9,0,3,5">
-                                <TextBlock Text="{Binding ContainerHeading}" Classes="eyebrow" />
+                                <TextBlock Text="{Binding ContainerHeading}" FontSize="10" Classes="eyebrow" />
                                 <Button Grid.Column="1"
                                         Classes="chrome"
                                         x:Name="NewContainerButton"

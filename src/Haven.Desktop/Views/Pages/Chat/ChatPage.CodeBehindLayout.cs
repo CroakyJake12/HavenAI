@@ -87,7 +87,8 @@ public sealed partial class ChatPage
         _finalSearchBox = new TextBox
         {
             PlaceholderText = "Search chats",
-            MinHeight = 38
+            MinHeight = 38,
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         _finalSearchBox.TextChanged += (_, _) => RefreshFinalSidebar();
 
@@ -229,6 +230,7 @@ public sealed partial class ChatPage
             PlaceholderText = "Ask Haven anything",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
+            FontWeight = FontWeight.Bold,
             MinHeight = 58,
             MaxHeight = 180,
             VerticalContentAlignment = VerticalAlignment.Center

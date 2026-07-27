@@ -54,6 +54,7 @@
 							 BorderThickness="1"
 							 Foreground="#FF222222"
 							 PlaceholderText="Ask Haven Anything"
+							 FontWeight="Bold"
 							 VerticalContentAlignment="Center"
 							 FontSize="15"
 							 Padding="22,0" />

@@ -740,37 +740,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     private Control BuildMessage(ChatMessage message, bool isStreaming)
     {
-        var content = new StackPanel { Spacing = 9 };
-        content.Children.Add(new TextBlock
+        var bubble = new MessageBubble
         {
-            Text = message.Role == MessageRole.User ? "You" : "Haven",
-            FontWeight = FontWeight.Bold,
-            FontSize = 12,
-            Foreground = ResourceBrush("HavenTextBrush", Colors.Black)
-        });
-        var messageBody = new MarkdownView
-        {
-            Markdown = string.IsNullOrEmpty(message.Content) && isStreaming ? "Thinking…" : message.Content,
-            Foreground = ResourceBrush("HavenTextBrush", Colors.Black)
+            Role = message.Role,
+            MessageContent = message.Content,
+            AgentName = message.AgentName,
+            IsStreaming = isStreaming
         };
-        _messageBodies[message.Id] = messageBody;
-        content.Children.Add(messageBody);
-
-        var bubble = new Border
-        {
-            Child = content,
-            MaxWidth = message.Role == MessageRole.User ? 680 : 900,
-            HorizontalAlignment = message.Role == MessageRole.User
-                ? HorizontalAlignment.Right
-                : HorizontalAlignment.Stretch,
-            Background = message.Role == MessageRole.User
-                ? ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE0F7FA"))
-                : new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(45, 0, 0, 0)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(22, 18)
-        };
+        _messageBodies[message.Id] = bubble.FindControl<MarkdownView>("Body")!;
 
         var more = new Button
         {
@@ -985,44 +962,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         }
     }
 
-    private static Button BuildMessageAction(string icon, string label, bool dangerous = false)
+    private static ActionButton BuildMessageAction(string icon, string label, bool dangerous = false)
     {
-        var foreground = dangerous
-            ? ResourceBrush("HavenDangerBrush", Color.Parse("#FFD32F2F"))
-            : ResourceBrush("HavenTextBrush", Colors.Black);
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
-        var glyph = new HavenIcon
+        return new ActionButton
         {
             IconKey = icon,
-            Width = 20,
-            Height = 20,
-            Foreground = foreground,
-            VerticalAlignment = VerticalAlignment.Center
+            LabelText = label,
+            IsDangerous = dangerous
         };
-        var text = new TextBlock
-        {
-            Text = label,
-            FontSize = 14,
-            FontWeight = FontWeight.ExtraBold,
-            Foreground = foreground,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(text, 1);
-        grid.Children.Add(glyph);
-        grid.Children.Add(text);
-
-        var button = new Button
-        {
-            Content = grid,
-            MinHeight = 48,
-            Padding = new Thickness(12, 10),
-            CornerRadius = new CornerRadius(14),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch
-        };
-        button.Classes.Add("sidebar");
-        if (dangerous) button.Classes.Add("danger");
-        return button;
     }
 
     private void ShowEditOptions(Control anchor, ChatMessage message)
@@ -1045,12 +992,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         ShowSecondaryFlyout(anchor, [create, existing]);
     }
 
-    private void ShowSecondaryFlyout(Control anchor, IReadOnlyList<Button> actions)
+    private void ShowSecondaryFlyout(Control anchor, IReadOnlyList<ActionButton> actions)
     {
         _messageSecondaryFlyout?.Hide();
-        var panel = new StackPanel { Width = 260, Spacing = 3, Margin = new Thickness(12) };
-        foreach (var action in actions) panel.Children.Add(action);
-        _messageSecondaryFlyout = new Flyout { Placement = PlacementMode.Left, Content = panel };
+        var panel = new FlyoutPanel();
+        foreach (var action in actions) panel.Content.Children.Add(action);
+        _messageSecondaryFlyout = panel.CreateFlyout(PlacementMode.Left);
         _messageSecondaryFlyout.ShowAt(anchor);
     }
 

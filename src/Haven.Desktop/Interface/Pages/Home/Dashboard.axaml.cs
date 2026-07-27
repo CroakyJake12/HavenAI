@@ -135,58 +135,38 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
 
     }
 
-    private Button BuildModeCard(ModeDefinition mode, string detail)
+    private DashboardCard BuildModeCard(ModeDefinition mode, string detail)
     {
-        var button = BuildCard(mode.IconKey, mode.Name, detail);
-        button.Click += (_, _) =>
+        var card = new DashboardCard
+        {
+            IconKey = mode.IconKey,
+            TitleText = mode.Name,
+            DetailText = detail
+        };
+        card.Click += (_, _) =>
         {
             _bus.Fire($"Dashboard.Mode.{mode.Key}.Click");
             ModeRequested?.Invoke(this, mode);
         };
-        return button;
+        return card;
     }
 
-    private Button BuildConversationCard(Conversation conversation, ModeDefinition mode)
+    private DashboardCard BuildConversationCard(Conversation conversation, ModeDefinition mode)
     {
         var detail = conversation.UpdatedAt.ToLocalTime().ToString("ddd d MMM, HH:mm");
-        var button = BuildCard("chat", conversation.Title, detail);
-        button.Click += (_, _) =>
+        var card = new DashboardCard
+        {
+            IconKey = "chat",
+            TitleText = conversation.Title,
+            DetailText = detail
+        };
+        card.Click += (_, _) =>
         {
             _bus.Fire("Dashboard.Conversation.Click");
             ConversationRequested?.Invoke(this, conversation);
         };
-        ToolTip.SetTip(button, $"Open in {mode.Name}");
-        return button;
-    }
-
-    private static Button BuildCard(string iconKey, string title, string detail)
-    {
-        var button = new Button
-        {
-            Width = 208,
-            Height = 136,
-            Margin = new Thickness(0, 0, 12, 12),
-            Padding = new Thickness(16),
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Stretch,
-            Background = ResourceBrush("HavenAccentSoftBrush", Color.Parse("#E9FFF0")),
-            BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(28, 0, 0, 0)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(24),
-            Content = new StackPanel
-            {
-                Spacing = 9,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Children =
-                {
-                    new HavenIcon { IconKey = iconKey, Width = 38, Height = 38, HorizontalAlignment = HorizontalAlignment.Center },
-                    new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.ExtraBold, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 174 },
-                    new TextBlock { Text = detail, Classes = { "muted" }, FontSize = 10, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center }
-                }
-            }
-        };
-        return button;
+        ToolTip.SetTip(card, $"Open in {mode.Name}");
+        return card;
     }
 
     private void RefreshClock()

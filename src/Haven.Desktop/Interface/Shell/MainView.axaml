@@ -39,7 +39,7 @@
             <!-- Content area -->
             <Grid Grid.Column="1">
                 <Border x:Name="ContentArea"
-                        Background="{DynamicResource HavenPanelBrush}"
+                        Background="Transparent"
                         BorderBrush="{DynamicResource HavenLineBrush}"
                         BorderThickness="1"
                         CornerRadius="24"
