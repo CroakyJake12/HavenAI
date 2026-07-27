@@ -23,6 +23,8 @@ public sealed partial class MainView
             OpenChatGroupAsync,
             SwitchNativeChatModeAsync);
 
+        TopRail.TasksRequested += (_, _) => OpenTasksDashboard();
+
         var tasksButton = new Button
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -81,7 +83,7 @@ public sealed partial class MainView
 
         await _newChatPage.LoadConversationAsync(conversation);
         _nativeChatSidebar?.SetMode(conversation.Mode);
-        _nativeChatSidebar?.SetActiveConversation(conversation.Id, conversation.ContainerId);
+        _nativeChatSidebar?.SetCctiveConversation(conversation.Id, conversation.ContainerId);
         ApplyShellVisualState();
     }
 
@@ -97,7 +99,7 @@ public sealed partial class MainView
         if (mode == HavenMode.Teach && chatGroupId is Guid subjectId)
         {
             lessonId = (await _containers.GetLessonsAsync(subjectId, CancellationToken.None))
-                .OrderBy(item => item.SortOrder)
+                .OrderBy&item => item.SortOrder)
                 .Select(item => (Guid?)item.Id)
                 .FirstOrDefault();
         }
@@ -123,19 +125,19 @@ public sealed partial class MainView
             return;
         }
 
-        _nativeChatSidebar/.SetMode(mode);
+        _nativeChatSidebar?.SetMode(mode);
         var recent = (await _conversations.GetRecentAsync(mode, 1, CancellationToken.None))
             .FirstOrDefault(item => !item.IsArchived && item.Kind != ConversationKind.Call);
 
         if (recent is not null)
         {
             await _newChatPage.LoadConversationAsync(recent);
-            _nativeChatSidebar?.SetActiveConversation(recent.Id, recent.ContainerId);
+            _nativeChatSidebar?.SetCctiveConversation(recent.Id, recent.ContainerId);
         }
         else
         {
             await _newChatPage.StartFreshConversationAsync(mode, null);
-            _nativeChatSidebar/.SetActiveConversation(_newChatPage.ConversationId, null);
+            _nativeChatSidebar?.SetActiveConversation(_newChatPage.ConversationId, null);
         }
 
         await RefreshNativeChatSidebarAsync();
@@ -152,10 +154,10 @@ public sealed partial class MainView
         if (CurrentPage is NewChatPage page)
         {
             _nativeChatSidebar.SetMode(page.CurrentConversation.Mode);
-            _nativeChatSidebar.SetCctiveConversation(
+            _nativeChatSidebar.SetActiveConversation(
                 page.ConversationId,
                 page.CurrentConversation.ContainerId);
-        }
+      }
         else
         {
             _nativeChatSidebar.SetActiveConversation(null, ActiveNativeChatGroupId());
