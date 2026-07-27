@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -12,6 +14,28 @@ namespace Haven.Desktop.Views.Shell.TopRail;
 /// </summary>
 public sealed partial class AppLauncherControl : UserControl
 {
+    private const string TasksKey = "tasks";
+
+    private static readonly ModeDefinition TasksApp = new(
+        Guid.Parse("7f0f5ef7-0ca5-4f51-a596-b0ed7d792417"),
+        TasksKey,
+        "Tasks",
+        "Requests and reusable tasks",
+        "tasks",
+        HavenMode.Do,
+        "[]",
+        "[]",
+        "[]",
+        "[]",
+        string.Empty,
+        ModeSource.BuiltIn,
+        ModeInstallState.BuiltIn,
+        "Haven",
+        "1.0.0",
+        "[\"productivity\"]",
+        DateTimeOffset.UnixEpoch,
+        DateTimeOffset.UnixEpoch);
+
     private IReadOnlyList<ModeDefinition> _apps = [];
     private IReadOnlySet<Guid> _pinnedIds = new HashSet<Guid>();
     private Action<ModeDefinition, bool>? _launch;
@@ -34,7 +58,9 @@ public sealed partial class AppLauncherControl : UserControl
         Action<ModeDefinition, bool> launch,
         Action manage)
     {
-        _apps = apps;
+        _apps = apps.Any(item => item.Key.Equals(TasksKey, StringComparison.OrdinalIgnoreCase))
+            ? apps
+            : apps.Concat([TasksApp]).ToArray();
         _pinnedIds = pinnedIds;
         _launch = launch;
         _manage = manage;
@@ -82,7 +108,16 @@ public sealed partial class AppLauncherControl : UserControl
         {
             var item = items[i];
             var button = BuildAppButton(item);
-            button.Click += (_, _) => _launch?.Invoke(item, false);
+            button.Click += (_, _) =>
+            {
+                if (item.Key.Equals(TasksKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    OpenTasksDashboard();
+                    return;
+                }
+
+                _launch?.Invoke(item, false);
+            };
             Grid.SetColumn(button, i % columns);
             Grid.SetRow(button, i / columns);
             grid.Children.Add(button);
@@ -132,8 +167,17 @@ public sealed partial class AppLauncherControl : UserControl
         return button;
     }
 
+    private static void OpenTasksDashboard()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow?.DataContext is MainView shell)
+        {
+            shell.OpenTasksDashboard();
+        }
+    }
+
     private static IBrush ResourceBrush(string key, Color fallback) =>
-        Avalonia.Application.Current?.TryFindResource(key, out var value) == true && value is IBrush brush
+        Application.Current?.TryFindResource(key, out var value) == true && value is IBrush brush
             ? brush
             : new SolidColorBrush(fallback);
 }
