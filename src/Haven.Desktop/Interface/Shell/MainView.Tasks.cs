@@ -5,7 +5,7 @@ namespace Haven.Desktop.Views.Shell;
 
 public sealed partial class MainView
 {
-    private void OpenTasksDashboard()
+    public void OpenTasksDashboard()
     {
         var containerId = CurrentChat.SelectedContainer?.Id;
         var key = "haven-tasks-" + (containerId?.ToString("N") ?? "global");
