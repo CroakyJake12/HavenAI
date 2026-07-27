@@ -247,7 +247,7 @@ public sealed class UserPreferencesService
             Set(application, "HavenAccentBrush", accent);
             Set(application, "HavenAccentInkBrush", theme.Light ? Colors.White : Color.Parse("#000000"));
             Set(application, "HavenAccentSoftBrush", Color.FromArgb(40, accent.R, accent.G, accent.B));
-            Set(application, "HavenBlueBrush", blue);
+            Set(application, "HavenAccentSecondaryBrush", blue);
             Set(application, "HavenBlueSoftBrush", Color.FromArgb(40, blue.R, blue.G, blue.B));
 
             // Borders — minimal Windows 11 style

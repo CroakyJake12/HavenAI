@@ -200,7 +200,7 @@ public sealed class ProductionMarkdownView : UserControl
     private static Control BuildQuote(string text) => new Border
     {
         BorderThickness = new Thickness(3, 0, 0, 0),
-        BorderBrush = Brush("HavenBlueBrush"),
+        BorderBrush = Brush("HavenAccentSecondaryBrush"),
         Background = Brush("HavenPanel2Brush"),
         CornerRadius = new CornerRadius(0, 8, 8, 0),
         Padding = new Thickness(12, 8),
@@ -230,7 +230,7 @@ public sealed class ProductionMarkdownView : UserControl
         ColumnSpacing = 4,
         Children =
         {
-            new TextBlock { Text = marker, Foreground = Brush("HavenBlueBrush"), HorizontalAlignment = HorizontalAlignment.Right },
+            new TextBlock { Text = marker, Foreground = Brush("HavenAccentSecondaryBrush"), HorizontalAlignment = HorizontalAlignment.Right },
             WithColumn(BuildInlineText(text, 13, FontWeight.Normal), 1)
         }
     };
@@ -406,7 +406,7 @@ public sealed class ProductionMarkdownView : UserControl
                 var close = token.IndexOf("](", StringComparison.Ordinal);
                 var label = token[1..close];
                 var url = token[(close + 2)..^1];
-                block.Inlines!.Add(new Run(label) { Foreground = Brush("HavenBlueBrush"), TextDecorations = TextDecorations.Underline });
+                block.Inlines!.Add(new Run(label) { Foreground = Brush("HavenAccentSecondaryBrush"), TextDecorations = TextDecorations.Underline });
                 block.Inlines!.Add(new Run(" (" + url + ")") { Foreground = Brush("HavenMutedBrush") });
             }
             position = match.Index + match.Length;

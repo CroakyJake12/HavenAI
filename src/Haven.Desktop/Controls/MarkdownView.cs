@@ -402,7 +402,7 @@ public sealed partial class MarkdownView : UserControl
                         Content = new TextBlock
                         {
                             Text = label,
-                            Foreground = Brush("HavenBlueBrush", "#5AA6FF"),
+                            Foreground = Brush("HavenAccentSecondaryBrush", "#5AA6FF"),
                             TextDecorations = TextDecorations.Underline
                         },
                         Padding = new Thickness(0),

@@ -76,7 +76,7 @@
                       <StackPanel Spacing="3">
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                           <TextBlock Text="{Binding Origin}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                          <TextBlock Grid.Column="1" Text="{Binding Kind}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" />
+                          <TextBlock Grid.Column="1" Text="{Binding Kind}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="10" />
                           <TextBlock Grid.Column="2" Text="{Binding Decision}" FontWeight="SemiBold" FontSize="10" />
                         </Grid>
                         <TextBlock Text="{Binding Updated}" Classes="muted2" FontSize="9" />
@@ -136,7 +136,7 @@
                     <StackPanel Spacing="3">
                       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                         <TextBlock Text="{Binding Result}" FontWeight="SemiBold" FontSize="9" />
-                        <TextBlock Grid.Column="1" Text="{Binding Operation}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" />
+                        <TextBlock Grid.Column="1" Text="{Binding Operation}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="10" />
                         <TextBlock Grid.Column="2" Text="{Binding Recorded}" Classes="muted2" FontSize="9" />
                       </Grid>
                       <TextBlock Text="{Binding Detail}" FontSize="10" TextWrapping="Wrap" />

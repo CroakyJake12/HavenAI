@@ -70,11 +70,10 @@
                                 <TextBlock Text="Full feature set" Classes="muted" FontSize="11"/>
                             </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="The complete Haven experience with all modes, studio, browser, planner, training, and more."
+                        <TextBlock Text="An old Haven wrapper that contains temporary legacy code and will be removed once migration is finished."
                                    TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
                         <StackPanel Spacing="4">
-                            <TextBlock Text="All features available" FontSize="11" Foreground="#2196F3"/>
-                            <TextBlock Text="Dark theme with Mica backdrop" FontSize="11" Foreground="#999999"/>
+                            <TextBlock Text="Depreciated" FontSize="11" Foreground="#2196F3"/>
                         </StackPanel>
                     </StackPanel>
                 </Button>

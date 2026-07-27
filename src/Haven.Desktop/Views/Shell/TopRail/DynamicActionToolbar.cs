@@ -63,12 +63,23 @@ public sealed class DynamicActionToolbar : StackPanel, IDisposable
         RebuildPinnedActions();
     }
 
+    private ActionsFlyoutControl? _actionsFlyoutControl;
+
     public void ShowActionsFlyout()
     {
-        _actionsFlyout ??= BuildActionsFlyout();
-        RebuildActionSections();
+        if (_actionsFlyoutControl is null)
+        {
+            _actionsFlyoutControl = new ActionsFlyoutControl();
+            _actionsFlyoutControl.SetEditActionsHandler(() => _editActions?.Invoke());
+        }
+        _actionsFlyoutControl.SetActions(_availableActions);
+        _actionsFlyout ??= new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            Content = _actionsFlyoutControl
+        };
         _actionsFlyout.ShowAt(_actionsButton);
-        _searchBox?.Focus();
+        _actionsFlyoutControl.FocusSearch();
     }
 
     private Button BuildActionsButton()

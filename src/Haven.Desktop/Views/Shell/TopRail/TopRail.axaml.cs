@@ -20,6 +20,7 @@ public sealed partial class TopRail : UserControl, IDisposable
     private NotificationCentre? _notificationCentre;
     private Flyout? _notificationFlyout;
     private Flyout? _appLauncherFlyout;
+    private AppLauncherControl? _appLauncherControl;
     private bool _eventsWired;
     private bool _disposed;
 
@@ -95,7 +96,14 @@ public sealed partial class TopRail : UserControl, IDisposable
         Action manage)
     {
         _appLauncherFlyout?.Hide();
-        _appLauncherFlyout = AppLauncherFlyout.Create(apps, pinnedIds, openInNewTab, launch, manage);
+        _appLauncherFlyout?.Content = null;
+        _appLauncherControl = new AppLauncherControl();
+        _appLauncherControl.Configure(apps, pinnedIds, openInNewTab, launch, manage);
+        _appLauncherFlyout = new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            Content = _appLauncherControl
+        };
         _appLauncherFlyout.ShowAt(AppsButton);
     }
 
@@ -120,7 +128,8 @@ public sealed partial class TopRail : UserControl, IDisposable
         {
             Text = tab.Title,
             FontSize = 14,
-            FontWeight = tab.IsSelected ? FontWeight.Bold : FontWeight.SemiBold,
+            FontWeight = tab.IsSelected ? FontWeight.ExtraBold : FontWeight.Bold,
+            Foreground = tab.IsSelected ? ResourceBrush("HavenAccentBrush", Colors.Black) : ResourceBrush("HavenTextSecondaryBrush", Colors.Gray),
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 180
@@ -133,7 +142,7 @@ public sealed partial class TopRail : UserControl, IDisposable
             Margin = new Thickness(0, 1, 0, 0),
             CornerRadius = new CornerRadius(2),
             Background = tab.IsSelected
-                ? ResourceBrush("HavenTextBrush", Colors.Black)
+                ? ResourceBrush("HavenAccentBrush", Colors.Black)
                 : Brushes.Transparent,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -159,7 +168,7 @@ public sealed partial class TopRail : UserControl, IDisposable
                     Width = 16,
                     Height = 16,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Opacity = tab.IsSelected ? 0.96 : 0.68
+                    Foreground = tab.IsSelected ? ResourceBrush("HavenAccentBrush", Colors.Black) : ResourceBrush("HavenTextSecondaryBrush", Colors.Gray)
                 },
                 titleAndUnderline
             }

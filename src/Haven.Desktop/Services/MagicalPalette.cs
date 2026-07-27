@@ -43,7 +43,7 @@ public static class MagicalPalette
         SetBrush(application, "HavenAccentBrush", "#2BE7C8");
         SetBrush(application, "HavenAccentInkBrush", "#041118");
         SetBrush(application, "HavenAccentSoftBrush", "#44386CFF");
-        SetBrush(application, "HavenBlueBrush", "#69B8FF");
+        SetBrush(application, "HavenAccentSecondaryBrush", "#69B8FF");
         SetBrush(application, "HavenBlueSoftBrush", "#263A75FF");
         SetBrush(application, "HavenDangerBrush", "#FF8AAE");
         SetBrush(application, "HavenWarningBrush", "#FFE07A");
