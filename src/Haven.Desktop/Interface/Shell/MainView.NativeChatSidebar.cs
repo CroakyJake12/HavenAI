@@ -6,9 +6,9 @@ public sealed partial class MainView
 {
     private NativeChatSidebar? _nativeChatSidebar;
 
-    private void InitialiseNativeChatSidebarP()
+    private void InitialiseNativeChatSidebar()
     {
-        _nativeChatSidebar = new NativeChatSidebar 
+        _nativeChatSidebar = new NativeChatSidebar(
             _conversations,
             _containers,
             OpenNativeConversationAsync,
