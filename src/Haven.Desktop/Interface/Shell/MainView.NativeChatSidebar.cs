@@ -83,7 +83,7 @@ public sealed partial class MainView
 
         await _newChatPage.LoadConversationAsync(conversation);
         _nativeChatSidebar?.SetMode(conversation.Mode);
-        _nativeChatSidebar?.SetCctiveConversation(conversation.Id, conversation.ContainerId);
+        _nativeChatSidebar?.SetActiveConversation(conversation.Id, conversation.ContainerId);
         ApplyShellVisualState();
     }
 
@@ -99,7 +99,7 @@ public sealed partial class MainView
         if (mode == HavenMode.Teach && chatGroupId is Guid subjectId)
         {
             lessonId = (await _containers.GetLessonsAsync(subjectId, CancellationToken.None))
-                .OrderBy&item => item.SortOrder)
+                .OrderBy(item => item.SortOrder)
                 .Select(item => (Guid?)item.Id)
                 .FirstOrDefault();
         }
@@ -132,7 +132,7 @@ public sealed partial class MainView
         if (recent is not null)
         {
             await _newChatPage.LoadConversationAsync(recent);
-            _nativeChatSidebar?.SetCctiveConversation(recent.Id, recent.ContainerId);
+            _nativeChatSidebar?.SetActiveConversation(recent.Id, recent.ContainerId);
         }
         else
         {
@@ -157,10 +157,10 @@ public sealed partial class MainView
             _nativeChatSidebar.SetActiveConversation(
                 page.ConversationId,
                 page.CurrentConversation.ContainerId);
-      }
+        }
         else
         {
-            _nativeChatSidebar.SetActiveConversation(null, ActiveNativeChatGroupId());
+            _nativeChatSidebar.SetCctiveConversation(null, ActiveNativeChatGroupId());
         }
 
         await _nativeChatSidebar.RefreshAsync();
