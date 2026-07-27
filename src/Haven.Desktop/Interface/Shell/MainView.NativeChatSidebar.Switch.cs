@@ -18,19 +18,29 @@ public sealed partial class MainView
             return;
         }
 
-        _nativeChatSidebar?.SetMode(mode);
+        if (_nativeChatSidebar is not null)
+        {
+            _nativeChatSidebar.SetMode(mode);
+        }
+
         var recent = (await _conversations.GetRecentAsync(mode, 1, CancellationToken.None))
             .FirstOrDefault(item => !item.IsArchived && item.Kind != ConversationKind.Call);
 
         if (recent is not null)
         {
             await _newChatPage.LoadConversationAsync(recent);
-            _nativeChatSidebar?.SetActiveConversation(recent.Id, recent.ContainerId);
+            if (_nativeChatSidebar is not null)
+            {
+                _nativeChatSidebar.SetActiveConversation(recent.Id, recent.ContainerId);
+            }
         }
         else
         {
             await _newChatPage.StartFreshConversationAsync(mode, null);
-            _nativeChatSidebar/.SetActiveConversation(_newChatPage.ConversationId, null);
+            if (_nativeChatSidebar is not null)
+            {
+                _nativeChatSidebar.SetActiveConversation(_newChatPage.ConversationId, null);
+            }
         }
 
         await RefreshNativeChatSidebarAsync();
