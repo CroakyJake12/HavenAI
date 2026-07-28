@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Application;
@@ -1255,8 +1256,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async void OnGoAddRequested(object? sender, AddMenu.AddMenuAction action)
     {
         if (action != AddMenu.AddMenuAction.File) return;
-        await OpenNewChatAsync();
-        if (_newChatPage is not null) await _newChatPage.AddFileAsync();
+        // Open file picker directly without forcing navigation to chat
+        var top = TopLevel.GetTopLevel(this);
+        if (top?.StorageProvider is null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Attach files",
+            AllowMultiple = true
+        });
+        if (files.Count > 0)
+        {
+            // Navigate to chat with the attached files
+            await OpenNewChatAsync();
+            if (_newChatPage is not null) await _newChatPage.AddFileAsync();
+        }
     }
 
     private async void OnGoCatalogItemSelected(object? sender, AddMenuSelection selection)
