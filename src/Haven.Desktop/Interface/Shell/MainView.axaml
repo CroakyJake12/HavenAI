@@ -9,8 +9,10 @@
     <Grid RowDefinitions="Auto,*"
           Background="Transparent">
 
+        <!-- Keep the shell transparent so the window-level, surface-aware tidal
+             background remains visible behind every page. -->
         <Border Grid.RowSpan="2"
-                Background="{DynamicResource HavenBackgroundBrush}"
+                Background="Transparent"
                 IsHitTestVisible="False" />
 
         <!-- ROW 0: Top Rail (header with logo, tabs, actions) -->
@@ -50,7 +52,7 @@
 
                         <!-- The app switcher and model state belong inside the workspace frame. -->
                         <Grid x:Name="ShellContextBar"
-                              ColumnDefinitions="Auto,*,Auto"
+                              ColumnDefinitions="Auto,*"
                               Margin="18,16,18,0"
                               IsVisible="False"
                               VerticalAlignment="Top">
@@ -112,26 +114,6 @@
                                 </Button.Flyout>
                             </Button>
 
-                            <Button x:Name="ModelSelectorButton"
-                                    Grid.Column="2"
-                                    Classes="chip"
-                                    Background="{DynamicResource HavenPanel2Brush}"
-                                    BorderBrush="{DynamicResource HavenLineBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="999"
-                                    Padding="12,5"
-                                    VerticalAlignment="Center"
-                                    ToolTip.Tip="Choose the model for this chat">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock x:Name="ModelNameText"
-                                               FontWeight="Bold"
-                                               FontSize="13"
-                                               Text="Qwen 3.6"/>
-                                    <TextBlock Text="&#x2022;" Classes="muted" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="ContextPercentText" FontSize="13" FontWeight="Medium" Text="100%"/>
-                                    <controls:HavenIcon IconKey="chevron-down" Width="11" Height="11" Opacity="0.62"/>
-                                </StackPanel>
-                            </Button>
                         </Grid>
                     </Grid>
                 </Border>

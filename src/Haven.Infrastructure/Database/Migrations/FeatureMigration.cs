@@ -53,7 +53,7 @@ public static class FeatureMigration
 
         ALTER TABLE plugins ADD COLUMN dashboard_tiles_json TEXT NOT NULL DEFAULT '[]';
 
-        -- Quick teaching chats are intentionally outside subjects and lessons.
+        -- Quick Study chats are intentionally outside subjects and lessons.
         UPDATE conversations
            SET container_id=NULL,kind=1
          WHERE mode=1 AND lesson_id IS NULL;

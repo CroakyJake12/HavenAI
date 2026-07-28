@@ -28,7 +28,6 @@
     <DataTemplate DataType="{x:Type vm:ProjectCreatorPageViewModel}"><views:ProjectCreatorView /></DataTemplate>
     <DataTemplate DataType="{x:Type studio:StudioProjectPage}"><views:StudioProjectView /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:WorkspaceEditorPage}"><views:WorkspaceEditorView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:MacrosPageViewModel}"><views:MacrosView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ArchivePageViewModel}"><views:ArchiveView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ActivityLogPageViewModel}"><views:ActivityLogView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ModeLibraryPageViewModel}"><views:ModeLibraryView /></DataTemplate>

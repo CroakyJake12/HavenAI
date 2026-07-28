@@ -72,17 +72,20 @@ public static class DashboardTileManifestPolicy
     /// Stores approved providers locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> ApprovedProviders = new(StringComparer.OrdinalIgnoreCase)
-        { "action", "calls", "plan", "projects", "teaching", "groups", "automations", "conversations" };
+        { "action", "calls", "plan", "projects", "study", "groups", "automations", "conversations" };
     /// <summary>
     /// Stores approved actions locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> ApprovedActions = new(StringComparer.OrdinalIgnoreCase)
-        { "new-chat", "chat", "teach", "call", "plan", "browse", "studio", "automations" };
+        {
+            "new-chat", "chat", "study", "tasks", "call", "plan", "browse", "studio", "automations",
+            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard"
+        };
     /// <summary>
     /// Stores reserved keys locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
-        { "new-chat", "call", "plan", "browse", "studio", "teaching", "groups", "automations" };
+        { "new-chat", "call", "plan", "browse", "studio", "study", "groups", "automations" };
 
     /// <summary>
     /// Reports whether approved applies to the current state.

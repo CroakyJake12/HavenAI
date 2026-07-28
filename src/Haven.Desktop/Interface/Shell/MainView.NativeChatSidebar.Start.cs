@@ -13,7 +13,7 @@ public sealed partial class MainView
         }
 
         Guid? lessonId = null;
-        if (mode == HavenMode.Teach && chatGroupId is Guid subjectId)
+        if (mode == HavenMode.Study && chatGroupId is Guid subjectId)
         {
             lessonId = (await _containers.GetLessonsAsync(subjectId, CancellationToken.None))
                 .OrderBy(item => item.SortOrder)

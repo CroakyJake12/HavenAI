@@ -1,17 +1,22 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
 /// <summary>
-/// AXAML-defined actions flyout control. Replaces the code-generated flyout in DynamicActionToolbar.
+/// Searchable contextual action catalogue. Actions are grouped and rendered in
+/// the mockup's stable three-column layout; the header itself never hosts pins.
 /// </summary>
 public sealed partial class ActionsFlyoutControl : UserControl
 {
-    private static readonly string[] Categories = ["Featured", "File", "Edit", "View", "Chat", "Project", "Tools", "Help"];
+    private static readonly string[] CategoryOrder =
+    [
+        "Pinned", "Recommended", "Chat", "Study", "Tasks", "Studio", "Browser",
+        "Plan", "Data", "Media", "File", "View", "Tools", "Help"
+    ];
+
     private readonly List<DynamicActionToolbar.ToolbarAction> _availableActions = [];
     private Action? _editActions;
 
@@ -22,8 +27,11 @@ public sealed partial class ActionsFlyoutControl : UserControl
         EditActionsButton.Click += (_, _) =>
         {
             _editActions?.Invoke();
+            ActionInvoked?.Invoke(this, EventArgs.Empty);
         };
     }
+
+    public event EventHandler? ActionInvoked;
 
     public void SetActions(IReadOnlyList<DynamicActionToolbar.ToolbarAction> actions)
     {
@@ -34,153 +42,149 @@ public sealed partial class ActionsFlyoutControl : UserControl
 
     public void SetEditActionsHandler(Action onExecute) => _editActions = onExecute;
 
-    public void FocusSearch() => SearchBox.Focus();
+    public void FocusSearch()
+    {
+        SearchBox.SelectAll();
+        SearchBox.Focus();
+    }
 
     private void RebuildSections()
     {
         SectionsPanel.Children.Clear();
         var query = SearchBox.Text?.Trim() ?? string.Empty;
+        var matches = _availableActions
+            .Where(action => string.IsNullOrWhiteSpace(query)
+                             || action.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
+                             || action.Description.Contains(query, StringComparison.OrdinalIgnoreCase)
+                             || action.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
 
-        foreach (var category in Categories)
+        foreach (var category in CategoryOrder)
         {
-            var actions = _availableActions
-                .Where(action => ResolveCategory(action) == category)
-                .Where(action => string.IsNullOrWhiteSpace(query)
-                                 || action.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
-                                 || action.Description.Contains(query, StringComparison.OrdinalIgnoreCase)
-                                 || category.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-            if (!string.IsNullOrWhiteSpace(query) && actions.Length == 0) continue;
+            var actions = matches.Where(action => ResolveCategory(action) == category).ToArray();
+            if (actions.Length == 0) continue;
 
-            var rows = new StackPanel { Spacing = 2, Margin = new Thickness(0, 3, 0, 6) };
-            foreach (var action in actions) rows.Children.Add(BuildActionRow(action));
-            if (actions.Length == 0)
+            SectionsPanel.Children.Add(new TextBlock
             {
-                rows.Children.Add(new TextBlock
-                {
-                    Text = category == "Help" ? "Ctrl+K opens Actions from anywhere." : "No actions in this section.",
-                    Classes = { "muted" },
-                    FontSize = 11,
-                    Margin = new Thickness(12, 6)
-                });
-            }
+                Text = category,
+                FontWeight = Avalonia.Media.FontWeight.ExtraBold,
+                FontSize = 13,
+                Margin = new Thickness(5, 8, 5, 2)
+            });
+            SectionsPanel.Children.Add(BuildActionGrid(actions));
+        }
 
-            var header = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 10 };
-            header.Children.Add(new HavenIcon { IconKey = CategoryIcon(category), Width = 16, Height = 16, Opacity = 0.76 });
-            var label = new TextBlock { Text = category, FontWeight = FontWeight.Bold, FontSize = 14 };
-            Grid.SetColumn(label, 1);
-            header.Children.Add(label);
-
-            if (category == "Featured")
-            {
-                if (actions.Length == 0) continue;
-                SectionsPanel.Children.Add(new TextBlock
-                {
-                    Text = "Featured",
-                    FontWeight = FontWeight.ExtraBold,
-                    FontSize = 12,
-                    Margin = new Thickness(10, 7, 10, 2)
-                });
-                SectionsPanel.Children.Add(rows);
-                continue;
-            }
-
-            var section = new Expander
-            {
-                Header = header,
-                IsExpanded = !string.IsNullOrWhiteSpace(query),
-                Content = rows,
-                Background = Brushes.Transparent,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch
-            };
-            section.Classes.Add("actionSection");
+        if (matches.Length == 0)
+        {
             SectionsPanel.Children.Add(new Border
             {
-                Background = ResourceBrush("HavenPanel2Brush", Color.Parse("#FFF8F8F8")),
-                BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(26, 0, 0, 0)),
-                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(16),
-                Padding = new Thickness(4, 2),
-                Child = section
+                Padding = new Thickness(18),
+                Child = new TextBlock
+                {
+                    Text = "No actions match this search in the current app.",
+                    Classes = { "muted" },
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                }
             });
         }
     }
 
-    private Button BuildActionRow(DynamicActionToolbar.ToolbarAction action)
+    private Grid BuildActionGrid(IReadOnlyList<DynamicActionToolbar.ToolbarAction> actions)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 11 };
-        grid.Children.Add(new HavenIcon
+        const int columns = 3;
+        var rowCount = (int)Math.Ceiling(actions.Count / (double)columns);
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            RowDefinitions = new RowDefinitions(string.Join(',', Enumerable.Repeat("Auto", rowCount))),
+            ColumnSpacing = 8,
+            RowSpacing = 8
+        };
+
+        for (var index = 0; index < actions.Count; index++)
+        {
+            var button = BuildActionTile(actions[index]);
+            Grid.SetColumn(button, index % columns);
+            Grid.SetRow(button, index / columns);
+            grid.Children.Add(button);
+        }
+        return grid;
+    }
+
+    private Button BuildActionTile(DynamicActionToolbar.ToolbarAction action)
+    {
+        var content = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 10
+        };
+        content.Children.Add(new HavenIcon
         {
             IconKey = action.IconKey,
-            Width = 17,
-            Height = 17,
-            Opacity = 0.8,
+            Width = 20,
+            Height = 20,
             VerticalAlignment = VerticalAlignment.Center
         });
-        var text = new TextBlock
+        var label = new TextBlock
         {
             Text = action.Label,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = Avalonia.Media.FontWeight.ExtraBold,
             FontSize = 13,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(text, 1);
-        grid.Children.Add(text);
-        var shortcut = new TextBlock
-        {
-            Text = action.Shortcut,
-            Classes = { "muted" },
-            FontSize = 10,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Center,
-            IsVisible = !string.IsNullOrWhiteSpace(action.Shortcut)
+            MaxLines = 2
         };
-        Grid.SetColumn(shortcut, 2);
-        grid.Children.Add(shortcut);
+        Grid.SetColumn(label, 1);
+        content.Children.Add(label);
 
         var button = new Button
         {
+            Content = content,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            MinHeight = 38,
-            Padding = new Thickness(10, 7),
-            Content = grid
+            MinHeight = 68,
+            Padding = new Thickness(14, 11),
+            CornerRadius = new CornerRadius(14),
+            Background = ResourceBrush("HavenPanel2Brush", Avalonia.Media.Color.Parse("#FFF3F3F3")),
+            BorderBrush = ResourceBrush("HavenLineBrush", Avalonia.Media.Color.FromArgb(24, 0, 0, 0)),
+            BorderThickness = new Thickness(1)
         };
-        button.Classes.Add("sidebar");
-        button.Click += (_, _) => action.OnExecute();
+        var normalBackground = button.Background;
+        button.PointerEntered += (_, _) =>
+            button.Background = ResourceBrush("HavenAccentSoftBrush", Avalonia.Media.Color.Parse("#FFE2F7F5"));
+        button.PointerExited += (_, _) => button.Background = normalBackground;
+        ToolTip.SetTip(button, string.IsNullOrWhiteSpace(action.Description)
+            ? action.Tooltip ?? action.Label
+            : action.Description + (string.IsNullOrWhiteSpace(action.Shortcut) ? string.Empty : $" · {action.Shortcut}"));
+        button.Click += (_, _) =>
+        {
+            action.OnExecute();
+            ActionInvoked?.Invoke(this, EventArgs.Empty);
+        };
         return button;
     }
 
+    private static Avalonia.Media.IBrush ResourceBrush(string key, Avalonia.Media.Color fallback) =>
+        Avalonia.Application.Current?.TryFindResource(key, out var value) == true
+        && value is Avalonia.Media.IBrush brush
+            ? brush
+            : new Avalonia.Media.SolidColorBrush(fallback);
+
     private static string ResolveCategory(DynamicActionToolbar.ToolbarAction action)
     {
-        if (action.IsFeatured) return "Featured";
-        if (Categories.Contains(action.Category, StringComparer.OrdinalIgnoreCase))
-            return Categories.First(category => category.Equals(action.Category, StringComparison.OrdinalIgnoreCase));
+        if (action.IsFeatured) return "Pinned";
+        if (CategoryOrder.Contains(action.Category, StringComparer.OrdinalIgnoreCase))
+            return CategoryOrder.First(category => category.Equals(action.Category, StringComparison.OrdinalIgnoreCase));
 
         var name = action.Label.ToLowerInvariant();
-        if (name.Contains("new ") || name.StartsWith("archive") || name.Contains("activity log") || name.Contains("delete")) return "File";
-        if (name.Contains("rename") || name.Contains("copy") || name.Contains("undo") || name.Contains("redo") || name.Contains("save")) return "Edit";
-        if (name.Contains("sidebar") || name.Contains("app library") || name.Contains("notification")) return "View";
-        if (name.Contains("branch") || name.Contains("chat") || name.Contains("context") || name.Contains("model") || name.Contains("instruction") || name.Contains("plugin") || name.Contains("pin")) return "Chat";
-        if (name.Contains("project") || name.Contains("macro") || name.Contains("extension")) return "Project";
-        if (name.Contains("browse") || name.Contains("training") || name.Contains("scheduled") || name.Contains("refresh") || name.Contains("settings")) return "Tools";
-        return "Help";
+        if (name.Contains("branch") || name.Contains("chat") || name.Contains("agent") || name.Contains("plugin") || name.Contains("response")) return "Chat";
+        if (name.Contains("project") || name.Contains("build") || name.Contains("test") || name.Contains("git")) return "Studio";
+        if (name.Contains("browser") || name.Contains("page") || name.Contains("bookmark")) return "Browser";
+        if (name.Contains("task") || name.Contains("timer") || name.Contains("automation")) return "Tasks";
+        if (name.Contains("plan") || name.Contains("calendar")) return "Plan";
+        if (name.Contains("save") || name.Contains("new") || name.Contains("delete") || name.Contains("archive")) return "File";
+        if (name.Contains("sidebar") || name.Contains("tab") || name.Contains("zoom")) return "View";
+        return "Tools";
     }
-
-    private static string CategoryIcon(string category) => category switch
-    {
-        "Featured" => "sparkles",
-        "File" => "file",
-        "Edit" => "edit",
-        "View" => "browse",
-        "Chat" => "chat",
-        "Project" => "studio",
-        "Tools" => "settings",
-        _ => "info"
-    };
-
-    private static IBrush ResourceBrush(string key, Color fallback) =>
-        Avalonia.Application.Current?.TryFindResource(key, out var value) == true && value is IBrush brush
-            ? brush
-            : new SolidColorBrush(fallback);
 }

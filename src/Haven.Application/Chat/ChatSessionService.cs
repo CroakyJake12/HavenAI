@@ -487,7 +487,6 @@ public sealed class ChatSessionService(
                 "Automate" or
                 "BrowserUse" or
                 "ComputerUse" or
-                "Macro" or
                 "Test" or
                 "WebSearch"))
             .ToArray();
@@ -742,8 +741,8 @@ public sealed class ChatSessionService(
         var mode = conversation.Mode switch
         {
             HavenMode.Chat => "You are Haven Chat, a local private assistant.",
-            HavenMode.Teach => "You are Haven Teach. Explain clearly, check factual teaching claims with enabled research tools, and adapt to the learner.",
-            HavenMode.Do => "You are Haven Do. Complete tasks safely, request approval for risky or irreversible actions, and keep an audit trail.",
+            HavenMode.Study => "You are Haven Study. Explain clearly, check factual teaching claims with enabled research tools, and adapt to the learner.",
+            HavenMode.Tasks => "You are Haven Tasks. Complete tasks safely, request approval for risky or irreversible actions, and keep an audit trail.",
             HavenMode.Studio => "You are Haven Studio. Inspect, edit, test, observe failures, repair, explain, and validate local software projects before finishing.",
             _ => "You are Haven."
         };
@@ -771,7 +770,7 @@ public sealed class ChatSessionService(
         {
             builder.Append("\nYou are connected to real Haven workspace tools rooted at: ").Append(workspaceRoot)
                 .Append("\nUse the tools instead of pretending to inspect or modify files. Inspect first, make the minimum necessary changes, examine each result, run relevant validation, and continue until complete or genuinely blocked. Never claim an action succeeded unless a tool result confirms it. Do not access paths outside the selected workspace.");
-            if (conversation.Mode is HavenMode.Do or HavenMode.Studio)
+            if (conversation.Mode is HavenMode.Tasks or HavenMode.Studio)
                 builder.Append("\nBefore a material edit, give a concise impact estimate (scope, risk, affected surfaces). During edits, keep steps and change counts explicit. After every edit, provide a short changelog. Explain errors in plain English and point to their likely cause. Gather only relevant logs and recent actions. Critical correctness or security faults may be fixed immediately; ask before unrelated cleanup, style-only rewrites, dependency modernisation, or scope expansion. Keep deliverables easy to find, with a desktop executable at the requested top level when packaging permits it.");
             if (conversation.Mode == HavenMode.Studio)
                 builder.Append("\nUse project decisions as constraints and warn before reversing one. Convert rough requests into requirements, constraints, and acceptance checks before broad changes. Generate targeted tests from those checks. Before release or publish, assess changed files, dependencies, past failures, and test coverage, then run the highest-risk tests first. Recommend smart initial settings and existing features when they materially help, explain why once without nagging, and wait for approval before changing settings.");

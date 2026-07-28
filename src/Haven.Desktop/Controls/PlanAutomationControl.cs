@@ -51,7 +51,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     /// </summary>
     private readonly TextBox _instruction = new()
     {
-        PlaceholderText = "What should Haven do or check?",
+        PlaceholderText = "What should Haven handle or check?",
         AcceptsReturn = true,
         TextWrapping = TextWrapping.Wrap,
         MinHeight = 86,

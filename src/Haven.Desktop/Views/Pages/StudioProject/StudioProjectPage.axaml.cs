@@ -18,7 +18,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     }
     private PropertyChangedEventHandler? _propertyChanged;
 
-    private readonly ContainerDefinition _project;
+    private ContainerDefinition _project;
     private readonly IConversationRepository _conversations;
     private readonly IContainerRepository _containers;
     private readonly IAutomationRepository _automations;
@@ -53,6 +53,8 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     private string _creationBuilderPrompt = string.Empty;
     private bool _isInConfigureMode;
     private string _configureStatus = string.Empty;
+    private string _projectNameDraft = string.Empty;
+    private string _projectContextDraft = string.Empty;
 
     public StudioProjectPage(
         ContainerDefinition project,
@@ -111,7 +113,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         UseFeatureCommand = new AsyncRelayCommand<ProjectFeatureCardViewModel>(item => item is null ? Task.CompletedTask : _startChat(item.Prompt));
         ArchiveProjectCommand = new AsyncRelayCommand(ArchiveProjectAsync);
         SwitchToCreateCommand = new RelayCommand(() => { IsInCreateMode = true; IsInConfigureMode = false; });
-        SwitchToConfigureCommand = new RelayCommand(() => { IsInCreateMode = false; IsInConfigureMode = true; });
+        SwitchToConfigureCommand = new RelayCommand(OpenProjectSettings);
         SwitchToOverviewCommand = new RelayCommand(() => { IsInCreateMode = false; IsInConfigureMode = false; CreationKind = StudioCreationKind.None; });
         StartModeCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Mode; IsInCreateMode = true; });
         StartPluginCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Plugin; IsInCreateMode = true; });
@@ -120,6 +122,14 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         CreateItemCommand = new AsyncRelayCommand(CreateItemAsync, () => !string.IsNullOrWhiteSpace(CreationName) && !string.IsNullOrWhiteSpace(CreationDescription));
         BuildWithAiCommand = new AsyncRelayCommand(BuildWithAiAsync, () => !string.IsNullOrWhiteSpace(CreationBuilderPrompt));
         CancelCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.None; IsInCreateMode = false; CreationName = CreationDescription = CreationInstructions = CreationBuilderPrompt = string.Empty; });
+        SaveProjectSettingsCommand = new AsyncRelayCommand(SaveProjectSettingsAsync, () => !string.IsNullOrWhiteSpace(ProjectNameDraft));
+        CancelProjectSettingsCommand = new RelayCommand(() =>
+        {
+            ProjectNameDraft = _project.Name;
+            ProjectContextDraft = _project.Context;
+            IsInConfigureMode = false;
+        });
+        GenerateProjectContextCommand = new AsyncRelayCommand(GenerateProjectContextAsync);
         Features =
         [
             new("Requirement Extractor", "Turn a rough request into requirements, constraints, and acceptance checks.", ">Rigid Extract clear requirements, constraints, unknowns, and acceptance checks for this project request: "),
@@ -139,6 +149,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     public Guid ProjectId => _project.Id;
     public ContainerDefinition Definition => _project;
     public string ProjectName => _project.Name;
+    public string ProjectContext => _project.Context;
     public string RootPath => _project.RootPath ?? string.Empty;
     public bool HasRoot => Directory.Exists(RootPath);
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
@@ -219,6 +230,19 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     public string CreationInstructions { get => _creationInstructions; set => SetProperty(ref _creationInstructions, value); }
     public string CreationBuilderPrompt { get => _creationBuilderPrompt; set { if (SetProperty(ref _creationBuilderPrompt, value)) BuildWithAiCommand.RaiseCanExecuteChanged(); } }
     public string ConfigureStatus { get => _configureStatus; private set => SetProperty(ref _configureStatus, value); }
+    public string ProjectNameDraft
+    {
+        get => _projectNameDraft;
+        set
+        {
+            if (SetProperty(ref _projectNameDraft, value))
+                SaveProjectSettingsCommand.RaiseCanExecuteChanged();
+        }
+    }
+    public string ProjectContextDraft { get => _projectContextDraft; set => SetProperty(ref _projectContextDraft, value); }
+    public AsyncRelayCommand SaveProjectSettingsCommand { get; }
+    public RelayCommand CancelProjectSettingsCommand { get; }
+    public AsyncRelayCommand GenerateProjectContextCommand { get; }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
@@ -255,6 +279,94 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         foreach (var item in (await _automations.GetAllAsync(CancellationToken.None)).Where(item => item.IsEnabled && item.ContainerId == ProjectId))
             ActiveAutomations.Add(new(item.Name, item.Instruction, item.NextRunAt?.LocalDateTime.ToString("g") ?? "Waiting for trigger"));
         Status = $"Project state captured at {_state.CapturedAt.LocalDateTime:t}.";
+    }
+
+    private void OpenProjectSettings()
+    {
+        IsInCreateMode = false;
+        ProjectNameDraft = _project.Name;
+        ProjectContextDraft = _project.Context;
+        ConfigureStatus = string.Empty;
+        IsInConfigureMode = true;
+    }
+
+    private async Task SaveProjectSettingsAsync()
+    {
+        var name = ProjectNameDraft.Trim();
+        if (name.Length == 0)
+        {
+            ConfigureStatus = "Project name is required.";
+            return;
+        }
+
+        _project = _project with
+        {
+            Name = name,
+            Context = ProjectContextDraft.Trim(),
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        await _containers.UpsertAsync(_project, CancellationToken.None);
+        RaisePropertyChanged(nameof(ProjectName));
+        RaisePropertyChanged(nameof(ProjectContext));
+        ConfigureStatus = "Project settings saved.";
+        IsInConfigureMode = false;
+    }
+
+    private async Task GenerateProjectContextAsync()
+    {
+        if (_ollama is null)
+        {
+            ConfigureStatus = "A local model provider is not available.";
+            return;
+        }
+
+        ConfigureStatus = "Generating project context from project chats…";
+        try
+        {
+            var conversations = (await _conversations.GetRecentAsync(HavenMode.Studio, 80, CancellationToken.None))
+                .Where(item => item.ContainerId == ProjectId && !item.IsArchived)
+                .OrderByDescending(item => item.UpdatedAt)
+                .Take(12)
+                .ToArray();
+            if (conversations.Length == 0)
+            {
+                ConfigureStatus = "There are no project chats to summarise yet.";
+                return;
+            }
+
+            var transcript = new System.Text.StringBuilder();
+            foreach (var conversation in conversations)
+            {
+                transcript.AppendLine("Conversation: " + conversation.Title);
+                foreach (var message in await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None))
+                {
+                    if (transcript.Length >= 36_000) break;
+                    transcript.Append(message.Role).Append(": ").AppendLine(message.Content);
+                }
+                if (transcript.Length >= 36_000) break;
+            }
+
+            var models = await _ollama.GetModelsAsync(CancellationToken.None);
+            var model = models.FirstOrDefault(item => item.Supports(ToolCapability.Text)) ?? models.FirstOrDefault();
+            if (model is null)
+            {
+                ConfigureStatus = "No compatible local text model is installed.";
+                return;
+            }
+
+            var result = await _ollama.CompleteAsync(new OllamaChatRequest(
+                model.Name,
+                [new OllamaMessage(
+                    "user",
+                    "Create concise durable project context from these chats. Preserve the purpose, requirements, architecture, decisions, constraints, verification commands, and unresolved work. Do not invent anything. Return plain text with short headings.\n\n" + transcript)],
+                EffortLevel.Medium), CancellationToken.None);
+            ProjectContextDraft = result.Trim();
+            ConfigureStatus = "Context draft generated. Review it before saving.";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            ConfigureStatus = "Project context could not be generated: " + ex.Message;
+        }
     }
 
     private async Task BuildAsync()
@@ -394,7 +506,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
                     {
                         var key = CreationName.Trim().ToLowerInvariant().Replace(" ", "-");
                         var mode = new ModeDefinition(Guid.NewGuid(), key, CreationName.Trim(), CreationDescription.Trim(),
-                            "puzzle", HavenMode.Do, "[\"Do\"]", "[]", "[]", "[]", CreationInstructions.Trim(),
+                            "puzzle", HavenMode.Tasks, "[\"Tasks\"]", "[]", "[]", "[]", CreationInstructions.Trim(),
                             ModeSource.Created, ModeInstallState.InstalledByUser, "User", "1.0.0", "[]", now, now);
                         await _modeRegistry.UpsertModeAsync(mode, CancellationToken.None);
                         await _modeRegistry.AddVersionAsync(new ModeVersion(Guid.NewGuid(), mode.Id, 1, 0, 0, "{}", "Initial version", now), CancellationToken.None);

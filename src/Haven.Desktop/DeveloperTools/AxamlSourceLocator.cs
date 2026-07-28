@@ -104,7 +104,7 @@ internal static class AxamlSourceLocator
                 foreach (var match in FindAll(file, namePattern, isExact: true))
                 {
                     if (first is not null)
-                        return first with { Note = "Ambiguous: multiple matches exist. This is the first one found." };
+                        return null;
                     first = match;
                 }
             }
@@ -123,7 +123,7 @@ internal static class AxamlSourceLocator
             foreach (var match in matches)
             {
                 if (unique is not null)
-                    return unique with { Note = "Ambiguous: multiple type matches exist. This is the first one found." };
+                    return null;
                 unique = match;
             }
         }

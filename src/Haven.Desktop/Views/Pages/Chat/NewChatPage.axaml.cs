@@ -1,5 +1,6 @@
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -34,6 +35,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly List<string> _attachedImages = [];
     private readonly List<string> _attachedContext = [];
     private readonly Dictionary<Guid, MarkdownView> _messageBodies = [];
+    private readonly StackPanel _taskHistory = new() { Spacing = 6 };
+    private ModeDefinition? _modeDefinition;
     private Conversation _conversation;
     private AgentDefinition? _activeAgent;
     private ModelDescriptor? _selectedModel;
@@ -43,6 +46,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private Flyout? _messageActionsFlyout;
     private Flyout? _messageSecondaryFlyout;
     private bool _isSending;
+    private bool _isTaskMode;
     private bool _lastReportedHasStarted;
     private bool _disposed;
 
@@ -79,6 +83,180 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public Conversation CurrentConversation => _conversation;
     public bool IsTemporary => _conversation.IsTemporary;
     public bool HasStarted => _messages.Count > 0;
+
+    /// <summary>
+    /// Gives the shared conversation canvas a registered app identity. The
+    /// conversation keeps its compatible base mode while the app-specific
+    /// instructions are included in every turn.
+    /// </summary>
+    public void ConfigureMode(ModeDefinition mode)
+    {
+        ArgumentNullException.ThrowIfNull(mode);
+        if (HasStarted)
+            throw new InvalidOperationException("A started conversation cannot be reassigned to another app.");
+
+        _modeDefinition = mode;
+        _conversation = CreateConversation(mode.BaseMode);
+        InstructionBox.PlaceholderText = mode.Key switch
+        {
+            "imagine" => "Describe an image, style or visual concept",
+            "present" => "Describe the presentation you want to create",
+            "data" => "Attach data or ask Haven to analyse it",
+            "vision" => "Attach an image and ask what you want to inspect",
+            "play" => "Describe what you want to play, build or explore",
+            "translate" => "Paste text and name the target language",
+            "launcher" => "Find an app, project, command or recent item",
+            _ => $"Ask Haven {mode.Name}"
+        };
+        StatusText.Text = mode.Description;
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Configures the shared modern conversation canvas for a one-time Task.
+    /// No synthetic setup message is inserted into the transcript: the user
+    /// starts by describing the outcome they actually want.
+    /// </summary>
+    public void ConfigureTaskMode()
+    {
+        if (HasStarted)
+            throw new InvalidOperationException("A started conversation cannot be reassigned to Tasks.");
+
+        _isTaskMode = true;
+        _modeDefinition = null;
+        _conversation = CreateConversation(HavenMode.Tasks);
+        SurfaceGrid.ColumnDefinitions = new ColumnDefinitions("340,*");
+        SurfaceTitle.IsVisible = true;
+        TasksSidebarHost.IsVisible = true;
+        TasksSidebarHost.Child = BuildTasksSidebar();
+        InstructionBox.PlaceholderText = "Describe your task";
+        StatusText.Text = "Describe what you want Haven to complete. Haven will ask only for details that materially affect the result.";
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        _ = RefreshTaskHistoryAsync();
+    }
+
+    private Control BuildTasksSidebar()
+    {
+        var newTask = new Button
+        {
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
+                Children =
+                {
+                    new HavenIcon { IconKey = "tasks", Width = 20, Height = 20 },
+                    new TextBlock { Text = "New Task", FontSize = 15, FontWeight = FontWeight.Bold }
+                }
+            },
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 54,
+            Padding = new Thickness(16, 10),
+            CornerRadius = new CornerRadius(16),
+            Background = ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE5F7D4")),
+            BorderThickness = new Thickness(0)
+        };
+        newTask.Click += async (_, _) =>
+        {
+            await StartFreshConversationAsync(HavenMode.Tasks, null);
+            StatusText.Text = "Describe what you want Haven to complete.";
+            await RefreshTaskHistoryAsync();
+        };
+        AutomationProperties.SetName(newTask, "Start a new one-time task");
+
+        return new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowSpacing = 14,
+            Children =
+            {
+                newTask,
+                Row(new TextBlock
+                {
+                    Text = "Task History",
+                    FontSize = 13,
+                    FontWeight = FontWeight.Bold,
+                    Margin = new Thickness(6, 0, 0, 0)
+                }, 1),
+                Row(new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = _taskHistory
+                }, 2)
+            }
+        };
+    }
+
+    private async Task RefreshTaskHistoryAsync()
+    {
+        if (!_isTaskMode) return;
+        try
+        {
+            var conversations = await _conversations.GetRecentAsync(HavenMode.Tasks, 40, CancellationToken.None);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _taskHistory.Children.Clear();
+                foreach (var conversation in conversations.Where(item => !item.IsArchived))
+                {
+                    var captured = conversation;
+                    var button = new Button
+                    {
+                        Content = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 9,
+                            Children =
+                            {
+                                new HavenIcon { IconKey = "clock", Width = 17, Height = 17 },
+                                new TextBlock
+                                {
+                                    Text = string.IsNullOrWhiteSpace(captured.Title) ? "Untitled task" : captured.Title,
+                                    FontSize = 14,
+                                    FontWeight = FontWeight.SemiBold,
+                                    TextTrimming = TextTrimming.CharacterEllipsis,
+                                    MaxWidth = 250
+                                }
+                            }
+                        },
+                        HorizontalContentAlignment = HorizontalAlignment.Left,
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        MinHeight = 44,
+                        Padding = new Thickness(10, 7),
+                        CornerRadius = new CornerRadius(13),
+                        Background = captured.Id == ConversationId
+                            ? ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE5F7D4"))
+                            : Brushes.Transparent,
+                        BorderThickness = new Thickness(0)
+                    };
+                    button.Click += async (_, _) => await LoadConversationAsync(captured);
+                    AutomationProperties.SetName(button, "Open task " + captured.Title);
+                    _taskHistory.Children.Add(button);
+                }
+
+                if (_taskHistory.Children.Count == 0)
+                    _taskHistory.Children.Add(new TextBlock
+                    {
+                        Text = "Completed and active one-time tasks will appear here.",
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = ResourceBrush("HavenMutedBrush", Color.Parse("#FF666666")),
+                        FontSize = 12,
+                        Margin = new Thickness(8, 4)
+                    });
+            });
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await SetStatusAsync("Task history could not be loaded: " + exception.Message);
+        }
+    }
+
+    private static T Row<T>(T control, int row) where T : Control
+    {
+        Grid.SetRow(control, row);
+        return control;
+    }
 
     public void SelectModel(ModelDescriptor model)
     {
@@ -125,16 +303,39 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     public void FocusComposer() => InstructionBox.Focus();
 
+    public void SetDraft(string instruction)
+    {
+        InstructionBox.Text = instruction;
+        InstructionBox.CaretIndex = instruction.Length;
+        FocusComposer();
+    }
+
+    public void ShowAddMenu() => AddButton.ShowMenu();
+
+    public Task RegenerateLatestAsync()
+    {
+        var response = _messages.LastOrDefault(message => message.Role == MessageRole.Assistant);
+        return response is null
+            ? Task.CompletedTask
+            : RegenerateResponseAsync(response, ResponseRegenerationMode.Here);
+    }
+
+    public Task BranchLatestAsync()
+    {
+        var through = _messages.LastOrDefault();
+        return through is null ? Task.CompletedTask : BranchIntoNewChatAsync(through);
+    }
+
     public void StartFreshConversation(Guid? chatGroupId = null)
     {
-        ResetToFreshConversation(HavenMode.Chat, chatGroupId, null);
+        ResetToFreshConversation(_modeDefinition?.BaseMode ?? HavenMode.Chat, chatGroupId, null);
         _ = PersistFreshConversationAsync(_conversation);
         NotifyFreshConversationReady();
     }
 
     public async Task StartFreshConversationAsync(Guid? chatGroupId = null)
     {
-        ResetToFreshConversation(HavenMode.Chat, chatGroupId, null);
+        ResetToFreshConversation(_modeDefinition?.BaseMode ?? HavenMode.Chat, chatGroupId, null);
         await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
         NotifyFreshConversationReady();
     }
@@ -175,6 +376,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private void NotifyFreshConversationReady()
     {
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        if (_isTaskMode) _ = RefreshTaskHistoryAsync();
         FocusComposer();
     }
 
@@ -192,6 +394,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
         RefreshMessages();
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        if (_isTaskMode) _ = RefreshTaskHistoryAsync();
         FocusComposer();
     }
 
@@ -537,7 +740,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         if (_selectedModel is null)
         {
             _pendingInstruction = instruction;
-            StatusText.Text = "Connecting to the selected local modelâ€¦";
+            StatusText.Text = "Connecting to the selected local model…";
             return;
         }
 
@@ -585,7 +788,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                                _attachedImages.Count == 0 ? null : _attachedImages.ToArray(),
                                _sendCancellation.Token,
                                prompts: _activeInstructions.Select(item => new ActivePrompt(item.Name, item.IconKey, item.Persists, item.Instructions)).ToArray(),
-                               registeredContext: _attachedContext.Count == 0 ? null : string.Join("\n\n", _attachedContext),
+                               registeredContext: BuildRegisteredContext(),
                                generationOptions: _preferences.GenerationOptions,
                                filePermission: _preferences.FilePermission,
                                commandPermission: _preferences.CommandPermission,
@@ -631,6 +834,19 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             _isSending = false;
             await Dispatcher.UIThread.InvokeAsync(RefreshVisualState);
         }
+    }
+
+    private string? BuildRegisteredContext()
+    {
+        var sections = new List<string>();
+        if (_modeDefinition is { } mode)
+        {
+            sections.Add($"Active Haven app: {mode.Name}.\nPurpose: {mode.Description}");
+            if (!string.IsNullOrWhiteSpace(mode.SystemPromptSuffix))
+                sections.Add(mode.SystemPromptSuffix.Trim());
+        }
+        sections.AddRange(_attachedContext.Where(item => !string.IsNullOrWhiteSpace(item)));
+        return sections.Count == 0 ? null : string.Join("\n\n", sections);
     }
 
     private void ApplyStreamEvent(ChatStreamEvent streamEvent)
@@ -733,6 +949,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         {
             _lastReportedHasStarted = HasStarted;
             ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+            if (_isTaskMode) _ = RefreshTaskHistoryAsync();
         }
 
         Dispatcher.UIThread.Post(() => MessagesScroll.ScrollToEnd(), DispatcherPriority.Background);
@@ -1199,13 +1416,13 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var now = DateTimeOffset.UtcNow;
         var kind = mode switch
         {
-            HavenMode.Teach when lessonId is not null => ConversationKind.LessonChat,
-            HavenMode.Teach => ConversationKind.QuickChat,
-            HavenMode.Do => ConversationKind.Task,
+            HavenMode.Study when lessonId is not null => ConversationKind.LessonChat,
+            HavenMode.Study => ConversationKind.QuickChat,
+            HavenMode.Tasks => ConversationKind.Task,
             HavenMode.Studio => ConversationKind.StudioChat,
             _ => ConversationKind.Chat
         };
-        if (mode == HavenMode.Teach && lessonId is null)
+        if (mode == HavenMode.Study && lessonId is null)
         {
             containerId = null;
         }
@@ -1213,7 +1430,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Guid.NewGuid(),
             mode,
             kind,
-            mode == HavenMode.Teach ? "New study chat" : mode == HavenMode.Do ? "New research" : "New chat",
+            mode == HavenMode.Study ? "New study chat" : mode == HavenMode.Tasks ? "New task" : "New chat",
             containerId,
             lessonId,
             false,

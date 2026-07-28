@@ -4,7 +4,7 @@
              x:Class="Haven.Desktop.Views.Shell.TopRail.ActionsFlyoutControl">
 
   <StackPanel Spacing="9">
-    <Border Width="410"
+    <Border Width="690"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
@@ -23,7 +23,7 @@
                               Opacity="0.7"
                               IsHitTestVisible="False" />
         </Grid>
-        <ScrollViewer MaxHeight="350"
+        <ScrollViewer MaxHeight="530"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
           <StackPanel x:Name="SectionsPanel" Spacing="4" />
@@ -31,7 +31,7 @@
       </StackPanel>
     </Border>
 
-    <Border Width="410"
+    <Border Width="690"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
@@ -44,7 +44,7 @@
               Classes="sidebar">
         <StackPanel Orientation="Horizontal" Spacing="12">
           <controls:HavenIcon IconKey="settings" Width="19" Height="19" />
-          <TextBlock Text="Edit Actions &amp; Toolbar" FontWeight="ExtraBold" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock Text="Edit Actions" FontWeight="ExtraBold" FontSize="14" VerticalAlignment="Center" />
         </StackPanel>
       </Button>
     </Border>

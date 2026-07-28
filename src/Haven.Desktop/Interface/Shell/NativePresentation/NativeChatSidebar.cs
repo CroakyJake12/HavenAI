@@ -188,7 +188,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _modeLabel.Text = ModeName(mode);
         AutomationProperties.SetName(_modeLabel, $"Current mode: {ModeName(mode)}");
         _groupsHeading.Text = GroupName(mode, plural: true);
-        _chatsHeading.Text = mode == HavenMode.Teach ? "Study Chats" : mode == HavenMode.Do ? "Research Chats" : "Chats";
+        _chatsHeading.Text = mode == HavenMode.Study ? "Study Chats" : mode == HavenMode.Tasks ? "Task Chats" : "Chats";
         _searchBox.PlaceholderText = $"Search {ModeName(mode)}";
         _activeConversationId = null;
         _activeGroupId = null;
@@ -310,8 +310,8 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     {
         var panel = new StackPanel { Width = 210, Spacing = 2, Margin = new Thickness(6) };
         panel.Children.Add(ModeButton("chat", "Chat", HavenMode.Chat));
-        panel.Children.Add(ModeButton("teach", "Study", HavenMode.Teach));
-        panel.Children.Add(ModeButton("search", "Research", HavenMode.Do));
+        panel.Children.Add(ModeButton("study", "Study", HavenMode.Study));
+        panel.Children.Add(ModeButton("tasks", "Tasks", HavenMode.Tasks));
         return new Flyout { Placement = PlacementMode.BottomEdgeAlignedLeft, Content = panel };
     }
 
@@ -544,7 +544,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             }
             var now = DateTimeOffset.UtcNow;
             var group = new ContainerDefinition(Guid.NewGuid(), _currentMode, name, null, string.Empty, string.Empty, now, now);
-            if (_currentMode == HavenMode.Teach)
+            if (_currentMode == HavenMode.Study)
             {
                 await _containers.CreateSubjectAsync(group, _lifetime.Token);
             }
@@ -794,22 +794,22 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private static string ModeName(HavenMode mode) => mode switch
     {
-        HavenMode.Teach => "Study",
-        HavenMode.Do => "Research",
+        HavenMode.Study => "Study",
+        HavenMode.Tasks => "Tasks",
         _ => "Chat"
     };
 
     private static string GroupName(HavenMode mode, bool plural) => mode switch
     {
-        HavenMode.Teach => plural ? "Subjects" : "Subject",
-        HavenMode.Do => plural ? "Research Groups" : "Research Group",
+        HavenMode.Study => plural ? "Subjects" : "Subject",
+        HavenMode.Tasks => plural ? "Task Groups" : "Task Group",
         _ => plural ? "Chat Groups" : "Chat Group"
     };
 
     private static string NewChatLabel(HavenMode mode) => mode switch
     {
-        HavenMode.Teach => "New Study Chat",
-        HavenMode.Do => "New Research",
+        HavenMode.Study => "New Study Chat",
+        HavenMode.Tasks => "New Task",
         _ => "New Chat"
     };
 

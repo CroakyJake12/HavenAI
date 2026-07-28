@@ -26,7 +26,7 @@ public sealed partial class GoPage : UserControl, IDisposable
     {
         _bus = bus;
         InitializeComponent();
-        _suggestionButtons = [RecentChatsButton, TeachingButton, StudioButton, RecapButton];
+        _suggestionButtons = [RecentChatsButton, StudyButton, StudioButton, RecapButton];
         _suggestionIcons = [SuggestionIcon0, SuggestionIcon1, SuggestionIcon2, SuggestionIcon3];
         _suggestionTexts = [SuggestionText0, SuggestionText1, SuggestionText2, SuggestionText3];
         WireEvents();
@@ -70,7 +70,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         LoadMoreButton.IsEnabled = !inProgress;
         LoadMoreButton.Content = new TextBlock
         {
-            Text = inProgress ? "Finding More…" : "Load More",
+            Text = inProgress ? "Finding more…" : "Load more",
             Foreground = new SolidColorBrush(Color.Parse("#111111")),
             FontSize = 14,
             FontWeight = FontWeight.ExtraBold,
@@ -81,7 +81,7 @@ public sealed partial class GoPage : UserControl, IDisposable
     private void WireEvents()
     {
         Register("Go.Suggestions.RecentChats", RecentChatsButton);
-        Register("Go.Suggestions.Teaching", TeachingButton);
+        Register("Go.Suggestions.Study", StudyButton);
         Register("Go.Suggestions.Studio", StudioButton);
         Register("Go.Suggestions.Recap", RecapButton);
         Register("Go.Suggestions.LoadMore", LoadMoreButton);
@@ -90,7 +90,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         Register("Go.Composer.Add", AddButton);
 
         RecentChatsButton.Click += (_, _) => SubmitSuggestion(0);
-        TeachingButton.Click += (_, _) => SubmitSuggestion(1);
+        StudyButton.Click += (_, _) => SubmitSuggestion(1);
         StudioButton.Click += (_, _) => SubmitSuggestion(2);
         RecapButton.Click += (_, _) => SubmitSuggestion(3);
         LoadMoreButton.Click += (_, _) =>

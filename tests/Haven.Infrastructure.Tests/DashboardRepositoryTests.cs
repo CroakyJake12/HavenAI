@@ -47,7 +47,7 @@ public sealed class DashboardRepositoryTests : IDisposable
         foreach (var container in new[]
                  {
                      new ContainerDefinition(Guid.NewGuid(), HavenMode.Chat, "Group", null, "", "", now, now),
-                     new ContainerDefinition(Guid.NewGuid(), HavenMode.Teach, "Subject", null, "", "", now, now),
+                     new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Subject", null, "", "", now, now),
                      new ContainerDefinition(Guid.NewGuid(), HavenMode.Studio, "Project", _paths.DataDirectory, "", "", now, now)
                  })
             await containers.UpsertAsync(container, CancellationToken.None);
@@ -69,7 +69,7 @@ public sealed class DashboardRepositoryTests : IDisposable
         await conversations.UpsertConversationAsync(callConversation, CancellationToken.None);
         await calls.UpsertAsync(new CallSession(Guid.NewGuid(), callConversation.Id, "qwen", null, null, null,
             CallInputMode.HandsFree, false, CallSessionStatus.Completed, now.AddMinutes(-8), now.AddMinutes(-6)), CancellationToken.None);
-        await automations.UpsertAsync(new AutomationDefinition(Guid.NewGuid(), "Daily brief", HavenMode.Do, "Brief me",
+        await automations.UpsertAsync(new AutomationDefinition(Guid.NewGuid(), "Daily brief", HavenMode.Tasks, "Brief me",
             AutomationScheduleKind.Daily, "{}", now.AddDays(1), null, true, now, now), CancellationToken.None);
 
         var snapshot = await new DashboardRepository(database).GetSnapshotAsync(now, CancellationToken.None);
@@ -78,7 +78,7 @@ public sealed class DashboardRepositoryTests : IDisposable
         Assert.Equal(1, snapshot.MessagesThisWeek);
         Assert.Equal(1, snapshot.ActiveProjects);
         Assert.Equal(1, snapshot.ChatGroups);
-        Assert.Equal(1, snapshot.TeachingSubjects);
+        Assert.Equal(1, snapshot.StudySubjects);
         Assert.Equal(1, snapshot.TasksDueToday);
         Assert.Equal(1, snapshot.OverdueTasks);
         Assert.Equal(1, snapshot.TasksCompletedThisWeek);

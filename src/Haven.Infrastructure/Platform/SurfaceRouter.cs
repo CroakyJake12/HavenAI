@@ -43,18 +43,18 @@ public sealed class SurfaceRouter : ISurfaceRouter
             return Task.FromResult(SurfaceKind.Plan);
         if (lower.Contains("training") || lower.Contains("practice"))
             return Task.FromResult(SurfaceKind.Training);
-        if (lower.Contains("teach") || lower.Contains("lesson") || lower.Contains("learn"))
-            return Task.FromResult(SurfaceKind.Teach);
+        if (lower.Contains("study") || lower.Contains("teach") || lower.Contains("lesson") || lower.Contains("learn"))
+            return Task.FromResult(SurfaceKind.Study);
         if (lower.Contains("studio") || lower.Contains("project") || lower.Contains("code"))
             return Task.FromResult(SurfaceKind.Studio);
-        if (lower.Contains("do") || lower.Contains("task") || lower.Contains("complete"))
-            return Task.FromResult(SurfaceKind.Do);
+        if (lower.Contains("task") || lower.Contains("to-do") || lower.Contains("complete"))
+            return Task.FromResult(SurfaceKind.Tasks);
 
         return Task.FromResult(currentMode switch
         {
             HavenMode.Chat => SurfaceKind.Chat,
-            HavenMode.Teach => SurfaceKind.Teach,
-            HavenMode.Do => SurfaceKind.Do,
+            HavenMode.Study => SurfaceKind.Study,
+            HavenMode.Tasks => SurfaceKind.Tasks,
             HavenMode.Studio => SurfaceKind.Studio,
             _ => SurfaceKind.Chat
         });

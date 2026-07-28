@@ -20,14 +20,14 @@ public sealed class GoSuggestionService(
     private static readonly Regex HexColour = new("^#[0-9A-Fa-f]{6}$", RegexOptions.CultureInvariant);
     private static readonly HashSet<string> AllowedIcons = new(StringComparer.OrdinalIgnoreCase)
     {
-        "chat", "teach", "folder", "refresh", "search", "build", "test", "notes",
+        "chat", "study", "folder", "refresh", "search", "build", "test", "notes",
         "plan", "browse", "tasks", "studio", "rapid", "experiment", "bookmark", "file"
     };
 
     public static IReadOnlyList<GoSuggestion> ImmediateDefaults { get; } =
     [
         new("Show my Recent Chats", "Show my recent chats and help me choose where to continue.", "chat", "#913C00"),
-        new("Continue teaching me Algebra", "Continue teaching me Algebra from where we last stopped.", "teach", "#07539B"),
+        new("Continue studying Algebra", "Continue studying Algebra from where we last stopped.", "study", "#07539B"),
         new("Work on Haven", "Help me continue my recent work on Haven in Studio.", "folder", "#5B00A8"),
         new("Recap this Week's Work", "Recap what I worked on this week and suggest the best next step.", "refresh", "#176425")
     ];

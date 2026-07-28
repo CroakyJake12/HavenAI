@@ -232,7 +232,7 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         command.CommandText = """
             UPDATE plugins SET is_enabled=0
              WHERE is_built_in=1
-               AND name NOT IN ('Agent','Goal','BrowserUse','ComputerUse','WebSearch','DuoMode','Automate','Test','Macro');
+               AND name NOT IN ('Agent','Goal','BrowserUse','ComputerUse','WebSearch','DuoMode','Automate','Test');
             """;
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

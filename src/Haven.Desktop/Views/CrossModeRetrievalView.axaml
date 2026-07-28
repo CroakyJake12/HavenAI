@@ -24,7 +24,7 @@
         <StackPanel>
           <TextBlock Text="PROJECT / SUBJECT RETRIEVAL" Classes="eyebrow" />
           <TextBlock Text="{Binding ContextLabel}" FontWeight="SemiBold" />
-          <TextBlock Text="Indexes only the selected Studio root or Teach subject. Other projects and subjects are excluded." Classes="muted" FontSize="9" />
+          <TextBlock Text="Indexes only the selected Studio root or Study subject. Other projects and subjects are excluded." Classes="muted" FontSize="9" />
         </StackPanel>
         <Button Grid.Column="1" Content="{Binding IndexLabel}" Command="{Binding IndexCommand}" />
       </Grid>

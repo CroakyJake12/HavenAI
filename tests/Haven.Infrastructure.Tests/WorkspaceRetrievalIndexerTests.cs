@@ -68,7 +68,7 @@ public sealed class WorkspaceRetrievalIndexerTests : IDisposable
         var indexer = new WorkspaceRetrievalIndexer(retrieval);
         var now = DateTimeOffset.UtcNow;
         var subject = new ContainerDefinition(
-            Guid.NewGuid(), HavenMode.Teach, "A-Level Law", null,
+            Guid.NewGuid(), HavenMode.Study, "A-Level Law", null,
             "OCR law revision context", "Use the current specification", now, now, false);
         var lessons = new[]
         {

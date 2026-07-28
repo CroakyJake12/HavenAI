@@ -32,7 +32,7 @@ public sealed class RecoverySafeModePolicyTests : IDisposable
     {
         RuntimeSafetyState.EnableSafeMode("test crash loop");
         var context = new ToolAvailabilityContext(
-            HavenMode.Do,
+            HavenMode.Tasks,
             _workspace,
             [],
             PermissionMode.FullAccess,
@@ -48,7 +48,7 @@ public sealed class RecoverySafeModePolicyTests : IDisposable
             [Definition("browser_navigate")],
             [Definition("browser_click_ref")],
             [Definition("automation_run")],
-            [Definition("macro_run")]);
+            [Definition("task_run")]);
 
         var plan = ToolAvailabilityPlanner.Default.Create(context, sources);
 
@@ -56,7 +56,7 @@ public sealed class RecoverySafeModePolicyTests : IDisposable
         foreach (var name in new[]
                  {
                      "write_file", "run_command", "computer_click", "browser_navigate",
-                     "browser_click_ref", "automation_run", "macro_run"
+                     "browser_click_ref", "automation_run", "task_run"
                  })
         {
             Assert.Contains("safe mode", plan.GetUnavailableReason(name), StringComparison.OrdinalIgnoreCase);
@@ -74,7 +74,7 @@ public sealed class RecoverySafeModePolicyTests : IDisposable
     {
         RuntimeSafetyState.DisableSafeMode();
         var context = new ToolAvailabilityContext(
-            HavenMode.Do,
+            HavenMode.Tasks,
             _workspace,
             [],
             PermissionMode.FullAccess,

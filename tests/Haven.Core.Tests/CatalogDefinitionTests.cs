@@ -24,7 +24,7 @@ public sealed class CatalogDefinitionTests
     public void FunctionalPluginsAndPromptLibraryHaveExpectedBuiltIns()
     {
         var pluginNames = PluginCatalog.BuiltIns.Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.Equal(new[] { "Agent", "Automate", "BrowserUse", "ComputerUse", "DuoMode", "Goal", "Macro", "Test", "WebSearch" },
+        Assert.Equal(new[] { "Agent", "Automate", "BrowserUse", "ComputerUse", "DuoMode", "Goal", "Test", "WebSearch" },
             pluginNames.OrderBy(item => item, StringComparer.OrdinalIgnoreCase));
         Assert.DoesNotContain("Parameter", pluginNames);
 
@@ -39,12 +39,12 @@ public sealed class CatalogDefinitionTests
     [Fact]
     public void AgenticWorkspacePluginsAreModeBoundAndWebSearchUsesBrowserCapability()
     {
-        foreach (var name in new[] { "DuoMode", "Automate", "Test", "Macro" })
+        foreach (var name in new[] { "DuoMode", "Automate", "Test" })
         {
             var plugin = Assert.Single(PluginCatalog.BuiltIns, item => item.Name == name);
             var modes = JsonSerializer.Deserialize<string[]>(plugin.AllowedModesJson);
             Assert.NotNull(modes);
-            Assert.Contains("Do", modes!);
+            Assert.Contains("Tasks", modes!);
             Assert.Contains("Studio", modes!);
         }
 

@@ -1,11 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Core;
 using Haven.Desktop.Controls;
-using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -14,32 +12,11 @@ namespace Haven.Desktop.Views.Shell.TopRail;
 /// </summary>
 public sealed partial class AppLauncherControl : UserControl
 {
-    private const string TasksKey = "tasks";
-
-    private static readonly ModeDefinition TasksApp = new(
-        Guid.Parse("7f0f5ef7-0ca5-4f51-a596-b0ed7d792417"),
-        TasksKey,
-        "Tasks",
-        "Requests and reusable tasks",
-        "tasks",
-        HavenMode.Do,
-        "[]",
-        "[]",
-        "[]",
-        "[]",
-        string.Empty,
-        ModeSource.BuiltIn,
-        ModeInstallState.BuiltIn,
-        "Haven",
-        "1.0.0",
-        "[\"productivity\"]",
-        DateTimeOffset.UnixEpoch,
-        DateTimeOffset.UnixEpoch);
-
     private IReadOnlyList<ModeDefinition> _apps = [];
     private IReadOnlySet<Guid> _pinnedIds = new HashSet<Guid>();
     private Action<ModeDefinition, bool>? _launch;
     private Action? _manage;
+    private bool _openInNewTab;
 
     public AppLauncherControl()
     {
@@ -58,10 +35,9 @@ public sealed partial class AppLauncherControl : UserControl
         Action<ModeDefinition, bool> launch,
         Action manage)
     {
-        _apps = apps.Any(item => item.Key.Equals(TasksKey, StringComparison.OrdinalIgnoreCase))
-            ? apps
-            : apps.Concat([TasksApp]).ToArray();
+        _apps = apps;
         _pinnedIds = pinnedIds;
+        _openInNewTab = openInNewTab;
         _launch = launch;
         _manage = manage;
         Rebuild();
@@ -76,10 +52,20 @@ public sealed partial class AppLauncherControl : UserControl
             .Where(item => string.IsNullOrWhiteSpace(query)
                            || item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                            || item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(item => item.Name)
             .ToArray();
-        AddSection("Pinned", filtered.Where(item => _pinnedIds.Contains(item.Id)).ToArray());
-        AddSection("Productivity", filtered.Where(item => !_pinnedIds.Contains(item.Id)).ToArray());
+        var pinned = filtered.Where(item => _pinnedIds.Contains(item.Id)).ToArray();
+        var unpinned = filtered.Where(item => !_pinnedIds.Contains(item.Id)).ToArray();
+        var recommended = unpinned.Take(6).ToArray();
+        var remaining = unpinned.Skip(recommended.Length).ToArray();
+
+        AddSection("Pinned", string.IsNullOrWhiteSpace(query) ? pinned.Take(6).ToArray() : pinned);
+        if (string.IsNullOrWhiteSpace(query) && pinned.Length > 6)
+            AddInlineAction("View all pinned", "pin", () => _manage?.Invoke());
+        AddSection("Recommended", recommended);
+        AddSection("General", remaining.Where(item => CategoryFor(item) == "General").ToArray());
+        AddSection("Productivity", remaining.Where(item => CategoryFor(item) == "Productivity").ToArray());
+        AddSection("Media & creativity", remaining.Where(item => CategoryFor(item) == "Media & creativity").ToArray());
+        AddSection("More", remaining.Where(item => CategoryFor(item) == "More").ToArray());
     }
 
     private void AddSection(string title, IReadOnlyList<ModeDefinition> items)
@@ -108,16 +94,7 @@ public sealed partial class AppLauncherControl : UserControl
         {
             var item = items[i];
             var button = BuildAppButton(item);
-            button.Click += (_, _) =>
-            {
-                if (item.Key.Equals(TasksKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    OpenTasksDashboard();
-                    return;
-                }
-
-                _launch?.Invoke(item, false);
-            };
+            button.Click += (_, _) => _launch?.Invoke(item, _openInNewTab);
             Grid.SetColumn(button, i % columns);
             Grid.SetRow(button, i / columns);
             grid.Children.Add(button);
@@ -150,7 +127,6 @@ public sealed partial class AppLauncherControl : UserControl
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Width = 190,
             Height = 56,
             Margin = new Thickness(2, 0, 2, 8),
             Padding = new Thickness(12, 8),
@@ -167,13 +143,37 @@ public sealed partial class AppLauncherControl : UserControl
         return button;
     }
 
-    private static void OpenTasksDashboard()
+    private void AddInlineAction(string label, string iconKey, Action action)
     {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            && desktop.MainWindow?.DataContext is MainView shell)
+        var button = new Button
         {
-            shell.OpenTasksDashboard();
-        }
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(13, 9),
+            CornerRadius = new CornerRadius(14),
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 9,
+                Children =
+                {
+                    new HavenIcon { IconKey = iconKey, Width = 17, Height = 17 },
+                    new TextBlock { Text = label, FontWeight = FontWeight.ExtraBold }
+                }
+            }
+        };
+        button.Classes.Add("sidebar");
+        button.Click += (_, _) => action();
+        SectionsPanel.Children.Add(button);
+    }
+
+    private static string CategoryFor(ModeDefinition item)
+    {
+        var key = item.Key.Trim().ToLowerInvariant();
+        if (key is "chat" or "dashboard" or "go" or "launcher") return "General";
+        if (key is "imagine" or "present" or "vision" or "play") return "Media & creativity";
+        if (key is "data" or "plan" or "study" or "tasks" or "translate" or "studio") return "Productivity";
+        return "More";
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>

@@ -1,5 +1,5 @@
 using Haven.Core;
-using Haven.Desktop.Views.Pages.Macros;
+using Haven.Desktop.Views.Pages.Tasks;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -18,17 +18,46 @@ public sealed partial class MainView
             return;
         }
 
-        var page = new MacrosPage(
-            _bus,
+        var page = new TasksPage(
             _workspaceState,
+            _automations,
             containerId,
-            InvokeMacroAsync);
+            StartOneTimeTaskAsync,
+            InvokeTaskAsync);
 
         AddOrSelectTab(
             key,
             "Haven Tasks",
             page,
             closeable: true,
-            surface: HavenSurface.Do);
+            surface: HavenSurface.Tasks);
+    }
+
+    private async Task InvokeTaskAsync(string instruction)
+    {
+        AddOrSelectTab(
+            "chat-tasks",
+            "Run Task",
+            CurrentChat,
+            false,
+            HavenSurface.Tasks);
+        await CurrentChat.InvokeAsync(instruction);
+    }
+
+    private async Task StartOneTimeTaskAsync()
+    {
+        var page = CreateNewChatPage();
+        page.ConfigureTaskMode();
+        await ConfigureAddMenuAsync(page);
+        AddOrSelectTab(
+            "task-run-" + Guid.NewGuid().ToString("N")[..8],
+            "Run Task",
+            page,
+            true,
+            HavenSurface.Tasks,
+            forceNewTab: true);
+        ApplyShellVisualState();
+        await RefreshNativeChatSidebarAsync();
+        page.FocusComposer();
     }
 }

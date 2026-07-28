@@ -1091,8 +1091,8 @@ public sealed partial class WorkspaceChromeHost
         {
             HavenSurface.Home => "home",
             HavenSurface.Chat => "chat",
-            HavenSurface.Teach => "teach",
-            HavenSurface.Do => "tasks",
+            HavenSurface.Study => "study",
+            HavenSurface.Tasks => "tasks",
             HavenSurface.Studio => "studio",
             HavenSurface.Browse => "browse",
             HavenSurface.Plan => "plan",
@@ -1466,7 +1466,7 @@ public sealed partial class WorkspaceChromeHost
     {
         var text = value?.ToLowerInvariant() ?? string.Empty;
         if (text.Contains("chat")) return "chat";
-        if (text.Contains("teach") || text.Contains("learn")) return "teach";
+        if (text.Contains("study") || text.Contains("teach") || text.Contains("learn")) return "study";
         if (text.Contains("call") || text.Contains("phone")) return "call";
         if (text.Contains("studio") || text.Contains("code") || text.Contains("create")) return "studio";
         if (text.Contains("browse") || text.Contains("web")) return "browse";

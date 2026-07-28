@@ -29,10 +29,10 @@
             <TextBlock x:Name="SuggestionText0" Text="Show my Recent Chats" Foreground="#FF913C00" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
           </StackPanel>
         </Button>
-        <Button x:Name="TeachingButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+        <Button x:Name="StudyButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
           <StackPanel Orientation="Horizontal" Spacing="10">
-            <controls:HavenIcon x:Name="SuggestionIcon1" IconKey="teach" Width="19" Height="19" Foreground="#FF07539B" />
-            <TextBlock x:Name="SuggestionText1" Text="Continue teaching me Algebra" Foreground="#FF07539B" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+            <controls:HavenIcon x:Name="SuggestionIcon1" IconKey="study" Width="19" Height="19" Foreground="#FF07539B" />
+            <TextBlock x:Name="SuggestionText1" Text="Continue studying Algebra" Foreground="#FF07539B" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
           </StackPanel>
         </Button>
         <Button x:Name="StudioButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">

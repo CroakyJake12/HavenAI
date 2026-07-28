@@ -38,7 +38,10 @@ public sealed class ModePackageValidator : IModePackageValidator
     /// </summary>
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "chat", "teach", "do", "studio", "browse", "plan", "training", "home", "settings", "admin"
+        "chat", "study", "tasks", "studio", "browse", "plan", "training", "home", "settings", "admin",
+        "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard",
+        // Old package keys remain reserved so they cannot be reintroduced as custom modes.
+        "teach", "do"
     };
 
     /// <summary>

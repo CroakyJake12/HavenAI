@@ -18,15 +18,15 @@ internal sealed partial class NativeProjectsPage
 
     private Control BuildLayout()
     {
-        var title = Heading("Projects", 38);
+        var title = Heading("Projects", 46);
         title.HorizontalAlignment = HorizontalAlignment.Center;
 
         var searchHost = new Grid
         {
-            MaxWidth = 1000,
+            MaxWidth = 1160,
             HorizontalAlignment = HorizontalAlignment.Center,
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(0, 22, 0, 22)
+            ColumnDefinitions = new ColumnDefinitions("*"),
+            Margin = new Thickness(0, 24, 0, 28)
         };
         searchHost.Children.Add(_searchBox);
         searchHost.Children.Add(new HavenIcon
@@ -40,10 +40,6 @@ internal sealed partial class NativeProjectsPage
             IsHitTestVisible = false,
             Opacity = 0.78
         });
-        Grid.SetColumn(_refreshButton, 1);
-        _refreshButton.Margin = new Thickness(10, 6, 0, 6);
-        searchHost.Children.Add(_refreshButton);
-
         var pinnedSection = new StackPanel
         {
             Spacing = 12,
@@ -64,40 +60,57 @@ internal sealed partial class NativeProjectsPage
             Children = { _projectHeading, _projectPanel, _emptyState }
         };
 
-        var createHost = new Border
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 38, 0, 8),
-            Child = _newProjectButton
-        };
-
-        var content = new StackPanel
+        var sections = new StackPanel
         {
             Spacing = 0,
-            MaxWidth = 1380,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 1500,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Children =
             {
-                title,
-                searchHost,
                 pinnedSection,
                 unreadSection,
                 allSection,
-                _status,
-                createHost
+                _status
             }
         };
 
-        return new ScrollViewer
+        var body = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            Children = { title }
+        };
+        Grid.SetRow(searchHost, 1);
+        body.Children.Add(searchHost);
+        var sectionScroll = new ScrollViewer
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = new Border
+            Content = sections
+        };
+        Grid.SetRow(sectionScroll, 2);
+        body.Children.Add(sectionScroll);
+
+        var root = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            Children =
             {
-                Padding = new Thickness(38, 36, 38, 42),
-                Child = content
+                new Border
+                {
+                    Padding = new Thickness(40, 30, 40, 12),
+                    Child = body
+                }
             }
         };
+        var createHost = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(32, 12, 32, 22),
+            Child = _newProjectButton
+        };
+        Grid.SetRow(createHost, 1);
+        root.Children.Add(createHost);
+        return root;
     }
 
     private Border BuildEmptyState()
@@ -168,7 +181,7 @@ internal sealed partial class NativeProjectsPage
         {
             Text = text,
             FontSize = size,
-            FontWeight = FontWeight.SemiBold
+            FontWeight = FontWeight.Bold
         };
 
     private static Button Button(string text, bool primary)
@@ -182,7 +195,7 @@ internal sealed partial class NativeProjectsPage
             VerticalContentAlignment = VerticalAlignment.Center,
             CornerRadius = new CornerRadius(10),
             Background = primary ? AccentBrush : CardBrush,
-            Foreground = primary ? Brushes.White : Brushes.Black,
+            Foreground = primary ? AccentInkBrush : TextBrush,
             BorderBrush = primary ? AccentBrush : BorderBrush,
             BorderThickness = new Thickness(1)
         };
@@ -209,8 +222,8 @@ internal sealed partial class NativeProjectsPage
     private static WrapPanel ProjectTilePanel() => new()
     {
         Orientation = Orientation.Horizontal,
-        ItemWidth = 254,
-        ItemHeight = 190
+        ItemWidth = 300,
+        ItemHeight = 222
     };
 
     private static Button LinkButton(string text) =>
@@ -225,4 +238,7 @@ internal sealed partial class NativeProjectsPage
         };
 
     private static IBrush Brush(string value) => new SolidColorBrush(Color.Parse(value));
+
+    private static IBrush PaletteBrush(string key, string fallback) =>
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? Brush(fallback);
 }

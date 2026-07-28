@@ -21,7 +21,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Retrieves definitions for the current operation.
     /// </summary>
-    public IReadOnlyList<OllamaToolDefinition> GetDefinitions(bool enableAutomations, bool enableMacros)
+    public IReadOnlyList<OllamaToolDefinition> GetDefinitions(bool enableAutomations, bool enableReusableTasks)
     {
         var result = new List<OllamaToolDefinition>();
         if (enableAutomations)
@@ -35,16 +35,16 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
                     ["schedule_json"] = StringProperty("Schedule configuration JSON, for example {\"time\":\"08:00\"}.")
                 }, "name", "instruction", "schedule_kind", "schedule_json"));
         }
-        if (enableMacros)
+        if (enableReusableTasks)
         {
-            result.Add(Definition("macro_create", "Create a click-to-run Haven macro. Macros are inert until the user invokes them.",
+            result.Add(Definition("task_create", "Create a reusable Haven Task that runs only when the user chooses it.",
                 new()
                 {
-                    ["name"] = StringProperty("Short macro button name."),
-                    ["description"] = StringProperty("What the macro does."),
-                    ["instruction"] = StringProperty("Instruction executed when clicked.")
+                    ["name"] = StringProperty("Short task name."),
+                    ["description"] = StringProperty("The task outcome."),
+                    ["instruction"] = StringProperty("Complete reusable task instructions.")
                 }, "name", "instruction"));
-            result.Add(Definition("macro_list", "List enabled Haven macros available to this task group or project.", new()));
+            result.Add(Definition("task_list", "List enabled reusable Haven Tasks available to this task group or project.", new()));
         }
         return result;
     }
@@ -60,8 +60,8 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
             var output = call.Name switch
             {
                 "automation_create" => await CreateAutomationAsync(call, mode, containerId, cancellationToken).ConfigureAwait(false),
-                "macro_create" => await CreateMacroAsync(call, containerId, cancellationToken).ConfigureAwait(false),
-                "macro_list" => await ListMacrosAsync(containerId, cancellationToken).ConfigureAwait(false),
+                "task_create" => await CreateReusableTaskAsync(call, containerId, cancellationToken).ConfigureAwait(false),
+                "task_list" => await ListReusableTasksAsync(containerId, cancellationToken).ConfigureAwait(false),
                 _ => throw new InvalidOperationException($"Unknown automation tool '{call.Name}'.")
             };
             return new WorkspaceToolResult(new ToolActivity(Guid.NewGuid(), Label(call.Name), output.Split('\n')[0], true,
@@ -93,24 +93,24 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     }
 
     /// <summary>
-    /// Creates macro async with the invariants required by its callers.
+    /// Creates a reusable task while retaining compatibility with the existing local task rows.
     /// </summary>
-    private async Task<string> CreateMacroAsync(OllamaToolCall call, Guid? containerId, CancellationToken cancellationToken)
+    private async Task<string> CreateReusableTaskAsync(OllamaToolCall call, Guid? containerId, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
         var item = new MacroDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
             containerId, true, now, now);
         await workspaceState.UpsertMacroAsync(item, cancellationToken).ConfigureAwait(false);
-        return $"Created macro '{item.Name}'. It will run only when the user clicks or explicitly invokes it.";
+        return $"Created reusable task '{item.Name}'. It will run only when the user chooses it from Haven Tasks.";
     }
 
     /// <summary>
-    /// Performs list macros asynchronously so I/O does not block the caller's thread.
+    /// Lists reusable tasks asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    private async Task<string> ListMacrosAsync(Guid? containerId, CancellationToken cancellationToken)
+    private async Task<string> ListReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken)
     {
         var items = await workspaceState.GetMacrosAsync(containerId, cancellationToken).ConfigureAwait(false);
-        return items.Count == 0 ? "No enabled macros are available." : string.Join('\n', items.Select(item => $"{item.Name}: {item.Description}\nInstruction: {item.Instruction}"));
+        return items.Count == 0 ? "No enabled reusable tasks are available." : string.Join('\n', items.Select(item => $"{item.Name}: {item.Description}\nInstruction: {item.Instruction}"));
     }
 
     /// <summary>
@@ -151,5 +151,5 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Performs the label step owned by this component.
     /// </summary>
-    private static string Label(string name) => name switch { "automation_create" => "Created Scheduled Action", "macro_create" => "Created macro", "macro_list" => "Listed macros", _ => name };
+    private static string Label(string name) => name switch { "automation_create" => "Created Scheduled Action", "task_create" => "Created reusable task", "task_list" => "Listed reusable tasks", _ => name };
 }

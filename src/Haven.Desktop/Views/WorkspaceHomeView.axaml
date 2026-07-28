@@ -2,7 +2,7 @@
   FILE DOCUMENTATION
   Where: src/Haven.Desktop/Views/WorkspaceHomeView.axaml in the Avalonia Desktop visual layer.
   What: This markup constructs Haven.Desktop.Views.WorkspaceHomeView. Its visual vocabulary includes: ScrollViewer, StackPanel, Grid, TextBlock, Button, Border, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate.
-  Data flow: Binding expressions read or update these view-model paths: Title, Subtitle, RefreshCommand, CreateLabel, CreateBlankCommand, CollectionHeading, Items, Name, Accent, Path, LastTask, Branch, WorkState, RecommendedAction, ActiveAutomations, NextRun, Macros, Description, Status.
+  Data flow: Binding expressions read or update these view-model paths: Title, Subtitle, RefreshCommand, CreateLabel, CreateBlankCommand, CollectionHeading, Items, Name, Accent, Path, LastTask, Branch, WorkState, RecommendedAction, ActiveAutomations, NextRun, ReusableTasks, Description, Status.
   Interaction: Direct event handlers in this file are: no direct code-behind events; interaction is command/binding driven.
   Layout: Parent containers own placement and spacing; child controls own content and local presentation.
   Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
@@ -85,9 +85,9 @@
       </StackPanel>
 
       <!-- ============================================================
-           ROW 2: TWO-COLUMN — Scheduled Actions | Shared Macros
+           ROW 2: TWO-COLUMN — Scheduled Actions | Reusable Tasks
            Left: active automations for this workspace
-           Right: shared macros available to run
+           Right: reusable tasks available to run
            ============================================================ -->
       <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
         <!-- Scheduled Actions card -->
@@ -100,12 +100,12 @@
             </ItemsControl>
           </StackPanel>
         </Border>
-        <!-- Shared Macros card -->
+        <!-- Reusable Tasks card -->
         <Border Grid.Column="1" Classes="card">
           <StackPanel Spacing="9">
-            <TextBlock Text="Shared Macros" Classes="sectionHeading" />
-            <TextBlock Text="No macros are shared with this workspace." Classes="muted" IsVisible="{Binding !HasMacros}" />
-            <ItemsControl ItemsSource="{Binding Macros}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,4"><TextBlock Text="{Binding Name}" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" /></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Reusable Tasks" Classes="sectionHeading" />
+            <TextBlock Text="No reusable tasks are shared with this workspace." Classes="muted" IsVisible="{Binding !HasReusableTasks}" />
+            <ItemsControl ItemsSource="{Binding ReusableTasks}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,4"><TextBlock Text="{Binding Name}" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" /></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
           </StackPanel>
         </Border>
       </Grid>

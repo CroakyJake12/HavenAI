@@ -114,8 +114,8 @@ public sealed class SurfaceOrchestrationService
     private static SurfaceKind ModeToSurface(HavenMode mode) => mode switch
     {
         HavenMode.Chat => SurfaceKind.Chat,
-        HavenMode.Teach => SurfaceKind.Teach,
-        HavenMode.Do => SurfaceKind.Do,
+        HavenMode.Study => SurfaceKind.Study,
+        HavenMode.Tasks => SurfaceKind.Tasks,
         HavenMode.Studio => SurfaceKind.Studio,
         _ => SurfaceKind.Chat
     };

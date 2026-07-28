@@ -65,8 +65,8 @@ public sealed partial class ContainerSettingsPage : UserControl
     private void RaisePropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
-    public string Eyebrow => _item.Definition.Mode switch { HavenMode.Teach => "SUBJECT SETTINGS", HavenMode.Do => "WORKSPACE SETTINGS", _ => "PROJECT SETTINGS" };
-    public string ItemLabel => _item.Definition.Mode switch { HavenMode.Chat => "chat group", HavenMode.Teach => "subject", HavenMode.Do => "task group", _ => "project" };
+    public string Eyebrow => _item.Definition.Mode switch { HavenMode.Study => "SUBJECT SETTINGS", HavenMode.Tasks => "TASK GROUP SETTINGS", _ => "PROJECT SETTINGS" };
+    public string ItemLabel => _item.Definition.Mode switch { HavenMode.Chat => "chat group", HavenMode.Study => "subject", HavenMode.Tasks => "task group", _ => "project" };
     public string ArchiveLabel => "Archive " + ItemLabel;
     public string DeleteLabel => "Delete " + ItemLabel;
     public new string Name { get => _name; set { if (SetProperty(ref _name, value)) SaveCommand.RaiseCanExecuteChanged(); } }

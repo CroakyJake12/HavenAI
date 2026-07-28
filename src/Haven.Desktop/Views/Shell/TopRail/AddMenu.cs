@@ -33,6 +33,12 @@ public sealed class AddMenu : Button, IDisposable
     public event EventHandler<AddMenuAction>? ActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
 
+    public void ShowMenu()
+    {
+        _flyout ??= BuildFlyout();
+        _flyout.ShowAt(this);
+    }
+
     public void SetCatalogue(
         IReadOnlyList<AgentDefinition> agents,
         IReadOnlyList<PluginDefinition> plugins,
@@ -47,8 +53,7 @@ public sealed class AddMenu : Button, IDisposable
 
     private void OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _flyout ??= BuildFlyout();
-        _flyout.ShowAt(this);
+        ShowMenu();
     }
 
     private Flyout BuildFlyout()

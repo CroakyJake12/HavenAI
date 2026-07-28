@@ -275,7 +275,7 @@ public sealed class ChatPageViewModel : ObservableObject
         SelectQuickChatsCommand = new RelayCommand(SelectQuickChats);
         RefreshModelsCommand = new AsyncRelayCommand(RefreshModelsAsync);
         NewContainerCommand = new AsyncRelayCommand(CreateContainerAsync, () => HasContainers);
-        NewLessonCommand = new AsyncRelayCommand(CreateLessonAsync, () => IsTeach && SelectedContainer is not null);
+        NewLessonCommand = new AsyncRelayCommand(CreateLessonAsync, () => IsStudy && SelectedContainer is not null);
         DeleteLessonCommand = new AsyncRelayCommand<LessonItemViewModel>(DeleteLessonAsync);
         MoveLessonUpCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, -1));
         MoveLessonDownCommand = new AsyncRelayCommand<LessonItemViewModel>(item => MoveLessonAsync(item, 1));
@@ -295,15 +295,15 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates mode title, the bindable or domain state represented by this property.
     /// </summary>
-    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Teach => "Study", HavenMode.Do => "Do", HavenMode.Studio => "Studio", _ => "Haven" };
+    public string ModeTitle => Mode switch { HavenMode.Chat => "Chat", HavenMode.Study => "Study", HavenMode.Tasks => "Tasks", HavenMode.Studio => "Studio", _ => "Haven" };
     /// <summary>
     /// Gets or updates mode subtitle, the bindable or domain state represented by this property.
     /// </summary>
     public string ModeSubtitle => Mode switch
     {
         HavenMode.Chat => "Private conversation with your local models",
-        HavenMode.Teach => "Structured lessons, explanations and knowledge checks",
-        HavenMode.Do => "Task completion with visible approvals and an audit trail",
+        HavenMode.Study => "Structured lessons, explanations and knowledge checks",
+        HavenMode.Tasks => "Task completion with visible approvals and an audit trail",
         HavenMode.Studio => "Inspect, edit, run, test and repair local projects",
         _ => string.Empty
     };
@@ -313,8 +313,8 @@ public sealed class ChatPageViewModel : ObservableObject
     public string EmptyTitle => Mode switch
     {
         HavenMode.Chat => "What’s on your mind?",
-        HavenMode.Teach => "What should we learn?",
-        HavenMode.Do => "What should Haven do?",
+        HavenMode.Study => "What should we learn?",
+        HavenMode.Tasks => "What would you like to get done?",
         HavenMode.Studio => "What are we building?",
         _ => "How can Haven help?"
     };
@@ -324,8 +324,8 @@ public sealed class ChatPageViewModel : ObservableObject
     public string StarterOne => Mode switch
     {
         HavenMode.Studio => "Explain this project and identify the riskiest areas.",
-        HavenMode.Do => "Research and compare the best options.",
-        HavenMode.Teach => "Study a topic step by step.",
+        HavenMode.Tasks => "Research and compare the best options.",
+        HavenMode.Study => "Study a topic step by step.",
         _ => "Explain this clearly."
     };
     /// <summary>
@@ -334,8 +334,8 @@ public sealed class ChatPageViewModel : ObservableObject
     public string StarterTwo => Mode switch
     {
         HavenMode.Studio => ">Plan Create a precise implementation plan.",
-        HavenMode.Do => "Proofread the attached document.",
-        HavenMode.Teach => "Create a retrieval quiz for this lesson.",
+        HavenMode.Tasks => "Proofread the attached document.",
+        HavenMode.Study => "Create a retrieval quiz for this lesson.",
         _ => "Help me think through a decision."
     };
     /// <summary>
@@ -344,8 +344,8 @@ public sealed class ChatPageViewModel : ObservableObject
     public string StarterThree => Mode switch
     {
         HavenMode.Studio => ">Debug Diagnose the error in my latest build.",
-        HavenMode.Do => "Organise this workspace safely.",
-        HavenMode.Teach => "Explain this using examples, then test me.",
+        HavenMode.Tasks => "Organise this workspace safely.",
+        HavenMode.Study => "Explain this using examples, then test me.",
         _ => "Summarise the important points."
     };
     /// <summary>
@@ -354,30 +354,30 @@ public sealed class ChatPageViewModel : ObservableObject
     public string StarterFour => Mode switch
     {
         HavenMode.Studio => "@Agent @WebSearch >Report Research a topic thoroughly.",
-        HavenMode.Do => "Create a careful step-by-step action plan.",
-        HavenMode.Teach => "Build a structured learning plan.",
+        HavenMode.Tasks => "Create a careful step-by-step action plan.",
+        HavenMode.Study => "Build a structured learning plan.",
         _ => "Compare a few possible approaches."
     };
     /// <summary>
     /// Gets or updates new chat title, the bindable or domain state represented by this property.
     /// </summary>
-    public string NewChatTitle => Mode switch { HavenMode.Teach => "Quick chat", HavenMode.Do => "New task", HavenMode.Studio => "New studio chat", _ => "New chat" };
+    public string NewChatTitle => Mode switch { HavenMode.Study => "Quick chat", HavenMode.Tasks => "New task", HavenMode.Studio => "New studio chat", _ => "New chat" };
     /// <summary>
     /// Gets or updates container label, the bindable or domain state represented by this property.
     /// </summary>
-    public string ContainerLabel => Mode switch { HavenMode.Chat => "Chat group", HavenMode.Teach => "Subject", HavenMode.Do => "Task group", _ => "Project" };
+    public string ContainerLabel => Mode switch { HavenMode.Chat => "Chat group", HavenMode.Study => "Subject", HavenMode.Tasks => "Task group", _ => "Project" };
     /// <summary>
     /// Gets or updates new container label, the bindable or domain state represented by this property.
     /// </summary>
     public string NewContainerLabel => "+ " + ContainerLabel;
     /// <summary>
-    /// Reports whether teach applies to the current state.
+    /// Reports whether Study applies to the current state.
     /// </summary>
-    public bool IsTeach => Mode == HavenMode.Teach;
+    public bool IsStudy => Mode == HavenMode.Study;
     /// <summary>
     /// Reports whether do applies to the current state.
     /// </summary>
-    public bool IsDo => Mode == HavenMode.Do;
+    public bool IsTasks => Mode == HavenMode.Tasks;
     /// <summary>
     /// Reports whether studio applies to the current state.
     /// </summary>
@@ -385,7 +385,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Reports whether containers applies to the current state.
     /// </summary>
-    public bool HasContainers => Mode is HavenMode.Chat or HavenMode.Teach or HavenMode.Do or HavenMode.Studio;
+    public bool HasContainers => Mode is HavenMode.Chat or HavenMode.Study or HavenMode.Tasks or HavenMode.Studio;
     /// <summary>
     /// Reports whether any containers applies to the current state.
     /// </summary>
@@ -393,35 +393,35 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Reports whether subjects applies to the current state.
     /// </summary>
-    public bool HasSubjects => IsTeach && Containers.Count > 0;
+    public bool HasSubjects => IsStudy && Containers.Count > 0;
     /// <summary>
     /// Reports whether no subjects applies to the current state.
     /// </summary>
-    public bool HasNoSubjects => IsTeach && Containers.Count == 0;
+    public bool HasNoSubjects => IsStudy && Containers.Count == 0;
     /// <summary>
     /// Reports whether selected subject applies to the current state.
     /// </summary>
-    public bool HasSelectedSubject => IsTeach && SelectedContainer is not null;
+    public bool HasSelectedSubject => IsStudy && SelectedContainer is not null;
     /// <summary>
     /// Reports whether lessons applies to the current state.
     /// </summary>
-    public bool HasLessons => IsTeach && Lessons.Count > 0;
+    public bool HasLessons => IsStudy && Lessons.Count > 0;
     /// <summary>
     /// Reports whether no lessons applies to the current state.
     /// </summary>
-    public bool HasNoLessons => IsTeach && SelectedContainer is not null && Lessons.Count == 0;
+    public bool HasNoLessons => IsStudy && SelectedContainer is not null && Lessons.Count == 0;
     /// <summary>
-    /// Gets or updates show teach empty state, the bindable or domain state represented by this property.
+    /// Reports whether the Study empty state is visible.
     /// </summary>
-    public bool ShowTeachEmptyState => IsTeach && (SelectedContainer is null || Lessons.Count == 0);
+    public bool ShowStudyEmptyState => IsStudy && (SelectedContainer is null || Lessons.Count == 0);
     /// <summary>
-    /// Gets or updates teach empty state title, the bindable or domain state represented by this property.
+    /// Gets the Study empty-state title.
     /// </summary>
-    public string TeachEmptyStateTitle => Containers.Count == 0 ? "Create your first subject" : SelectedContainer is null ? "Choose a subject" : "No lessons yet";
+    public string StudyEmptyStateTitle => Containers.Count == 0 ? "Create your first subject" : SelectedContainer is null ? "Choose a subject" : "No lessons yet";
     /// <summary>
-    /// Gets or updates teach empty state message, the bindable or domain state represented by this property.
+    /// Gets the Study empty-state explanation.
     /// </summary>
-    public string TeachEmptyStateMessage => Containers.Count == 0
+    public string StudyEmptyStateMessage => Containers.Count == 0
         ? "Subjects organise structured lessons. Quick Chats always remain available outside a subject."
         : SelectedContainer is null
             ? "Open a subject to see its lessons, or continue with a Quick Chat."
@@ -429,7 +429,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates supports duo, the bindable or domain state represented by this property.
     /// </summary>
-    public bool SupportsDuo => Mode is HavenMode.Do or HavenMode.Studio;
+    public bool SupportsDuo => Mode is HavenMode.Tasks or HavenMode.Studio;
     /// <summary>
     /// Reports whether workspace root applies to the current state.
     /// </summary>
@@ -437,7 +437,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Reports whether workspace tools ready applies to the current state.
     /// </summary>
-    public bool IsWorkspaceToolsReady => Mode is HavenMode.Do or HavenMode.Studio && HasWorkspaceRoot;
+    public bool IsWorkspaceToolsReady => Mode is HavenMode.Tasks or HavenMode.Studio && HasWorkspaceRoot;
     /// <summary>
     /// Reports whether agent plugin active applies to the current state.
     /// </summary>
@@ -469,7 +469,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates current scope, the bindable or domain state represented by this property.
     /// </summary>
-    public ConversationScope? CurrentScope => Mode is HavenMode.Chat or HavenMode.Teach ? ConversationScope.From(_conversation) : null;
+    public ConversationScope? CurrentScope => Mode is HavenMode.Chat or HavenMode.Study ? ConversationScope.From(_conversation) : null;
 
     /// <summary>
     /// Gets or updates messages, the bindable or domain state represented by this property.
@@ -716,10 +716,10 @@ public sealed class ChatPageViewModel : ObservableObject
             ApplySelectionToConversation(startNewWhenScopeChanges: true);
             RaisePropertyChanged(nameof(HasWorkspaceRoot));
             RaisePropertyChanged(nameof(IsWorkspaceToolsReady));
-            RaiseTeachStateChanged();
+            RaiseStudyStateChanged();
             RefreshPluginAvailability();
             NewLessonCommand.RaiseCanExecuteChanged();
-            if (IsTeach && value is not null && !_suppressSelectionConversationUpdate) StartLessonLoad(value.Id);
+            if (IsStudy && value is not null && !_suppressSelectionConversationUpdate) StartLessonLoad(value.Id);
         }
     }
 
@@ -731,7 +731,7 @@ public sealed class ChatPageViewModel : ObservableObject
             if (value is not null && value.Definition.SubjectId != SelectedContainer?.Id) return;
             if (!SetProperty(ref _selectedLesson, value)) return;
             ApplySelectionToConversation(startNewWhenScopeChanges: true);
-            RaiseTeachStateChanged();
+            RaiseStudyStateChanged();
         }
     }
 
@@ -971,7 +971,7 @@ public sealed class ChatPageViewModel : ObservableObject
             Containers.Clear();
             foreach (var container in loaded) Containers.Add(new ContainerItemViewModel(container));
             SelectedContainer = selectedId is null ? null : Containers.FirstOrDefault(item => item.Id == selectedId);
-            if (IsTeach && SelectedContainer is not null)
+            if (IsStudy && SelectedContainer is not null)
             {
                 await LoadLessonsAsync(SelectedContainer.Id, cancellationToken);
                 SelectedLesson = selectedLessonId is null ? null : Lessons.FirstOrDefault(item => item.Id == selectedLessonId);
@@ -1024,7 +1024,7 @@ public sealed class ChatPageViewModel : ObservableObject
         var conversation = await _conversations.GetAsync(id, cancellationToken);
         if (conversation is null || conversation.Mode != Mode) return;
         if (Mode == HavenMode.Chat && conversation.Kind != ConversationKind.Chat) return;
-        if (Mode == HavenMode.Teach && conversation.Kind is not (ConversationKind.QuickChat or ConversationKind.LessonChat)) return;
+        if (Mode == HavenMode.Study && conversation.Kind is not (ConversationKind.QuickChat or ConversationKind.LessonChat)) return;
 
         Stop();
         _conversation = conversation;
@@ -1037,12 +1037,12 @@ public sealed class ChatPageViewModel : ObservableObject
         try
         {
             SelectedContainer = Containers.FirstOrDefault(item => item.Id == conversation.ContainerId);
-            if (IsTeach && conversation.ContainerId is { } subjectId && conversation.LessonId is not null)
+            if (IsStudy && conversation.ContainerId is { } subjectId && conversation.LessonId is not null)
             {
                 await LoadLessonsAsync(subjectId, cancellationToken);
                 SelectedLesson = Lessons.FirstOrDefault(item => item.Id == conversation.LessonId);
             }
-            else if (IsTeach)
+            else if (IsStudy)
             {
                 SelectedContainer = null;
                 SelectedLesson = null;
@@ -1245,7 +1245,7 @@ public sealed class ChatPageViewModel : ObservableObject
             RaisePropertyChanged(nameof(IsDuoPluginActive));
             ClearAttachment();
             RaisePropertyChanged(nameof(ConversationTitle));
-            if (IsTeach) await RegisterErrorGenomeSignalAsync(prompt, _sendCancellation.Token);
+            if (IsStudy) await RegisterErrorGenomeSignalAsync(prompt, _sendCancellation.Token);
             await UpdateContextUsageAsync(_sendCancellation.Token);
             ConversationChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -1405,10 +1405,10 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private Conversation NewConversation(DateTimeOffset now)
     {
-        var lesson = IsTeach ? SelectedLesson : null;
-        var containerId = IsTeach ? (lesson is null ? null : SelectedContainer?.Id) : SelectedContainer?.Id;
+        var lesson = IsStudy ? SelectedLesson : null;
+        var containerId = IsStudy ? (lesson is null ? null : SelectedContainer?.Id) : SelectedContainer?.Id;
         return new Conversation(
-            Guid.NewGuid(), Mode, IsTeach && lesson is null ? ConversationKind.QuickChat : KindFor(Mode), NewChatTitle,
+            Guid.NewGuid(), Mode, IsStudy && lesson is null ? ConversationKind.QuickChat : KindFor(Mode), NewChatTitle,
             containerId, lesson?.Id, false, IsTemporary, now, now);
     }
 
@@ -1418,10 +1418,10 @@ public sealed class ChatPageViewModel : ObservableObject
     private void ApplySelectionToConversation(bool startNewWhenScopeChanges)
     {
         if (_suppressSelectionConversationUpdate) return;
-        var lesson = IsTeach ? SelectedLesson : null;
-        var containerId = IsTeach ? (lesson is null ? null : SelectedContainer?.Id) : SelectedContainer?.Id;
+        var lesson = IsStudy ? SelectedLesson : null;
+        var containerId = IsStudy ? (lesson is null ? null : SelectedContainer?.Id) : SelectedContainer?.Id;
         var lessonId = lesson?.Id;
-        var kind = IsTeach && lesson is null ? ConversationKind.QuickChat : KindFor(Mode);
+        var kind = IsStudy && lesson is null ? ConversationKind.QuickChat : KindFor(Mode);
         var changed = _conversation.ContainerId != containerId || _conversation.LessonId != lessonId || _conversation.Kind != kind;
         if (changed && startNewWhenScopeChanges && Messages.Count > 0)
         {
@@ -1438,7 +1438,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private void SelectQuickChats()
     {
-        if (!IsTeach) return;
+        if (!IsStudy) return;
         SelectedContainer = null;
         Status = "Quick Chats selected.";
     }
@@ -1650,7 +1650,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private static bool IsRuntimePlugin(string name) => name.Equals("BrowserUse", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("WebSearch", StringComparison.OrdinalIgnoreCase) || name.Equals("ComputerUse", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("Automate", StringComparison.OrdinalIgnoreCase) || name.Equals("Macro", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("Automate", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("Test", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
@@ -1661,7 +1661,7 @@ public sealed class ChatPageViewModel : ObservableObject
         "BrowserUse" => "@BrowserUse appears only while the native Browse host is attached and interactive browser permission is available.",
         "WebSearch" => "@WebSearch needs the local browser runtime and browser permission.",
         "ComputerUse" => "@ComputerUse is available only on Windows with explicit approval.",
-        "Automate" or "Macro" => $"@{name} is available only in Haven Do or Studio.",
+        "Automate" => "@Automate is available only in Haven Tasks or Studio.",
         "Test" => "@Test requires a connected local project and command permission.",
         _ => $"@{name} is not available in this context."
     };
@@ -1701,13 +1701,13 @@ public sealed class ChatPageViewModel : ObservableObject
         var name = Mode switch
         {
             HavenMode.Chat => "Untitled Chat Group",
-            HavenMode.Teach => "Untitled Subject",
-            HavenMode.Do => "Untitled Task Group",
+            HavenMode.Study => "Untitled Subject",
+            HavenMode.Tasks => "Untitled Task Group",
             _ => "Untitled Project"
         };
         var item = new ContainerDefinition(Guid.NewGuid(), Mode, name, null, string.Empty, string.Empty, now, now);
         var vm = new ContainerItemViewModel(item);
-        if (IsTeach)
+        if (IsStudy)
         {
             var general = await _containers.CreateSubjectAsync(item, CancellationToken.None);
             CancelLessonLoad();
@@ -1756,7 +1756,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private async Task CreateLessonAsync()
     {
-        if (!IsTeach || SelectedContainer is null) return;
+        if (!IsStudy || SelectedContainer is null) return;
         var now = DateTimeOffset.UtcNow;
         var nextSort = Lessons.Count == 0 ? 0 : Lessons.Max(lesson => lesson.Definition.SortOrder) + 1;
         var item = new Lesson(Guid.NewGuid(), SelectedContainer.Id, "General", "Untitled Lesson", "{}", nextSort, now, now);
@@ -1765,7 +1765,7 @@ public sealed class ChatPageViewModel : ObservableObject
         Lessons.Add(vm);
         RebuildLessonGroups();
         SelectedLesson = vm;
-        RaiseTeachStateChanged();
+        RaiseStudyStateChanged();
         Status = "Created lesson.";
     }
 
@@ -1774,12 +1774,12 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private async Task DeleteLessonAsync(LessonItemViewModel? item)
     {
-        if (!IsTeach || item is null) return;
+        if (!IsStudy || item is null) return;
         await _containers.DeleteLessonAsync(item.Id, CancellationToken.None);
         if (ReferenceEquals(SelectedLesson, item)) SelectedLesson = null;
         Lessons.Remove(item);
         RebuildLessonGroups();
-        RaiseTeachStateChanged();
+        RaiseStudyStateChanged();
         Status = $"Deleted lesson \"{item.Name}\". Its chats are preserved in Quick Chats.";
     }
 
@@ -1788,7 +1788,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private async Task MoveLessonAsync(LessonItemViewModel? item, int direction)
     {
-        if (!IsTeach || item is null || direction == 0) return;
+        if (!IsStudy || item is null || direction == 0) return;
         var ordered = Lessons.OrderBy(lesson => lesson.Definition.SortOrder).ThenBy(lesson => lesson.Name, StringComparer.OrdinalIgnoreCase).ToList();
         var index = ordered.FindIndex(lesson => lesson.Id == item.Id);
         var otherIndex = index + Math.Sign(direction);
@@ -1849,7 +1849,7 @@ public sealed class ChatPageViewModel : ObservableObject
         Lessons.Clear();
         foreach (var lesson in loaded) Lessons.Add(new LessonItemViewModel(lesson));
         RebuildLessonGroups();
-        RaiseTeachStateChanged();
+        RaiseStudyStateChanged();
     }
 
     /// <summary>
@@ -2135,7 +2135,7 @@ public sealed class ChatPageViewModel : ObservableObject
         var characters = messages.Sum(message => message.Content.Length) + entries.Sum(entry => entry.Content.Length) +
                          Plugins.Where(item => item.IsActive).Sum(item => item.Instructions.Length) +
                          Prompts.Where(item => item.IsActive).Sum(item => item.Instructions.Length) + _contextSummary.Length +
-                         BuildContainerInstructions().Length + (IsTeach && SelectedLesson is null ? 0 : SelectedContainer?.Definition.Context.Length ?? 0);
+                         BuildContainerInstructions().Length + (IsStudy && SelectedLesson is null ? 0 : SelectedContainer?.Definition.Context.Length ?? 0);
         ContextTokens = Math.Max(0, (int)Math.Ceiling(characters / 3.7));
         RaiseContextProperties();
     }
@@ -2165,13 +2165,13 @@ public sealed class ChatPageViewModel : ObservableObject
             var entries = await _conversations.GetContextEntriesAsync(_conversation.Id, cancellationToken);
             parts.AddRange(entries.TakeLast(30).Select(entry => $"[{entry.Kind}] {entry.Title}: {entry.Content}{(string.IsNullOrWhiteSpace(entry.Evidence) ? string.Empty : "\nEvidence: " + entry.Evidence)}"));
         }
-        if (SelectedContainer is not null && Mode is HavenMode.Do or HavenMode.Studio)
+        if (SelectedContainer is not null && Mode is HavenMode.Tasks or HavenMode.Studio)
         {
             var decisions = await _workspaceState.GetDecisionsAsync(SelectedContainer.Id, cancellationToken);
             if (decisions.Count > 0)
                 parts.Add("Decision Memory:\n" + string.Join("\n", decisions.Take(25).Select(item => $"- {item.Title}: {item.Decision}. Reason: {item.Reasoning}. Consequences: {item.Consequences}")));
         }
-        if (Mode is HavenMode.Do or HavenMode.Studio && HasWorkspaceRoot && LooksLikeError(prompt))
+        if (Mode is HavenMode.Tasks or HavenMode.Studio && HasWorkspaceRoot && LooksLikeError(prompt))
         {
             var state = await _projectIntelligence.GetStateAsync(SelectedContainer!.RootPath!, cancellationToken);
             parts.Add($"Automatic relevant error context: branch {state.Branch}; uncommitted work: {state.HasUncommittedWork}; last build: {state.LastBuildResult}; recent error: {state.MostRecentError}. Collected at {state.CapturedAt:O}.");
@@ -2184,7 +2184,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private async Task<string> BuildContainerContextAsync(CancellationToken cancellationToken)
     {
-        if (SelectedContainer is null || IsTeach && SelectedLesson is null) return string.Empty;
+        if (SelectedContainer is null || IsStudy && SelectedLesson is null) return string.Empty;
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(SelectedContainer.Definition.Context)) parts.Add(SelectedContainer.Definition.Context);
         if (Mode == HavenMode.Chat && _containerResources is not null)
@@ -2200,12 +2200,12 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private string BuildContainerInstructions()
     {
-        if (SelectedContainer is null || IsTeach && SelectedLesson is null) return string.Empty;
+        if (SelectedContainer is null || IsStudy && SelectedLesson is null) return string.Empty;
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(SelectedContainer.Definition.Instructions)) parts.Add(SelectedContainer.Definition.Instructions);
-        if (IsTeach && SelectedLesson is { } lesson)
+        if (IsStudy && SelectedLesson is { } lesson)
         {
-            parts.Add($"Teaching scope:\nSubject: {SelectedContainer.Name}\nLesson: {lesson.Name}\nTopic group: {lesson.TopicGroup}\nLesson structure: {lesson.Definition.StructureJson}");
+            parts.Add($"Study scope:\nSubject: {SelectedContainer.Name}\nLesson: {lesson.Name}\nTopic group: {lesson.TopicGroup}\nLesson structure: {lesson.Definition.StructureJson}");
         }
         return string.Join("\n\n", parts);
     }
@@ -2218,20 +2218,20 @@ public sealed class ChatPageViewModel : ObservableObject
         RaisePropertyChanged(nameof(HasAnyContainers));
         RaisePropertyChanged(nameof(HasSubjects));
         RaisePropertyChanged(nameof(HasNoSubjects));
-        RaiseTeachStateChanged();
+        RaiseStudyStateChanged();
     }
 
     /// <summary>
-    /// Performs the raise teach state changed step owned by this component.
+    /// Raises the derived Study-state properties after subject or lesson changes.
     /// </summary>
-    private void RaiseTeachStateChanged()
+    private void RaiseStudyStateChanged()
     {
         RaisePropertyChanged(nameof(HasSelectedSubject));
         RaisePropertyChanged(nameof(HasLessons));
         RaisePropertyChanged(nameof(HasNoLessons));
-        RaisePropertyChanged(nameof(ShowTeachEmptyState));
-        RaisePropertyChanged(nameof(TeachEmptyStateTitle));
-        RaisePropertyChanged(nameof(TeachEmptyStateMessage));
+        RaisePropertyChanged(nameof(ShowStudyEmptyState));
+        RaisePropertyChanged(nameof(StudyEmptyStateTitle));
+        RaisePropertyChanged(nameof(StudyEmptyStateMessage));
     }
 
     /// <summary>
@@ -2269,8 +2269,6 @@ public sealed class ChatPageViewModel : ObservableObject
             return ("Automate", "This request appears to create a Scheduled Action.");
         if (Regex.IsMatch(prompt, @"\b(run|execute|generate)\b.{0,30}\btests?\b|\btest (?:this|the) (?:app|program|project|code)\b", RegexOptions.IgnoreCase))
             return ("Test", "This request asks Haven to run or generate targeted tests.");
-        if (Regex.IsMatch(prompt, @"\bmacro\b", RegexOptions.IgnoreCase))
-            return ("Macro", "This request appears to create or invoke a macro.");
         return null;
     }
 
@@ -2502,8 +2500,8 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private static ConversationKind KindFor(HavenMode mode) => mode switch
     {
-        HavenMode.Teach => ConversationKind.LessonChat,
-        HavenMode.Do => ConversationKind.Task,
+        HavenMode.Study => ConversationKind.LessonChat,
+        HavenMode.Tasks => ConversationKind.Task,
         HavenMode.Studio => ConversationKind.StudioChat,
         _ => ConversationKind.Chat
     };
@@ -2846,7 +2844,7 @@ public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode m
     /// <summary>
     /// Reports whether visible in picker applies to the current state.
     /// </summary>
-    public bool IsVisibleInPicker => IsAvailableInMode && IsRuntimeAvailable && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
+    public bool IsVisibleInPicker => IsAvailableInMode && IsRuntimeAvailable && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Study) || showAgenticInChat);
     public IReadOnlyList<string> Conflicts
     {
         get
@@ -2925,7 +2923,7 @@ public sealed class PromptItemViewModel(PromptDefinition definition, HavenMode m
     /// <summary>
     /// Reports whether visible in picker applies to the current state.
     /// </summary>
-    public bool IsVisibleInPicker => IsAvailableInMode && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Teach) || showAgenticInChat);
+    public bool IsVisibleInPicker => IsAvailableInMode && (!definition.IsAgentic || mode is not (HavenMode.Chat or HavenMode.Study) || showAgenticInChat);
     /// <summary>
     /// Reports whether active applies to the current state.
     /// </summary>

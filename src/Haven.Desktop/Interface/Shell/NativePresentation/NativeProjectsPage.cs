@@ -14,13 +14,15 @@ namespace Haven.Desktop.Views.Shell.NativePresentation;
 
 internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
 {
-    private static readonly IBrush PageBrush = Brush("#FBFDF7");
-    private static readonly IBrush CardBrush = Brush("#FFFFFF");
-    private static readonly IBrush MutedBrush = Brush("#687076");
-    private new static readonly IBrush BorderBrush = Brush("#E4E9E1");
-    private static readonly IBrush AccentBrush = Brush("#111111");
-    private static readonly IBrush CyanBrush = Brush("#62DDE7");
-    private static readonly IBrush UnreadBrush = Brush("#E7F9FB");
+    private static IBrush CardBrush => PaletteBrush("HavenPanelBrush", "#FFFFFF");
+    private static IBrush MutedBrush => PaletteBrush("HavenMutedBrush", "#687076");
+    private new static IBrush BorderBrush => PaletteBrush("HavenLineBrush", "#E4E9E1");
+    private static IBrush AccentBrush => PaletteBrush("HavenAccentBrush", "#00A7B3");
+    private static IBrush AccentInkBrush => PaletteBrush("HavenAccentInkBrush", "#FFFFFF");
+    private static IBrush TextBrush => PaletteBrush("HavenTextBrush", "#111111");
+    private static IBrush CyanBrush => PaletteBrush("HavenAccentSoftBrush", "#DCF7F8");
+    private static IBrush AttentionBrush => PaletteBrush("HavenAttentionBrush", "#FFF9A8");
+    private static IBrush AttentionBorderBrush => PaletteBrush("HavenAttentionBorderBrush", "#E4DF52");
 
     private readonly object _source;
     private readonly Func<IEnumerable<object>> _fallbackProjects;
@@ -67,13 +69,13 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         _searchBox = new TextBox
         {
             PlaceholderText = "Search Projects",
-            MinWidth = 640,
-            MaxWidth = 920,
+            MinWidth = 700,
+            MaxWidth = 1080,
             Height = 64,
             Padding = new Thickness(54, 12, 18, 12),
             CornerRadius = new CornerRadius(18),
             BorderBrush = BorderBrush,
-            Background = Brush("#FCFCFC"),
+            Background = PaletteBrush("HavenPanel2Brush", "#FCFCFC"),
             FontSize = 17,
             FontWeight = FontWeight.SemiBold,
             VerticalContentAlignment = VerticalAlignment.Center
@@ -87,20 +89,20 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         AutomationProperties.SetName(_refreshButton, "Refresh projects");
 
         _newProjectButton = Button("Create New Project", false);
-        _newProjectButton.MinWidth = 620;
-        _newProjectButton.MinHeight = 58;
+        _newProjectButton.MinWidth = 680;
+        _newProjectButton.MinHeight = 62;
         _newProjectButton.FontSize = 17;
         _newProjectButton.FontWeight = FontWeight.SemiBold;
         _newProjectButton.Click += OnNewProjectClicked;
         AutomationProperties.SetName(_newProjectButton, "Create a new project");
 
-        _pinnedHeading = Heading("Pinned Projects", 16);
+        _pinnedHeading = Heading("Pinned Projects", 17);
         _pinnedPanel = ProjectTilePanel();
 
-        _unreadHeading = Heading("Unread Changes", 16);
+        _unreadHeading = Heading("Unread Changes", 17);
         _unreadPanel = ProjectTilePanel();
 
-        _projectHeading = Heading("All Projects", 16);
+        _projectHeading = Heading("All Projects", 17);
         _projectPanel = ProjectTilePanel();
 
         _emptyState = BuildEmptyState();
@@ -113,7 +115,7 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         };
 
         Content = BuildLayout();
-        Background = PageBrush;
+        Background = Brushes.Transparent;
 
         AttachedToVisualTree += OnAttached;
         DetachedFromVisualTree += OnDetached;

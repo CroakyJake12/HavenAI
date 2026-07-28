@@ -203,25 +203,15 @@ internal sealed partial class NativeProjectsPage
         var icon = new HavenIcon
         {
             IconKey = ProjectIcon(row),
-            Width = 56,
-            Height = 56,
+            Width = 64,
+            Height = 64,
             HorizontalAlignment = HorizontalAlignment.Center
         };
         var title = new TextBlock
         {
             Text = row.Name,
-            FontSize = 17,
+            FontSize = 18,
             FontWeight = FontWeight.Bold,
-            TextAlignment = TextAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = 205,
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        var activity = new TextBlock
-        {
-            Text = kind == ProjectTileKind.Unread ? "Updated " + FormatActivity(row.UpdatedAt) : row.State,
-            FontSize = 11,
-            Foreground = MutedBrush,
             TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 205,
@@ -229,25 +219,25 @@ internal sealed partial class NativeProjectsPage
         };
         var content = new StackPanel
         {
-            Spacing = 11,
+            Spacing = 14,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Children = { icon, title, activity }
+            Children = { icon, title }
         };
         var tile = new Button
         {
-            Width = 240,
-            Height = 176,
-            Margin = new Thickness(0, 0, 14, 14),
+            Width = 290,
+            Height = 210,
+            Margin = new Thickness(0, 0, 10, 12),
             Padding = new Thickness(18),
-            BorderBrush = kind == ProjectTileKind.Unread ? Brush("#F3F58E") : BorderBrush,
+            BorderBrush = kind == ProjectTileKind.Unread ? AttentionBorderBrush : BorderBrush,
             BorderThickness = new Thickness(kind == ProjectTileKind.Unread ? 2 : 1),
-            CornerRadius = new CornerRadius(22),
+            CornerRadius = new CornerRadius(24),
             Background = kind switch
             {
-                ProjectTileKind.Pinned => Brush("#DDF9FB"),
-                ProjectTileKind.Unread => Brush("#FEFFA6"),
-                _ => CardBrush
+                ProjectTileKind.Pinned => CyanBrush,
+                ProjectTileKind.Unread => AttentionBrush,
+                _ => CyanBrush
             },
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -296,6 +286,8 @@ internal sealed partial class NativeProjectsPage
     {
         var combined = (row.Name + " " + row.Summary).ToLowerInvariant();
         if (combined.Contains("photo") || combined.Contains("film") || combined.Contains("camera")) return "image";
+        if (combined.Contains("pc") || combined.Contains("computer") || combined.Contains("hardware")) return "cpu";
+        if (combined.Contains("essay") || combined.Contains("writing") || combined.Contains("research")) return "edit";
         if (combined.Contains("code") || combined.Contains("app") || combined.Contains("software")) return "code";
         return "folder";
     }

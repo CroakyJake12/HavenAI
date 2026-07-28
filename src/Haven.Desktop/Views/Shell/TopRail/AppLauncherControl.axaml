@@ -10,7 +10,7 @@
             BorderThickness="1"
             CornerRadius="24">
       <StackPanel Spacing="10" Margin="16">
-        <TextBlock Text="Launch App" FontSize="20" FontWeight="ExtraBold" />
+        <TextBlock Text="Apps" FontSize="20" FontWeight="ExtraBold" />
         <Grid>
           <TextBox x:Name="SearchBox"
                    PlaceholderText="Search"

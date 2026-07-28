@@ -185,8 +185,8 @@ public sealed class ConversationPlacementService : IConversationPlacementService
         var key = mode switch
         {
             HavenMode.Chat => "chat",
-            HavenMode.Teach => "teach",
-            HavenMode.Do => "do",
+            HavenMode.Study => "study",
+            HavenMode.Tasks => "tasks",
             HavenMode.Studio => "studio",
             _ => "chat"
         };

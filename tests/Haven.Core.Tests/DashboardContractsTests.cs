@@ -24,7 +24,7 @@ public sealed class DashboardContractsTests
     public void ManifestPolicyAcceptsOnlySandboxedProviderAndNavigationKeys()
     {
         var valid = new DashboardPluginTileManifest(
-            "course-progress", "Course progress", "Upcoming lessons", "teach", "teaching", "teach", "Wide");
+            "course-progress", "Course progress", "Upcoming lessons", "study", "study", "study", "Wide");
 
         DashboardTileManifestPolicy.ValidateForImport([valid]);
 

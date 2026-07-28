@@ -50,7 +50,7 @@ public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> BrowserBackground,
     IReadOnlyList<OllamaToolDefinition> BrowserInteractive,
     IReadOnlyList<OllamaToolDefinition> Automation,
-    IReadOnlyList<OllamaToolDefinition> Macros);
+    IReadOnlyList<OllamaToolDefinition> ReusableTasks);
 
 /// <summary>
 /// Represents tool availability plan and keeps its related state and behavior together.
@@ -61,7 +61,7 @@ public sealed class ToolAvailabilityPlan
     /// Stores contextual plugin names locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> ContextualPluginNames = new(StringComparer.OrdinalIgnoreCase)
-    { "Automate", "BrowserUse", "ComputerUse", "Macro", "Test", "WebSearch" };
+    { "Automate", "BrowserUse", "ComputerUse", "Test", "WebSearch" };
     /// <summary>
     /// Stores routes locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -140,7 +140,7 @@ public sealed class ToolAvailabilityPlan
         if (!routes.Values.Contains(ToolRuntimeKind.Computer)) plugins.Remove("ComputerUse");
         if (!routes.Values.Contains(ToolRuntimeKind.Browser)) { plugins.Remove("BrowserUse"); plugins.Remove("WebSearch"); }
         if (!routes.ContainsKey("run_tests")) plugins.Remove("Test");
-        if (!routes.Values.Contains(ToolRuntimeKind.Automation)) { plugins.Remove("Automate"); plugins.Remove("Macro"); }
+        if (!routes.Values.Contains(ToolRuntimeKind.Automation)) plugins.Remove("Automate");
         return new ToolAvailabilityPlan(definitions, routes, reasons, plugins);
     }
 }
@@ -179,7 +179,7 @@ public sealed class ToolAvailabilityPlanner
         PlanWorkspace(context, sources.Workspace, definitions, routes, reasons, plugins);
         PlanComputer(context, sources.Computer, definitions, routes, reasons, plugins);
         PlanBrowser(context, sources.BrowserBackground, sources.BrowserInteractive, definitions, routes, reasons, plugins);
-        PlanAutomations(context, sources.Automation, sources.Macros, definitions, routes, reasons, plugins);
+        PlanAutomations(context, sources.Automation, sources.ReusableTasks, definitions, routes, reasons, plugins);
         return new ToolAvailabilityPlan(definitions, routes, reasons, plugins);
     }
 
@@ -190,10 +190,10 @@ public sealed class ToolAvailabilityPlanner
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
     {
-        var modeAllowed = context.Mode is HavenMode.Do or HavenMode.Studio;
+        var modeAllowed = context.Mode is HavenMode.Tasks or HavenMode.Studio;
         foreach (var definition in source)
         {
-            if (!modeAllowed) { reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Do or Haven Studio."; continue; }
+            if (!modeAllowed) { reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Tasks or Haven Studio."; continue; }
             if (!context.HasExistingWorkspace) { reasons[definition.Name] = $"Tool '{definition.Name}' requires a selected workspace folder that exists locally."; continue; }
             if (RuntimeSafetyState.IsSafeMode && !WorkspaceReadTools.Contains(definition.Name))
             {
@@ -276,18 +276,18 @@ public sealed class ToolAvailabilityPlanner
     /// Performs the plan automations step owned by this component.
     /// </summary>
     private static void PlanAutomations(ToolAvailabilityContext context,
-        IReadOnlyList<OllamaToolDefinition> automation, IReadOnlyList<OllamaToolDefinition> macros,
+        IReadOnlyList<OllamaToolDefinition> automation, IReadOnlyList<OllamaToolDefinition> reusableTasks,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
         Dictionary<string, string> reasons, HashSet<string> plugins)
     {
         if (RuntimeSafetyState.IsSafeMode)
         {
-            foreach (var definition in automation.Concat(macros)) reasons[definition.Name] = SafeModeReason(definition.Name);
+            foreach (var definition in automation.Concat(reusableTasks)) reasons[definition.Name] = SafeModeReason(definition.Name);
             return;
         }
-        var modeAllowed = context.Mode is HavenMode.Do or HavenMode.Studio;
-        PlanAutomationGroup("Automate", context.IsPluginActive("Automate"), modeAllowed, context.AutomationHostAvailable, automation, definitions, routes, reasons, plugins);
-        PlanAutomationGroup("Macro", context.IsPluginActive("Macro"), modeAllowed, context.AutomationHostAvailable, macros, definitions, routes, reasons, plugins);
+        var modeAllowed = context.Mode is HavenMode.Tasks or HavenMode.Studio;
+        PlanAutomationGroup("Automate", context.IsPluginActive("Automate"), modeAllowed, context.AutomationHostAvailable,
+            automation.Concat(reusableTasks).ToArray(), definitions, routes, reasons, plugins);
     }
 
     /// <summary>
@@ -300,7 +300,7 @@ public sealed class ToolAvailabilityPlanner
         foreach (var definition in source)
         {
             if (!active) reasons[definition.Name] = $"Tool '{definition.Name}' requires @{plugin}.";
-            else if (!modeAllowed) reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Do or Haven Studio.";
+            else if (!modeAllowed) reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Tasks or Haven Studio.";
             else if (!host) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because the local automation store is not connected.";
             else Add(definition, ToolRuntimeKind.Automation, definitions, routes);
         }

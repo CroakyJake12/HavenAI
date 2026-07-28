@@ -30,19 +30,19 @@ public sealed partial class MainWindow : Window
     {
         _tidalBackground = new TidalBackground(this);
 
-        // Listen for mode changes from the shell
+        // Surface changes include dedicated apps such as Browse, Imagine and
+        // Dashboard, whereas CurrentMode only describes conversation storage.
         if (_shell is not null)
         {
             _shell.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(MainView.CurrentMode))
+                if (e.PropertyName == nameof(MainView.CurrentSurface))
                 {
-                    _tidalBackground.SetMode(_shell.CurrentMode);
+                    _tidalBackground.SetSurface(_shell.CurrentSurface);
                 }
             };
 
-            // Set initial mode
-            _tidalBackground.SetMode(_shell.CurrentMode);
+            _tidalBackground.SetSurface(_shell.CurrentSurface);
         }
     }
 

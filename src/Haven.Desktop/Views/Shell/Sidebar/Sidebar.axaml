@@ -182,7 +182,7 @@
                             <Button Classes="sidebar"
                                     x:Name="QuickChatsButton"
                                     HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding IsTeach}"
+                                    IsVisible="{Binding IsStudy}"
                                     Command="{Binding CurrentChat.SelectQuickChatsCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="9">
                                     <controls:HavenIcon IconKey="chat" Width="17" Height="17" />

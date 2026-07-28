@@ -16,6 +16,8 @@
     <ApplicationIcon>Assets\haven.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- DI-created pages deliberately have no parameterless runtime-loader constructor. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" />
@@ -38,30 +40,14 @@
     <AvaloniaResource Include="Styles\**\*.axaml" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Interface\Overlay\" />
-    <Folder Include="Interface\Pages\Data\" />
-    <Folder Include="Interface\Pages\Configure\" />
-    <Folder Include="Interface\Pages\Imagine\" />
-    <Folder Include="Interface\Pages\Browse\" />
-    <Folder Include="Interface\Pages\Translate\" />
-    <Folder Include="Interface\Pages\Vision\" />
-    <Folder Include="Interface\Pages\Play\" />
-    <Folder Include="Interface\Pages\Planner\" />
-    <Folder Include="Interface\Pages\Tasks\" />
-    <Folder Include="Interface\Pages\Optimise\" />
-    <Folder Include="Interface\Pages\Present\" />
-    <Folder Include="Interface\Pages\Write\" />
-    <Folder Include="Interface\Pages\Studio\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Update="Interface\Pages\Chat\Chat.axaml.cs">
-      <DependentUpon>Chat.axaml</DependentUpon>
+    <Compile Update="Views\Pages\Chat\NewChatPage.axaml.cs">
+      <DependentUpon>NewChatPage.axaml</DependentUpon>
     </Compile>
-    <Compile Update="Interface\Pages\Go\Go.axaml.cs">
-      <DependentUpon>Go.axaml</DependentUpon>
+    <Compile Update="Views\Pages\Go\GoPage.axaml.cs">
+      <DependentUpon>GoPage.axaml</DependentUpon>
     </Compile>
-    <Compile Update="Interface\Pages\Home\Dashboard.axaml.cs">
-      <DependentUpon>Dashboard.axaml</DependentUpon>
+    <Compile Update="Views\Pages\Home\NewDashboardPage.axaml.cs">
+      <DependentUpon>NewDashboardPage.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
 </Project>
