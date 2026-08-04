@@ -21,6 +21,7 @@ public sealed class AndroidApp : AvaloniaAndroidApplication<App>
         try
         {
             base.OnCreate();
+
             if (Avalonia.Application.Current?.ApplicationLifetime is IActivityApplicationLifetime lifetime)
             {
                 lifetime.MainViewFactory = AndroidHavenBootstrap.CreateMainView;
@@ -28,12 +29,14 @@ public sealed class AndroidApp : AvaloniaAndroidApplication<App>
         }
         catch (Exception exception)
         {
+            // Do not rethrow here. Android creates the native bootstrap activity after
+            // Application.OnCreate, and that activity must remain available to display
+            // the saved report even when Avalonia could not initialize.
             AndroidRuntimeDiagnostics.Record(
                 exception,
                 "Android application startup",
                 showDialog: false);
             AndroidRuntimeDiagnostics.ShowStartupToast(this);
-            throw;
         }
     }
 }
