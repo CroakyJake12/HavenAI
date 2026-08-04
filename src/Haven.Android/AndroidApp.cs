@@ -16,11 +16,24 @@ public sealed class AndroidApp : AvaloniaAndroidApplication<App>
 
     public override void OnCreate()
     {
-        base.OnCreate();
+        AndroidRuntimeDiagnostics.Initialize(this);
 
-        if (Avalonia.Application.Current?.ApplicationLifetime is IActivityApplicationLifetime lifetime)
+        try
         {
-            lifetime.MainViewFactory = AndroidHavenBootstrap.CreateMainView;
+            base.OnCreate();
+            if (Avalonia.Application.Current?.ApplicationLifetime is IActivityApplicationLifetime lifetime)
+            {
+                lifetime.MainViewFactory = AndroidHavenBootstrap.CreateMainView;
+            }
+        }
+        catch (Exception exception)
+        {
+            AndroidRuntimeDiagnostics.Record(
+                exception,
+                "Android application startup",
+                showDialog: false);
+            AndroidRuntimeDiagnostics.ShowStartupToast(this);
+            throw;
         }
     }
 }
