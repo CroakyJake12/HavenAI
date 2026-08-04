@@ -69,9 +69,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          grep -E -m 20 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log \
-            | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' \
-            | while IFS= read -r line; do echo "::error title=Android compiler::$line"; done
+          grep -E -m 20 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log             | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g'             | while IFS= read -r line; do echo "::error title=Android compiler::$line"; done
 
       - name: Stop after compile failure
         if: steps.compile.outputs.exit_code != '0'
@@ -81,12 +79,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet publish src/Haven.Android/Haven.Android.csproj \
-            -c Debug \
-            -f net10.0-android \
-            --no-restore \
-            -p:AndroidPackageFormat=apk \
-            -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+          dotnet publish src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore             -p:AndroidPackageFormat=apk             -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
 
       - name: Collect APK
         shell: bash
