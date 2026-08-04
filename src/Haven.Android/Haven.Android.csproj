@@ -35,9 +35,10 @@
   <ItemGroup>
     <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
-    <ProjectReference Include="../Havn.Infrastructure/Haven.Infrastructure.csproj" />
+    <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
     <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
     <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
+
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Android" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
