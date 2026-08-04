@@ -135,6 +135,7 @@ internal static class AndroidRuntimeDiagnostics
 
         if (!showDialog
             || _activity?.TryGetTarget(out var activity) != true
+            || activity is null
             || activity.IsFinishing
             || activity.IsDestroyed)
         {
@@ -181,9 +182,7 @@ internal static class AndroidRuntimeDiagnostics
         lock (Sync)
         {
             if (string.IsNullOrWhiteSpace(_reportPath))
-            {
                 return;
-            }
 
             try
             {
@@ -366,7 +365,7 @@ internal static class AndroidRuntimeDiagnostics
 
         sanitized = Regex.Replace(
             sanitized,
-            @"(?im)(?:[A-Z]:\\|/home/|/Users/)[^\r\n]*",
+            @"(?im)(?:SA-Z:\\|/home/|/Users/)[^\r\n]*",
             "<source-path>");
 
         return sanitized.Length <= MaxDetailCharacters
