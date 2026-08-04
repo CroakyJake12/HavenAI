@@ -124,6 +124,12 @@ jobs:
 
           yes | "$sdkmanager_path" --licenses >/dev/null || true
           "$sdkmanager_path" "platform-tools" "emulator" "$ANDROID_SYSTEM_IMAGE"
+
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          printf '%s\n' "$ANDROID_HOME/platform-tools" "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+          test -x "$ANDROID_HOME/platform-tools/adb"
+          adb version | tee artifacts/smoke/adb-version.txt
+
           echo no | "$avdmanager_path" create avd \
             --force \
             --name "$AVD_NAME" \
