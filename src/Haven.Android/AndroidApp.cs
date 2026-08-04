@@ -9,7 +9,7 @@ namespace Haven.Android;
 [Application]
 public sealed class AndroidApp : AvaloniaAndroidApplication<App>
 {
-    protected AndroidApp(IntPtr javaReference, JniHandleOwnership transfer)
+    public AndroidApp(IntPtr javaReference, JniHandleOwnership transfer)
         : base(javaReference, transfer)
     {
     }
