@@ -12,6 +12,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1.0-mobile-preview</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidManifest>AndroidManifest.xml</AndroidManifest>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <PublishTrimmed>false</PublishTrimmed>
     <AssemblyName>Haven</AssemblyName>
@@ -45,10 +46,10 @@
     <AvaloniaResource Include="..\Haven.Desktop\Assets\**" LinkBase="Assets" />
     <AvaloniaResource Include="..\Haven.Desktop\Styles\**\*.axaml" LinkBase="Styles" />
     <AvaloniaResource Include="..\Haven.Desktop\Controls\**\*.axaml" LinkBase="Controls" />
-    <AvaloniaResource Include="..\Haven.Desktop\Views\**\*.axaml"
+    <AvaloniaResource Include="...\Haven.Desktop\Views\**\*.axaml"
                       Exclude="..\Haven.Desktop\MainWindow.axaml"
                       LinkBase="Views" />
-    <AndroidResource Include="..\Haven.Desktop\Assets\haven-192.png">
+    <AndroidResource Include="...\Haven.Desktop\Assets\haven-192.png">
       <Link>Resources\drawable\haven_icon.png</Link>
     </AndroidResource>
   </ItemGroup>
