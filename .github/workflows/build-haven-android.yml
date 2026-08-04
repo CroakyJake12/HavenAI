@@ -139,7 +139,7 @@ jobs:
             -camera-front none
             -no-snapshot-save
           script: |
-            set -euo pipefail
+            set -eu
             mkdir -p artifacts/smoke
 
             collect_evidence() {
@@ -153,39 +153,44 @@ jobs:
             }
             trap collect_evidence EXIT
 
-            apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
+            apk="$(find artifacts/android -type f -name '*5Signed.apk' -print -quit)"
             if [ -z "$apk" ]; then
               apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
             fi
             test -n "$apk"
 
-            sha256sum "$apk" | tee artifacts/smoke/installed-apk.sha256
-            adb install -r "$apk" | tee artifacts/smoke/adb-install.txt
-            adb shell pm list packages |
-              grep -F 'package:com.cakemods.haven' |
-              tee artifacts/smoke/package-presence.txt
+            sha256sum "$apk" > artifacts/smoke/installed-apk.sha256
+            cat artifacts/smoke/installed-apk.sha256
+
+            adb install -r "$apk" > artifacts/smoke/adb-install.txt 2>&1
+            cat artifacts/smoke/adb-install.txt
+            grep -q '^Success$' artifacts/smoke/adb-install.txt
+
+            adb shell pm list packages > artifacts/smoke/package-presence.txt
+            grep -F 'package:com.cakemods.haven' artifacts/smoke/package-presence.txt
 
             component="$(
               adb shell cmd package resolve-activity --brief \
                 -a android.intent.action.MAIN \
                 -c android.intent.category.LAUNCHER \
                 com.cakemods.haven |
-              tr -d '\r' |
+              tr -d '\qÂ' |
               tail -n 1
             )"
             test -n "$component"
             test "$component" != "No activity found"
-            printf '%s\n' "$component" | tee artifacts/smoke/launcher-component.txt
+            printf '%s\n' "$component" > artifacts/smoke/launcher-component.txt
+            cat artifacts/smoke/launcher-component.txt
 
             adb logcat -c
             adb shell am force-stop com.cakemods.haven
-            adb shell am start -W -n "$component" |
-              tee artifacts/smoke/activity-start.txt
+            adb shell am start -W -n "$component" > artifacts/smoke/activity-start.txt 2>&1
+            cat artifacts/smoke/activity-start.txt
             sleep 30
 
             collect_evidence
 
-            pid="$(tr -d '\r\n' < artifacts/smoke/haven.pid)"
+            pid="$(tr -d '\qÂ\n' < artifacts/smoke/haven.pid)"
             if [ -z "$pid" ]; then
               echo "::error title=Haven Android runtime::Haven exited during startup."
               grep -E -A 40 -B 5 'FATAL EXCEPTION|AndroidRuntime|Haven Android runtime report' \
