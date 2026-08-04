@@ -73,23 +73,23 @@ public sealed partial class MainView
 
         _mobileHeader = BuildMobileHeader();
         Grid.SetRow(_mobileHeader, 0);
-        Panel.SetZIndex(_mobileHeader, 30);
+        _mobileHeader.ZIndex = 30;
         root.Children.Add(_mobileHeader);
 
         _mobileBottomAffordance = BuildHistoryAffordance();
         Grid.SetRow(_mobileBottomAffordance, 1);
-        Panel.SetZIndex(_mobileBottomAffordance, 40);
+        _mobileBottomAffordance.ZIndex = 40;
         root.Children.Add(_mobileBottomAffordance);
 
         _mobileHomeFooter = BuildHomeFooter();
         Grid.SetRow(_mobileHomeFooter, 1);
-        Panel.SetZIndex(_mobileHomeFooter, 45);
+        _mobileHomeFooter.ZIndex = 45;
         root.Children.Add(_mobileHomeFooter);
 
         _mobileDrawerContent = new StackPanel { Spacing = 10 };
         _mobileDrawer = BuildDrawer(_mobileDrawerContent);
         Grid.SetRowSpan(_mobileDrawer, 2);
-        Panel.SetZIndex(_mobileDrawer, 100);
+        _mobileDrawer.ZIndex = 100;
         root.Children.Add(_mobileDrawer);
 
         OpenTabs.CollectionChanged += OnMobileTabsChanged;
@@ -132,6 +132,7 @@ public sealed partial class MainView
             ColumnSpacing = 6,
             Margin = new Thickness(8, 8, 8, 4)
         };
+
         firstRow.Children.Add(brand);
         Grid.SetColumn(actions, 2);
         Grid.SetColumn(modes, 3);
@@ -238,7 +239,7 @@ public sealed partial class MainView
 
         _mobileGoInput = new TextBox
         {
-            Watermark = "Go — ask about this screen or open something",
+            PlaceholderText = "Go — ask about this screen or open something",
             MinHeight = 48,
             CornerRadius = new CornerRadius(24),
             Padding = new Thickness(16, 10),
