@@ -21,11 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Haven.Core\Haven.Core.csproj" />
-    <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
-    <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
-    <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
-    <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
+    <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
+    <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
+    <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
+    <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
 
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Android" />
@@ -39,18 +39,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Haven.Desktop\**\*.cs"
-             Exclude="..\Haven.Desktop\bin\**;..\Haven.Desktop\obj\**;..\Haven.Desktop\Program.cs;..\Haven.Desktop\MainWindow.axaml.cs;..\Haven.Desktop\MainWindow.DeveloperTools.cs"
+    <Compile Include="../Haven.Desktop/**/*.cs"
+             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs"
              LinkBase="SharedDesktop" />
-    <AvaloniaResource Include="..\Haven.Desktop\App.axaml" Link="App.axaml" />
-    <AvaloniaResource Include="..\Haven.Desktop\Assets\**" LinkBase="Assets" />
-    <AvaloniaResource Include="..\Haven.Desktop\Styles\**\*.axaml" LinkBase="Styles" />
-    <AvaloniaResource Include="..\Haven.Desktop\Controls\**\*.axaml" LinkBase="Controls" />
-    <AvaloniaResource Include="...\Haven.Desktop\Views\**\*.axaml"
-                      Exclude="..\Haven.Desktop\MainWindow.axaml"
+    <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
+    <AvaloniaResource Include="../Haven.Desktop/Assets/**" LinkBase="Assets" />
+    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
+    <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml" LinkBase="Controls" />
+    <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
+                      Exclude="../Haven.Desktop/MainWindow.axaml"
                       LinkBase="Views" />
-    <AndroidResource Include="...\Haven.Desktop\Assets\haven-192.png">
-      <Link>Resources\drawable\haven_icon.png</Link>
-    </AndroidResource>
   </ItemGroup>
 </Project>
