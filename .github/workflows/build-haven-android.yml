@@ -101,187 +101,112 @@ jobs:
   android-smoke:
     name: Install and launch APK on hosted emulator
     needs: android
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      AVD_NAME: haven-ci
-      ANDROID_SYSTEM_IMAGE: system-images;android-35;default;x86_64
-      ANDROID_AVD_HOME: ${{ github.workspace }}/.android/avd
 
     steps:
+      - name: Check out Haven
+        uses: actions/checkout@v6
+
       - name: Download APK artifact
         uses: actions/download-artifact@v8
         with:
           name: Haven-Android-APK
           path: artifacts/android
 
-      - name: Create and boot Android emulator
+      - name: Enable KVM
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p artifacts/smoke "$ANDROID_AVD_HOME"
-
-          annotate_emulator_log() {
-            if [ ! -f artifacts/smoke/emulator.log ]; then
-              return
-            fi
-            tail -n 25 artifacts/smoke/emulator.log | while IFS= read -r line; do
-              safe=${line//'%'/'%25'}
-              safe=${safe//$'\r'/'%0D'}
-              safe=${safe//$'\n'/'%0A'}
-              echo "::error title=Android emulator log::$safe"
-            done
-          }
-
-          sdkmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)"
-          avdmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/avdmanager' | sort -V | tail -n 1)"
-          emulator_path="$ANDROID_HOME/emulator/emulator"
-          adb_path="$ANDROID_HOME/platform-tools/adb"
-          progress_file="artifacts/smoke/stages.txt"
-
-          mark_stage() {
-            printf '%s\n' "$1" | tee -a "$progress_file"
-          }
-
-          export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
-          mark_stage "sdk-tools-resolved"
-
-          test -x "$sdkmanager_path"
-          test -x "$avdmanager_path"
-
-          yes | "$sdkmanager_path" --licenses >/dev/null || true
-          timeout 900 "$sdkmanager_path" "platform-tools" "emulator" "$ANDROID_SYSTEM_IMAGE"
-          mark_stage "sdk-packages-installed"
-
-          test -x "$emulator_path"
-          test -x "$adb_path"
-          mark_stage "sdk-binaries-verified"
-
-          "$adb_path" version | tee artifacts/smoke/adb-version.txt
-          "$emulator_path" -version | tee artifacts/smoke/emulator-version.txt
-
-          printf '%s\n' 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
-            sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
-          sudo udevadm control --reload-rules || true
-          sudo udevadm trigger --name-match=kvm || true
-          if [ -e /dev/kvm ]; then
-            sudo chmod 666 /dev/kvm
-          fi
-
-          if "$emulator_path" -accel-check 2>&1 | tee artifacts/smoke/accel-check.txt; then
-            emulator_accel=on
-          else
-            emulator_accel=off
-          fi
-          printf '%s\n' "$emulator_accel" | tee artifacts/smoke/emulator-accel-mode.txt
-          mark_stage "acceleration-probed"
-
-          echo no | "$avdmanager_path" create avd \
-            --force \
-            --name "$AVD_NAME" \
-            --package "$ANDROID_SYSTEM_IMAGE" \
-            --device "pixel_6"
-          mark_stage "avd-created"
-
-          "$emulator_path" -list-avds | tee artifacts/smoke/avd-list.txt
-          grep -Fx "$AVD_NAME" artifacts/smoke/avd-list.txt
-          mark_stage "avd-listed"
-
-          nohup "$emulator_path" "@$AVD_NAME" \
-            -accel "$emulator_accel" \
-            -no-window \
-            -no-audio \
-            -no-boot-anim \
-            -gpu swiftshader \
-            -no-metrics \
-            -no-snapshot \
-            -wipe-data \
-            -memory 2048 \
-            -cores 2 \
-            -camera-back none \
-            -camera-front none \
-            -verbose \
-            > artifacts/smoke/emulator.log 2>&1 &
-          echo "$!" > artifacts/smoke/emulator.pid
-          mark_stage "emulator-started"
-
-          "$adb_path" start-server
-          if ! timeout 300 "$adb_path" wait-for-device; then
-            "$adb_path" devices -l | tee artifacts/smoke/adb-devices.txt || true
-            annotate_emulator_log
-            echo "::error title=Android emulator boot::ADB did not detect the emulator within 300 seconds."
-            exit 1
-          fi
-
-          if ! timeout 600 bash -c '
-            adb_path="$1"
-            until [ "$("$adb_path" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do
-              sleep 5
-            done
-          ' _ "$adb_path"; then
-            "$adb_path" devices -l | tee artifacts/smoke/adb-devices.txt || true
-            "$adb_path" shell getprop > artifacts/smoke/device-properties-partial.txt || true
-            annotate_emulator_log
-            echo "::error title=Android emulator boot::The emulator was detected but did not finish booting within 600 seconds."
-            exit 1
-          fi
-
-          "$adb_path" shell input keyevent 82 || true
-          "$adb_path" devices -l | tee artifacts/smoke/adb-devices.txt
-          "$adb_path" shell getprop > artifacts/smoke/device-properties.txt
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Install and launch Haven
-        shell: bash
-        run: |
-          set -euo pipefail
-          adb_path="$ANDROID_HOME/platform-tools/adb"
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: >-
+            -no-window
+            -gpu swiftshader_indirect
+            -noaudio
+            -no-boot-anim
+            -camera-back none
+            -camera-front none
+            -no-snapshot-save
+          script: |
+            set -euo pipefail
+            mkdir -p artifacts/smoke
 
-          apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
-          if [ -z "$apk" ]; then
-            apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
-          fi
-          test -n "$apk"
+            collect_evidence() {
+              adb shell dumpsys activity activities > artifacts/smoke/activities.txt 2>&1 || true
+              adb shell dumpsys package com.cakemods.haven > artifacts/smoke/package.txt 2>&1 || true
+              adb logcat -d -v threadtime > artifacts/smoke/logcat.txt 2>&1 || true
+              adb exec-out screencap -p > artifacts/smoke/haven-launch.png 2>/dev/null || true
+              adb shell uiautomator dump /sdcard/haven-window.xml >/dev/null 2>&1 || true
+              adb pull /sdcard/haven-window.xml artifacts/smoke/haven-window.xml >/dev/null 2>&1 || true
+              adb shell pidof com.cakemods.haven > artifacts/smoke/haven.pid 2>&1 || true
+            }
+            trap collect_evidence EXIT
 
-          sha256sum "$apk" | tee artifacts/smoke/installed-apk.sha256
-          "$adb_path" install -r "$apk" | tee artifacts/smoke/adb-install.txt
-          "$adb_path" shell pm list packages | grep -F 'package:com.cakemods.haven' |
-            tee artifacts/smoke/package-presence.txt
+            apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
+            if [ -z "$apk" ]; then
+              apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
+            fi
+            test -n "$apk"
 
-          component="$(
-            "$adb_path" shell cmd package resolve-activity --brief \
-              -a android.intent.action.MAIN \
-              -c android.intent.category.LAUNCHER \
-              com.cakemods.haven |
+            sha256sum "$apk" | tee artifacts/smoke/installed-apk.sha256
+            adb install -r "$apk" | tee artifacts/smoke/adb-install.txt
+            adb shell pm list packages |
+              grep -F 'package:com.cakemods.haven' |
+              tee artifacts/smoke/package-presence.txt
+
+            component="$(
+              adb shell cmd package resolve-activity --brief \
+                -a android.intent.action.MAIN \
+                -c android.intent.category.LAUNCHER \
+                com.cakemods.haven |
               tr -d '\r' |
               tail -n 1
-          )"
-          test -n "$component"
-          test "$component" != "No activity found"
-          printf '%s\n' "$component" | tee artifacts/smoke/launcher-component.txt
+            )"
+            test -n "$component"
+            test "$component" != "No activity found"
+            printf '%s\n' "$component" | tee artifacts/smoke/launcher-component.txt
 
-          "$adb_path" logcat -c
-          "$adb_path" shell am force-stop com.cakemods.haven
-          "$adb_path" shell am start -W -n "$component" | tee artifacts/smoke/activity-start.txt
-          sleep 30
+            adb logcat -c
+            adb shell am force-stop com.cakemods.haven
+            adb shell am start -W -n "$component" |
+              tee artifacts/smoke/activity-start.txt
+            sleep 30
 
-          pid="$("$adb_path" shell pidof com.cakemods.haven | tr -d '\r')"
-          test -n "$pid"
-          printf '%s\n' "$pid" | tee artifacts/smoke/haven.pid
+            collect_evidence
 
-          "$adb_path" shell dumpsys activity activities > artifacts/smoke/activities.txt
-          "$adb_path" shell dumpsys package com.cakemods.haven > artifacts/smoke/package.txt
-          "$adb_path" exec-out screencap -p > artifacts/smoke/haven-launch.png
-          timeout 30 "$adb_path" shell uiautomator dump /sdcard/haven-window.xml || true
-          "$adb_path" pull /sdcard/haven-window.xml artifacts/smoke/haven-window.xml || true
-          "$adb_path" logcat -d -v threadtime > artifacts/smoke/logcat.txt
+            pid="$(tr -d '\r\n' < artifacts/smoke/haven.pid)"
+            if [ -z "$pid" ]; then
+              echo "::error title=Haven Android runtime::Haven exited during startup."
+              grep -E -A 40 -B 5 'FATAL EXCEPTION|AndroidRuntime|Haven Android runtime report' \
+                artifacts/smoke/logcat.txt || true
+              exit 1
+            fi
 
-          if grep -q 'FATAL EXCEPTION' artifacts/smoke/logcat.txt &&
-            grep -q 'Process: com.cakemods.haven' artifacts/smoke/logcat.txt; then
-            echo "::error title=Haven Android runtime::Haven emitted a fatal exception after launch."
-            exit 1
-          fi
+            if grep -q 'Haven encountered an error' artifacts/smoke/haven-window.xml 2>/dev/null; then
+              echo "::error title=Haven Android startup::The native recovery dialog reported an Avalonia startup failure."
+              grep -E -A 60 -B 5 'Haven Android runtime report|FATAL EXCEPTION|AndroidRuntime' \
+                artifacts/smoke/logcat.txt || true
+              exit 1
+            fi
 
-          "$adb_path" shell pidof com.cakemods.haven >/dev/null
+            if grep -q 'FATAL EXCEPTION' artifacts/smoke/logcat.txt &&
+               grep -q 'Process: com.cakemods.haven' artifacts/smoke/logcat.txt; then
+              echo "::error title=Haven Android runtime::Haven emitted a fatal exception after launch."
+              exit 1
+            fi
+
+            adb shell pidof com.cakemods.haven >/dev/null
 
       - name: Upload emulator smoke evidence
         if: always()
@@ -291,9 +216,3 @@ jobs:
           path: artifacts/smoke
           if-no-files-found: error
           retention-days: 30
-
-      - name: Stop emulator
-        if: always()
-        shell: bash
-        run: |
-          "$ANDROID_HOME/platform-tools/adb" emu kill || true
