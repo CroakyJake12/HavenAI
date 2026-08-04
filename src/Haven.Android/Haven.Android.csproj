@@ -49,15 +49,27 @@
     <Compile Include="../Haven.Desktop/**/*.cs"
              Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
              LinkBase="SharedDesktop" />
-    <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
+    <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
     <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
                       Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
-    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml"
-                      Link="Styles/%(RecursiveDir)%(Filename)%(Extension)" />
-    <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml"
-                      Link="Controls/%(RecursiveDir)%(Filename)%(Extension)" />
-    <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
-                      Exclude="../Haven.Desktop/MainWindow.axaml"
-                      Link="Views/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AvaloniaXaml Include="../Haven.Desktop/Styles/**/*.axaml"
+                  Link="Styles/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Include="../Haven.Desktop/Controls/**/*.axaml"
+                  Link="Controls/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Include="../Haven.Desktop/Views/**/*.axaml"
+                  Exclude="../Haven.Desktop/MainWindow.axaml"
+                  Link="Views/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
   </ItemGroup>
 </Project>
