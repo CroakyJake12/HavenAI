@@ -33,10 +33,10 @@ jobs:
 
     steps:
       - name: Check out Haven
-        uses: actions/checkout@v4
+        uses: actions/checkout v5
 
       - name: Install .NET from global.json
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -47,22 +47,51 @@ jobs:
         run: dotnet restore src/Haven.Android/Haven.Android.csproj
 
       - name: Compile Android head
-        run: dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore
+        id: compile
+        shell: bash
+        run: |
+          set +e
+          mkdir -p artifacts/android
+          dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore 2>&1 | tee artifacts/android/build.log
+          build_exit=${PIPESTATUS[0]}
+          echo "exit_code=$build_exit" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish compile diagnostics
+        if: steps.compile.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          {
+            echo "## Android compile failed"
+            echo
+            echo '```text'
+            grep -E -m 40 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log || tail -n 120 artifacts/android/build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          grep -E -m 20 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log \
+            | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' \
+            | while IFS= read -r line; do echo "::error title=Android compiler::$line"; done
+
+      - name: Stop after compile failure
+        if: steps.compile.outputs.exit_code != '0'
+        run: exit 1
 
       - name: Package APK
-        run: >
-          dotnet publish src/Haven.Android/Haven.Android.csproj
-          -c Debug
-          -f net10.0-android
-          --no-restore
-          -p:AndroidPackageFormat=apk
-          -p:AndroidKeyStore=false
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
 
       - name: Collect APK
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/android
           mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
           if [ "${#apks[@]}" -eq 0 ]; then
             echo "No APK was produced."
@@ -74,10 +103,21 @@ jobs:
           sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
           ls -lh artifacts/android
 
+      - name: Upload Android logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Android-Build-Logs
+          path: artifacts/android/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: Haven-Android-APK
-          path: artifacts/android/
+          path: |
+            artifacts/android/*.apk
+            artifacts/android/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
