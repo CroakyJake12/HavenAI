@@ -17,11 +17,10 @@ public sealed class AndroidApp : AvaloniaAndroidApplication<App>
     public override void OnCreate()
     {
         AndroidRuntimeDiagnostics.Initialize(this);
-
         try
         {
+            SQLitePCL.Batteries_V2.Init();
             base.OnCreate();
-
             if (Avalonia.Application.Current?.ApplicationLifetime is IActivityApplicationLifetime lifetime)
             {
                 lifetime.MainViewFactory = AndroidHavenBootstrap.CreateMainView;
