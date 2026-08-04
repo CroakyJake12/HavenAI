@@ -12,6 +12,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1.0-mobile-preview</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidManifest>AndroidManifest.xml</AndroidManifest>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <PublishTrimmed>false</PublishTrimmed>
