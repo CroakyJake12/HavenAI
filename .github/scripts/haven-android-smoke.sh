@@ -1,6 +1,14 @@
 #!/bin/sh
-set -eu
+set -u
+stage="initializing smoke test"
 mkdir -p artifacts/smoke
+
+fail() {
+  status="$1"
+  shift
+  echo "::error title=Haven Android smoke failure::$*"
+  exit "$status"
+}
 
 collect_evidence() {
   adb shell dumpsys activity activities > artifacts/smoke/activities.txt 2>&1 || true
@@ -15,7 +23,17 @@ collect_evidence() {
   adb shell dumpsys dropbox --print data_app_native_crash > artifacts/smoke/data-app-native-crash.txt 2>&1 || true
   adb shell pidof com.cakemods.haven > artifacts/smoke/haven.pid 2>&1 || true
 }
-trap collect_evidence EXIT
+
+on_exit() {
+  status="$?"
+  trap - EXIT
+  collect_evidence
+  if [ "$status" -ne 0 ]; then
+    echo "::error title=Haven Android smoke stage::$stage exited with status $status"
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
 
 publish_startup_excerpt() {
   managed_file="artifacts/smoke/haven-runtime-errors.log"
@@ -37,7 +55,7 @@ $(tail -n 80 "$exit_file" 2>/dev/null || true)"
   fi
   native_excerpt="$(
     grep -E -A 140 -B 12 \
-      'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+|Abort message|backtrace:#|#0[0-9] pc|#00 pc' \
+      'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+|Abort message|backtrace:|#0[0-9] pc|#00 pc' \
       "$native_crash_file" 2>/dev/null | tail -n 180 || true
   )"
   if [ -n "$native_excerpt" ]; then
@@ -90,22 +108,27 @@ $log_excerpt"
   echo "::error title=Haven Android startup details::$sanitized"
 }
 
-apk="$(find artifacts/android -type f -name '*5Signed.apk' -print -quit)"
+stage="locating packaged APK"
+apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
 if [ -z "$apk" ]; then
   apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
-f;
-test -n "$apk"
+fi
+test -n "$apk" || fail "$?" "No APK was found in the downloaded artifact."
 
-sha256sum "$apk" > artifacts/smoke/installed-apk.sha256
+stage="hashing packaged APK"
+sha256sum "$apk" > artifacts/smoke/installed-apk.sha256 || fail "$?" "Could not hash the packaged APK."
 cat artifacts/smoke/installed-apk.sha256
 
-adb install -r "$apk" > artifacts/smoke/adb-install.txt 2>&1
+stage="installing APK"
+adb install -r "$apk" > artifacts/smoke/adb-install.txt 2>&1 || fail "$?" "adb install failed."
 cat artifacts/smoke/adb-install.txt
-grep -q '^Success$' artifacts/smoke/adb-install.txt
+grep -q '^Success$' artifacts/smoke/adb-install.txt || fail "$?" "adb did not report a successful installation."
 
-adb shell pm list packages > artifacts/smoke/package-presence.txt
-grep -F 'package:com.cakemods.haven' artifacts/smoke/package-presence.txt
+stage="confirming installed package"
+adb shell pm list packages > artifacts/smoke/package-presence.txt || fail "$?" "Could not list Android packages."
+grep -F 'package:com.cakemods.haven' artifacts/smoke/package-presence.txt || fail "$?" "The Haven package was not installed."
 
+stage="resolving launcher activity"
 component="$(
   adb shell cmd package resolve-activity --brief \
     -a android.intent.action.MAIN \
@@ -114,19 +137,24 @@ component="$(
   tr -d '\r' |
   tail -n 1
 )"
-test -n "$component"
-test "$component" != "No activity found"
+test -n "$component" || fail "$?" "No APK was found in the downloaded artifact."
+test "$component" != "No activity found" || fail "$?" "Android could not resolve Haven's launcher activity."
 printf '%s\n' "$component" > artifacts/smoke/launcher-component.txt
 cat artifacts/smoke/launcher-component.txt
 
-adb logcat -c
-adb shell am force-stop com.cakemods.haven
-adb shell am start -W -n "$component" > artifacts/smoke/actity-start.txt 2>&1
+stage="clearing logcat"
+adb logcat -c || fail "$?" "Could not clear logcat."
+adb shell am force-stop com.cakemods.haven || fail "$?" "Could not stop a previous Haven process."
+stage="launching Haven"
+adb shell am start -W -n "$component" > artifacts/smoke/actity-start.txt 2>&1 || fail "$?" "Android activity launch failed."
 cat artifacts/smoke/actity-start.txt
+stage="waiting for Haven startup"
 sleep 30
 
+stage="collecting startup evidence"
 collect_evidence
 
+stage="checking Haven process"
 pid="$(tr -d '\r\n' < artifacts/smoke/haven.pid)"
 if [ -z "$pid" ]; then
   publish_startup_excerpt
@@ -151,4 +179,5 @@ if grep -q 'FATAL EXCEPTION' artifacts/smoke/logcat.txt &&
   exit 1
 fi
 
-adb shell pidof com.cakemods.haven >/dev/null
+stage="confirming stable Haven process"
+adb shell pidof com.cakemods.haven >/dev/null || fail "$?" "Haven was no longer running after startup validation."
