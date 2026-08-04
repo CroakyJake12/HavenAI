@@ -222,7 +222,7 @@ internal static class AndroidRuntimeDiagnostics
             "Bearer [redacted]");
         sanitized = Regex.Replace(
             sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[D\l,;]+",
+            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[^\s,;]+",
             "$1=[redacted]");
         sanitized = Regex.Replace(
             sanitized,
@@ -230,7 +230,7 @@ internal static class AndroidRuntimeDiagnostics
             "<app-data>");
         sanitized = Regex.Replace(
             sanitized,
-            @"(?im)(?:SA-Z:\\|/home/|/Users/)[^\r\n]*",
+            @"(?im)(?:[A-Z]:\\|/home/|/Users/)[^\r\n]*",
             "<source-path>");
 
         return sanitized.Length <= MaxDetailCharacters
