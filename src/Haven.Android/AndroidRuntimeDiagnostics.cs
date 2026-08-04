@@ -122,13 +122,22 @@ internal static class AndroidRuntimeDiagnostics
                     return;
                 }
 
-                new AndroidAlertDialog.Builder(activity)
-                    .SetTitle("Haven encountered an error")
-                    .SetMessage(BuildDialogMessage(report))
-                    .SetPositiveButton("Copy details", (_, _) => CopyReport(activity, report))
-                    .SetNeutralButton("Share report", (_, _) => ShareReport(activity, report))
-                    .SetNegativeButton("Clear report", (_, _) => ClearReport())
-                    .Show();
+                var dialogBuilder = new AndroidAlertDialog.Builder(activity);
+                dialogBuilder.SetTitle("Haven encountered an error");
+                dialogBuilder.SetMessage(BuildDialogMessage(report));
+                dialogBuilder.SetPositiveButton("Copy details", (_, _) => CopyReport(activity, report));
+                dialogBuilder.SetNeutralButton("Share report", (_, _) => ShareReport(activity, report));
+                dialogBuilder.SetNegativeButton("Clear report", (_, _) => ClearReport());
+
+                var dialog = dialogBuilder.Create();
+                if (dialog is null)
+                {
+                    Interlocked.Exchange(ref _reportPresented, 0);
+                    AndroidLog.Error(LogTag, "Could not create Haven's runtime-error dialog.");
+                    return;
+                }
+
+                dialog.Show();
             }
             catch (Exception exception)
             {
@@ -213,7 +222,7 @@ internal static class AndroidRuntimeDiagnostics
             "Bearer [redacted]");
         sanitized = Regex.Replace(
             sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[^\s,;]+",
+            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[D\l,;]+",
             "$1=[redacted]");
         sanitized = Regex.Replace(
             sanitized,
@@ -221,7 +230,7 @@ internal static class AndroidRuntimeDiagnostics
             "<app-data>");
         sanitized = Regex.Replace(
             sanitized,
-            @"(?im)(?:[A-Z]:\\|/home/|/Users/)[^\r\n]*",
+            @"(?im)(?:SA-Z:\\|/home/|/Users/)[^\r\n]*",
             "<source-path>");
 
         return sanitized.Length <= MaxDetailCharacters
