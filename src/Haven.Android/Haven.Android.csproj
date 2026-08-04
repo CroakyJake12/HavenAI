@@ -22,6 +22,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
     <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
@@ -45,7 +55,7 @@
              LinkBase="SharedDesktop" />
     <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
     <AvaloniaResource Include="../Haven.Desktop/Assets/**" LinkBase="Assets" />
-    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
+    <AvaloniaResource Include=".../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
     <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml" LinkBase="Controls" />
     <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
                       Exclude="../Haven.Desktop/MainWindow.axaml"
