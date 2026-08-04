@@ -9,6 +9,7 @@ collect_evidence() {
   adb exec-out screencap -p > artifacts/smoke/haven-launch.png 2>/dev/null || true
   adb shell uiautomator dump /sdcard/haven-window.xml >/dev/null 2>&1 || true
   adb pull /sdcard/haven-window.xml artifacts/smoke/haven-window.xml >/dev/null 2>&1 || true
+  adb exec-out run-as com.cakemods.haven cat files/haven-runtime-errors.log > artifacts/smoke/haven-runtime-errors.log 2>/dev/null || true
   adb shell dumpsys activity exit-info com.cakemods.haven > artifacts/smoke/exit-info.txt 2>&1 || true
   adb shell dumpsys dropbox --print data_app_crash > artifacts/smoke/data-app-crash.txt 2>&1 || true
   adb shell dumpsys dropbox --print data_app_native_crash > artifacts/smoke/data-app-native-crash.txt 2>&1 || true
@@ -17,20 +18,26 @@ collect_evidence() {
 trap collect_evidence EXIT
 
 publish_startup_excerpt() {
+  managed_file="artifacts/smoke/haven-runtime-errors.log"
   exit_file="artifacts/smoke/exit-info.txt"
   java_crash_file="artifacts/smoke/data-app-crash.txt"
   native_crash_file="artifacts/smoke/data-app-native-crash.txt"
   log_file="artifacts/smoke/logcat.txt"
 
   excerpt=""
+  if [ -s "$managed_file" ]; then
+    excerpt="HAVEN MANAGED REPORT:
+$(tail -n 220 "$managed_file" 2>/dev/null || true)"
+  fi
   if [ -s "$exit_file" ]; then
-    excerpt="PROCESS EXIT INFO:
+    excerpt="$excerpt
+
+PROCESS EXIT INFO:
 $(tail -n 80 "$exit_file" 2>/dev/null || true)"
   fi
-
   native_excerpt="$(
     grep -E -A 140 -B 12 \
-      'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+|Abort message|backtrace:|#0[0-9] pc|#00 pc' \
+      'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+|Abort message|backtrace:#|#0[0-9] pc|#00 pc' \
       "$native_crash_file" 2>/dev/null | tail -n 180 || true
   )"
   if [ -n "$native_excerpt" ]; then
@@ -39,7 +46,6 @@ $(tail -n 80 "$exit_file" 2>/dev/null || true)"
 NATIVE CRASH DROPBOX:
 $native_excerpt"
   fi
-
   java_excerpt="$(
     grep -E -A 100 -B 8 \
       'com\.cakemods\.haven|Process: com\.cakemods\.haven|FATAL EXCEPTION' \
@@ -51,7 +57,6 @@ $native_excerpt"
 JAVA CRASH DROPBOX:
 $java_excerpt"
   fi
-
   log_excerpt="$(
     grep -E -A 100 -B 12 \
       'FATAL EXCEPTION|AndroidRuntime|Fatal signal|Abort message|SIGABRT|SIGSEGV|has died|Killing.*com\.cakemods\.haven|Unable to instantiate|ClassNotFoundException|NoClassDefFoundError|UnsatisfiedLinkError|Haven Android runtime report|mono-rt|debuggerd|tombstoned' \
@@ -63,7 +68,6 @@ $java_excerpt"
 MATCHING LOGCAT:
 $log_excerpt"
   fi
-
   if [ -z "$excerpt" ]; then
     excerpt="$(
       grep -E 'com\.cakemods\.haven|Haven|mono|dotnet|libc' "$log_file" 2>/dev/null | tail -n 120 || true
@@ -71,9 +75,8 @@ $log_excerpt"
   fi
 
   if [ -z "$excerpt" ]; then
-    excerpt="No matching Haven process-exit or startup-crash information was captured."
+    excerpt="No matching Haven managed report, process-exit, or startup-crash information was captured."
   fi
-
   sanitized="$(
     printf '%s\n' "$excerpt" |
       sed -E \
@@ -84,13 +87,13 @@ $log_excerpt"
   )"
   sanitized="$(printf '%s' "$sanitized" | sed 's/%/%25/g')"
 
-  echo "::error title=Haven Android native-crash details::$sanitized"
+  echo "::error title=Haven Android startup details::$sanitized"
 }
 
-apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
+apk="$(find artifacts/android -type f -name '*5Signed.apk' -print -quit)"
 if [ -z "$apk" ]; then
   apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
-fi
+f;
 test -n "$apk"
 
 sha256sum "$apk" > artifacts/smoke/installed-apk.sha256
