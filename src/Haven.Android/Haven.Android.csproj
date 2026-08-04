@@ -18,6 +18,7 @@
     <AssemblyName>Haven</AssemblyName>
     <RootNamespace>Haven.Android</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,7 +41,7 @@
 
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
-             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs"
+             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
              LinkBase="SharedDesktop" />
     <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
     <AvaloniaResource Include="../Haven.Desktop/Assets/**" LinkBase="Assets" />
