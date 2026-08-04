@@ -19,7 +19,9 @@
     <RootNamespace>Haven.Android</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />
@@ -29,10 +31,11 @@
     <Using Include="System.Threading" />
     <Using Include="System.Threading.Tasks" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
-    <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
+    <ProjectReference Include="../Havn.Infrastructure/Haven.Infrastructure.csproj" />
     <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
     <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
     <PackageReference Include="Avalonia" />
@@ -45,26 +48,32 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="KokoroSharp.CPU" />
   </ItemGroup>
+
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
              Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
              LinkBase="SharedDesktop" />
+
     <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </AvaloniaXaml>
+
     <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
                       Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
+
     <AvaloniaXaml Include="../Haven.Desktop/Styles/**/*.axaml"
                   Link="Styles/%(RecursiveDir)%(Filename)%(Extension)">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </AvaloniaXaml>
+
     <AvaloniaXaml Include="../Haven.Desktop/Controls/**/*.axaml"
                   Link="Controls/%(RecursiveDir)%(Filename)%(Extension)">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </AvaloniaXaml>
+
     <AvaloniaXaml Include="../Haven.Desktop/Views/**/*.axaml"
                   Exclude="../Haven.Desktop/MainWindow.axaml"
                   Link="Views/%(RecursiveDir)%(Filename)%(Extension)">
