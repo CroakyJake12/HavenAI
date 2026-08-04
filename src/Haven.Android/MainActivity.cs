@@ -1,4 +1,5 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Avalonia.Android;
@@ -9,8 +10,8 @@ namespace Haven.Android;
     Label = "Haven",
     Theme = "@android:style/Theme.Material.Light.NoActionBar",
     Icon = "@drawable/haven_icon",
-    MainLauncher = true,
-    Exported = true,
+    MainLauncher = false,
+    Exported = false,
     ConfigurationChanges = ConfigChanges.Orientation
         | ConfigChanges.ScreenSize
         | ConfigChanges.UiMode
@@ -26,12 +27,7 @@ public sealed class MainActivity : AvaloniaMainActivity
         }
         catch (Exception exception)
         {
-            AndroidRuntimeDiagnostics.Record(
-                exception,
-                "Android main activity startup",
-                showDialog: false);
-            AndroidRuntimeDiagnostics.ShowStartupToast(this);
-            throw;
+            RedirectToNativeRecovery(exception);
         }
     }
 
@@ -45,5 +41,31 @@ public sealed class MainActivity : AvaloniaMainActivity
     {
         AndroidRuntimeDiagnostics.Detach(this);
         base.OnPause();
+    }
+
+    private void RedirectToNativeRecovery(Exception exception)
+    {
+        AndroidRuntimeDiagnostics.Record(
+            exception,
+            "Android Avalonia activity startup",
+            showDialog: false);
+
+        try
+        {
+            var intent = new Intent(this, typeof(AndroidBootstrapActivity));
+            intent.AddFlags(ActivityFlags.ClearTop | ActivityFlags.SingleTop);
+            StartActivity(intent);
+        }
+        catch (Exception redirectException)
+        {
+            AndroidRuntimeDiagnostics.Record(
+                new AggregateException(exception, redirectException),
+                "Redirecting to the native Android recovery activity",
+                showDialog: false);
+        }
+        finally
+        {
+            Finish();
+        }
     }
 }
