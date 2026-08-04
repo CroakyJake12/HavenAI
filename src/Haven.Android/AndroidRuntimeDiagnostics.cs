@@ -1,347 +1,207 @@
-using AndroidApplication = global::Android.App.Application;
-using AndroidActivity = global::Android.App.Activity;
-using AndroidAlertDialog = global::Android.App.AlertDialog;
-using AndroidContext = global::Android.Content.Context;
-using AndroidIntent = global::Android.Content.Intent;
-using AndroidClipData = global::Android.Content.ClipData;
-using AndroidClipboardManager = global::Android.Content.ClipboardManager;
-using AndroidBuild = global::Android.OS.Build;
-using AndroidEnvironment = global::Android.Runtime.AndroidEnvironment;
-using AndroidLog = global::Android.Util.Log;
-using AndroidToast = global::Android.Widget.Toast;
-using AndroidToastLength = global::Android.Widget.ToastLength;
+using DApp=global::Android.App.Application;
+using DActivity=global::Android.App.Activity;
+using DDialog=global::Android.App.AlertDialog;
+using DContext=global::Android.Content.Context;
+using DIntent=global::Android.Content.Intent;
+using DClip=global::Android.Content.ClipData;
+using DClipboard=global::Android.Content.ClipboardManager;
+using DBuild=global::Android.OS.Build;
+using DEnvironment=global::Android.Runtime.AndroidEnvironment;
+using DLog=global::Android.Util.Log;
+using DToast=global::Android.Widget.Toast;
+using DToastLength=global::Android.Widget.ToastLength;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Haven.Android;
 
 internal static class AndroidRuntimeDiagnostics
 {
-    private const string LogTag = "Haven";
-    private const string ReportFileName = "haven-runtime-errors.log";
-    private const int MaxReportCharacters = 131_072;
-    private const int MaxDetailCharacters = 20_000;
-
-    private static readonly object Sync = new();
-    private static string? _reportPath;
-    private static WeakReference<AndroidActivity>? _activity;
+    private const string Tag="Haven";
+    private const int MaxLog=131_072;
+    private static readonly object Gate=new();
+    private static string? _path;
+    private static WeakReference<DActivity>? _activity;
     private static int _initialized;
-    private static int _reportPresented;
+    private static int _presented;
 
-    public static void Initialize(AndroidApplication application)
+    public static void Initialize(DApp app)
     {
-        if (Interlocked.Exchange(ref _initialized, 1) != 0)
-            return;
-
+        if(Interlocked.Exchange(ref _initialized,1)!=0)return;
         try
         {
-            var directory = application.FilesDir?.AbsolutePath;
-            if (string.IsNullOrWhiteSpace(directory))
-                directory = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-            Directory.CreateDirectory(directory);
-            _reportPath = Path.Combine(directory, ReportFileName);
+            var dir=app.FilesDir?.AbsolutePath;
+            if(!string.IsNullOrWhiteSpace(dir))
+            {
+                Directory.CreateDirectory(dir);
+                _path=Path.Combine(dir,"haven-runtime-errors.log");
+            }
         }
-        catch (Exception exception)
-        {
-            AndroidLog.Error(LogTag, "Could not initialise Haven's private runtime-error file: " + exception.Message);
-        }
+        catch(Exception e){DLog.Error(Tag,"Runtime-report setup failed: "+e.Message);}
 
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-        {
-            var exception = args.ExceptionObject as Exception
-                ?? new InvalidOperationException("The runtime raised a non-Exception fatal error.");
-            Record(exception, "Unhandled managed exception", showDialog: false);
-        };
-
-        TaskScheduler.UnobservedTaskException += (_, args) =>
-            Record(args.Exception, "Unobserved task exception", showDialog: true);
-
-        AndroidEnvironment.UnhandledExceptionRaiser += (_, args) =>
-            Record(args.Exception, "Unhandled Android runtime exception", showDialog: false);
+        AppDomain.CurrentDomain.UnhandledException+=(_,a)=>Record(
+            a.ExceptionObject as Exception??new InvalidOperationException("A non-Exception fatal error occurred."),
+            "Unhandled managed exception",false);
+        TaskScheduler.UnobservedTaskException+=(_,a)=>Record(a.Exception,"Unobserved task exception",true);
+        DEnvironment.UnhandledExceptionRaiser+=(_,a)=>Record(a.Exception,"Unhandled Android runtime exception",false);
     }
 
-    public static void Attach(AndroidActivity activity)
+    public static void Attach(DActivity activity)
     {
-        _activity = new WeakReference<AndroidActivity>(activity);
-        ShowPendingReport(activity);
+        _activity=new(activity);
+        ShowPending(activity);
     }
 
-    public static void Detach(AndroidActivity activity)
+    public static void Detach(DActivity activity)
     {
-        if (_activity?.TryGetTarget(out var current) == true && ReferenceEquals(current, activity))
-            _activity = null;
+        if(_activity?.TryGetTarget(out var current)==true&&ReferenceEquals(current,activity))_activity=null;
     }
 
-    public static void Record(Exception exception, string context, bool showDialog)
+    public static void Record(Exception error,string context,bool showDialog)
     {
-        ArgumentNullException.ThrowIfNull(exception);
-
-        var report = BuildReport(exception, context);
-        WriteReport(report);
-        AndroidLog.Error(LogTag, report);
-
-        if (!showDialog || !TryGetActivity(out var activity))
-            return;
-
-        Interlocked.Exchange(ref _reportPresented, 0);
-        ShowPendingReport(activity);
-    }
-
-    public static void ShowStartupToast(AndroidContext context)
-    {
-        try
+        var report=BuildReport(error,context);
+        Save(report);
+        DLog.Error(Tag,report);
+        if(showDialog&&_activity?.TryGetTarget(out var activity)==true&&!activity.IsFinishing&&!activity.IsDestroyed)
         {
-            AndroidToast.MakeText(
-                context,
-                "Haven could not start. A technical error report was saved.",
-                AndroidToastLength.Long)?.Show();
-        }
-        catch (Exception exception)
-        {
-            AndroidLog.Error(LogTag, "Could not show Haven's startup error message: " + exception.Message);
+            Interlocked.Exchange(ref _presented,0);
+            ShowPending(activity);
         }
     }
 
-    private static void ShowPendingReport(AndroidActivity activity)
-    {
-        if (!TryReadReport(out var report)
-            || Interlocked.CompareExchange(ref _reportPresented, 1, 0) != 0)
-        {
-            return;
-        }
+    public static void ShowStartupToast(DContext context)=>DToast.MakeText(
+        context,"Haven could not start. A technical error report was saved.",DToastLength.Long)?.Show();
 
-        activity.RunOnUiThread(() =>
+    private static void ShowPending(DActivity activity)
+    {
+        if(!TryRead(out var report)||Interlocked.CompareExchange(ref _presented,1,0)!=0)return;
+        activity.RunOnUiThread(()=>
         {
             try
             {
-                if (activity.IsFinishing || activity.IsDestroyed)
+                if(activity.IsFinishing||activity.IsDestroyed)
                 {
-                    Interlocked.Exchange(ref _reportPresented, 0);
+                    Interlocked.Exchange(ref _presented,0);
                     return;
                 }
-
-                var dialogBuilder = new AndroidAlertDialog.Builder(activity);
-                dialogBuilder.SetTitle("Haven encountered an error");
-                dialogBuilder.SetMessage(BuildDialogMessage(report));
-                dialogBuilder.SetPositiveButton("Copy details", (_, _) => CopyReport(activity, report));
-                dialogBuilder.SetNeutralButton("Share report", (_, _) => ShareReport(activity, report));
-                dialogBuilder.SetNegativeButton("Clear report", (_, _) => ClearReport());
-
-                var dialog = dialogBuilder.Create();
-                if (dialog is null)
+                var builder=new DDialog.Builder(activity);
+                builder.SetTitle("Haven encountered an error");
+                builder.SetMessage(DialogMessage(report));
+                builder.SetPositiveButton("Copy details",(_,_)=>Copy(activity,report));
+                builder.SetNeutralButton("Share report",(_,_)=>Share(activity,report));
+                builder.SetNegativeButton("Clear report",(_,_)=>Clear());
+                var dialog=builder.Create();
+                if(dialog is null)
                 {
-                    Interlocked.Exchange(ref _reportPresented, 0);
-                    AndroidLog.Error(LogTag, "Could not create Haven's runtime-error dialog.");
+                    Interlocked.Exchange(ref _presented,0);
+                    DLog.Error(Tag,"Runtime-error dialog creation failed.");
                     return;
                 }
-
                 dialog.Show();
             }
-            catch (Exception exception)
+            catch(Exception e)
             {
-                Interlocked.Exchange(ref _reportPresented, 0);
-                AndroidLog.Error(LogTag, "Could not display Haven's runtime-error dialog: " + exception.Message);
+                Interlocked.Exchange(ref _presented,0);
+                DLog.Error(Tag,"Runtime-error dialog failed: "+e.Message);
             }
         });
     }
 
-    private static bool TryGetActivity(out AndroidActivity activity)
+    private static string BuildReport(Exception error,string context)=>
+        "Haven Android runtime report\nUTC: "+DateTimeOffset.UtcNow.ToString("O")
+        +"\nContext: "+Sanitize(context)
+        +"\nHaven version: "+(Assembly.GetExecutingAssembly().GetName().Version?.ToString()??"unknown")
+        +"\nAndroid: "+(DBuild.VERSION.Release??"unknown")+" (API "+(int)DBuild.VERSION.SdkInt+")"
+        +"\nDevice: "+Sanitize(DBuild.Manufacturer)+" "+Sanitize(DBuild.Model)
+        +"\n\n"+Sanitize(error.ToString());
+
+    private static string DialogMessage(string report)
     {
-        if (_activity?.TryGetTarget(out var current) == true
-            && !current.IsFinishing
-            && !current.IsDestroyed)
-        {
-            activity = current;
-            return true;
-        }
-
-        activity = null!;
-        return false;
-    }
-
-    private static string BuildReport(Exception exception, string context)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("Haven Android runtime report");
-        builder.AppendLine("UTC: " + DateTimeOffset.UtcNow.ToString("O"));
-        builder.AppendLine("Context: " + Sanitize(context));
-        builder.AppendLine("Haven version: " + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown"));
-        builder.AppendLine("Android: " + (AndroidBuild.VERSION.Release ?? "unknown")
-            + " (API " + (int)AndroidBuild.VERSION.SdkInt + ")");
-        builder.AppendLine("Device: " + Sanitize(AndroidBuild.Manufacturer) + " " + Sanitize(AndroidBuild.Model));
-
-        var current = exception;
-        for (var depth = 0; current is not null && depth < 6; depth++)
-        {
-            builder.AppendLine();
-            builder.AppendLine(depth == 0 ? "Exception:" : "Inner exception " + depth + ":");
-            builder.AppendLine("Type: " + current.GetType().FullName);
-            builder.AppendLine("Message: " + Sanitize(current.Message));
-
-            if (!string.IsNullOrWhiteSpace(current.StackTrace))
-            {
-                builder.AppendLine("Stack trace:");
-                builder.AppendLine(Sanitize(current.StackTrace));
-            }
-
-            current = current.InnerException;
-        }
-
-        return builder.ToString().TrimEnd();
-    }
-
-    private static string BuildDialogMessage(string report)
-    {
-        var context = FindLastLine(report, "Context:") ?? "A runtime error was recorded.";
-        var message = FindLastLine(report, "Message:") ?? "No additional message was available.";
-
-        return "Haven recorded a technical runtime error.\n\n"
-            + context + "\n"
-            + message + "\n\n"
-            + "Copy or share the report to provide diagnostic details. "
-            + "Review it before sharing, then clear it after the problem has been recorded.";
-    }
-
-    private static string? FindLastLine(string report, string prefix)
-    {
-        return report
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .LastOrDefault(line => line.StartsWith(prefix, StringComparison.Ordinal));
+        var lines=report.Split('\n',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+        var context=lines.LastOrDefault(x=>x.StartsWith("Context:",StringComparison.Ordinal))??"Context: Runtime error";
+        var message=lines.FirstOrDefault(x=>x.Contains("Exception:",StringComparison.Ordinal))
+            ??lines.FirstOrDefault(x=>x.StartsWith("System.",StringComparison.Ordinal))
+            ??"Technical details are available in the report.";
+        return "Haven recorded a technical runtime error.\n\n"+context+"\n"+message
+            +"\n\nCopy or share the report, then clear it after the problem has been recorded.";
     }
 
     private static string Sanitize(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            return "(not provided)";
-
-        var sanitized = Regex.Replace(
-            value,
-            @"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+",
-            "Bearer [redacted]");
-        sanitized = Regex.Replace(
-            sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[^\s,;]+",
-            "$1=[redacted]");
-        sanitized = Regex.Replace(
-            sanitized,
-            @"/data/(?:user/\d+|data)/com\.cakemods\.haven",
-            "<app-data>");
-        sanitized = Regex.Replace(
-            sanitized,
-            @"(?im)(?:[A-Z]:\\|/home/|/Users/)[^\r\n]*",
-            "<source-path>");
-
-        return sanitized.Length <= MaxDetailCharacters
-            ? sanitized
-            : sanitized[..MaxDetailCharacters] + "\n[details truncated]";
+        if(string.IsNullOrWhiteSpace(value))return "(not provided)";
+        var r=Regex.Replace(value,@"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+","Bearer [redacted]");
+        r=Regex.Replace(r,@"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)\b\s*[:=]\s*[^\s,;]+","$1=[redacted]");
+        r=Regex.Replace(r,@"/data/(?:user/\d+|data)/com\.cakemods\.haven","<app-data>");
+        r=Regex.Replace(r,@"(?im)(?:[A-Z]:\\|/home/|/Users/)[^\r\n]*","<source-path>");
+        return r.Length<=20_000?r:r[..20_000]+"\n[details truncated]";
     }
 
-    private static void WriteReport(string report)
+    private static void Save(string report)
     {
-        lock (Sync)
+        lock(Gate)
         {
-            if (string.IsNullOrWhiteSpace(_reportPath))
-                return;
-
+            if(string.IsNullOrWhiteSpace(_path))return;
             try
             {
-                var existing = File.Exists(_reportPath)
-                    ? File.ReadAllText(_reportPath)
-                    : string.Empty;
-                var combined = string.IsNullOrEmpty(existing)
-                    ? report
-                    : existing
-                        + Environment.NewLine
-                        + Environment.NewLine
-                        + "----------------------------------------"
-                        + Environment.NewLine
-                        + report;
-
-                if (combined.Length > MaxReportCharacters)
-                    combined = combined[^MaxReportCharacters..];
-
-                File.WriteAllText(_reportPath, combined);
+                var old=File.Exists(_path)?File.ReadAllText(_path):string.Empty;
+                var all=string.IsNullOrEmpty(old)?report:old+"\n\n----------------------------------------\n"+report;
+                File.WriteAllText(_path,all.Length<=MaxLog?all:all[^MaxLog..]);
             }
-            catch (Exception exception)
-            {
-                AndroidLog.Error(LogTag, "Could not write Haven's runtime-error report: " + exception.Message);
-            }
+            catch(Exception e){DLog.Error(Tag,"Runtime-report write failed: "+e.Message);}
         }
     }
 
-    private static bool TryReadReport(out string report)
+    private static bool TryRead(out string report)
     {
-        lock (Sync)
+        lock(Gate)
         {
-            report = string.Empty;
-            if (string.IsNullOrWhiteSpace(_reportPath) || !File.Exists(_reportPath))
-                return false;
-
+            report=string.Empty;
+            if(string.IsNullOrWhiteSpace(_path)||!File.Exists(_path))return false;
             try
             {
-                report = File.ReadAllText(_reportPath);
+                report=File.ReadAllText(_path);
                 return !string.IsNullOrWhiteSpace(report);
             }
-            catch (Exception exception)
+            catch(Exception e)
             {
-                AndroidLog.Error(LogTag, "Could not read Haven's runtime-error report: " + exception.Message);
+                DLog.Error(Tag,"Runtime-report read failed: "+e.Message);
                 return false;
             }
         }
     }
 
-    private static void ClearReport()
+    private static void Clear()
     {
-        lock (Sync)
+        lock(Gate)
         {
-            if (string.IsNullOrWhiteSpace(_reportPath))
-                return;
-
-            try
-            {
-                File.Delete(_reportPath);
-            }
-            catch (Exception exception)
-            {
-                AndroidLog.Error(LogTag, "Could not clear Haven's runtime-error report: " + exception.Message);
-            }
+            try{if(!string.IsNullOrWhiteSpace(_path))File.Delete(_path);}
+            catch(Exception e){DLog.Error(Tag,"Runtime-report clear failed: "+e.Message);}
         }
     }
 
-    private static void CopyReport(AndroidActivity activity, string report)
+    private static void Copy(DActivity activity,string report)
     {
         try
         {
-            if (activity.GetSystemService(AndroidContext.ClipboardService) is AndroidClipboardManager clipboard)
-            {
-                clipboard.PrimaryClip = AndroidClipData.NewPlainText("Haven runtime report", report);
-                AndroidToast.MakeText(
-                    activity,
-                    "Haven error details copied.",
-                    AndroidToastLength.Short)?.Show();
-            }
+            if(activity.GetSystemService(DContext.ClipboardService) is not DClipboard clipboard)return;
+            var clip=DClip.NewPlainText("Haven runtime report",report);
+            if(clip is not null)clipboard.PrimaryClip=clip;
+            DToast.MakeText(activity,"Haven error details copied.",DToastLength.Short)?.Show();
         }
-        catch (Exception exception)
-        {
-            AndroidLog.Error(LogTag, "Could not copy Haven's runtime-error report: " + exception.Message);
-        }
+        catch(Exception e){DLog.Error(Tag,"Runtime-report copy failed: "+e.Message);}
     }
 
-    private static void ShareReport(AndroidActivity activity, string report)
+    private static void Share(DActivity activity,string report)
     {
         try
         {
-            var intent = new AndroidIntent(AndroidIntent.ActionSend);
+            var intent=new DIntent(DIntent.ActionSend);
             intent.SetType("text/plain");
-            intent.PutExtra(AndroidIntent.ExtraSubject, "Haven Android runtime report");
-            intent.PutExtra(AndroidIntent.ExtraText, report);
-            activity.StartActivity(AndroidIntent.CreateChooser(intent, "Share Haven error report"));
+            intent.PutExtra(DIntent.ExtraSubject,"Haven Android runtime report");
+            intent.PutExtra(DIntent.ExtraText,report);
+            var chooser=DIntent.CreateChooser(intent,"Share Haven error report");
+            if(chooser is not null)activity.StartActivity(chooser);
         }
-        catch (Exception exception)
-        {
-            AndroidLog.Error(LogTag, "Could not share Haven's runtime-error report: " + exception.Message);
-        }
+        catch(Exception e){DLog.Error(Tag,"Runtime-report share failed: "+e.Message);}
     }
 }
