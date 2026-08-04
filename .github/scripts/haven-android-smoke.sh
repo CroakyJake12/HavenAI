@@ -13,6 +13,37 @@ collect_evidence() {
 }
 trap collect_evidence EXIT
 
+publish_startup_excerpt() {
+  log_file="artifacts/smoke/logcat.txt"
+  excerpt="$(
+    grep -E -A 60 -B 5 \
+      'FATAL EXCEPTION|AndroidRuntime|Haven Android runtime report|Unhandled|System\.[A-Za-z0-9_.]+Exception' \
+      "$log_file" 2>/dev/null | tail -n 120 || true
+  )"
+
+  if [ -z "$excerpt" ]; then
+    excerpt="$(
+      grep -E 'Haven|cakemods|mono|dotnet' "$log_file" 2>/dev/null | tail -n 120 || true
+    )"
+  fi
+
+  if [ -z "$excerpt" ]; then
+    excerpt="No matching Haven startup exception was found in captured logcat."
+  fi
+
+  sanitized="$(
+    printf '%s\n' "$excerpt" |
+      sed -E \
+        -e 's/([Bb]earer)[[:space:]]+[A-Za-z0-9._~+\/=-]+/\1 [redacted]/g' \
+        -e 's/((api[_-]?key|access[_-]?token|refresh[_-]?token|token|password|secret|authorization)[[:space:]]*[:=][[:space:]]*)[^ ,;]+/\1[redacted]/Ig' |
+      tr '\r\n' '  ' |
+      cut -c 1-12000
+  )"
+  sanitized="$(printf '%s' "$sanitized" | sed 's/%/%25/g')"
+
+  echo "::error title=Haven Android startup excerpt::$sanitized"
+}
+
 apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
 if [ -z "$apk" ]; then
   apk="$(find artifacts/android -type f -name '*.apk' | sort | head -n 1)"
@@ -52,6 +83,7 @@ collect_evidence
 
 pid="$(tr -d '\r\n' < artifacts/smoke/haven.pid)"
 if [ -z "$pid" ]; then
+  publish_startup_excerpt
   echo "::error title=Haven Android runtime::Haven exited during startup."
   grep -E -A 40 -B 5 'FATAL EXCEPTION|AndroidRuntime|Haven Android runtime report' \
     artifacts/smoke/logcat.txt || true
@@ -59,6 +91,7 @@ if [ -z "$pid" ]; then
 fi
 
 if grep -q 'Haven encountered an error' artifacts/smoke/haven-window.xml 2>/dev/null; then
+  publish_startup_excerpt
   echo "::error title=Haven Android startup::The native recovery dialog reported an Avalonia startup failure."
   grep -E -A 60 -B 5 'Haven Android runtime report|FATAL EXCEPTION|AndroidRuntime' \
     artifacts/smoke/logcat.txt || true
@@ -67,6 +100,7 @@ fi
 
 if grep -q 'FATAL EXCEPTION' artifacts/smoke/logcat.txt &&
    grep -q 'Process: com.cakemods.haven' artifacts/smoke/logcat.txt; then
+  publish_startup_excerpt
   echo "::error title=Haven Android runtime::Haven emitted a fatal exception after launch."
   exit 1
 fi
