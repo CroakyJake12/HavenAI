@@ -102,11 +102,11 @@ jobs:
   android-smoke:
     name: Install and launch APK on hosted emulator
     needs: android
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
     env:
       AVD_NAME: haven-ci
-      ANDROID_SYSTEM_IMAGE: system-images;android-35;google_apis;x86_64
+      ANDROID_SYSTEM_IMAGE: system-images;android-35;default;x86_64
 
     steps:
       - name: Download APK artifact
@@ -121,6 +121,18 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/smoke
 
+          annotate_emulator_log() {
+            if [ ! -f artifacts/smoke/emulator.log ]; then
+              return
+            fi
+            tail -n 25 artifacts/smoke/emulator.log | while IFS= read -r line; do
+              safe=${line//'%'/'%25'}
+              safe=${safe//$'\r'/'%0D'}
+              safe=${safe//$'\n'/'%0A'}
+              echo "::error title=Android emulator log::$safe"
+            done
+          }
+
           sdkmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)"
           avdmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/avdmanager' | sort -V | tail -n 1)"
           test -x "$sdkmanager_path"
@@ -131,9 +143,23 @@ jobs:
 
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           printf '%s\n' "$ANDROID_HOME/platform-tools" "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
-          test -x "$ANDROID_HOME/platform-tools/adb"
           adb version | tee artifacts/smoke/adb-version.txt
-          "$ANDROID_HOME/emulator/emulator" -accel-check | tee artifacts/smoke/accel-check.txt || true
+          emulator -version | tee artifacts/smoke/emulator-version.txt
+
+          printf '%s\n' 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+          if emulator -accel-check 2>&1 | tee artifacts/smoke/accel-check.txt; then
+            emulator_accel=on
+          else
+            emulator_accel=off
+          fi
+          printf '%s\n' "$emulator_accel" | tee artifacts/smoke/emulator-accel-mode.txt
 
           echo no | "$avdmanager_path" create avd \
             --force \
@@ -141,36 +167,40 @@ jobs:
             --package "$ANDROID_SYSTEM_IMAGE" \
             --device "pixel_6"
 
-          sudo chmod 666 /dev/kvm || true
-          nohup "$ANDROID_HOME/emulator/emulator" "@$AVD_NAME" \
+          nohup emulator "@$AVD_NAME" \
+            -accel "$emulator_accel" \
             -no-window \
             -no-audio \
-             -no-boot-anim \
-            -gpu swiftshader_indirect \
+            -no-boot-anim \
+            -gpu swiftshader \
+            -no-metrics \
             -no-snapshot \
             -wipe-data \
+            -memory 2048 \
+            -cores 2 \
             -camera-back none \
             -camera-front none \
+            -verbose \
             > artifacts/smoke/emulator.log 2>&1 &
           echo "$!" > artifacts/smoke/emulator.pid
 
           adb start-server
-          if ! timeout 180 adb wait-for-device; then
+          if ! timeout 300 adb wait-for-device; then
             adb devices -l | tee artifacts/smoke/adb-devices.txt || true
-            cat artifacts/smoke/emulator.log || true
-            echo "::error title=Android emulator boot::ADB did not detect the emulator within 180 seconds."
+            annotate_emulator_log
+            echo "::error title=Android emulator boot::ADB did not detect the emulator within 300 seconds."
             exit 1
           fi
 
-          if ! timeout 240 bash -c '
+          if ! timeout 600 bash -c '
             until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do
               sleep 5
             done
           '; then
             adb devices -l | tee artifacts/smoke/adb-devices.txt || true
             adb shell getprop > artifacts/smoke/device-properties-partial.txt || true
-            cat artifacts/smoke/emulator.log || true
-            echo "::error title=Android emulator boot::The emulator was detected but did not finish booting within 240 seconds."
+            annotate_emulator_log
+            echo "::error title=Android emulator boot::The emulator was detected but did not finish booting within 600 seconds."
             exit 1
           fi
 
