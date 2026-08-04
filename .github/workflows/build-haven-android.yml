@@ -137,15 +137,25 @@ jobs:
           avdmanager_path="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/avdmanager' | sort -V | tail -n 1)"
           emulator_path="$ANDROID_HOME/emulator/emulator"
           adb_path="$ANDROID_HOME/platform-tools/adb"
+          progress_file="artifacts/smoke/stages.txt"
+
+          mark_stage() {
+            printf '%s\n' "$1" | tee -a "$progress_file"
+          }
+
+          export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+          mark_stage "sdk-tools-resolved"
 
           test -x "$sdkmanager_path"
           test -x "$avdmanager_path"
 
           yes | "$sdkmanager_path" --licenses >/dev/null || true
           timeout 900 "$sdkmanager_path" "platform-tools" "emulator" "$ANDROID_SYSTEM_IMAGE"
+          mark_stage "sdk-packages-installed"
 
           test -x "$emulator_path"
           test -x "$adb_path"
+          mark_stage "sdk-binaries-verified"
 
           "$adb_path" version | tee artifacts/smoke/adb-version.txt
           "$emulator_path" -version | tee artifacts/smoke/emulator-version.txt
@@ -164,15 +174,18 @@ jobs:
             emulator_accel=off
           fi
           printf '%s\n' "$emulator_accel" | tee artifacts/smoke/emulator-accel-mode.txt
+          mark_stage "acceleration-probed"
 
           echo no | "$avdmanager_path" create avd \
             --force \
             --name "$AVD_NAME" \
             --package "$ANDROID_SYSTEM_IMAGE" \
             --device "pixel_6"
+          mark_stage "avd-created"
 
           "$emulator_path" -list-avds | tee artifacts/smoke/avd-list.txt
           grep -Fx "$AVD_NAME" artifacts/smoke/avd-list.txt
+          mark_stage "avd-listed"
 
           nohup "$emulator_path" "@$AVD_NAME" \
             -accel "$emulator_accel" \
@@ -190,6 +203,7 @@ jobs:
             -verbose \
             > artifacts/smoke/emulator.log 2>&1 &
           echo "$!" > artifacts/smoke/emulator.pid
+          mark_stage "emulator-started"
 
           "$adb_path" start-server
           if ! timeout 300 "$adb_path" wait-for-device; then
