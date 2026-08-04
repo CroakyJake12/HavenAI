@@ -50,11 +50,14 @@
              Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
              LinkBase="SharedDesktop" />
     <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
-    <AvaloniaResource Include="../Haven.Desktop/Assets/**" LinkBase="Assets" />
-    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
-    <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml" LinkBase="Controls" />
+    <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
+                      Link="Assets/%(RecursiveDir)%(Filename)%$(Extension)" />
+    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml"
+                      Link="Styles/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml"
+                      Link="Controls/%(RecursiveDir)%(Filename)%(Extension)" />
     <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
                       Exclude="../Haven.Desktop/MainWindow.axaml"
-                      LinkBase="Views" />
+                      Link="Views/%(RecursiveDir)%(Filename)%$(Extension)" />
   </ItemGroup>
 </Project>
