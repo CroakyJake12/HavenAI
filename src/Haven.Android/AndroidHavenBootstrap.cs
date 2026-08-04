@@ -19,21 +19,32 @@ internal static class AndroidHavenBootstrap
 
     public static Control CreateMainView()
     {
-        var services = App.Services
-            ?? throw new InvalidOperationException(
-                "Haven services were not created before Android requested its main view.");
+        try
+        {
+            var services = App.Services
+                ?? throw new InvalidOperationException(
+                    "Haven services were not created before Android requested its main view.");
 
-        var preferences = services.GetRequiredService<UserPreferencesService>();
-        preferences.ApplyTheme("new-haven", save: false);
+            var preferences = services.GetRequiredService<UserPreferencesService>();
+            preferences.ApplyTheme("new-haven", save: false);
 
-        // Android can recreate an Activity. Create a fresh Avalonia control graph while
-        // reusing Haven's application and infrastructure services.
-        var mainView = ActivatorUtilities.CreateInstance<MainView>(services);
-        mainView.ApplyEdition(HavenShellEdition.New);
-        mainView.ApplyMobileLayout();
+            // Android can recreate an Activity. Create a fresh Avalonia control graph while
+            // reusing Haven's application and infrastructure services.
+            var mainView = ActivatorUtilities.CreateInstance<MainView>(services);
+            mainView.ApplyEdition(HavenShellEdition.New);
+            mainView.ApplyMobileLayout();
 
-        Dispatcher.UIThread.Post(() => _ = InitializeMainViewAsync(mainView, services));
-        return mainView;
+            Dispatcher.UIThread.Post(() => _ = InitializeMainViewAsync(mainView, services));
+            return mainView;
+        }
+        catch (Exception exception)
+        {
+            AndroidRuntimeDiagnostics.Record(
+                exception,
+                "Haven main-view creation",
+                showDialog: true);
+            throw;
+        }
     }
 
     private static async Task InitializeMainViewAsync(
@@ -93,6 +104,10 @@ internal static class AndroidHavenBootstrap
         catch (Exception exception)
         {
             mainView.SetStartupError(exception.Message);
+            AndroidRuntimeDiagnostics.Record(
+                exception,
+                "Haven service and main-view startup",
+                showDialog: true);
             System.Diagnostics.Debug.WriteLine("[Haven Android startup] " + exception);
 
             services.GetService<NotificationService>()?.Show(
