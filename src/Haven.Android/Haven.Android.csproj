@@ -51,13 +51,13 @@
              LinkBase="SharedDesktop" />
     <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
     <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
-                      Link="Assets/%(RecursiveDir)%(Filename)%$(Extension)" />
+                      Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
     <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml"
                       Link="Styles/%(RecursiveDir)%(Filename)%(Extension)" />
     <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml"
                       Link="Controls/%(RecursiveDir)%(Filename)%(Extension)" />
     <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
                       Exclude="../Haven.Desktop/MainWindow.axaml"
-                      Link="Views/%(RecursiveDir)%(Filename)%$(Extension)" />
+                      Link="Views/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
