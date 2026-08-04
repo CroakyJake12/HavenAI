@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: haven-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     name: Compile and package APK
@@ -99,7 +103,7 @@ jobs:
     name: Install and launch APK on hosted emulator
     needs: android
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     env:
       AVD_NAME: haven-ci
       ANDROID_SYSTEM_IMAGE: system-images;android-35;google_apis;x86_64
@@ -123,12 +127,13 @@ jobs:
           test -x "$avdmanager_path"
 
           yes | "$sdkmanager_path" --licenses >/dev/null || true
-          "$sdkmanager_path" "platform-tools" "emulator" "$ANDROID_SYSTEM_IMAGE"
+          timeout 900 "$sdkmanager_path" "platform-tools" "emulator" "$ANDROID_SYSTEM_IMAGE"
 
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           printf '%s\n' "$ANDROID_HOME/platform-tools" "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
           test -x "$ANDROID_HOME/platform-tools/adb"
           adb version | tee artifacts/smoke/adb-version.txt
+          "$ANDROID_HOME/emulator/emulator" -accel-check | tee artifacts/smoke/accel-check.txt || true
 
           echo no | "$avdmanager_path" create avd \
             --force \
@@ -140,7 +145,7 @@ jobs:
           nohup "$ANDROID_HOME/emulator/emulator" "@$AVD_NAME" \
             -no-window \
             -no-audio \
-            -no-boot-anim \
+             -no-boot-anim \
             -gpu swiftshader_indirect \
             -no-snapshot \
             -wipe-data \
@@ -150,13 +155,27 @@ jobs:
           echo "$!" > artifacts/smoke/emulator.pid
 
           adb start-server
-          adb wait-for-device
-          timeout 420 bash -c '
+          if ! timeout 180 adb wait-for-device; then
+            adb devices -l | tee artifacts/smoke/adb-devices.txt || true
+            cat artifacts/smoke/emulator.log || true
+            echo "::error title=Android emulator boot::ADB did not detect the emulator within 180 seconds."
+            exit 1
+          fi
+
+          if ! timeout 240 bash -c '
             until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do
               sleep 5
             done
-          '
+          '; then
+            adb devices -l | tee artifacts/smoke/adb-devices.txt || true
+            adb shell getprop > artifacts/smoke/device-properties-partial.txt || true
+            cat artifacts/smoke/emulator.log || true
+            echo "::error title=Android emulator boot::The emulator was detected but did not finish booting within 240 seconds."
+            exit 1
+          fi
+
           adb shell input keyevent 82 || true
+          adb devices -l | tee artifacts/smoke/adb-devices.txt
           adb shell getprop > artifacts/smoke/device-properties.txt
 
       - name: Install and launch Haven
