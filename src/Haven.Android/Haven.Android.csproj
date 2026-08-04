@@ -48,20 +48,20 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
-    <PackageReference Include="KokoroSharp.CPU" />
+    <PackageReference Includ="KokoroSharp.CPU" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
-             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
-             LinkBase="SharedDesktop" />
+             Exclude="../Haven.Desktop/bin/*+;../Haven.Desktop/obj/*+;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs"
+            LinkBase="SharedDesktop" />
 
     <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </AvaloniaXaml>
 
-    <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
+    <AvaloniaResource Include="../Haven.Desktop/Assets/**/*
                       Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
 
     <AvaloniaXaml Include="../Haven.Desktop/Styles/**/*.axaml"
