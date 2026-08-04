@@ -39,12 +39,23 @@ public sealed partial class MainView
 #pragma warning restore CA1422
 
         return activities
-            .Where(item => item.ActivityInfo is not null)
-            .Select(item => new AndroidLauncherApp(
-                item.LoadLabel(packageManager)?.ToString()
-                    ?? item.ActivityInfo!.PackageName,
-                item.ActivityInfo!.PackageName,
-                item.ActivityInfo.Name))
+            .Where(item => item.ActivityInfo is
+            {
+                PackageName: { Length: > 0 },
+                Name: { Length: > 0 }
+            })
+            .Select(item =>
+            {
+                var activityInfo = item.ActivityInfo!;
+                var packageName = activityInfo.PackageName!;
+                var activityName = activityInfo.Name!;
+                var loadedLabel = item.LoadLabel(packageManager)?.ToString();
+                var label = string.IsNullOrWhiteSpace(loadedLabel)
+                    ? packageName
+                    : loadedLabel;
+
+                return new AndroidLauncherApp(label, packageName, activityName);
+            })
             .Where(item => !string.Equals(
                 item.PackageName,
                 context.PackageName,
