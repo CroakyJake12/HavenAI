@@ -5,18 +5,6 @@ on:
   push:
     branches:
       - haven-android-cloud-build
-    paths:
-      - "src/Haven.Android/**"
-      - "src/Haven.Desktop/**"
-      - "src/Haven.Core/**"
-      - "src/Haven.Application/**"
-      - "src/Haven.Infrastructure/**"
-      - "src/Haven.Browser/**"
-      - "src/Haven.Automations/**"
-      - "Directory.Build.props"
-      - "Directory.Packages.props"
-      - "global.json"
-      - ".github/workflows/build-haven-android.yml"
 
 permissions:
   contents: read
@@ -33,10 +21,10 @@ jobs:
 
     steps:
       - name: Check out Haven
-        uses: actions/checkout v5
+        uses: actions/checkout@v4
 
       - name: Install .NET from global.json
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
 
@@ -53,50 +41,35 @@ jobs:
           set +e
           mkdir -p artifacts/android
           dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore 2>&1 | tee artifacts/android/build.log
-          build_exit=${PIPESTATUS[0]}
-          echo "exit_code=$build_exit" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Publish compile diagnostics
-        if: steps.compile.outputs.exit_code != '0'
-        shell: bash
-        run: |
-          {
-            echo "## Android compile failed"
-            echo
-            echo '```text'
-            grep -E -m 40 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log || tail -n 120 artifacts/android/build.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          grep -E -m 20 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)([0-9])+' artifacts/android/build.log             | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g'             | while IFS= read -r line; do echo "::error title=Android compiler::$line"; done
-
-      - name: Stop after compile failure
-        if: steps.compile.outputs.exit_code != '0'
-        run: exit 1
+          result=${PIPESTATUS[0]}
+          if [ "$result" -ne 0 ]; then
+            grep -E -m 30 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/build.log |
+              while IFS= read -r line; do
+                safe=${line//'%'/'%25'}
+                safe=${safe//$'\r'/'%0D'}
+                safe=${safe//$'\n'/'%0A'}
+                echo "::error title=Android compiler::$safe"
+              done
+          fi
+          exit "$result"
 
       - name: Package APK
         shell: bash
         run: |
           set -euo pipefail
-          dotnet publish src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore             -p:AndroidPackageFormat=apk             -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+          dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore             -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
 
       - name: Collect APK
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p artifacts/android
           mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
-          if [ "${#apks[@]}" -eq 0 ]; then
-            echo "No APK was produced."
-            exit 1
-          fi
-          for apk in "${apks[@]}"; do
-            cp "$apk" "artifacts/android/$(basename "$apk")"
-          done
+          test "${#apks[@]}" -gt 0
+          for apk in "${apks[@]}"; do cp "$apk" "artifacts/android/$(basename "$apk")"; done
           sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
-          ls -lh artifacts/android
 
-      - name: Upload Android logs
+      - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
