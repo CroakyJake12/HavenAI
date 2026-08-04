@@ -20,7 +20,6 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
-
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />
@@ -30,14 +29,12 @@
     <Using Include="System.Threading" />
     <Using Include="System.Threading.Tasks" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
     <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
     <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
     <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
-
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Android" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -48,14 +45,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="KokoroSharp.CPU" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
              Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs"
              LinkBase="SharedDesktop" />
     <AvaloniaResource Include="../Haven.Desktop/App.axaml" Link="App.axaml" />
     <AvaloniaResource Include="../Haven.Desktop/Assets/**" LinkBase="Assets" />
-    <AvaloniaResource Include=".../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
+    <AvaloniaResource Include="../Haven.Desktop/Styles/**/*.axaml" LinkBase="Styles" />
     <AvaloniaResource Include="../Haven.Desktop/Controls/**/*.axaml" LinkBase="Controls" />
     <AvaloniaResource Include="../Haven.Desktop/Views/**/*.axaml"
                       Exclude="../Haven.Desktop/MainWindow.axaml"
