@@ -24,34 +24,49 @@ publish_startup_excerpt() {
 
   excerpt=""
   if [ -s "$exit_file" ]; then
-    excerpt="$(tail -n 120 "$exit_file" 2>/dev/null || true)"
+    excerpt="PROCESS EXIT INFO:
+$(tail -n 80 "$exit_file" 2>/dev/null || true)"
   fi
 
-  if [ -z "$excerpt" ] && [ -s "$java_crash_file" ]; then
-    excerpt="$(
-      grep -E -A 80 -B 5 'com\.cakemods\.haven|Process: com\.cakemods\.haven|FATAL EXCEPTION' \
-        "$java_crash_file" 2>/dev/null | tail -n 120 || true
-    )"
+  native_excerpt="$(
+    grep -E -A 140 -B 12 \
+      'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+|Abort message|backtrace:|#0[0-9] pc|#00 pc' \
+      "$native_crash_file" 2>/dev/null | tail -n 180 || true
+  )"
+  if [ -n "$native_excerpt" ]; then
+    excerpt="$excerpt
+
+NATIVE CRASH DROPBOX:
+$native_excerpt"
   fi
 
-  if [ -z "$excerpt" ] && [ -s "$native_crash_file" ]; then
-    excerpt="$(
-      grep -E -A 100 -B 5 'com\.cakemods\.haven|Cmdline: com\.cakemods\.haven|signal [0-9]+' \
-        "$native_crash_file" 2>/dev/null | tail -n 140 || true
-    )"
+  java_excerpt="$(
+    grep -E -A 100 -B 8 \
+      'com\.cakemods\.haven|Process: com\.cakemods\.haven|FATAL EXCEPTION' \
+      "$java_crash_file" 2>/dev/null | tail -n 140 || true
+  )"
+  if [ -n "$java_excerpt" ]; then
+    excerpt="$excerpt
+
+JAVA CRASH DROPBOX:
+$java_excerpt"
+  fi
+
+  log_excerpt="$(
+    grep -E -A 100 -B 12 \
+      'FATAL EXCEPTION|AndroidRuntime|Fatal signal|Abort message|SIGABRT|SIGSEGV|has died|Killing.*com\.cakemods\.haven|Unable to instantiate|ClassNotFoundException|NoClassDefFoundError|UnsatisfiedLinkError|Haven Android runtime report|mono-rt|debuggerd|tombstoned' \
+      "$log_file" 2>/dev/null | tail -n 180 || true
+  )"
+  if [ -n "$log_excerpt" ]; then
+    excerpt="$excerpt
+
+MATCHING LOGCAT:
+$log_excerpt"
   fi
 
   if [ -z "$excerpt" ]; then
     excerpt="$(
-      grep -E -A 80 -B 8 \
-        'FATAL EXCEPTION|AndroidRuntime|Fatal signal|Abort message|SIGABRT|SIGSEGV|has died|Killing.*com\.cakemods\.haven|Unable to instantiate|ClassNotFoundException|NoClassDefFoundError|UnsatisfiedLinkError|Haven Android runtime report|mono-rt' \
-        "$log_file" 2>/dev/null | tail -n 140 || true
-    )"
-  fi
-
-  if [ -z "$excerpt" ]; then
-    excerpt="$(
-      grep -E 'com\.cakemods\.haven|Haven|mono|dotnet|libc' "$log_file" 2>/dev/null | tail -n 100 || true
+      grep -E 'com\.cakemods\.haven|Haven|mono|dotnet|libc' "$log_file" 2>/dev/null | tail -n 120 || true
     )"
   fi
 
@@ -69,7 +84,7 @@ publish_startup_excerpt() {
   )"
   sanitized="$(printf '%s' "$sanitized" | sed 's/%/%25/g')"
 
-  echo "::error title=Haven Android process-exit details::$sanitized"
+  echo "::error title=Haven Android native-crash details::$sanitized"
 }
 
 apk="$(find artifacts/android -type f -name '*-Signed.apk' -print -quit)"
@@ -103,8 +118,8 @@ cat artifacts/smoke/launcher-component.txt
 
 adb logcat -c
 adb shell am force-stop com.cakemods.haven
-adb shell am start -W -n "$component" > artifacts/smoke/activity-start.txt 2>&1
-cat artifacts/smoke/activity-start.txt
+adb shell am start -W -n "$component" > artifacts/smoke/actity-start.txt 2>&1
+cat artifacts/smoke/actity-start.txt
 sleep 30
 
 collect_evidence
