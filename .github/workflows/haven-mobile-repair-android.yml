@@ -31,9 +31,7 @@ jobs:
       apk_ready: ${{ steps.outcome.outputs.apk_ready }}
     steps:
       - name: Check out repair branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v6
 
       - name: Prepare clean evidence directory
         shell: bash
@@ -128,7 +126,7 @@ jobs:
 
       - name: Install .NET SDK
         if: steps.patch.outputs.result == '0'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -155,7 +153,7 @@ jobs:
           build=99
           package=99
 
-          dotnet workload restore "$ANDROID_PROJECT" 2>&1 \
+          dotnet workload install android 2>&1 \
             | tee "$EVIDENCE_DIR/workload.log"
           workload=${PIPESTATUS[0]}
 
@@ -220,14 +218,14 @@ jobs:
             tail -n 120 "$EVIDENCE_DIR/shared-repair.log" 2>/dev/null || true
             echo
             echo "compiler_diagnostics:"
-            grep -hE -m 400 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)+[0-9]+' \
+            grep -hE -m 400 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' \
               "$EVIDENCE_DIR"/*.log 2>/dev/null || true
           } >> "$EVIDENCE_DIR/build-result.txt"
           cat "$EVIDENCE_DIR/build-result.txt"
 
       - name: Upload build evidence and APK
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Haven-Mobile-Repair-Build-${{ github.run_id }}
           path: artifacts/android/
@@ -272,10 +270,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out validated source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download APK artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Haven-Mobile-Repair-Build-${{ github.run_id }}
           path: artifacts/android
@@ -305,7 +303,7 @@ jobs:
 
       - name: Upload smoke evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Haven-Mobile-Repair-Smoke-${{ github.run_id }}
           path: |
@@ -322,4 +320,4 @@ jobs:
         shell: bash
         run: test "${{ steps.smoke.outcome }}" = "success"
 
-# Trigger compilation from repaired source commit 94580ba.
+# Align GitHub Actions with the repository's supported Android build workflow.
