@@ -1,5 +1,4 @@
 name: Haven Mobile Repair Android
-# Dedicated branch workflow for APK compilation and artifact packaging.
 
 on:
   workflow_dispatch:
@@ -18,7 +17,7 @@ jobs:
   android:
     name: Compile and package repaired APK
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    timeout-minutes: 90
     env:
       AVALONIA_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
@@ -28,24 +27,10 @@ jobs:
       - name: Check out Haven
         uses: actions/checkout@v7
 
-      - name: Apply deterministic mobile compatibility patch
-        run: python3 scripts/apply_haven_mobile_repair.py
-
-      - name: Preserve compatibility changes
-        shell: bash
+      - name: Verify compatibility patch is idempotent
         run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/Haven.Browser/Security/BrowserPrivateProfileManager.cs
-          git add src/Haven.Desktop/Views/Shell/MainView.axaml.cs
-          git add src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml
-          git add src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs
-          git commit -m "Apply Android compatibility repairs [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          python3 scripts/apply_haven_mobile_repair.py
+          git diff --exit-code
 
       - name: Install .NET from global.json
         uses: actions/setup-dotnet@v6
@@ -59,44 +44,117 @@ jobs:
         run: dotnet restore src/Haven.Android/Haven.Android.csproj
 
       - name: Compile Android head
+        id: build
         shell: bash
         run: |
           set +e
           mkdir -p artifacts/android
-          dotnet build src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore 2>&1 | tee artifacts/android/build.log
+          dotnet build src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore 2>&1 | tee artifacts/android/build.log
           result=${PIPESTATUS[0]}
-          if [ "$result" -ne 0 ]; then
-            grep -E -m 80 '(^|[ :])error (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/build.log || true
-          fi
-          exit "$result"
+          {
+            echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "commit=${GITHUB_SHA}"
+            echo "build_exit=${result}"
+            echo
+            echo "compiler_diagnostics:"
+            grep -E -m 200 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+'               artifacts/android/build.log || true
+          } > artifacts/android/build-result.txt
+          cat artifacts/android/build-result.txt
+          echo "result=${result}" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Package APK
+      - name: Persist compile failure evidence
+        if: steps.build.outputs.result != '0'
         shell: bash
         run: |
           set -euo pipefail
-          dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
-          mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
-          test "${#apks[@]}" -gt 0
-          for apk in "${apks[@]}"; do
-            cp "$apk" "artifacts/android/$(basename "$apk")"
-          done
-          sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f artifacts/android/build-result.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Record Haven Android compile failure [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+          exit 1
+
+      - name: Package APK
+        if: steps.build.outputs.result == '0'
+        id: package
+        shell: bash
+        run: |
+          set +e
+          dotnet publish src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore             -p:AndroidPackageFormat=apk             -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+          result=${PIPESTATUS[0]}
+          if [ "$result" -eq 0 ]; then
+            mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
+            if [ "${#apks[@]}" -eq 0 ]; then
+              echo "No APK was produced." | tee -a artifacts/android/publish.log
+              result=1
+            else
+              for apk in "${apks[@]}"; do
+                cp "$apk" "artifacts/android/$(basename "$apk")"
+              done
+              sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
+            fi
+          fi
+          {
+            echo
+            echo "package_exit=${result}"
+            grep -E -m 200 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+'               artifacts/android/publish.log || true
+          } >> artifacts/android/build-result.txt
+          cat artifacts/android/build-result.txt
+          echo "result=${result}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Persist packaging failure evidence
+        if: steps.build.outputs.result == '0' && steps.package.outputs.result != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f artifacts/android/build-result.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Record Haven Android packaging failure [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+          exit 1
 
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Haven-Mobile-Repair-Build-Logs
-          path: artifacts/android/*.log
+          path: |
+            artifacts/android/*.log
+            artifacts/android/build-result.txt
           if-no-files-found: ignore
           retention-days: 30
 
       - name: Upload installable APK
+        if: steps.build.outputs.result == '0' && steps.package.outputs.result == '0'
         uses: actions/upload-artifact@v7
         with:
           name: Haven-Mobile-Repair-APK
           path: |
             artifacts/android/*.apk
             artifacts/android/SHA256SUMS.txt
+            artifacts/android/build-result.txt
           if-no-files-found: error
           retention-days: 30
+
+      - name: Persist successful APK evidence
+        if: steps.build.outputs.result == '0' && steps.package.outputs.result == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "artifact=Haven-Mobile-Repair-APK"
+            echo "artifact_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } >> artifacts/android/build-result.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f artifacts/android/build-result.txt artifacts/android/SHA256SUMS.txt
+          git commit -m "Record successful Haven Android APK build [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
