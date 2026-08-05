@@ -1,39 +1,65 @@
-# Retrigger APK validation after source repair f483069.
-name: Repair Android Model Import URI
+name: Apply Haven Android API compatibility repairs
+
 on:
   push:
-    branches: [gpt/haven-mobile-repair-android]
+    branches:
+      - gpt/haven-mobile-repair-android
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   repair:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Disambiguate Android URI
+
+      - name: Apply deterministic Android API repairs
+        id: repair
+        shell: bash
+        run: |
+          set +e
+          mkdir -p artifacts/android
+          printf '%s' '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' | base64 -d | gzip -d > /tmp/apply_haven_android_api_compat.py
+          python3 /tmp/apply_haven_android_api_compat.py > artifacts/android/api-compat-diagnostic.txt 2>&1
+          result=$?
+          cat artifacts/android/api-compat-diagnostic.txt
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Persist repair failure
+        if: steps.repair.outputs.result != '0'
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("src/Haven.Android/ModelImportActivity.cs")
-          text = path.read_text(encoding="utf-8")
-          alias = "using Uri = Android.Net.Uri;"
-          if alias not in text:
-              anchor = "using Android.Widget;\nusing System.Text.Json;"
-              if text.count(anchor) != 1:
-                  raise RuntimeError(f"expected one using anchor, found {text.count(anchor)}")
-              text = text.replace(anchor, "using Android.Widget;\nusing Uri = Android.Net.Uri;\nusing System.Text.Json;", 1)
-              path.write_text(text, encoding="utf-8", newline="\n")
-          PY
-          rm -f artifacts/android/build-result.txt
-          if git diff --quiet; then
-            exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f artifacts/android/api-compat-diagnostic.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Record Haven Android API repair failure [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
+          exit 1
+
+      - name: Commit repaired Android sources
+        if: steps.repair.outputs.result == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f artifacts/android/api-compat-diagnostic.txt artifacts/android/build-result.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/Haven.Android/ModelImportActivity.cs
-          git add -u artifacts/android/build-result.txt
-          git commit -m "Disambiguate Android model import URIs"
+          git add src/Haven.Android/HavenLauncherActivity.Apps.cs
+          git add src/Haven.Android/HavenLauncherActivity.cs
+          git add src/Haven.Android/HavenLauncherActivity.Settings.cs
+          git add src/Haven.Android/MainView.Mobile.Layout.cs
+          git add -u artifacts/android/api-compat-diagnostic.txt artifacts/android/build-result.txt
+          if git diff --cached --quiet; then
+            echo "Android API repairs are already applied."
+            exit 0
+          fi
+          git commit -m "Repair Haven Android API compatibity"
           git push origin "HEAD:${GITHUB_REF_NAME}"
