@@ -1,5 +1,5 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31029779134
-input_commit=aa0c826bfb565dba301c8dbc7877734c3176ecb9
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31030230060
+input_commit=4af4758002df1cdbd9b0b009b49befd5daffd5b3
 runner=Linux
 patch_exit=1
 build_exit=1
