@@ -1,0 +1,9 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Directory.Packages.props.
+  What: Makes the repository's central package catalog visible to every project under src.
+  Why: NuGet imports the closest Directory.Packages.props during restore; this file delegates to the root catalog.
+-->
+<Project>
+  <Import Project="../Directory.Packages.props" />
+</Project>
