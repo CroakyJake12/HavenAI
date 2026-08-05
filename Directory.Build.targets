@@ -1,34 +1,7 @@
 <!--
   FILE DOCUMENTATION
   Where: Directory.Build.targets in the repository support layer.
-  What: Applies the repository's central version catalog to PackageReference items after project evaluation.
-  Why: The Android restore graph currently enables CPM without importing PackageVersion items; this keeps the same versions while making restore deterministic.
+  What: Reserved for repository-wide post-project build targets.
+  Why: Package versions are managed by Directory.Packages.props during NuGet evaluation.
 -->
-<Project>
-  <PropertyGroup>
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Update="Avalonia" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Android" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Desktop" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Themes.Fluent" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Fonts.Inter" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Controls.WebView" Version="12.0.1" />
-    <PackageReference Update="Avalonia.Headless.XUnit" Version="12.0.1" />
-    <PackageReference Update="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-    <PackageReference Update="Microsoft.Data.Sqlite.Core" Version="10.0.9" />
-    <PackageReference Update="SQLitePCLRaw.provider.winsqlite3" Version="3.0.3" />
-    <PackageReference Update="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
-    <PackageReference Update="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageReference Update="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Update="Microsoft.Extensions.Http" Version="10.0.0" />
-    <PackageReference Update="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
-    <PackageReference Update="KokoroSharp.CPU" Version="0.6.7" />
-    <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageReference Update="xunit" Version="2.9.3" />
-    <PackageReference Update="xunit.v3" Version="3.2.2" />
-    <PackageReference Update="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageReference Update="coverlet.collector" Version="6.0.4" />
-  </ItemGroup>
-</Project>
+<Project />
