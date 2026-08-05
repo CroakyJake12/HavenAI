@@ -1,6 +1,7 @@
 using Android.App;
 using Android.Content;
 using Android.OS;
+using Android.Views;
 using Avalonia.Android;
 
 namespace Haven.Android;
@@ -11,10 +12,18 @@ namespace Haven.Android;
     Icon = "@drawable/haven_icon",
     MainLauncher = false,
     Exported = false,
-    ConfigurationChanges = global::Android.Content.PM.ConfigChanges.Orientation
+    WindowSoftInputMode = SoftInput.AdjustResize,
+    ConfigurationChanges =
+        global::Android.Content.PM.ConfigChanges.Orientation
         | global::Android.Content.PM.ConfigChanges.ScreenSize
+        | global::Android.Content.PM.ConfigChanges.SmallestScreenSize
+        | global::Android.Content.PM.ConfigChanges.ScreenLayout
         | global::Android.Content.PM.ConfigChanges.UiMode
-        | global::Android.Content.PM.ConfigChanges.KeyboardHidden)]
+        | global::Android.Content.PM.ConfigChanges.Density
+        | global::Android.Content.PM.ConfigChanges.FontScale
+        | global::Android.Content.PM.ConfigChanges.Keyboard
+        | global::Android.Content.PM.ConfigChanges.KeyboardHidden
+        | global::Android.Content.PM.ConfigChanges.LayoutDirection)]
 public sealed class MainActivity : AvaloniaMainActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
@@ -22,6 +31,7 @@ public sealed class MainActivity : AvaloniaMainActivity
         try
         {
             base.OnCreate(savedInstanceState);
+            Window?.SetSoftInputMode(SoftInput.AdjustResize);
             AndroidRuntimeDiagnostics.Attach(this);
         }
         catch (Exception exception)
@@ -33,6 +43,7 @@ public sealed class MainActivity : AvaloniaMainActivity
     protected override void OnResume()
     {
         base.OnResume();
+        Window?.SetSoftInputMode(SoftInput.AdjustResize);
         AndroidRuntimeDiagnostics.Attach(this);
     }
 
