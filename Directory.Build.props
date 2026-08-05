@@ -5,10 +5,7 @@
   Why: Central declarative configuration keeps builds reproducible across developer machines and CI.
 -->
 <Project>
-  <Import Project="$(MSBuildThisFileDirectory)Directory.Packages.props"
-          Condition="'$(ManagePackageVersionsCentrally)' != 'true' and Exists('$(MSBuildThisFileDirectory)Directory.Packages.props')" />
   <PropertyGroup>
-    <DirectoryPackagesPropsPath>$(MSBuildThisFileDirectory)Directory.Packages.props</DirectoryPackagesPropsPath>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
