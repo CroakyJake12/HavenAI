@@ -6,6 +6,7 @@ using Android.OS;
 using Android.Provider;
 using Android.Views;
 using Android.Widget;
+using Uri = Android.Net.Uri;
 using System.Text.Json;
 
 namespace Haven.Android;
