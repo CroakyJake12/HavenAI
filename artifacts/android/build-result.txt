@@ -1,15 +1,7 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31034750051
-input_commit=59f7ba041feed265cbaa7a79bee1f087796a1eba
-setup_dotnet_outcome=success
-workload_outcome=success
-workload_exit=0
-restore_outcome=success
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31038261246
+input_commit=834697da63eb38ec057b808a5e7fb6c899ef281b
 restore_exit=0
-compile_outcome=failure
-compile_exit=1
-package_outcome=skipped
-package_exit=
+publish_exit=1
 
-compiler_diagnostics:
-/home/runner/work/HavenAI/HavenAI/Directory.Build.props(8,3): error MSB4024: The imported project file "/home/runner/work/HavenAI/HavenAI/Directory.Packages.props" could not be loaded. Name cannot begin with the '0' character, hexadecimal value 0x30. Line 30, position 55. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/Directory.Build.props(8,3): error MSB4024: The imported project file "/home/runner/work/HavenAI/HavenAI/Directory.Packages.props" could not be loaded. Name cannot begin with the '0' character, hexadecimal value 0x30. Line 30, position 55. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+diagnostics:
+artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/Directory.Build.props(8,3): error MSB4024: The imported project file "/home/runner/work/HavenAI/HavenAI/Directory.Packages.props" could not be loaded. An error occurred while parsing EntityName. Line 30, position 46. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
