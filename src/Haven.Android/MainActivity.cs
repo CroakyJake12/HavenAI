@@ -11,7 +11,7 @@ namespace Haven.Android;
     Icon = "@drawable/haven_icon",
     MainLauncher = false,
     Exported = false,
-    ConfigChanges = global::Android.Content.PM.ConfigChanges.Orientation
+    ConfigurationChanges = global::Android.Content.PM.ConfigChanges.Orientation
         | global::Android.Content.PM.ConfigChanges.ScreenSize
         | global::Android.Content.PM.ConfigChanges.UiMode
         | global::Android.Content.PM.ConfigChanges.KeyboardHidden)]
