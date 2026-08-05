@@ -237,7 +237,7 @@ public sealed partial class HavenLauncherActivity
     }
 
     private HashSet<int> ReadWidgetIds()
-        => (Preferences.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)
+        => (Preferences!.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(value => int.TryParse(value, out var id)
                 ? id
