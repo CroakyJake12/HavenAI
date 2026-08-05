@@ -1,5 +1,5 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31032791128
-input_commit=76030df185a69e9a754df2f3310e4c4bef9ea484
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31033685262
+input_commit=3575fac020a535b077d11cf67ccbab43adb62457
 setup_dotnet_outcome=success
 workload_outcome=success
 workload_exit=0
@@ -12,8 +12,8 @@ package_exit=
 
 compiler_diagnostics:
      1>/home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Data.Sqlite.Core, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Http, SQLitePCLRaw.provider.winsqlite3 [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Extensions.DependencyInjection [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
      1>/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Avalonia, Avalonia.Android, Avalonia.Controls.WebView, Avalonia.Themes.Fluent, AvaloniaUI.DiagnosticsSupport, KokoroSharp.CPU, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Hosting, Microsoft.Extensions.Logging.Console, SQLitePCLRaw.bundle_e_sqlite3
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Extensions.DependencyInjection [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
          /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Data.Sqlite.Core, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Http, SQLitePCLRaw.provider.winsqlite3 [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-         /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Extensions.DependencyInjection [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
          /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Avalonia, Avalonia.Android, Avalonia.Controls.WebView, Avalonia.Themes.Fluent, AvaloniaUI.DiagnosticsSupport, KokoroSharp.CPU, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Hosting, Microsoft.Extensions.Logging.Console, SQLitePCLRaw.bundle_e_sqlite3
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1015: The following PackageReference item(s) do not have a version specified: Microsoft.Extensions.DependencyInjection [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
