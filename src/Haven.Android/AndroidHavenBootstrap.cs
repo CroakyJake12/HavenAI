@@ -31,8 +31,10 @@ internal static class AndroidHavenBootstrap
             // Android can recreate an Activity. Create a fresh Avalonia control graph while
             // reusing Haven's application and infrastructure services.
             var mainView = ActivatorUtilities.CreateInstance<MainView>(services);
-            mainView.ApplyEdition(HavenShellEdition.New);
-            mainView.ApplyMobileLayout();
+
+            // Keep the uninitialised desktop shell hidden. New Haven creates repository-backed
+            // pages, so it must only be applied after the database lifecycle has completed.
+            mainView.IsVisible = false;
 
             Dispatcher.UIThread.Post(() => _ = InitializeMainViewAsync(mainView, services));
             return mainView;
@@ -78,6 +80,12 @@ internal static class AndroidHavenBootstrap
                     _applicationStarted = true;
                 }
 
+                // Apply the Android shell only after StartupAsync has created and migrated the
+                // SQLite schema. Activity recreation still receives a fresh MainView instance.
+                mainView.ApplyEdition(HavenShellEdition.New);
+                mainView.ApplyMobileLayout();
+                mainView.IsVisible = true;
+
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);
 
@@ -94,7 +102,9 @@ internal static class AndroidHavenBootstrap
                 }
 
                 if (recoveryState is not null)
+                {
                     await recovery.MarkStartupCompletedAsync(CancellationToken.None);
+                }
             }
             finally
             {
@@ -103,6 +113,7 @@ internal static class AndroidHavenBootstrap
         }
         catch (Exception exception)
         {
+            mainView.IsVisible = true;
             mainView.SetStartupError(exception.Message);
             AndroidRuntimeDiagnostics.Record(
                 exception,
