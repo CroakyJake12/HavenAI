@@ -27,34 +27,55 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Apply final nullable repair
+      - name: Repair nullable hosted-widget flow
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+
           path = Path("src/Haven.Android/HavenLauncherActivity.Settings.cs")
           text = path.read_text(encoding="utf-8")
-          old = "=> (Preferences.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)"
-          new = "=> (Preferences!.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)"
-          if old in text:
-              text = text.replace(old, new, 1)
-              path.write_text(text, encoding="utf-8", newline="\n")
-          elif new not in text:
-              raise SystemExit("Expected ReadWidgetIds nullable anchor was not found.")
+          original = text
 
-          handled_old = "                args.Handled = true;"
-          handled_new = "                if (args is not null)\n                    args.Handled = true;"
-          if handled_old in text:
-              text = text.replace(handled_old, handled_new)
+          duplicate_guard = (
+              "                if (args is not null)\n"
+              "                if (args is not null)\n"
+              "                    args.Handled = true;"
+          )
+          single_guard = (
+              "                if (args is not null)\n"
+              "                    args.Handled = true;"
+          )
+          while duplicate_guard in text:
+              text = text.replace(duplicate_guard, single_guard)
+
+          old_host = (
+              "            var hostView = widgetHost.CreateView(this, widgetId, info);\n"
+              "            hostView.SetAppWidget(widgetId, info);"
+          )
+          new_host = (
+              "            var hostView = widgetHost.CreateView(this, widgetId, info);\n"
+              "            if (hostView is null)\n"
+              "            {\n"
+              "                DeleteWidgetId(widgetId);\n"
+              "                continue;\n"
+              "            }\n"
+              "            hostView.SetAppWidget(widgetId, info);"
+          )
+          if old_host in text:
+              text = text.replace(old_host, new_host, 1)
+          elif new_host not in text:
+              raise SystemExit("Expected AppWidgetHost.CreateView nullable anchor was not found.")
+
+          if text != original:
               path.write_text(text, encoding="utf-8", newline="\n")
-          elif handled_new not in text:
-              raise SystemExit("Expected widget long-click nullable anchor was not found.")
           PY
+
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/Haven.Android/HavenLauncherActivity.Settings.cs
           if ! git diff --cached --quiet; then
-            git commit -m "Guard launcher preferences access [skip ci]"
+            git commit -m "Guard nullable Android hosted widgets [skip ci]"
             git push
           fi
 
@@ -71,7 +92,13 @@ jobs:
           restore_exit=${PIPESTATUS[0]}
           publish_exit=99
           if [ "$restore_exit" -eq 0 ]; then
-            dotnet publish src/Haven.Android/Haven.Android.csproj               -c Debug               -f net10.0-android               --no-restore               -p:AndroidPackageFormat=apk               -p:AndroidKeyStore=false               2>&1 | tee artifacts/android/publish.log
+            dotnet publish src/Haven.Android/Haven.Android.csproj \
+              -c Debug \
+              -f net10.0-android \
+              --no-restore \
+              -p:AndroidPackageFormat=apk \
+              -p:AndroidKeyStore=false \
+              2>&1 | tee artifacts/android/publish.log
             publish_exit=${PIPESTATUS[0]}
           fi
 
@@ -83,10 +110,7 @@ jobs:
             echo "publish_exit=$publish_exit"
             echo
             echo "diagnostics:"
-            grep -E -m 160 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
-            echo
-            echo "settings_context:"
-            nl -ba src/Haven.Android/HavenLauncherActivity.Settings.cs | sed -n '208,228p'
+            grep -E -m 200 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
           } > artifacts/android/build-result.txt
 
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
