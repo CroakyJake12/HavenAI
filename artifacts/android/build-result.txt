@@ -1,24 +1,18 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31030474770
-input_commit=6c94377512ba08ad5eea53ac424805c844808112
-patch_exit=1
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31030853817
+input_commit=ae5d674424e9df673d17d89a5e89bc2db7303215
+patch_exit=0
 
 patch_diagnostics:
 payload_size=3018
 b4029306001c39490dbef2adf746cae865e0d66e9f21e44e9a9029615f8145de  scripts/apply_haven_android_compile_repairs.py.gz
 scripts/apply_haven_android_compile_repairs.py.gz: OK
 /tmp/haven-android-compile-repairs.py: OK
-Traceback (most recent call last):
-  File "/tmp/haven-android-compile-repairs.py", line 353, in <module>
-    edit("src/Haven.Android/ModelImportActivity.cs", model)
-  File "/tmp/haven-android-compile-repairs.py", line 10, in edit
-    old = path.read_text(encoding="utf-8")
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors) as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
-    return io.open(self, mode, buffering, encoding, errors, newline)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/src/Haven.Android/ModelImportActivity.cs'
+Updated:
+src/Haven.Android/ModelImportActivity.cs
+src/Haven.Android/HavenLauncherActivity.cs
+src/Haven.Android/HavenLauncherActivity.Apps.cs
+src/Haven.Android/HavenLauncherActivity.Settings.cs
+src/Haven.Android/MainView.Mobile.Layout.cs
+Mobile repair compatibility patches already applied.
 
 compiler_diagnostics:
