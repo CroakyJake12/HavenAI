@@ -24,10 +24,10 @@ jobs:
           mkdir -p artifacts/android
           cat scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3 > /tmp/api-compat.b64
           test "$(wc -c < /tmp/api-compat.b64)" -eq 3988
-          base64 -d /tmp/api-compat.b64 | gzip -d > /tmp/apply_haven_android_api_compat.py
-          echo "210997532e9643b039b59fca869c3d1c800c7973e1a245ac1aeb753886e79be1  /tmp/apply_haven_android_api_compat.py" | sha256sum -c -
-          python3 -m py_compile /tmp/apply_haven_android_api_compat.py
-          python3 /tmp/apply_haven_android_api_compat.py > artifacts/android/api-compat-diagnostic.txt 2>&1
+          base64 -d /tmp/api-compat.b64 | gzip -d > scripts/apply_haven_android_api_compat.py
+          echo "210997532e9643b039b59fca869c3d1c800c7973e1a245ac1aeb753886e79be1  scripts/apply_haven_android_api_compat.py" | sha256sum -c -
+          python3 -m py_compile scripts/apply_haven_android_api_compat.py
+          python3 scripts/apply_haven_android_api_compat.py > artifacts/android/api-compat-diagnostic.txt 2>&1
           result=$?
           cat artifacts/android/api-compat-diagnostic.txt
           echo "result=$result" >> "$GITHUB_OUTPUT"
@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -f artifacts/android/api-compat-diagnostic.txt artifacts/android/build-result.txt
-          rm -f scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3
+          rm -f scripts/apply_haven_android_api_compat.py scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/Haven.Android/ModelImportActivity.cs
