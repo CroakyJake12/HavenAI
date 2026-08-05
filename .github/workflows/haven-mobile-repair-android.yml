@@ -7,6 +7,7 @@ on:
       - gpt/haven-mobile-repair-android
     paths-ignore:
       - 'artifacts/android/**'
+      - 'artifacts/android-smoke/**'
 
 permissions:
   contents: write
@@ -19,7 +20,7 @@ env:
   ANDROID_PROJECT: src/Haven.Android/Haven.Android.csproj
   ANDROID_TFM: net10.0-android
   ANDROID_CONFIGURATION: Debug
-  ANDROID_ARTIFACT_DIR: artifacts/android
+  EVIDENCE_DIR: artifacts/android
 
 jobs:
   build:
@@ -27,67 +28,75 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
-      apk_ready: ${{ steps.final.outputs.apk_ready }}
-    env:
-      AVALONIA_TELEMETRY_OPTOUT: '1'
-      DOTNET_NOLOGO: '1'
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-
+      apk_ready: ${{ steps.outcome.outputs.apk_ready }}
     steps:
       - name: Check out repair branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Prepare evidence directory
+      - name: Prepare clean evidence directory
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf "$ANDROID_ARTIFACT_DIR"
-          mkdir -p "$ANDROID_ARTIFACT_DIR"
+          rm -rf "$EVIDENCE_DIR"
+          mkdir -p "$EVIDENCE_DIR"
           {
             echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "input_commit=${GITHUB_SHA}"
-            echo "runner=${RUNNER_OS}"
-          } > "$ANDROID_ARTIFACT_DIR/build-result.txt"
+          } > "$EVIDENCE_DIR/build-result.txt"
 
-      - name: Apply deterministic Android source repairs
+      - name: Apply deterministic source repairs
         id: patch
         shell: bash
         run: |
           set +e
-          base64 --decode scripts/apply_haven_android_api_repairs.py.gz.b64 > /tmp/haven-android-repairs.py.gz
-          payload_result=$?
-          if [ "$payload_result" -eq 0 ]; then
-            echo "bd5faf0775dfc8d22df0f2116a2aba53af21d58002e6f293b89725b72fbb0644  /tmp/haven-android-repairs.py.gz" | sha256sum --check -
-            payload_result=$?
+          payload="scripts/apply_haven_android_compile_repairs.py.gz"
+          {
+            echo "payload_size=$(wc -c < "$payload")"
+            sha256sum "$payload"
+          } | tee "$EVIDENCE_DIR/repair-gate.log"
+
+          echo "b4029306001c39490dbef2adf746cae865e0d66e9f21e44e9a9029615f8145de  $payload" \
+            | sha256sum --check - 2>&1 | tee -a "$EVIDENCE_DIR/repair-gate.log"
+          result=${PIPESTATUS[1]}
+
+          if [ "$result" -eq 0 ]; then
+            gzip -dc "$payload" > /tmp/haven-android-compile-repairs.py 2>> "$EVIDENCE_DIR/repair-gate.log"
+            result=$?
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            gzip --decompress --stdout /tmp/haven-android-repairs.py.gz > /tmp/haven-android-repairs.py
-            payload_result=$?
+
+          if [ "$result" -eq 0 ]; then
+            echo "ee979f5bd880984cbfc24fff957d9b4b0fe709c20528324c5f7544478c0c7e26  /tmp/haven-android-compile-repairs.py" \
+              | sha256sum --check - 2>&1 | tee -a "$EVIDENCE_DIR/repair-gate.log"
+            result=${PIPESTATUS[1]}
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            echo "7ac3440f80ac3b42814325fa510229203ba51d7f2e0a0dd7e6efd8769efd674a  /tmp/haven-android-repairs.py" | sha256sum --check -
-            payload_result=$?
+
+          if [ "$result" -eq 0 ]; then
+            python3 -m py_compile /tmp/haven-android-compile-repairs.py 2>&1 \
+              | tee -a "$EVIDENCE_DIR/repair-gate.log"
+            result=${PIPESTATUS[0]}
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            python3 -m py_compile /tmp/haven-android-repairs.py
-            payload_result=$?
+
+          if [ "$result" -eq 0 ]; then
+            python3 /tmp/haven-android-compile-repairs.py 2>&1 \
+              | tee "$EVIDENCE_DIR/api-repair.log"
+            result=${PIPESTATUS[0]}
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            python3 /tmp/haven-android-repairs.py 2>&1 | tee "$ANDROID_ARTIFACT_DIR/api-repair.log"
-            payload_result=${PIPESTATUS[0]}
+
+          if [ "$result" -eq 0 ]; then
+            python3 scripts/apply_haven_mobile_repair.py 2>&1 \
+              | tee "$EVIDENCE_DIR/shared-repair.log"
+            result=${PIPESTATUS[0]}
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            python3 scripts/apply_haven_mobile_repair.py 2>&1 | tee "$ANDROID_ARTIFACT_DIR/shared-repair.log"
-            payload_result=${PIPESTATUS[0]}
+
+          if [ "$result" -eq 0 ]; then
+            git diff --check 2>&1 | tee "$EVIDENCE_DIR/diff-check.log"
+            result=${PIPESTATUS[0]}
           fi
-          if [ "$payload_result" -eq 0 ]; then
-            git diff --check 2>&1 | tee "$ANDROID_ARTIFACT_DIR/diff-check.log"
-            payload_result=${PIPESTATUS[0]}
-          fi
-          echo "patch_exit=${payload_result}" | tee -a "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          echo "result=${payload_result}" >> "$GITHUB_OUTPUT"
+
+          echo "patch_exit=$result" | tee -a "$EVIDENCE_DIR/build-result.txt"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Commit repaired source
@@ -112,13 +121,13 @@ jobs:
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
-      - name: Install .NET from global.json
+      - name: Install .NET SDK
         if: steps.patch.outputs.result == '0'
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
 
-      - name: Record .NET and NuGet environment
+      - name: Record environment
         if: steps.patch.outputs.result == '0'
         shell: bash
         run: |
@@ -127,80 +136,73 @@ jobs:
             dotnet --info
             echo
             dotnet nuget list source --configfile NuGet.Config
-          } 2>&1 | tee "$ANDROID_ARTIFACT_DIR/environment.log"
+          } 2>&1 | tee "$EVIDENCE_DIR/environment.log"
           exit 0
 
-      - name: Install Android workload
-        id: workload
+      - name: Restore workload and compile APK
+        id: compile
         if: steps.patch.outputs.result == '0'
         shell: bash
         run: |
           set +e
-          dotnet workload install android 2>&1 | tee "$ANDROID_ARTIFACT_DIR/workload.log"
-          result=${PIPESTATUS[0]}
-          echo "workload_exit=${result}" | tee -a "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          echo "result=${result}" >> "$GITHUB_OUTPUT"
-          exit 0
+          workload=99
+          restore=99
+          build=99
+          package=99
 
-      - name: Restore Android project
-        id: restore
-        if: steps.patch.outputs.result == '0' && steps.workload.outputs.result == '0'
-        shell: bash
-        run: |
-          set +e
-          dotnet restore "$ANDROID_PROJECT" \
-            --configfile NuGet.Config \
-            --verbosity normal 2>&1 | tee "$ANDROID_ARTIFACT_DIR/restore.log"
-          result=${PIPESTATUS[0]}
-          echo "restore_exit=${result}" | tee -a "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          echo "result=${result}" >> "$GITHUB_OUTPUT"
-          exit 0
+          dotnet workload restore "$ANDROID_PROJECT" 2>&1 \
+            | tee "$EVIDENCE_DIR/workload.log"
+          workload=${PIPESTATUS[0]}
 
-      - name: Compile Android project
-        id: compile
-        if: steps.restore.outputs.result == '0'
-        shell: bash
-        run: |
-          set +e
-          dotnet build "$ANDROID_PROJECT" \
-            --configuration "$ANDROID_CONFIGURATION" \
-            --framework "$ANDROID_TFM" \
-            --no-restore 2>&1 | tee "$ANDROID_ARTIFACT_DIR/build.log"
-          result=${PIPESTATUS[0]}
-          echo "build_exit=${result}" | tee -a "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          echo "result=${result}" >> "$GITHUB_OUTPUT"
-          exit 0
+          if [ "$workload" -eq 0 ]; then
+            dotnet restore "$ANDROID_PROJECT" \
+              --configfile NuGet.Config \
+              --verbosity normal 2>&1 | tee "$EVIDENCE_DIR/restore.log"
+            restore=${PIPESTATUS[0]}
+          fi
 
-      - name: Package installable APK
-        id: package
-        if: steps.compile.outputs.result == '0'
-        shell: bash
-        run: |
-          set +e
-          dotnet publish "$ANDROID_PROJECT" \
-            --configuration "$ANDROID_CONFIGURATION" \
-            --framework "$ANDROID_TFM" \
-            --no-restore \
-            -p:AndroidPackageFormat=apk \
-            -p:AndroidKeyStore=false 2>&1 | tee "$ANDROID_ARTIFACT_DIR/publish.log"
-          result=${PIPESTATUSW0]}
-          if [ "$result" -eq 0 ]; then
+          if [ "$restore" -eq 0 ]; then
+            dotnet build "$ANDROID_PROJECT" \
+              --configuration "$ANDROID_CONFIGURATION" \
+              --framework "$ANDROID_TFM" \
+              --no-restore 2>&1 | tee "$EVIDENCE_DIR/build.log"
+            build=${PIPESTATUS[0]}
+          fi
+
+          if [ "$build" -eq 0 ]; then
+            dotnet publish "$ANDROID_PROJECT" \
+              --configuration "$ANDROID_CONFIGURATION" \
+              --framework "$ANDROID_TFM" \
+              --no-restore \
+              -p:AndroidPackageFormat=apk \
+              -p:AndroidKeyStore=false 2>&1 | tee "$EVIDENCE_DIR/publish.log"
+            package=${PIPESTATUS[0]}
+          fi
+
+          {
+            echo "workload_exit=$workload"
+            echo "restore_exit=$restore"
+            echo "build_exit=$build"
+            echo "package_exit=$package"
+          } | tee -a "$EVIDENCE_DIR/build-result.txt"
+
+          if [ "$package" -eq 0 ]; then
             mapfile -t apks < <(find src/Haven.Android/bin -type f -name '*.apk' | sort)
             if [ "${#apks[@]}" -eq 0 ]; then
-              echo "No APK was produced." | tee -a "$ANDROID_ARTIFACT_DIR/publish.log"
-              result=1
+              echo "No APK was produced." | tee -a "$EVIDENCE_DIR/build-result.txt"
+              package=1
             else
               for apk in "${apks[@]}"; do
-                cp "$apk" "$ANDROID_ARTIFACT_DIR/$(basename "$apk")"
+                cp "$apk" "$EVIDENCE_DIR/$(basename "$apk")"
               done
-              sha256sum "$ANDROID_ARTIFACT_DIR"/*.apk | tee "$ANDROID_ARTIFACT_DIR/SHA256SUMS.txt"
+              sha256sum "$EVIDENCE_DIR"/*.apk | tee "$EVIDENCE_DIR/SHA256SUMS.txt"
             fi
           fi
-          echo "package_exit=${result}" | tee -a "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          echo "result=${result}" >> "$GITHUB_OUTPUT"
+
+          echo "result=$package" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Summarize compiler diagnostics
+      - name: Summarize diagnostics
         if: always()
         shell: bash
         run: |
@@ -208,25 +210,26 @@ jobs:
           {
             echo
             echo "patch_diagnostics:"
-            tail -n 80 "$ANDROID_ARTIFACT_DIR/api-repair.log" 2>/dev/null || true
-            tail -n 80 "$ANDROID_ARTIFACT_DIR/shared-repair.log" 2>/dev/null || true
+            tail -n 120 "$EVIDENCE_DIR/repair-gate.log" 2>/dev/null || true
+            tail -n 120 "$EVIDENCE_DIR/api-repair.log" 2>/dev/null || true
+            tail -n 120 "$EVIDENCE_DIR/shared-repair.log" 2>/dev/null || true
             echo
             echo "compiler_diagnostics:"
-            grep -hE -m 300 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' \
-              "$ANDROID_ARTIFACT_DIR"/*.log 2>/dev/null || true
-          } >> "$ANDROID_ARTIFACT_DIR/build-result.txt"
-          cat "$ANDROID_ARTIFACT_DIR/build-result.txt"
+            grep -hE -m 400 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' \
+              "$EVIDENCE_DIR"/*.log 2>/dev/null || true
+          } >> "$EVIDENCE_DIR/build-result.txt"
+          cat "$EVIDENCE_DIR/build-result.txt"
 
-      - name: Upload build evidence
+      - name: Upload build evidence and APK
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Haven-Mobile-Repair-Build-${{ github.run_id }}
           path: artifacts/android/
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist build result
+      - name: Persist concise build evidence
         if: always()
         shell: bash
         run: |
@@ -242,18 +245,14 @@ jobs:
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
-      - name: Determine final build outcome
-        id: final
+      - name: Determine build outcome
+        id: outcome
         if: always()
         shell: bash
         run: |
-          set -euo pipefail
           patch="${{ steps.patch.outputs.result }}"
-          workload="${{ steps.workload.outputs.result }}"
-          restore="${{ steps.restore.outputs.result }}"
           compile="${{ steps.compile.outputs.result }}"
-          package="${{ steps.package.outputs.result }}"
-          if [ "$patch" = "0" ] && [ "$workload" = "0" ] && [ "$restore" = "0" ] && [ "$compile" = "0" ] && [ "$package" = "0" ]; then
+          if [ "$patch" = "0" ] && [ "$compile" = "0" ]; then
             echo "apk_ready=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -261,17 +260,17 @@ jobs:
           exit 1
 
   smoke:
-    name: Android emulator smoke
+    name: Android API 36 emulator smoke
     needs: build
     if: needs.build.outputs.apk_ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Check out validated source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Download APK artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
           name: Haven-Mobile-Repair-Build-${{ github.run_id }}
           path: artifacts/android
@@ -299,21 +298,9 @@ jobs:
             export HAVEN_APK="$(find artifacts/android -type f -name '*.apk' | head -n 1)"
             bash .github/scripts/haven-android-smoke.sh
 
-      - name: Record smoke outcome
+      - name: Upload smoke evidence
         if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/android-smoke
-          {
-            echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo "commit=${GITHUB_SHA}"
-            echo "smoke_outcome=${{ steps.smoke.outcome }}"
-          } > artifacts/android-smoke/smoke-result.txt
-
-      - name: Upload emulator evidence
-        if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Haven-Mobile-Repair-Smoke-${{ github.run_id }}
           path: |
@@ -328,5 +315,4 @@ jobs:
       - name: Enforce smoke result
         if: always()
         shell: bash
-        run: |
-          test "${{ steps.smoke.outcome }}" = "success"
+        run: test "${{ steps.smoke.outcome }}" = "success"
