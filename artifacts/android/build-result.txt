@@ -1,7 +1,7 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31038261246
-input_commit=834697da63eb38ec057b808a5e7fb6c899ef281b
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31038430272
+input_commit=ec31038d9de506dc4ffe038f4b1aaa8c0ade66d6
 restore_exit=0
 publish_exit=1
 
 diagnostics:
-artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/Directory.Build.props(8,3): error MSB4024: The imported project file "/home/runner/work/HavenAI/HavenAI/Directory.Packages.props" could not be loaded. An error occurred while parsing EntityName. Line 30, position 46. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/Directory.Packages.props(25,5): error MSB4232: Items that are outside Target elements must have one of the following operations: Include, Update, or Remove. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
