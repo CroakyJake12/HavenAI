@@ -8,11 +8,11 @@ namespace Haven.Android;
 
 [Activity(
     Label = "Haven",
-    Theme = "@android:style/Theme.Material.Light.NoActionBar",
+    Theme = "@style/Theme.AppCompat.Light.NoActionBar",
     Icon = "@drawable/haven_icon",
     MainLauncher = false,
     Exported = false,
-    ConfigurationChanges = ConfigChanges.Orientation
+    ConfigChanges = ConfigChanges.Orientation
         | ConfigChanges.ScreenSize
         | ConfigChanges.UiMode
         | ConfigChanges.KeyboardHidden)]
