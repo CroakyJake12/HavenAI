@@ -160,10 +160,22 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          test -f artifacts/android/build-result.txt || {
-            echo "repair_exit=${{ steps.repair.outputs.repair_exit }}" > artifacts/android/build-result.txt
-            test -f artifacts/android/repair.log && tail -n 300 artifacts/android/repair.log >> artifacts/android/build-result.txt
-          }
+          if [ ! -f artifacts/android/exit-code.txt ]; then
+            {
+              echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              echo "input_commit=${{ github.sha }}"
+              echo "built_tree=$(git rev-parse HEAD)"
+              echo "repair_exit=${{ steps.repair.outputs.repair_exit }}"
+              echo "repair_log:"
+              test -f artifacts/android/repair.log && tail -n 500 artifacts/android/repair.log 
+              echo "repair_part_hashes:"
+              test -f artifacts/android/repair-part-hashes.txt && cat artifacts/android/repair-part-hashes.txt
+              echo "repair_gzip_check:"
+              test -f artifacts/android/repair-gzip-check.txt && cat artifacts/android/repair-gzip-check.txt
+              echo "repair_script_check:"
+              test -f artifacts/android/repair-script-check.txt && cat artifacts/android/repair-script-check.txt
+            } > artifacts/android/build-result.txt
+          fi
           git add -f artifacts/android/build-result.txt
           if ! git diff --cached --quiet; then
             git commit -m "Record consolidated Android build result [skip ci]"
