@@ -1,0 +1,299 @@
+using Android.App;
+using Android.Appwidget;
+using Android.Content;
+using Android.Graphics;
+using Android.Views;
+using Android.Widget;
+
+namespace Haven.Android;
+
+public sealed partial class HavenLauncherActivity
+{
+    private void ShowLauncherSettings()
+    {
+        var container = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical
+        };
+        container.SetPadding(Dp(18), Dp(8), Dp(18), 0);
+
+        var rows = new NumberPicker(this)
+        {
+            MinValue = 3,
+            MaxValue = 8,
+            Value = Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8)
+        };
+        var columns = new NumberPicker(this)
+        {
+            MinValue = 3,
+            MaxValue = 7,
+            Value = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7)
+        };
+        var labels = new CheckBox(this)
+        {
+            Text = "Show app labels",
+            Checked = Preferences.GetBoolean(LabelsKey, true)
+        };
+        var packages = new CheckBox(this)
+        {
+            Text = "Show package names",
+            Checked = Preferences.GetBoolean(PackagesKey, false)
+        };
+        container.AddView(LabeledControl("Rows", rows));
+        container.AddView(LabeledControl("Columns", columns));
+        container.AddView(labels);
+        container.AddView(packages);
+
+        new AlertDialog.Builder(this)
+            .SetTitle("Haven Launcher")
+            .SetView(container)
+            .SetPositiveButton("Save", (_, _) =>
+            {
+                Preferences.Edit()?
+                    .PutInt(RowsKey, rows.Value)?
+                    .PutInt(ColumnsKey, columns.Value)?
+                    .PutBoolean(LabelsKey, labels.Checked)?
+                    .PutBoolean(PackagesKey, packages.Checked)?
+                    .Apply();
+                _page = 0;
+                RenderPage();
+            })
+            .SetNeutralButton("Wallpaper", (_, _) => ChooseWallpaper())
+            .SetNegativeButton("Widgets", (_, _) => ShowWidgetMenu())
+            .Show();
+    }
+
+    private View LabeledControl(string label, View control)
+    {
+        var row = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal,
+            Gravity = GravityFlags.CenterVertical
+        };
+        var text = new TextView(this)
+        {
+            Text = label,
+            LayoutParameters = new LinearLayout.LayoutParams(0, Dp(56), 1f),
+            Gravity = GravityFlags.CenterVertical
+        };
+        row.AddView(text);
+        row.AddView(control);
+        return row;
+    }
+
+    private void ChooseWallpaper()
+    {
+        var intent = new Intent(Intent.ActionSetWallpaper);
+        StartActivity(Intent.CreateChooser(intent, "Choose launcher wallpaper"));
+    }
+
+    private void ShowWidgetMenu()
+    {
+        new AlertDialog.Builder(this)
+            .SetTitle("Add widget")
+            .SetItems(
+                new[] { "Android widget", "Haven clock widget" },
+                (_, args) =>
+                {
+                    if (args.Which == 0)
+                        PickAndroidWidget();
+                    else
+                        AddHavenWidget();
+                })
+            .Show();
+    }
+
+    private void PickAndroidWidget()
+    {
+        if (_widgetHost is null)
+            return;
+
+        _pendingWidgetId = _widgetHost.AllocateAppWidgetId();
+        var intent = new Intent(AppWidgetManager.ActionAppwidgetPick);
+        intent.PutExtra(AppWidgetManager.ExtraAppwidgetId, _pendingWidgetId);
+        StartActivityForResult(intent, PickWidgetRequest);
+    }
+
+    protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
+    {
+        base.OnActivityResult(requestCode, resultCode, data);
+
+        var widgetId = data?.GetIntExtra(
+            AppWidgetManager.ExtraAppwidgetId,
+            _pendingWidgetId) ?? _pendingWidgetId;
+
+        if (requestCode == PickWidgetRequest)
+        {
+            if (resultCode != Result.Ok || widgetId == AppWidgetManager.InvalidAppwidgetId)
+            {
+                DeleteWidgetId(widgetId);
+                return;
+            }
+
+            var info = _widgetManager?.GetAppWidgetInfo(widgetId);
+            if (info?.Configure is not null)
+            {
+                var configure = new Intent(AppWidgetManager.ActionAppwidgetConfigure);
+                configure.SetComponent(info.Configure);
+                configure.PutExtra(AppWidgetManager.ExtraAppwidgetId, widgetId);
+                StartActivityForResult(configure, ConfigureWidgetRequest);
+                return;
+            }
+
+            SaveWidgetId(widgetId);
+            RenderWidgets();
+        }
+        else if (requestCode == ConfigureWidgetRequest)
+        {
+            if (resultCode == Result.Ok)
+            {
+                SaveWidgetId(widgetId);
+                RenderWidgets();
+            }
+            else
+            {
+                DeleteWidgetId(widgetId);
+            }
+        }
+    }
+
+    private void AddHavenWidget()
+    {
+        Preferences.Edit()?.PutBoolean(HavenWidgetKey, true)?.Apply();
+        RenderWidgets();
+    }
+
+    private void RenderWidgets()
+    {
+        if (_widgetStrip is null)
+            return;
+
+        _widgetStrip.RemoveAllViews();
+
+        if (Preferences.GetBoolean(HavenWidgetKey, false))
+        {
+            var clock = new TextClock(this)
+            {
+                Format12Hour = "EEE, MMM d  •  h:mm a",
+                Format24Hour = "EEE, MMM d  •  HH:mm",
+                TextSize = 18,
+                Gravity = GravityFlags.Center,
+                LayoutParameters = new LinearLayout.LayoutParams(Dp(260), Dp(70))
+                {
+                    RightMargin = Dp(8)
+                }
+            };
+            clock.SetTextColor(Color.White);
+            clock.Background = MagicalBackground(Dp(20));
+            clock.LongClick += (_, args) =>
+            {
+                Preferences.Edit()?.PutBoolean(HavenWidgetKey, false)?.Apply();
+                RenderWidgets();
+                args.Handled = true;
+            };
+            _widgetStrip.AddView(clock);
+        }
+
+        if (_widgetHost is null || _widgetManager is null)
+            return;
+
+        foreach (var widgetId in ReadWidgetIds().ToArray())
+        {
+            var info = _widgetManager.GetAppWidgetInfo(widgetId);
+            if (info is null)
+            {
+                DeleteWidgetId(widgetId);
+                continue;
+            }
+
+            var hostView = _widgetHost.CreateView(this, widgetId, info);
+            hostView.SetAppWidget(widgetId, info);
+            hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
+            {
+                RightMargin = Dp(8)
+            };
+            hostView.LongClick += (_, args) =>
+            {
+                new AlertDialog.Builder(this)
+                    .SetMessage("Remove this widget?")
+                    .SetPositiveButton("Remove", (_, _) =>
+                    {
+                        DeleteWidgetId(widgetId);
+                        RenderWidgets();
+                    })
+                    .SetNegativeButton("Cancel", (_, _) => { })
+                    .Show();
+                args.Handled = true;
+            };
+            _widgetStrip.AddView(hostView);
+        }
+    }
+
+    private HashSet<int> ReadWidgetIds()
+        => (Preferences.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(value => int.TryParse(value, out var id)
+                ? id
+                : AppWidgetManager.InvalidAppwidgetId)
+            .Where(id => id != AppWidgetManager.InvalidAppwidgetId)
+            .ToHashSet();
+
+    private void SaveWidgetId(int widgetId)
+    {
+        var ids = ReadWidgetIds();
+        ids.Add(widgetId);
+        Preferences.Edit()?
+            .PutString(WidgetIdsKey, string.Join(',', ids.OrderBy(id => id)))?
+            .Apply();
+    }
+
+    private void DeleteWidgetId(int widgetId)
+    {
+        if (widgetId == AppWidgetManager.InvalidAppwidgetId)
+            return;
+
+        var ids = ReadWidgetIds();
+        ids.Remove(widgetId);
+        Preferences.Edit()?
+            .PutString(WidgetIdsKey, string.Join(',', ids.OrderBy(id => id)))?
+            .Apply();
+
+        try
+        {
+            _widgetHost?.DeleteAppWidgetId(widgetId);
+        }
+        catch
+        {
+        }
+    }
+
+    private void OpenHavenDashboard()
+    {
+        var intent = new Intent(this, typeof(MainActivity));
+        intent.PutExtra("haven_surface", "dashboard");
+        StartActivity(intent);
+    }
+
+    private void OpenHavenChat(string prompt)
+    {
+        var intent = new Intent(this, typeof(MainActivity));
+        intent.PutExtra("haven_prompt", prompt);
+        StartActivity(intent);
+    }
+
+    private void ApplyWallpaper()
+    {
+        if (_root is null)
+            return;
+
+        try
+        {
+            var drawable = WallpaperManager.GetInstance(this)?.Drawable;
+            _root.Background = drawable ?? RoundedBackground(Color.Rgb(31, 24, 45), 0);
+        }
+        catch
+        {
+            _root.SetBackgroundColor(Color.Rgb(31, 24, 45));
+        }
+    }
+}
