@@ -1,6 +1,5 @@
 using Android.App;
 using Android.Content;
-using ConfigChanges = global::Android.Content.PM.ConfigChanges;
 using Android.OS;
 using Avalonia.Android;
 
@@ -12,10 +11,10 @@ namespace Haven.Android;
     Icon = "@drawable/haven_icon",
     MainLauncher = false,
     Exported = false,
-    ConfigChanges = ConfigChanges.Orientation
-        | ConfigChanges.ScreenSize
-        | ConfigChanges.UiMode
-        | ConfigChanges.KeyboardHidden)]
+    ConfigChanges = global::Android.Content.PM.ConfigChanges.Orientation
+        | global::Android.Content.PM.ConfigChanges.ScreenSize
+        | global::Android.Content.PM.ConfigChanges.UiMode
+        | global::Android.Content.PM.ConfigChanges.KeyboardHidden)]
 public sealed class MainActivity : AvaloniaMainActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
@@ -53,7 +52,7 @@ public sealed class MainActivity : AvaloniaMainActivity
         try
         {
             var intent = new Intent(this, typeof(AndroidBootstrapActivity));
-            intent.AddFlags(ActivityFlags.ClearTop | ActityFlags.SingleTop);
+            intent.AddFlags(ActivityFlags.ClearTop | ActivityFlags.SingleTop);
             StartActivity(intent);
         }
         catch (Exception redirectException)
