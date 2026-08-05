@@ -1,19 +1,18 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31049647881
-input_commit=fa2f039d6f81f933ef3f26ba6e686e6c4613e80a
-built_tree=fa2f039d6f81f933ef3f26ba6e686e6c4613e80a
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31050790434
+input_commit=84d52c275506445543a77c7e8f7986db67a8fdec
+built_tree=84d52c275506445543a77c7e8f7986db67a8fdec
 repair_exit=1
 repair_log:
-Traceback (most recent call last):
-  File "/tmp/haven-mobile-repair.py", line 48, in <module>
-    replace_once(
-  File "/tmp/haven-mobile-repair.py", line 25, in replace_once
-    raise RuntimeError(f"{path}: expected one anchor, found {count}: {old[:120]!r}")
-RuntimeError: src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml: expected one anchor, found 4: '<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">'
+  File "/tmp/haven-mobile-repair.py", line 40
+    SETTINGS_CS = 'using System.Net.Http;\nusing System.Text.Json;\nusing Avalonia;\nusing Avalonia.Controls;\nusing Avalonia.Controls.TemplateBorder>\n\n      <BrlateBorder>\n\n M\n        <TextBlock x:Name="BrowserState   %
+SyntaxError: source code cannot contain null bytes
 repair_part_hashes:
-0909353f92b9e0eb50a7a9d852a3d1b4e044d9cccc382cb2b3b2c2abec9592ba  scripts/apply_haven_mobile_consolidated_repairs.part0
+4f44b0d022d2a5bb4065891a64c4856164ec99242bd575a7f7b9f03191dec851  scripts/apply_haven_mobile_consolidated_repairs.part0
 35785d6a840200da1d1823ab8a0865b0653d64425990e2147786d15b75c8e604  scripts/apply_haven_mobile_consolidated_repairs.part1
-5355a6cd4b448e904a396610c1cf971fff27ef64b16ae96f3276dd98ec28eae7  scripts/apply_haven_mobile_consolidated_repairs.part2
-300a3363b155d7f76a04881e992cc5212ab6d090b9cfade7346cb8d0e78e2191  scripts/apply_haven_mobile_consolidated_repairs.part3
+2093bf5929399d7cc5a9faa5829fd39f91dc6c0862906c77ef7109dc6eca8281  scripts/apply_haven_mobile_consolidated_repairs.part1a
+d754a639ab96de0e04b45183e961d7408e4fa580e24fc753ea9f62cc9a8e4544  scripts/apply_haven_mobile_consolidated_repairs.part1b
+6480a9ba6de9162020d958d68677725f216dc43e4143cbafcb0bb26da3b4e2c2  scripts/apply_haven_mobile_consolidated_repairs.part2
+43155c62f0bc8013a480f2920221c9a26aa4429fae3bc56b950541f9e84d26b6  scripts/apply_haven_mobile_consolidated_repairs.part3
 repair_gzip_check:
 /tmp/haven-mobile-repair.py.gz: FAILED
 repair_script_check:
