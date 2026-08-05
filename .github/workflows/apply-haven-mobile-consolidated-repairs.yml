@@ -38,6 +38,8 @@ jobs:
             echo "input_commit=${{ github.sha }}"
             echo "integrity_exit=$integrity"
             echo "repair_exit=$code"
+            echo "payload_hashes:"
+            sha256sum scripts/apply_haven_mobile_consolidated_repairs.part0 scripts/apply_haven_mobile_consolidated_repairs.part1a scripts/apply_haven_mobile_consolidated_repairs.part1b scripts/apply_haven_mobile_consolidated_repairs.part2 scripts/apply_haven_mobile_consolidated_repairs.part3 /tmp/repair.py.gz
             test -f artifacts/android/repair.log && tail -n 500 artifacts/android/repair.log
           } > artifacts/android/repair-result.txt
           echo "code=$code" >> "$GITHUB_OUTPUT"
