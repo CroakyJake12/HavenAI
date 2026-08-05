@@ -1,0 +1,4 @@
+  File "/tmp/apply_haven_android_api_compat.py", line 166
+    text = replace_count(
+                        ^
+SyntaxError: '(' was never closed
