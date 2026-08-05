@@ -52,18 +52,32 @@ jobs:
           PY
 
       - name: Apply compatibility repairs
+        id: apply
         shell: bash
         run: |
           set +e
           mkdir -p artifacts/android
-          python3 scripts/apply_haven_mobile_repair.py > artifacts/android/mobile-patch-diagnostic.txt 2>&1
+          python3 scripts/apply_haven_mobile_repair.py \
+            > artifacts/android/mobile-patch-diagnostic.txt 2>&1
           result=$?
           cat artifacts/android/mobile-patch-diagnostic.txt
-          if [ "$result" -ne 0 ]; then
-            exit "$result"
-          fi
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Persist compatibility failure
+        if: steps.apply.outputs.result != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f artifacts/android/mobile-patch-diagnostic.txt
+          git commit -m "Record Haven mobile patch failure [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          exit 1
 
       - name: Commit repaired compatibility sources
+        if: steps.apply.outputs.result == '0'
         shell: bash
         run: |
           set -euo pipefail
