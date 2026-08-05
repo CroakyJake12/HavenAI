@@ -1,89 +1,24 @@
 name: Build Haven Mobile Repair APK
-
 on:
   workflow_dispatch:
   push:
-    branches:
-      - gpt/haven-mobile-repair-android
-
+    branches: [gpt/haven-mobile-repair-android]
 permissions:
   contents: write
-
 concurrency:
   group: haven-mobile-repair-apk-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-
     steps:
-      - name: Check out repair branch
-        uses: actions/checkout@v6
-
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v6
         with:
-          global-json-file: global.json
-
-      - name: Repair nullable hosted-widget flow
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("src/Haven.Android/HavenLauncherActivity.Settings.cs")
-          text = path.read_text(encoding="utf-8")
-          original = text
-
-          duplicate_guard = (
-              "                if (args is not null)\n"
-              "                if (args is not null)\n"
-              "                    args.Handled = true;"
-          )
-          single_guard = (
-              "                if (args is not null)\n"
-              "                    args.Handled = true;"
-          )
-          while duplicate_guard in text:
-              text = text.replace(duplicate_guard, single_guard)
-
-          old_host = (
-              "            var hostView = widgetHost.CreateView(this, widgetId, info);\n"
-              "            hostView.SetAppWidget(widgetId, info);"
-          )
-          new_host = (
-              "            var hostView = widgetHost.CreateView(this, widgetId, info);\n"
-              "            if (hostView is null)\n"
-              "            {\n"
-              "                DeleteWidgetId(widgetId);\n"
-              "                continue;\n"
-              "            }\n"
-              "            hostView.SetAppWidget(widgetId, info);"
-          )
-          if old_host in text:
-              text = text.replace(old_host, new_host, 1)
-          elif new_host not in text:
-              raise SystemExit("Expected AppWidgetHost.CreateView nullable anchor was not found.")
-
-          if text != original:
-              path.write_text(text, encoding="utf-8", newline="\n")
-          PY
-
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/Haven.Android/HavenLauncherActivity.Settings.cs
-          if ! git diff --cached --quiet; then
-            git commit -m "Guard nullable Android hosted widgets [skip ci]"
-            git push
-          fi
-
-      - name: Install Android workload
-        run: dotnet workload install android
-
-      - name: Restore and publish APK
-        id: build
+          global.json-file: global.json
+      - run: dotnet workload install android
+      - name: Restore and publish
         shell: bash
         run: |
           set +e
@@ -92,38 +27,36 @@ jobs:
           restore_exit=${PIPESTATUS[0]}
           publish_exit=99
           if [ "$restore_exit" -eq 0 ]; then
-            dotnet publish src/Haven.Android/Haven.Android.csproj \
-              -c Debug \
-              -f net10.0-android \
-              --no-restore \
-              -p:AndroidPackageFormat=apk \
-              -p:AndroidKeyStore=false \
-              2>&1 | tee artifacts/android/publish.log
+            dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
             publish_exit=${PIPESTATUS[0]}
+          else
+            : > artifacts/android/publish.log
           fi
-
           {
             echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo "input_commit=${{ github.sha }}"
             echo "built_tree=$(git rev-parse HEAD)"
             echo "restore_exit=$restore_exit"
             echo "publish_exit=$publish_exit"
-            echo
-            echo "diagnostics:"
-            grep -E -m 200 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
+            echo "restore_log_tail:"
+            tail -n 120 artifacts/android/restore.log
+            echo "publish_log_tail:"
+            tail -n 500 artifacts/android/publish.log
           } > artifacts/android/build-result.txt
-
+          package_exit=1
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
             find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
-            test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
-            sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
-            echo 0 > artifacts/android/exit-code.txt
-          else
-            echo 1 > artifacts/android/exit-code.txt
+            if find artifacts/android -maxdepth 1 -type f -name '*.apk' -print -quit | grep -q .; then
+              sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
+              package_exit=0
+            else
+              echo "No APK found after successful publish." >> artifacts/android/build-result.txt
+            fi
           fi
+          echo "package_exit=$package_exit" >> artifacts/android/build-result.txt
+          echo "$package_exit" > artifacts/android/exit-code.txt
           exit 0
-
-      - name: Persist build evidence
+      - name: Persist evidence
         if: always()
         shell: bash
         run: |
@@ -134,19 +67,17 @@ jobs:
             git commit -m "Record Android APK build result [skip ci]"
             git push
           fi
-
-      - name: Upload build evidence
+      - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Haven-Android-Build-Evidence
           path: artifacts/android
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload installable APK
+      - name: Upload APK
         if: ${{ hashFiles('artifacts/android/*.apk') != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Haven-Android-APK
           path: |
@@ -154,7 +85,5 @@ jobs:
             artifacts/android/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
-
-      - name: Enforce APK build gate
-        shell: bash
+      - name: Enforce APK gate
         run: test "$(cat artifacts/android/exit-code.txt)" -eq 0
