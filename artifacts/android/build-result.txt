@@ -1,13 +1,24 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31030230060
-input_commit=4af4758002df1cdbd9b0b009b49befd5daffd5b3
-runner=Linux
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31030474770
+input_commit=6c94377512ba08ad5eea53ac424805c844808112
 patch_exit=1
-build_exit=1
 
 patch_diagnostics:
+payload_size=3018
+b4029306001c39490dbef2adf746cae865e0d66e9f21e44e9a9029615f8145de  scripts/apply_haven_android_compile_repairs.py.gz
+scripts/apply_haven_android_compile_repairs.py.gz: OK
+/tmp/haven-android-compile-repairs.py: OK
+Traceback (most recent call last):
+  File "/tmp/haven-android-compile-repairs.py", line 353, in <module>
+    edit("src/Haven.Android/ModelImportActivity.cs", model)
+  File "/tmp/haven-android-compile-repairs.py", line 10, in edit
+    old = path.read_text(encoding="utf-8")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/src/Haven.Android/ModelImportActivity.cs'
 
 compiler_diagnostics:
-/usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To build this project, the following workloads must be installed: android [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To install these workloads, run the following command: dotnet workload restore [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To build this project, the following workloads must be installed: android [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To install these workloads, run the following command: dotnet workload restore [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
