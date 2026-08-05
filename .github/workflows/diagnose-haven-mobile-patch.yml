@@ -16,41 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Repair stale Go-handler patch anchor
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("scripts/apply_haven_mobile_repair.py")
-          text = path.read_text(encoding="utf-8")
-          old = '''    text = replace_once(
-                  text,
-                  old_go_selection,
-                  new_go_selection,
-                  "MainView Go installed-app selection",
-              )
-          '''
-          new = '''    if new_go_selection not in text:
-                  signature = "    private async void OnGoCatalogItemSelected"
-                  boundary = "\n    private void QueueGoSuggestionRefresh"
-                  start = text.find(signature)
-                  end = text.find(boundary, start)
-                  if start < 0 or end < 0:
-                      raise RuntimeError(
-                          "MainView Go installed-app selection: bounded method anchors not found"
-                      )
-                  text = text[:start] + new_go_selection + text[end:]
-          '''
-          count = text.count(old)
-          if count == 1:
-              path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
-          elif new in text:
-              print("Go-handler patcher repair already applied.")
-          else:
-              raise RuntimeError(f"Expected one stale Go patch block, found {count}")
-          PY
-
       - name: Apply compatibility repairs
         id: apply
         shell: bash
@@ -72,8 +37,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f artifacts/android/mobile-patch-diagnostic.txt
-          git commit -m "Record Haven mobile patch failure [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          if git diff --cached --quiet; then
+            echo "Failure diagnostic is unchanged."
+          else
+            git commit -m "Record Haven mobile patch failure [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
           exit 1
 
       - name: Commit repaired compatibility sources
