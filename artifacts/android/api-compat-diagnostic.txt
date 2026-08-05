@@ -1,12 +1,3 @@
-Traceback (most recent call last):
-  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 495, in <module>
-    raise SystemExit(main())
-                     ^^^^^^
-  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 480, in main
-    patch_model_import()
-  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 93, in patch_model_import
-    text = replace_once(
-           ^^^^^^^^^^^^^
-  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 27, in replace_once
-    raise RuntimeError(f"{label}: expected one old block, found {count}")
-RuntimeError: model importer child URI null check: expected one old block, found 0
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 59
+    "new i(
+SyntaxError: source code cannot contain null bytes
