@@ -1,6 +1,6 @@
 using Android.App;
 using Android.Content;
-using Android.Content.PM;
+using ConfigChanges = global::Android.Content.PM.ConfigChanges;
 using Android.OS;
 using Avalonia.Android;
 
@@ -53,7 +53,7 @@ public sealed class MainActivity : AvaloniaMainActivity
         try
         {
             var intent = new Intent(this, typeof(AndroidBootstrapActivity));
-            intent.AddFlags(ActivityFlags.ClearTop | ActivityFlags.SingleTop);
+            intent.AddFlags(ActivityFlags.ClearTop | ActityFlags.SingleTop);
             StartActivity(intent);
         }
         catch (Exception redirectException)
