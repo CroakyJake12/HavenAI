@@ -1,17 +1,9 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31040274711
-input_commit=07cccdd24fbd08c4482c4eb08b6ef3e080ee8d14
-patch_exit=1
-restore_exit=not-run
-publish_exit=not-run
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31040587370
+input_commit=35dc1b2d12f7e89a3fb3f12e3cd983f93f6ca275
+tree_after_fixes=fa0b1b22c2a95e34a9f268839bf79ca11d42e019
+patch_exit=0
+restore_exit=0
+publish_exit=1
 
-patch_log:
-gzip_sha256=9bef22ad80ff76a3b9dffb4f079ebbb201195c3a301bf2ba66a9750613d6c8ba
-script_sha256=3a306e45632eec4ff6c5499e9070634bfcd6f19b2efa4b400051961af585db67
-updated src/Haven.Android/MainView.Mobile.Layout.cs
-Traceback (most recent call last):
-  File "/home/runner/work/HavenAI/HavenAI/scripts/fix_android_compile.py", line 31, in <module>
-    edit("src/Haven.Android/ModelImportActivity.cs", [
-  File "/home/runner/work/HavenAI/HavenAI/scripts/fix_android_compile.py", line 15, in edit
-    raise RuntimeError(f"{rel}: expected {expected} occurrence(s), found {count}: {old[:100]!r}")
-RuntimeError: src/Haven.Android/ModelImportActivity.cs: expected 1 occurrence(s), found 0: '            var childUri = DocumentsContract.BuildDocumentUriUsingTree(treeUri, childId);\n          '
-patch_exit=1
+diagnostics:
+artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(217,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
