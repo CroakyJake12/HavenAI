@@ -1,7 +1,24 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31042149478
-input_commit=a08e2412bf70b6da3b9d26f0477cd46cae7bd427
-built_tree=b663ac7a27ead7028f88646ea26fe56098b63d40
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31042666418
+input_commit=c3bc6ccee975630504b886999dccc80bf9f038b4
+built_tree=c3bc6ccee975630504b886999dccc80bf9f038b4
 restore_exit=0
 publish_exit=1
-
-diagnostics:
+restore_log_tail:
+  Determining projects to restore...
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 146 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 146 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj (in 3 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.09 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.61 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 6.2 sec).
+publish_log_tail:
+  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
+  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
+  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
+  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
+  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/Debug/net10.0/Haven.Infrastructure.dll
+/home/runner/.nuget/packages/webrtcvadsharp/1.3.2/build/WebRtcVadSharp.targets(4,3): warning : This project's platform is set to '', but it requires a native DLL (WebRtcVad.dll). Defaulting to 'x64' binaries. Explicitly choose a platform in the project's Build properties to remove this warning. [/home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(111,9): error CA1422: This call site is reachable on: 'Android' 24.0 and later. 'Activity.OnBackPressed()' is obsoleted on: 'Android' 33.0 and later. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1422) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(61,16): error CA1422: This call site is reachable on: 'Android' 24.0 and later. 'Window.SetNavigationBarColor(Color)' is obsoleted on: 'Android' 35.0 and later. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1422) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(60,16): error CA1422: This call site is reachable on: 'Android' 24.0 and later. 'Window.SetStatusBarColor(Color)' is obsoleted on: 'Android' 35.0 and later. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1422) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+package_exit=1
