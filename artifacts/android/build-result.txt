@@ -1,18 +1,31 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31031505001
-input_commit=11f22a348de859533dd7620342470bc24cb74326
-patch_exit=0
-
-patch_diagnostics:
-payload_size=3018
-b4029306001c39490dbef2adf746cae865e0d66e9f21e44e9a9029615f8145de  scripts/apply_haven_android_compile_repairs.py.gz
-scripts/apply_haven_android_compile_repairs.py.gz: OK
-/tmp/haven-android-compile-repairs.py: OK
-Updated:
-src/Haven.Android/ModelImportActivity.cs
-src/Haven.Android/HavenLauncherActivity.cs
-src/Haven.Android/HavenLauncherActivity.Apps.cs
-src/Haven.Android/HavenLauncherActivity.Settings.cs
-src/Haven.Android/MainView.Mobile.Layout.cs
-Mobile repair compatibility patches already applied.
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31031776488
+input_commit=b22a8df5fd993728622626bd2ce73183a654e6ae
+setup_dotnet_outcome=success
+workload_outcome=success
+workload_exit=0
+restore_outcome=failure
+restore_exit=1
+compile_outcome=skipped
+compile_exit=
+package_outcome=skipped
+package_exit=
 
 compiler_diagnostics:
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+     1>/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102: Unable to find package Avalonia.Controls.WebView with version (>= 12.1.1)
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102:   - Found 12 version(s) in nuget.org [ Nearest version: 12.0.1 ]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102:   - Found 0 version(s) in avalonia-all
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj : error NU1507: Warning As Error: There are 2 package sources defined in your configuration. When using central package management, please map your package sources with package source mapping (https://aka.ms/nuget-package-source-mapping) or specify a single package source. The following sources are defined: nuget.org, avalonia-all [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+         /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102: Unable to find package Avalonia.Controls.WebView with version (>= 12.1.1)
+       /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102:   - Found 12 version(s) in nuget.org [ Nearest version: 12.0.1 ]
+       /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj : error NU1102:   - Found 0 version(s) in avalonia-all
