@@ -176,27 +176,26 @@ public sealed partial class HavenLauncherActivity : Activity
         var row = new LinearLayout(this)
         {
             Orientation = Orientation.Horizontal,
-            Gravity = GravityFlags.CenterVertical,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
                 Dp(66))
         };
+        row.SetGravity(GravityFlags.CenterVertical);
         row.SetPadding(Dp(7), Dp(7), Dp(7), Dp(7));
         row.Background = MagicalBackground(Dp(28));
 
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuManage,
+            SystemDrawable("ic_menu_manage"),
             "Open Haven dashboard",
             OpenHavenDashboard));
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuPreferences,
+            SystemDrawable("ic_menu_preferences"),
             "Launcher settings",
             ShowLauncherSettings));
 
         var go = new EditText(this)
         {
             Hint = "Go — ask Haven",
-            SingleLine = true,
             TextSize = 15,
             LayoutParameters = new LinearLayout.LayoutParams(0, Dp(50), 1f)
             {
@@ -204,6 +203,7 @@ public sealed partial class HavenLauncherActivity : Activity
                 RightMargin = Dp(6)
             }
         };
+        go.SetSingleLine(true);
         go.SetTextColor(Color.White);
         go.SetHintTextColor(Color.Argb(190, 255, 255, 255));
         go.SetPadding(Dp(16), 0, Dp(12), 0);
@@ -220,7 +220,7 @@ public sealed partial class HavenLauncherActivity : Activity
         row.AddView(go);
 
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuSend,
+            SystemDrawable("ic_menu_send"),
             "Send to Haven",
             () =>
             {
@@ -233,6 +233,9 @@ public sealed partial class HavenLauncherActivity : Activity
 
         return row;
     }
+
+    private int SystemDrawable(string name)
+        => Resources?.GetIdentifier(name, "drawable", "android") ?? 0;
 
     private ImageButton IconButton(int resource, string description, Action action)
     {

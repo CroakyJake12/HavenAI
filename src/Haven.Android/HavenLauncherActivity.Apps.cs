@@ -106,10 +106,10 @@ public sealed partial class HavenLauncherActivity
         var tile = new LinearLayout(this)
         {
             Orientation = Orientation.Vertical,
-            Gravity = GravityFlags.Center,
             ContentDescription = $"{app.Label}, {app.PackageName}",
             LayoutParameters = new ViewGroup.LayoutParams(width, height)
         };
+        tile.SetGravity(GravityFlags.Center);
         tile.SetPadding(Dp(4), Dp(4), Dp(4), Dp(4));
 
         var icon = new ImageView(this)
@@ -125,10 +125,10 @@ public sealed partial class HavenLauncherActivity
             {
                 Text = app.Label,
                 Gravity = GravityFlags.Center,
-                TextSize = 12,
-                MaxLines = 1,
-                Ellipsize = Android.Text.TextUtils.TruncateAt.End
+                TextSize = 12
             };
+            label.SetMaxLines(1);
+            label.Ellipsize = global::Android.Text.TextUtils.TruncateAt.End;
             label.SetTextColor(Color.White);
             tile.AddView(label);
         }
@@ -139,10 +139,10 @@ public sealed partial class HavenLauncherActivity
             {
                 Text = app.PackageName,
                 Gravity = GravityFlags.Center,
-                TextSize = 8,
-                MaxLines = 1,
-                Ellipsize = Android.Text.TextUtils.TruncateAt.Middle
+                TextSize = 8
             };
+            package.SetMaxLines(1);
+            package.Ellipsize = global::Android.Text.TextUtils.TruncateAt.Middle;
             package.SetTextColor(Color.Argb(210, 230, 220, 255));
             tile.AddView(package);
         }
@@ -225,9 +225,9 @@ public sealed partial class HavenLauncherActivity
 
         var header = new LinearLayout(this)
         {
-            Orientation = Orientation.Horizontal,
-            Gravity = GravityFlags.CenterVertical
+            Orientation = Orientation.Horizontal
         };
+        header.SetGravity(GravityFlags.CenterVertical);
         var title = new TextView(this)
         {
             Text = "All apps",
@@ -239,7 +239,7 @@ public sealed partial class HavenLauncherActivity
         title.SetTextColor(Color.White);
         header.AddView(title);
         header.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuPreferences,
+            SystemDrawable("ic_menu_preferences"),
             "Launcher settings",
             () =>
             {
@@ -247,7 +247,7 @@ public sealed partial class HavenLauncherActivity
                 ShowLauncherSettings();
             }));
         header.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuCloseClearCancel,
+            SystemDrawable("ic_menu_close_clear_cancel"),
             "Close app drawer",
             dialog.Dismiss));
         shell.AddView(header);

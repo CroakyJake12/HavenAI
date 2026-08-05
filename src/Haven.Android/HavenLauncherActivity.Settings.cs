@@ -44,32 +44,36 @@ public sealed partial class HavenLauncherActivity
         container.AddView(labels);
         container.AddView(packages);
 
-        new AlertDialog.Builder(this)
-            .SetTitle("Haven Launcher")
-            .SetView(container)
-            .SetPositiveButton("Save", (_, _) =>
+        var dialog = new AlertDialog.Builder(this);
+        dialog.SetTitle("Haven Launcher");
+        dialog.SetView(container);
+        dialog.SetPositiveButton("Save", (_, _) =>
+        {
+            var editor = Preferences.Edit();
+            if (editor is not null)
             {
-                Preferences.Edit()?
-                    .PutInt(RowsKey, rows.Value)?
-                    .PutInt(ColumnsKey, columns.Value)?
-                    .PutBoolean(LabelsKey, labels.Checked)?
-                    .PutBoolean(PackagesKey, packages.Checked)?
-                    .Apply();
-                _page = 0;
-                RenderPage();
-            })
-            .SetNeutralButton("Wallpaper", (_, _) => ChooseWallpaper())
-            .SetNegativeButton("Widgets", (_, _) => ShowWidgetMenu())
-            .Show();
+                editor.PutInt(RowsKey, rows.Value);
+                editor.PutInt(ColumnsKey, columns.Value);
+                editor.PutBoolean(LabelsKey, labels.Checked);
+                editor.PutBoolean(PackagesKey, packages.Checked);
+                editor.Apply();
+            }
+
+            _page = 0;
+            RenderPage();
+        });
+        dialog.SetNeutralButton("Wallpaper", (_, _) => ChooseWallpaper());
+        dialog.SetNegativeButton("Widgets", (_, _) => ShowWidgetMenu());
+        dialog.Show();
     }
 
     private View LabeledControl(string label, View control)
     {
         var row = new LinearLayout(this)
         {
-            Orientation = Orientation.Horizontal,
-            Gravity = GravityFlags.CenterVertical
+            Orientation = Orientation.Horizontal
         };
+        row.SetGravity(GravityFlags.CenterVertical);
         var text = new TextView(this)
         {
             Text = label,
@@ -89,18 +93,18 @@ public sealed partial class HavenLauncherActivity
 
     private void ShowWidgetMenu()
     {
-        new AlertDialog.Builder(this)
-            .SetTitle("Add widget")
-            .SetItems(
-                new[] { "Android widget", "Haven clock widget" },
-                (_, args) =>
-                {
-                    if (args.Which == 0)
-                        PickAndroidWidget();
-                    else
-                        AddHavenWidget();
-                })
-            .Show();
+        var dialog = new AlertDialog.Builder(this);
+        dialog.SetTitle("Add widget");
+        dialog.SetItems(
+            new[] { "Android widget", "Haven clock widget" },
+            (_, args) =>
+            {
+                if (args.Which == 0)
+                    PickAndroidWidget();
+                else
+                    AddHavenWidget();
+            });
+        dialog.Show();
     }
 
     private void PickAndroidWidget()
@@ -165,10 +169,11 @@ public sealed partial class HavenLauncherActivity
 
     private void RenderWidgets()
     {
-        if (_widgetStrip is null)
+        var widgetStrip = _widgetStrip;
+        if (widgetStrip is null)
             return;
 
-        _widgetStrip.RemoveAllViews();
+        widgetStrip.RemoveAllViews();
 
         if (Preferences.GetBoolean(HavenWidgetKey, false))
         {
@@ -191,22 +196,24 @@ public sealed partial class HavenLauncherActivity
                 RenderWidgets();
                 args.Handled = true;
             };
-            _widgetStrip.AddView(clock);
+            widgetStrip.AddView(clock);
         }
 
-        if (_widgetHost is null || _widgetManager is null)
+        var widgetHost = _widgetHost;
+        var widgetManager = _widgetManager;
+        if (widgetHost is null || widgetManager is null)
             return;
 
         foreach (var widgetId in ReadWidgetIds().ToArray())
         {
-            var info = _widgetManager.GetAppWidgetInfo(widgetId);
+            var info = widgetManager.GetAppWidgetInfo(widgetId);
             if (info is null)
             {
                 DeleteWidgetId(widgetId);
                 continue;
             }
 
-            var hostView = _widgetHost.CreateView(this, widgetId, info);
+            var hostView = widgetHost.CreateView(this, widgetId, info);
             hostView.SetAppWidget(widgetId, info);
             hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
             {
@@ -214,18 +221,18 @@ public sealed partial class HavenLauncherActivity
             };
             hostView.LongClick += (_, args) =>
             {
-                new AlertDialog.Builder(this)
-                    .SetMessage("Remove this widget?")
-                    .SetPositiveButton("Remove", (_, _) =>
-                    {
-                        DeleteWidgetId(widgetId);
-                        RenderWidgets();
-                    })
-                    .SetNegativeButton("Cancel", (_, _) => { })
-                    .Show();
+                var dialog = new AlertDialog.Builder(this);
+                dialog.SetMessage("Remove this widget?");
+                dialog.SetPositiveButton("Remove", (_, _) =>
+                {
+                    DeleteWidgetId(widgetId);
+                    RenderWidgets();
+                });
+                dialog.SetNegativeButton("Cancel", (_, _) => { });
+                dialog.Show();
                 args.Handled = true;
             };
-            _widgetStrip.AddView(hostView);
+            widgetStrip.AddView(hostView);
         }
     }
 

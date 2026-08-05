@@ -1,6 +1,8 @@
 using Android.App;
 using Android.Content;
-using Android.Graphics;
+using Color = Android.Graphics.Color;
+using Typeface = Android.Graphics.Typeface;
+using IOPath = System.IO.Path;
 using Android.Net;
 using Android.OS;
 using Android.Provider;
@@ -106,7 +108,7 @@ public sealed class ModelImportActivity : Activity
         };
         var scroll = new ScrollView(this);
         scroll.AddView(_list);
-        root.AddView(scroll, new LinearLayout.Layout.LayoutParams(
+        root.AddView(scroll, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MatchParent,
             0,
             1f));
@@ -118,9 +120,9 @@ public sealed class ModelImportActivity : Activity
     {
         var button = new Button(this)
         {
-            Text = label,
-            AllCaps = false
+            Text = label
         };
+        button.SetAllCaps(false);
         button.SetTextColor(Color.White);
         button.SetBackgroundColor(Color.Rgb(89, 48, 145));
         button.Click += (_, _) => action();
@@ -206,6 +208,9 @@ public sealed class ModelImportActivity : Activity
             return 0;
 
         var rootUri = DocumentsContract.BuildDocumentUriUsingTree(treeUri, rootDocumentId);
+        if (rootUri is null)
+            return 0;
+
         return await ImportDocumentDirectoryAsync(treeUri, rootUri, depth: 0);
     }
 
@@ -216,6 +221,9 @@ public sealed class ModelImportActivity : Activity
 
         var documentId = DocumentsContract.GetDocumentId(documentUri);
         var childrenUri = DocumentsContract.BuildChildDocumentsUriUsingTree(treeUri, documentId);
+        if (childrenUri is null)
+            return 0;
+
         var imported = 0;
 
         using var cursor = ContentResolver.Query(
@@ -243,6 +251,8 @@ public sealed class ModelImportActivity : Activity
             var displayName = cursor.GetString(nameColumn) ?? string.Empty;
             var mimeType = cursor.GetString(mimeColumn) ?? string.Empty;
             var childUri = DocumentsContract.BuildDocumentUriUsingTree(treeUri, childId);
+            if (childUri is null)
+                continue;
 
             if (string.Equals(mimeType, DocumentsContract.Document.MimeTypeDir, StringComparison.Ordinal))
             {
@@ -266,11 +276,11 @@ public sealed class ModelImportActivity : Activity
 
         var modelDirectory = GetModelDirectory();
         var destinationName = MakeUniqueFileName(modelDirectory, SanitizeFileName(name));
-        var destinationPath = Path.Combine(modelDirectory.FullName, destinationName);
+        var destinationPath = IOPath.Combine(modelDirectory.FullName, destinationName);
 
         await using var input = ContentResolver?.OpenInputStream(uri)
                                 ?? throw new IOException("The selected file could not be opened.");
-        await using var output = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        await using var output = new System.IO.FileStream(destinationPath, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None);
         await input.CopyToAsync(output);
 
         await UpdateIndexAsync();
@@ -283,14 +293,14 @@ public sealed class ModelImportActivity : Activity
         {
             using var cursor = ContentResolver.Query(
                 uri,
-                new[] { OpenableColumns.DisplayName },
+                new[] { IOpenableColumns.DisplayName },
                 null,
                 null,
                 null);
 
             if (cursor is not null && cursor.MoveToFirst())
             {
-                var column = cursor.GetColumnIndex(OpenableColumns.DisplayName);
+                var column = cursor.GetColumnIndex(IOpenableColumns.DisplayName);
                 if (column >= 0)
                 {
                     var name = cursor.GetString(column);
@@ -330,9 +340,9 @@ public sealed class ModelImportActivity : Activity
         {
             var row = new LinearLayout(this)
             {
-                Orientation = Orientation.Horizontal,
-                Gravity = GravityFlags.CenterVertical
+                Orientation = Orientation.Horizontal
             };
+            row.SetGravity(GravityFlags.CenterVertical);
             row.SetPadding(0, Dp(5), 0, Dp(5));
 
             var text = new TextView(this)
@@ -346,9 +356,9 @@ public sealed class ModelImportActivity : Activity
 
             var remove = new Button(this)
             {
-                Text = "Remove",
-                AllCaps = false
+                Text = "Remove"
             };
+            remove.SetAllCaps(false);
             remove.Click += (_, _) =>
             {
                 try
@@ -371,7 +381,7 @@ public sealed class ModelImportActivity : Activity
     {
         var root = FilesDir?.AbsolutePath
                    ?? throw new IOException("Haven's application storage is unavailable.");
-        return Directory.CreateDirectory(Path.Combine(root, "models"));
+        return Directory.CreateDirectory(IOPath.Combine(root, "models"));
     }
 
     private async Task UpdateIndexAsync()
@@ -384,23 +394,23 @@ public sealed class ModelImportActivity : Activity
             .ToArray();
 
         var json = JsonSerializer.Serialize(index, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(Path.Combine(directory.FullName, IndexFileName), json);
+        await File.WriteAllTextAsync(IOPath.Combine(directory.FullName, IndexFileName), json);
     }
 
     private static string SanitizeFileName(string name)
     {
-        var clean = string.Join("_", name.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        var clean = string.Join("_", name.Split(IOPath.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
         return string.IsNullOrWhiteSpace(clean) ? "model.gguf" : clean;
     }
 
     private static string MakeUniqueFileName(DirectoryInfo directory, string requestedName)
     {
-        var name = Path.GetFileNameWithoutExtension(requestedName);
-        var extension = Path.GetExtension(requestedName);
+        var name = IOPath.GetFileNameWithoutExtension(requestedName);
+        var extension = IOPath.GetExtension(requestedName);
         var candidate = requestedName;
         var index = 2;
 
-        while (File.Exists(Path.Combine(directory.FullName, candidate)))
+        while (File.Exists(IOPath.Combine(directory.FullName, candidate)))
             candidate = $"{name}-{index++}{extension}";
 
         return candidate;
