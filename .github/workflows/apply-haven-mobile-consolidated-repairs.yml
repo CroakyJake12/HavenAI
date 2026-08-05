@@ -1,3 +1,4 @@
+# retry after retiring legacy writer
 name: Apply Haven Mobile Consolidated Repairs
 on:
   workflow_dispatch:
