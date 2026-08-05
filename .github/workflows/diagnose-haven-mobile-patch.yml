@@ -1,128 +1,14 @@
-name: Apply Haven Android API compatibility repairs
+name: Legacy Haven Android API repair (retired)
 
 on:
-  push:
-    branches:
-      - gpt/haven-mobile-repair-android
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Verify and apply Android API repair
-        id: repair
-        shell: bash
-        run: |
-          set -uo pipefail
-          mkdir -p artifacts/android
-          diagnostic=artifacts/android/api-compat-diagnostic.txt
-          : > "$diagnostic"
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("scripts/api-compat-payload.2")
-          text = path.read_text(encoding="utf-8")
-          if len(text) != 996:
-              raise RuntimeError(f"payload part 2 length changed: {len(text)}")
-          if text[586] == "o":
-              text = text[:586] + "O" + text[587:]
-              path.write_text(text, encoding="utf-8", newline="")
-          elif text[586] != "O":
-              raise RuntimeError(f"unexpected payload part 2 byte 586: {text[586]!r}")
-          path = Path("scripts/api-compat-payload.3")
-          text = path.read_text(encoding="utf-8")
-          if len(text) != 996:
-              raise RuntimeError(f"payload part 3 length changed: {len(text)}")
-          if text[406] == "u":
-              text = text[:406] + "p" + text[407:]
-              path.write_text(text, encoding="utf-8", newline="")
-          elif text[406] != "p":
-              raise RuntimeError(f"unexpected payload part 3 byte 406: {text[406]!r}")
-          PY
-          cat scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3 > /tmp/api-compat.b64
-          payload_length="$(wc -c < /tmp/api-compat.b64)"
-          payload_sha="$(sha256sum /tmp/api-compat.b64 | awk '{print $1}')"
-          {
-            echo "payload_length=$payload_length"
-            echo "payload_sha256=$payload_sha"
-            echo "expected_payload_length=3984"
-            echo "expected_payload_sha256=b2b1ffa6eaa07ddb8a22a0318d5f0280b250f31cf61af4d61e2ea59d559b196a"
-          } >> "$diagnostic"
-          result=0
-          if [ "$payload_length" != "3984" ] || [ "$payload_sha" != "b2b1ffa6eaa07ddb8a22a0318d5f0280b250f31cf61af4d61e2ea59d559b196a" ]; then
-            echo "payload verification failed" >> "$diagnostic"
-            result=1
-          fi
-          if [ "$result" -eq 0 ]; then
-            if ! base64 -d /tmp/api-compat.b64 > /tmp/api-compat.gz 2>> "$diagnostic"; then
-              echo "base64 decode failed" >> "$diagnostic"
-              result=1
-            fi
-          fi
-          if [ "$result" -eq 0 ]; then
-            if ! gzip -t /tmp/api-compat.gz 2>> "$diagnostic"; then
-              echo "gzip integrity failed" >> "$diagnostic"
-              result=1
-            fi
-          fi
-          if [ "$result" -eq 0 ]; then
-            gzip -dc /tmp/api-compat.gz > scripts/apply_haven_android_api_compat.py
-            script_sha="$(sha256sum scripts/apply_haven_android_api_compat.py | awk '{print $1}')"
-            echo "script_sha256=$script_sha" >> "$diagnostic"
-            echo "expected_script_sha256=41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4" >> "$diagnostic"
-            if [ "$script_sha" != "41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4" ]; then
-              echo "script checksum failed" >> "$diagnostic"
-              result=1
-            fi
-          fi
-          if [ "$result" -eq 0 ]; then
-            if ! python3 -m py_compile scripts/apply_haven_android_api_compat.py 2>> "$diagnostic"; then
-              echo "Python syntax validation failed" >> "$diagnostic"
-              result=1
-            fi
-          fi
-          if [ "$result" -eq 0 ]; then
-            python3 scripts/apply_haven_android_api_compat.py >> "$diagnostic" 2>&1
-            result=$?
-          fi
-          echo "result=$result" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Persist repair failure
-        if: steps.repair.outputs.result != '0'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f artifacts/android/api-compat-diagnostic.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "Record Haven Android API repair failure [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
-          exit 1
-
-      - name: Commit repaired Android sources
-        if: steps.repair.outputs.result == '0'
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f artifacts/android/api-compat-diagnostic.txt artifacts/android/build-result.txt
-          rm -f scripts/apply_haven_android_api_compat.py scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/Haven.Android/ModelImportActivity.cs
-          git add src/Haven.Android/HavenLauncherActivity.Apps.cs
-          git add src/Haven.Android/HavenLauncherActivity.cs
-          git add src/Haven.Android/HavenLauncherActivity.Settings.cs
-          git add src/Haven.Android/MainView.Mobile.Layout.cs
-          git add -u artifacts/android/api-compat-diagnostic.txt artifacts/android/build-result.txt
-          git add -u scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3
-          git commit -m "Repair Haven Android API compatibility"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Explain replacement
+        run: echo "Retired; use Haven Mobile Repair Android instead."
