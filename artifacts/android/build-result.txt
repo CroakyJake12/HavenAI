@@ -1,10 +1,12 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31029562220
-input_commit=91ed0667183ea35b42c3b5e2904e3ffad184db17
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31029779134
+input_commit=aa0c826bfb565dba301c8dbc7877734c3176ecb9
 runner=Linux
 patch_exit=1
 build_exit=1
 
-diagnostics:
+patch_diagnostics:
+
+compiler_diagnostics:
 /usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To build this project, the following workloads must be installed: android [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
 /usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To install these workloads, run the following command: dotnet workload restore [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
 /usr/share/dotnet/sdk/10.0.302/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.ImportWorkloads.targets(38,5): error NETSDK1147: To build this project, the following workloads must be installed: android [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
