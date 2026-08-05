@@ -1,0 +1,13 @@
+error: MainView Go installed-app selection: expected exactly one anchor, found 0
+Traceback (most recent call last):
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_mobile_repair.py", line 222, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_mobile_repair.py", line 208, in main
+    patch_main_view_add_menus()
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_mobile_repair.py", line 143, in patch_main_view_add_menus
+    text = replace_once(
+           ^^^^^^^^^^^^^
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_mobile_repair.py", line 24, in replace_once
+    raise RuntimeError(f"{label}: expected exactly one anchor, found {count}")
+RuntimeError: MainView Go installed-app selection: expected exactly one anchor, found 0
