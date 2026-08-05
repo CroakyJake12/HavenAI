@@ -67,7 +67,12 @@ jobs:
           fi
 
           if [ "$result" -eq 0 ]; then
-            echo "ee979f5bd880984cbfc24fff957d9b4b0fe709c20528324c5f7544478c0c7e26  /tmp/haven-android-compile-repairs.py" \
+            sed -i 's#ROOT = Path(__file__).resolve().parents\[1\]#ROOT = Path.cwd()#' /tmp/haven-android-compile-repairs.py
+            result=$?
+          fi
+
+          if [ "$result" -eq 0 ]; then
+            echo "a6a7734d01e164fc8cccab412579177fda1f7b5329f904277dc5a2dfe5c77887  /tmp/haven-android-compile-repairs.py" \
               | sha256sum --check - 2>&1 | tee -a "$EVIDENCE_DIR/repair-gate.log"
             result=${PIPESTATUS[1]}
           fi
@@ -215,7 +220,7 @@ jobs:
             tail -n 120 "$EVIDENCE_DIR/shared-repair.log" 2>/dev/null || true
             echo
             echo "compiler_diagnostics:"
-            grep -hE -m 400 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' \
+            grep -hE -m 400 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)+[0-9]+' \
               "$EVIDENCE_DIR"/*.log 2>/dev/null || true
           } >> "$EVIDENCE_DIR/build-result.txt"
           cat "$EVIDENCE_DIR/build-result.txt"
