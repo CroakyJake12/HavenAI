@@ -24,6 +24,18 @@ jobs:
           mkdir -p artifacts/android
           diagnostic=artifacts/android/api-compat-diagnostic.txt
           : > "$diagnostic"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/api-compat-payload.2")
+          text = path.read_text(encoding="utf-8")
+          if len(text) != 996:
+              raise RuntimeError(f"payload part 2 length changed: {len(text)}")
+          if text[586] == "o":
+              text = text[:586] + "O" + text[587:]
+              path.write_text(text, encoding="utf-8", newline="")
+          elif text[586] != "O":
+              raise RuntimeError(f"unexpected payload part 2 byte 586: {text[586]!r}")
+          PY
           cat scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3 > /tmp/api-compat.b64
           payload_length="$(wc -c < /tmp/api-compat.b64)"
           payload_sha="$(sha256sum /tmp/api-compat.b64 | awk '{print $1}')"
