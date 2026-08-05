@@ -27,51 +27,33 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Apply compiler-backed Android fixes
-        id: patch
+      - name: Apply final nullable repair
         shell: bash
         run: |
-          set +e
-          mkdir -p artifacts/android
-          expected_gzip=1a51352a85deae3f78938cb78b1da0655ad8e68ede78fb853efbe7a55634799f
-          expected_script=fce50a89d95167b1ab2aabd6077c10c22615e9007aa71c4199860e059af31ab1
-          actual_gzip=$(sha256sum scripts/fix_android_compile.py.gz | awk '{print $1}')
-          echo "gzip_sha256=$actual_gzip" | tee artifacts/android/patch.log
-          if [ "$actual_gzip" != "$expected_gzip" ]; then
-            echo "Compressed patch checksum mismatch." | tee -a artifacts/android/patch.log
-            patch_exit=10
-          else
-            gzip -dc scripts/fix_android_compile.py.gz > scripts/fix_android_compile.py
-            actual_script=$(sha256sum scripts/fix_android_compile.py | awk '{print $1}')
-            echo "script_sha256=$actual_script" | tee -a artifacts/android/patch.log
-            if [ "$actual_script" != "$expected_script" ]; then
-              echo "Patch script checksum mismatch." | tee -a artifacts/android/patch.log
-              patch_exit=11
-            else
-              python scripts/fix_android_compile.py 2>&1 | tee -a artifacts/android/patch.log
-              patch_exit=${PIPESTATUS[0]}
-            fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("src/Haven.Android/HavenLauncherActivity.Settings.cs")
+          text = path.read_text(encoding="utf-8")
+          old = "=> (Preferences.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)"
+          new = "=> (Preferences!.GetString(WidgetIdsKey, string.Empty) ?? string.Empty)"
+          if old in text:
+              text = text.replace(old, new, 1)
+              path.write_text(text, encoding="utf-8", newline="\n")
+          elif new not in text:
+              raise SystemExit("Expected ReadWidgetIds nullable anchor was not found.")
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/Haven.Android/HavenLauncherActivity.Settings.cs
+          if ! git diff --cached --quiet; then
+            git commit -m "Guard launcher preferences access [skip ci]"
+            git push
           fi
-          echo "patch_exit=$patch_exit" | tee -a artifacts/android/patch.log
-          echo "exit_code=$patch_exit" >> "$GITHUB_OUTPUT"
-          echo 1 > artifacts/android/exit-code.txt
-          if [ "$patch_exit" -eq 0 ]; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add               src/Haven.Android/MainView.Mobile.Layout.cs               src/Haven.Android/ModelImportActivity.cs               src/Haven.Android/HavenLauncherActivity.cs               src/Haven.Android/HavenLauncherActivity.Apps.cs               src/Haven.Android/HavenLauncherActivity.Settings.cs
-            if ! git diff --cached --quiet; then
-              git commit -m "Apply Android compiler compatibility fixes [skip ci]"
-              git push
-            fi
-          fi
-          exit 0
 
       - name: Install Android workload
-        if: steps.patch.outputs.exit_code == '0'
         run: dotnet workload install android
 
-      - name: Restore, compile, and package APK
-        if: steps.patch.outputs.exit_code == '0'
+      - name: Restore and publish APK
         id: build
         shell: bash
         run: |
@@ -88,39 +70,23 @@ jobs:
           {
             echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo "input_commit=${{ github.sha }}"
-            echo "tree_after_fixes=$(git rev-parse HEAD)"
-            echo "patch_exit=${{ steps.patch.outputs.exit_code }}"
+            echo "built_tree=$(git rev-parse HEAD)"
             echo "restore_exit=$restore_exit"
             echo "publish_exit=$publish_exit"
             echo
             echo "diagnostics:"
-            grep -E -m 120 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
+            grep -E -m 160 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
           } > artifacts/android/build-result.txt
 
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
             find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
             test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
             sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
-              echo 0 > artifacts/android/exit-code.txt
+            echo 0 > artifacts/android/exit-code.txt
           else
             echo 1 > artifacts/android/exit-code.txt
           fi
           exit 0
-
-      - name: Record patch failure
-        if: steps.patch.outputs.exit_code != '0'
-        shell: bash
-        run: |
-          {
-            echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo "input_commit=${{ github.sha }}"
-            echo "patch_exit=${{ steps.patch.outputs.exit_code }}"
-            echo "restore_exit=not-run"
-            echo "publish_exit=not-run"
-            echo
-            echo "patch_log:"
-            cat artifacts/android/patch.log
-          } > artifacts/android/build-result.txt
 
       - name: Persist build evidence
         if: always()
