@@ -32,20 +32,20 @@ jobs:
           set +e
           mkdir -p artifacts/android
           {
-            echo "part0  a3a4ce98f0792f0650618dcdfb6c7f0699785a9c5d1bb05503d0791a5890766a"
-            echo "part1  72d56b0e381bbda7fff141044f2fa41eb3f03d0af8f3345e64e9ecf3c54f774f"
-            echo "part2  cb2dd0f1fca154be54aa46e0a1e128b749be2dd5551ae59edc63d35590682d6b"
-            echo "part3  0399a2e7f43f60f78d29ed9307a6d8c42e9c1a8042b1298de89526f8aa52625d"
+            echo "part0  0909353f92b9e0eb50a7a9d852a3d1b4e044d9cccc382cb2b3b2c2abec9592ba"
+            echo "part1  7193d0c09dd4cee28a35677166d040c75fbcaf6961941ecc460b59e1cc5b9a08"
+            echo "part2  5355a6cd4b448e904a396610c1cf971fff27ef64b16ae96f3276dd98ec28eae7"
+            echo "part3  300a3363b155d7f76a04881e992cc5212ab6d090b9cfade7346cb8d0e78e2191"
           } > artifacts/android/repair-parts.txt
           sha256sum scripts/apply_haven_mobile_consolidated_repairs.part* | tee artifacts/android/repair-part-hashes.txt
           cat scripts/apply_haven_mobile_consolidated_repairs.part0 \
               scripts/apply_haven_mobile_consolidated_repairs.part1 \
               scripts/apply_haven_mobile_consolidated_repairs.part2 \
               scripts/apply_haven_mobile_consolidated_repairs.part3 > /tmp/haven-mobile-repair.py.gz
-          echo "ec2e0fc60e466b7c20172584f17b76a954dad40369b52a1840dd62d2185c99be  /tmp/haven-mobile-repair.py.gz" | sha256sum -c - | tee artifacts/android/repair-gzip-check.txt
+          echo "f2948406c74ef761be69dee4d28a4f26f2344126ca27ff53b0c874767bbb38cf  /tmp/haven-mobile-repair.py.gz" | sha256sum -c - | tee artifacts/android/repair-gzip-check.txt
           gzip -t /tmp/haven-mobile-repair.py.gz
           gzip -dc /tmp/haven-mobile-repair.py.gz > /tmp/haven-mobile-repair.py
-          echo "25b3e652acbd32e063f17dd158c9aca72a24684567240cd04170e39e8895d960  /tmp/haven-mobile-repair.py" | sha256sum -c - | tee artifacts/android/repair-script-check.txt
+          echo "8ec8c4f0bfc8188dd329a6d83bd456badb4797e5498dc4ab57326f319500d478  /tmp/haven-mobile-repair.py" | sha256sum -c - | tee artifacts/android/repair-script-check.txt
           python -m py_compile /tmp/haven-mobile-repair.py
           python /tmp/haven-mobile-repair.py 2>&1 | tee artifacts/android/repair.log
           repair_exit=${PIPESTATUS[0]}
@@ -102,8 +102,8 @@ jobs:
           fi
           echo "APP_VERSION=$app_version" >> "$GITHUB_ENV"
           echo "DISPLAY_VERSION=$display_version" >> "$GITHUB_ENV"
-          echo "SIGNING_MODE=$signing_mode" >> "$GITHUB_ENV"
-          echo "SIGNING_ARGS=$signing_args" >> "$GITHUB_ENV"
+          echo "SIGNING_MODE=$signing_mode" >> "$GITHU_ENV"
+          echo "SIGNING_ARGS=$signing_args" >> "$GITHU_ENV"
 
       - name: Restore and publish APK
         id: build
@@ -118,7 +118,7 @@ jobs:
           if [ "$restore_exit" -eq 0 ]; then
             # shellcheck disable=SC2086
             dotnet publish src/Haven.Android/Haven.Android.csproj \
-              -c Debug -f net10.0-android --no-restore \
+              -c Debug -f net10.0-android --no-restor \
               -p:AndroidPackageFormat=apk \
               -p:ApplicationVersion="$APP_VERSION" \
               -p:ApplicationDisplayVersion="$DISPLAY_VERSION" \
@@ -140,6 +140,7 @@ jobs:
             echo "input_commit=${{ github.sha }}"
             echo "built_tree=$(git rev-parse HEAD)"
             echo "application_version=$APP_VERSION"
+
             echo "display_version=$DISPLAY_VERSION"
             echo "signing_mode=$SIGNING_MODE"
             echo "restore_exit=$restore_exit"
@@ -167,7 +168,7 @@ jobs:
               echo "built_tree=$(git rev-parse HEAD)"
               echo "repair_exit=${{ steps.repair.outputs.repair_exit }}"
               echo "repair_log:"
-              test -f artifacts/android/repair.log && tail -n 500 artifacts/android/repair.log 
+              test -f artifacts/android/repair.log && tail -n 500 artifacts/android/repair.log
               echo "repair_part_hashes:"
               test -f artifacts/android/repair-part-hashes.txt && cat artifacts/android/repair-part-hashes.txt
               echo "repair_gzip_check:"
