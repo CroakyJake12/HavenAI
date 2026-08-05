@@ -1,3 +1,4 @@
+# Retrigger APK validation after source repair f483069.
 name: Repair Android Model Import URI
 on:
   push:
