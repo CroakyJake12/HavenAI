@@ -14,6 +14,25 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+      - name: Apply Android compiler fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_gzip=9bef22ad80ff76a3b9dffb4f079ebbb201195c3a301bf2ba66a9750613d6c8ba
+          expected_script=3a306e45632eec4ff6c5499e9070634bfcd6f19b2efa4b400051961af585db67
+          actual_gzip=$(sha256sum scripts/fix_android_compile.py.gz | awk '{print $1}')
+          test "$actual_gzip" = "$expected_gzip"
+          gzip -dc scripts/fix_android_compile.py.gz > /tmp/fix_android_compile.py
+          actual_script=$(sha256sum /tmp/fix_android_compile.py | awk '{print $1}')
+          test "$actual_script" = "$expected_script"
+          python /tmp/fix_android_compile.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add             src/Haven.Android/MainView.Mobile.Layout.cs             src/Haven.Android/ModelImportActivity.cs             src/Haven.Android/HavenLauncherActivity.cs             src/Haven.Android/HavenLauncherActivity.Apps.cs             src/Haven.Android/HavenLauncherActivity.Settings.cs
+          if ! git diff --cached --quiet; then
+            git commit -m "Apply Android compiler compatibility fixes [skip ci]"
+            git push
+          fi
       - run: dotnet workload install android
       - name: Build and package APK
         shell: bash
@@ -30,11 +49,12 @@ jobs:
           {
             echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo "input_commit=${{ github.sha }}"
+            echo "tree_after_fixes=$(git rev-parse HEAD)"
             echo "restore_exit=$restore_exit"
             echo "publish_exit=$publish_exit"
             echo
             echo "diagnostics:"
-            grep -E -m 80 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
+            grep -E -m 100 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
           } > artifacts/android/build-result.txt
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
             find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
@@ -45,6 +65,8 @@ jobs:
             echo 1 > artifacts/android/exit-code.txt
           fi
       - name: Persist build evidence
+        if: always()
+        shell: bash
         run: |
           mkdir -p artifacts/android
           git config user.name github-actions[bot]
