@@ -84,6 +84,9 @@ jobs:
             echo
             echo "diagnostics:"
             grep -E -m 160 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
+            echo
+            echo "settings_context:"
+            nl -ba src/Haven.Android/HavenLauncherActivity.Settings.cs | sed -n '208,228p'
           } > artifacts/android/build-result.txt
 
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
@@ -124,7 +127,7 @@ jobs:
           name: Haven-Android-APK
           path: |
             artifacts/android/*.apk
-            artifacts/android/SHA256SUSU.txt
+            artifacts/android/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
 
