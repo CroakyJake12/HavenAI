@@ -1,4 +1,0 @@
-  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_mobile_repair.py", line 145
-    boundary = "
-               ^
-SyntaxError: unterminated string literal (detected at line 145)
