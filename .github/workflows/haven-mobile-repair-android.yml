@@ -59,7 +59,7 @@ jobs:
           base64 --decode scripts/apply_haven_android_api_repairs.py.gz.b64 > /tmp/haven-android-repairs.py.gz
           payload_result=$?
           if [ "$payload_result" -eq 0 ]; then
-            echo "444ee3aad799cd572d963dd3e05c9b18b70e046fcf594f636b8ceffe74432717  /tmp/haven-android-repairs.py.gz" | sha256sum --check -
+            echo "bd5faf0775dfc8d22df0f2116a2aba53af21d58002e6f293b89725b72fbb0644  /tmp/haven-android-repairs.py.gz" | sha256sum --check -
             payload_result=$?
           fi
           if [ "$payload_result" -eq 0 ]; then
@@ -67,7 +67,7 @@ jobs:
             payload_result=$?
           fi
           if [ "$payload_result" -eq 0 ]; then
-            echo "3b4d4301c539accff5e024d88b135302b3844a83b402474583017be3c5a5d6b5  /tmp/haven-android-repairs.py" | sha256sum --check -
+            echo "7ac3440f80ac3b42814325fa510229203ba51d7f2e0a0dd7e6efd8769efd674a  /tmp/haven-android-repairs.py" | sha256sum --check -
             payload_result=$?
           fi
           if [ "$payload_result" -eq 0 ]; then
@@ -207,7 +207,11 @@ jobs:
           set +e
           {
             echo
-            echo "diagnostics:"
+            echo "patch_diagnostics:"
+            tail -n 80 "$ANDROID_ARTIFACT_DIR/api-repair.log" 2>/dev/null || true
+            tail -n 80 "$ANDROID_ARTIFACT_DIR/shared-repair.log" 2>/dev/null || true
+            echo
+            echo "compiler_diagnostics:"
             grep -hE -m 300 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' \
               "$ANDROID_ARTIFACT_DIR"/*.log 2>/dev/null || true
           } >> "$ANDROID_ARTIFACT_DIR/build-result.txt"
