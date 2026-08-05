@@ -216,6 +216,11 @@ public sealed partial class HavenLauncherActivity
             }
 
             var hostView = widgetHost.CreateView(this, widgetId, info);
+            if (hostView is null)
+            {
+                DeleteWidgetId(widgetId);
+                continue;
+            }
             hostView.SetAppWidget(widgetId, info);
             hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
             {
