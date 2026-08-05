@@ -1,4 +1,19 @@
-  File "/tmp/apply_haven_android_api_compat.py", line 166
-    text = replace_count(
-                        ^
-SyntaxError: '(' was never closed
+Traceback (most recent call last):
+  File "/tmp/apply_haven_android_api_compat.py", line 497, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/apply_haven_android_api_compat.py", line 482, in main
+    patch_model_import()
+  File "/tmp/apply_haven_android_api_compat.py", line 41, in patch_model_import
+    path, original = read("src/Haven.Android/ModelImportActivity.cs")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/apply_haven_android_api_compat.py", line 12, in read
+    return file_path, file_path.read_text(encoding="utf-8")
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/src/Haven.Android/ModelImportActivity.cs'
