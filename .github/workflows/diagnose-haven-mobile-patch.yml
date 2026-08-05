@@ -25,7 +25,7 @@ jobs:
           cat scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3 > /tmp/api-compat.b64
           test "$(wc -c < /tmp/api-compat.b64)" -eq 3984
           base64 -d /tmp/api-compat.b64 | gzip -d > scripts/apply_haven_android_api_compat.py
-          echo "4ed3abd025d4f371d32ecd24c7a9fcbdfdfa58e078f35ee429102957964dedf3  scripts/apply_haven_android_api_compat.py" | sha256sum -c -
+          echo "41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4  scripts/apply_haven_android_api_compat.py" | sha256sum -c -
           python3 -m py_compile scripts/apply_haven_android_api_compat.py
           python3 scripts/apply_haven_android_api_compat.py > artifacts/android/api-compat-diagnostic.txt 2>&1
           result=$?
