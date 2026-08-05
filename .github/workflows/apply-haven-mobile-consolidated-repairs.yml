@@ -25,18 +25,18 @@ jobs:
           set +e
           mkdir -p artifacts/android
           cat             scripts/apply_haven_mobile_consolidated_repairs.part0             scripts/apply_haven_mobile_consolidated_repairs.part1a             scripts/apply_haven_mobile_consolidated_repairs.part1b             scripts/apply_haven_mobile_consolidated_repairs.part2             scripts/apply_haven_mobile_consolidated_repairs.part3             > /tmp/haven-mobile-repair.py.gz
-          echo "154df8abbf87f0530aef3cb615b23c1bafe490a2e3d2f7acf9b53a299a79cd7d  /tmp/haven-mobile-repair.py.gz" | sha256sum -c -
+          echo "b743b6140404222b60efb1a083eea4ebf9d9c469be890257adbef85fc8b0a3c3  /tmp/haven-mobile-repair.py.gz" | sha256sum -c -
           integrity_exit=$?
           if [ "$integrity_exit" -eq 0 ]; then
             gzip -dc /tmp/haven-mobile-repair.py.gz > /tmp/haven-mobile-repair.py
-            echo "1b9f6f42775dc4bcd8460fdc4ecb7e12d6b3488780673ae36616354215d44245  /tmp/haven-mobile-repair.py" | sha256sum -c -
+            echo "ec97aec010c20e3cd0d0c6016fa0f631290ff7379e5ea6add01c91cf8b313e49  /tmp/haven-mobile-repair.py" | sha256sum -c -
             integrity_exit=$?
           fi
           repair_exit=99
           if [ "$integrity_exit" -eq 0 ]; then
             python -m py_compile /tmp/haven-mobile-repair.py
             python /tmp/haven-mobile-repair.py 2>&1 | tee artifacts/android/repair.log
-            repair_exit=${PIPESTATUS[0]}
+            repair_exit=${PIPESTATUS_0}
           fi
           {
             echo "input_commit=${{ github.sha }}"
@@ -44,7 +44,7 @@ jobs:
             echo "repair_exit=$repair_exit"
             test -f artifacts/android/repair.log && tail -n 500 artifacts/android/repair.log
           } > artifacts/android/repair-result.txt
-          echo "repair_exit=$repair_exit" >> "$GITHUB_OUTPUT"
+          echo "repair_exit=$repair_exit" >> "$GITHU_OUTPUT"
           exit 0
 
       - name: Commit scoped repairs or diagnostics
