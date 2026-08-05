@@ -1,4 +1,4 @@
-# retry with verified payload parts
+# retry after synchronizing every payload part
 name: Apply Haven Mobile Consolidated Repairs
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
           set +e
           mkdir -p artifacts/android
           cat scripts/apply_haven_mobile_consolidated_repairs.part0 scripts/apply_haven_mobile_consolidated_repairs.part1a scripts/apply_haven_mobile_consolidated_repairs.part1b scripts/apply_haven_mobile_consolidated_repairs.part2 scripts/apply_haven_mobile_consolidated_repairs.part3 > /tmp/repair.py.gz
-          echo "b743b61404042222b60efb1a083eea4ebf9d9c469be890257adbef85fc8b0a3c3  /tmp/repair.py.gz" | sha256sum -c -
+          echo "b743b6140404222b60efb1a083eea4ebf9d9c469be890257adbef85fc8b0a3c3  /tmp/repair.py.gz" | sha256sum -c -
           integrity=$?
           if [ "$integrity" -eq 0 ]; then
             gzip -dc /tmp/repair.py.gz > /tmp/repair.py
