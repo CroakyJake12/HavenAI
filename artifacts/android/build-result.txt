@@ -1,0 +1,15 @@
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31015459104
+commit=23ea0a297c787410fbbea289f55b98c3256acdfc
+build_exit=1
+
+compiler_diagnostics:
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(201,53): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(211,58): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(211,71): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(260,45): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(279,35): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(201,53): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(211,58): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(211,71): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(260,45): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelImportActivity.cs(279,35): error CS0104: 'Uri' is an ambiguous reference between 'Android.Net.Uri' and 'System.Uri' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
