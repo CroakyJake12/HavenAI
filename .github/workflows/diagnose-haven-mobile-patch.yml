@@ -1,67 +1,38 @@
-name: Repair Haven Mobile Compatibility Sources
-
+name: Repair Android Model Import URI
 on:
   push:
-    branches:
-      - gpt/haven-mobile-repair-android
+    branches: [gpt/haven-mobile-repair-android]
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   repair:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-
-      - name: Apply compatibility repairs
-        id: apply
-        shell: bash
-        run: |
-          set +e
-          mkdir -p artifacts/android
-          python3 scripts/apply_haven_mobile_repair.py \
-            > artifacts/android/mobile-patch-diagnostic.txt 2>&1
-          result=$?
-          cat artifacts/android/mobile-patch-diagnostic.txt
-          echo "result=$result" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Persist compatibility failure
-        if: steps.apply.outputs.result != '0'
+      - name: Disambiguate Android URI
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f artifacts/android/mobile-patch-diagnostic.txt
-          if git diff --cached --quiet; then
-            echo "Failure diagnostic is unchanged."
-          else
-            git commit -m "Record Haven mobile patch failure [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
-          exit 1
-
-      - name: Commit repaired compatibility sources
-        if: steps.apply.outputs.result == '0'
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f artifacts/android/mobile-patch-diagnostic.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("src/Haven.Android/ModelImportActivity.cs")
+          text = path.read_text(encoding="utf-8")
+          alias = "using Uri = Android.Net.Uri;"
+          if alias not in text:
+              anchor = "using Android.Widget;\nusing System.Text.Json;"
+              if text.count(anchor) != 1:
+                  raise RuntimeError(f"expected one using anchor, found {text.count(anchor)}")
+              text = text.replace(anchor, "using Android.Widget;\nusing Uri = Android.Net.Uri;\nusing System.Text.Json;", 1)
+              path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+          rm -f artifacts/android/build-result.txt
           if git diff --quiet; then
-            echo "Compatibility sources already repaired."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/apply_haven_mobile_repair.py
-          git add src/Haven.Browser/Security/BrowserPrivateProfileManager.cs
-          git add src/Haven.Desktop/Views/Shell/MainView.axaml.cs
-          git add src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml
-          git add src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs
-          git add -u artifacts/android/mobile-patch-diagnostic.txt
-          git commit -m "Apply Haven Android compatibility repairs"
+          git add src/Haven.Android/ModelImportActivity.cs
+          git add -u artifacts/android/build-result.txt
+          git commit -m "Disambiguate Android model import URIs"
           git push origin "HEAD:${GITHUB_REF_NAME}"
