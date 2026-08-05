@@ -1,57 +1,113 @@
-name: Build Haven Mobile Repair APK
+name: Build Haven Mobile Consolidated Repair APK
 on:
   workflow_dispatch:
   push:
     branches: [gpt/haven-mobile-repair-android]
+
 permissions:
   contents: write
+
 concurrency:
   group: haven-mobile-repair-apk-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
+    env:
+      HAVEN_KEYSTORE_B64: ${{ secrets.HAVEN_ANDROID_KEYSTORE_B64 }}
+      HAVEN_KEY_ALIAS: ${{ secrets.HAVEN_ANDROID_KEY_ALIAS }}
+      HAVEN_KEYSTORE_PASSWORD: ${{ secrets.HAVEN_ANDROID_KEYSTORE_PASSWORD }}
+      HAVEN_KEY_PASSWORD: ${{ secrets.HAVEN_ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v6
         with:
-          global-json-file: global.json
-      - name: Modernize launcher Android APIs
+          fetch-depth: 0
+
+      - name: Verify and apply consolidated repair
+        id: repair
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("src/Haven.Android/HavenLauncherActivity.cs")
-          text = path.read_text(encoding="utf-8")
-          original = text
+          set +e
+          mkdir -p artifacts/android
+          {
+            echo "part0  a3a4ce98f0792f0650618dcdfb6c7f0699785a9c5d1bb05503d0791a5890766a"
+            echo "part1  72d56b0e381bbda7fff141044f2fa41eb3f03d0af8f3345e64e9ecf3c54f774f"
+            echo "part2  cb2dd0f1fca154be54aa46e0a1e128b749be2dd5551ae59edc63d35590682d6b"
+            echo "part3  0399a2e7f43f60f78d29ed9307a6d8c42e9c1a8042b1298de89526f8aa52625d"
+          } > artifacts/android/repair-parts.txt
+          sha256sum scripts/apply_haven_mobile_consolidated_repairs.part* | tee artifacts/android/repair-part-hashes.txt
+          cat scripts/apply_haven_mobile_consolidated_repairs.part0 \
+              scripts/apply_haven_mobile_consolidated_repairs.part1 \
+              scripts/apply_haven_mobile_consolidated_repairs.part2 \
+              scripts/apply_haven_mobile_consolidated_repairs.part3 > /tmp/haven-mobile-repair.py.gz
+          echo "ec2e0fc60e466b7c20172584f17b76a954dad40369b52a1840dd62d2185c99be  /tmp/haven-mobile-repair.py.gz" | sha256sum -c - | tee artifacts/android/repair-gzip-check.txt
+          gzip -t /tmp/haven-mobile-repair.py.gz
+          gzip -dc /tmp/haven-mobile-repair.py.gz > /tmp/haven-mobile-repair.py
+          echo "25b3e652acbd32e063f17dd158c9aca72a24684567240cd04170e39e8895d960  /tmp/haven-mobile-repair.py" | sha256sum -c - | tee artifacts/android/repair-script-check.txt
+          python -m py_compile /tmp/haven-mobile-repair.py
+          python /tmp/haven-mobile-repair.py 2>&1 | tee artifacts/android/repair.log
+          repair_exit=${PIPESTATUS[0]}
+          echo "repair_exit=$repair_exit" >> "$GITHUB_OUTPUT"
+          echo "$repair_exit" > artifacts/android/repair-exit.txt
+          exit 0
 
-          old_bars = "        Window?.SetStatusBarColor(Color.Transparent);\n        Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));"
-          new_bars = "        if (!OperatingSystem.IsAndroidVersionAtLeast(35))\n        {\n            Window?.SetStatusBarColor(Color.Transparent);\n            Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));\n        }"
-          if old_bars in text:
-              text = text.replace(old_bars, new_bars, 1)
-          elif new_bars not in text:
-              raise SystemExit("System-bar API anchor was not found.")
-
-          old_back = "        base.OnBackPressed();"
-          new_back = "        // The launcher owns the root back destination.\n        return;"
-          if old_back in text:
-              text = text.replace(old_back, new_back, 1)
-          elif new_back not in text:
-              raise SystemExit("Back-navigation API anchor was not found.")
-
-          if text != original:
-              path.write_text(text, encoding="utf-8", newline="\n")
-          PY
+      - name: Commit repaired source
+        if: steps.repair.outputs.repair_exit == '0'
+        shell: bash
+        run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/Haven.Android/HavenLauncherActivity.cs
+          git add \
+            src/Haven.Android/Haven.Android.csproj \
+            src/Haven.Android/HavenLauncherActivity.Apps.cs \
+            src/Haven.Android/HavenLauncherActivity.cs \
+            src/Haven.Android/MainView.Mobile.Drawers.cs \
+            src/Haven.Android/MainView.Mobile.Interactions.cs \
+            src/Haven.Android/MainView.Mobile.Layout.cs \
+            src/Haven.Android/ModelImportActivity.cs \
+            src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml \
+            src/Haven.Desktop/Views/Pages/Go/GoPage.axaml \
+            src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml \
+            src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml.cs \
+            src/Haven.Desktop/Views/Shell/MainView.axaml.cs
           if ! git diff --cached --quiet; then
-            git commit -m "Use version-safe Android launcher APIs [skip ci]"
+            git commit -m "Apply consolidated Haven Mobile repairs [skip ci]"
             git push
           fi
-      - run: dotnet workload install android
-      - name: Restore and publish
+
+      - uses: actions/setup-dotnet@v6
+        if: steps.repair.outputs.repair_exit == '0'
+        with:
+          global-json-file: global.json
+
+      - name: Install Android workload
+        if: steps.repair.outputs.repair_exit == '0'
+        run: dotnet workload install android
+
+      - name: Calculate version and signing
+        if: steps.repair.outputs.repair_exit == '0'
+        shell: bash
+        run: |
+          app_version=$((200000 + GITHUB_RUN_NUMBER))
+          display_version="0.2.${GITHUB_RUN_NUMBER}-mobile-preview"
+          signing_mode="ephemeral-debug"
+          signing_args="-p:AndroidKeyStore=false"
+          if [ -n "$HAVEN_KEYSTORE_B64" ] && [ -n "$HAVEN_KEY_ALIAS" ] && [ -n "$HAVEN_KEYSTORE_PASSWORD" ] && [ -n "$HAVEN_KEY_PASSWORD" ]; then
+            printf '%s' "$HAVEN_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/haven-mobile.keystore"
+            chmod 600 "$RUNNER_TEMP/haven-mobile.keystore"
+            signing_mode="persistent-secret-keystore"
+            signing_args="-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$RUNNER_TEMP/haven-mobile.keystore -p:AndroidSigningKeyAlias=$HAVEN_KEY_ALIAS -p:AndroidSigningStorePass=env:HAVEN_KEYSTORE_PASSWORD -p:AndroidSigningKeyPass=env:HAVEN_KEY_PASSWORD"
+          fi
+          echo "APP_VERSION=$app_version" >> "$GITHUB_ENV"
+          echo "DISPLAY_VERSION=$display_version" >> "$GITHUB_ENV"
+          echo "SIGNING_MODE=$signing_mode" >> "$GITHUB_ENV"
+          echo "SIGNING_ARGS=$signing_args" >> "$GITHUB_ENV"
+
+      - name: Restore and publish APK
+        id: build
+        if: steps.repair.outputs.repair_exit == '0'
         shell: bash
         run: |
           set +e
@@ -60,47 +116,61 @@ jobs:
           restore_exit=${PIPESTATUS[0]}
           publish_exit=99
           if [ "$restore_exit" -eq 0 ]; then
-            dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+            # shellcheck disable=SC2086
+            dotnet publish src/Haven.Android/Haven.Android.csproj \
+              -c Debug -f net10.0-android --no-restore \
+              -p:AndroidPackageFormat=apk \
+              -p:ApplicationVersion="$APP_VERSION" \
+              -p:ApplicationDisplayVersion="$DISPLAY_VERSION" \
+              $SIGNING_ARGS 2>&1 | tee artifacts/android/publish.log
             publish_exit=${PIPESTATUS[0]}
           else
             : > artifacts/android/publish.log
           fi
-          {
-            echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo "input_commit=${{ github.sha }}"
-            echo "built_tree=$(git rev-parse HEAD)"
-            echo "restore_exit=$restore_exit"
-            echo "publish_exit=$publish_exit"
-            echo "restore_log_tail:"
-            tail -n 120 artifacts/android/restore.log
-            echo "publish_log_tail:"
-            tail -n 500 artifacts/android/publish.log
-          } > artifacts/android/build-result.txt
           package_exit=1
           if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
             find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
             if find artifacts/android -maxdepth 1 -type f -name '*.apk' -print -quit | grep -q .; then
               sha256sum artifacts/android/*.apk | tee artifacts/android/SHA256SUMS.txt
               package_exit=0
-            else
-              echo "No APK found after successful publish." >> artifacts/android/build-result.txt
             fi
           fi
-          echo "package_exit=$package_exit" >> artifacts/android/build-result.txt
+          {
+            echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "input_commit=${{ github.sha }}"
+            echo "built_tree=$(git rev-parse HEAD)"
+            echo "application_version=$APP_VERSION"
+            echo "display_version=$DISPLAY_VERSION"
+            echo "signing_mode=$SIGNING_MODE"
+            echo "restore_exit=$restore_exit"
+            echo "publish_exit=$publish_exit"
+            echo "package_exit=$package_exit"
+            echo "repair_exit=${{ steps.repair.outputs.repair_exit }}"
+            echo "restore_log_tail:"
+            tail -n 120 artifacts/android/restore.log
+            echo "publish_log_tail:"
+            tail -n 500 artifacts/android/publish.log
+          } > artifacts/android/build-result.txt
           echo "$package_exit" > artifacts/android/exit-code.txt
           exit 0
-      - name: Persist evidence
+
+      - name: Persist build evidence
         if: always()
         shell: bash
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          test -f artifacts/android/build-result.txt || {
+            echo "repair_exit=${{ steps.repair.outputs.repair_exit }}" > artifacts/android/build-result.txt
+            test -f artifacts/android/repair.log && tail -n 300 artifacts/android/repair.log >> artifacts/android/build-result.txt
+          }
           git add -f artifacts/android/build-result.txt
           if ! git diff --cached --quiet; then
-            git commit -m "Record Android APK build result [skip ci]"
+            git commit -m "Record consolidated Android build result [skip ci]"
             git push
           fi
-      - name: Upload evidence
+
+      - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -108,6 +178,7 @@ jobs:
           path: artifacts/android
           if-no-files-found: error
           retention-days: 30
+
       - name: Upload APK
         if: ${{ hashFiles('artifacts/android/*.apk') != '' }}
         uses: actions/upload-artifact@v4
@@ -116,7 +187,14 @@ jobs:
           path: |
             artifacts/android/*.apk
             artifacts/android/SHA256SUMS.txt
+            artifacts/android/build-result.txt
           if-no-files-found: error
           retention-days: 30
-      - name: Enforce APK gate
-        run: test "$(cat artifacts/android/exit-code.txt)" -eq 0
+
+      - name: Enforce repair and APK gates
+        shell: bash
+        run: |
+          test "${{ steps.repair.outputs.repair_exit }}" = "0"
+          test -f artifacts/android/exit-code.txt
+          test "$(cat artifacts/android/exit-code.txt)" = "0"
+          test -s artifacts/android/SHA256SUMS.txt
