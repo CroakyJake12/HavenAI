@@ -16,7 +16,7 @@
       </Border.Background>
     </Border>
 
-    <Grid Margin="54,28,54,28" RowDefinitions="*,Auto" RowSpacing="16">
+    <Grid Margin="12,10,12,10" RowDefinitions="*,Auto" RowSpacing="10">
       <ScrollViewer x:Name="MessagesScroll"
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto">
@@ -46,16 +46,16 @@
                    HorizontalAlignment="Center"
                    Foreground="#FF4D4D4D"
                    FontSize="11" />
-        <Grid HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10">
+        <Grid HorizontalAlignment="Center" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
           <topRail:AddMenu x:Name="AddButton"
-                           Width="58" Height="58" CornerRadius="29"
+                           Width="50" Height="50" CornerRadius="29"
                            Background="#DFFFFFFF"
                            BorderBrush="{DynamicResource HavenLineBrush}"
                            BorderThickness="1"
                            Foreground="#FF050505" />
           <TextBox x:Name="InstructionBox"
                    Grid.Column="1"
-                   MinHeight="58" MaxHeight="150"
+                   MinHeight="50" MaxHeight="132"
                    AcceptsReturn="True"
                    TextWrapping="Wrap"
                    CornerRadius="18"
@@ -66,10 +66,10 @@
                    PlaceholderText="Ask Haven Anything"
                    VerticalContentAlignment="Center"
                    FontSize="15"
-                   Padding="22,0" />
+                   Padding="14,0" />
           <Button x:Name="SendButton"
                   Grid.Column="2"
-                  Width="64" Height="58" CornerRadius="20"
+                  Width="52" Height="50" CornerRadius="20"
                   Background="#FF6FE9F0"
                   BorderBrush="#667ADDE3"
                   BorderThickness="1">

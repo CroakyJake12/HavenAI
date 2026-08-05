@@ -316,6 +316,17 @@ public sealed partial class ChatPage
         Grid.SetColumn(main, 1);
         root.Children.Add(main);
 
+#if ANDROID
+        // haven-mobile-responsive-chat
+        sidebar.IsVisible = false;
+        header.Margin = new Thickness(12, 8, 12, 6);
+        _finalMessages.Margin = new Thickness(12, 8, 12, 14);
+        composerStack.Margin = new Thickness(8, 4, 8, 8);
+        composerSurface.Padding = new Thickness(8);
+        root.ColumnDefinitions = new ColumnDefinitions("*");
+        Grid.SetColumn(main, 0);
+#endif
+
         CodeBehindHost.Children.Clear();
         CodeBehindHost.Children.Add(root);
     }
