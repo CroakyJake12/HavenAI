@@ -33,8 +33,8 @@ jobs:
         run: |
           set +e
           mkdir -p artifacts/android
-          expected_gzip=9bef22ad80ff76a3b9dffb4f079ebbb201195c3a301bf2ba66a9750613d6c8ba
-          expected_script=3a306e45632eec4ff6c5499e9070634bfcd6f19b2efa4b400051961af585db67
+          expected_gzip=1a51352a85deae3f78938cb78b1da0655ad8e68ede78fb853efbe7a55634799f
+          expected_script=fce50a89d95167b1ab2aabd6077c10c22615e9007aa71c4199860e059af31ab1
           actual_gzip=$(sha256sum scripts/fix_android_compile.py.gz | awk '{print $1}')
           echo "gzip_sha256=$actual_gzip" | tee artifacts/android/patch.log
           if [ "$actual_gzip" != "$expected_gzip" ]; then
@@ -101,7 +101,7 @@ jobs:
             find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
             test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
             sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
-            echo 0 > artifacts/android/exit-code.txt
+              echo 0 > artifacts/android/exit-code.txt
           else
             echo 1 > artifacts/android/exit-code.txt
           fi
