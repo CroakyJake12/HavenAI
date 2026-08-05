@@ -22,8 +22,8 @@
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageVersion Includ="Microsoft.Extensions.Http" Version="10.0.0" />
-    <PackageVersion Includ="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <!-- Kokoro is a local neural TTS model. The CPU package keeps Call usable
          without a cloud key while providing markedly more natural prosody than
          Windows' legacy/system voices. -->
