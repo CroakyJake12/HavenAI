@@ -1,62 +1,20 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31043088988
-input_commit=2666d5d25ccba193eb1598ae7a0a9ba7f5e00059
-built_tree=c433ab8e7367589422b569036200a17af63bbc4e
-restore_exit=0
-publish_exit=0
-restore_log_tail:
-  Determining projects to restore...
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 154 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj (in 2 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 4 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.06 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 4.01 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 13.48 sec).
-publish_log_tail:
-  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
-  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
-  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
-  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
-  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/Debug/net10.0/Haven.Infrastructure.dll
-/home/runner/.nuget/packages/webrtcvadsharp/1.3.2/build/WebRtcVadSharp.targets(4,3): warning : This project's platform is set to '', but it requires a native DLL (WebRtcVad.dll). Defaulting to 'x64' binaries. Explicitly choose a platform in the project's Build properties to remove this warning. [/home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ProjectCreator/ProjectCreatorPage.axaml(132,16,132,16): Avalonia warning AVLN5001: 'TextBox.Watermark' is obsolete: Use PlaceholderText instead. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ProjectCreator/ProjectCreatorPage.axaml(155,14,155,14): Avalonia warning AVLN5001: 'TextBox.Watermark' is obsolete: Use PlaceholderText instead. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ActivityLog/ActivityLogPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/ActivityLog/ActivityLogPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Archive/ArchivePage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Archive/ArchivePage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Automations/AutomationsPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Automations/AutomationsPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Browser/BrowserPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Browser/BrowserPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Call/CallPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Call/CallPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Catalog/CatalogPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Catalog/CatalogPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Chat/ChatPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Chat/ChatPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Chat/NewChatPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Chat/NewChatPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ChatGroup/ChatGroupPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/ChatGroup/ChatGroupPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ContainerSettings/ContainerSettingsPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/ContainerSettings/ContainerSettingsPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Go/GoPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Go/GoPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Home/HomePage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Home/HomePage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Home/NewDashboardPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Home/NewDashboardPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/LessonSettings/LessonSettingsPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/LessonSettings/LessonSettingsPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Macros/MacrosPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Macros/MacrosPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ModeLibrary/ModeLibraryPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/ModeLibrary/ModeLibraryPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Notes/NotesPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Notes/NotesPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Plan/PlanPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Plan/PlanPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/ProjectCreator/ProjectCreatorPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/ProjectCreator/ProjectCreatorPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Settings/SettingsPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Settings/SettingsPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/StudioProject/StudioProjectPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/StudioProject/StudioProjectPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/Training/TrainingPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/Training/TrainingPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/WorkspaceEditor/WorkspaceEditorPage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/WorkspaceEditor/WorkspaceEditorPage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Pages/WorkspaceHome/WorkspaceHomePage.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Pages/WorkspaceHome/WorkspaceHomePage.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Shell/LauncherPicker.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Shell/LauncherPicker.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Shell/MainView.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Shell/MainView.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Shell/Overlays/LessonSettingsOverlay.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Shell/Overlays/LessonSettingsOverlay.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Shell/Overlays/ProjectSettingsOverlay.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Shell/Overlays/ProjectSettingsOverlay.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Views/Shell/Overlays/SettingsOverlay.axaml : Avalonia warning AVLN3001: XAML resource "avares://Haven/Views/Shell/Overlays/SettingsOverlay.axaml" won't be reachable via runtime loader, as no public constructor was found [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-  Haven.Android -> /home/runner/work/HavenAI/HavenAI/src/Haven.Android/bin/Debug/net10.0-android/Haven.dll
-  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
-  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
-  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
-  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
-  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/Debug/net10.0/Haven.Infrastructure.dll
-/home/runner/.nuget/packages/webrtcvadsharp/1.3.2/build/WebRtcVadSharp.targets(4,3): warning : This project's platform is set to '', but it requires a native DLL (WebRtcVad.dll). Defaulting to 'x64' binaries. Explicitly choose a platform in the project's Build properties to remove this warning. [/home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj]
-/usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime_providers_shared.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime_providers_shared.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-obj/Debug/net10.0-android/lp/100/jl/jni/x86_64/libonnxruntime.so : warning XA4301: APK already contains the item lib/x86_64/libonnxruntime.so; ignoring. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-package_exit=0
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31049040603
+input_commit=9f833e912e9aade9f0a5b7b7001a6bac9b0768f8
+built_tree=9f833e912e9aade9f0a5b7b7001a6bac9b0768f8
+repair_exit=1
+repair_log:
+Traceback (most recent call last):
+  File "/tmp/haven-mobile-repair.py", line 48, in <module>
+    replace_once(
+  File "/tmp/haven-mobile-repair.py", line 25, in replace_once
+    raise RuntimeError(f"{path}: expected one anchor, found {count}: {old[:120]!r}")
+RuntimeError: src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml: expected one anchor, found 0: '        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">\n          <StackPanel>\n            <TextBlock Text="GEN'
+repair_part_hashes:
+a3a4ce98f0792f0650618dcdfb6c7f0699785a9c5d1bb05503d0791a5890766a  scripts/apply_haven_mobile_consolidated_repairs.part0
+72d56b0e381bbda7fff141044f2fa41eb3f03d0af8f3345e64e9ecf3c54f774f  scripts/apply_haven_mobile_consolidated_repairs.part1
+cb2dd0f1fca154be54aa46e0a1e128b749be2dd5551ae59edc63d35590682d6b  scripts/apply_haven_mobile_consolidated_repairs.part2
+0399a2e7f43f60f78d29ed9307a6d8c42e9c1a8042b1298de89526f8aa52625d  scripts/apply_haven_mobile_consolidated_repairs.part3
+repair_gzip_check:
+/tmp/haven-mobile-repair.py.gz: OK
+repair_script_check:
+/tmp/haven-mobile-repair.py: OK
