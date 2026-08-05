@@ -1,5 +1,5 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31032671905
-input_commit=356c953dc29306f64b0c316e4acca51c587e1f1f
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31032791128
+input_commit=76030df185a69e9a754df2f3310e4c4bef9ea484
 setup_dotnet_outcome=success
 workload_outcome=success
 workload_exit=0
