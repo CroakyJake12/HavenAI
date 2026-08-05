@@ -46,7 +46,7 @@ jobs:
           handled_new = "                if (args is not null)\n                    args.Handled = true;"
           if handled_old in text:
               text = text.replace(handled_old, handled_new)
-              path.write_text(text, encoding="utf-8", newline="\\n")
+              path.write_text(text, encoding="utf-8", newline="\n")
           elif handled_new not in text:
               raise SystemExit("Expected widget long-click nullable anchor was not found.")
           PY
@@ -124,7 +124,7 @@ jobs:
           name: Haven-Android-APK
           path: |
             artifacts/android/*.apk
-            artifacts/android/SHA256SUMS.txt
+            artifacts/android/SHA256SUSU.txt
           if-no-files-found: error
           retention-days: 30
 
