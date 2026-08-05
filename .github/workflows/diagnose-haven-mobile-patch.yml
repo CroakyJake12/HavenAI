@@ -1,4 +1,4 @@
-name: Diagnose Haven Mobile Patch
+name: Repair Haven Mobile Compatibility Sources
 
 on:
   push:
@@ -10,12 +10,48 @@ permissions:
   contents: write
 
 jobs:
-  diagnose:
+  repair:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Run compatibility patch with persistent diagnostics
+
+      - name: Repair stale Go-handler patch anchor
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply_haven_mobile_repair.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''    text = replace_once(
+                  text,
+                  old_go_selection,
+                  new_go_selection,
+                  "MainView Go installed-app selection",
+              )
+          '''
+          new = '''    if new_go_selection not in text:
+                  signature = "    private async void OnGoCatalogItemSelected"
+                  boundary = "\n    private void QueueGoSuggestionRefresh"
+                  start = text.find(signature)
+                  end = text.find(boundary, start)
+                  if start < 0 or end < 0:
+                      raise RuntimeError(
+                          "MainView Go installed-app selection: bounded method anchors not found"
+                      )
+                  text = text[:start] + new_go_selection + text[end:]
+          '''
+          count = text.count(old)
+          if count == 1:
+              path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+          elif new in text:
+              print("Go-handler patcher repair already applied.")
+          else:
+              raise RuntimeError(f"Expected one stale Go patch block, found {count}")
+          PY
+
+      - name: Apply compatibility repairs
         shell: bash
         run: |
           set +e
@@ -23,12 +59,26 @@ jobs:
           python3 scripts/apply_haven_mobile_repair.py > artifacts/android/mobile-patch-diagnostic.txt 2>&1
           result=$?
           cat artifacts/android/mobile-patch-diagnostic.txt
-          if [ "$result" -eq 0 ]; then
+          if [ "$result" -ne 0 ]; then
+            exit "$result"
+          fi
+
+      - name: Commit repaired compatibility sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f artifacts/android/mobile-patch-diagnostic.txt
+          if git diff --quiet; then
+            echo "Compatibility sources already repaired."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f artifacts/android/mobile-patch-diagnostic.txt
-          git commit -m "Record Haven mobile patch failure [skip ci]"
+          git add scripts/apply_haven_mobile_repair.py
+          git add src/Haven.Browser/Security/BrowserPrivateProfileManager.cs
+          git add src/Haven.Desktop/Views/Shell/MainView.axaml.cs
+          git add src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml
+          git add src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs
+          git add -u artifacts/android/mobile-patch-diagnostic.txt
+          git commit -m "Apply Haven Android compatibility repairs"
           git push origin "HEAD:${GITHUB_REF_NAME}"
-          exit "$result"
