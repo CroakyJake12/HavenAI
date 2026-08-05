@@ -4,7 +4,7 @@ on:
   push:
     branches: [gpt/haven-mobile-repair-android]
 permissions:
-  contents: read
+  contents: write
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -15,16 +15,60 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet workload install android
-      - run: dotnet restore src/Haven.Android/Haven.Android.csproj --configfile NuGet.Config
-      - run: dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false
-      - run: |
+      - name: Build and package APK
+        shell: bash
+        run: |
+          set +e
           mkdir -p artifacts/android
-          find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
-          test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
-          sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
-      - uses: actions/upload-artifact@v7
+          dotnet restore src/Haven.Android/Haven.Android.csproj --configfile NuGet.Config 2>&1 | tee artifacts/android/restore.log
+          restore_exit=${PIPESTATUS[0]}
+          publish_exit=99
+          if [ "$restore_exit" -eq 0 ]; then
+            dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+            publish_exit=${PIPESTATUS[0]}
+          fi
+          {
+            echo "workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "input_commit=${{ github.sha }}"
+            echo "restore_exit=$restore_exit"
+            echo "publish_exit=$publish_exit"
+            echo
+            echo "diagnostics:"
+            grep -E -m 80 '(^|[ :])(error|warning) (CS|MSB|NETSDK|NU|XA|APT)[0-9]+' artifacts/android/*.log || true
+          } > artifacts/android/build-result.txt
+          if [ "$restore_exit" -eq 0 ] && [ "$publish_exit" -eq 0 ]; then
+            find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
+            test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
+            sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
+            echo 0 > artifacts/android/exit-code.txt
+          else
+            echo 1 > artifacts/android/exit-code.txt
+          fi
+      - name: Persist build evidence
+        run: |
+          mkdir -p artifacts/android
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -f artifacts/android/build-result.txt
+          git diff --cached --quiet || git commit -m "Record Android APK build result [skip ci]"
+          git push
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          name: Haven-Android-APK
+          name: Haven-Android-Build-Evidence
           path: artifacts/android
           if-no-files-found: error
           retention-days: 30
+      - name: Upload installable APK
+        if: ${{ hashFiles('artifacts/android/*.apk') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Haven-Android-APK
+          path: |
+            artifacts/android/*.apk
+            artifacts/android/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce APK build gate
+        run: test "$(cat artifacts/android/exit-code.txt)" -eq 0
