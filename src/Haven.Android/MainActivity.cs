@@ -30,6 +30,7 @@ public sealed class MainActivity : AvaloniaMainActivity
     {
         try
         {
+            AndroidHavenBootstrap.SetLaunchRequest(Intent);
             base.OnCreate(savedInstanceState);
             Window?.SetSoftInputMode(SoftInput.AdjustResize);
             AndroidRuntimeDiagnostics.Attach(this);
