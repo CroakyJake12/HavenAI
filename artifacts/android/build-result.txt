@@ -1,8 +1,31 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31041483208
-input_commit=bc2f47ab83d75f36467580e90e9d6f05e2d1a994
-built_tree=a63eb6a8caf13d8b0c04ddf6c13f011f0eda0be9
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31041834591
+input_commit=86bd86693bd2670c841defb76c2981d1bb456ccd
+built_tree=a6d85e2adfaf24dafdc3cc1b8e15fdae95402ae6
 restore_exit=0
 publish_exit=1
 
 diagnostics:
-artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(218,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(219,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+
+settings_context:
+   208	
+   209	        foreach (var widgetId in ReadWidgetIds().ToArray())
+   210	        {
+   211	            var info = widgetManager.GetAppWidgetInfo(widgetId);
+   212	            if (info is null)
+   213	            {
+   214	                DeleteWidgetId(widgetId);
+   215	                continue;
+   216	            }
+   217	
+   218	            var hostView = widgetHost.CreateView(this, widgetId, info);
+   219	            hostView.SetAppWidget(widgetId, info);
+   220	            hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
+   221	            {
+   222	                RightMargin = Dp(8)
+   223	            };
+   224	            hostView.LongClick += (_, args) =>
+   225	            {
+   226	                var dialog = new AlertDialog.Builder(this);
+   227	                dialog.SetMessage("Remove this widget?");
+   228	                dialog.SetPositiveButton("Remove", (_, _) =>
