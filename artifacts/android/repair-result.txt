@@ -1,9 +1,3 @@
-input_commit=f03e4bff910a14ae4a10b9e474db1d1de9bf83c3
-integrity_exit=0
-repair_exit=1
-Traceback (most recent call last):
-  File "/tmp/haven-mobile-repair.py", line 197, in <module>
-    replace_regex(
-  File "/tmp/haven-mobile-repair.py", line 34, in replace_regex
-    raise RuntimeError(f"{path}: regex anchor count {count}: {pattern[:120]!r}")
-RuntimeError: src/Haven.Android/MainView.Mobile.Interactions.cs: regex anchor count 0: '    private void RefreshMobileTabs\\(\\)\\n    \\{.*?\\n    \\}\\n    private void OpenMobileDrawer\\(\\)'
+input_commit=5181615d93c099142ffbe2392a324bfc97942a4e
+integrity_exit=1
+repair_exit=99
