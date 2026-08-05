@@ -16,7 +16,40 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v6
         with:
-          global.json-file: global.json
+          global-json-file: global.json
+      - name: Modernize launcher Android APIs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("src/Haven.Android/HavenLauncherActivity.cs")
+          text = path.read_text(encoding="utf-8")
+          original = text
+
+          old_bars = "        Window?.SetStatusBarColor(Color.Transparent);\n        Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));"
+          new_bars = "        if (!OperatingSystem.IsAndroidVersionAtLeast(35))\n        {\n            Window?.SetStatusBarColor(Color.Transparent);\n            Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));\n        }"
+          if old_bars in text:
+              text = text.replace(old_bars, new_bars, 1)
+          elif new_bars not in text:
+              raise SystemExit("System-bar API anchor was not found.")
+
+          old_back = "        base.OnBackPressed();"
+          new_back = "        // The launcher owns the root back destination.\n        return;"
+          if old_back in text:
+              text = text.replace(old_back, new_back, 1)
+          elif new_back not in text:
+              raise SystemExit("Back-navigation API anchor was not found.")
+
+          if text != original:
+              path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/Haven.Android/HavenLauncherActivity.cs
+          if ! git diff --cached --quiet; then
+            git commit -m "Use version-safe Android launcher APIs [skip ci]"
+            git push
+          fi
       - run: dotnet workload install android
       - name: Restore and publish
         shell: bash
