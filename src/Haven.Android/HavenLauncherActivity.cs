@@ -57,8 +57,11 @@ public sealed partial class HavenLauncherActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        Window?.SetStatusBarColor(Color.Transparent);
-        Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));
+        if (!OperatingSystem.IsAndroidVersionAtLeast(35))
+        {
+            Window?.SetStatusBarColor(Color.Transparent);
+            Window?.SetNavigationBarColor(Color.Rgb(24, 18, 38));
+        }
 
         _widgetHost = new AppWidgetHost(this, WidgetHostId);
         _widgetManager = AppWidgetManager.GetInstance(this);
@@ -108,7 +111,8 @@ public sealed partial class HavenLauncherActivity : Activity
             return;
         }
 
-        base.OnBackPressed();
+        // The launcher owns the root back destination.
+        return;
     }
 
     private void BuildSurface()
