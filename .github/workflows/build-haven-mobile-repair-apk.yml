@@ -41,6 +41,14 @@ jobs:
               path.write_text(text, encoding="utf-8", newline="\n")
           elif new not in text:
               raise SystemExit("Expected ReadWidgetIds nullable anchor was not found.")
+
+          handled_old = "                args.Handled = true;"
+          handled_new = "                if (args is not null)\n                    args.Handled = true;"
+          if handled_old in text:
+              text = text.replace(handled_old, handled_new)
+              path.write_text(text, encoding="utf-8", newline="\\n")
+          elif handled_new not in text:
+              raise SystemExit("Expected widget long-click nullable anchor was not found.")
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
