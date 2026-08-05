@@ -321,3 +321,5 @@ jobs:
         if: always()
         shell: bash
         run: test "${{ steps.smoke.outcome }}" = "success"
+
+# Trigger compilation from repaired source commit 94580ba.
