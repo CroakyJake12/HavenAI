@@ -1,8 +1,8 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31040969411
-input_commit=4f4c81489acf4f8025826dd8f6f22e75f58f98f3
-built_tree=17a1ac48a87d8034799233831e75622f641a0aef
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31041483208
+input_commit=bc2f47ab83d75f36467580e90e9d6f05e2d1a994
+built_tree=a63eb6a8caf13d8b0c04ddf6c13f011f0eda0be9
 restore_exit=0
 publish_exit=1
 
 diagnostics:
-artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(217,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+artifacts/android/publish.log:/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(218,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
