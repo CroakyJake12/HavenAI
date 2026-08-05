@@ -1,19 +1,12 @@
 Traceback (most recent call last):
-  File "/tmp/apply_haven_android_api_compat.py", line 497, in <module>
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 497, in <module>
     raise SystemExit(main())
                      ^^^^^^
-  File "/tmp/apply_haven_android_api_compat.py", line 482, in main
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 482, in main
     patch_model_import()
-  File "/tmp/apply_haven_android_api_compat.py", line 41, in patch_model_import
-    path, original = read("src/Haven.Android/ModelImportActivity.cs")
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/tmp/apply_haven_android_api_compat.py", line 12, in read
-    return file_path, file_path.read_text(encoding="utf-8")
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors) as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
-    return io.open(self, mode, buffering, encoding, errors, newline)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/src/Haven.Android/ModelImportActivity.cs'
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 91, in patch_model_import
+    text = replace_once(
+           ^^^^^^^^^^^^^
+  File "/home/runner/work/HavenAI/HavenAI/scripts/apply_haven_android_api_compat.py", line 27, in replace_once
+    raise RuntimeError(f"{label}: expected one old block, found {count}")
+RuntimeError: model importer child URI null check: expected one old block, found 0
