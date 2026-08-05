@@ -14,6 +14,23 @@ public sealed partial class MainView
 {
     public Task ApplyMobileStartupSurfaceAsync() => OpenNewChatAsync();
 
+    public async Task ApplyMobileLaunchRequestAsync(string? surface, string? prompt)
+    {
+        if (!string.IsNullOrWhiteSpace(prompt))
+        {
+            await OpenNewChatAsync(prompt);
+            return;
+        }
+
+        if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenDashboardAsync();
+            return;
+        }
+
+        await ApplyMobileStartupSurfaceAsync();
+    }
+
     private async Task SubmitMobileGoAsync()
     {
         var text = _mobileGoInput?.Text?.Trim();
