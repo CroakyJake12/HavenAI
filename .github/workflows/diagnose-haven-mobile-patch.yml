@@ -16,20 +16,60 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Reassemble and verify repair script
+      - name: Verify and apply Android API repair
         id: repair
         shell: bash
         run: |
-          set +e
+          set -uo pipefail
           mkdir -p artifacts/android
+          diagnostic=artifacts/android/api-compat-diagnostic.txt
+          : > "$diagnostic"
           cat scripts/api-compat-payload.0 scripts/api-compat-payload.1 scripts/api-compat-payload.2 scripts/api-compat-payload.3 > /tmp/api-compat.b64
-          test "$(wc -c < /tmp/api-compat.b64)" -eq 3984
-          base64 -d /tmp/api-compat.b64 | gzip -d > scripts/apply_haven_android_api_compat.py
-          echo "41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4  scripts/apply_haven_android_api_compat.py" | sha256sum -c -
-          python3 -m py_compile scripts/apply_haven_android_api_compat.py
-          python3 scripts/apply_haven_android_api_compat.py > artifacts/android/api-compat-diagnostic.txt 2>&1
-          result=$?
-          cat artifacts/android/api-compat-diagnostic.txt
+          payload_length="$(wc -c < /tmp/api-compat.b64)"
+          payload_sha="$(sha256sum /tmp/api-compat.b64 | awk '{print $1}')"
+          {
+            echo "payload_length=$payload_length"
+            echo "payload_sha256=$payload_sha"
+            echo "expected_payload_length=3984"
+            echo "expected_payload_sha256=b2b1ffa6eaa07ddb8a22a0318d5f0280b250f31cf61af4d61e2ea59d559b196a"
+          } >> "$diagnostic"
+          result=0
+          if [ "$payload_length" != "3984" ] || [ "$payload_sha" != "b2b1ffa6eaa07ddb8a22a0318d5f0280b250f31cf61af4d61e2ea59d559b196a" ]; then
+            echo "payload verification failed" >> "$diagnostic"
+            result=1
+          fi
+          if [ "$result" -eq 0 ]; then
+            if ! base64 -d /tmp/api-compat.b64 > /tmp/api-compat.gz 2>> "$diagnostic"; then
+              echo "base64 decode failed" >> "$diagnostic"
+              result=1
+            fi
+          fi
+          if [ "$result" -eq 0 ]; then
+            if ! gzip -t /tmp/api-compat.gz 2>> "$diagnostic"; then
+              echo "gzip integrity failed" >> "$diagnostic"
+              result=1
+            fi
+          fi
+          if [ "$result" -eq 0 ]; then
+            gzip -dc /tmp/api-compat.gz > scripts/apply_haven_android_api_compat.py
+            script_sha="$(sha256sum scripts/apply_haven_android_api_compat.py | awk '{print $1}')"
+            echo "script_sha256=$script_sha" >> "$diagnostic"
+            echo "expected_script_sha256=41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4" >> "$diagnostic"
+            if [ "$script_sha" != "41de429ac4c7ca7cf00c3f231d760749c5bdcf7cfb303b1e7d2bc68a750d53e4" ]; then
+              echo "script checksum failed" >> "$diagnostic"
+              result=1
+            fi
+          fi
+          if [ "$result" -eq 0 ]; then
+            if ! python3 -m py_compile scripts/apply_haven_android_api_compat.py 2>> "$diagnostic"; then
+              echo "Python syntax validation failed" >> "$diagnostic"
+              result=1
+            fi
+          fi
+          if [ "$result" -eq 0 ]; then
+            python3 scripts/apply_haven_android_api_compat.py >> "$diagnostic" 2>&1
+            result=$?
+          fi
           echo "result=$result" >> "$GITHUB_OUTPUT"
           exit 0
 
