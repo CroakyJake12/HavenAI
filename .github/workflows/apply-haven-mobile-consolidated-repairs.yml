@@ -25,11 +25,11 @@ jobs:
           set +e
           mkdir -p artifacts/android
           cat             scripts/apply_haven_mobile_consolidated_repairs.part0             scripts/apply_haven_mobile_consolidated_repairs.part1a             scripts/apply_haven_mobile_consolidated_repairs.part1b             scripts/apply_haven_mobile_consolidated_repairs.part2             scripts/apply_haven_mobile_consolidated_repairs.part3             > /tmp/haven-mobile-repair.py.gz
-          echo "f2948406c74ef761be69dee4d28a4f26f2344126ca27ff53b0c874767bbb38cf  /tmp/haven-mobile-repair.py.gz" | sha256sum -c -
+          echo "154df8abbf87f0530aef3cb615b23c1bafe490a2e3d2f7acf9b53a299a79cd7d  /tmp/haven-mobile-repair.py.gz" | sha256sum -c -
           integrity_exit=$?
           if [ "$integrity_exit" -eq 0 ]; then
             gzip -dc /tmp/haven-mobile-repair.py.gz > /tmp/haven-mobile-repair.py
-            echo "8ec8c4f0bfc8188dd329a6d83bd456badb4797e5498dc4ab57326f319500d478  /tmp/haven-mobile-repair.py" | sha256sum -c -
+            echo "1b9f6f42775dc4bcd8460fdc4ecb7e12d6b3488780673ae36616354215d44245  /tmp/haven-mobile-repair.py" | sha256sum -c -
             integrity_exit=$?
           fi
           repair_exit=99
