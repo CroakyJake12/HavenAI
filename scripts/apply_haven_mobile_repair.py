@@ -140,12 +140,16 @@ def patch_main_view_add_menus() -> None:
         _newChatPage?.ApplyAddSelection(selection);
     }
 '''
-    text = replace_once(
-        text,
-        old_go_selection,
-        new_go_selection,
-        "MainView Go installed-app selection",
-    )
+    if new_go_selection not in text:
+        signature = "    private async void OnGoCatalogItemSelected"
+        boundary = "\n    private void QueueGoSuggestionRefresh"
+        start = text.find(signature)
+        end = text.find(boundary, start)
+        if start < 0 or end < 0:
+            raise RuntimeError(
+                "MainView Go installed-app selection: bounded method anchors not found"
+            )
+        text = text[:start] + new_go_selection + text[end:]
 
     write_if_changed(path, text, original)
 
