@@ -1,7 +1,6 @@
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31040587370
-input_commit=35dc1b2d12f7e89a3fb3f12e3cd983f93f6ca275
-tree_after_fixes=fa0b1b22c2a95e34a9f268839bf79ca11d42e019
-patch_exit=0
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31040969411
+input_commit=4f4c81489acf4f8025826dd8f6f22e75f58f98f3
+built_tree=17a1ac48a87d8034799233831e75622f641a0aef
 restore_exit=0
 publish_exit=1
 
