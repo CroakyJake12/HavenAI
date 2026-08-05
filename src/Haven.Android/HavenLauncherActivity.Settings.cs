@@ -195,6 +195,7 @@ public sealed partial class HavenLauncherActivity
                 Preferences.Edit()?.PutBoolean(HavenWidgetKey, false)?.Apply();
                 RenderWidgets();
                 if (args is not null)
+                    if (args is not null)
                     args.Handled = true;
             };
             widgetStrip.AddView(clock);
@@ -232,6 +233,7 @@ public sealed partial class HavenLauncherActivity
                 dialog.SetNegativeButton("Cancel", (_, _) => { });
                 dialog.Show();
                 if (args is not null)
+                    if (args is not null)
                     args.Handled = true;
             };
             widgetStrip.AddView(hostView);
