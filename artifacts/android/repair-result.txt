@@ -1,0 +1,9 @@
+input_commit=3cdcd283b257e2348339bd2a38884406de1226be
+integrity_exit=0
+repair_exit=1
+Traceback (most recent call last):
+  File "/tmp/haven-mobile-repair.py", line 48, in <module>
+    replace_once(
+  File "/tmp/haven-mobile-repair.py", line 25, in replace_once
+    raise RuntimeError(f"{path}: expected one anchor, found {count}: {old[:120]!r}")
+RuntimeError: src/Haven.Desktop/Views/GenerativeUiThemeSelectorView.axaml: expected one anchor, found 4: '<Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">'
