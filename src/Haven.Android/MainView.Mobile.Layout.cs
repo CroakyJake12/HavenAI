@@ -22,6 +22,7 @@ public sealed partial class MainView
     private Border? _mobileDrawer;
     private StackPanel? _mobileDrawerContent;
     private TextBox? _mobileGoInput;
+    private Control? _mobilePageContent;
     private double? _mobileSwipeStartY;
 
     public void ApplyMobileLayout()
@@ -42,19 +43,26 @@ public sealed partial class MainView
             .FirstOrDefault(candidate => Grid.GetColumn(candidate) == 1)
             ?? throw new InvalidOperationException("Haven's content host was not found.");
 
-        TopRail.IsVisible = false;
-        SidebarControl.IsVisible = false;
-        NativeSidebarHost.IsVisible = false;
-        ShellContextBar.IsVisible = false;
+        foreach (var child in root.Children.ToArray())
+        {
+            if (Grid.GetRow(child) == 0)
+                child.IsVisible = false;
+        }
+
+        foreach (var child in body.Children.ToArray())
+        {
+            if (!ReferenceEquals(child, contentHost))
+                child.IsVisible = false;
+        }
+
         body.ColumnDefinitions = new ColumnDefinitions("*");
         body.Margin = new Thickness(0);
         Grid.SetColumn(contentHost, 0);
         Grid.SetColumnSpan(contentHost, 1);
 
-        ContentArea.BorderThickness = new Thickness(0);
-        ContentArea.CornerRadius = new CornerRadius(0);
-        ContentArea.Background = ResourceBrush("HavenBackgroundBrush");
-        PageContent.Margin = new Thickness(0, 0, 0, 92);
+
+        _mobilePageContent = contentHost;
+        _mobilePageContent.Margin = new Thickness(0, 0, 0, 92);
 
         _mobileHeader = BuildMobileHeader();
         Grid.SetRow(_mobileHeader, 0);

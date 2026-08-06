@@ -80,20 +80,18 @@ public sealed partial class MainView
 
         var isHome = CurrentSurface == HavenSurface.Home;
         var showChatAffordance = CurrentSurface == HavenSurface.Chat;
-        SidebarControl.IsVisible = false;
-        NativeSidebarHost.IsVisible = false;
-        ShellContextBar.IsVisible = false;
         if (_mobileHeader is not null)
             _mobileHeader.IsVisible = true;
         if (_mobileBottomAffordance is not null)
             _mobileBottomAffordance.IsVisible = showChatAffordance;
         if (_mobileHomeFooter is not null)
             _mobileHomeFooter.IsVisible = isHome;
-        PageContent.Margin = isHome
-            ? new Thickness(0, 0, 0, 78)
-            : showChatAffordance
-                ? new Thickness(0, 0, 0, 112)
-                : new Thickness(0);
+        if (_mobilePageContent is not null)
+            _mobilePageContent.Margin = isHome
+                ? new Thickness(0, 0, 0, 78)
+                : showChatAffordance
+                    ? new Thickness(0, 0, 0, 112)
+                    : new Thickness(0);
         RefreshMobileTabs();
     }
 
