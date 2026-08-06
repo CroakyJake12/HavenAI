@@ -1,24 +1,10 @@
-input_commit=2c752081feb35653b52fea87e4cc20c91bebb918
-integrity_exit=1
-repair_exit=99
-payload_hashes:
-ec3db1d579f6705e4a321975687e9df3af469601692f6f0a54e5dec4ae99e8db  scripts/mobile_repair_payload/chunk00
-41946824f41ec984c91e4dfa5976657b4b7e3514ffc111a3c58c24c88f780afd  scripts/mobile_repair_payload/chunk01
-e9f5e6de0118a5f9e61c8b6e77b8acd2f88461c6aa1bd01acece687149334488  scripts/mobile_repair_payload/chunk02
-67e34b52e26878b5cb3f3c63722d304368d3cf60478b4ab6e497d9136e42def5  scripts/mobile_repair_payload/chunk03
-7fbb2edf2c792eb95046b93ba791acf1179d19004b29f295a60c1d3554b86621  scripts/mobile_repair_payload/chunk04
-0be391336c13615db680e7450a3c6c9e10bb98d5a7a5fa10233b8c42ddf27270  scripts/mobile_repair_payload/chunk05
-ed163fd0f089b9a5782c273cec8933c1fcf2324da7ccf0fa28e65b4c635c2c25  scripts/mobile_repair_payload/chunk06
-ec6096787fa208ed9076ccb78673c8dd873691466a338854ca46e375a3bcc8c0  scripts/mobile_repair_payload/chunk07
-a60300332ff8f1c4edd410d9fe3634bfb6795c77fdef4d7a61a891d23b6da34b  scripts/mobile_repair_payload/chunk08
-01c2ddf77be812d2fdbd1437dc9af62654a16a2003072ccee59e24c1bf71f7af  scripts/mobile_repair_payload/chunk09
-4a8d25716c08bbdbe5caac2c2164523d8d49a963adab32a2ae743a75323021f6  scripts/mobile_repair_payload/chunk10
-f076fafa71acec7e0988176a52a14ad48347b36b17ebf72c70056d7e8a967f11  scripts/mobile_repair_payload/chunk11
-c5ce0a4300e8fa2da00b7d3813a0a94647b8b4b0a5714fd4a92388dd1f2199d5  scripts/mobile_repair_payload/chunk12
-b7ed0ba5d511384186a6d1c63b146cc06413d20940cc968f6a1742fa01976ecf  scripts/mobile_repair_payload/chunk13
-c01fdbdf84f0d97675c4569adafd2483e77dc1421d907431560801fdc5ca4027  scripts/mobile_repair_payload/chunk14
-22b5bd6e6ba57bb881223b9229d224e2d5310d11fd29fcb1593d2d2142681a6a  scripts/mobile_repair_payload/chunk15
-71e0762173598e56fdef16361ab91d88071acd39a057dff2853aa0e58a264e78  scripts/mobile_repair_payload/chunk16
-03c9653b9ae69d18ca35edd1bd9900433697e83deb8d092a93ecfaa19a342fc1  scripts/mobile_repair_payload/chunk17
-54e051b8904677c8febee1edaf8519bdc213470f42d884c0eac317fc9d7fa13a  scripts/mobile_repair_payload/chunk18
-77b894c03633a928f06e15d808bca8a37616a372eb8e06a856dbf49953c7577d  scripts/mobile_repair_payload/chunk19
+input_commit=9f33f3c012e2fef04c600b073404ac19ab6cb0d2
+integrity_exit=0
+repair_exit=1
+Traceback (most recent call last):
+  File "/tmp/repair.py", line 282, in <module>
+    text = replace_once(text, old_refresh, new_refresh, "mobile chrome visibility")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/repair.py", line 17, in replace_once
+    raise RuntimeError(f"{label}: expected 1 occurrence, found {count}")
+RuntimeError: mobile chrome visibility: expected 1 occurrence, found 0
