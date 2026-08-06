@@ -1,4 +1,5 @@
-name: Repair Outstanding Mobile Shell and Build APK# trigger: line-bounded-repair-v4
+name: Repair Outstanding Mobile Shell and Build APK
+# trigger: line-bounded-repair-v4
 
 on:
   push:
