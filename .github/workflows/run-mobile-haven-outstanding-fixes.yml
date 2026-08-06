@@ -2,8 +2,7 @@ name: Run Mobile Haven outstanding fixes and APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - .github/workflows/run-mobile-haven-outstanding-fixes.yml
   workflow_dispatch:
@@ -31,129 +30,130 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re
 
-          def replace_once(path, old, new):
+          def replace_once(path, old, new, label):
               file = Path(path)
               text = file.read_text()
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f"{path}: expected one occurrence, found {count}")
+                  raise SystemExit(f"{label}: expected one occurrence, found {count}")
               file.write_text(text.replace(old, new, 1))
 
           replace_once(
               "src/Haven.Android/MainView.Mobile.Android.cs",
               "typeof(Haven.Android.ModelImportActivity)",
-              "typeof(Haven.Android.ModelBrowserActivity)")
+              "typeof(Haven.Android.ModelBrowserActivity)",
+              "model browser launch")
 
           replace_once(
               "src/Haven.Android/MainView.Mobile.Interactions.cs",
-              """if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
-                {
-                    await OpenDashboardAsync();
-                    return;
-                }""",
-              """if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(surface, "home", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(surface, "go", StringComparison.OrdinalIgnoreCase))
-              {
-                    await OpenHomeAsync();
-                    return;
-              }""")
+              'if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))\n'
+              '        {\n'
+              '            await OpenDashboardAsync();\n'
+              '            return;\n'
+              '        }',
+              'if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase)\n'
+              '            || string.Equals(surface, "home", StringComparison.OrdinalIgnoreCase)\n'
+              '            || string.Equals(surface, "go", StringComparison.OrdinalIgnoreCase))\n'
+              '        {\n'
+              '            await OpenHomeAsync();\n'
+              '            return;\n'
+              '        }',
+              "home routes to Go")
 
           interactions = Path("src/Haven.Android/MainView.Mobile.Interactions.cs")
           text = interactions.read_text()
-          pattern = re.compile(
-              r'    private void RefreshMobileTabs\(\)\n    {.*?\n    }\n    private void OpenMobileDrawer\(\)',
-              re.S)
-          replacement = '''    private void RefreshMobileTabs()
+          start = text.index("    private void RefreshMobileTabs()")
+          end = text.index("    private void OpenMobileDrawer()", start)
+          tabs = '''    private void RefreshMobileTabs()
+    {
+        if (_mobileTabs is null)
+            return;
+
+        _mobileTabs.Children.Clear();
+        foreach (var tab in OpenTabs)
+        {
+            var selected = tab;
+            var isSelected = ReferenceEquals(tab, SelectedTab);
+            var select = new Button
             {
-                if (_mobileTabs is null)
-                    return;
-
-                _mobileTabs.Children.Clear();
-                foreach (var tab in OpenTabs)
+                Content = new TextBlock
                 {
-                    var selected = tab;
-                    var isSelected = ReferenceEquals(tab, SelectedTab);
-                    var title = new TextBlock
-                    {
-                        Text = tab.Title,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
-                        FontSize = 12,
-                        MaxWidth = 170,
-                        TextTrimming = TextTrimming.CharacterEllipsis
-                    };
-                    var select = new Button
-                    {
-                        Content = title,
-                        MinHeight = 36,
-                        Padding = new Thickness(12, 5),
-                        Background = Brushes.Transparent,
-                        BorderBrush = isSelected
-                            ? ResourceBrush("HavenAccentBorderBrush")
-                            : Brushes.Transparent,
-                        BorderThickness = new Thickness(0, 0, 0, isSelected ? 2 : 0),
-                        CornerRadius = new CornerRadius(0)
-                    };
-                    select.Click += (_, _) => SelectedTab = selected;
+                    Text = tab.Title,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
+                    FontSize = 12,
+                    MaxWidth = 170,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                },
+                MinHeight = 36,
+                Padding = new Thickness(12, 5),
+                Background = Brushes.Transparent,
+                BorderBrush = isSelected
+                    ? ResourceBrush("HavenAccentBorderBrush")
+                    : Brushes.Transparent,
+                BorderThickness = new Thickness(0, 0, 0, isSelected ? 2 : 0),
+                CornerRadius = new CornerRadius(0)
+            };
+            select.Click += (_, _) => SelectedTab = selected;
 
-                    var tabRow = new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 0,
-                        Children = { select }
-                    };
-                    if (tab.IsCloseable)
-                    {
-                        var close = MobileIconButton("close", () => CloseTab(elected), "Close tab");
-                        close.MinHeight = 34;
-                        close.MinWidth = 30;
-                        close.Padding = new Thickness(6);
-                        close.Background = Brushes.Transparent;
-                        close.BorderThickness = new Thickness(0);
-                        close.CornerRadius = new CornerRadius(0);
-                        tabRow.Children.Add(close);
-                    }
-
-                    _mobileTabs.Children.Add(tabRow);
-                }
-
-                var add = MobileIconButton("plus", () =>
-                {
-                    if (AddNewTabCommand.CanExecute(null))
-                        AddNewTabCommand.Execute(null);
-                }, "New tab");
-                add.MinHeight = 36;
-                add.MinWidth = 36;
-                add.CornerRadius = new CornerRadius(0);
-                add.Background = Brushes.Transparent;
-                add.BorderThickness = new Thickness(0);
-                _mobileTabs.Children.Add(add);
+            var tabRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 0,
+                Children = { select }
+            };
+            if (tab.IsCloseable)
+            {
+                var close = MobileIconButton("close", () => CloseTab(selected), "Close tab");
+                close.MinHeight = 34;
+                close.MinWidth = 30;
+                close.Padding = new Thickness(6);
+                close.Background = Brushes.Transparent;
+                close.BorderThickness = new Thickness(0);
+                close.CornerRadius = new CornerRadius(0);
+                tabRow.Children.Add(close);
             }
-            private void OpenMobileDrawer()'''
-          text, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f"tab method replacement count was {count}")
-          interactions.write_text(text)
+
+            _mobileTabs.Children.Add(tabRow);
+        }
+
+        var add = MobileIconButton("plus", () =>
+        {
+            if (AddNewTabCommand.CanExecute(null))
+                AddNewTabCommand.Execute(null);
+        }, "New tab");
+        add.MinHeight = 36;
+        add.MinWidth = 36;
+        add.CornerRadius = new CornerRadius(0);
+        add.Background = Brushes.Transparent;
+        add.BorderThickness = new Thickness(0);
+        _mobileTabs.Children.Add(add);
+    }
+'''
+          interactions.write_text(text[:start] + tabs + text[end:])
 
           layout = Path("src/Haven.Android/MainView.Mobile.Layout.cs")
           text = layout.read_text()
-          home_pattern = re.compile(
-              r'        var home = MobileIconButton\("home".+home.BorderThickness = new Thickness\(1\);\n\n',
-              re.S)
-          text, count = home_pattern.subn('', text, count=1)
-          if count != 1:
-              raise SystemExit(f"home button removal count was {count}")
-
+          home_block = '''        var home = MobileIconButton("home", () => _ = OpenHomeAsync(), "Go");
+        home.Background = ResourceBrush("HavenAccentSoftBrush");
+        home.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
+        home.BorderThickness = new Thickness(1);
+'''
+          if text.count(home_block) != 1:
+              raise SystemExit("standalone home button block was not found exactly once")
+          text = text.replace(home_block, "", 1)
           text = text.replace(
-              'ColumnDefinitions = new ColumnDefinitions("Auto,*"),\n            ColumnSpacing = 6,\n            Margin = new Thickness(6, 0, 6, 8),',
-              'ColumnDefinitions = new ColumnDefinitions("*"),\n            Margin = new Thickness(8, 0, 8, 8),',
+              'ColumnDefinitions = new ColumnDefinitions("Auto,*"),\n'
+              '            ColumnSpacing = 6,\n'
+              '            Margin = new Thickness(6, 0, 6, 8),',
+              'ColumnDefinitions = new ColumnDefinitions("*"),\n'
+              '            Margin = new Thickness(8, 0, 8, 8),',
               1)
-          text = text.replace('        footer.Children.Add(home);\n\n', '', 1)
           text = text.replace(
-              '        Grid.SetColumn(chatBar, 1);\n        footer.Children.Add(chatBar);',
+              '        footer.Children.Add(home);\n'
+              '        Grid.SetColumn(chatBar, 1);\n'
+              '        footer.Children.Add(chatBar);',
               '        footer.Children.Add(chatBar);',
               1)
           text = text.replace(
@@ -162,21 +162,41 @@ jobs:
               1)
           text = text.replace(
               '        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);',
-              '        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);\n        ToolTip.SetTip(brand, "Switch model");',
+              '        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);\n'
+              '        ToolTip.SetTip(brand, "Switch model");',
               1)
           layout.write_text(text)
 
           launcher = Path("src/Haven.Android/HavenLauncherActivity.cs")
           text = launcher.read_text()
           text = text.replace(
-              '        _root.SetOnTouchListener(new SwipeTouchListener(',
-              "        _root.Focusable = true;\n        _root.Clickable = true;\n        _root.SetOnTouchListener(new SwipeTouchListener(",
+              '        BuildSurface();\n'
+              '        LoadAppsAsync();',
+              '        BuildSurface();\n'
+              '        _root?.Post(LoadAppsAsync);',
               1)
           text = text.replace(
-              '        BuildSurface();\n        LoadAppsAsync();',
-              '        BuildSurface();\n        _root?.Post(LoadApsAsync);',
+              '        _root.SetPadding(Dp(12), Dp(10), Dp(12), Dp(10));\n'
+              '        _root.SetOnTouchListener(',
+              '        _root.SetPadding(Dp(12), Dp(10), Dp(12), Dp(10));\n'
+              '        _root.Focusable = true;\n'
+              '        _root.Clickable = true;\n'
+              '        _root.SetOnTouchListener(',
               1)
           launcher.write_text(text)
+
+          checks = {
+              "model browser": "typeof(Haven.Android.ModelBrowserActivity)" in Path("src/Haven.Android/MainView.Mobile.Android.cs").read_text(),
+              "Go routing": 'string.Equals(surface, "go"' in Path("src/Haven.Android/MainView.Mobile.Interactions.cs").read_text(),
+              "desktop-style tabs": "IconForSurface(tab.Surface)" not in Path("src/Haven.Android/MainView.Mobile.Interactions.cs").read_text(),
+              "floating-island controls preserved": 'MobileButton("New chat"' in layout.read_text() and 'MobileButton("New group"' in layout.read_text(),
+              "standalone footer home removed": 'MobileIconButton("home"' not in layout.read_text(),
+              "launcher reload posted": "_root?.Post(LoadAppsAsync);" in launcher.read_text(),
+          }
+          failed = [name for name, passed in checks.items() if not passed]
+          if failed:
+              raise SystemExit("validation failed: " + ", ".join(failed))
+          print("Applied and validated source repairs:", ", ".join(checks))
           PY
 
       - name: Commit applied source repairs
