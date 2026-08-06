@@ -1,9 +1,0 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Haven.Desktop.Controls.GeneratedPagesFlyout">
-
-  <StackPanel Width="310" Spacing="5">
-    <TextBlock Text="GENERATED PAGES" FontWeight="SemiBold" FontSize="11" />
-    <StackPanel x:Name="PagesList" Spacing="2" />
-  </StackPanel>
-</UserControl>

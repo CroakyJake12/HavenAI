@@ -1,7 +1,0 @@
-<!--
-  FILE DOCUMENTATION
-  Where: Directory.Build.targets in the repository support layer.
-  What: Reserved for repository-wide post-project build targets.
-  Why: Package versions are managed by Directory.Packages.props during NuGet evaluation.
--->
-<Project />

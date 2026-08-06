@@ -1,3 +1,0 @@
-  File "D:\a\HavenAI\HavenAI\scripts\apply_continuation_backend_pass.py", line 114
-    private sealed class NoOpSpeechOutputWarmup : ISpeechOutputWarmup
-IndentationError: unexpected indent

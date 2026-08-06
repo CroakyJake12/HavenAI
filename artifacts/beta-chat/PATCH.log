@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 539, in <module>
-    main()
-  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 532, in main
-    patch_chat_session()
-  File "D:\a\HavenAI\HavenAI\scripts\apply_beta_chat_patch.py", line 242, in patch_chat_session
-    helper_start = text.index(
-                   ^^^^^^^^^^^
-ValueError: substring not found

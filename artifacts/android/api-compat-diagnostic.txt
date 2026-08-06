@@ -1,5 +1,0 @@
-payload_length=3984
-payload_sha256=9c121dc94efa45d375dc4c7813a226860428cb9cfa8a47a947c0bcb96f5ffa1c
-expected_payload_length=3984
-expected_payload_sha256=b2b1ffa6eaa07ddb8a22a0318d5f0280b250f31cf61af4d61e2ea59d559b196a
-payload verification failed

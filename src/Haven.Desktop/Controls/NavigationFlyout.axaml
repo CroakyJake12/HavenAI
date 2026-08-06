@@ -1,9 +1,0 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
-             x:Class="Haven.Desktop.Controls.NavigationFlyout">
-
-  <StackPanel x:Name="EntriesPanel"
-              Width="310"
-              Spacing="4" />
-</UserControl>
