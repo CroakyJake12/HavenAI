@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - gpt/diagnose-pr13-conflicts
+    paths-ignore:
+      - merge-conflicts.txt
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diagnose:
@@ -17,13 +19,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reproduce merge and capture exact conflicts
+      - name: Reproduce merge and publish exact conflict report
         shell: bash
         run: |
           set -uo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
+          repair_head=$(git rev-parse HEAD)
+          main_head=$(git rev-parse origin/main)
+
           set +e
           git merge --no-commit --no-ff origin/main
           merge_status=$?
@@ -31,8 +36,8 @@ jobs:
 
           {
             echo "PR #13 merge diagnostic"
-            echo "Repair HEAD: $(git rev-parse HEAD)"
-            echo "Main HEAD: $(git rev-parse origin/main)"
+            echo "Repair HEAD: $repair_head"
+            echo "Main HEAD: $main_head"
             echo "Merge exit code: $merge_status"
             echo
             echo "Conflicted files:"
@@ -44,14 +49,11 @@ jobs:
             echo "Conflict marker locations:
 
             git grep -nE '^(<<<<<<<|=======|>>>>>>>)$' -- . || true
-          } | tee merge-conflicts.txt
+          } > /tmp/merge-conflicts.txt
 
-          if [ "$merge_status" -eq 0 ]; then
-            echo "No conflicts found."
-          fi
-
-      - name: Upload merge conflict report
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr13-merge-conflicts
-          path: merge-conflicts.txt
+          cat /tmp/merge-conflicts.txt
+          git merge --abort || true
+          cp /tmp/merge-conflicts.txt merge-conflicts.txt
+          git add merge-conflicts.txt
+          git commit -m "Record exact PR 13 merge conflicts"
+          git push origin HAD:gpt/diagnose-pr13-conflicts
