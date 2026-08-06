@@ -5,14 +5,20 @@ text = model.read_text()
 text = text.replace(
     """            .Select(item => item.FileName)
             .Where(name => !string.IsNullOrWhiteSpace(name)
-                && name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)""",
+                       && name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
+                       && !name.Contains("mmproj", StringComparison.OrdinalIgnoreCase))""",
     """            .Select(item => item.FileName)
             .OfType<string>()
-            .Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)""",
+            .Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
+                       && !name.Contains("mmproj", StringComparison.OrdinalIgnoreCase))""",
 )
 text = text.replace(
     "Android.Resource.Layout.SimpleSpinnerItem",
     "global::Android.Resource.Layout.SimpleSpinnerItem",
+)
+text = text.replace(
+    "Android.Resource.Layout.SimpleSpinnerDropDownItem",
+    "global::Android.Resource.Layout.SimpleSpinnerDropDownItem",
 )
 model.write_text(text)
 
