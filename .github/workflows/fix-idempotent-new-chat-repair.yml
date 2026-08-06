@@ -1,0 +1,105 @@
+name: Fix idempotent new-chat mobile repair
+
+on:
+  push:
+    branches:
+      - gpt/haven-mobile-repair-android
+    paths:
+      - .github/workflows/fix-idempotent-new-chat-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make new-chat patch idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("scripts/apply_haven_mobile_repair.py")
+          text = path.read_text(encoding="utf-8")
+
+          pattern = re.compile(
+              r"def patch_new_chat_layout\(\) -> None:\n.*?\n\ndef patch_chat_layout\(\) -> None:",
+              re.DOTALL,
+          )
+
+          replacement = '''def patch_new_chat_layout() -> None:
+              path = ROOT / "src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml"
+              original = path.read_text(encoding="utf-8")
+              text = original
+
+              replacements = (
+                  ('Margin="54,28,54,28"', 'Margin="12,10,12,10"'),
+                  ('Margin="36,24,36,28"', 'Margin="12,10,12,10"'),
+                  ('RowSpacing="16"', 'RowSpacing="10"'),
+                  ('ColumnDefinitions="Auto,640,Auto"', 'ColumnDefinitions="Auto,*,Auto"'),
+                  ('Width="58" Height="58"', 'Width="50" Height="50"'),
+                  ('MinHeight="58" MaxHeight="150"', 'MinHeight="50" MaxHeight="132"'),
+                  ('Padding="22,0"', 'Padding="14,0"'),
+                  ('Width="64" Height="58"', 'Width="52" Height="50"'),
+              )
+
+              for old, new in replacements:
+                  if new in text:
+                      continue
+                  if old in text:
+                      text = text.replace(old, new, 1)
+
+              composer_pattern = re.compile(
+                  r'(<Grid\s+HorizontalAlignment="(?:Center|Stretch)"\s+)'
+                  r'(?:MaxWidth="780"\s+)?'
+                  r'ColumnDefinitions="Auto,\*,Auto"\s+ColumnSpacing="10">'
+              )
+              if composer_pattern.search(text) is None:
+                  raise RuntimeError("New chat responsive layout: responsive composer grid not found")
+              text = composer_pattern.sub(
+                  r'\1MaxWidth="780" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">',
+                  text,
+                  count=1,
+              )
+
+              instruction_pattern = re.compile(
+                  r'(<TextBox\s+x:Name="InstructionBox"\s+Grid\.Column="1"\s+)'
+                  r'(?:MinWidth="0"\s+)?'
+              )
+              if instruction_pattern.search(text) is None:
+                  raise RuntimeError(New chat responsive layout: InstructionBox start tag not found")
+              text = instruction_pattern.sub(r'\1MinWidth="0" ', text, count=1)
+
+              write_if_changed(path, text, original)
+
+
+          def patch_chat_layout() -> None:'''
+
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"Expected one patch_new_chat_layout block, found {count}")
+
+          path.write_text(updated, encoding="utf-8")
+          PY
+
+          python3 -m py_compile scripts/apply_haven_mobile_repair.py
+          python3 scripts/apply_haven_mobile_repair.py
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-idempotent-new-chat-repair.yml
+          git add scripts/apply_haven_mobile_repair.py \
+            src/Haven.Browser/Security/BrowserPrivateProfileManager.cs \
+            src/Haven.Desktop/Interface/Shell/MainView.axaml.cs \
+            src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml \
+            src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs
+          git commit -m "MAKe mobile repair compatible with merged chat layout"
+          git push origin HEAD:gpt/haven-mobile-repair-android
