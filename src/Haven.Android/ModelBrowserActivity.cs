@@ -355,7 +355,7 @@ public sealed class ModelBrowserActivity : Activity
         var spinner = new Spinner(this);
         spinner.Adapter = new ArrayAdapter<string>(
             this,
-            Android.Resource.Layout.SimpleSpinnerDropDownItem,
+            Android.Resource.Layout.SimpleSpinnerItem,
             values);
         return spinner;
     }

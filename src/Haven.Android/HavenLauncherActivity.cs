@@ -204,7 +204,7 @@ public sealed partial class HavenLauncherActivity : Activity
         row.Background = MagicalBackground(Dp(28));
 
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuView,
+            SystemDrawable("ic_menu_view"),
             "All apps",
             ShowAppDrawer));
         row.AddView(IconButton(

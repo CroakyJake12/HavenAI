@@ -8,6 +8,7 @@
  */
 
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 using Haven.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,7 +21,7 @@ public sealed partial class BrowserSafetyView : UserControl
 {
     public BrowserSafetyView()
     {
-        InitializeComponent();
+        AvaloniaXamlLoader.Load(this);
         CreateViewModel();
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
