@@ -104,17 +104,20 @@ if "_mobilePageContent.Margin = isHome" not in interaction_text:
 
 interactions.write_text(interaction_text)
 
-invalid = (
-    "TopRail.IsVisible",
-    "SidebarControl.IsVisible",
-    "NativeSidebarHost.IsVisible",
-    "ShellContextBar.IsVisible",
+invalid_prefixes = (
+    "TopRail.",
+    "SidebarControl.",
+    "NativeSidebarHost.",
+    "ShellContextBar.",
     "ContentArea.",
     "PageContent.",
 )
 for path in (layout, interactions):
-    text = path.read_text()
-    remaining = [token for token in invalid if token in text]
+    remaining = [
+        line.strip()
+        for line in path.read_text().splitlines()
+        if line.strip().startswith(invalid_prefixes)
+    ]
     if remaining:
         raise SystemExit(f"{path}: remaining desktop-only references: {remaining}")
 
