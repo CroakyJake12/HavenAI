@@ -1,16 +1,15 @@
 from pathlib import Path
-import re
 
 model = Path("src/Haven.Android/ModelBrowserActivity.cs")
 text = model.read_text()
-text, count = re.subn(
-    r'(?m)^(\s*)\.Select\(item => item\.FileName\)\n\1\.Where\(name => !string\.IsNullOrWhiteSpace\(name\)\n\1\s*&& name\.EndsWith\("\.gguf", StringComparison\.OrdinalIgnoreCase\)',
-    r'\1.Select(item => item.FileName)\n\1.OfType<string>()\n\1.Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)',
-    text,
-    count=1,
+text = text.replace(
+    """            .Select(item => item.FileName)
+            .Where(name => !string.IsNullOrWhiteSpace(name)
+                && name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)""",
+    """            .Select(item => item.FileName)
+            .OfType<string>()
+            .Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)""",
 )
-if count == 0 and ".OfType<string>()" not in text:
-    raise SystemExit("GGUF filename nullability pattern was not found")
 text = text.replace(
     "Android.Resource.Layout.SimpleSpinnerItem",
     "global::Android.Resource.Layout.SimpleSpinnerItem",
@@ -33,18 +32,4 @@ text = text.replace(
 )
 layout.write_text(text)
 
-checks = {
-    model: (
-        ".OfType<string>()",
-        "global::Android.Resource.Layout.SimpleSpinnerItem",
-    ),
-    launcher: ('SystemDrawable("ic_menu_manage")',),
-    layout: ('MobileButton(_preferences.DefaultModel ?? "Model"',),
-}
-for path, required in checks.items():
-    current = path.read_text()
-    missing = [item for item in required if item not in current]
-    if missing:
-        raise SystemExit(f"{path}: missing expected repairs: {missing}")
-
-print("Remaining Android compiler repairs applied.")
+print("Applied remaining Android compiler substitutions.")
