@@ -130,7 +130,7 @@
             <StackPanel Spacing="5">
               <TextBlock Text="Project name" Classes="eyebrow" />
               <TextBox x:Name="ProjectNameBox"
-                       Watermark="MyProject" />
+                       PlaceholderText="MyProject" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="5">
               <TextBlock Text="Destination" Classes="eyebrow" />
@@ -156,7 +156,7 @@
                      AcceptsReturn="True"
                      MinHeight="76"
                      TextWrapping="Wrap"
-                     Watermark="Describe the package and its intended use." />
+                     PlaceholderText="Describe the package and its intended use." />
           </StackPanel>
 
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">

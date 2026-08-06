@@ -1462,7 +1462,12 @@ public sealed class ModeLibraryPageViewModel : ObservableObject
         var usageData = await _usage.GetRecentUsageAsync(30, CancellationToken.None);
         var usageByMode = usageData.GroupBy(u => u.ModeId).ToDictionary(g => g.Key, g => g.Sum(u => u.TurnCount));
 
-        _allItems = modes.Select(m => new ModeCardViewModel(
+        _allItems = modes
+            .Where(m => !m.Key.Equals("do", StringComparison.OrdinalIgnoreCase)
+                        && !m.Name.Equals("Do", StringComparison.OrdinalIgnoreCase)
+                        && !m.Key.Equals("teach", StringComparison.OrdinalIgnoreCase)
+                        && !m.Name.Equals("Teach", StringComparison.OrdinalIgnoreCase))
+            .Select(m => new ModeCardViewModel(
             m.Id, m.Key, m.Name, m.Description, m.IconKey, m.BaseMode,
             m.Source, m.InstallState, m.Author, m.Version,
             usageByMode.TryGetValue(m.Id, out var count) ? count : 0,

@@ -24,7 +24,7 @@
         <StackPanel>
           <TextBlock Text="PROJECT / SUBJECT RETRIEVAL" Classes="eyebrow" />
           <TextBlock Text="{Binding ContextLabel}" FontWeight="SemiBold" />
-          <TextBlock Text="Indexes only the selected Studio root or Teach subject. Other projects and subjects are excluded." Classes="muted" FontSize="9" />
+          <TextBlock Text="Indexes only the selected Studio root or Study subject. Other projects and subjects are excluded." Classes="muted" FontSize="9" />
         </StackPanel>
         <Button Grid.Column="1" Content="{Binding IndexLabel}" Command="{Binding IndexCommand}" />
       </Grid>
@@ -43,7 +43,7 @@
             <Border Background="{DynamicResource HavenPanel3Brush}" CornerRadius="9" Padding="9" Margin="0,3,0,0">
               <StackPanel Spacing="3">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                  <TextBlock Text="{Binding Number}" Foreground="{DynamicResource HavenBlueBrush}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Number}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontWeight="SemiBold" />
                   <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                   <TextBlock Grid.Column="2" Text="{Binding Score}" Classes="muted2" FontSize="9" />
                 </Grid>

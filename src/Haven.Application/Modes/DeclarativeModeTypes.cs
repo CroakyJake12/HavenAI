@@ -79,14 +79,20 @@ public sealed class DeclarativeModeDefinition
 /// </summary>
 public sealed class DeclarativeSurfaces
 {
+    private bool _tasks;
+
     /// <summary>
     /// Gets or updates chat, the bindable or domain state represented by this property.
     /// </summary>
     public bool Chat { get; init; } = true;
     /// <summary>
-    /// Gets or updates do, the bindable or domain state represented by this property.
+    /// Gets or updates Tasks support for the custom mode.
     /// </summary>
-    public bool Do { get; init; }
+    public bool Tasks { get => _tasks; init => _tasks = value; }
+    /// <summary>
+    /// Compatibility manifest property for packages created before Tasks replaced Do.
+    /// </summary>
+    public bool Do { get => _tasks; init => _tasks = value; }
     /// <summary>
     /// Gets or updates studio, the bindable or domain state represented by this property.
     /// </summary>

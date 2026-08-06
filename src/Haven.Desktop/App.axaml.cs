@@ -104,6 +104,7 @@ public sealed partial class App : Avalonia.Application
         {
             // The launcher is temporary. Only the chosen Haven window should end the application.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            desktop.Exit += OnDesktopExit;
 
             // Show launcher picker
             var preferences = _services.GetRequiredService<UserPreferencesService>();
@@ -156,10 +157,18 @@ public sealed partial class App : Avalonia.Application
                 }
 
                 desktop.MainWindow = window;
-                desktop.Exit += OnDesktopExit;
                 window.Closed += (_, _) => desktop.Shutdown();
                 window.Show();
                 launcherWindow.Close();
+            };
+
+            // Closing the launcher without choosing an experience is still an
+            // application exit. Once a main window has been selected the reference
+            // changes first, so closing the temporary launcher cannot stop it.
+            launcherWindow.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(desktop.MainWindow, launcherWindow))
+                    desktop.Shutdown();
             };
 
             desktop.MainWindow = launcherWindow;

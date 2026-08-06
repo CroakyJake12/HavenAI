@@ -338,7 +338,7 @@ public sealed class GenerativeUiThemeRuntime(
         SetBrush(application, "HavenAccentBrush", palette.Accent);
         SetBrush(application, "HavenAccentInkBrush", ChooseReadableInk(palette.Accent, palette.AccentInk));
         SetBrush(application, "HavenAccentSoftBrush", palette.AccentSoft);
-        SetBrush(application, "HavenBlueBrush", palette.Blue);
+        SetBrush(application, "HavenAccentSecondaryBrush", palette.Blue);
         SetBrush(application, "HavenBlueSoftBrush", palette.BlueSoft);
         SetBrush(application, "HavenDangerBrush", palette.Danger);
         SetBrush(application, "HavenWarningBrush", palette.Warning);

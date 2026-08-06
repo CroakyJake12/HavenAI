@@ -548,7 +548,7 @@ public sealed class CallCoordinator : ICallCoordinator
             // voice session. Keep the microphone and call open so the user can retry,
             // change the model, or continue typing instead of silently ending the call.
             if (IsActive && State != CallState.Paused)
-                SetState(CallState.Listening, $"Message failed: {fatalError.Message} Â· call remains active");
+                SetState(CallState.Listening, $"Message failed: {fatalError.Message} · call remains active");
 
             throw new InvalidOperationException(fatalError.Message, fatalError);
         }

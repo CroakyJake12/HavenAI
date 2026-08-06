@@ -77,7 +77,7 @@ public sealed class TrainingRunner(
     {
         var conversation = new Conversation(
             Guid.NewGuid(),
-            HavenMode.Do,
+            HavenMode.Tasks,
             ConversationKind.Training,
             $"Training #{attemptNumber}: {taskPrompt}",
             null, null, false, true,

@@ -87,7 +87,8 @@ public sealed partial class ChatPage
         _finalSearchBox = new TextBox
         {
             PlaceholderText = "Search chats",
-            MinHeight = 38
+            MinHeight = 38,
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         _finalSearchBox.TextChanged += (_, _) => RefreshFinalSidebar();
 
@@ -144,25 +145,6 @@ public sealed partial class ChatPage
         _finalModelLabel = FinalSmallLabel("Local model");
         _finalReasoningLabel = FinalSmallLabel("25%");
 
-        var modelButton = new Button
-        {
-            Content = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6,
-                Children =
-                {
-                    _finalModelLabel,
-                    new TextBlock { Text = "·", Opacity = 0.55 },
-                    _finalReasoningLabel,
-                    new TextBlock { Text = "⌄", Opacity = 0.62 }
-                }
-            },
-            Padding = new Thickness(12, 6)
-        };
-        modelButton.Classes.Add("chip");
-        modelButton.Click += (_, _) => ShowFinalModelMenu(modelButton);
-
         var title = new TextBlock
         {
             Text = "Chat",
@@ -171,23 +153,12 @@ public sealed partial class ChatPage
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        var headerActions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Children = { modelButton }
-        };
-
         var header = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 12,
+            ColumnDefinitions = new ColumnDefinitions("*"),
             Margin = new Thickness(24, 18, 24, 10)
         };
         header.Children.Add(title);
-        Grid.SetColumn(headerActions, 1);
-        header.Children.Add(headerActions);
 
         _finalMessages = new StackPanel
         {
@@ -229,6 +200,7 @@ public sealed partial class ChatPage
             PlaceholderText = "Ask Haven anything",
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
+            FontWeight = FontWeight.Bold,
             MinHeight = 58,
             MaxHeight = 180,
             VerticalContentAlignment = VerticalAlignment.Center

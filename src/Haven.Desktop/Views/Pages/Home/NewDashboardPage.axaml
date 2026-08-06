@@ -1,8 +1,37 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Home.NewDashboardPage">
-  <Grid Background="Transparent">
-    <ScrollViewer Margin="24,76,24,28"
+  <Grid Background="Transparent" RowDefinitions="Auto,*">
+    <Border Margin="24,74,24,0"
+            Padding="7,6"
+            Background="{DynamicResource HavenPanelBrush}"
+            BorderBrush="{DynamicResource HavenLineBrush}"
+            BorderThickness="1"
+            CornerRadius="20">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="PageTabsPanel" Orientation="Horizontal" Spacing="5"/>
+        </ScrollViewer>
+        <Button x:Name="ConfigurePageButton"
+                Grid.Column="1"
+                Classes="icon compact"
+                Width="40" Height="40"
+                ToolTip.Tip="Edit dashboard page">
+          <controls:HavenIcon IconKey="edit" Width="17" Height="17"/>
+        </Button>
+        <Button x:Name="AddPageButton"
+                Grid.Column="2"
+                Classes="icon compact"
+                Width="40" Height="40"
+                ToolTip.Tip="Create dashboard page">
+          <controls:HavenIcon IconKey="plus" Width="17" Height="17"/>
+        </Button>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="1" Margin="24,18,24,28"
                   HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="26">
@@ -25,6 +54,7 @@
     </ScrollViewer>
 
     <Button x:Name="EditWithHavenButton"
+            Grid.RowSpan="2"
             Classes="chip"
             Content="Edit With Haven"
             HorizontalAlignment="Right"

@@ -985,24 +985,28 @@ public partial class NotesPage : UserControl, IDisposable, INotifyPropertyChange
         Status = $"Card scheduled for {card.Schedule.DueAt.LocalDateTime:g}.";
     }
 
-    private async Task UndoAsync()
+    private Task UndoAsync()
     {
-        if (Document is null || _undo.Count == 0) return;
-        _redo.Push(await SnapshotAsync(Document));
-        SetDocument(await DeserializeAsync(_undo.Pop()), resetHistory: false);
+        if (Document is null || _undo.Count == 0) return Task.CompletedTask;
+        // A Notes undo is an in-memory state transition. Complete it before the
+        // command returns so keyboard/menu callers observe one atomic edit.
+        _redo.Push(Snapshot(Document));
+        SetDocument(Deserialize(_undo.Pop()), resetHistory: false);
         IsDirty = true;
         Status = "Undid the last Notes edit.";
         RaiseCommandStates();
+        return Task.CompletedTask;
     }
 
-    private async Task RedoAsync()
+    private Task RedoAsync()
     {
-        if (Document is null || _redo.Count == 0) return;
-        _undo.Push(await SnapshotAsync(Document));
-        SetDocument(await DeserializeAsync(_redo.Pop()), resetHistory: false);
+        if (Document is null || _redo.Count == 0) return Task.CompletedTask;
+        _undo.Push(Snapshot(Document));
+        SetDocument(Deserialize(_redo.Pop()), resetHistory: false);
         IsDirty = true;
         Status = "Redid the Notes edit.";
         RaiseCommandStates();
+        return Task.CompletedTask;
     }
 
     private void SetDocument(NotesDocument document, bool resetHistory = true)
@@ -1038,8 +1042,10 @@ public partial class NotesPage : UserControl, IDisposable, INotifyPropertyChange
     }
 
     private async Task<string> SnapshotRequiredAsync() => Document is null ? throw new InvalidOperationException("No Notes document is open.") : await SnapshotAsync(Document);
-    private static async Task<string> SnapshotAsync(NotesDocument document) => await ParallelHelper.RunOnBackground(() => JsonSerializer.Serialize(document, SnapshotOptions));
-    private static async Task<NotesDocument> DeserializeAsync(string snapshot) => await ParallelHelper.RunOnBackground(() => JsonSerializer.Deserialize<NotesDocument>(snapshot, SnapshotOptions) ?? throw new InvalidDataException("The Notes edit snapshot was invalid."));
+    private static string Snapshot(NotesDocument document) => JsonSerializer.Serialize(document, SnapshotOptions);
+    private static NotesDocument Deserialize(string snapshot) => JsonSerializer.Deserialize<NotesDocument>(snapshot, SnapshotOptions) ?? throw new InvalidDataException("The Notes edit snapshot was invalid.");
+    private static async Task<string> SnapshotAsync(NotesDocument document) => await ParallelHelper.RunOnBackground(() => Snapshot(document));
+    private static async Task<NotesDocument> DeserializeAsync(string snapshot) => await ParallelHelper.RunOnBackground(() => Deserialize(snapshot));
 
     private void MarkDirty()
     {

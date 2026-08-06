@@ -41,7 +41,7 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
             counters.MessagesThisWeek,
             counters.ActiveProjects,
             counters.ChatGroups,
-            counters.TeachingSubjects,
+            counters.StudySubjects,
             counters.TasksDueToday,
             counters.OverdueTasks,
             counters.TasksCompletedThisWeek,
@@ -137,17 +137,17 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT id,'chat',title,
-                   CASE mode WHEN 1 THEN 'Teaching' WHEN 2 THEN 'Do' WHEN 3 THEN 'Studio' ELSE 'Chat' END,
+                   CASE mode WHEN 1 THEN 'Study' WHEN 2 THEN 'Tasks' WHEN 3 THEN 'Studio' ELSE 'Chat' END,
                    updated_at,'chat','chat'
               FROM conversations WHERE is_archived=0
             UNION ALL
             SELECT id,
                    CASE mode WHEN 0 THEN 'group' WHEN 1 THEN 'subject' ELSE 'project' END,
                    name,
-                   CASE mode WHEN 0 THEN 'Chat Group' WHEN 1 THEN 'Teaching subject' ELSE 'Studio project' END,
+                   CASE mode WHEN 0 THEN 'Chat Group' WHEN 1 THEN 'Study subject' ELSE 'Studio project' END,
                    updated_at,
-                   CASE mode WHEN 0 THEN 'folder' WHEN 1 THEN 'teach' ELSE 'studio' END,
-                   CASE mode WHEN 0 THEN 'chat' WHEN 1 THEN 'teach' ELSE 'studio' END
+                   CASE mode WHEN 0 THEN 'folder' WHEN 1 THEN 'study' ELSE 'studio' END,
+                   CASE mode WHEN 0 THEN 'chat' WHEN 1 THEN 'study' ELSE 'studio' END
               FROM containers WHERE is_archived=0 AND mode IN (0,1,3)
             UNION ALL
             SELECT id,'call','Call',COALESCE(NULLIF(model_name,''),'Local call'),started_at,'call','call'
@@ -186,7 +186,7 @@ public sealed class DashboardRepository(ISqliteConnectionFactory factory) : IDas
         int MessagesThisWeek,
         int ActiveProjects,
         int ChatGroups,
-        int TeachingSubjects,
+        int StudySubjects,
         int TasksDueToday,
         int OverdueTasks,
         int TasksCompletedThisWeek,

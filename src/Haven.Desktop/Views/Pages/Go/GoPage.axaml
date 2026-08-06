@@ -5,17 +5,6 @@
              x:Class="Haven.Desktop.Views.Pages.Go.GoPage">
 
   <Grid ClipToBounds="True">
-    <Border CornerRadius="22">
-      <Border.Background>
-        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
-          <GradientStop Color="#FFFFFFFF" Offset="0" />
-          <GradientStop Color="#FFF8FFF9" Offset="0.40" />
-          <GradientStop Color="#FFCBFFD3" Offset="0.82" />
-          <GradientStop Color="#FFBEFAF8" Offset="1" />
-        </LinearGradientBrush>
-      </Border.Background>
-    </Border>
-
     <Grid Margin="44,30,44,28"
           RowDefinitions="*,Auto,Auto"
           RowSpacing="20">
@@ -23,7 +12,7 @@
       <Border HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Margin="0,0,0,70"
-              Background="#32FFFFFF"
+              Background="Transparent"
               CornerRadius="26"
               Padding="72,20">
         <TextBlock Text="How can I help?"
@@ -40,10 +29,10 @@
             <TextBlock x:Name="SuggestionText0" Text="Show my Recent Chats" Foreground="#FF913C00" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
           </StackPanel>
         </Button>
-        <Button x:Name="TeachingButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
+        <Button x:Name="StudyButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
           <StackPanel Orientation="Horizontal" Spacing="10">
-            <controls:HavenIcon x:Name="SuggestionIcon1" IconKey="teach" Width="19" Height="19" Foreground="#FF07539B" />
-            <TextBlock x:Name="SuggestionText1" Text="Continue teaching me Algebra" Foreground="#FF07539B" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
+            <controls:HavenIcon x:Name="SuggestionIcon1" IconKey="study" Width="19" Height="19" Foreground="#FF07539B" />
+            <TextBlock x:Name="SuggestionText1" Text="Continue studying Algebra" Foreground="#FF07539B" FontSize="14" FontWeight="ExtraBold" FontStyle="Italic" />
           </StackPanel>
         </Button>
         <Button x:Name="StudioButton" Classes="secondary" Margin="4" Padding="18,12" CornerRadius="18">
@@ -79,10 +68,10 @@
                  BorderThickness="1"
                  Foreground="#FF222222"
                  PlaceholderText="Ask Haven Anything"
-                 HorizontalContentAlignment="Center"
+                 HorizontalContentAlignment="Left"
                  VerticalContentAlignment="Center"
                  FontSize="16"
-                 FontWeight="SemiBold"
+                 FontWeight="Bold"
                  Padding="22,0" />
         <Button x:Name="SendButton"
                 Grid.Column="2"

@@ -47,7 +47,7 @@ public sealed partial class ArchivePage : UserControl
 
         try
         {
-            if (_mode == HavenMode.Teach)
+            if (_mode == HavenMode.Study)
             {
                 var subjects = await _containers.GetArchivedByModeAsync(_mode, 100, CancellationToken.None);
                 foreach (var subject in subjects)

@@ -1,6 +1,6 @@
 /*
  * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/Controls/MarkdownView.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * Where: src/Haven.OldHaven/Controls/MarkdownView.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
  * What: This file owns MarkdownView, LatexFormatter. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
@@ -402,7 +402,7 @@ public sealed partial class MarkdownView : UserControl
                         Content = new TextBlock
                         {
                             Text = label,
-                            Foreground = Brush("HavenBlueBrush", "#5AA6FF"),
+                            Foreground = Brush("HavenAccentSecondaryBrush", "#5AA6FF"),
                             TextDecorations = TextDecorations.Underline
                         },
                         Padding = new Thickness(0),

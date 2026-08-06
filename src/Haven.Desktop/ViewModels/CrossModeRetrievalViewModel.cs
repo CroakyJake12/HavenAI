@@ -42,7 +42,7 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
     /// <summary>
     /// Stores context label locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private string _contextLabel = "Open a Studio project or Teach subject to use cross-mode retrieval.";
+    private string _contextLabel = "Open a Studio project or Study subject to use cross-mode retrieval.";
     /// <summary>
     /// Stores query locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -144,14 +144,14 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
         _scope = chat?.Mode switch
         {
             HavenMode.Studio when chat.SelectedContainer is not null => new RetrievalScope(RetrievalScopeKind.Project, chat.SelectedContainer.Id),
-            HavenMode.Teach when chat.SelectedContainer is not null => new RetrievalScope(RetrievalScopeKind.Subject, chat.SelectedContainer.Id),
+            HavenMode.Study when chat.SelectedContainer is not null => new RetrievalScope(RetrievalScopeKind.Subject, chat.SelectedContainer.Id),
             _ => null
         };
         ContextLabel = _scope?.Kind switch
         {
             RetrievalScopeKind.Project => $"Studio project: {chat!.SelectedContainer!.Name}",
-            RetrievalScopeKind.Subject => $"Teach subject: {chat!.SelectedContainer!.Name}",
-            _ => "Open a Studio project or Teach subject to use cross-mode retrieval."
+            RetrievalScopeKind.Subject => $"Study subject: {chat!.SelectedContainer!.Name}",
+            _ => "Open a Studio project or Study subject to use cross-mode retrieval."
         };
         Status = ScopeAvailable ? "Index the active scope, then search it with citations." : "No project or subject scope is active.";
         ClearResults();
@@ -229,7 +229,7 @@ public sealed class CrossModeRetrievalViewModel : ObservableObject
     {
         var context = string.Join("\n\n", Results.Select(result =>
             $"{result.Number} {result.Title} ({result.Source}, {result.Location})\n{result.Excerpt}"));
-        return "\n\nUse this cited context from the active " + (_scope?.Kind == RetrievalScopeKind.Project ? "Studio project" : "Teach subject") +
+        return "\n\nUse this cited context from the active " + (_scope?.Kind == RetrievalScopeKind.Project ? "Studio project" : "Study subject") +
                ". Cite [source N] and do not infer beyond the cited text.\n\n" + context;
     }
 

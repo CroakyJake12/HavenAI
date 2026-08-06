@@ -26,10 +26,9 @@ public static class PluginCatalog
         // Agent selection is a normal chat capability. It must remain available
         // even when the user hides genuinely agentic execution plugins.
         BuiltIn("Agent", "Select Default, Auto or a custom agent.", "agent", "Use the selected agent instructions and make automatic switches visible.", persists: true, agentic: false),
-        BuiltIn("DuoMode", "Work in Ping Pong, Collaborate, or Supervise mode.", "duo", "Use the selected Duo mode and keep handovers, shared work, and supervision visible.", persists: true, agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),
-        BuiltIn("Automate", "Create or update a Scheduled Action from chat.", "automation", "Turn the request into a reviewable scheduled action. Confirm timing and scope before enabling it.", agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),
-        BuiltIn("Test", "Run targeted tests and report real results before finishing.", "test", "Derive targeted tests from the request, run them with workspace tools, and report exact evidence. Never claim unrun tests passed.", "[\"Tools\"]", agentic: true, allowedModes: "[\"Do\",\"Studio\"]"),
-        BuiltIn("Macro", "Create or invoke a click-to-run Haven macro.", "macro", "Create or invoke a user-triggered macro. Macros never listen for global keypresses and must show their planned action before first run.", agentic: true, allowedModes: "[\"Do\",\"Studio\"]")
+        BuiltIn("DuoMode", "Work in Ping Pong, Collaborate, or Supervise mode.", "duo", "Use the selected Duo mode and keep handovers, shared work, and supervision visible.", persists: true, agentic: true, allowedModes: "[\"Tasks\",\"Studio\"]"),
+        BuiltIn("Automate", "Create or update a Scheduled Action from chat.", "automation", "Turn the request into a reviewable scheduled action. Confirm timing and scope before enabling it.", agentic: true, allowedModes: "[\"Tasks\",\"Studio\"]"),
+        BuiltIn("Test", "Run targeted tests and report real results before finishing.", "test", "Derive targeted tests from the request, run them with workspace tools, and report exact evidence. Never claim unrun tests passed.", "[\"Tools\"]", agentic: true, allowedModes: "[\"Tasks\",\"Studio\"]")
     ];
 
     /// <summary>
@@ -63,7 +62,7 @@ public static class PromptCatalog
         BuiltIn("Rigid", "Stay strictly within the requested scope.", "rigid", "Follow the user's stated scope as closely as possible. Do not add unrequested product features or broaden the task; ask before any material expansion."),
         BuiltIn("StressTest", "Find edge cases, contradictions, and abuse paths.", "stress-test", "Adversarially test assumptions, edge cases, contradictions, failure modes, security and abuse paths. Rank risks and propose proportionate mitigations."),
         BuiltIn("Context", "Register durable context for this conversation.", "context", "Register the user's supplied context in Haven's context store. Do not produce a handoff. Confirm what was registered and flag contradictions."),
-        BuiltIn("Handoff", "Create a portable, evidence-backed handoff.", "handoff", "Produce a structured handoff with objective, current state, decisions, constraints, changed files, verification, unresolved risks, and exact next steps. In Do or Studio attach evidence and timestamps to claims about completed work.", agentic: true)
+        BuiltIn("Handoff", "Create a portable, evidence-backed handoff.", "handoff", "Produce a structured handoff with objective, current state, decisions, constraints, changed files, verification, unresolved risks, and exact next steps. In Tasks or Studio attach evidence and timestamps to claims about completed work.", agentic: true)
     ];
 
     /// <summary>

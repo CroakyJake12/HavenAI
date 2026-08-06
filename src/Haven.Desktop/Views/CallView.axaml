@@ -1,24 +1,9 @@
-<!--
-  FILE DOCUMENTATION
-  Where: src/Haven.Desktop/Views/CallView.axaml in the Avalonia Desktop visual layer.
-  What: This markup constructs Haven.Desktop.Views.CallView. Its visual vocabulary includes: Border, Grid, StackPanel, HavenIcon, TextBlock, Ellipse, ScrollViewer, ComboBox, ComboBox.ItemTemplate, DataTemplate, ProgressBar, Button, CheckBox, Image, ItemsControl, ItemsControl.ItemTemplate, TextBox, ItemsControl.ItemsPanel, ItemsPanelTemplate.
-  Data flow: Binding expressions read or update these view-model paths: StateLabel, AvailableModels, SelectedModel, IsNotActive, Name, InputModes, InputMode, InputDevices, SelectedInputDevice, SpeechInputStatus, AvailableSpeechModels, SelectedSpeechModel, DisplayName, SpeechModelStatus, ShowSpeechModelSetup, IsDownloadingSpeechModel, SpeechModelDownloadProgress, DownloadSpeechModelCommand, Voices, SelectedVoice, EnableSpeechOutput, SpeechOutputStatus, StartCallCommand, ScreenShareStatus, IsSharing, HasScreenPreview, ScreenPreview, Status, InterruptCommand, HasTranscript, Transcript, Speaker, TimeLabel, Text, IsPartial, WasInterrupted, TypedTranscript, IsActive, SendTranscriptCommand, WaveformBars, Height, MuteLabel, ToggleMuteCommand, PushToTalkLabel, PauseLabel, PauseResumeCommand, ShareLabel, ToggleScreenShareCommand, EndCallCommand.
-  Interaction: Direct event handlers in this file are: OnPushToTalkPressed, OnPushToTalkReleased.
-  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
-  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
-  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
--->
-
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Haven.Desktop.ViewModels"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.CallView"
-             x:DataType="vm:CallPageViewModel"
              Loaded="OnLoaded">
-  <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
   <Border Padding="24">
-    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">
@@ -35,7 +20,7 @@
                 CornerRadius="999" Padding="12,6" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="7">
             <Ellipse Width="8" Height="8" Fill="{DynamicResource HavenAccentBrush}"/>
-            <TextBlock Text="{Binding StateLabel}" FontWeight="SemiBold" FontSize="12"/>
+            <TextBlock x:Name="StateLabel" FontWeight="SemiBold" FontSize="12"/>
           </StackPanel>
         </Border>
       </Grid>
@@ -51,69 +36,44 @@
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Ollama model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel}"
-                            IsEnabled="{Binding IsNotActive}" HorizontalAlignment="Stretch">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate>
-                        <TextBlock Text="{Binding Name}"/>
-                      </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
+                  <ComboBox x:Name="ModelSelector" HorizontalAlignment="Stretch"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Conversation mode" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox ItemsSource="{Binding InputModes}" SelectedItem="{Binding InputMode}"
-                            IsEnabled="{Binding IsNotActive}"/>
+                  <ComboBox x:Name="InputModeSelector"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Microphone" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
-                            IsEnabled="{Binding IsNotActive}">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                  <TextBlock Text="{Binding SpeechInputStatus}" TextWrapping="Wrap" FontSize="11"
+                  <ComboBox x:Name="InputDeviceSelector"/>
+                  <TextBlock x:Name="SpeechInputStatus" TextWrapping="Wrap" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Speech model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox ItemsSource="{Binding AvailableSpeechModels}" SelectedItem="{Binding SelectedSpeechModel}"
-                            IsEnabled="{Binding IsNotActive}">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                  <TextBlock Text="{Binding SpeechModelStatus}" FontSize="11"
+                  <ComboBox x:Name="SpeechModelSelector"/>
+                  <TextBlock x:Name="SpeechModelStatus" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <StackPanel IsVisible="{Binding ShowSpeechModelSetup}" Spacing="7">
-                    <ProgressBar IsVisible="{Binding IsDownloadingSpeechModel}"
-                                 Value="{Binding SpeechModelDownloadProgress}" Maximum="100"/>
-                    <Button Content="Download model" Command="{Binding DownloadSpeechModelCommand}"
+                  <StackPanel x:Name="SpeechModelSetupPanel" Spacing="7" IsVisible="False">
+                    <ProgressBar x:Name="SpeechModelProgress" IsVisible="False" Maximum="100"/>
+                    <Button x:Name="DownloadSpeechModelButton" Content="Download model"
                             Classes="secondary" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Voice" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox ItemsSource="{Binding Voices}" SelectedItem="{Binding SelectedVoice}"
-                            IsEnabled="{Binding IsNotActive}">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                  <TextBlock Text="{Binding SelectedVoiceDescription}" TextWrapping="Wrap" FontSize="10"
+                  <ComboBox x:Name="VoiceSelector"/>
+                  <TextBlock x:Name="SelectedVoiceDescription" TextWrapping="Wrap" FontSize="10"
                              Foreground="{DynamicResource HavenMutedBrush}" />
-                  <CheckBox Content="Speak Haven responses" IsChecked="{Binding EnableSpeechOutput}"
-                            IsEnabled="{Binding IsNotActive}"/>
-                  <TextBlock Text="{Binding SpeechOutputStatus}" TextWrapping="Wrap" FontSize="11"
+                  <CheckBox x:Name="EnableSpeechOutputCheckBox" Content="Speak Haven responses"/>
+                  <TextBlock x:Name="SpeechOutputStatus" TextWrapping="Wrap" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
 
-                <Button Content="Start local call" Command="{Binding StartCallCommand}"
+                <Button x:Name="StartCallButton" Content="Start local call"
                         Classes="primary" HorizontalAlignment="Stretch"/>
               </StackPanel>
             </Border>
@@ -125,17 +85,17 @@
                 <TextBlock Text="Privacy" FontWeight="SemiBold"/>
                 <TextBlock Text="Audio and screen frames stay in memory only. Haven stores the text transcript and call metadata, never raw media."
                            TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                <TextBlock Text="{Binding ScreenShareStatus}" TextWrapping="Wrap" FontSize="11"
+                <TextBlock x:Name="ScreenShareStatus" TextWrapping="Wrap" FontSize="11"
                            Foreground="{DynamicResource HavenMutedBrush}"/>
-                <StackPanel IsVisible="{Binding IsSharing}" Spacing="8" Margin="0,6,0,0">
+                <StackPanel x:Name="ScreenSharePanel" Spacing="8" Margin="0,6,0,0" IsVisible="False">
                   <StackPanel Orientation="Horizontal" Spacing="7">
                     <Ellipse Width="8" Height="8" Fill="#EF4444"/>
                     <TextBlock Text="Screen sharing is on" FontSize="11" FontWeight="SemiBold"/>
                   </StackPanel>
-                  <Border IsVisible="{Binding HasScreenPreview}" CornerRadius="10" ClipToBounds="True"
+                  <Border x:Name="ScreenPreviewBorder" CornerRadius="10" ClipToBounds="True"
                           BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
-                          Background="#FF000000" MinHeight="96" MaxHeight="160">
-                    <Image Source="{Binding ScreenPreview}" Stretch="Uniform"/>
+                          Background="#FF000000" MinHeight="96" MaxHeight="160" IsVisible="False">
+                    <Image x:Name="ScreenPreview" Stretch="Uniform"/>
                   </Border>
                 </StackPanel>
               </StackPanel>
@@ -152,17 +112,16 @@
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
                   <TextBlock Text="Live transcript" FontSize="16" FontWeight="SemiBold"/>
-                  <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                  <TextBlock x:Name="Status" TextWrapping="Wrap" FontSize="12"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
-                <Button Grid.Column="1" Content="Interrupt" Command="{Binding InterruptCommand}"
+                <Button x:Name="InterruptButton" Grid.Column="1" Content="Interrupt"
                         Classes="subtle" VerticalAlignment="Center"/>
               </Grid>
             </Border>
 
             <Grid Grid.Row="1">
-              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9"
-                          IsVisible="{Binding !HasTranscript}">
+              <StackPanel x:Name="EmptyTranscriptPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9">
                 <Border Width="72" Height="72" CornerRadius="36"
                         Background="{DynamicResource HavenAccentSoftBrush}">
                   <controls:HavenIcon IconKey="call" Width="32" Height="32"
@@ -174,40 +133,16 @@
                            FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
               </StackPanel>
 
-              <ListBox x:Name="TranscriptScroller" Padding="18" IsVisible="{Binding HasTranscript}"
-                       BorderThickness="0" Background="Transparent">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:CallTranscriptItemViewModel">
-                      <Border Margin="0,0,0,14" Padding="14"
-                              Background="{DynamicResource HavenPanel3Brush}"
-                              BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
-                              CornerRadius="12">
-                        <StackPanel Spacing="6">
-                          <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="{Binding Speaker}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="1" Text="{Binding TimeLabel}" FontSize="11"
-                                       Foreground="{DynamicResource HavenMutedBrush}"/>
-                          </Grid>
-                          <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
-                          <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Live…" IsVisible="{Binding IsPartial}" FontSize="11"
-                                       Foreground="{DynamicResource HavenAccentBrush}"/>
-                            <TextBlock Text="Interrupted" IsVisible="{Binding WasInterrupted}" FontSize="11"
-                                       Foreground="{DynamicResource HavenMutedBrush}"/>
-                          </StackPanel>
-                        </StackPanel>
-                      </Border>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
+              <ListBox x:Name="TranscriptScroller" Padding="18" IsVisible="False"
+                       BorderThickness="0" Background="Transparent"/>
             </Grid>
 
             <Border Grid.Row="2" Padding="16" BorderBrush="{DynamicResource HavenLineBrush}"
                     BorderThickness="0,1,0,0">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBox Grid.Column="0" Text="{Binding TypedTranscript}"
-                         PlaceholderText="Type what you want to say…" IsEnabled="{Binding IsActive}"/>
-                <Button Grid.Column="1" Content="Send" Command="{Binding SendTranscriptCommand}"
+                <TextBox x:Name="TypedTranscriptBox" Grid.Column="0"
+                         PlaceholderText="Type what you want to say…"/>
+                <Button x:Name="SendTranscriptButton" Grid.Column="1" Content="Send"
                         Classes="primary" MinWidth="76"/>
               </Grid>
             </Border>
@@ -219,13 +154,13 @@
               BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
               CornerRadius="14" Padding="14">
         <Grid ColumnDefinitions="*,Auto,*">
-          <ItemsControl Grid.Column="0" ItemsSource="{Binding WaveformBars}"
+          <ItemsControl x:Name="WaveformBars" Grid.Column="0"
                         VerticalAlignment="Center" HorizontalAlignment="Left">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:WaveformBarViewModel">
+              <DataTemplate>
                 <Border Width="3" Height="{Binding Height}" CornerRadius="2"
                         Background="{DynamicResource HavenAccentBrush}" VerticalAlignment="Center"/>
               </DataTemplate>
@@ -233,14 +168,13 @@
           </ItemsControl>
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button Content="{Binding MuteLabel}" Command="{Binding ToggleMuteCommand}" Classes="secondary"/>
-            <Button x:Name="PushToTalkButton" Content="{Binding PushToTalkLabel}" Classes="primary"
-                    IsEnabled="{Binding IsActive}"
+            <Button x:Name="MuteButton" Content="Mute" Classes="secondary"/>
+            <Button x:Name="PushToTalkButton" Content="Hold to talk" Classes="primary"
                     PointerPressed="OnPushToTalkPressed" PointerReleased="OnPushToTalkReleased"
                     PointerCaptureLost="OnPushToTalkCaptureLost"/>
-            <Button Content="{Binding PauseLabel}" Command="{Binding PauseResumeCommand}" Classes="secondary"/>
-            <Button Content="{Binding ShareLabel}" Command="{Binding ToggleScreenShareCommand}" Classes="secondary"/>
-            <Button Content="End call" Command="{Binding EndCallCommand}" Classes="danger"/>
+            <Button x:Name="PauseButton" Content="Pause" Classes="secondary"/>
+            <Button x:Name="ShareButton" Content="Share screen" Classes="secondary"/>
+            <Button x:Name="EndCallButton" Content="End call" Classes="danger"/>
           </StackPanel>
         </Grid>
       </Border>

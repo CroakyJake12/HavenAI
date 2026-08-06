@@ -55,7 +55,7 @@ public sealed class TopRailActionsProxy : ElementProxy
     public EventToken HomeClick() => new("TopRail.Actions.HomeClick");
     public EventToken ChatClick() => new("TopRail.Actions.ChatClick");
     public EventToken CallClick() => new("TopRail.Actions.CallClick");
-    public EventToken DoClick() => new("TopRail.Actions.DoClick");
+    public EventToken TasksClick() => new("TopRail.Actions.TasksClick");
     public EventToken StudioClick() => new("TopRail.Actions.StudioClick");
     public EventToken BrowserClick() => new("TopRail.Actions.BrowserClick");
     public EventToken PlanClick() => new("TopRail.Actions.PlanClick");
@@ -116,7 +116,7 @@ public sealed class SideRailNavigationProxy : ElementProxy
     public EventToken HomeClick() => new("SideRail.Navigation.HomeClick");
     public EventToken ChatClick() => new("SideRail.Navigation.ChatClick");
     public EventToken CallClick() => new("SideRail.Navigation.CallClick");
-    public EventToken DoClick() => new("SideRail.Navigation.DoClick");
+    public EventToken TasksClick() => new("SideRail.Navigation.TasksClick");
     public EventToken StudioClick() => new("SideRail.Navigation.StudioClick");
     public EventToken BrowserClick() => new("SideRail.Navigation.BrowserClick");
     public EventToken PlanClick() => new("SideRail.Navigation.PlanClick");
@@ -746,38 +746,6 @@ public sealed class ArchiveActionsProxy : ElementProxy
     public ArchiveActionsProxy() : base("Archive.Actions") { }
     public EventToken SearchChanged() => new("Archive.Actions.SearchChanged");
     public EventToken Refresh() => new("Archive.Actions.Refresh");
-}
-
-// ============================================================
-//  MACROS PAGE PROXIES
-// ============================================================
-
-/// <summary>
-/// Proxy for the Macros page. Accessible as Macros.*
-/// </summary>
-public static class Macros
-{
-    public static readonly MacrosListProxy List = new();
-    public static readonly MacrosActionsProxy Actions = new();
-}
-
-public sealed class MacrosListProxy : ElementProxy
-{
-    public MacrosListProxy() : base("Macros.List") { }
-
-    public ChildElementProxy Item(int index) => new("Macros.List", $"Item{index}");
-    public EventToken ItemClick(int index) => new($"Macros.List.Item{index}.Click");
-    public EventToken ItemHover(int index) => new($"Macros.List.Item{index}.Hover");
-    public EventToken ItemLeave(int index) => new($"Macros.List.Item{index}.Leave");
-    public EventToken ItemRun(int index) => new($"Macros.List.Item{index}.Run");
-    public EventToken ItemDelete(int index) => new($"Macros.List.Item{index}.Delete");
-}
-
-public sealed class MacrosActionsProxy : ElementProxy
-{
-    public MacrosActionsProxy() : base("Macros.Actions") { }
-    public EventToken Refresh() => new("Macros.Actions.Refresh");
-    public EventToken Create() => new("Macros.Actions.Create");
 }
 
 // ============================================================

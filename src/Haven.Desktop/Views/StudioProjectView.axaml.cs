@@ -26,8 +26,8 @@ public sealed partial class StudioProjectView : UserControl
     private readonly StackPanel _sidebarChats = new() { Spacing = 4 };
     private readonly StackPanel _sidebarFiles = new() { Spacing = 4 };
     private readonly StackPanel _mainResults = new() { Spacing = 10 };
-    private readonly TextBlock _title = Text(string.Empty, 30, FontWeight.Bold);
-    private readonly TextBlock _sidebarProjectName = Text(string.Empty, 16, FontWeight.Bold);
+    private readonly TextBlock _title = Text(string.Empty, 38, FontWeight.Bold);
+    private readonly TextBlock _sidebarProjectName = Text(string.Empty, 18, FontWeight.Bold);
     private readonly TextBlock _status = Text(string.Empty, 11, FontWeight.Normal);
     private readonly TextBox _sideSearch = SearchBox("Search");
     private readonly TextBox _mainSearch = SearchBox("Search Project");
@@ -41,6 +41,9 @@ public sealed partial class StudioProjectView : UserControl
     };
     private readonly Button _homeButton = NavigationButton("Project Home", "home");
     private readonly Button _settingsButton = NavigationButton("Project Settings", "settings");
+    private Grid _root = null!;
+    private Border _settingsOverlay = null!;
+    private Border _settingsDialog = null!;
     private StudioProjectPage? _page;
     private bool _syncingSearch;
 
@@ -64,6 +67,7 @@ public sealed partial class StudioProjectView : UserControl
             _page?.SwitchToConfigureCommand.Execute(null);
             RefreshAll();
         };
+        KeyDown += OnViewKeyDown;
 
         DataContextChanged += (_, _) => AttachPage();
         AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(AttachPage);
@@ -72,34 +76,57 @@ public sealed partial class StudioProjectView : UserControl
 
     private Control BuildLayout()
     {
-        var root = new Grid
+        _root = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("300,*"),
-            Background = new LinearGradientBrush
-            {
-                StartPoint = new RelativePoint(0.5, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(0.5, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Color.Parse("#FFFFFF"), 0),
-                    new GradientStop(Color.Parse("#E8FFF0"), 0.65),
-                    new GradientStop(Color.Parse("#CBFAFB"), 1)
-                }
-            }
+            Background = Brushes.Transparent
         };
 
-        root.Children.Add(BuildSidebar());
+        _root.Children.Add(BuildSidebar());
         var main = BuildMain();
         Grid.SetColumn(main, 1);
-        root.Children.Add(main);
-        return root;
+        _root.Children.Add(main);
+
+        _settingsDialog = new Border
+        {
+            MinWidth = 720,
+            MaxWidth = 1120,
+            MaxHeight = 760,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = PanelBrush,
+            BorderBrush = LineBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(36),
+            Padding = new Thickness(46)
+        };
+        _settingsOverlay = new Border
+        {
+            IsVisible = false,
+            Background = new SolidColorBrush(Color.FromArgb(88, 18, 24, 27)),
+            Padding = new Thickness(54, 34),
+            Child = _settingsDialog
+        };
+        Grid.SetColumnSpan(_settingsOverlay, 2);
+        Panel.SetZIndex(_settingsOverlay, 100);
+        _root.Children.Add(_settingsOverlay);
+        return _root;
     }
 
     private Control BuildSidebar()
     {
         var back = new Button
         {
-            Content = "â†  All Projects",
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Children =
+                {
+                    new HavenIcon { IconKey = "chevron-left", Width = 20, Height = 20 },
+                    Text("All Projects", 14, FontWeight.Bold)
+                }
+            },
             HorizontalContentAlignment = HorizontalAlignment.Left,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
@@ -142,7 +169,7 @@ public sealed partial class StudioProjectView : UserControl
 
         return new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(225, 255, 255, 255)),
+            Background = PanelBrush,
             BorderBrush = LineBrush,
             BorderThickness = new Thickness(0, 0, 1, 0),
             Padding = new Thickness(18),
@@ -159,15 +186,6 @@ public sealed partial class StudioProjectView : UserControl
         };
         _title.HorizontalAlignment = HorizontalAlignment.Center;
         header.Children.Add(_title);
-        var modelChip = new Border
-        {
-            CornerRadius = new CornerRadius(18),
-            Background = PanelBrush,
-            Padding = new Thickness(18, 9),
-            Child = Text("Project context", 11, FontWeight.Bold)
-        };
-        Grid.SetColumn(modelChip, 1);
-        header.Children.Add(modelChip);
 
         var resultsScroll = new ScrollViewer
         {
@@ -179,7 +197,7 @@ public sealed partial class StudioProjectView : UserControl
         var add = RoundIconButton("plus", "Show included project context");
         add.Click += (_, _) => ShowContextFlyout(add);
         var send = RoundIconButton("send", "Start project chat (Ctrl+Enter)");
-        send.Background = new SolidColorBrush(Color.Parse("#62E6EF"));
+        send.Background = AccentBrush;
         send.Click += async (_, _) => await SubmitComposerAsync();
         var composer = new Grid
         {
@@ -281,16 +299,17 @@ public sealed partial class StudioProjectView : UserControl
             return;
         }
 
-        _title.Text = page.IsInConfigureMode ? "Project Settings" : page.ProjectName;
+        _title.Text = page.ProjectName;
         _status.Text = page.Status;
         _sidebarProjectName.Text = page.ProjectName;
 
         ApplyNavigationSelection(_homeButton, !page.IsInConfigureMode);
         ApplyNavigationSelection(_settingsButton, page.IsInConfigureMode);
-        _mainSearch.IsVisible = !page.IsInConfigureMode;
+        _mainSearch.IsVisible = true;
         _composer.IsEnabled = !page.IsInConfigureMode;
         RenderNavigationLists();
         RenderMainResults();
+        RenderSettingsOverlay(page);
     }
 
     private void RenderNavigationLists()
@@ -335,12 +354,6 @@ public sealed partial class StudioProjectView : UserControl
             return;
         }
 
-        if (page.IsInConfigureMode)
-        {
-            RenderSettings(page);
-            return;
-        }
-
         var query = (_mainSearch.Text ?? string.Empty).Trim();
         foreach (var conversation in page.ProjectConversations.Where(item => Matches(item.Title, query)))
         {
@@ -377,11 +390,11 @@ public sealed partial class StudioProjectView : UserControl
                 Children =
                 {
                     new HavenIcon { IconKey = "settings", Width = 20, Height = 20 },
-                    Text("Manage Project Settings and Context", 13, FontWeight.Bold)
+                    Text("Manage Project Settings and Context.", 13, FontWeight.Bold)
                 }
             },
             HorizontalContentAlignment = HorizontalAlignment.Left,
-            Background = new SolidColorBrush(Color.Parse("#C9F7F4")),
+            Background = AccentSoftBrush,
             CornerRadius = new CornerRadius(14),
             Padding = new Thickness(18, 13)
         };
@@ -393,30 +406,165 @@ public sealed partial class StudioProjectView : UserControl
         _mainResults.Children.Add(settings);
     }
 
-    private void RenderSettings(StudioProjectPage page)
+    private void RenderSettingsOverlay(StudioProjectPage page)
     {
-        _mainResults.Children.Add(InfoCard("Project folder", page.RootPath));
-        _mainResults.Children.Add(InfoCard("Repository", $"{page.Branch} Â· {page.WorkState}"));
-        _mainResults.Children.Add(InfoCard("Last build", page.LastBuild));
-        _mainResults.Children.Add(InfoCard(
-            "Included project context",
-            $"{page.Files.Count} files Â· {page.ProjectConversations.Count} chats"));
-
-        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
-        AddCommandButton(actions, "Refresh", page.RefreshCommand);
-        AddCommandButton(actions, "Build", page.BuildCommand);
-        AddCommandButton(actions, "Test", page.TestCommand);
-        AddCommandButton(actions, "Open editor", page.OpenEditorCommand);
-        AddCommandButton(actions, "Open terminal", page.OpenTerminalCommand);
-        _mainResults.Children.Add(Card(actions));
-
-        var home = new Button { Content = "Back to Project Home", Padding = new Thickness(18, 11) };
-        home.Click += (_, _) =>
+        _settingsOverlay.IsVisible = page.IsInConfigureMode;
+        if (!page.IsInConfigureMode)
         {
-            page.SwitchToOverviewCommand.Execute(null);
+            return;
+        }
+
+        var name = new TextBox
+        {
+            Text = page.ProjectNameDraft,
+            MinHeight = 54,
+            Padding = new Thickness(16),
+            CornerRadius = new CornerRadius(16),
+            Background = PanelBrush,
+            BorderBrush = LineBrush,
+            BorderThickness = new Thickness(1),
+            FontSize = 16,
+            FontWeight = FontWeight.Bold
+        };
+        name.TextChanged += (_, _) => page.ProjectNameDraft = name.Text ?? string.Empty;
+
+        var context = new TextBox
+        {
+            Text = page.ProjectContextDraft,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 190,
+            MaxHeight = 300,
+            Padding = new Thickness(16),
+            CornerRadius = new CornerRadius(16),
+            Background = PanelBrush,
+            BorderBrush = LineBrush,
+            BorderThickness = new Thickness(1),
+            FontSize = 15
+        };
+        context.TextChanged += (_, _) => page.ProjectContextDraft = context.Text ?? string.Empty;
+
+        var generate = new Button
+        {
+            Content = "Generate Context from Chats",
+            Background = AccentSoftBrush,
+            Foreground = TextBrush,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(20),
+            Padding = new Thickness(20, 12),
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        generate.Click += async (_, _) =>
+        {
+            await page.GenerateProjectContextCommand.ExecuteAsync();
+            context.Text = page.ProjectContextDraft;
+            _status.Text = page.ConfigureStatus;
+        };
+
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            Padding = new Thickness(24, 12),
+            CornerRadius = new CornerRadius(22),
+            Background = Panel2Brush,
+            Foreground = DangerBrush,
+            FontWeight = FontWeight.Bold
+        };
+        cancel.Click += (_, _) =>
+        {
+            page.CancelProjectSettingsCommand.Execute(null);
             RefreshAll();
         };
-        _mainResults.Children.Add(home);
+        var save = new Button
+        {
+            Content = "Save",
+            Padding = new Thickness(28, 12),
+            CornerRadius = new CornerRadius(22),
+            Background = AccentBrush,
+            Foreground = AccentInkBrush,
+            FontWeight = FontWeight.Bold
+        };
+        save.Click += async (_, _) =>
+        {
+            await page.SaveProjectSettingsCommand.ExecuteAsync();
+            RefreshAll();
+        };
+
+        var dialogTitle = Text("Project Settings", 38, FontWeight.Bold);
+        dialogTitle.HorizontalAlignment = HorizontalAlignment.Center;
+
+        var nameLabel = Text("Name", 14, FontWeight.Bold);
+        nameLabel.VerticalAlignment = VerticalAlignment.Center;
+        var nameRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("96,*"),
+            ColumnSpacing = 14,
+            Children = { nameLabel, Column(name, 1) }
+        };
+
+        var contextLabel = Text("Context", 14, FontWeight.Bold);
+        contextLabel.VerticalAlignment = VerticalAlignment.Top;
+        contextLabel.Margin = new Thickness(0, 16, 0, 0);
+        var contextColumn = new StackPanel
+        {
+            Spacing = 10,
+            Children = { context, generate }
+        };
+        var contextRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("96,*"),
+            ColumnSpacing = 14,
+            Children = { contextLabel, Column(contextColumn, 1) }
+        };
+
+        var fields = new StackPanel
+        {
+            Spacing = 16,
+            Children =
+            {
+                dialogTitle,
+                nameRow,
+                contextRow,
+                Muted($"Folder: {page.RootPath}\nRepository: {page.Branch} · {page.WorkState}\nIncluded: {page.Files.Count} files · {page.ProjectConversations.Count} chats")
+            }
+        };
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+            Children = { cancel, save }
+        };
+        Grid.SetRow(actions, 1);
+
+        _settingsDialog.Child = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            RowSpacing = 18,
+            Children =
+            {
+                new ScrollViewer
+                {
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                    Content = fields
+                },
+                actions
+            }
+        };
+    }
+
+    private void OnViewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || _page?.IsInConfigureMode != true)
+        {
+            return;
+        }
+
+        _page.CancelProjectSettingsCommand.Execute(null);
+        RefreshAll();
+        e.Handled = true;
     }
 
     private async Task SubmitComposerAsync()
@@ -486,7 +634,7 @@ public sealed partial class StudioProjectView : UserControl
         button.Click += (_, _) => action();
         return new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(215, 255, 255, 255)),
+            Background = PanelBrush,
             BorderBrush = LineBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(18),
@@ -505,7 +653,7 @@ public sealed partial class StudioProjectView : UserControl
 
     private static Border Card(Control content) => new()
     {
-        Background = new SolidColorBrush(Color.FromArgb(215, 255, 255, 255)),
+        Background = PanelBrush,
         BorderBrush = LineBrush,
         BorderThickness = new Thickness(1),
         CornerRadius = new CornerRadius(18),
@@ -553,7 +701,7 @@ public sealed partial class StudioProjectView : UserControl
     private static void ApplyNavigationSelection(Button button, bool selected)
     {
         button.Background = selected
-            ? new SolidColorBrush(Color.Parse("#C8F7F6"))
+            ? AccentSoftBrush
             : Brushes.Transparent;
     }
 
@@ -648,6 +796,15 @@ public sealed partial class StudioProjectView : UserControl
             command.Execute(parameter);
     }
 
-    private static IBrush PanelBrush { get; } = new SolidColorBrush(Color.Parse("#F4F4F2"));
-    private static IBrush LineBrush { get; } = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
+    private static IBrush PanelBrush => ResourceBrush("HavenPanelBrush", Color.Parse("#FFF4F4F2"));
+    private static IBrush Panel2Brush => ResourceBrush("HavenPanel2Brush", Color.Parse("#FFF8F9F7"));
+    private static IBrush LineBrush => ResourceBrush("HavenLineBrush", Color.FromArgb(30, 0, 0, 0));
+    private static IBrush AccentBrush => ResourceBrush("HavenAccentBrush", Color.Parse("#FF00A7B3"));
+    private static IBrush AccentSoftBrush => ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFDCF7F8"));
+    private static IBrush AccentInkBrush => ResourceBrush("HavenAccentInkBrush", Colors.White);
+    private static IBrush TextBrush => ResourceBrush("HavenTextBrush", Colors.Black);
+    private static IBrush DangerBrush => ResourceBrush("HavenDangerBrush", Color.Parse("#FF9B1212"));
+
+    private static IBrush ResourceBrush(string key, Color fallback) =>
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? new SolidColorBrush(fallback);
 }

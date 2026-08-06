@@ -20,6 +20,9 @@ public sealed partial class TopRail : UserControl, IDisposable
     private NotificationCentre? _notificationCentre;
     private Flyout? _notificationFlyout;
     private Flyout? _appLauncherFlyout;
+    private AppLauncherControl? _appLauncherControl;
+    private Flyout? _searchFlyout;
+    private UniversalSearchControl? _searchControl;
     private bool _eventsWired;
     private bool _disposed;
 
@@ -35,9 +38,11 @@ public sealed partial class TopRail : UserControl, IDisposable
     public event EventHandler? NewTabRequested;
     public event EventHandler? TabOverviewRequested;
     public event EventHandler? BackRequested;
+    public event EventHandler? ForwardRequested;
     public event EventHandler? AppsRequested;
-    public event EventHandler? RecentRequested;
     public event EventHandler? ActionsRequested;
+    public event EventHandler? ModelRequested;
+    public event EventHandler? SearchRequested;
     public event EventHandler<string>? TabSelected;
     public event EventHandler<string>? TabCloseRequested;
     public event EventHandler<TabRenameRequestedEventArgs>? TabRenameRequested;
@@ -53,9 +58,11 @@ public sealed partial class TopRail : UserControl, IDisposable
         Register("TopRail.Tabs.Add", AddTabButton);
         Register("TopRail.Tabs.Overview", TabViewButton);
         Register("TopRail.Actions.Back", BackButton);
+        Register("TopRail.Actions.Forward", ForwardButton);
         Register("TopRail.Actions.Apps", AppsButton);
-        Register("TopRail.Actions.Recent", RecentButton);
+        Register("TopRail.Actions.Model", UniversalModelButton);
         Register("TopRail.Actions.Notifications", NotificationsButton);
+        Register("TopRail.Actions.Search", SearchButton);
     }
 
     /// <summary>Rebuilds the visual tab strip from the shell's current tab snapshot.</summary>
@@ -75,12 +82,67 @@ public sealed partial class TopRail : UserControl, IDisposable
 
     public void SetEditActionsHandler(Action onExecute) => ActionToolbar.SetEditActionsHandler(onExecute);
 
+    /// <summary>
+    /// Shows history controls only when the selected tab can actually navigate.
+    /// Collapsed buttons release their grid width so the tab strip grows naturally.
+    /// </summary>
+    public void SetNavigationAvailability(bool canGoBack, bool canGoForward)
+    {
+        BackButton.IsVisible = canGoBack;
+        BackButton.IsEnabled = canGoBack;
+        ForwardButton.IsVisible = canGoForward;
+        ForwardButton.IsEnabled = canGoForward;
+    }
+
+    public void SetModelSummary(string? modelName, int reasoningPercent)
+    {
+        UniversalModelName.Text = ModelConfigurationControl.SimplifyModelName(modelName);
+        UniversalReasoningValue.Text = $"{Math.Clamp(reasoningPercent, 0, 100)}%";
+    }
+
+    public void SetModelSelectorEnabled(bool enabled) => UniversalModelButton.IsEnabled = enabled;
+
+    public void ShowModelFlyout(Flyout flyout) => flyout.ShowAt(UniversalModelButton);
+
+    public void ShowUniversalSearch(
+        IReadOnlyList<UniversalSearchItem> items,
+        Action viewAll,
+        Action openSettings)
+    {
+        _searchFlyout?.Hide();
+        _searchControl = new UniversalSearchControl();
+        _searchControl.SetItems(items);
+        _searchControl.ItemInvoked += (_, _) => _searchFlyout?.Hide();
+        _searchControl.ViewAllRequested += (_, _) =>
+        {
+            _searchFlyout?.Hide();
+            viewAll();
+        };
+        _searchControl.SettingsRequested += (_, _) =>
+        {
+            _searchFlyout?.Hide();
+            openSettings();
+        };
+        _searchFlyout = new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            FlyoutPresenterTheme = Avalonia.Application.Current?.TryFindResource(
+                "HavenFloatingFlyoutPresenterTheme", out var theme) == true
+                    ? theme as Avalonia.Styling.ControlTheme
+                    : null,
+            Content = _searchControl
+        };
+        _searchFlyout.ShowAt(SearchButton);
+        _searchControl.FocusSearch();
+    }
+
     public void ShowNotifications()
     {
         _notificationCentre ??= CreateNotificationCentre();
         _notificationFlyout ??= new Flyout
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
+            FlyoutPresenterTheme = FloatingPresenterTheme(),
             Content = _notificationCentre
         };
         _notificationCentre.Open();
@@ -95,7 +157,29 @@ public sealed partial class TopRail : UserControl, IDisposable
         Action manage)
     {
         _appLauncherFlyout?.Hide();
-        _appLauncherFlyout = AppLauncherFlyout.Create(apps, pinnedIds, openInNewTab, launch, manage);
+        _appLauncherFlyout?.Content = null;
+        _appLauncherControl = new AppLauncherControl();
+        _appLauncherControl.Configure(
+            apps,
+            pinnedIds,
+            openInNewTab,
+            (app, newTab) =>
+            {
+                _appLauncherFlyout?.Hide();
+                launch(app, newTab);
+            },
+            () =>
+            {
+                _appLauncherFlyout?.Hide();
+                manage();
+            });
+        _appLauncherFlyout = new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            FlyoutPresenterTheme = FloatingPresenterTheme(),
+            Content = _appLauncherControl
+        };
+        // Note: If flyout stacking issues arise, consider using Canvas.SetZIndex on the flyout's presenter.
         _appLauncherFlyout.ShowAt(AppsButton);
     }
 
@@ -108,9 +192,11 @@ public sealed partial class TopRail : UserControl, IDisposable
         AddTabButton.Click += OnAddTabClicked;
         TabViewButton.Click += OnTabOverviewClicked;
         BackButton.Click += OnBackClicked;
+        ForwardButton.Click += OnForwardClicked;
         AppsButton.Click += OnAppsClicked;
-        RecentButton.Click += OnRecentClicked;
+        UniversalModelButton.Click += OnModelClicked;
         NotificationsButton.Click += OnNotificationsClicked;
+        SearchButton.Click += OnSearchClicked;
         ActionToolbar.ActionsClicked += OnActionsClicked;
     }
 
@@ -120,7 +206,8 @@ public sealed partial class TopRail : UserControl, IDisposable
         {
             Text = tab.Title,
             FontSize = 14,
-            FontWeight = tab.IsSelected ? FontWeight.Bold : FontWeight.SemiBold,
+            FontWeight = tab.IsSelected ? FontWeight.ExtraBold : FontWeight.Bold,
+            Foreground = tab.IsSelected ? ResourceBrush("HavenAccentBrush", Colors.Black) : ResourceBrush("HavenTextSecondaryBrush", Colors.Gray),
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 180
@@ -133,7 +220,7 @@ public sealed partial class TopRail : UserControl, IDisposable
             Margin = new Thickness(0, 1, 0, 0),
             CornerRadius = new CornerRadius(2),
             Background = tab.IsSelected
-                ? ResourceBrush("HavenTextBrush", Colors.Black)
+                ? ResourceBrush("HavenAccentBrush", Colors.Black)
                 : Brushes.Transparent,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -145,30 +232,10 @@ public sealed partial class TopRail : UserControl, IDisposable
             Children = { title, underline }
         };
 
-        var content = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children =
-            {
-                new HavenIcon
-                {
-                    IconKey = tab.IconKey,
-                    Width = 16,
-                    Height = 16,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Opacity = tab.IsSelected ? 0.96 : 0.68
-                },
-                titleAndUnderline
-            }
-        };
-
         var button = new Button
         {
-            Content = content,
-            MinWidth = 92,
+            Content = titleAndUnderline,
+            MinWidth = 72,
             MaxWidth = 230,
             Height = 48,
             Padding = new Thickness(12, 5, 12, 3),
@@ -219,9 +286,9 @@ public sealed partial class TopRail : UserControl, IDisposable
             Placement = PlacementMode.BottomEdgeAlignedLeft,
             Content = new StackPanel
             {
-                Width = 200,
+                Width = 260,
                 Spacing = 3,
-                Margin = new Thickness(6),
+                Margin = new Thickness(12),
                 Children = { rename, close }
             }
         };
@@ -248,18 +315,19 @@ public sealed partial class TopRail : UserControl, IDisposable
             SelectionStart = 0,
             SelectionEnd = tab.Title.Length
         };
-        var save = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Right };
+        var save = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Stretch };
         save.Classes.Add("primary");
         var flyout = new Flyout
         {
             Placement = PlacementMode.Bottom,
             Content = new StackPanel
             {
-                Spacing = 9,
-                Margin = new Thickness(8),
+                Width = 260,
+                Spacing = 3,
+                Margin = new Thickness(12),
                 Children =
                 {
-                    new TextBlock { Text = "Rename tab", FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = "Rename tab", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
                     input,
                     save
                 }
@@ -293,6 +361,12 @@ public sealed partial class TopRail : UserControl, IDisposable
         }
     };
 
+    private static Avalonia.Styling.ControlTheme? FloatingPresenterTheme() =>
+        Avalonia.Application.Current?.TryFindResource(
+            "HavenFloatingFlyoutPresenterTheme", out var theme) == true
+            ? theme as Avalonia.Styling.ControlTheme
+            : null;
+
     private void OnLogoClicked(object? sender, RoutedEventArgs e)
     {
         Fire("TopRail.Logo.Click");
@@ -317,16 +391,28 @@ public sealed partial class TopRail : UserControl, IDisposable
         BackRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void OnForwardClicked(object? sender, RoutedEventArgs e)
+    {
+        Fire("TopRail.Actions.Forward.Click");
+        ForwardRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     private void OnAppsClicked(object? sender, RoutedEventArgs e)
     {
         Fire("TopRail.Actions.Apps.Click");
         AppsRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnRecentClicked(object? sender, RoutedEventArgs e)
+    private void OnModelClicked(object? sender, RoutedEventArgs e)
     {
-        Fire("TopRail.Actions.Recent.Click");
-        RecentRequested?.Invoke(this, EventArgs.Empty);
+        Fire("TopRail.Actions.Model.Click");
+        ModelRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnSearchClicked(object? sender, RoutedEventArgs e)
+    {
+        Fire("TopRail.Actions.Search.Click");
+        SearchRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnNotificationsClicked(object? sender, RoutedEventArgs e)
@@ -365,6 +451,7 @@ public sealed partial class TopRail : UserControl, IDisposable
         _disposed = true;
         _notificationCentre?.Dispose();
         _appLauncherFlyout?.Hide();
+        _searchFlyout?.Hide();
         ActionToolbar.Dispose();
     }
 }

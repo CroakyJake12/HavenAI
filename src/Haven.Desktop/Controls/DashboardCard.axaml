@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Controls.DashboardCard">
+
+    <Button x:Name="Card"
+            Width="208" Height="136"
+            Margin="0,0,12,12"
+            Padding="16"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Background="{DynamicResource HavenAccentSoftBrush}"
+            BorderBrush="{DynamicResource HavenLineBrush}"
+            BorderThickness="1"
+            CornerRadius="24">
+        <StackPanel Spacing="9"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center">
+            <controls:HavenIcon x:Name="Icon"
+                                Width="38" Height="38"
+                                HorizontalAlignment="Center" />
+            <TextBlock x:Name="Title"
+                       FontSize="15"
+                       FontWeight="ExtraBold"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       MaxWidth="174" />
+            <TextBlock x:Name="Detail"
+                       Classes="muted"
+                       FontSize="10"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Button>
+</UserControl>

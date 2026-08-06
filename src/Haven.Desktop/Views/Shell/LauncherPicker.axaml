@@ -16,7 +16,7 @@
             <StackPanel Spacing="8" HorizontalAlignment="Center">
                 <Image Source="/Assets/haven-32.png" Width="48" Height="48" HorizontalAlignment="Center"/>
                 <TextBlock Text="Haven" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Choose which version to launch" Classes="muted" HorizontalAlignment="Center" FontSize="14"/>
+                <TextBlock Text="Choose your Haven experience" Classes="muted" HorizontalAlignment="Center" FontSize="14"/>
             </StackPanel>
 
             <!-- Options -->
@@ -38,14 +38,13 @@
                             </Border>
                             <StackPanel Spacing="2">
                                 <TextBlock Text="New Haven" FontWeight="Bold" FontSize="18"/>
-                                <TextBlock Text="Phase 1" Classes="muted" FontSize="11"/>
+                                <TextBlock Text="Recommended" Classes="muted" FontSize="11"/>
                             </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="Fresh redesign with light theme, Go mode, morph transitions, notifications, and dynamic action toolbar."
+                        <TextBlock Text="The current Haven experience with Apps, universal Actions, Studio, Browse, Plan and local AI."
                                    TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Includes: Chat, Notifications, Morph Transitions" FontSize="11" Foreground="#4CAF50"/>
-                            <TextBlock Text="Coming next: Studio workspace, Plan, Browser" FontSize="11" Foreground="#999999"/>
+                            <TextBlock Text="Actively supported" FontSize="11" Foreground="#4CAF50"/>
                         </StackPanel>
                     </StackPanel>
                 </Button>
@@ -67,14 +66,13 @@
                             </Border>
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Classic Haven" FontWeight="Bold" FontSize="18"/>
-                                <TextBlock Text="Full feature set" Classes="muted" FontSize="11"/>
+                                <TextBlock Text="Compatibility" Classes="muted" FontSize="11"/>
                             </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="The complete Haven experience with all modes, studio, browser, planner, training, and more."
+                        <TextBlock Text="Open the compatibility experience for older workflows and layouts."
                                    TextWrapping="Wrap" FontSize="12" Foreground="#666666"/>
                         <StackPanel Spacing="4">
-                            <TextBlock Text="All features available" FontSize="11" Foreground="#2196F3"/>
-                            <TextBlock Text="Dark theme with Mica backdrop" FontSize="11" Foreground="#999999"/>
+                            <TextBlock Text="Maintenance mode" FontSize="11" Foreground="#2196F3"/>
                         </StackPanel>
                     </StackPanel>
                 </Button>

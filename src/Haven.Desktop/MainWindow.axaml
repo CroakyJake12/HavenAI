@@ -6,8 +6,9 @@
         Width="1440" Height="920"
         MinWidth="1050" MinHeight="700"
         Icon="/Assets/haven.ico"
-        Background="#F1F8E9"
         RequestedThemeVariant="Light">
+
+    <!-- Background is managed dynamically by TidalBackground -->
 
     <ContentControl x:Name="MainContent"/>
 

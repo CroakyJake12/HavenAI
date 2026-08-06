@@ -26,14 +26,14 @@ src/Haven.Desktop/
 │   │   ├── Settings/             # Application settings
 │   │   ├── Catalog/              # Agents/plugins/prompts
 │   │   ├── Automations/          # Scheduled actions
-│   │   ├── Macros/               # User macros
+│   │   ├── Tasks/                # Reusable and automatic tasks
 │   │   ├── Archive/              # Archived items
 │   │   ├── ActivityLog/          # Conversation history
 │   │   ├── ModeLibrary/          # Mode discovery
 │   │   ├── ProjectCreator/       # New project wizard
 │   │   ├── StudioProject/        # Project workspace
 │   │   ├── WorkspaceEditor/      # File editor
-│   │   ├── WorkspaceHome/        # Studio/Do home
+│   │   ├── WorkspaceHome/        # Studio/Tasks home
 │   │   ├── ChatGroup/            # Chat group management
 │   │   ├── ContainerSettings/    # Container configuration
 │   │   └── LessonSettings/       # Lesson configuration

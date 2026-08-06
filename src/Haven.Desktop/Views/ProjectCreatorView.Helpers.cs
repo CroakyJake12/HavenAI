@@ -111,7 +111,7 @@ public sealed partial class ProjectCreatorView
                 IconKey = iconKey,
                 Width = 24,
                 Height = 24,
-                Foreground = Brushes.Black
+                Foreground = TextBrush
             },
             Width = 62,
             Height = 62,
@@ -184,4 +184,7 @@ public sealed partial class ProjectCreatorView
 
     private static IBrush Brush(string value) =>
         new SolidColorBrush(Color.Parse(value));
+
+    private static IBrush PaletteBrush(string key, string fallback) =>
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? Brush(fallback);
 }

@@ -56,7 +56,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
             return new ModePackageInstallResult { Succeeded = false, Message = $"Mode '{manifest.Id}' already installed." };
 
         var def = manifest.Definition;
-        var baseMode = def.Surfaces.Chat ? HavenMode.Chat : def.Surfaces.Do ? HavenMode.Do : HavenMode.Chat;
+        var baseMode = def.Surfaces.Chat ? HavenMode.Chat : def.Surfaces.Tasks || def.Surfaces.Do ? HavenMode.Tasks : HavenMode.Chat;
         var mode = new ModeDefinition(
             Guid.NewGuid(),
             def.Key,
@@ -64,7 +64,7 @@ public sealed class ModePackageInstaller : IModePackageInstaller
             def.Description,
             def.IconKey,
             baseMode,
-            JsonSerializer.Serialize(new { def.Surfaces.Chat, def.Surfaces.Do, def.Surfaces.Studio, def.Surfaces.Browse, def.Surfaces.Plan }),
+            JsonSerializer.Serialize(new { def.Surfaces.Chat, def.Surfaces.Tasks, def.Surfaces.Studio, def.Surfaces.Browse, def.Surfaces.Plan }),
             "[]",
             "[]",
             "[]",

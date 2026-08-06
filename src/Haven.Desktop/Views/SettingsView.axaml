@@ -45,7 +45,7 @@
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Details}" Classes="muted" FontSize="10" />
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="{Binding DownloadSize}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" />
+                      <TextBlock Text="{Binding DownloadSize}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="10" />
                       <TextBlock Grid.Column="1" Text="{Binding EstimatedRam}" Foreground="{DynamicResource HavenWarningBrush}" FontSize="10" />
                     </Grid>
                     <TextBlock Text="{Binding Capabilities}" Classes="muted2" FontSize="9" />
