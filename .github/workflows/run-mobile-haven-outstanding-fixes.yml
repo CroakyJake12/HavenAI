@@ -1,0 +1,229 @@
+name: Run Mobile Haven outstanding fixes and APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/run-mobile-haven-outstanding-fixes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      AVALONIA_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: mobile-haven-outstanding-fixes
+
+      - name: Apply outstanding mobile repairs
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/Haven.Android/MainView.Mobile.Android.cs",
+              "typeof(Haven.Android.ModelImportActivity)",
+              "typeof(Haven.Android.ModelBrowserActivity)")
+
+          replace_once(
+              "src/Haven.Android/MainView.Mobile.Interactions.cs",
+              """if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
+                {
+                    await OpenDashboardAsync();
+                    return;
+                }""",
+              """if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(surface, "home", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(surface, "go", StringComparison.OrdinalIgnoreCase))
+              {
+                    await OpenHomeAsync();
+                    return;
+              }""")
+
+          interactions = Path("src/Haven.Android/MainView.Mobile.Interactions.cs")
+          text = interactions.read_text()
+          pattern = re.compile(
+              r'    private void RefreshMobileTabs\(\)\n    {.*?\n    }\n    private void OpenMobileDrawer\(\)',
+              re.S)
+          replacement = '''    private void RefreshMobileTabs()
+            {
+                if (_mobileTabs is null)
+                    return;
+
+                _mobileTabs.Children.Clear();
+                foreach (var tab in OpenTabs)
+                {
+                    var selected = tab;
+                    var isSelected = ReferenceEquals(tab, SelectedTab);
+                    var title = new TextBlock
+                    {
+                        Text = tab.Title,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
+                        FontSize = 12,
+                        MaxWidth = 170,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    };
+                    var select = new Button
+                    {
+                        Content = title,
+                        MinHeight = 36,
+                        Padding = new Thickness(12, 5),
+                        Background = Brushes.Transparent,
+                        BorderBrush = isSelected
+                            ? ResourceBrush("HavenAccentBorderBrush")
+                            : Brushes.Transparent,
+                        BorderThickness = new Thickness(0, 0, 0, isSelected ? 2 : 0),
+                        CornerRadius = new CornerRadius(0)
+                    };
+                    select.Click += (_, _) => SelectedTab = selected;
+
+                    var tabRow = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 0,
+                        Children = { select }
+                    };
+                    if (tab.IsCloseable)
+                    {
+                        var close = MobileIconButton("close", () => CloseTab(elected), "Close tab");
+                        close.MinHeight = 34;
+                        close.MinWidth = 30;
+                        close.Padding = new Thickness(6);
+                        close.Background = Brushes.Transparent;
+                        close.BorderThickness = new Thickness(0);
+                        close.CornerRadius = new CornerRadius(0);
+                        tabRow.Children.Add(close);
+                    }
+
+                    _mobileTabs.Children.Add(tabRow);
+                }
+
+                var add = MobileIconButton("plus", () =>
+                {
+                    if (AddNewTabCommand.CanExecute(null))
+                        AddNewTabCommand.Execute(null);
+                }, "New tab");
+                add.MinHeight = 36;
+                add.MinWidth = 36;
+                add.CornerRadius = new CornerRadius(0);
+                add.Background = Brushes.Transparent;
+                add.BorderThickness = new Thickness(0);
+                _mobileTabs.Children.Add(add);
+            }
+            private void OpenMobileDrawer()'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"tab method replacement count was {count}")
+          interactions.write_text(text)
+
+          layout = Path("src/Haven.Android/MainView.Mobile.Layout.cs")
+          text = layout.read_text()
+          home_pattern = re.compile(
+              r'        var home = MobileIconButton\("home".+home.BorderThickness = new Thickness\(1\);\n\n',
+              re.S)
+          text, count = home_pattern.subn('', text, count=1)
+          if count != 1:
+              raise SystemExit(f"home button removal count was {count}")
+
+          text = text.replace(
+              'ColumnDefinitions = new ColumnDefinitions("Auto,*"),\n            ColumnSpacing = 6,\n            Margin = new Thickness(6, 0, 6, 8),',
+              'ColumnDefinitions = new ColumnDefinitions("*"),\n            Margin = new Thickness(8, 0, 8, 8),',
+              1)
+          text = text.replace('        footer.Children.Add(home);\n\n', '', 1)
+          text = text.replace(
+              '        Grid.SetColumn(chatBar, 1);\n        footer.Children.Add(chatBar);',
+              '        footer.Children.Add(chatBar);',
+              1)
+          text = text.replace(
+              '            Padding = new Thickness(0, 7, 0, 0),',
+              '            Padding = new Thickness(0, 7, 0, 8),',
+              1)
+          text = text.replace(
+              '        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);',
+              '        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);\n        ToolTip.SetTip(brand, "Switch model");',
+              1)
+          layout.write_text(text)
+
+          launcher = Path("src/Haven.Android/HavenLauncherActivity.cs")
+          text = launcher.read_text()
+          text = text.replace(
+              '        _root.SetOnTouchListener(new SwipeTouchListener(',
+              "        _root.Focusable = true;\n        _root.Clickable = true;\n        _root.SetOnTouchListener(new SwipeTouchListener(",
+              1)
+          text = text.replace(
+              '        BuildSurface();\n        LoadAppsAsync();',
+              '        BuildSurface();\n        _root?.Post(LoadApsAsync);',
+              1)
+          launcher.write_text(text)
+          PY
+
+      - name: Commit applied source repairs
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Source repairs already applied."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/Haven.Android/MainView.Mobile.Android.cs \
+                    src/Haven.Android/MainView.Mobile.Interactions.cs \
+                    src/Haven.Android/MainView.Mobile.Layout.cs \
+                    src/Haven.Android/HavenLauncherActivity.cs
+            git commit -m "Fix outstanding Mobile Haven shell issues"
+            git push origin HEAD:mobile-haven-outstanding-fixes
+          fi
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Restore Android project
+        run: dotnet restore src/Haven.Android/Haven.Android.csproj
+
+      - name: Build Android project
+        run: dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore
+
+      - name: Publish APK
+        run: |
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false
+          mkdir -p artifacts/android
+          find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
+          test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
+          sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Haven-Mobile-Outstanding-Fixes-APK
+          path: artifacts/android
+          if-no-files-found: error
+          retention-days: 30
