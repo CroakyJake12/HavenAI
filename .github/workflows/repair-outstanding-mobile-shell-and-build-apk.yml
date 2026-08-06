@@ -1,4 +1,4 @@
-name: Repair Outstanding Mobile Shell and Build APK
+name: Repair Outstanding Mobile Shell and Build APK# trigger: line-bounded-repair-v4
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/workflows/repair-outstanding-mobile-shell-and-build-apk.yml
+      - scripts/repair_outstanding_mobile_shell.py
   workflow_dispatch:
 
 permissions:
