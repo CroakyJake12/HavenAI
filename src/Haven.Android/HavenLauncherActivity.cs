@@ -68,7 +68,7 @@ public sealed partial class HavenLauncherActivity : Activity
         _widgetManager = AppWidgetManager.GetInstance(this);
 
         BuildSurface();
-        LoadAppsAsync();
+        _root?.Post(LoadAppsAsync);
     }
 
     protected override void OnStart()
@@ -126,6 +126,8 @@ public sealed partial class HavenLauncherActivity : Activity
                 ViewGroup.LayoutParams.MatchParent)
         };
         _root.SetPadding(Dp(12), Dp(10), Dp(12), Dp(10));
+        _root.Focusable = true;
+        _root.Clickable = true;
         _root.SetOnTouchListener(new SwipeTouchListener(
             onSwipeUp: ShowAppDrawer,
             onSwipeLeft: () => ChangePage(1),

@@ -96,6 +96,7 @@ public sealed partial class MainView
     private Border BuildMobileHeader()
     {
         var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);
+        ToolTip.SetTip(brand, "Switch model");
         var actions = MobileButton("Actions", "commands", ShowMobileActions, 8);
         var apps = MobileButton("Apps", "apps", () => _ = ShowMobileLauncherAsync(), 8);
         var notifications = MobileIconButton("notification", ShowMobileNotifications, "Alerts");
@@ -202,10 +203,6 @@ public sealed partial class MainView
 
     private Border BuildHomeFooter()
     {
-        var home = MobileIconButton("home", () => _ = OpenHomeAsync(), "Go");
-        home.Background = ResourceBrush("HavenAccentSoftBrush");
-        home.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
-        home.BorderThickness = new Thickness(1);
 
         _mobileGoInput = new TextBox
         {
@@ -236,14 +233,11 @@ public sealed partial class MainView
 
         var footer = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-            ColumnSpacing = 6,
-            Margin = new Thickness(6, 0, 6, 8),
+            ColumnDefinitions = new ColumnDefinitions("*"),
+            Margin = new Thickness(8, 0, 8, 8),
             MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Bottom
         };
-        footer.Children.Add(home);
-        Grid.SetColumn(chatBar, 1);
         footer.Children.Add(chatBar);
 
         return new Border
@@ -252,7 +246,7 @@ public sealed partial class MainView
             Background = ResourceBrush("HavenBackgroundBrush"),
             BorderBrush = ResourceBrush("HavenAccentBorderBrush"),
             BorderThickness = new Thickness(0, 1, 0, 0),
-            Padding = new Thickness(0, 7, 0, 0),
+            Padding = new Thickness(0, 7, 0, 8),
             Child = footer
         };
     }

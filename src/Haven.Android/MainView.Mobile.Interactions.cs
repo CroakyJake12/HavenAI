@@ -22,9 +22,11 @@ public sealed partial class MainView
             return;
         }
 
-        if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(surface, "home", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(surface, "go", StringComparison.OrdinalIgnoreCase))
         {
-            await OpenDashboardAsync();
+            await OpenHomeAsync();
             return;
         }
 
@@ -105,36 +107,24 @@ public sealed partial class MainView
         {
             var selected = tab;
             var isSelected = ReferenceEquals(tab, SelectedTab);
-            var labelRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6,
-                Children =
-                {
-                    new HavenIcon
-                    {
-                        IconKey = IconForSurface(tab.Surface),
-                        Width = 16,
-                        Height = 16
-                    },
-                    new TextBlock
-                    {
-                        Text = tab.Title,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
-                        FontSize = 12,
-                        MaxWidth = 150,
-                        TextTrimming = TextTrimming.CharacterEllipsis
-                    }
-                }
-            };
             var select = new Button
             {
-                Content = labelRow,
+                Content = new TextBlock
+                {
+                    Text = tab.Title,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
+                    FontSize = 12,
+                    MaxWidth = 170,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                },
                 MinHeight = 36,
-                Padding = new Thickness(10, 5),
+                Padding = new Thickness(12, 5),
                 Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
+                BorderBrush = isSelected
+                    ? ResourceBrush("HavenAccentBorderBrush")
+                    : Brushes.Transparent,
+                BorderThickness = new Thickness(0, 0, 0, isSelected ? 2 : 0),
                 CornerRadius = new CornerRadius(0)
             };
             select.Click += (_, _) => SelectedTab = selected;
@@ -153,25 +143,11 @@ public sealed partial class MainView
                 close.Padding = new Thickness(6);
                 close.Background = Brushes.Transparent;
                 close.BorderThickness = new Thickness(0);
+                close.CornerRadius = new CornerRadius(0);
                 tabRow.Children.Add(close);
             }
 
-            var tabShell = new Grid
-            {
-                RowDefinitions = new RowDefinitions("Auto,2"),
-                Margin = new Thickness(0, 0, 3, 0)
-            };
-            tabShell.Children.Add(tabRow);
-            var underline = new Border
-            {
-                Height = 2,
-                Background = isSelected
-                    ? ResourceBrush("HavenAccentBrush")
-                    : Brushes.Transparent
-            };
-            Grid.SetRow(underline, 1);
-            tabShell.Children.Add(underline);
-            _mobileTabs.Children.Add(tabShell);
+            _mobileTabs.Children.Add(tabRow);
         }
 
         var add = MobileIconButton("plus", () =>
@@ -181,9 +157,9 @@ public sealed partial class MainView
         }, "New tab");
         add.MinHeight = 36;
         add.MinWidth = 36;
-        add.CornerRadius = new CornerRadius(12);
-        add.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
-        add.BorderThickness = new Thickness(1);
+        add.CornerRadius = new CornerRadius(0);
+        add.Background = Brushes.Transparent;
+        add.BorderThickness = new Thickness(0);
         _mobileTabs.Children.Add(add);
     }
     private void OpenMobileDrawer()
