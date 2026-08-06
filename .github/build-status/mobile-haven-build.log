@@ -1,36 +1,20 @@
-source_commit=e42b74fcfd888cd7b71957e856930d7d61eedebf
-workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31113314582
+source_commit=079b1a3c5b816dab413d2fa596b94492b040fa95
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31123930904
 build_exit=1
 
-  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
-  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
-  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
-  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
-  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(292,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(358,37): error CS0117: 'ResourceConstant.Layout' does not contain a definition for 'SimpleSpinnerItem' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(359,13): error CS1503: Argument 3: cannot convert from 'string[]' to 'int' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(211,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuManage' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(106,34): error CS0103: The name 'ModelNameText' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+  Haven.Core -> /home/runner/work/HavenAI/HavenAI/source/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
+  Haven.Application -> /home/runner/work/HavenAI/HavenAI/source/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
+  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/source/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
+  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/source/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
+  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/source/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
+/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/ModelBrowserActivity.cs(358,27): error CS7000: Unexpected use of an aliased name [/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/ModelBrowserActivity.cs(358,35): error CS7000: Unexpected use of an aliased name [/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/Haven.Android.csproj]
 
 Build FAILED.
 
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(285,26): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(292,13): error CS8602: Dereference of a possibly null reference. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(358,37): error CS0117: 'ResourceConstant.Layout' does not contain a definition for 'SimpleSpinnerItem' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/ModelBrowserActivity.cs(359,13): error CS1503: Argument 3: cannot convert from 'string[]' to 'int' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(211,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuManage' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(106,34): error CS0103: The name 'ModelNameText' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/ModelBrowserActivity.cs(358,27): error CS7000: Unexpected use of an aliased name [/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/ModelBrowserActivity.cs(358,35): error CS7000: Unexpected use of an aliased name [/home/runner/work/HavenAI/HavenAI/source/src/Haven.Android/Haven.Android.csproj]
     0 Warning(s)
-    10 Error(s)
+    2 Error(s)
 
-Time Elapsed 00:00:37.08
+Time Elapsed 00:00:21.93
