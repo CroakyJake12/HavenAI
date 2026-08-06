@@ -33,4 +33,18 @@ if bottom_call not in text:
     raise SystemExit("launcher drawer compatibility call not found")
 text = text.replace(bottom_call, bottom_fallback, 1)
 
+catalog_call = 'text = replace_once(text, button_anchor, button_new, "model catalog button")'
+catalog_fallback = """if button_anchor in text:
+    text = replace_once(text, button_anchor, button_new, "model catalog button")
+else:
+    row_marker = "        root.AddView(buttonRow);" + chr(10)
+    status_marker = "        _status = new TextView(this)" + chr(10)
+    if row_marker not in text or status_marker not in text:
+        raise RuntimeError("model catalog button: insertion markers not found")
+    catalog_only = button_new.split(row_marker, 1)[1].rsplit(status_marker, 1)[0]
+    text = text.replace(row_marker, row_marker + catalog_only, 1)"""
+if catalog_call not in text:
+    raise SystemExit("model catalog compatibility call not found")
+text = text.replace(catalog_call, catalog_fallback, 1)
+
 path.write_text(text)
