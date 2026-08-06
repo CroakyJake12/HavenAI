@@ -6,6 +6,7 @@ using Android.Views;
 using Android.Widget;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using IOPath = System.IO.Path;
 
 namespace Haven.Android;
 
@@ -58,8 +59,8 @@ public sealed class ModelBrowserActivity : Activity
         _query = new EditText(this)
         {
             Hint = "Model name, creator, or feature",
-            SingleLine = true
         };
+        _query.SetSingleLine(true);
         _query.SetTextColor(Color.White);
         _query.SetHintTextColor(Color.Argb(180, 235, 225, 255));
         root.AddView(_query, new LinearLayout.LayoutParams(
@@ -83,7 +84,7 @@ public sealed class ModelBrowserActivity : Activity
         actions.AddView(ActionButton("Search Hugging Face", () => _ = SearchAsync()), Weighted(Dp(52), right: Dp(4)));
         actions.AddView(ActionButton("Import local GGUF", () =>
             StartActivity(new Intent(this, typeof(ModelImportActivity)))), Weighted(Dp(52), left: Dp(4)));
-        root.AddView(Actions);
+        root.AddView(actions);
 
         _status = Label("Checking this device…", 13);
         _status.SetTextColor(Color.Argb(220, 214, 193, 255));
