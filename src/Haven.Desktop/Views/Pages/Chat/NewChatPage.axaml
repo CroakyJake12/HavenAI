@@ -52,7 +52,7 @@
 						   HorizontalAlignment="Center"
 						   Foreground="#FF4D4D4D"
 						   FontSize="11" />
-				<Grid HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10">
+				<Grid HorizontalAlignment="Stretch" MaxWidth="780" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
 				<topRail:AddMenu x:Name="AddButton"
 									 Width="58" Height="58" CornerRadius="29"
 									 Background="{DynamicResource HavenAccentSoftBrush}"
@@ -61,7 +61,7 @@
 									 Foreground="{DynamicResource HavenTextBrush}" />
 					<TextBox x:Name="InstructionBox"
 							 Grid.Column="1"
-							 MinHeight="58" MaxHeight="150"
+							 MinWidth="0" MinHeight="58" MaxHeight="150"
 							 AcceptsReturn="True"
 							 TextWrapping="Wrap"
 							 CornerRadius="18"

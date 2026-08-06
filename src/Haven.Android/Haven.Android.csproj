@@ -1,0 +1,80 @@
+<!--
+  Android head for Haven. The existing Haven.Desktop AXAML, styles, controls,
+  pages, and view models are linked into this target so Android renders the
+  same product UI rather than a separate mobile clone.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <ApplicationId>com.cakemods.haven</ApplicationId>
+    <ApplicationVersion>20001</ApplicationVersion>
+    <ApplicationDisplayVersion>0.2.1-mobile-preview</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidManifest>AndroidManifest.xml</AndroidManifest>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <PublishTrimmed>false</PublishTrimmed>
+    <AssemblyName>Haven</AssemblyName>
+    <RootNamespace>Haven.Android</RootNamespace>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Haven.Core/Haven.Core.csproj" />
+    <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
+    <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
+    <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
+    <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Android" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Controls.WebView" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="KokoroSharp.CPU" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Haven.Desktop/**/*.cs"
+             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs"
+             LinkBase="SharedDesktop" />
+    <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+
+    <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
+                      Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AvaloniaXaml Include="../Haven.Desktop/Styles/**/*.axaml"
+                  Link="Styles/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+
+    <AvaloniaXaml Include="../Haven.Desktop/Controls/**/*.axaml"
+                  Link="Controls/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Include="../Haven.Desktop/Views/**/*.axaml"
+                  Exclude="../Haven.Desktop/MainWindow.axaml"
+                  Link="Views/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+  </ItemGroup>
+</Project>

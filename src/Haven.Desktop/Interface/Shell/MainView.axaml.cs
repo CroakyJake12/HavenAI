@@ -1392,7 +1392,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var instructionsTask = _catalog.GetPromptsAsync(CancellationToken.None);
         var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
         await Task.WhenAll(agentsTask, pluginsTask, instructionsTask, appsTask);
-        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, await appsTask);
+#if ANDROID
+        var apps = (await appsTask)
+            .Concat(await GetInstalledAndroidAppDefinitionsAsync())
+            .ToArray();
+#else
+        var apps = await appsTask;
+#endif
+        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, apps);
     }
 
     private async Task ConfigureAddMenuAsync(GoPage page)
@@ -1402,7 +1409,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var instructionsTask = _catalog.GetPromptsAsync(CancellationToken.None);
         var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
         await Task.WhenAll(agentsTask, pluginsTask, instructionsTask, appsTask);
-        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, await appsTask);
+#if ANDROID
+        var apps = (await appsTask)
+            .Concat(await GetInstalledAndroidAppDefinitionsAsync())
+            .ToArray();
+#else
+        var apps = await appsTask;
+#endif
+        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, apps);
     }
 
     private async void OnNewChatAddActionSelected(object? sender, AddMenu.AddMenuAction action)
@@ -1413,7 +1427,16 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async void OnNewChatCatalogItemSelected(object? sender, AddMenuSelection selection)
     {
-        if (selection.Item is ModeDefinition app) await LaunchAppAsync(app, false);
+        if (selection.Item is not ModeDefinition app)
+            return;
+#if ANDROID
+        if (IsAndroidAppDefinition(app))
+        {
+            await ConnectAndroidAppDefinitionAsync(app);
+            return;
+        }
+#endif
+        await LaunchAppAsync(app, false);
     }
 
     private async void OnGoAddRequested(object? sender, AddMenu.AddMenuAction action)
@@ -1438,11 +1461,17 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async void OnGoCatalogItemSelected(object? sender, AddMenuSelection selection)
     {
         if (selection.Item is ModeDefinition app)
-        {
+       {
+#if ANDROID
+            if (IsAndroidAppDefinition(app))
+            {
+                await ConnectAndroidAppDefinitionAsync(app);
+                return;
+            }
+#endif
             await LaunchAppAsync(app, false);
             return;
         }
-
         await OpenNewChatAsync();
         _newChatPage?.ApplyAddSelection(selection);
     }
