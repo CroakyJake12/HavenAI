@@ -11,13 +11,30 @@ public sealed partial class HavenLauncherActivity
 {
     private async void LoadAppsAsync()
     {
-        var apps = await Task.Run(QueryApps);
-        _apps.Clear();
-        _apps.AddRange(ApplySavedOrder(apps));
-        _page = Math.Clamp(_page, 0, Math.Max(0, PageCount - 1));
-        RenderPage();
+        if (_launcherStatus is not null)
+            _launcherStatus.Text = "Loading apps…";
+        try
+        {
+            var apps = await Task.Run(QueryApps);
+            _apps.Clear();
+            _apps.AddRange(ApplySavedOrder(apps));
+            _page = Math.Clamp(_page, 0, Math.Max(0, PageCount - 1));
+            if (_launcherStatus is not null)
+                _launcherStatus.Text = _apps.Count == 0
+                    ? "No launchable apps were returned by Android. Open launcher settings or retry."
+                    : $"{_apps.Count} apps";
+            if (_grid is not null)
+                _grid.Post(RenderPage);
+            else
+                RenderPage();
+        }
+        catch (Exception ex)
+        {
+            if (_launcherStatus is not null)
+                _launcherStatus.Text = "Could not load apps: " + ex.Message;
+            Toast.MakeText(this, "Could not load apps", ToastLength.Long)?.Show();
+        }
     }
-
     private IReadOnlyList<LauncherApp> QueryApps()
     {
         var manager = PackageManager;
@@ -86,6 +103,11 @@ public sealed partial class HavenLauncherActivity
         var visible = _apps.Skip(_page * perPage).Take(perPage).ToArray();
 
         _grid.RemoveAllViews();
+        if (_apps.Count == 0)
+        {
+            _pageIndicator.Text = "Tap All apps to retry";
+            return;
+        }
         _grid.RowCount = rows;
         _grid.ColumnCount = columns;
 

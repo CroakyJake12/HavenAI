@@ -100,101 +100,22 @@ public sealed partial class MainView
         _mobileDrawerContent.Children.Clear();
         AddDrawerHeading(_mobileDrawerContent, "Actions");
 
-        AddMobileAction(
-            "New chat",
-            "Start a separate conversation.",
-            "plus",
-            () => _ = OpenNewChatAsync(forceNewTab: true));
-
-        AddMobileAction(
-            "New chat group",
-            "Create a grouped chat workspace.",
-            "folder",
-            () =>
-            {
-                if (NewContainerCommand.CanExecute(null))
-                    NewContainerCommand.Execute(null);
-                CloseMobileDrawer();
-            });
-
-        AddMobileAction(
-            "Connect Android app",
-            "Attach an installed app to the current chat without launching it.",
-            "apps",
-            () => _ = ShowMobileInstalledAppsAsync());
-
-        AddMobileAction(
-            "ChatGPT / OpenAI connection",
-            "Open plugin and provider setup.",
-            "plugins",
-            () =>
+        foreach (var item in AllCommandItems)
+        {
+            var action = item;
+            var button = MobileListButton(
+                action.Name,
+                action.Description,
+                ActionIcon(action.Name));
+            button.IsEnabled = action.RunCommand.CanExecute(null);
+            button.Click += (_, _) =>
             {
                 CloseMobileDrawer();
-                OpenCatalog(CatalogPageKind.Plugins);
-                OpenApplicationSettings();
-            });
-
-        AddMobileAction(
-            "Device Use",
-            "Ask Haven to work with this Android device through supported intents and providers.",
-            "device",
-            () =>
-            {
-                CloseMobileDrawer();
-                _ = OpenNewChatAsync(
-                    "Device Use is active on Android. Help with the requested device task using supported Android intents, " +
-                    "content providers, accessibility-safe flows, and explicit user confirmation for consequential actions.");
-            });
-
-        AddMobileAction(
-            "Add or import model",
-            "Choose existing GGUF model files, including PocketPal downloads.",
-            "download",
-            () =>
-            {
-                CloseMobileDrawer();
-                LaunchAndroidModelImporter();
-            });
-
-        AddMobileAction(
-            "Model settings",
-            "Select and refresh Haven model providers.",
-            "model",
-            () =>
-            {
-                CloseMobileDrawer();
-                OpenApplicationSettings();
-            });
-
-        AddMobileAction(
-            "Plugins",
-            "Browse Haven plugins and integrations.",
-            "plugins",
-            () =>
-            {
-                CloseMobileDrawer();
-                OpenCatalog(CatalogPageKind.Plugins);
-            });
-
-        AddMobileAction(
-            "Automations",
-            "Open scheduled actions.",
-            "automation",
-            () =>
-            {
-                CloseMobileDrawer();
-                OpenAutomations();
-            });
-
-        AddMobileAction(
-            "Settings",
-            "Open Haven settings.",
-            "settings",
-            () =>
-            {
-                CloseMobileDrawer();
-                OpenApplicationSettings();
-            });
+                if (action.RunCommand.CanExecute(null))
+                    action.RunCommand.Execute(null);
+            };
+            _mobileDrawerContent.Children.Add(button);
+        }
 
         OpenMobileDrawer();
     }

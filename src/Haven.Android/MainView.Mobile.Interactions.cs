@@ -12,7 +12,7 @@ namespace Haven.Desktop.Views.Shell;
 
 public sealed partial class MainView
 {
-    public Task ApplyMobileStartupSurfaceAsync() => OpenNewChatAsync();
+    public Task ApplyMobileStartupSurfaceAsync() => OpenHomeAsync();
 
     public async Task ApplyMobileLaunchRequestAsync(string? surface, string? prompt)
     {
@@ -78,17 +78,19 @@ public sealed partial class MainView
 
         var isHome = CurrentSurface == HavenSurface.Home;
         var showChatAffordance = CurrentSurface == HavenSurface.Chat;
+        SidebarControl.IsVisible = false;
+        NativeSidebarHost.IsVisible = false;
+        ShellContextBar.IsVisible = false;
         if (_mobileHeader is not null)
-            _mobileHeader.IsVisible = !isHome;
+            _mobileHeader.IsVisible = true;
         if (_mobileBottomAffordance is not null)
             _mobileBottomAffordance.IsVisible = showChatAffordance;
         if (_mobileHomeFooter is not null)
             _mobileHomeFooter.IsVisible = isHome;
-
         PageContent.Margin = isHome
-            ? new Thickness(0, 0, 0, 72)
+            ? new Thickness(0, 0, 0, 78)
             : showChatAffordance
-                ? new Thickness(0, 0, 0, 106)
+                ? new Thickness(0, 0, 0, 112)
                 : new Thickness(0);
         RefreshMobileTabs();
     }
@@ -102,40 +104,73 @@ public sealed partial class MainView
         foreach (var tab in OpenTabs)
         {
             var selected = tab;
-            var title = new Button
+            var isSelected = ReferenceEquals(tab, SelectedTab);
+            var labelRow = new StackPanel
             {
-                Content = tab.Title,
-                MinHeight = 38,
-                Padding = new Thickness(12, 5),
-                CornerRadius = new CornerRadius(12, 0, 0, 12),
-                Background = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentSoftBrush")
-                    : Brushes.Transparent,
-                BorderBrush = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentBorderBrush")
-                    : ResourceBrush("HavenLineBrush"),
-                BorderThickness = new Thickness(1, 1, tab.IsCloseable ? 0 : 1, 1)
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children =
+                {
+                    new HavenIcon
+                    {
+                        IconKey = IconForSurface(tab.Surface),
+                        Width = 16,
+                        Height = 16
+                    },
+                    new TextBlock
+                    {
+                        Text = tab.Title,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
+                        FontSize = 12,
+                        MaxWidth = 150,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    }
+                }
             };
-            title.Click += (_, _) => SelectedTab = selected;
+            var select = new Button
+            {
+                Content = labelRow,
+                MinHeight = 36,
+                Padding = new Thickness(10, 5),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0)
+            };
+            select.Click += (_, _) => SelectedTab = selected;
 
-            var tabShell = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0 };
-            tabShell.Children.Add(title);
+            var tabRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 0,
+                Children = { select }
+            };
             if (tab.IsCloseable)
             {
                 var close = MobileIconButton("close", () => CloseTab(selected), "Close tab");
-                close.MinHeight = 38;
-                close.MinWidth = 34;
-                close.CornerRadius = new CornerRadius(0, 12, 12, 0);
-                close.Padding = new Thickness(7);
-                close.BorderBrush = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentBorderBrush")
-                    : ResourceBrush("HavenLineBrush");
-                close.BorderThickness = new Thickness(0, 1, 1, 1);
-                close.Background = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentSoftBrush")
-                    : Brushes.Transparent;
-                tabShell.Children.Add(close);
+                close.MinHeight = 34;
+                close.MinWidth = 30;
+                close.Padding = new Thickness(6);
+                close.Background = Brushes.Transparent;
+                close.BorderThickness = new Thickness(0);
+                tabRow.Children.Add(close);
             }
+
+            var tabShell = new Grid
+            {
+                RowDefinitions = new RowDefinitions("Auto,2"),
+                Margin = new Thickness(0, 0, 3, 0)
+            };
+            tabShell.Children.Add(tabRow);
+            var underline = new Border
+            {
+                Height = 2,
+                Background = isSelected
+                    ? ResourceBrush("HavenAccentBrush")
+                    : Brushes.Transparent
+            };
+            Grid.SetRow(underline, 1);
+            tabShell.Children.Add(underline);
             _mobileTabs.Children.Add(tabShell);
         }
 
@@ -144,14 +179,13 @@ public sealed partial class MainView
             if (AddNewTabCommand.CanExecute(null))
                 AddNewTabCommand.Execute(null);
         }, "New tab");
-        add.MinHeight = 38;
-        add.MinWidth = 38;
+        add.MinHeight = 36;
+        add.MinWidth = 36;
         add.CornerRadius = new CornerRadius(12);
         add.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
         add.BorderThickness = new Thickness(1);
         _mobileTabs.Children.Add(add);
     }
-
     private void OpenMobileDrawer()
     {
         if (_mobileDrawerScrim is not null)

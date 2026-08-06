@@ -9,8 +9,8 @@
     <TargetFramework>net10.0-android</TargetFramework>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
     <ApplicationId>com.cakemods.haven</ApplicationId>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>0.1.0-mobile-preview</ApplicationDisplayVersion>
+    <ApplicationVersion>20001</ApplicationVersion>
+    <ApplicationDisplayVersion>0.2.1-mobile-preview</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidManifest>AndroidManifest.xml</AndroidManifest>

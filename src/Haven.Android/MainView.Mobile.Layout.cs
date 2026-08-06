@@ -95,7 +95,7 @@ public sealed partial class MainView
 
     private Border BuildMobileHeader()
     {
-        var brand = MobileButton("Haven", "home", () => _ = OpenHomeAsync(), 10);
+        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);
         var actions = MobileButton("Actions", "commands", ShowMobileActions, 8);
         var apps = MobileButton("Apps", "apps", () => _ = ShowMobileLauncherAsync(), 8);
         var notifications = MobileIconButton("notification", ShowMobileNotifications, "Alerts");
@@ -202,40 +202,22 @@ public sealed partial class MainView
 
     private Border BuildHomeFooter()
     {
-        var dashboard = MobileIconButton("dashboard", () => _ = OpenDashboardAsync(), "Dashboard");
-        var launcher = MobileIconButton("apps", LaunchAndroidHomeChooser, "Launcher");
-        foreach (var button in new [] { dashboard, launcher })
-        {
-            button.Background = ResourceBrush("HavenAccentSoftBrush");
-            button.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
-            button.BorderThickness = new Thickness(1);
-        }
-
-        var bubble = new Border
-        {
-            Padding = new Thickness(3),
-            CornerRadius = new CornerRadius(999),
-            Background = ResourceBrush("HavenAccentSoftBrush"),
-            BorderBrush = ResourceBrush("HavenAccentBorderBrush"),
-            BorderThickness = new Thickness(1),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 3,
-                Children = { dashboard, launcher }
-            }
-        };
+        var home = MobileIconButton("home", () => _ = OpenHomeAsync(), "Go");
+        home.Background = ResourceBrush("HavenAccentSoftBrush");
+        home.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
+        home.BorderThickness = new Thickness(1);
 
         _mobileGoInput = new TextBox
         {
             PlaceholderText = "Go — ask Haven",
             MinHeight = 48,
+            MinWidth = 0,
             CornerRadius = new CornerRadius(24),
-            Padding = new Thickness(15, 10),
+            Padding = new Thickness(14, 10),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         _mobileGoInput.KeyDown += OnMobileGoKeyDown;
+
         var send = MobileIconButton("send", () => _ = SubmitMobileGoAsync(), "Go");
         send.MinHeight = 44;
         send.MinWidth = 44;
@@ -245,6 +227,7 @@ public sealed partial class MainView
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             ColumnSpacing = 5,
+            MinWidth = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         chatBar.Children.Add(_mobileGoInput);
@@ -256,9 +239,10 @@ public sealed partial class MainView
             ColumnDefinitions = new ColumnDefinitions("Auto,*"),
             ColumnSpacing = 6,
             Margin = new Thickness(6, 0, 6, 8),
+            MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Bottom
         };
-        footer.Children.Add(bubble);
+        footer.Children.Add(home);
         Grid.SetColumn(chatBar, 1);
         footer.Children.Add(chatBar);
 
@@ -272,7 +256,6 @@ public sealed partial class MainView
             Child = footer
         };
     }
-
     private Border BuildDrawer(StackPanel content)
     {
         var close = MobileIconButton("close", CloseMobileDrawer, "Close");

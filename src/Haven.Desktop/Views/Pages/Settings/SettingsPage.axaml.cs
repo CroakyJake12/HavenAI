@@ -17,6 +17,13 @@ public sealed partial class SettingsPage : UserControl
     private readonly HavenEventBus _bus;
     private readonly UserPreferencesService _preferences;
     private readonly IOllamaClient _ollama;
+    private static readonly string[] RecommendedModels =
+    [
+        "qwen3:4b",
+        "gemma3:4b",
+        "llama3.2:3b",
+        "deepseek-r1:1.5b"
+    ];
 
     private IReadOnlyList<ModelDescriptor> _models = [];
     private ModelDescriptor? _selectedModel;
@@ -31,6 +38,7 @@ public sealed partial class SettingsPage : UserControl
 
         InitializeComponent();
         LoadPreferences();
+        BuildRecommendedModels();
         WireEvents();
         _ = LoadModelsAsync();
     }
@@ -76,6 +84,90 @@ public sealed partial class SettingsPage : UserControl
         catch { StatusText.Text = "Could not load models. Is Ollama running?"; }
     }
 
+    private void BuildRecommendedModels()
+    {
+        RecommendedModelsPanel.Children.Clear();
+        foreach (var model in RecommendedModels)
+        {
+            var selected = model;
+            var button = new Button
+            {
+                Content = selected,
+                Margin = new Avalonia.Thickness(0, 0, 8, 8),
+                MinHeight = 42
+            };
+            button.Click += async (_, _) =>
+            {
+                InstallModelBox.Text = selected;
+                await InstallModelAsync(selected);
+            };
+            RecommendedModelsPanel.Children.Add(button);
+        }
+    }
+
+    private async Task InstallModelAsync(string? requested = null)
+    {
+        var model = (requested ?? InstallModelBox.Text)?.Trim();
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            StatusText.Text = "Enter a model name or choose a recommended model.";
+            return;
+        }
+
+        InstallModelButton.IsEnabled = false;
+        BrowseModelsButton.IsEnabled = false;
+        InstallProgress.Value = 0;
+        StatusText.Text = $"Installing {model}…";
+        try
+        {
+            if (!await _ollama.IsAvailableAsync(CancellationToken.None))
+            {
+                StatusText.Text = "The local model service is not available. Start or connect Ollama, or use the Android GGUF importer.";
+                return;
+            }
+
+            var progress = new Progress<double>(value =>
+            {
+                InstallProgress.Value = Math.Clamp(value, 0d, 1d);
+                StatusText.Text = $"Installing {model}… {Math.Round(InstallProgress.Value * 100)}%";
+            });
+            await _ollama.PullModelAsync(model, progress, CancellationToken.None);
+            InstallProgress.Value = 1;
+            StatusText.Text = $"{model} installed.";
+            await LoadModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Install failed: {ex.Message}";
+        }
+        finally
+        {
+            InstallModelButton.IsEnabled = true;
+            BrowseModelsButton.IsEnabled = true;
+        }
+    }
+
+    private async Task DeleteSelectedModelAsync()
+    {
+        if (_selectedModel is null)
+        {
+            StatusText.Text = "Choose a model to delete.";
+            return;
+        }
+
+        try
+        {
+            await _ollama.DeleteModelAsync(_selectedModel.Name, CancellationToken.None);
+            DeleteConfirmBorder.IsVisible = false;
+            StatusText.Text = $"{_selectedModel.Name} deleted.";
+            await LoadModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Delete failed: {ex.Message}";
+        }
+    }
+
     private void WireEvents()
     {
         _bus.RegisterElement("Settings.Actions.RefreshModels", RefreshModelsButton);
@@ -84,6 +176,43 @@ public sealed partial class SettingsPage : UserControl
         {
             _bus.Fire("Settings.Actions.RefreshModels");
             await LoadModelsAsync();
+        };
+
+        ModelCombo.SelectionChanged += (_, _) =>
+            _selectedModel = ModelCombo.SelectedItem as ModelDescriptor;
+        EffortCombo.SelectionChanged += (_, _) =>
+        {
+            if (EffortCombo.SelectedItem is EffortLevel effort)
+                _selectedEffort = effort;
+        };
+        InstallModelButton.Click += async (_, _) => await InstallModelAsync();
+        BrowseModelsButton.Click += (_, _) =>
+            RecommendedModelsBorder.IsVisible = !RecommendedModelsBorder.IsVisible;
+        HuggingFaceSearchButton.Click += async (_, _) =>
+        {
+            var query = Uri.EscapeDataString(InstallModelBox.Text?.Trim() ?? string.Empty);
+            var uri = new Uri($"https://huggingface.co/models?library=gguf&search={query}");
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (launcher is null || !await launcher.LaunchUriAsync(uri))
+                StatusText.Text = "Could not open the public Hugging Face catalogue.";
+        };
+        DeleteModelButton.Click += (_, _) =>
+        {
+            _selectedModel = ModelCombo.SelectedItem as ModelDescriptor;
+            DeleteConfirmBorder.IsVisible = _selectedModel is not null;
+            if (_selectedModel is null)
+                StatusText.Text = "Choose a model to delete.";
+        };
+        CancelDeleteButton.Click += (_, _) => DeleteConfirmBorder.IsVisible = false;
+        ConfirmDeleteButton.Click += async (_, _) => await DeleteSelectedModelAsync();
+        ModelSearchBox.TextChanged += (_, _) =>
+        {
+            var query = ModelSearchBox.Text?.Trim() ?? string.Empty;
+            ModelCombo.ItemsSource = string.IsNullOrWhiteSpace(query)
+                ? _models
+                : _models.Where(model =>
+                    model.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || model.Family.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
         };
 
         _bus.RegisterElement("Settings.Actions.SaveDefaults", SaveDefaultsButton);

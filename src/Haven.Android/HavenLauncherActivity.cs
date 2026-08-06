@@ -45,6 +45,7 @@ public sealed partial class HavenLauncherActivity : Activity
     private LinearLayout? _widgetStrip;
     private GridLayout? _grid;
     private TextView? _pageIndicator;
+    private TextView? _launcherStatus;
     private AppWidgetHost? _widgetHost;
     private AppWidgetManager? _widgetManager;
     private int _page;
@@ -157,6 +158,18 @@ public sealed partial class HavenLauncherActivity : Activity
         };
         _pageIndicator.SetTextColor(Color.White);
         _root.AddView(_pageIndicator);
+        _launcherStatus = new TextView(this)
+        {
+            Text = "Loading apps…",
+            TextSize = 12,
+            Gravity = GravityFlags.Center,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                ViewGroup.LayoutParams.WrapContent)
+        };
+        _launcherStatus.SetTextColor(Color.Argb(220, 235, 225, 255));
+        _launcherStatus.SetPadding(0, 0, 0, Dp(4));
+        _root.AddView(_launcherStatus);
 
         _grid = new GridLayout(this)
         {
@@ -189,9 +202,14 @@ public sealed partial class HavenLauncherActivity : Activity
         row.Background = MagicalBackground(Dp(28));
 
         row.AddView(IconButton(
-            SystemDrawable("ic_menu_manage"),
-            "Open Haven dashboard",
+            Android.Resource.Drawable.IcMenuView,
+            "All apps",
+            ShowAppDrawer));
+        row.AddView(IconButton(
+            Android.Resource.Drawable.IcMenuManage,
+            "Open Haven Go",
             OpenHavenDashboard));
+
         row.AddView(IconButton(
             SystemDrawable("ic_menu_preferences"),
             "Launcher settings",

@@ -83,6 +83,20 @@ public sealed class ModelImportActivity : Activity
         buttonRow.AddView(folder);
         root.AddView(buttonRow);
 
+        var publicCatalog = ActionButton("Browse public GGUF models", () =>
+        {
+            var intent = new Intent(Intent.ActionView, Uri.Parse("https://huggingface.co/models?library=gguf&sort=trending"));
+            StartActivity(intent);
+        });
+        publicCatalog.LayoutParameters = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent,
+            Dp(52))
+        {
+            TopMargin = Dp(10)
+        };
+        root.AddView(publicCatalog);
+
+
         _status = new TextView(this)
         {
             Text = "No import running.",
