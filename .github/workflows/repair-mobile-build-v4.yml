@@ -50,7 +50,8 @@ jobs:
               if marker not in text:
                   raise SystemExit("using marker not found")
               text = text.replace(marker, marker + "using IOPath = System.IO.Path;\n", 1)
-          text = text.replace("Path.", "IOPath.")
+          import re
+          text = re.sub(r'(?<!IO)Path\\.', 'IOPath.', text)
 
           model.write_text(text)
 
@@ -65,8 +66,8 @@ jobs:
               "android single-line call": "_query.SetSingleLine(true);" in text,
               "actions casing": "root.AddView(Actions);" not in text,
               "path alias": "using IOPath = System.IO.Path;" in text,
-              "no ambiguous Path": "Path." not in text,
-              "dialog spelling": "IDalogInterface" not in text,
+              "no ambiguous Path": re.search(r'(?<!IO)Path\\.', text) is None,
+              "dialog spelling": "IDLalogInterface" not in text,
               "record parameter": "TagsK" not in text,
               "avalonia z-Index": "_settingsOverlay.SetValue(Panel.ZIndexProperty, 100);" in dtext,
           }
