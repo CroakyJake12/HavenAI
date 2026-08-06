@@ -1,63 +1,96 @@
 name: Repair Outstanding Mobile Shell and Build APK
+
 on:
   push:
     branches:
-    - main
+      - main
     paths:
-    - .github/workflows/repair-outstanding-mobile-shell-and-build-apk.yml
-  workflow_dispatch: {}
+      - .github/workflows/repair-outstanding-mobile-shell-and-build-apk.yml
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   repair-build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      AVALONIA_TELEMETRY_OPTOUT: '1'
-      DOTNET_NOLOGO: '1'
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      AVALONIA_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: mobile-haven-outstanding-fixes
-        fetch-depth: 0
-    - name: Apply bounded Android shell repair
-      shell: bash
-      run: "python3 - <<'PY'\nfrom pathlib import Path\n\ndef replace_once(path: Path, old: str, new: str, label: str) -> None:\n    text = path.read_text()\n    count = text.count(old)\n    if count == 0 and new in text:\n        print(f\"{label}: already applied\")\n        return\n    if count != 1:\n        raise SystemExit(f\"{label}: expected one occurrence, found {count}\")\n    path.write_text(text.replace(old, new, 1))\n    print(f\"{label}: applied\")\n\nlayout = Path(\"src/Haven.Android/MainView.Mobile.Layout.cs\")\nreplace_once(\n    layout,\n    \"    private TextBox? _mobileGoInput;\\n\",\n    \"    private TextBox? _mobileGoInput;\\n\"\n    \"    private Control? _mobilePageContent;\\n\",\n    \"mobile page content field\")\n\nold_layout = \"\\n\".join([\n    \"        TopRail.IsVisible = false;\",\n    \"        SidebarControl.IsVisible = false;\",\n    \"        NativeSidebarHost.IsVisible = false;\",\n    \"        ShellContextBar.IsVisible = false;\",\n    '        body.ColumnDefinitions\
-        \ = new ColumnDefinitions(\"*\");',\n    \"        body.Margin = new Thickness(0);\",\n    \"        Grid.SetColumn(contentHost, 0);\",\n    \"        Grid.SetColumnSpan(contentHost, 1);\",\n    \"\",\n    \"        ContentArea.BorderThickness = new Thickness(0);\",\n    \"        ContentArea.CornerRadius = new CornerRadius(0);\",\n    '        ContentArea.Background = ResourceBrush(\"HavenBackgroundBrush\");',\n    \"        PageContent.Margin = new Thickness(0, 0, 0, 92);\",\n])\nnew_layout = \"\\n\".join([\n    \"        foreach (var child in root.Children.ToArray())\",\n    \"        {\",\n    \"            if (Grid.GetRow(child) == 0)\",\n    \"                child.IsVisible = false;\",\n    \"        }\",\n    \"\",\n    \"        foreach (var child in body.Children.ToArray())\",\n    \"        {\",\n    \"            if (!ReferenceEquals(child, contentHost))\",\n    \"                child.IsVisible = false;\",\n    \"        }\",\n    \"\",\n    '        body.ColumnDefinitions\
-        \ = new ColumnDefinitions(\"*\");',\n    \"        body.Margin = new Thickness(0);\",\n    \"        Grid.SetColumn(contentHost, 0);\",\n    \"        Grid.SetColumnSpan(contentHost, 1);\",\n    \"        _mobilePageContent = contentHost;\",\n    \"        _mobilePageContent.Margin = new Thickness(0, 0, 0, 92);\",\n])\nreplace_once(layout, old_layout, new_layout, \"runtime-located mobile shell controls\")\n\ninteractions = Path(\"src/Haven.Android/MainView.Mobile.Interactions.cs\")\nold_chrome = \"\\n\".join([\n    \"        SidebarControl.IsVisible = false;\",\n    \"        NativeSidebarHost.IsVisible = false;\",\n    \"        ShellContextBar.IsVisible = false;\",\n    \"\",\n])\nreplace_once(interactions, old_chrome, \"\", \"remove desktop named chrome references\")\n\nold_margin = \"\\n\".join([\n    \"        PageContent.Margin = isHome\",\n    \"            ? new Thickness(0, 0, 0, 78)\",\n    \"            : showChatAffordance\",\n    \"                ? new Thickness(0,\
-        \ 0, 0, 112)\",\n    \"                : new Thickness(0);\",\n])\nnew_margin = \"\\n\".join([\n    \"        if (_mobilePageContent is not null)\",\n    \"            _mobilePageContent.Margin = isHome\",\n    \"                ? new Thickness(0, 0, 0, 78)\",\n    \"                : showChatAffordance\",\n    \"                    ? new Thickness(0, 0, 0, 112)\",\n    \"                    : new Thickness(0);\",\n])\nreplace_once(interactions, old_margin, new_margin, \"runtime mobile content inset\")\n\ninvalid = [\n    \"TopRail.IsVisible\",\n    \"SidebarControl.IsVisible\",\n    \"NativeSidebarHost.IsVisible\",\n    \"ShellContextBar.IsVisible\",\n    \"ContentArea.\",\n    \"PageContent.\",\n]\nfor path in (layout, interactions):\n    text = path.read_text()\n    remaining = [token for token in invalid if token in text]\n    if remaining:\n        raise SystemExit(f\"{path}: desktop-only references remain: {remaining}\")\n\nprint(\"Android shell repair validated.\")\nPY"
-    - name: Commit repaired mobile shell
-      shell: bash
-      run: "if git diff --quiet; then\n  echo \"Repair already present.\"\nelse\n  git config user.name \"github-actions[bot]\"\n  git config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n  git add src/Haven.Android/MainView.Mobile.Layout.cs src/Haven.Android/MainView.Mobile.Interactions.cs\n  git commit -m \"Repair Android mobile shell control references\"\n  git push origin HEAD:mobile-haven-outstanding-fixes\nfi"
-    - uses: actions/setup-dotnet@v4
-      with:
-        global-json-file: global.json
-    - name: Install Android workload
-      run: dotnet workload install android
-    - name: Restore Android project
-      run: dotnet restore src/Haven.Android/Haven.Android.csproj
-    - name: Build Android project
-      run: dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore
-    - name: Publish APK
-      shell: bash
-      run: 'dotnet publish src/Haven.Android/Haven.Android.csproj   -c Debug   -f net10.0-android   --no-restore   -p:AndroidPackageFormat=apk   -p:AndroidKeyStore=false
+      - uses: actions/checkout@v4
+        with:
+          ref: mobile-haven-outstanding-fixes
+          fetch-depth: 0
 
-        mkdir -p artifacts/android
+      - name: Apply bounded Android shell repair
+        shell: bash
+        run: echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpkZWYgcmVwbGFjZV9vbmNlKHBhdGg6IFBhdGgsIG9sZDogc3RyLCBuZXc6IHN0ciwgbGFiZWw6IHN0cikgLT4gTm9uZToKICAgIHRleHQgPSBwYXRoLnJlYWRfdGV4dCgpCiAgICBjb3VudCA9IHRleHQuY291bnQob2xkKQogICAgaWYgY291bnQgPT0gMCBhbmQgbmV3IGluIHRleHQ6CiAgICAgICAgcHJpbnQoZiJ7bGFiZWx9OiBhbHJlYWR5IGFwcGxpZWQiKQogICAgICAgIHJldHVybgogICAgaWYgY291bnQgIT0gMToKICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KGYie2xhYmVsfTogZXhwZWN0ZWQgb25lIG9jY3VycmVuY2UsIGZvdW5kIHtjb3VudH0iKQogICAgcGF0aC53cml0ZV90ZXh0KHRleHQucmVwbGFjZShvbGQsIG5ldywgMSkpCiAgICBwcmludChmIntsYWJlbH06IGFwcGxpZWQiKQoKbGF5b3V0ID0gUGF0aCgic3JjL0hhdmVuLkFuZHJvaWQvTWFpblZpZXcuTW9iaWxlLkxheW91dC5jcyIpCnJlcGxhY2Vfb25jZSgKICAgIGxheW91dCwKICAgICIgICAgcHJpdmF0ZSBUZXh0Qm94PyBfbW9iaWxlR29JbnB1dDtcbiIsCiAgICAiICAgIHByaXZhdGUgVGV4dEJveD8gX21vYmlsZUdvSW5wdXQ7XG4iCiAgICAiICAgIHByaXZhdGUgQ29udHJvbD8gX21vYmlsZVBhZ2VDb250ZW50O1xuIiwKICAgICJtb2JpbGUgcGFnZSBjb250ZW50IGZpZWxkIikKCm9sZF9sYXlvdXQgPSAiXG4iLmpvaW4oWwogICAgIiAgICAgICAgVG9wUmFpbC5Jc1Zpc2libGUgPSBmYWxzZTsiLAogICAgIiAgICAgICAgU2lkZWJhckNvbnRyb2wuSXNWaXNpYmxlID0gZmFsc2U7IiwKICAgICIgICAgICAgIE5hdGl2ZVNpZGViYXJIb3N0LklzVmlzaWJsZSA9IGZhbHNlOyIsCiAgICAiICAgICAgICBTaGVsbENvbnRleHRCYXIuSXNWaXNpYmxlID0gZmFsc2U7IiwKICAgICIgICAgICAgIGJvZHkuQ29sdW1uRGVmaW5pdGlvbnMgPSBuZXcgQ29sdW1uRGVmaW5pdGlvbnMoIioiKTsnLAogICAgIiAgICAgICAgYm9keS5NYXJnaW4gPSBuZXcgVGhpY2tuZXNzKDApOyIsCiAgICAiICAgICAgICBHcmlkLlNldENvbHVtbihjb250ZW50SG9zdCwgMCk7IiwKICAgICIgICAgICAgIEdyaWQuU2V0Q29sdW1uU3Bhbihjb250ZW50SG9zdCwgMSk7IiwKICAgICIiLAogICAgIiAgICAgICAgQ29udGVudEFyZWEuQm9yZGVyVGhpY2tuZXNzID0gbmV3IFRoaWNrbmVzcygwKTsiLAogICAgIiAgICAgICAgQ29udGVudEFyZWEuQ29ybmVyUmFkaXVzID0gbmV3IENvcm5lclJhZGl1cygwKTsiLAogICAgJyAgICAgICAgQ29udGVudEFyZWEuQmFja2dyb3VuZCA9IFJlc291cmNlQnJ1c2goIkhhdmVuQmFja2dyb3VuZEJydXNoIik7JywKICAgICIgICAgICAgIFBhZ2VDb250ZW50Lk1hcmdpbiA9IG5ldyBUaGlja25lc3MoMCwgMCwgMCwgOTIpOyIsCl0pCm5ld19sYXlvdXQgPSAiXG4iLmpvaW4oWwogICAgIiAgICAgICAgZm9yZWFjaCAodmFyIGNoaWxkIGluIHJvb3QuQ2hpbGRyZW4uVG9BcnJheSgpKSIsCiAgICAiICAgICAgICB7IiwKICAgICIgICAgICAgICAgICBpZiAoR3JpZC5HZXRSb3coY2hpbGQpID09IDApIiwKICAgICIgICAgICAgICAgICAgICAgY2hpbGQuSXNWaXNpYmxlID0gZmFsc2U7IiwKICAgICIgICAgICAgIH0iLAogICAgIiIsCiAgICAiICAgICAgICBmb3JlYWNoICh2YXIgY2hpbGQgaW4gYm9keS5DaGlsZHJlbi5Ub0FycmF5KCkpIiwKICAgICIgICAgICAgIHsiLAogICAgIiAgICAgICAgICAgIGlmICghUmVmZXJlbmNlRXF1YWxzKGNoaWxkLCBjb250ZW50SG9zdCkpIiwKICAgICIgICAgICAgICAgICAgICAgY2hpbGQuSXNWaXNpYmxlID0gZmFsc2U7IiwKICAgICIgICAgICAgIH0iLAogICAgIiIsCiAgICAnICAgICAgICBib2R5LkNvbHVtbkRlZmluaXRpb25zID0gbmV3IENvbHVtbkRlZmluaXRpb25zKCIqIik7JywKICAgICIgICAgICAgIGJvZHkuTWFyZ2luID0gbmV3IFRoaWNrbmVzcygwKTsiLAogICAgIiAgICAgICAgR3JpZC5TZXRDb2x1bW4oY29udGVudEhvc3QsIDApOyIsCiAgICAiICAgICAgICBHcmlkLlNldENvbHVtblNwYW4oY29udGVudEhvc3QsIDEpOyIsCiAgICAiICAgICAgICBfbW9iaWxlUGFnZUNvbnRlbnQgPSBjb250ZW50SG9zdDsiLAogICAgIiAgICAgICAgX21vYmlsZVBhZ2VDb250ZW50Lk1hcmdpbiA9IG5ldyBUaGlja25lc3MoMCwgMCwgMCwgOTIpOyIsCl0pCnJlcGxhY2Vfb25jZShsYXlvdXQsIG9sZF9sYXlvdXQsIG5ld19sYXlvdXQsICJydW50aW1lLWxvY2F0ZWQgbW9iaWxlIHNoZWxsIGNvbnRyb2xzIikKCmludGVyYWN0aW9ucyA9IFBhdGgoInNyYy9IYXZlbi5BbmRyb2lkL01haW5WaWV3Lk1vYmlsZS5JbnRlcmFjdGlvbnMuY3MiKQpvbGRfY2hyb21lID0gIlxuIi5qb2luKFsKICAgICIgICAgICAgIFNpZGViYXJDb250cm9sLklzVmlzaWJsZSA9IGZhbHNlOyIsCiAgICAiICAgICAgICBOYXRpdmVTaWRlYmFySG9zdC5Jc1Zpc2libGUgPSBmYWxzZTsiLAogICAgIiAgICAgICAgU2hlbGxDb250ZXh0QmFyLklzVmlzaWJsZSA9IGZhbHNlOyIsCiAgICAiIiwKXSkKcmVwbGFjZV9vbmNlKGludGVyYWN0aW9ucywgb2xkX2Nocm9tZSwgIiIsICJyZW1vdmUgZGVza3RvcCBuYW1lZCBjaHJvbWUgcmVmZXJlbmNlcyIpCgpvbGRfbWFyZ2luID0gIlxuIi5qb2luKFsKICAgICIgICAgICAgIFBhZ2VDb250ZW50Lk1hcmdpbiA9IGlzSG9tZSIsCiAgICAiICAgICAgICAgICAgPyBuZXcgVGhpY2tuZXNzKDAsIDAsIDAsIDc4KSIsCiAgICAiICAgICAgICAgICAgOiBzaG93Q2hhdEFmZm9yZGFuY2UiLAogICAgIiAgICAgICAgICAgICAgICA/IG5ldyBUaGlja25lc3MoMCwgMCwgMCwgMTEyKSIsCiAgICAiICAgICAgICAgICAgICAgIDogbmV3IFRoaWNrbmVzcygwKTsiLApdKQpuZXdfbWFyZ2luID0gIlxuIi5qb2luKFsKICAgICIgICAgICAgIGlmIChfbW9iaWxlUGFnZUNvbnRlbnQgaXMgbm90IG51bGwpIiwKICAgICIgICAgICAgICAgICBfbW9iaWxlUGFnZUNvbnRlbnQuTWFyZ2luID0gaXNIb21lIiwKICAgICIgICAgICAgICAgICAgICAgPyBuZXcgVGhpY2tuZXNzKDAsIDAsIDAsIDc4KSIsCiAgICAiICAgICAgICAgICAgICAgIDogc2hvd0NoYXRBZmZvcmRhbmNlIiwKICAgICIgICAgICAgICAgICAgICAgICAgID8gbmV3IFRoaWNrbmVzcygwLCAwLCAwLCAxMTIpIiwKICAgICIgICAgICAgICAgICAgICAgICAgIDogbmV3IFRoaWNrbmVzcygwKTsiLApdKQpyZXBsYWNlX29uY2UoaW50ZXJhY3Rpb25zLCBvbGRfbWFyZ2luLCBuZXdfbWFyZ2luLCAicnVudGltZSBtb2JpbGUgY29udGVudCBpbnNldCIpCgppbnZhbGlkID0gWwogICAgIlRvcFJhaWwuSXNWaXNpYmxlIiwKICAgICJTaWRlYmFyQ29udHJvbC5Jc1Zpc2libGUiLAogICAgIk5hdGl2ZVNpZGViYXJIb3N0LklzVmlzaWJsZSIsCiAgICAiU2hlbGxDb250ZXh0QmFyLklzVmlzaWJsZSIsCiAgICAiQ29udGVudEFyZWEuIiwKICAgICJQYWdlQ29udGVudC4iLApdCmZvciBwYXRoIGluIChsYXlvdXQsIGludGVyYWN0aW9ucyk6CiAgICB0ZXh0ID0gcGF0aC5yZWFkX3RleHQoKQogICAgcmVtYWluaW5nID0gW3Rva2VuIGZvciB0b2tlbiBpbiBpbnZhbGlkIGlmIHRva2VuIGluIHRleHRdCiAgICBpZiByZW1haW5pbmc6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIntwYXRofTogZGVza3RvcC1vbmx5IHJlZmVyZW5jZXMgcmVtYWluOiB7cmVtYWluaW5nfSIpCgpwcmludCgiQW5kcm9pZCBzaGVsbCByZXBhaXIgdmFsaWRhdGVkLiIp' | base64 -d | python3
 
-        find src/Haven.Android/bin/Debug/net10.0-android -type f -name ''*.apk'' -exec cp {} artifacts/android/ \;
+      - name: Commit repaired mobile shell
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Repair already present."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/Haven.Android/MainView.Mobile.Layout.cs src/Haven.Android/MainView.Mobile.Interactions.cs
+            git commit -m "Repair Android mobile shell control references"
+            git push origin HEAD:mobile-haven-outstanding-fixes
+          fi
 
-        test -n "$(find artifacts/android -type f -name ''*.apk'' -print -quit)"
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
 
-        sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
+      - name: Install Android workload
+        run: dotnet workload install android
 
-        ls -lh artifacts/android'
-    - uses: actions/upload-artifact@v4
-      with:
-        name: Haven-Mobile-Outstanding-Fixes-APK
-        path: artifacts/android
-        if-no-files-found: error
-        retention-days: 30
-    - name: Record successful APK build
-      shell: bash
-      run: "mkdir -p .github/build-status\n{\n  echo \"source_commit=$(git rev-parse HEAD)\"\n  echo \"workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"\n  echo \"artifact=Haven-Mobile-Outstanding-Fixes-APK\"\n  echo \"checksums:\"\n  cat artifacts/android/SHA256SUMS.txt\n} > .github/build-status/mobile-haven-apk.txt\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\ngit add .github/build-status/mobile-haven-apk.txt\ngit commit -m \"Record successful Mobile Haven APK build\"\ngit push origin HEAD:mobile-haven-outstanding-fixes"
+      - name: Restore Android project
+        run: dotnet restore src/Haven.Android/Haven.Android.csproj
+
+      - name: Build Android project
+        run: dotnet build src/Haven.Android/Haven.Android.csproj -c Debug --no-restore
+
+      - name: Publish APK
+        shell: bash
+        run: |
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false
+          mkdir -p artifacts/android
+          find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
+          test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
+          sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
+          ls -lh artifacts/android
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Outstanding-Fixes-APK
+          path: artifacts/android
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record successful APK build
+        shell: bash
+        run: |
+          mkdir -p .github/build-status
+          {
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "artifact=Haven-Mobile-Outstanding-Fixes-APK"
+            echo "checksums:"
+            cat artifacts/android/SHA256SUMS.txt
+          } > .github/build-status/mobile-haven-apk.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/build-status/mobile-haven-apk.txt
+          git commit -m "Record successful Mobile Haven APK build"
+          git push origin HEAD:mobile-haven-outstanding-fixes
