@@ -6,6 +6,11 @@ on:
       - main
     paths:
       - ".github/workflows/repair-remaining-android-errors-build-apk.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/apk-build-trigger/**"
   workflow_dispatch:
 
 permissions:
