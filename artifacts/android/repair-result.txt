@@ -1,9 +1,9 @@
-input_commit=3e7a9a9f7ead4d8b09d5ad2af4af677698f4c0a8
+input_commit=c44cffa06e91f0dcf8765ebbdb61de869d2dfd3b
 repair_exit=1
 Traceback (most recent call last):
-  File "/tmp/repair.py", line 444, in <module>
-    text = replace_once(text, indicator_anchor, indicator_new, "launcher status control")
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/repair.py", line 467, in <module>
+    text = replace_once(text, bottom_anchor, bottom_new, "launcher drawer button")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/tmp/repair.py", line 17, in replace_once
     raise RuntimeError(f"{label}: expected 1 occurrence, found {count}")
-RuntimeError: launcher status control: expected 1 occurrence, found 0
+RuntimeError: launcher drawer button: expected 1 occurrence, found 0
