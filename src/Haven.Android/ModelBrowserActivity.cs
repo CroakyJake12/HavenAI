@@ -263,13 +263,13 @@ public sealed class ModelBrowserActivity : Activity
         _status.Text = "Downloading " + file + "…";
         try
         {
-            var destination = UniquePath(ModelDirectory(), Path.GetFileName(file));
+            var destination = UniquePath(ModelDirectory(), IOPath.GetFileName(file));
             var escaped = Uri.EscapeDataString(file).Replace("%2F", "/", StringComparison.OrdinalIgnoreCase);
             var url = $"https://huggingface.co/{model.ModelId}/resolve/main/{escaped}?download=true";
             await using var input = await Http.GetStreamAsync(url);
             await using var output = File.Create(destination);
             await input.CopyToAsync(output);
-            _status.Text = "Downloaded " + Path.GetFileName(destination) + ".";
+            _status.Text = "Downloaded " + IOPath.GetFileName(destination) + ".";
         }
         catch (Exception ex)
         {
@@ -312,21 +312,21 @@ public sealed class ModelBrowserActivity : Activity
     {
         var root = FilesDir?.AbsolutePath
             ?? throw new IOException("Haven application storage is unavailable.");
-        return Directory.CreateDirectory(Path.Combine(root, "models"));
+        return Directory.CreateDirectory(IOPath.Combine(root, "models"));
     }
 
     private static string UniquePath(DirectoryInfo directory, string fileName)
     {
-        var safe = string.Join("_", fileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        var safe = string.Join("_", fileName.Split(IOPath.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
         if (string.IsNullOrWhiteSpace(safe))
             safe = "model.gguf";
 
-        var candidate = Path.Combine(directory.FullName, safe);
-        var stem = Path.GetFileNameWithoutExtension(safe);
-        var extension = Path.GetExtension(safe);
+        var candidate = IOPath.Combine(directory.FullName, safe);
+        var stem = IOPath.GetFileNameWithoutExtension(safe);
+        var extension = IOPath.GetExtension(safe);
         var index = 2;
         while (File.Exists(candidate))
-            candidate = Path.Combine(directory.FullName, $"{stem}-{index++}{extension}");
+            candidate = IOPath.Combine(directory.FullName, $"{stem}-{index++}{extension}");
         return candidate;
     }
 
