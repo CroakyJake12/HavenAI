@@ -1,7 +1,6 @@
-# trigger: 2026-08-06T17:49Z
+# trigger: 2026-08-06T19:18+01:00
 name: Emergency Android APK
-
-on:
+'on':
   push:
     branches: [main]
     paths: [.github/workflows/android-apk-emergency.yml]
