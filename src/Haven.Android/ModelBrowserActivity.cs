@@ -282,13 +282,20 @@ public sealed class ModelBrowserActivity : Activity
         var completion = new TaskCompletionSource<bool>();
         RunOnUiThread(() =>
         {
-            var dialog = new AlertDialog.Builder(this)
-                .SetTitle(title)
-                .SetMessage(message)
-                .SetCancelable(false)
-                .SetNegativeButton("Not now", (_, _) => completion.TrySetResult(false))
-                .SetPositiveButton("Continue", (_, _) => completion.TrySetResult(true))
-                .Create();
+            var builder = new AlertDialog.Builder(this);
+            builder.SetTitle(title);
+            builder.SetMessage(message);
+            builder.SetCancelable(false);
+            builder.SetNegativeButton("Not now", (_, _) => completion.TrySetResult(false));
+            builder.SetPositiveButton("Continue", (_, _) => completion.TrySetResult(true));
+
+            var dialog = builder.Create();
+            if (dialog is null)
+            {
+                completion.TrySetResult(false);
+                return;
+            }
+
             dialog.Show();
         });
         return completion.Task;
