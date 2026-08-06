@@ -10,6 +10,7 @@ on:
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "scripts/apply_haven_mobile_repair.py"
+      - "scripts/repair_android_compile_blockers.py"
       - "src/**"
 
 permissions:
@@ -36,6 +37,9 @@ jobs:
       - name: Apply deterministic mobile compatibility patch
         run: python3 scripts/apply_haven_mobile_repair.py
 
+      - name: Repair Android compile blockers
+        run: python3 scripts/repair_android_compile_blockers.py
+
       - name: Install .NET from global.json
         uses: actions/setup-dotnet@v6
         with:
@@ -52,13 +56,21 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/android
-          dotnet build src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore 2>&1 | tee artifacts/android/build.log
+          dotnet build src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore 2>&1 | tee artifacts/android/build.log
 
       - name: Package APK
         shell: bash
         run: |
           set -o pipefail
-          dotnet publish src/Haven.Android/Haven.Android.csproj             -c Debug             -f net10.0-android             --no-restore             -p:AndroidPackageFormat=apk             -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
           mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
           test "${#apks[@]}" -gt 0
           for apk in "${apks[@]}"; do
