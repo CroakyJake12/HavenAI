@@ -158,24 +158,67 @@ def patch_new_chat_layout() -> None:
     path = ROOT / "src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml"
     original = path.read_text(encoding="utf-8")
     text = original
-    replacements = {
-        'Margin="54,28,54,28"': 'Margin="12,10,12,10"',
-        'RowSpacing="16"': 'RowSpacing="10"',
-        'ColumnDefinitions="Auto,640,Auto"': 'ColumnDefinitions="Auto,*,Auto"',
-        'Width="58" Height="58"': 'Width="50" Height="50"',
-        'MinHeight="58" MaxHeight="150"': 'MinHeight="50" MaxHeight="132"',
-        'Padding="22,0"': 'Padding="14,0"',
-        'Width="64" Height="58"': 'Width="52" Height="50"',
-    }
-    for old, new in replacements.items():
-        if new in text:
-            continue
-        if old not in text:
-            raise RuntimeError(f"New chat responsive layout: missing {old}")
-        text = text.replace(old, new, 1)
+
+    # Apply each mobile sizing change only when its desktop value is still present.
+    # This keeps the repair safe to run repeatedly after main-branch merges.
+    replacements = (
+        ('Margin="54,28,54,28"', 'Margin="12,10,12,10"'),
+        ('Margin="36,24,36,28"', 'Margin="12,10,12,10"'),
+        ('RowSpacing="16"', 'RowSpacing="10"'),
+        ('ColumnDefinitions="Auto,640,Auto"', 'ColumnDefinitions="Auto,*,Auto"'),
+        ('Width="58" Height="58"', 'Width="50" Height="50"'),
+        ('MinHeight="58" MaxHeight="150"', 'MinHeight="50" MaxHeight="132"'),
+        ('Padding="22,0"', 'Padding="14,0"'),
+        ('Width="64" Height="58"', 'Width="52" Height="50"'),
+    )
+    for old, new in replacements:
+        if old in text:
+            text = text.replace(old, new, 1)
+
+    composer_anchor = 'ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"'
+    if composer_anchor not in text:
+        raise RuntimeError("New chat responsive layout: responsive composer grid not found")
+
+    if 'MaxWidth="780"' not in text:
+        for alignment in (
+            'HorizontalAlignment="Stretch" ',
+            'HorizontalAlignment="Center" ',
+        ):
+            anchor = alignment + composer_anchor
+            if anchor in text:
+                text = text.replace(
+                    anchor,
+                    'HorizontalAlignment="Stretch" MaxWidth="780" ' + composer_anchor,
+                    1,
+                )
+                break
+        else:
+            raise RuntimeError(
+                "New chat responsive layout: composer alignment anchor not found"
+            )
+
+    instruction_name = 'x:Name="InstructionBox"'
+    instruction_index = text.find(instruction_name)
+    if instruction_index < 0:
+        raise RuntimeError("New chat responsive layout: InstructionBox not found")
+
+    tag_start = text.rfind("<TextBox", 0, instruction_index)
+    tag_end = text.find(">", instruction_index)
+    if tag_start < 0 or tag_end < 0:
+        raise RuntimeError("New chat responsive layout: incomplete InstructionBox tag")
+
+    instruction_tag = text[tag_start:tag_end]
+    if 'MinWidth="0"' not in instruction_tag:
+        column_anchor = 'Grid.Column="1"'
+        column_index = text.find(column_anchor, instruction_index, tag_end)
+        if column_index < 0:
+            raise RuntimeError(
+                "New chat responsive layout: InstructionBox Grid.Column anchor not found"
+            )
+        insert_at = column_index + len(column_anchor)
+        text = text[:insert_at] + ' MinWidth="0"' + text[insert_at:]
 
     write_if_changed(path, text, original)
-
 
 def patch_chat_layout() -> None:
     path = ROOT / "src/Haven.Desktop/Views/Pages/Chat/ChatPage.CodeBehindLayout.cs"
