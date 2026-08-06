@@ -208,7 +208,7 @@ public sealed partial class HavenLauncherActivity : Activity
             "All apps",
             ShowAppDrawer));
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuManage,
+            SystemDrawable("ic_menu_manage"),
             "Open Haven Go",
             OpenHavenDashboard));
 

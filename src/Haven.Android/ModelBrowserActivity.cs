@@ -298,8 +298,8 @@ public sealed class ModelBrowserActivity : Activity
     {
         var files = model.Siblings?
             .Select(item => item.FileName)
-            .Where(name => !string.IsNullOrWhiteSpace(name)
-                && name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
+            .OfType<string>()
+            .Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
                 && !name.Contains("mmproj", StringComparison.OrdinalIgnoreCase))
             .ToArray() ?? [];
 
@@ -355,7 +355,7 @@ public sealed class ModelBrowserActivity : Activity
         var spinner = new Spinner(this);
         spinner.Adapter = new ArrayAdapter<string>(
             this,
-            Android.Resource.Layout.SimpleSpinnerItem,
+            global::Android.Resource.Layout.SimpleSpinnerItem,
             values);
         return spinner;
     }

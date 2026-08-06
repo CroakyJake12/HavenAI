@@ -103,7 +103,7 @@ public sealed partial class MainView
 
     private Border BuildMobileHeader()
     {
-        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);
+        var brand = MobileButton(_preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);
         ToolTip.SetTip(brand, "Switch model");
         var actions = MobileButton("Actions", "commands", ShowMobileActions, 8);
         var apps = MobileButton("Apps", "apps", () => _ = ShowMobileLauncherAsync(), 8);
