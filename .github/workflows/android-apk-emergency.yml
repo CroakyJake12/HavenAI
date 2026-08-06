@@ -1,4 +1,4 @@
-# trigger: 2026-08-06T19:18+01:00
+# trigger: 2026-08-06T20:05+01:00
 name: Emergency Android APK
 'on':
   push:
