@@ -1,0 +1,6 @@
+input_commit=de4727f3eb671425eabe254fc88ba2ae2959aa99
+integrity_exit=1
+repair_exit=99
+log_tail:
+scripts/patch_mobile_shell_followup.py.gz: FAILED
+sha256sum: WARNING: 1 computed checksum did NOT match
