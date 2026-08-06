@@ -38,42 +38,60 @@ jobs:
             echo "Conflicts before resolution:"
             git diff --name-status --diff-filter=U
 
+            remaining="$(git diff --name-only --diff-filter=U)"
+            if [ "$remaining" != "$chat" ]; then
+              echo "Unexpected conflict set:"
+              printf '%s\n' "$remaining"
+              exit 1
+            fi
+
             git checkout --theirs -- "$chat"
 
             python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml")
           text = path.read_text(encoding="utf-8")
 
-          source = 'HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10"'
-          target = 'HorizontalAlignment="Stretch" MaxWidth="780" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"'
-          if text.count(source) != 1:
-              raise SystemExit(f"Expected one fixed composer definition, found {text.count(source)}")
-          text = text.replace(source, target, 1)
+          grid_pattern = re.compile(
+              r'HorizontalAlignment="Center"\s+ColumnDefinitions="Auto,640,Auto"\s+ColumnSpacing="10"'
+          )
+          text, grid_count = grid_pattern.subn(
+              'HorizontalAlignment="Stretch" MaxWidth="780" '
+              'ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"',
+              text,
+              count=1,
+          )
+          if grid_count != 1:
+              raise SystemExit(f"Expected one fixed composer grid, found {grid_count}")
 
-          source = 'Grid.Column="1"\n\t\t\t\t\t\t MinHeight="58" MaxHeight="150"'
-          target = 'Grid.Column="1"\n\t\t\t\t\t\t MinWidth="0" MinHeight="58" MaxHeight="150"'
-          if text.count(source) != 1:
-              raise SystemExit(f"Expected one instruction-box definition, found {text.count(source)}")
-          text = text.replace(source, target, 1)
+          box_pattern = re.compile(
+              r'(<TextBox\s+x:Name="InstructionBox"\s+Grid\.Column="1"\s+)(?!MinWidth=)',
+              re.MULTILINE,
+          )
+          text, box_count = box_pattern.subn(
+              r'\1MinWidth="0" ',
+              text,
+              count=1,
+          )
+          if box_count != 1:
+              raise SystemExit(f"Expected one InstructionBox start tag, found {box_count}")
 
           path.write_text(text, encoding="utf-8")
           PY
 
-            git checkout "$repair_head" --               src/Haven.Desktop/Views/Shell/MainView.axaml               src/Haven.Desktop/Views/Shell/MainView.axaml.cs               src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs               src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
-
-            git add "$chat"               src/Haven.Desktop/Views/Shell/MainView.axaml               src/Haven.Desktop/Views/Shell/MainView.axaml.cs               src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs               src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
+            git add "$chat"
           fi
 
           remaining="$(git diff --name-only --diff-filter=U)"
           if [ -n "$remaining" ]; then
-            echo "Unexpected unresolved conflicts remain:"
-            echo "$remaining"
+            echo "Unresolved conflicts remain:"
+            printf '%s\n' "$remaining"
             exit 1
           fi
 
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "$chat"               src/Haven.Desktop/Views/Shell/MainView.axaml               src/Haven.Desktop/Views/Shell/MainView.axaml.cs; then
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "$chat"; then
             echo "Conflict markers remain."
             exit 1
           fi
