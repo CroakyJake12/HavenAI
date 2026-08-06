@@ -1,10 +1,9 @@
-input_commit=9f33f3c012e2fef04c600b073404ac19ab6cb0d2
-integrity_exit=0
+input_commit=3e7a9a9f7ead4d8b09d5ad2af4af677698f4c0a8
 repair_exit=1
 Traceback (most recent call last):
-  File "/tmp/repair.py", line 282, in <module>
-    text = replace_once(text, old_refresh, new_refresh, "mobile chrome visibility")
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/repair.py", line 444, in <module>
+    text = replace_once(text, indicator_anchor, indicator_new, "launcher status control")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/tmp/repair.py", line 17, in replace_once
     raise RuntimeError(f"{label}: expected 1 occurrence, found {count}")
-RuntimeError: mobile chrome visibility: expected 1 occurrence, found 0
+RuntimeError: launcher status control: expected 1 occurrence, found 0
