@@ -51,7 +51,7 @@ jobs:
           find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -exec cp {} artifacts/android/ \;
           test -n "$(find artifacts/android -type f -name '*.apk' -print -quit)"
           sha256sum artifacts/android/*.apk > artifacts/android/SHA256SUMS.txt
-          ls -hh artifacts/android
+          ls -lh artifacts/android
 
       - uses: actions/upload-artifact@v4
         with:
