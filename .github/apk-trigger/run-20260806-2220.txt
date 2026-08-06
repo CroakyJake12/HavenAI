@@ -1,0 +1,4 @@
+Build request
+source=gpt/haven-mobile-repair-android
+output=apk-output-20260806-2204
+requested_at=2026-08-06T22:20:00Z
