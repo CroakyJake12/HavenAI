@@ -6,11 +6,11 @@ call = 'text = replace_once(text, indicator_anchor, indicator_new, "launcher sta
 fallback = """if indicator_anchor in text:
     text = replace_once(text, indicator_anchor, indicator_new, "launcher status control")
 else:
-    marker = "        _root.AddView(_pageIndicator);\n"
+    marker = "        _root.AddView(_pageIndicator);" + chr(10)
     if marker not in text:
         raise RuntimeError("launcher status control: page-indicator marker not found")
-    status_only = indicator_new.split(marker, 1)[1].rsplit(
-        "        _grid = new GridLayout(this)\n", 1)[0]
+    grid_marker = "        _grid = new GridLayout(this)" + chr(10)
+    status_only = indicator_new.split(marker, 1)[1].rsplit(grid_marker, 1)[0]
     text = text.replace(marker, marker + status_only, 1)"""
 if call not in text:
     raise SystemExit("launcher status compatibility call not found")
