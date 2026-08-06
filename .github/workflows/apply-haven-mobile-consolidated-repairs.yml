@@ -1,4 +1,4 @@
-name: Apply Haven Mobile Consolidated Repairs
+name: Run Current Haven Mobile Repair
 on:
   workflow_dispatch:
   push:
@@ -13,70 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
-      - name: Verify and apply repair
-        id: repair
+      - name: Run verified repair
         shell: bash
         run: |
-          set +e
-          mkdir -p artifacts/android
-          {
-            echo "f9c392022a66d6d91c47bb027403fb1452fd18fc25c008c8dc59542f60b2d125  scripts/mobile_repair_payload.part0"
-            echo "3df31500827a908058dc037b559534c3faf28003f60395657c5ada9ae63c561b  scripts/mobile_repair_payload.part1a"
-            echo "5abd7b04e1e82e34ed2521fe72365fb2b319c1e19c9d828bc29c18fb1d703353  scripts/mobile_repair_payload.part1b"
-            echo "2c6502eb78708634662b59472916ff925dbb1c101b9b7b30ca39c73f2813d444  scripts/mobile_repair_payload.part2"
-          } > /tmp/parts.sha256
-          sha256sum -c /tmp/parts.sha256 > artifacts/android/repair-integrity.log 2>&1
-          integrity=$?
-          code=99
-          if [ "$integrity" -eq 0 ]; then
-            cat scripts/mobile_repair_payload.part0 scripts/mobile_repair_payload.part1a scripts/mobile_repair_payload.part1b scripts/mobile_repair_payload.part2 > /tmp/repair.b64
-            base64 -d /tmp/repair.b64 > /tmp/repair.py.gz
-            echo "dea708a322621af0141b4d717435ed59ec974860e68bffacd2f8c3878aa616f0  /tmp/repair.py.gz" | sha256sum -c - >> artifacts/android/repair-integrity.log 2>&1
-            integrity=$?
-          fi
-          if [ "$integrity" -eq 0 ]; then
-            gzip -t /tmp/repair.py.gz >> artifacts/android/repair-integrity.log 2>&1
-            integrity=$?
-          fi
-          if [ "$integrity" -eq 0 ]; then
-            gzip -dc /tmp/repair.py.gz > /tmp/repair.py
-            echo "5a8f943fc2ab1a3c7583c53f158484092dcf5d188f2ff9eb3fb351da8c4eb51a  /tmp/repair.py" | sha256sum -c - >> artifacts/android/repair-integrity.log 2>&1
-            integrity=$?
-          fi
-          if [ "$integrity" -eq 0 ]; then
-            python -m py_compile /tmp/repair.py >> artifacts/android/repair-integrity.log 2>&1
-            integrity=$?
-          fi
-          if [ "$integrity" -eq 0 ]; then
-            python /tmp/repair.py > artifacts/android/repair.log 2>&1
-            code=$?
-          else
-            echo "Repair payload integrity failed." > artifacts/android/repair.log
-          fi
-          echo "integrity_exit=$integrity" >> "$GITHUB_OUTPUT"
-          echo "repair_exit=$code" >> "$GITHUB_OUTPUT"
-          { echo "input_commit=${{ github.sha }}"; echo "integrity_exit=$integrity"; echo "repair_exit=$code"; tail -n 300 artifacts/android/repair.log; } > artifacts/android/repair-result.txt
-          exit 0
-      - name: Commit result
-        shell: bash
-        run: |
-          set -e
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if [ "${{ steps.repair.outputs.integrity_exit }}" = 0 ] && [ "${{ steps.repair.outputs.repair_exit }}" = 0 ]; then
-            git add src/Haven.Android/Haven.Android.csproj src/Haven.Android/HavenLauncherActivity.Apps.cs src/Haven.Android/HavenLauncherActivity.cs src/Haven.Android/MainView.Mobile.Drawers.cs src/Haven.Android/MainView.Mobile.Interactions.cs src/Haven.Android/MainView.Mobile.Layout.cs src/Haven.Android/ModelImportActivity.cs src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml.cs
-            message="Apply consolidated Haven Mobile repairs [skip ci]"
-          else
-            git add -f artifacts/android/repair-result.txt
-            message="Record consolidated mobile repair failure [skip ci]"
-          fi
-          if ! git diff --cached --quiet; then git commit -m "$message"; git push; fi
-          test "${{ steps.repair.outputs.integrity_exit }}" = 0
-          test "${{ steps.repair.outputs.repair_exit }}" = 0
-      - name: Upload repair evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Haven-Mobile-Repair-Evidence
-          path: artifacts/android
-          if-no-files-found: error
+          cat scripts/run_mobile_repair.part0 scripts/run_mobile_repair.part1 > /tmp/run-mobile-repair.sh
+          echo "e6758fc2665049e617dc9a6bf6d0d5d6b7726b8e8142431d0796bd01a4d44d1b  /tmp/run-mobile-repair.sh" | sha256sum -c -
+          bash -n /tmp/run-mobile-repair.sh
+          bash /tmp/run-mobile-repair.sh
