@@ -1,0 +1,111 @@
+name: Resolve PR 13 conflicts
+
+on:
+  push:
+    branches:
+      - gpt/diagnose-pr13-conflicts
+    paths:
+      - .github/workflows/resolve-pr13-conflicts.yml
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/haven-mobile-repair-android
+          fetch-depth: 0
+
+      - name: Merge main and resolve the two known conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          repair_head="$(git rev-parse HEAD)"
+
+          set +e
+          git merge --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -eq 0 ]; then
+            echo "Repair branch already merged cleanly with main."
+            exit 0
+          fi
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          printf 'Conflicts found:\n%s\n' "${conflicts[@]}"
+
+          expected_one="src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml"
+          expected_two="src/Haven.Desktop/Views/Shell/MainView.axaml.cs"
+
+          if [ "${#conflicts[@]}" -ne 2 ] ||
+             [[ ! " ${conflicts[*]} " =~ " ${expected_one} " ]] ||
+             [[ ! " ${conflicts[*]} " =~ " ${expected_two} " ]]; then
+            echo "Unexpected conflict set; refusing automated resolution."
+            exit 1
+          fi
+
+          # Keep main's desktop page as the base, then apply only the responsive
+          # composer changes needed by mobile.
+          git checkout --theirs -- "$expected_one"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml")
+          text = path.read_text(encoding="utf-8")
+
+          old_grid = 'ColumnDefinitions="Auto,640,Auto"'
+          new_grid = 'ColumnDefinitions="Auto,*,Auto" MaxWidth="780" Width="780"'
+          if text.count(old_grid) != 1:
+              raise SystemExit(f"Expected one fixed composer grid, found {text.count(old_grid)}")
+          text = text.replace(old_grid, new_grid, 1)
+
+          old_box = 'Grid.Column="1"\n\t\t\t\t\t\t MinHeight="58" MaxHeight="150"'
+          new_box = 'Grid.Column="1"\n\t\t\t\t\t\t MinWidth="0" MinHeight="58" MaxHeight="150"'
+          if text.count(old_box) != 1:
+              raise SystemExit(f"Expected one instruction box anchor, found {text.count(old_box)}")
+          text = text.replace(old_box, new_box, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          # Preserve the repair branch's complete MainView shell. Main deleted
+          # the shell while the Android project still compiles its partials and
+          # the desktop startup still resolves MainView.
+          git checkout "$repair_head" -- \
+            src/Haven.Desktop/Views/Shell/MainView.axaml \
+            src/Haven.Desktop/Views/Shell/MainView.axaml.cs \
+            src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs \
+            src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
+
+          git add \
+            "$expected_one" \
+            src/Haven.Desktop/Views/Shell/MainView.axaml \
+            src/Haven.Desktop/Views/Shell/MainView.axaml.cs \
+            src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs \
+            src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
+
+          remaining="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$remaining" ]; then
+            echo "Unresolved conflicts remain:"
+            echo "$remaining"
+            exit 1
+          fi
+
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+              src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml \
+              src/Haven.Desktop/Views/Shell/MainView.axaml \
+              src/Haven.Desktop/Views/Shell/MainView.axaml.cs; then
+            echo "Conflict markers remain."
+            exit 1
+          fi
+
+          git commit -m "Merge main and resolve mobile repair conflicts"
+          git push origin HEAD:gpt/haven-mobile-repair-android

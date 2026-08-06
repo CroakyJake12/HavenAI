@@ -1,0 +1,100 @@
+name: Resolve PR 13 conflicts v2
+
+on:
+  push:
+    branches:
+      - gpt/diagnose-pr13-conflicts
+    paths:
+      - .github/workflows/resolve-pr13-conflicts-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout v4
+        with:
+          ref: gpt/haven-mobile-repair-android
+          fetch-depth: 0
+
+      - name: Merge main with selective resolutions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          repair_head="$(git rev-parse HEAD)"
+
+          set +e
+          git merge --no-ff origin/main
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "No conflicts remained."
+            git push origin HEAD:gpt/haven-mobile-repair-android
+            exit 0
+          fi
+
+          echo "Unmerged paths before resolution:"
+          git diff --name-status --diff-filter=U
+
+          chat="src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml"
+          shellcs="src/Haven.Desktop/Views/Shell/MainView.axaml.cs"
+
+          # Main's desktop page is authoritative; make only the composer responsive.
+          git checkout --theirs -- "$chat"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml")
+          s = p.read_text(encoding="utf-8")
+          if s.count('ColumnDefinitions="Auto,640,Auto"') != 1:
+              raise SystemExit("Expected exactly one fixed 640px composer grid")
+          s = s.replace(
+              'HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10"',
+              'HorizontalAlignment="Stretch" MaxWidth="780" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"',
+              1,
+          )
+          anchor = 'Grid.Column="1"\n\t\t\t\t\t\t MinHeight="58" MaxHeight="150"'
+          if s.count(anchor) != 1:
+              raise SystemExit("Expected exactly one instruction-box anchor")
+          s = s.replace(
+              anchor,
+              'Grid.Column="1"\n\t\t\t\t\t\t MinWidth="0" MinHeight="58" MaxHeight="150"',
+              1,
+          )
+          p.write_text(s, encoding="utf-8")
+          PY
+
+          # Preserve the repair branch's complete shell implementation.
+          git checkout "$repair_head" -- \
+            src/Haven.Desktop/Views/Shell/MainView.axaml \
+            src/Haven.Desktop/Views/Shell/MainView.axaml.cs \
+            src/Haven.Desktop/Views/Shell/MainView.BetaOverlays.cs \
+            src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
+
+          git add "$chat" \
+            src/Haven.Desktop/Views/Shell/MainView.axaml \
+            src/Haven.Desktop/Views/Shell/MainView.axaml.cs \
+            src/Haven.Deskttop/Views/Shell/MainView.BetaOverlays.cs \
+            src/Haven.Desktop/Views/Shell/MainView.NativeChatSidebar.cs
+
+          remaining="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$remaining" ]; then
+            echo "Unexpected unresolved conflicts remain:"
+            echo "$remaining"
+            exit 1
+          fi
+
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "$chat" \
+              src/Haven.Desktop/Views/Shell/MainView.axaml \
+              src/Haven.Desktop/Views/Shell/MainView.axaml.cs; then
+            echo "Conflict markers remain"
+            exit 1
+          fi
+
+          git commit -m "Merge main and resolve mobile repair conflicts"
+          git push origin HEAD:gpt/haven-mobile-repair-android
