@@ -13,10 +13,14 @@ on:
       - ".github/apk-build-trigger/**"
   workflow_dispatch:
   schedule:
-    - cron: "11 21 6 8 *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: verified-mobile-haven-apk
+  cancel-in-progress: false
 
 jobs:
   publish-apk:
@@ -180,7 +184,7 @@ jobs:
 
           path = Path(".github/workflows/repair-remaining-android-errors-build-apk.yml")
           text = path.read_text(encoding="utf-8")
-          schedule = '  schedule:\n    - cron: "11 21 6 8 *"\n'
+          schedule = '  schedule:\n    - cron: "*/5 * * * *"\n'
           if schedule in text:
               path.write_text(text.replace(schedule, "", 1), encoding="utf-8")
           PY
