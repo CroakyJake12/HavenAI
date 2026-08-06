@@ -7,8 +7,12 @@ while "global::global::" in text:
     text = text.replace("global::global::", "global::")
 
 text = text.replace(
-    ".Select(item => item.FileName)\n            .Where(name => !string.IsNullOrWhiteSpace(name)\n                       && name.EndsWith(\".gguf\", StringComparison.OrdinalIgnoreCase)\n                       && !name.Contains(\"mmproj\", StringComparison.OrdinalIgnoreCase))",
-    ".Select(item => item.FileName)\n            .OfType<string>()\n            .Where(name => name.EndsWith(\".gguf\", StringComparison.OrdinalIgnoreCase)\n                       && !name.Contains(\"mmproj\", StringComparison.OrdinalIgnoreCase))",
+    "var files = model.Siblings?\n"
+    "            .Select(item => item.FileName)\n"
+    "            .OfType<string>()",
+    "var files = (model.Siblings ?? [])\n"
+    "            .Select(item => item.FileName)\n"
+    "            .OfType<string>()",
 )
 
 text = text.replace(
