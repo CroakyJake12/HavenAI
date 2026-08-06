@@ -1,11 +1,75 @@
-Updated:
-  src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml
-Updated src/Haven.Desktop/Interface/Shell/Pop-Ups/SettingsOverlay.axaml.cs
-Updated src/Haven.Desktop/Interface/Shell/Pop-Ups/ProjectSettingsOverlay.axaml.cs
-Updated src/Haven.Desktop/Interface/BrowserSafetyView.axaml.cs
-Updated src/Haven.Desktop/Views/StudioProjectView.axaml.cs
-Updated src/Haven.Android/HavenLauncherActivity.cs
-Android compile blocker repair completed.
+source=a508ed92aca25cf8badc1ccb33164ee3ed052c58
+.NET SDK:
+ Version:           10.0.302
+ Commit:            35b593bebf
+ Workload version:  10.0.300-manifests.1641d827
+ MSBuild version:   18.6.11+35b593beb
+
+Runtime Environment:
+ OS Name:     ubuntu
+ OS Version:  24.04
+ OS Platform: Linux
+ RID:         linux-x64
+ Base Path:   /usr/share/dotnet/sdk/10.0.302/
+
+.NET workloads installed:
+There are no installed workloads to display.
+Configured to use workload sets when installing new manifests.
+No workload sets are installed. Run "dotnet workload restore" to install a workload set.
+
+Host:
+  Version:      10.0.10
+  Architecture: x64
+  Commit:       f7d90799ce
+
+.NET SDKs installed:
+  8.0.129 [/usr/share/dotnet/sdk]
+  8.0.206 [/usr/share/dotnet/sdk]
+  8.0.319 [/usr/share/dotnet/sdk]
+  8.0.423 [/usr/share/dotnet/sdk]
+  9.0.119 [/usr/share/dotnet/sdk]
+  9.0.205 [/usr/share/dotnet/sdk]
+  9.0.316 [/usr/share/dotnet/sdk]
+  10.0.110 [/usr/share/dotnet/sdk]
+  10.0.204 [/usr/share/dotnet/sdk]
+  10.0.301 [/usr/share/dotnet/sdk]
+  10.0.302 [/usr/share/dotnet/sdk]
+
+.NET runtimes installed:
+  Microsoft.AspNetCore.App 8.0.6 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 8.0.22 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 8.0.29 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 9.0.6 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 9.0.18 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 10.0.8 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 10.0.9 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.AspNetCore.App 10.0.10 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.NETCore.App 8.0.6 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 8.0.22 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 8.0.29 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 9.0.6 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 9.0.18 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 10.0.8 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 10.0.9 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+  Microsoft.NETCore.App 10.0.10 [/usr/share/dotnet/shared/Microsoft.NETCore.App]
+
+Other architectures found:
+  None
+
+Environment variables:
+  DOTNET_MULTILEVEL_LOOKUP                 [0]
+  DOTNET_NOLOGO                            [1]
+  DOTNET_ROOT                              [/usr/share/dotnet]
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE        [1]
+
+global.json file:
+  /home/runner/work/HavenAI/HavenAI/global.json
+
+Learn more:
+  https://aka.ms/dotnet/info
+
+Download .NET:
+  https://aka.ms/dotnet/download
 
 Checking for updated workload version.
 Skipping NuGet package signature verification.
@@ -36,197 +100,84 @@ Installing pack Microsoft.Android.Templates version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Templates version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm version 9.0.18...
-Installing pack Microsoft.Android.Sdk.Linux version 36.1.69...
-Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
-Installing pack Microsoft.Android.Sdk.Linux version 35.0.105...
-Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 35.0.105...
+Installing pack Microsoft.Android.Sdk.Linux version 36.1.69...
+Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
-Installing pack Microsoft.Android.Ref.36 version 36.1.69...
-Writing workload pack installation record for Microsoft.Android.Ref.36 version 36.1.69...
+Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
+Installing pack Microsoft.Android.Sdk.Linux version 35.0.105...
+Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 35.0.105...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
+Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
+Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
+Installing pack Microsoft.Android.Ref.36 version 36.1.69...
+Writing workload pack installation record for Microsoft.Android.Ref.36 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
 Installing pack Microsoft.Android.Runtime.36.android version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.36.android version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
+Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-arm version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-arm version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
+Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-arm64 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-arm64 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-x86 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-x86 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm version 10.0.10...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-x64 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-x64 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 10.0.10...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
 Installing pack Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
 Garbage collecting for SDK feature band(s) 8.0.100 8.0.200 8.0.300 8.0.400 9.0.100 9.0.200 9.0.300 10.0.100 10.0.200 10.0.300...
 
 Successfully installed workload(s) android.
 
   Determining projects to restore...
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 147 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 150 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 150 ms).
   Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj (in 3 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 2 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.77 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.86 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 5.53 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.31 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.48 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 3.82 sec).
   Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
   Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
   Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
   Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
   Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/GlobalCallWidget.axaml.cs(55,9): error CS0103: The name 'InitializeComponent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/LessonSettingsOverlay.axaml.cs(18,9): error CS0103: The name 'InitializeComponent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/LessonSettingsOverlay.axaml.cs(19,9): error CS0103: The name 'PageContentHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/LessonSettingsOverlay.axaml.cs(20,9): error CS0103: The name 'BackButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/GlobalCallWidget.axaml.cs(193,9): error CS0103: The name 'CodeBehindHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/Pop-Ups/GlobalCallWidget.axaml.cs(194,9): error CS0103: The name 'CodeBehindHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Interactions.cs(81,9): error CS0103: The name 'SidebarControl' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Interactions.cs(82,9): error CS0103: The name 'NativeSidebarHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Interactions.cs(83,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Interactions.cs(90,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(45,9): error CS0234: The type or namespace name 'IsVisible' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(46,9): error CS0103: The name 'SidebarControl' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(47,9): error CS0103: The name 'NativeSidebarHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(48,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(54,9): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(55,9): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(56,9): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(57,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(98,34): error CS0103: The name 'ModelNameText' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(268,9): error CS0103: The name 'InitializeComponent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(273,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(307,13): error CS0103: The name 'SidebarControl' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(308,13): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(309,13): error CS0103: The name 'StoredChatDropdown' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(310,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(311,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(312,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(313,13): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(324,13): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(325,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(326,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(327,13): error CS0103: The name 'ContentArea' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(328,13): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(354,17): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(355,17): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(676,9): error CS0118: 'Haven.Desktop.Views.Shell.TopRail' is a namespace but is used like a variable [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(1090,9): error CS0234: The type or namespace name 'ShowAppLauncher' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(1152,13): error CS0234: The type or namespace name 'ShowUniversalSearch' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2028,9): error CS0118: 'Haven.Desktop.Views.Shell.TopRail' is a namespace but is used like a variable [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2033,13): error CS0118: 'Haven.Desktop.Views.Shell.TopRail' is a namespace but is used like a variable [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2192,9): error CS0234: The type or namespace name 'SetActions' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2336,9): error CS0234: The type or namespace name 'AttachEventBus' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2337,9): error CS0234: The type or namespace name 'HomeRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2338,9): error CS0234: The type or namespace name 'NewTabRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2339,9): error CS0234: The type or namespace name 'BackRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2340,9): error CS0234: The type or namespace name 'ForwardRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2341,9): error CS0234: The type or namespace name 'AppsRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2342,9): error CS0234: The type or namespace name 'ModelRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2343,9): error CS0234: The type or namespace name 'SearchRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2344,9): error CS0234: The type or namespace name 'TabSelected' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2345,9): error CS0234: The type or namespace name 'TabCloseRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2346,9): error CS0234: The type or namespace name 'TabRenameRequested' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2348,9): error CS0103: The name 'GoChatButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2349,9): error CS0103: The name 'GoDashboardButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2350,9): error CS0103: The name 'SavedChatOption' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2351,9): error CS0103: The name 'TemporaryChatOption' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2352,9): error CS0103: The name 'SidebarControl' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2354,47): error CS0103: The name 'GoChatButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2355,49): error CS0103: The name 'GoChatButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2356,52): error CS0103: The name 'GoDashboardButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2357,54): error CS0103: The name 'GoDashboardButton' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2413,9): error CS0234: The type or namespace name 'SetModelSelectorEnabled' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2455,21): error CS0234: The type or namespace name 'SetModelSummary' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2600,21): error CS0234: The type or namespace name 'SetModelSummary' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2643,17): error CS0234: The type or namespace name 'ShowModelFlyout' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2653,57): error CS0234: The type or namespace name 'SetModelSelectorEnabled' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2686,9): error CS0103: The name 'StoredChatLabel' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2692,9): error CS0103: The name 'StoredChatLabel' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2697,13): error CS0118: 'Haven.Desktop.Views.Shell.TopRail' is a namespace but is used like a variable [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2698,9): error CS0234: The type or namespace name 'SetTabs' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2704,9): error CS0234: The type or namespace name 'SetNavigationAvailability' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2725,13): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2726,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2727,9): error CS0103: The name 'SidebarControl' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2728,9): error CS0103: The name 'NativeSidebarHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2731,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2732,9): error CS0103: The name 'StoredChatDropdown' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2735,9): error CS0103: The name 'GoModeLabel' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2736,9): error CS0234: The type or namespace name 'SetModelSummary' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2794,28): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2795,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2796,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2797,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2802,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2803,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2804,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2805,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.axaml.cs(2856,9): error CS0234: The type or namespace name 'Dispose' does not exist in the namespace 'Haven.Desktop.Views.Shell.TopRail' (are you missing an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(104,40): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(123,9): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(134,9): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(138,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(140,36): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(150,42): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(151,43): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(158,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(159,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(160,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(161,9): error CS0103: The name 'OverlayHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(166,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(167,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(168,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(169,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(170,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(171,9): error CS0103: The name 'ShellContextBar' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(196,36): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(233,13): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(260,13): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(399,9): error CS0103: The name 'PageContent' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(406,44): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.BetaOverlays.cs(407,49): error CS0103: The name 'NativeOverlayLayer' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Desktop/Interface/Shell/MainView.NativeChatSidebar.cs(19,9): error CS0103: The name 'NativeSidebarHost' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(205,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuView' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(209,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuManage' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(288,46): error CS0246: The type or namespace name 'MainActivity' could not be found (are you missing a using directive or an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(295,46): error CS0246: The type or namespace name 'MainActivity' could not be found (are you missing a using directive or an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
 From https://github.com/CroakyJake12/HavenAI
  * [new branch]      apk-output-20260806-2204 -> apk-output-20260806-2204
+Previous HEAD position was a508ed9 Add deterministic emergency Android APK builder
 Switched to branch 'apk-output-20260806-2204'
-M	src/Haven.Android/HavenLauncherActivity.cs
-M	src/Haven.Desktop/Interface/BrowserSafetyView.axaml.cs
-M	src/Haven.Desktop/Interface/Shell/Pop-Ups/ProjectSettingsOverlay.axaml.cs
-M	src/Haven.Desktop/Interface/Shell/Pop-Ups/SettingsOverlay.axaml.cs
-M	src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml
-M	src/Haven.Desktop/Views/StudioProjectView.axaml.cs
 Removing src/
