@@ -97,3 +97,20 @@ jobs:
           path: artifacts/android
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record successful APK build
+        shell: bash
+        run: |
+          mkdir -p .github/build-status
+          {
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "artifact=Haven-Mobile-Outstanding-Fixes-APK"
+            echo "checksums:"
+            cat artifacts/android/SHA256SUMS.txt
+          } > .github/build-status/mobile-haven-apk.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/build-status/mobile-haven-apk.txt
+          git commit -m "Record successful Mobile Haven APK build"
+          git push origin HEAD:mobile-haven-outstanding-fixes
