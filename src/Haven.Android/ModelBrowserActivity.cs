@@ -296,7 +296,7 @@ public sealed class ModelBrowserActivity : Activity
 
     private static string? SelectGguf(HfModel model)
     {
-        var files = model.Siblings?
+        var files = (model.Siblings ?? [])
             .Select(item => item.FileName)
             .OfType<string>()
             .Where(name => name.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)
