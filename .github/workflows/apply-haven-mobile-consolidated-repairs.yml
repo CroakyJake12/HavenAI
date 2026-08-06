@@ -19,7 +19,7 @@ jobs:
           set -euo pipefail
           cat scripts/run_mobile_repair.part0 scripts/run_mobile_repair.part1 > /tmp/run-mobile-repair.sh
           echo "e6758fc2665049e617dc9a6bf6d0d5d6b7726b8e8142431d0796bd01a4d44d1b  /tmp/run-mobile-repair.sh" | sha256sum -c -
-          echo "93f934dd1fee30c19a7decd459f2f041c9acfbf9b9f04e803eaf5c2a5aa1d99d  scripts/mobile_repair_compat.py" | sha256sum -c -
+          echo "7b9a722ffb7d973d0bb4ff2439f7cfdd05a549dbe94cde54e194645bceb0069f  scripts/mobile_repair_compat.py" | sha256sum -c -
           python - <<'PY'
           from pathlib import Path
           path = Path("/tmp/run-mobile-repair.sh")
