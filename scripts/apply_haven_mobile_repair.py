@@ -60,7 +60,7 @@ def patch_browser() -> None:
 
 
 def patch_main_view_add_menus() -> None:
-    path = ROOT / "src/Haven.Desktop/Views/Shell/MainView.axaml.cs"
+    path = ROOT / "src/Haven.Desktop/Interface/Shell/MainView.axaml.cs"
     original = path.read_text(encoding="utf-8")
     text = original
 
