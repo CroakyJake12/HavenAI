@@ -73,7 +73,7 @@ public sealed partial class MainView
                         Text = "Browse Hugging Face GGUF models, see device-aware recommendations, download models, or import local GGUF files and folders.",
                         TextWrapping = TextWrapping.Wrap,
                         FontSize = 11,
-                        Foreground = Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
+                        Foreground = global::Avalonia.Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
                     },
                     ModelLibraryButton(
                         "Browse & download models",
@@ -119,7 +119,7 @@ public sealed partial class MainView
                     Text = "No local runtime is currently available. You can still browse, download, or import models.",
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 11,
-                    Foreground = Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
+                    Foreground = global::Avalonia.Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
                 },
                 BuildAndroidModelLibrarySection()
             }
@@ -132,8 +132,8 @@ public sealed partial class MainView
             {
                 Width = width,
                 MaxHeight = Bounds.Height > 0 ? Math.Clamp(Bounds.Height - 150, 300, 560) : 500,
-                Background = Application.Current?.Resources["HavenElevatedBrush"] as IBrush,
-                BorderBrush = Application.Current?.Resources["HavenLineBrush"] as IBrush,
+                Background = global::Avalonia.Application.Current?.Resources["HavenElevatedBrush"] as IBrush,
+                BorderBrush = global::Avalonia.Application.Current?.Resources["HavenLineBrush"] as IBrush,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(18),
                 Child = new ScrollViewer
@@ -171,7 +171,7 @@ public sealed partial class MainView
                     Text = detail,
                     FontSize = 10,
                     TextWrapping = TextWrapping.Wrap,
-                    Foreground = Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
+                    Foreground = global::Avalonia.Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
                 }
             }
         };
