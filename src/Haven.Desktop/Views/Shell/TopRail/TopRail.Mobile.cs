@@ -14,9 +14,10 @@ public sealed partial class TopRail
     {
         MinWidth = 0;
 
-        if (Content is Grid rootGrid)
-            rootGrid.Height = 142;
+        if (Content is not Grid rootGrid)
+            return;
 
+        rootGrid.Height = 142;
         LogoButton.Width = 42;
         LogoButton.Height = 42;
         LogoButton.Padding = new Thickness(2);
@@ -37,17 +38,26 @@ public sealed partial class TopRail
         UniversalModelButton.Padding = new Thickness(7, 6);
         UniversalModelName.MaxWidth = 54;
 
-        if (TabStrip.Parent is not ScrollViewer scroller
-            || scroller.Parent is not Grid tabGrid
-            || tabGrid.Parent is not Border tabHost
-            || tabHost.Parent is not Grid headerGrid)
-        {
+        // Do not depend on logical Parent chains here: ScrollViewer inserts presentation
+        // elements on Android. Walk the stable XAML structure from the root instead.
+        var chrome = rootGrid.Children.OfType<Border>().FirstOrDefault();
+        if (chrome?.Child is not Grid headerGrid)
             return;
-        }
+
+        var tabHost = headerGrid.Children
+            .OfType<Border>()
+            .FirstOrDefault(border =>
+                border.Child is Grid tabGrid
+                && tabGrid.Children.OfType<ScrollViewer>()
+                    .Any(scroller => ReferenceEquals(scroller.Content, TabStrip)));
+
+        if (tabHost is null)
+            return;
 
         tabHost.MinWidth = 0;
         tabHost.Height = 52;
         tabHost.Padding = new Thickness(4, 3);
+        tabHost.HorizontalAlignment = HorizontalAlignment.Stretch;
 
         headerGrid.RowDefinitions = new RowDefinitions("Auto,Auto");
         headerGrid.RowSpacing = 4;
