@@ -1,66 +1,191 @@
 name: Validate Mobile Desktop Parity APK
+
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: mobile-desktop-parity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
+    name: Build and verify full Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       AVALONIA_TELEMETRY_OPTOUT: "1"
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+
       - name: Record source
-        run: |
-          mkdir -p artifacts/android
-          git rev-parse HEAD | tee artifacts/android/SOURCE_SHA.txt
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-      - name: Install Android workload
-        run: dotnet workload install android
-      - name: Restore
-        run: dotnet restore src/Haven.Android/Haven.Android.csproj
-      - name: Publish
-        shell: bash
-        run: |
-          set -o pipefail
-          dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
-      - name: Verify APK
         shell: bash
         run: |
           set -euo pipefail
-          apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*-Signed.apk' -print -quit)"
-          test -n "$apk" || apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -print -quit)"
-          test -n "$apk"
+          mkdir -p artifacts/android
+          git rev-parse HEAD | tee artifacts/android/SOURCE_SHA.txt
+          git status --short | tee artifacts/android/WORKTREE.txt
+
+      - name: Install .NET from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Restore full Android project
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet restore src/Haven.Android/Haven.Android.csproj 2>&1 | tee artifacts/android/restore.log
+
+      - name: Publish full Android APK
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+
+      - name: Collect and verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -gt 0
+
+          apk="$(printf '%s\n' "${apks[@]}" | grep -- '-Signed\.apk$' | head -n 1 || true)"
+          if [ -z "$apk" ]; then
+            apk="${apks[0]}"
+          fi
+
           cp "$apk" artifacts/android/Haven-Mobile-Desktop-Parity.apk
           test -s artifacts/android/Haven-Mobile-Desktop-Parity.apk
+
           unzip -t artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/unzip-test.txt
           unzip -Z1 artifacts/android/Haven-Mobile-Desktop-Parity.apk | grep -qx AndroidManifest.xml
+
           signer="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -x "$signer"
           "$signer" verify --verbose artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/apksigner.txt
+
           sha256sum artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SHA256SUMS.txt
           stat --printf='%n %s bytes\n' artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SIZE.txt
-      - name: Upload logs
+
+      - name: Upload compiler evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Haven-Mobile-Desktop-Parity-Build-Logs
           path: artifacts/android
+          if-no-files-found: warn
           retention-days: 30
-      - name: Upload APK
+
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
           name: Haven-Mobile-Desktop-Parity-APK
-          path: artifacts/android
+          path: |
+            artifacts/android/Haven-Mobile-Desktop-Parity.apk
+            artifacts/android/SHA256SUMS.txt
+            artifacts/android/SIZE.txt
+            artifacts/android/SOURCE_SHA.txt
+            artifacts/android/apksigner.txt
           if-no-files-found: error
+          retention-days: 30
+
+  android-smoke:
+    name: Install and launch APK on Android emulator
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Download verified APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-APK
+          path: artifacts/android
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and launch Haven
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: >-
+            -no-window
+            -gpu swiftshader_indirect
+            -noaudio
+            -no-boot-anim
+            -camera-back none
+            -camera-front none
+            -no-snapshot-save
+          script: |
+            set -euo pipefail
+            mkdir -p artifacts/smoke
+
+            apk="artifacts/android/Haven-Mobile-Desktop-Parity.apk"
+            test -s "$apk"
+
+            aapt="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+            test -x "$aapt"
+
+            "$aapt" dump badging "$apk" | head -n 1 | tee artifacts/smoke/apk-badging.txt
+            package="$("$aapt" dump badging "$apk" | sed -n "s/package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+            test -n "$package"
+            printf '%s\n' "$package" | tee artifacts/smoke/package.txt
+
+            adb install -r "$apk" | tee artifacts/smoke/install.txt
+            adb logcat -c
+
+            adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1 | tee artifacts/smoke/launch.txt
+            sleep 12
+
+            adb shell pidof "$package" | tee artifacts/smoke/pid.txt
+            test -s artifacts/smoke/pid.txt
+
+            adb shell dumpsys activity activities > artifacts/smoke/activities.txt
+            grep -F "$package" artifacts/smoke/activities.txt >/dev/null
+
+            adb logcat -d -t 1200 > artifacts/smoke/logcat.txt
+            adb exec-out screencap -p > artifacts/smoke/launched.png
+            test -s artifacts/smoke/launched.png
+
+      - name: Upload emulator smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-Smoke
+          path: artifacts/smoke
+          if-no-files-found: warn
           retention-days: 30
