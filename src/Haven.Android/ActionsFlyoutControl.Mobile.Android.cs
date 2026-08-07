@@ -5,9 +5,18 @@ namespace Haven.Desktop.Views.Shell.TopRail;
 
 public sealed partial class ActionsFlyoutControl
 {
+    private bool _androidMobileLayoutWired;
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+
+        if (!_androidMobileLayoutWired)
+        {
+            _androidMobileLayoutWired = true;
+            SearchBox.TextChanged += (_, _) => ApplyAndroidMobileLayout();
+        }
+
         ApplyAndroidMobileLayout();
     }
 
@@ -16,11 +25,22 @@ public sealed partial class ActionsFlyoutControl
         var topWidth = TopLevel.GetTopLevel(this)?.Bounds.Width ?? 380;
         var width = Math.Clamp(topWidth - 20, 280, 390);
 
+        Width = width;
+        MinWidth = 0;
+        MaxWidth = width;
+
         if (Content is StackPanel root)
         {
             foreach (var border in root.Children.OfType<Border>())
+            {
                 border.Width = width;
+                border.MinWidth = 0;
+                border.MaxWidth = width;
+            }
         }
+
+        SearchBox.MinWidth = 0;
+        SearchBox.MaxWidth = Math.Max(220, width - 40);
 
         foreach (var grid in SectionsPanel.Children.OfType<Grid>())
         {
