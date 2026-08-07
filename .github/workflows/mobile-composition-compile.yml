@@ -1,4 +1,5 @@
 name: Mobile Composition APK
+
 on:
   push:
     branches: [main]
@@ -6,8 +7,10 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   android:
     runs-on: ubuntu-latest
