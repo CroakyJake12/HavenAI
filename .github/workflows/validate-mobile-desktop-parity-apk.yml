@@ -1,0 +1,66 @@
+name: Validate Mobile Desktop Parity APK
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      AVALONIA_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Record source
+        run: |
+          mkdir -p artifacts/android
+          git rev-parse HEAD | tee artifacts/android/SOURCE_SHA.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Restore
+        run: dotnet restore src/Haven.Android/Haven.Android.csproj
+      - name: Publish
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*-Signed.apk' -print -quit)"
+          test -n "$apk" || apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          cp "$apk" artifacts/android/Haven-Mobile-Desktop-Parity.apk
+          test -s artifacts/android/Haven-Mobile-Desktop-Parity.apk
+          unzip -t artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/unzip-test.txt
+          unzip -Z1 artifacts/android/Haven-Mobile-Desktop-Parity.apk | grep -qx AndroidManifest.xml
+          signer="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$signer"
+          "$signer" verify --verbose artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/apksigner.txt
+          sha256sum artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SHA256SUMS.txt
+          stat --printf='%n %s bytes\n' artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SIZE.txt
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-Build-Logs
+          path: artifacts/android
+          retention-days: 30
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-APK
+          path: artifacts/android
+          if-no-files-found: error
+          retention-days: 30
