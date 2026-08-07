@@ -1,0 +1,61 @@
+name: Export Unique Haven Mobile APK
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Record exact source
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          short="$(git rev-parse --short=8 HEAD)"
+          echo "short=$short" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - run: dotnet workload install android
+
+      - run: dotnet restore src/Haven.Android/Haven.Android.csproj
+
+      - name: Build full repaired APK
+        run: dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false
+
+      - name: Package unique artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*-Signed.apk' -print -quit)"
+          if [ -z "$apk" ]; then apk="$(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' -print -quit)"; fi
+          test -n "$apk"
+          short="${{ steps.meta.outputs.short }}"
+          cp "$apk" "out/Haven-${short}.apk"
+          test -s "out/Haven-${short}.apk"
+          unzip -t "out/Haven-${short}.apk"
+          unzip -Z1 "out/Haven-${short}.apk" | grep -qx 'AndroidManifest.xml'
+          sha256sum "out/Haven-${short}.apk" > out/SHA256SUMS.txt
+          git rev-parse HEAD > out/SOURCE_SHA.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haven-${{ steps.meta.outputs.short }}-APK
+          path: out
+          if-no-files-found: error
+          retention-days: 30

@@ -119,7 +119,7 @@ public sealed partial class MainView
     private static void LaunchAndroidModelImporter()
     {
         var context = global::Android.App.Application.Context;
-        var intent = new Intent(context, typeof(Haven.Android.ModelImportActivity));
+        var intent = new Intent(context, typeof(Haven.Android.ModelBrowserActivity));
         intent.AddFlags(ActivityFlags.NewTask);
         context.StartActivity(intent);
     }

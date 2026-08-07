@@ -1,0 +1,212 @@
+name: Validate Mobile Desktop Parity APK
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-desktop-parity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Build and verify full Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      AVALONIA_TELEMETRY_OPTOUT: "1"
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Record source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/android
+          git rev-parse HEAD | tee artifacts/android/SOURCE_SHA.txt
+          git status --short | tee artifacts/android/WORKTREE.txt
+
+      - name: Install .NET from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Restore full Android project
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet restore src/Haven.Android/Haven.Android.csproj 2>&1 | tee artifacts/android/restore.log
+
+      - name: Publish full Android APK
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet publish src/Haven.Android/Haven.Android.csproj \
+            -c Debug \
+            -f net10.0-android \
+            --no-restore \
+            -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=false 2>&1 | tee artifacts/android/publish.log
+
+      - name: Collect and verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -gt 0
+          apk="$(printf '%s\n' "${apks[@]}" | grep -- '-Signed\.apk$' | head -n 1 || true)"
+          if [ -z "$apk" ]; then apk="${apks[0]}"; fi
+          out=artifacts/android/Haven-Mobile-Desktop-Parity.apk
+          cp "$apk" "$out"
+          test -s "$out"
+          unzip -t "$out" | tee artifacts/android/unzip-test.txt
+          unzip -Z1 "$out" | grep -qx 'AndroidManifest.xml'
+          signer="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$signer"
+          "$signer" verify --verbose "$out" | tee artifacts/android/apksigner.txt
+          sha256sum "$out" | tee artifacts/android/SHA256SUMS.txt
+          stat --printf='%n %s bytes\n' "$out" | tee artifacts/android/SIZE.txt
+
+      - name: Upload compiler evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-Build-Logs
+          path: artifacts/android
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-APK
+          path: |
+            artifacts/android/Haven-Mobile-Desktop-Parity.apk
+            artifacts/android/SHA256SUMS.txt
+            artifacts/android/SIZE.txt
+            artifacts/android/SOURCE_SHA.txt
+            artifacts/android/apksigner.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  android-smoke:
+    name: Install and launch APK on Android emulator
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Download verified APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-APK
+          path: artifacts/android
+
+      - name: Prepare smoke evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/smoke
+          printf 'workspace=%s\n' "$GITHUB_WORKSPACE" | tee artifacts/smoke/workspace.txt
+          find artifacts -maxdepth 3 -type f -printf '%p %s bytes\n' | sort | tee artifacts/smoke/downloaded-files.txt
+          test -s artifacts/android/Haven-Mobile-Desktop-Parity.apk
+          sha256sum artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/smoke/downloaded-sha256.txt
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and exercise Haven
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: >-
+            -no-window
+            -gpu swiftshader_indirect
+            -noaudio
+            -no-boot-anim
+            -camera-back none
+            -camera-front none
+            -no-snapshot-save
+          script: |
+            workspace="$GITHUB_WORKSPACE"
+            smoke="$workspace/artifacts/smoke"
+            apk="$workspace/artifacts/android/Haven-Mobile-Desktop-Parity.apk"
+            package="com.cakemods.haven"
+
+            mkdir -p "$smoke"
+            pwd > "$smoke/emulator-pwd.txt"
+            adb devices -l > "$smoke/adb-devices.txt"
+            test -s "$apk"
+
+            if ! adb install -r "$apk" > "$smoke/install.txt" 2>&1; then
+              adb logcat -d > "$smoke/install-failure-logcat.txt" 2>&1 || true
+              exit 21
+            fi
+
+            adb shell pm path "$package" > "$smoke/package-path.txt" 2>&1
+            test -s "$smoke/package-path.txt"
+
+            adb logcat -c
+            adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1 > "$smoke/launch.txt" 2>&1
+            sleep 12
+
+            adb shell pidof "$package" > "$smoke/pid.txt" 2>&1 || true
+            test -s "$smoke/pid.txt"
+            adb shell dumpsys activity activities > "$smoke/activities.txt" 2>&1
+            grep -F "$package" "$smoke/activities.txt" >/dev/null
+            adb logcat -d -t 12000 > "$smoke/logcat.txt" 2>&1 || true
+            adb exec-out screencap -p > "$smoke/launched.png"
+            test -s "$smoke/launched.png"
+
+            home_component="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -p "$package" | tr -d '\r' | tail -n 1)"
+            test -n "$home_component"
+            printf '%s\n' "$home_component" > "$smoke/home-component.txt"
+            adb shell am start -W -n "$home_component" > "$smoke/launcher-start.txt" 2>&1
+            sleep 4
+            adb shell dumpsys activity activities > "$smoke/launcher-activities.txt" 2>&1
+            grep -F "$package" "$smoke/launcher-activities.txt" >/dev/null
+            adb exec-out screencap -p > "$smoke/launcher-home.png"
+            test -s "$smoke/launcher-home.png"
+
+            adb shell input swipe 540 1400 540 650 350
+            sleep 3
+            adb shell uiautomator dump /sdcard/haven-drawer.xml > "$smoke/uiautomator.txt" 2>&1
+            adb pull /sdcard/haven-drawer.xml "$smoke/drawer.xml" > "$smoke/adb-pull.txt" 2>&1
+            test -s "$smoke/drawer.xml"
+            grep -q 'scrollable="true"' "$smoke/drawer.xml"
+            adb exec-out screencap -p > "$smoke/launcher-drawer.png"
+            test -s "$smoke/launcher-drawer.png"
+
+      - name: Upload emulator smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Haven-Mobile-Desktop-Parity-Smoke
+          path: artifacts/smoke
+          if-no-files-found: warn
+          retention-days: 30

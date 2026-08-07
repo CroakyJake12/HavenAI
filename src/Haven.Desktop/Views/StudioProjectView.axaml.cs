@@ -108,7 +108,7 @@ public sealed partial class StudioProjectView : UserControl
             Child = _settingsDialog
         };
         Grid.SetColumnSpan(_settingsOverlay, 2);
-        Panel.SetZIndex(_settingsOverlay, 100);
+        _settingsOverlay.SetValue(Panel.ZIndexProperty, 100);
         _root.Children.Add(_settingsOverlay);
         return _root;
     }

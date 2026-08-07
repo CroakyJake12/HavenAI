@@ -52,7 +52,11 @@
         </Button>
       </WrapPanel>
 
-      <Grid Grid.Row="2" HorizontalAlignment="Center" ColumnDefinitions="Auto,640,Auto" ColumnSpacing="10">
+      <Grid Grid.Row="2"
+            HorizontalAlignment="Center"
+            MaxWidth="790"
+            ColumnDefinitions="Auto,*,Auto"
+            ColumnSpacing="10">
         <topRail:AddMenu x:Name="AddButton"
                          Width="62" Height="62" CornerRadius="31"
                          Background="#DFFFFFFF"
@@ -61,6 +65,7 @@
                          Foreground="#FF050505" />
         <TextBox x:Name="InstructionBox"
                  Grid.Column="1"
+                 MinWidth="0"
                  Height="62"
                  CornerRadius="18"
                  Background="#DFFFFFFF"
@@ -76,7 +81,7 @@
         <Button x:Name="SendButton"
                 Grid.Column="2"
                 Width="68" Height="62" CornerRadius="21"
-                Background="#FF6FE9F0"
+                Background="#FF6FF9F0"
                 BorderBrush="#667ADDE3"
                 BorderThickness="1">
           <controls:HavenIcon IconKey="send" Width="29" Height="29" Foreground="#FF050505" />
