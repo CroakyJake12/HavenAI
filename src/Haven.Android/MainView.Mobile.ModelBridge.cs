@@ -12,25 +12,36 @@ public sealed partial class MainView
     private async void OnMobileTopRailModelRequested(object? sender, EventArgs e)
     {
         await ShowModelSelectorAsync();
-        AddAndroidModelManagementActions();
+
+        if (AddAndroidModelManagementActions() && _modelSelectorFlyout is not null)
+        {
+            // The desktop selector has already been presented by ShowModelSelectorAsync.
+            // Re-present the same flyout after adding Android's library controls so the
+            // explorer/downloader is visible immediately rather than only on a later open.
+            _modelSelectorFlyout.Hide();
+            TopRail.ShowModelFlyout(_modelSelectorFlyout);
+        }
     }
 
-    private void AddAndroidModelManagementActions()
+    private bool AddAndroidModelManagementActions()
     {
         if (_modelSelectorFlyout?.Content is not Border flyoutBorder
             || flyoutBorder.Child is not ScrollViewer scroller
             || scroller.Content is not StackPanel rows)
         {
-            return;
+            return false;
         }
 
-        var availableWidth = Bounds.Width > 0 ? Bounds.Width - 24 : 336;
+        var availableWidth = Bounds.Width > 0 ? Bounds.Width - 20 : 340;
         flyoutBorder.Width = Math.Clamp(availableWidth, 280, 360);
+        scroller.MaxHeight = Bounds.Height > 0
+            ? Math.Clamp(Bounds.Height - 150, 300, 560)
+            : 500;
 
         if (rows.Children.OfType<Border>()
             .Any(item => string.Equals(item.Name, "AndroidModelLibrarySection", StringComparison.Ordinal)))
         {
-            return;
+            return false;
         }
 
         rows.Children.Add(new Separator { Margin = new Thickness(4, 8) });
@@ -46,20 +57,20 @@ public sealed partial class MainView
                 {
                     new TextBlock
                     {
-                        Text = "Model library",
+                        Text = "Model explorer",
                         FontWeight = FontWeight.ExtraBold,
                         FontSize = 14
                     },
                     new TextBlock
                     {
-                        Text = "Browse Hugging Face GGUF models, use recommendations for this device, download models, or import local GGUF files and folders.",
+                        Text = "Browse Hugging Face GGUF models, see recommendations for this device, download models, or import local GGUF files and folders.",
                         TextWrapping = TextWrapping.Wrap,
                         FontSize = 11,
                         Foreground = Avalonia.Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
                     },
                     ModelLibraryButton(
-                        "Browse Hugging Face & recommendations",
-                        "Search the Hugging Face API and download a GGUF selected for this device.",
+                        "Browse & download models",
+                        "Search Hugging Face and show device-aware recommendations.",
                         "browse",
                         () =>
                         {
@@ -67,8 +78,8 @@ public sealed partial class MainView
                             LaunchAndroidModelImporter();
                         }),
                     ModelLibraryButton(
-                        "Import GGUF files or a folder",
-                        "Choose individual GGUF files or recursively import a folder.",
+                        "Import GGUF file or folder",
+                        "Choose one or more GGUF files, or recursively import a folder.",
                         "folder",
                         () =>
                         {
@@ -80,6 +91,7 @@ public sealed partial class MainView
         };
 
         rows.Children.Add(section);
+        return true;
     }
 
     private static Button ModelLibraryButton(
