@@ -19,12 +19,26 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: 31172963682
+
+      - name: Locate downloaded APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p smoke
+          find artifact -maxdepth 4 -type f -printf '%p %s bytes\n' | sort | tee smoke/artifact-files.txt
+          apk="$(find artifact -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          cp "$apk" HavenSmoke.apk
+          test -s HavenSmoke.apk
+          sha256sum HavenSmoke.apk | tee smoke/apk-sha256.txt
+
       - name: Enable KVM
         shell: bash
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
       - name: Install and launch Haven
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
@@ -42,20 +56,22 @@ jobs:
             -camera-front none
             -no-snapshot-save
           script: |
-            mkdir -p smoke
-            apk="$GITHUB_WORKSPACE/artifact/Haven-Mobile-Composition.apk"
+            echo entered > "$GITHUB_WORKSPACE/smoke/emulator-script-started.txt"
+            apk="$GITHUB_WORKSPACE/HavenSmoke.apk"
             test -s "$apk"
-            adb install -r "$apk" > smoke/install.txt 2>&1
+            adb devices -l > "$GITHUB_WORKSPACE/smoke/adb-devices.txt" 2>&1
+            adb install -r "$apk" > "$GITHUB_WORKSPACE/smoke/install.txt" 2>&1
             adb logcat -c
-            adb shell monkey -p com.cakemods.haven -c android.intent.category.LAUNCHER 1 > smoke/launch.txt 2>&1
+            adb shell monkey -p com.cakemods.haven -c android.intent.category.LAUNCHER 1 > "$GITHUB_WORKSPACE/smoke/launch.txt" 2>&1
             sleep 12
-            adb shell pidof com.cakemods.haven > smoke/pid.txt 2>&1
-            test -s smoke/pid.txt
-            adb shell dumpsys activity activities > smoke/activities.txt 2>&1
-            grep -F com.cakemods.haven smoke/activities.txt >/dev/null
-            adb logcat -d -t 1500 > smoke/logcat.txt 2>&1
-            adb exec-out screencap -p > smoke/launched.png
-            test -s smoke/launched.png
+            adb shell pidof com.cakemods.haven > "$GITHUB_WORKSPACE/smoke/pid.txt" 2>&1
+            test -s "$GITHUB_WORKSPACE/smoke/pid.txt"
+            adb shell dumpsys activity activities > "$GITHUB_WORKSPACE/smoke/activities.txt" 2>&1
+            grep -F com.cakemods.haven "$GITHUB_WORKSPACE/smoke/activities.txt" >/dev/null
+            adb logcat -d -t 1500 > "$GITHUB_WORKSPACE/smoke/logcat.txt" 2>&1
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/smoke/launched.png"
+            test -s "$GITHUB_WORKSPACE/smoke/launched.png"
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
