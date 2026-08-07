@@ -1,0 +1,22 @@
+name: Mobile Composition Compile
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/mobile-composition-compile.yml"]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/mobile-desktop-parity-fixes-20260807
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet workload install android
+      - run: dotnet restore src/Haven.Android/Haven.Android.csproj
+      - run: dotnet publish src/Haven.Android/Haven.Android.csproj -c Debug -f net10.0-android --no-restore -p:AndroidPackageFormat=apk -p:AndroidKeyStore=false
