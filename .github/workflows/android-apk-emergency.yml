@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: a508ed92aca25cf8badc1ccb33164ee3ed052c58
+          ref: e08fae940a7cceff9a10f0b8040f576e85dcd8a3
           fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
