@@ -21,7 +21,6 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       AVALONIA_TELEMETRY_OPTOUT: "1"
-
     steps:
       - name: Check out exact PR head
         uses: actions/checkout@v4
@@ -68,24 +67,21 @@ jobs:
           set -euo pipefail
           mapfile -t apks < <(find src/Haven.Android/bin/Debug/net10.0-android -type f -name '*.apk' | sort)
           test "${#apks[@]}" -gt 0
-
           apk="$(printf '%s\n' "${apks[@]}" | grep -- '-Signed\.apk$' | head -n 1 || true)"
-          if [ -z "$apk" ]; then
-            apk="${apks[0]}"
-          fi
+          if [ -z "$apk" ]; then apk="${apks[0]}"; fi
 
-          cp "$apk" artifacts/android/Haven-Mobile-Desktop-Parity.apk
-          test -s artifacts/android/Haven-Mobile-Desktop-Parity.apk
-
-          unzip -t artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/unzip-test.txt
-          unzip -Z1 artifacts/android/Haven-Mobile-Desktop-Parity.apk | grep -qx AndroidManifest.xml
+          out=artifacts/android/Haven-Mobile-Desktop-Parity.apk
+          cp "$apk" "$out"
+          test -s "$out"
+          unzip -t "$out" | tee artifacts/android/unzip-test.txt
+          unzip -Z1 "$out" | grep -qx 'AndroidManifest.xml'
 
           signer="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -x "$signer"
-          "$signer" verify --verbose artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/apksigner.txt
+          "$signer" verify --verbose "$out" | tee artifacts/android/apksigner.txt
 
-          sha256sum artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SHA256SUMS.txt
-          stat --printf='%n %s bytes\n' artifacts/android/Haven-Mobile-Desktop-Parity.apk | tee artifacts/android/SIZE.txt
+          sha256sum "$out" | tee artifacts/android/SHA256SUMS.txt
+          stat --printf='%n %s bytes\n' "$out" | tee artifacts/android/SIZE.txt
 
       - name: Upload compiler evidence
         if: always()
@@ -114,7 +110,6 @@ jobs:
     needs: android
     runs-on: ubuntu-latest
     timeout-minutes: 50
-
     steps:
       - name: Check out exact PR head
         uses: actions/checkout@v4
@@ -153,13 +148,11 @@ jobs:
           script: |
             set -eu
             mkdir -p artifacts/smoke
-
             apk="artifacts/android/Haven-Mobile-Desktop-Parity.apk"
             test -s "$apk"
 
             aapt="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools" -type f -name aapt | sort -V | tail -n 1)"
             test -x "$aapt"
-
             "$aapt" dump badging "$apk" | head -n 1 | tee artifacts/smoke/apk-badging.txt
             package="$("$aapt" dump badging "$apk" | sed -n "s/package: name='\([^']*\)'.*/\1/p" | head -n 1)"
             test -n "$package"
@@ -167,7 +160,6 @@ jobs:
 
             adb install -r "$apk" | tee artifacts/smoke/install.txt
             adb logcat -c
-
             adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1 | tee artifacts/smoke/launch.txt
             sleep 12
 
@@ -175,9 +167,9 @@ jobs:
             test -s artifacts/smoke/pid.txt
 
             adb shell dumpsys activity activities > artifacts/smoke/activities.txt
-            grep -F "$package" artifacts/android/activities.txt >/dev/null
+            grep -F "$package" artifacts/smoke/activities.txt >/dev/null
 
-            adb logcat -d -t 1200 > artifacts/smoke/logcat.txt
+            adb logcat -d -t 12000 > artifacts/smoke/logcat.txt
             adb exec-out screencap -p > artifacts/smoke/launched.png
             test -s artifacts/smoke/launched.png
 
