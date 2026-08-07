@@ -1,0 +1,6 @@
+artifact/APKSIGNER.txt 404 bytes
+artifact/Haven-Mobile-Composition.apk 113140191 bytes
+artifact/SHA256SUMS.txt 104 bytes
+artifact/SIZE.txt 54 bytes
+artifact/SOURCE_SHA.txt 41 bytes
+artifact/ZIP_TEST.txt 108200 bytes
