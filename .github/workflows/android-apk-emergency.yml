@@ -1,5 +1,5 @@
-# emergency multi-trigger 2026-08-07T00:13Z
 name: Emergency Android APK
+
 on:
   push:
     branches: [main]
@@ -9,11 +9,14 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
+
 permissions:
   contents: write
+
 concurrency:
   group: haven-apk-export
   cancel-in-progress: false
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -21,9 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e08fae940a7cceff9a10f0b8040f576e85dcd8a3
+          ref: 9bd28a522e9377bf3074d1a05824746cb0d971c2
           fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: bash scripts/emergency_build_apk.sh
+      - run: bash scripts/emergency_build_apk_v3.sh
