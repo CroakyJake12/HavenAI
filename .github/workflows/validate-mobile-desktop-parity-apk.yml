@@ -173,6 +173,61 @@ jobs:
             adb exec-out screencap -p > artifacts/smoke/launched.png
             test -s artifacts/smoke/launched.png
 
+            home_component="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -p "$package" | tr -d '\r' | tail -n 1)"
+            test -n "$home_component"
+            printf '%s\n' "$home_component" | tee artifacts/smoke/home-component.txt
+            adb shell am start -W -n "$home_component" | tee artifacts/smoke/launcher-start.txt
+            sleep 4
+            adb shell dumpsys activity activities > artifacts/smoke/launcher-activities.txt
+            grep -F "$package" artifacts/smoke/launcher-activities.txt >/dev/null
+            adb exec-out screencap -p > artifacts/smoke/launcher-home.png
+            test -s artifacts/smoke/launcher-home.png
+
+            adb shell input swipe 540 1400 540 650 350
+            sleep 3
+            adb shell uiautomator dump /sdcard/haven-drawer.xml >/dev/null
+            adb pull /sdcard/haven-drawer.xml artifacts/smoke/drawer.xml >/dev/null
+            grep -q 'scrollable="true"' artifacts/smoke/drawer.xml
+
+            python3 - "$package" artifacts/smoke/drawer.xml artifacts/smoke/drawer-tap.txt <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+package, xml_path, out_path = sys.argv[1:]
+root = ET.parse(xml_path).getroot()
+candidates = []
+for node in root.iter("node"):
+    desc = node.attrib.get("content-desc", "")
+    bounds = node.attrib.get("bounds", "")
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
+    if "," not in desc or package in desc or match is None:
+        continue
+    x1, y1, x2, y2 = map(int, match.groups())
+    if x2 <= x1 or y2 <= y1:
+        continue
+    score = 0 if "com.android.settings" in desc else 1
+    candidates.append((score, desc, (x1 + x2) // 2, (y1 + y2) // 2))
+if not candidates:
+    raise SystemExit("No launchable app tile exposed in Haven app drawer")
+candidates.sort()
+_, desc, x, y = candidates[0]
+with open(out_path, "w", encoding="utf-8") as f:
+    f.write(f"{x} {y}\n{desc}\n")
+PY
+            read tap_x tap_y < artifacts/smoke/drawer-tap.txt
+            adb shell input tap "$tap_x" "$tap_y"
+            sleep 4
+            adb shell dumpsys activity activities > artifacts/smoke/launched-from-drawer.txt
+            first_resumed="$(grep -m1 -E 'topResumedActivity|mResumedActivity' artifacts/smoke/launched-from-drawer.txt || true)"
+            test -n "$first_resumed"
+            if printf '%s\n' "$first_resumed" | grep -F "$package" >/dev/null; then
+              echo "Drawer tap did not leave Haven launcher" >&2
+              exit 1
+            fi
+            adb exec-out screencap -p > artifacts/smoke/launcher-opened-app.png
+            test -s artifacts/smoke/launcher-opened-app.png
+
       - name: Upload emulator smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
