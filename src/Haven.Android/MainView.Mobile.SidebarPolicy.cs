@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using Haven.Core;
 
 namespace Haven.Desktop.Views.Shell;
 
