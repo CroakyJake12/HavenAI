@@ -1,9 +1,11 @@
-# retrigger 2026-08-07T00:10Z
+# emergency multi-trigger 2026-08-07T00:13Z
 name: Emergency Android APK
 on:
   push:
     branches: [main]
     paths: [".github/workflows/android-apk-emergency.yml"]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
