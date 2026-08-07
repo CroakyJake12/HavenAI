@@ -1,5 +1,5 @@
 source=9bd28a522e9377bf3074d1a05824746cb0d971c2
-run=31134950086
+run=31139354430
 Patched src/Haven.Android/HavenLauncherActivity.cs
 Patched src/Haven.Android/HavenLauncherActivity.Settings.cs
 Patched src/Haven.Android/ModelImportActivity.cs
@@ -166,12 +166,12 @@ Garbage collecting for SDK feature band(s) 8.0.100 8.0.200 8.0.300 8.0.400 9.0.1
 Successfully installed workload(s) android.
 
   Determining projects to restore...
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 175 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 175 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 145 ms).
   Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj (in 3 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.29 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.53 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 3.67 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 4 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.23 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.31 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 3.41 sec).
   Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
   Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
   Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
@@ -180,8 +180,8 @@ Successfully installed workload(s) android.
   Haven.Android -> /home/runner/work/HavenAI/HavenAI/src/Haven.Android/bin/Debug/net10.0-android/Haven.dll
   Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
   Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
-  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
   Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
+  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
   Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
 /usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
 /usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime_providers_shared.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime_providers_shared.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
@@ -731,5 +731,5 @@ Verified for SourceStamp: false
 Number of signers: 1
 From https://github.com/CroakyJake12/HavenAI
  * branch            apk-output-20260806-2204 -> FETCH_HEAD
-Preparing worktree (detached HEAD 8eeaecd)
-HEAD is now at 8eeaecd Export Haven APK run 31132859351
+Preparing worktree (detached HEAD 8a94610)
+HEAD is now at 8a94610 Export Haven APK run 31134950086
