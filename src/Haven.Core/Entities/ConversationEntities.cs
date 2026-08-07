@@ -21,7 +21,7 @@ public sealed record Conversation(
     DateTimeOffset? CompactedAt = null);
 
 /// <summary>
-/// Identifies one independently navigable Chat or Teach history. Sidebar selection and
+/// Identifies one independently navigable Chat or Study history. Sidebar selection and
 /// persisted conversation scope deliberately remain separate so selecting a subject
 /// cannot accidentally move a Quick Chat into that subject.
 /// </summary>
@@ -51,16 +51,19 @@ public sealed record ConversationScope
     /// </summary>
     public HavenMode Mode => Kind is ConversationScopeKind.GeneralChat or ConversationScopeKind.ChatGroup
         ? HavenMode.Chat
-        : HavenMode.Teach;
+        : HavenMode.Study;
 
     /// <summary>
     /// General chat scope.
     /// </summary>
     public static ConversationScope GeneralChat { get; } = new(ConversationScopeKind.GeneralChat, null, null);
     /// <summary>
-    /// Teach quick chat scope.
+    /// Study quick chat scope.
     /// </summary>
-    public static ConversationScope TeachQuickChat { get; } = new(ConversationScopeKind.TeachQuickChat, null, null);
+    public static ConversationScope StudyQuickChat { get; } = new(ConversationScopeKind.StudyQuickChat, null, null);
+
+    /// <summary>Compatibility alias for extensions built before Study replaced Teach.</summary>
+    public static ConversationScope TeachQuickChat => StudyQuickChat;
 
     /// <summary>
     /// Creates a scope for a chat group.
@@ -69,10 +72,13 @@ public sealed record ConversationScope
         new(ConversationScopeKind.ChatGroup, RequireId(containerId, nameof(containerId)), null);
 
     /// <summary>
-    /// Creates a scope for a teach lesson.
+    /// Creates a scope for a Study lesson.
     /// </summary>
-    public static ConversationScope ForTeachLesson(Guid subjectId, Guid lessonId) =>
-        new(ConversationScopeKind.TeachLesson, RequireId(subjectId, nameof(subjectId)), RequireId(lessonId, nameof(lessonId)));
+    public static ConversationScope ForStudyLesson(Guid subjectId, Guid lessonId) =>
+        new(ConversationScopeKind.StudyLesson, RequireId(subjectId, nameof(subjectId)), RequireId(lessonId, nameof(lessonId)));
+
+    /// <summary>Compatibility alias for extensions built before Study replaced Teach.</summary>
+    public static ConversationScope ForTeachLesson(Guid subjectId, Guid lessonId) => ForStudyLesson(subjectId, lessonId);
 
     /// <summary>
     /// Creates a scope from a conversation.
@@ -81,10 +87,10 @@ public sealed record ConversationScope
     {
         HavenMode.Chat when conversation.Kind == ConversationKind.Chat && conversation.ContainerId is { } groupId => ForChatGroup(groupId),
         HavenMode.Chat when conversation.Kind == ConversationKind.Chat => GeneralChat,
-        HavenMode.Teach when conversation.Kind == ConversationKind.LessonChat && conversation.ContainerId is { } subjectId && conversation.LessonId is { } lessonId =>
-            ForTeachLesson(subjectId, lessonId),
-        HavenMode.Teach when conversation.Kind == ConversationKind.QuickChat => TeachQuickChat,
-        _ => throw new ArgumentOutOfRangeException(nameof(conversation), "The conversation is not a scoped Chat or Teach conversation.")
+        HavenMode.Study when conversation.Kind == ConversationKind.LessonChat && conversation.ContainerId is { } subjectId && conversation.LessonId is { } lessonId =>
+            ForStudyLesson(subjectId, lessonId),
+        HavenMode.Study when conversation.Kind == ConversationKind.QuickChat => StudyQuickChat,
+        _ => throw new ArgumentOutOfRangeException(nameof(conversation), "The conversation is not a scoped Chat or Study conversation.")
     };
 
     /// <summary>
@@ -96,10 +102,10 @@ public sealed record ConversationScope
             conversation.Mode == HavenMode.Chat && conversation.Kind == ConversationKind.Chat && conversation.ContainerId is null && conversation.LessonId is null,
         ConversationScopeKind.ChatGroup =>
             conversation.Mode == HavenMode.Chat && conversation.Kind == ConversationKind.Chat && conversation.ContainerId == ContainerId && conversation.LessonId is null,
-        ConversationScopeKind.TeachQuickChat =>
-            conversation.Mode == HavenMode.Teach && conversation.Kind == ConversationKind.QuickChat && conversation.ContainerId is null && conversation.LessonId is null,
-        ConversationScopeKind.TeachLesson =>
-            conversation.Mode == HavenMode.Teach && conversation.Kind == ConversationKind.LessonChat && conversation.ContainerId == ContainerId && conversation.LessonId == LessonId,
+        ConversationScopeKind.StudyQuickChat =>
+            conversation.Mode == HavenMode.Study && conversation.Kind == ConversationKind.QuickChat && conversation.ContainerId is null && conversation.LessonId is null,
+        ConversationScopeKind.StudyLesson =>
+            conversation.Mode == HavenMode.Study && conversation.Kind == ConversationKind.LessonChat && conversation.ContainerId == ContainerId && conversation.LessonId == LessonId,
         _ => false
     };
 

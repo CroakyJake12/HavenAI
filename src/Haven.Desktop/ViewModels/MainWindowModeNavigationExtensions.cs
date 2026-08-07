@@ -43,13 +43,15 @@ public static class MainWindowModeNavigationExtensions
                 await shell.NavigateChatCommand.ExecuteAsync();
                 ClearModeProfile(shell.CurrentChat);
                 return;
-            case "teach":
-                await shell.NavigateTeachCommand.ExecuteAsync();
+            case "study":
+            case "teach": // Compatibility route for saved layouts created before Study.
+                await shell.NavigateStudyCommand.ExecuteAsync();
                 ClearModeProfile(shell.CurrentChat);
                 return;
-            case "do":
-            case "research":
-                await shell.NavigateDoCommand.ExecuteAsync();
+            case "tasks":
+            case "do": // Compatibility route for saved layouts created before Tasks.
+            case "research": // Compatibility route for the short-lived Research label.
+                await shell.NavigateTasksCommand.ExecuteAsync();
                 ClearModeProfile(shell.CurrentChat);
                 return;
             case "studio":
@@ -141,11 +143,11 @@ public static class MainWindowModeNavigationExtensions
             case HavenMode.Chat:
                 await shell.NavigateChatCommand.ExecuteAsync();
                 break;
-            case HavenMode.Teach:
-                await shell.NavigateTeachCommand.ExecuteAsync();
+            case HavenMode.Study:
+                await shell.NavigateStudyCommand.ExecuteAsync();
                 break;
-            case HavenMode.Do:
-                await shell.NavigateDoCommand.ExecuteAsync();
+            case HavenMode.Tasks:
+                await shell.NavigateTasksCommand.ExecuteAsync();
                 break;
             case HavenMode.Studio:
                 await shell.NavigateStudioCommand.ExecuteAsync();

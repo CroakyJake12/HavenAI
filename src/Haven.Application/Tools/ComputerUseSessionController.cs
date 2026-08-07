@@ -10,7 +10,9 @@ public sealed record ComputerUseSessionState(
     bool IsPaused,
     string Action,
     int? CursorX = null,
-    int? CursorY = null);
+    int? CursorY = null,
+    int ActionNumber = 0,
+    int ActionLimit = 30);
 
 public interface IComputerUseSessionController
 {
@@ -110,7 +112,8 @@ public sealed class ComputerUseSessionController : IComputerUseSessionController
             {
                 Action = action,
                 CursorX = cursorX,
-                CursorY = cursorY
+                CursorY = cursorY,
+                ActionNumber = Math.Min(_state.ActionNumber + 1, _state.ActionLimit)
             };
             next = _state;
         }

@@ -29,20 +29,20 @@ public sealed class BuiltInModeSeed
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000002"),
-            "teach", "Study", "Structured lessons and knowledge checks", "book",
-            HavenMode.Teach, "[\"Teach\"]", "[]", "[]", "[]", "",
+            "study", "Study", "Structured lessons and knowledge checks", "book",
+            HavenMode.Study, "[\"Study\"]", "[]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000003"),
-            "research", "Research", "Source-driven investigation, comparison and reporting", "search",
-            HavenMode.Do, "[\"Do\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\",\"Macro\"]", "",
+            "tasks", "Tasks", "Actions, task groups, research and reusable local workflows", "tasks",
+            HavenMode.Tasks, "[\"Tasks\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\"]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000004"),
             "studio", "Studio", "Inspect, edit, test and repair local projects", "code",
-            HavenMode.Studio, "[\"Studio\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\",\"Macro\",\"Test\"]", "",
+            HavenMode.Studio, "[\"Studio\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\",\"Test\"]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
@@ -60,8 +60,62 @@ public sealed class BuiltInModeSeed
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000007"),
             "training", "Training", "Autonomous agent sessions with scoring", "target",
-            HavenMode.Do, "[\"Training\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
+            HavenMode.Tasks, "[\"Training\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000008"),
+            "imagine", "Imagine", "Create and refine image concepts with local models and approved providers", "palette",
+            HavenMode.Chat, "[\"Imagine\"]", "[]", "[]", "[]", "Help the user turn an idea into a production-ready visual brief. Ask only for missing essentials, preserve a clear prompt history, and be explicit when an image provider is not installed instead of claiming an image was generated.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\",\"creative\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000009"),
+            "present", "Present", "Plan, draft and review presentations", "present",
+            HavenMode.Chat, "[\"Present\"]", "[]", "[]", "[]", "Act as Haven Present. Develop an audience-aware narrative, slide outline, concise on-slide copy, speaker notes and an evidence checklist. Never claim a deck file was exported unless a file tool confirms it.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000010"),
+            "data", "Data", "Import, inspect and analyse local data", "data",
+            HavenMode.Tasks, "[\"Data\"]", "[]", "[]", "[]", "Act as Haven Data. Inspect attached CSV, JSON and text datasets carefully, state schema and data-quality assumptions, show calculations, and distinguish measured results from inference.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000011"),
+            "vision", "Vision", "Inspect images with a compatible local vision model", "vision",
+            HavenMode.Chat, "[\"Vision\"]", "[]", "[]", "[]", "Act as Haven Vision. Analyse only images actually attached to the current turn, describe uncertainty, and clearly report when the selected local model has no vision capability.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000012"),
+            "play", "Play", "Launch and organise interactive local experiences", "play",
+            HavenMode.Chat, "[\"Play\"]", "[]", "[]", "[]", "Act as Haven Play. Help the user discover, design and safely launch interactive local experiences. Do not claim an application or game launched unless a confirmed tool result says it did.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000013"),
+            "translate", "Translate", "Translate text and documents with local models", "translate",
+            HavenMode.Chat, "[\"Translate\"]", "[]", "[]", "[]", "Act as Haven Translate. Preserve meaning, tone, formatting, names and domain terminology. Identify the source language, translate into the requested target, and briefly flag genuinely ambiguous phrases.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000014"),
+            "launcher", "Launcher", "Find and launch apps, projects and commands", "rocket",
+            HavenMode.Chat, "[\"Launcher\"]", "[]", "[]", "[]", "Act as Haven Launcher. Find the most relevant installed Haven app, project, command or recent item and explain the destination before opening it. Use registered commands only and never invent an installed capability.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000015"),
+            "go", "Go", "Universal contextual search and quick navigation", "search",
+            HavenMode.Chat, "[\"Go\"]", "[]", "[]", "[]", "",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000016"),
+            "dashboard", "Dashboard", "Build and switch between personal dashboard pages", "dashboard",
+            HavenMode.Chat, "[\"Dashboard\"]", "[]", "[]", "[]", "",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

@@ -36,7 +36,6 @@ public sealed class CapabilityPreflightService
                 case "ComputerUse": requirements.Add(new(ToolCapability.ComputerUse, "@ComputerUse is active.")); break;
                 case "WebSearch": requirements.Add(new(ToolCapability.WebSearch, "@WebSearch is active.")); break;
                 case "Automate": requirements.Add(new(ToolCapability.Tools, "@Automate creates Scheduled Actions through a tool call.")); break;
-                case "Macro": requirements.Add(new(ToolCapability.Tools, "@Macro creates or inspects macros through a tool call.")); break;
                 case "Test": requirements.Add(new(ToolCapability.Tools, "@Test runs targeted workspace tests through a tool call.")); break;
             }
         }

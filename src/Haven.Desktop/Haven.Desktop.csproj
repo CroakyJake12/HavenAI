@@ -16,6 +16,8 @@
     <ApplicationIcon>Assets\haven.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- DI-created pages deliberately have no parameterless runtime-loader constructor. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" />
@@ -36,5 +38,16 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="Styles\**\*.axaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Views\Pages\Chat\NewChatPage.axaml.cs">
+      <DependentUpon>NewChatPage.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Pages\Go\GoPage.axaml.cs">
+      <DependentUpon>GoPage.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Pages\Home\NewDashboardPage.axaml.cs">
+      <DependentUpon>NewDashboardPage.axaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 </Project>

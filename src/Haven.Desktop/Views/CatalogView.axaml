@@ -1,104 +1,54 @@
-<!--
-  FILE DOCUMENTATION
-  Where: src/Haven.Desktop/Views/CatalogView.axaml in the Avalonia Desktop visual layer.
-  What: This markup constructs Haven.Desktop.Views.CatalogView. Its visual vocabulary includes: Grid, StackPanel, TextBlock, Button, Border, HavenIcon, TextBox, CheckBox, ScrollViewer, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, WrapPanel, ItemsControl.ItemTemplate, DataTemplate.
-  Data flow: Binding expressions read or update these view-model paths: Title, Subtitle, RefreshCommand, CanUploadPlugin, CreateLabel, ToggleCreateCommand, CanCreateItems, IsCreating, BuilderTitle, BuilderPrompt, BuilderHint, BuildWithAiCommand, NewName, NewDescription, NewInstructions, IsAgentCatalog, NewModel, NewPersists, IsPluginCatalog, CreateCommand, Status, Items, IconKey, Name, Description, Meta, CanDuplicate, CanDelete.
-  Interaction: Direct event handlers in this file are: OnUploadPluginClicked.
-  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
-  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
-  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
--->
-
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.CatalogView">
-  <!-- Catalog View — browse and create agents, plugins, or instruction templates -->
-  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="30,25">
 
-    <!-- ============================================================
-         ROW 0: HEADER
-         Page title + subtitle, Refresh / Upload / Create buttons
-         ============================================================ -->
-    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
       <StackPanel>
-        <TextBlock Text="{Binding Title}" Classes="heading" />
-        <TextBlock Text="{Binding Subtitle}" Classes="muted" Margin="0,4,0,0" />
+        <TextBlock x:Name="TitleText" Classes="heading" />
+        <TextBlock x:Name="SubtitleText" Classes="muted" Margin="0,4,0,0" />
       </StackPanel>
-      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="chrome" Margin="0,0,8,0" />
-      <Button Grid.Column="2" Content="Upload plugin" Click="OnUploadPluginClicked" IsVisible="{Binding CanUploadPlugin}" Margin="0,0,8,0" />
-      <Button Grid.Column="3" Content="{Binding CreateLabel}" Command="{Binding ToggleCreateCommand}" Classes="accent" IsVisible="{Binding CanCreateItems}" />
+      <Button x:Name="RefreshButton" Grid.Column="1" Content="Refresh" Classes="chrome" Margin="0,0,8,0" />
+      <Button x:Name="UploadPluginButton" Grid.Column="2" Content="Upload plugin" Click="OnUploadPluginClicked" Margin="0,0,8,0" />
+      <Button x:Name="CreateButton" Grid.Column="3" Classes="accent" />
     </Grid>
 
-    <!-- ============================================================
-         ROW 1: CREATE BUILDER PANEL (toggle-able)
-         AI-assisted builder prompt + name/description/instructions fields.
-         Agent-specific: preferred model selector.
-         Plugin-specific: "keep active between messages" checkbox.
-         ============================================================ -->
-    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-    <Border Grid.Row="1" Classes="card" Margin="0,20,0,12" IsVisible="{Binding IsCreating}">
+    <Border x:Name="CreatePanel" Grid.Row="1" Classes="card" Margin="0,20,0,12" IsVisible="False">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10" ColumnSpacing="10">
-        <!-- Builder header + close button -->
         <Grid ColumnDefinitions="*,Auto" Grid.ColumnSpan="2">
-          <TextBlock Text="{Binding BuilderTitle}" Classes="eyebrow" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Classes="icon" Command="{Binding ToggleCreateCommand}" ToolTip.Tip="Close creator">
+          <TextBlock x:Name="BuilderTitle" Classes="eyebrow" VerticalAlignment="Center" />
+          <Button x:Name="CloseCreateButton" Grid.Column="1" Classes="icon" ToolTip.Tip="Close creator">
             <controls:HavenIcon IconKey="close" Width="14" Height="14" />
           </Button>
         </Grid>
-        <!-- AI builder prompt input + Build with AI button -->
-        <TextBox Grid.Row="1"
-                 Text="{Binding BuilderPrompt}"
-                 PlaceholderText="{Binding BuilderHint}"
-                 MinHeight="38" />
-        <Button Grid.Row="1" Grid.Column="1" Content="Build with AI" Command="{Binding BuildWithAiCommand}" />
-        <!-- Name + description inputs -->
+        <TextBox x:Name="BuilderPromptBox" Grid.Row="1" MinHeight="38" />
+        <Button x:Name="BuildWithAiButton" Grid.Row="1" Grid.Column="1" Content="Build with AI" />
         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="1*,1.5*" ColumnSpacing="10">
-          <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
-          <TextBox Grid.Column="1" Text="{Binding NewDescription}" PlaceholderText="Short description" />
+          <TextBox x:Name="NewNameBox" PlaceholderText="Name" />
+          <TextBox x:Name="NewDescriptionBox" Grid.Column="1" PlaceholderText="Short description" />
         </Grid>
-        <!-- Instructions text area -->
-        <TextBox Grid.Row="3"
-                 Grid.ColumnSpan="2"
-                 Text="{Binding NewInstructions}"
-                 PlaceholderText="Instructions"
-                 AcceptsReturn="True"
-                 TextWrapping="Wrap"
-                 MinHeight="105"
-                 MaxHeight="230" />
-        <!-- Agent-specific: preferred model | Plugin-specific: persist toggle | Create button -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsAgentCatalog}">
+        <TextBox x:Name="NewInstructionsBox" Grid.Row="3" Grid.ColumnSpan="2"
+                 PlaceholderText="Instructions" AcceptsReturn="True" TextWrapping="Wrap"
+                 MinHeight="105" MaxHeight="230" />
+        <StackPanel x:Name="AgentOptionsPanel" Grid.Row="4" Orientation="Horizontal" Spacing="10">
           <TextBlock Text="Preferred model" Classes="muted" VerticalAlignment="Center" />
-          <TextBox Text="{Binding NewModel}" PlaceholderText="Use current model" Width="230" />
+          <TextBox x:Name="NewModelBox" PlaceholderText="Use current model" Width="230" />
         </StackPanel>
-        <CheckBox Grid.Row="4" Content="Keep active between messages" IsChecked="{Binding NewPersists}" IsVisible="{Binding IsPluginCatalog}" VerticalAlignment="Center" />
-        <Button Grid.Row="4" Grid.Column="1" Content="{Binding CreateLabel}" Command="{Binding CreateCommand}" Classes="accent" MinWidth="120" />
+        <CheckBox x:Name="PersistCheckBox" Grid.Row="4" Content="Keep active between messages" VerticalAlignment="Center" />
+        <Button x:Name="FinalCreateButton" Grid.Row="4" Grid.Column="1" Classes="accent" MinWidth="120" />
       </Grid>
     </Border>
 
-    <!-- Status message -->
-    <!-- Section: Hosts the TextBlock portion of this view at this position in the visual tree. -->
-    <TextBlock Grid.Row="2" Text="{Binding Status}" Classes="muted" FontSize="11" Margin="2,2,0,12" />
+    <TextBlock x:Name="StatusText" Grid.Row="2" Classes="muted" FontSize="11" Margin="2,2,0,12" />
 
-    <!-- ============================================================
-         ROW 3: ITEM CARDS GRID
-         Scrollable wrap panel of catalog items. Each card shows:
-         - Name + "LOCAL" badge
-         - Description
-         - Meta info (model, capabilities, etc.)
-         - Duplicate + Delete buttons
-         ============================================================ -->
-    <!-- Section: Keeps the region usable when content exceeds the available window size. -->
     <ScrollViewer Grid.Row="3">
-      <ItemsControl ItemsSource="{Binding Items}">
+      <ItemsControl x:Name="CatalogItemsList">
         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="340" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <Border Classes="card" Width="324" MinHeight="150" Margin="0,0,14,14">
               <Grid RowDefinitions="Auto,*,Auto,Auto">
-                <!-- Name + LOCAL badge -->
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                   <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource HavenAccentSoftBrush}">
                     <controls:HavenIcon IconKey="{Binding IconKey}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -108,16 +58,11 @@
                     <TextBlock Text="LOCAL" Foreground="{DynamicResource HavenAccentBrush}" FontSize="9" FontWeight="Bold" />
                   </Border>
                 </Grid>
-                <!-- Description -->
                 <TextBlock Grid.Row="1" Text="{Binding Description}" Classes="muted" Margin="0,10" />
-                <!-- Meta info -->
-                <TextBlock Grid.Row="2" Text="{Binding Meta}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="11" />
-                <!-- Duplicate + Delete buttons -->
+                <TextBlock Grid.Row="2" Text="{Binding Meta}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="11" />
                 <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,9,0,0">
-                  <Button Content="Duplicate agent" IsVisible="{Binding CanDuplicate}"
-                          Command="{Binding $parent[UserControl].DataContext.DuplicateCommand}" CommandParameter="{Binding}" />
-                  <Button Grid.Column="1" Content="Delete" Classes="danger" IsVisible="{Binding CanDelete}"
-                          Command="{Binding $parent[UserControl].DataContext.DeleteCommand}" CommandParameter="{Binding}" />
+                  <Button Content="Duplicate agent" IsVisible="{Binding CanDuplicate}" />
+                  <Button Grid.Column="1" Content="Delete" Classes="danger" IsVisible="{Binding CanDelete}" />
                 </Grid>
               </Grid>
             </Border>

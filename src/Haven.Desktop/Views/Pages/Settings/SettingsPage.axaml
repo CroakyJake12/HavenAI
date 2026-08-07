@@ -1,104 +1,212 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:Haven.Desktop.Views"
-             xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Settings.SettingsPage">
 
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel Margin="34,30" Spacing="17" MaxWidth="1080">
+  <ScrollViewer VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="16,18,16,120" Spacing="14" MaxWidth="860">
       <TextBlock Text="Settings" Classes="heading" />
-      <TextBlock Text="Generative UI, model management, context limits, permissions and production recovery." Classes="muted" />
+      <TextBlock Text="Appearance, models, permissions and reliability."
+                 Classes="muted"
+                 TextWrapping="Wrap" />
 
       <views:GenerativeUiThemeSelectorView x:Name="GenerativeUiSelector" />
       <views:GenerativeUiAdvancedPageHandoffView />
 
       <Border Classes="card">
-        <StackPanel Spacing="11">
-          <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <StackPanel>
               <TextBlock Text="LOCAL MODELS" Classes="eyebrow" />
               <TextBlock Text="Model manager" Classes="sectionHeading" Margin="0,4,0,0" />
             </StackPanel>
             <Button Grid.Column="1" x:Name="RefreshModelsButton" Content="Refresh" />
           </Grid>
-          <TextBox x:Name="ModelSearchBox" PlaceholderText="Search installed models by name or family" />
-          <WrapPanel x:Name="ModelsPanel" ItemWidth="320" />
-          <Grid ColumnDefinitions="2*,*,Auto,Auto" ColumnSpacing="8">
-            <ComboBox x:Name="ModelCombo" />
-            <ComboBox Grid.Column="1" x:Name="EffortCombo" />
-            <Button Grid.Column="2" x:Name="SaveDefaultsButton" Content="Save defaults" Classes="accent" />
-            <Button Grid.Column="3" x:Name="DeleteModelButton" Content="Delete selected" Classes="danger" />
-          </Grid>
-          <Border x:Name="DeleteConfirmBorder" Classes="permission" IsVisible="False">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
-              <TextBlock Text="Permanently remove the selected model from Ollama?" VerticalAlignment="Center" />
-              <Button Grid.Column="1" x:Name="CancelDeleteButton" Content="Cancel" />
-              <Button Grid.Column="2" x:Name="ConfirmDeleteButton" Content="Delete model" Classes="danger" />
-            </Grid>
+
+          <TextBox x:Name="ModelSearchBox"
+                   PlaceholderText="Search installed models" />
+
+          <WrapPanel x:Name="ModelsPanel" />
+
+          <StackPanel Spacing="8">
+            <TextBlock Text="Active model" Classes="muted" />
+            <ComboBox x:Name="ModelCombo" HorizontalAlignment="Stretch" />
+            <TextBlock Text="Reasoning effort" Classes="muted" />
+            <ComboBox x:Name="EffortCombo" HorizontalAlignment="Stretch" />
+            <Button x:Name="SaveDefaultsButton"
+                    Content="Save defaults"
+                    Classes="accent"
+                    HorizontalAlignment="Stretch" />
+            <Button x:Name="DeleteModelButton"
+                    Content="Delete selected model"
+                    Classes="danger"
+                    HorizontalAlignment="Stretch" />
+          </StackPanel>
+
+          <Border x:Name="DeleteConfirmBorder"
+                  Classes="permission"
+                  IsVisible="False">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Permanently remove the selected model from Ollama?"
+                         TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button x:Name="CancelDeleteButton" Content="Cancel" />
+                <Button Grid.Column="1"
+                        x:Name="ConfirmDeleteButton"
+                        Content="Delete model"
+                        Classes="danger" />
+              </Grid>
+            </StackPanel>
           </Border>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBox x:Name="InstallModelBox" PlaceholderText="Install model, e.g. qwen3:8b" />
-            <Button Grid.Column="1" x:Name="InstallModelButton" Content="Install" />
+
+          <Separator />
+
+          <TextBlock Text="Install a model" Classes="sectionHeading" />
+          <TextBlock Text="Enter an Ollama model name or choose a recommended model."
+                     Classes="muted"
+                     TextWrapping="Wrap" />
+          <TextBox x:Name="InstallModelBox"
+                   PlaceholderText="e.g. qwen3:4b" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button x:Name="BrowseModelsButton"
+                    Content="Browse models" />
+            <Button Grid.Column="1"
+                    x:Name="InstallModelButton"
+                    Content="Install"
+                    Classes="accent" />
           </Grid>
-          <ProgressBar x:Name="InstallProgress" Value="0" Minimum="0" Maximum="1" Height="6" />
+          <ProgressBar x:Name="InstallProgress"
+                       Value="0"
+                       Minimum="0"
+                       Maximum="1"
+                       Height="8" />
+
+          <Border x:Name="RecommendedModelsBorder"
+                  Classes="permission"
+                  IsVisible="False">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Recommended for mobile" Classes="sectionHeading" />
+              <TextBlock Text="These smaller models are practical starting points on phones. Exact speed depends on memory and chipset."
+                         Classes="muted"
+                         TextWrapping="Wrap" />
+              <WrapPanel x:Name="RecommendedModelsPanel" />
+              <Button x:Name="HuggingFaceSearchButton"
+                      Content="Search public Hugging Face GGUF models"
+                      HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Border>
         </StackPanel>
       </Border>
 
       <views:ProviderConnectionsView />
       <views:ReliabilityStatusView />
 
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-        <Border Classes="card">
-          <StackPanel Spacing="9">
-            <TextBlock Text="ADVANCED GENERATION" Classes="eyebrow" />
-            <TextBlock Text="Temperature (0-2)" Classes="muted" />
-            <NumericUpDown x:Name="TemperatureBox" Minimum="0" Maximum="2" Increment="0.1" FormatString="0.0" />
-            <TextBlock Text="Context limit" Classes="muted" />
-            <NumericUpDown x:Name="ContextLimitBox" Minimum="2048" Maximum="262144" Increment="1024" />
-            <TextBlock Text="Maximum tool actions per turn" Classes="muted" />
-            <NumericUpDown x:Name="ActionLimitBox" Minimum="1" Maximum="100" />
-            <Button x:Name="SaveAdvancedButton" Content="Save advanced limits" />
-          </StackPanel>
-        </Border>
-        <Border Grid.Column="1" Classes="card">
-          <StackPanel Spacing="8">
-            <TextBlock Text="FEATURES" Classes="eyebrow" />
-            <CheckBox x:Name="AutoSwitchCheck" Content="Automatically switch to a compatible model" />
-            <CheckBox x:Name="AgenticInChatCheck" Content="Show agentic plugins in Haven Chat" />
-            <CheckBox x:Name="ConfidenceCheck" Content="Show confidence indicators" />
-            <CheckBox x:Name="AutoCompactCheck" Content="Compact context automatically" />
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="Compact when context reaches this percent" Classes="muted" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Column="1" x:Name="CompactPercentBox" Minimum="50" Maximum="95" Width="90" />
-            </Grid>
-            <CheckBox x:Name="AdaptiveHelpCheck" Content="Adaptive project help" />
-            <CheckBox x:Name="BrowserSideCheck" Content="Browser side assistant" />
-            <CheckBox x:Name="AutoWakeCheck" Content="Wake Ollama automatically when a local model is offline" />
-            <Button x:Name="SaveFeaturesButton" Content="Save feature settings" />
-          </StackPanel>
-        </Border>
-      </Grid>
+      <Border Classes="card">
+        <StackPanel Spacing="9">
+          <TextBlock Text="ADVANCED GENERATION" Classes="eyebrow" />
+          <TextBlock Text="Temperature (0–2)" Classes="muted" />
+          <NumericUpDown x:Name="TemperatureBox"
+                         Minimum="0"
+                         Maximum="2"
+                         Increment="0.1"
+                         FormatString="0.0" />
+          <TextBlock Text="Context limit" Classes="muted" />
+          <NumericUpDown x:Name="ContextLimitBox"
+                         Minimum="2048"
+                         Maximum="262144"
+                         Increment="1024" />
+          <TextBlock Text="Maximum tool actions per turn" Classes="muted" />
+          <NumericUpDown x:Name="ActionLimitBox"
+                         Minimum="1"
+                         Maximum="100" />
+          <Button x:Name="SaveAdvancedButton"
+                  Content="Save advanced limits"
+                  HorizontalAlignment="Stretch" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Text="FEATURES" Classes="eyebrow" />
+          <CheckBox x:Name="AutoSwitchCheck"
+                    Content="Automatically switch to a compatible model" />
+          <CheckBox x:Name="AgenticInChatCheck"
+                    Content="Show agentic plugins in Haven Chat" />
+          <CheckBox x:Name="ConfidenceCheck"
+                    Content="Show confidence indicators" />
+          <CheckBox x:Name="AutoCompactCheck"
+                    Content="Compact context automatically" />
+          <TextBlock Text="Compact when context reaches this percent"
+                     Classes="muted"
+                     TextWrapping="Wrap" />
+          <NumericUpDown x:Name="CompactPercentBox"
+                         Minimum="50"
+                         Maximum="95" />
+          <CheckBox x:Name="AdaptiveHelpCheck"
+                    Content="Adaptive project help" />
+          <CheckBox x:Name="BrowserSideCheck"
+                    Content="Browser side assistant" />
+          <CheckBox x:Name="AutoWakeCheck"
+                    Content="Wake Ollama automatically when a local model is offline" />
+          <Button x:Name="SaveFeaturesButton"
+                  Content="Save feature settings"
+                  HorizontalAlignment="Stretch" />
+        </StackPanel>
+      </Border>
 
       <Border Classes="card">
         <StackPanel Spacing="10">
           <TextBlock Text="TOOL PERMISSIONS" Classes="eyebrow" />
-          <TextBlock Text="Ask is the safest default. Auto Safe permits bounded low-risk actions; Full Access still respects workspace and platform safety boundaries." Classes="muted" FontSize="11" />
-          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
-            <StackPanel><TextBlock Text="Files" Classes="muted" /><ComboBox x:Name="FilePermCombo" /></StackPanel>
-            <StackPanel Grid.Column="1"><TextBlock Text="Commands" Classes="muted" /><ComboBox x:Name="CommandPermCombo" /></StackPanel>
-            <StackPanel Grid.Column="2"><TextBlock Text="Browser" Classes="muted" /><ComboBox x:Name="BrowserPermCombo" /></StackPanel>
-            <StackPanel Grid.Column="3"><TextBlock Text="Computer Use" Classes="muted" /><ComboBox x:Name="ComputerPermCombo" /></StackPanel>
-          </Grid>
-          <Button x:Name="SavePermissionsButton" Content="Save permissions" Classes="accent" HorizontalAlignment="Left" />
+          <TextBlock Text="Ask is the safest default. Device Use replaces Computer Use on mobile."
+                     Classes="muted"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="Files" Classes="muted" />
+          <ComboBox x:Name="FilePermCombo" />
+          <TextBlock Text="Commands" Classes="muted" />
+          <ComboBox x:Name="CommandPermCombo" />
+          <TextBlock Text="Browser" Classes="muted" />
+          <ComboBox x:Name="BrowserPermCombo" />
+          <TextBlock Text="Device Use" Classes="muted" />
+          <ComboBox x:Name="ComputerPermCombo" />
+          <Button x:Name="SavePermissionsButton"
+                  Content="Save permissions"
+                  Classes="accent"
+                  HorizontalAlignment="Stretch" />
         </StackPanel>
       </Border>
 
-      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
-        <Border Classes="card"><StackPanel Spacing="7"><TextBlock Text="LOCAL DATA" Classes="eyebrow" /><TextBlock x:Name="DataStatement" FontSize="11" Text="Haven stores all data locally in your user profile. Nothing leaves your machine without a provider you explicitly configure." /></StackPanel></Border>
-        <Border Grid.Column="1" Classes="card"><StackPanel Spacing="7"><TextBlock Text="ISOLATED BROWSER" Classes="eyebrow" /><TextBlock x:Name="BrowserStatement" FontSize="11" Text="The browser runs in an isolated profile. Cookies, history and logins never leak between sessions." /></StackPanel></Border>
-        <Border Grid.Column="2" Classes="card"><StackPanel Spacing="7"><TextBlock Text="WORKSPACE SAFETY" Classes="eyebrow" /><TextBlock x:Name="SafetyStatement" FontSize="11" Text="Haven never modifies files outside the active workspace without explicit permission." /></StackPanel></Border>
-      </Grid>
-      <TextBlock x:Name="StatusText" Classes="muted" />
+      <Border Classes="card">
+        <StackPanel Spacing="7">
+          <TextBlock Text="LOCAL DATA" Classes="eyebrow" />
+          <TextBlock x:Name="DataStatement"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Text="Haven stores data locally in your user profile. Nothing leaves your device without a provider you explicitly configure." />
+        </StackPanel>
+      </Border>
+      <Border Classes="card">
+        <StackPanel Spacing="7">
+          <TextBlock Text="ISOLATED BROWSER" Classes="eyebrow" />
+          <TextBlock x:Name="BrowserStatement"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Text="The browser runs in an isolated profile. Cookies, history and logins never leak between sessions." />
+        </StackPanel>
+      </Border>
+      <Border Classes="card">
+        <StackPanel Spacing="7">
+          <TextBlock Text="WORKSPACE SAFETY" Classes="eyebrow" />
+          <TextBlock x:Name="SafetyStatement"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     Text="Haven never modifies files outside the active workspace without explicit permission." />
+        </StackPanel>
+      </Border>
+
+      <TextBlock x:Name="StatusText"
+                 Classes="muted"
+                 TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

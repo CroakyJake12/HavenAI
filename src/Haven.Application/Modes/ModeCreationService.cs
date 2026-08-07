@@ -62,7 +62,7 @@ public sealed class ModeCreationService
             
             Return a JSON object with these fields:
             - "systemPromptSuffix": System instructions for this mode (string)
-            - "surfaces": Array of surface names this mode can use (e.g., ["Do"], ["Studio", "Do"])
+            - "surfaces": Array of surface names this mode can use (e.g., ["Tasks"], ["Studio", "Tasks"])
             - "plugins": Array of plugin names to activate (e.g., ["BrowserUse"], ["Automate"])
             - "toolAllowlist": Array of tool names to allow (e.g., ["write_file", "run_tests"])
             - "toolDenylist": Array of tool names to deny

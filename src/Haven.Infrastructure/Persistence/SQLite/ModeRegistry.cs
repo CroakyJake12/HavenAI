@@ -73,7 +73,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
                 $toolAllowlistJson, $toolDenylistJson, $pluginsJson, $systemPromptSuffix, $source,
                 $installState, $author, $version, $tagsJson, $createdAt, $updatedAt, $isEnabled)
             ON CONFLICT(id) DO UPDATE SET
-                name=$name, description=$description, icon_key=$iconKey, base_mode=$baseMode,
+                key=$key, name=$name, description=$description, icon_key=$iconKey, base_mode=$baseMode,
                 surfaces_json=$surfacesJson, tool_allowlist_json=$toolAllowlistJson,
                 tool_denylist_json=$toolDenylistJson, plugins_json=$pluginsJson,
                 system_prompt_suffix=$systemPromptSuffix, source=$source, install_state=$installState,

@@ -8,7 +8,7 @@
     <StackPanel Margin="32,28" Spacing="15" MaxWidth="880" HorizontalAlignment="Left">
       <TextBlock Text="LESSON SETTINGS" Classes="eyebrow" />
       <TextBlock x:Name="NameHeading" Classes="heading" />
-      <TextBlock Text="Organise the lesson and preserve its structured teaching outline." Classes="muted" />
+      <TextBlock Text="Organise the lesson and preserve its structured Study outline." Classes="muted" />
 
       <Border Classes="card">
         <StackPanel Spacing="9">

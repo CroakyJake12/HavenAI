@@ -1,3 +1,4 @@
+using Android.Content;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Haven.Application;
@@ -16,6 +17,22 @@ internal static class AndroidHavenBootstrap
 {
     private static readonly SemaphoreSlim StartupGate = new(1, 1);
     private static bool _applicationStarted;
+    private static string? _pendingSurface;
+    private static string? _pendingPrompt;
+
+    public static void SetLaunchRequest(Intent? intent)
+    {
+        _pendingSurface = intent?.GetStringExtra("haven_surface");
+        _pendingPrompt = intent?.GetStringExtra("haven_prompt");
+    }
+
+    private static (string? Surface, string? Prompt) TakeLaunchRequest()
+    {
+        var request = (_pendingSurface, _pendingPrompt);
+        _pendingSurface = null;
+        _pendingPrompt = null;
+        return request;
+    }
 
     public static Control CreateMainView()
     {
@@ -84,12 +101,17 @@ internal static class AndroidHavenBootstrap
                 // SQLite schema. Activity recreation still receives a fresh MainView instance.
                 mainView.ApplyEdition(HavenShellEdition.New);
                 mainView.ApplyMobileLayout();
-                mainView.IsVisible = true;
 
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);
 
                 await mainView.InitializeAsync(migration, CancellationToken.None);
+
+                var launchRequest = TakeLaunchRequest();
+                await mainView.ApplyMobileLaunchRequestAsync(
+                    launchRequest.Surface,
+                    launchRequest.Prompt);
+                mainView.IsVisible = true;
 
                 if (recoveryState?.IsSafeMode == true)
                 {

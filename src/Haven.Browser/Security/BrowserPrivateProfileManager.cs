@@ -302,6 +302,12 @@ public sealed class BrowserPrivateProfileManager
     /// </summary>
     private static void RejectReparsePointsInExistingPath(string path, string message)
     {
+        // RejectReparsePointsInExistingPath:android-platform-guard
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         var current = Path.GetFullPath(path);
         while (!string.IsNullOrWhiteSpace(current))
         {
@@ -318,6 +324,12 @@ public sealed class BrowserPrivateProfileManager
     /// </summary>
     private static void RejectReparsePointIfPresent(string path, string message)
     {
+        // RejectReparsePointIfPresent:android-platform-guard
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         if (!Directory.Exists(path)) return;
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new InvalidDataException(message);

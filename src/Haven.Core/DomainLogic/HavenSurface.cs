@@ -16,12 +16,25 @@ namespace Haven.Core;
 /// </summary>
 public enum HavenSurface
 {
-    Home,
-    Chat,
-    Teach,
-    Do,
-    Studio,
-    Browse,
-    Plan,
-    Training
+    Home = 0,
+    Chat = 1,
+    Study = 2,
+    Tasks = 3,
+    Studio = 4,
+    Browse = 5,
+    Plan = 6,
+    Training = 7,
+    Imagine = 8,
+    Present = 9,
+    Data = 10,
+    Vision = 11,
+    Play = 12,
+    Translate = 13,
+    Launcher = 14,
+    Go = 15,
+    Dashboard = 16,
+
+    // UI aliases retained for saved layout JSON written before the rename.
+    Teach = Study,
+    Do = Tasks
 }

@@ -51,17 +51,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </Button>
-                                <Button Classes="sidebar" HorizontalAlignment="Stretch"
-                                        Command="{Binding NavigateTeachCommand}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
-                                        <controls:HavenIcon IconKey="call" Width="18" Height="18"
-                                                            Foreground="{DynamicResource HavenMutedBrush}" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="Teach" FontWeight="SemiBold" />
-                                            <TextBlock Text="Learn with Haven" Classes="muted" FontSize="10" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
+
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
@@ -192,7 +182,7 @@
                             <Button Classes="sidebar"
                                     x:Name="QuickChatsButton"
                                     HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding IsTeach}"
+                                    IsVisible="{Binding IsStudy}"
                                     Command="{Binding CurrentChat.SelectQuickChatsCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="9">
                                     <controls:HavenIcon IconKey="chat" Width="17" Height="17" />
@@ -201,7 +191,7 @@
                             </Button>
 
                             <Grid ColumnDefinitions="*,Auto" Margin="9,0,3,5">
-                                <TextBlock Text="{Binding ContainerHeading}" Classes="eyebrow" />
+                                <TextBlock Text="{Binding ContainerHeading}" FontSize="10" Classes="eyebrow" />
                                 <Button Grid.Column="1"
                                         Classes="chrome"
                                         x:Name="NewContainerButton"

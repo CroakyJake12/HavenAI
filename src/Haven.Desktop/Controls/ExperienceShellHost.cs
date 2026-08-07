@@ -42,7 +42,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private static readonly HashSet<string> FixedModeKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "chat", "teach", "research", "studio", "plan", "browse"
+        "chat", "study", "tasks", "studio", "plan", "browse"
     };
 
     /// <summary>
@@ -237,7 +237,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                                             new TextBlock { Text = "Choose an experience or pin up to six modes", FontSize = 24, FontWeight = FontWeight.SemiBold },
                                             new TextBlock
                                             {
-                                                Text = "Chat, Study and Research live inside one Chat experience because they share the same conversation workspace. Home always remains fixed above every configurable item.",
+                                                Text = "Chat, Study and Tasks live inside one conversation experience. Home always remains fixed above every configurable item.",
                                                 Classes = { "muted" },
                                                 FontSize = 11,
                                                 TextWrapping = TextWrapping.Wrap
@@ -326,7 +326,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         _experienceButtons.Children.Clear();
         _pinnedButtons.Children.Clear();
 
-        _experienceButtons.Children.Add(GroupButton("▰", "Chat", "ExperienceChatButton", BuiltIn("chat", "teach", "research")));
+        _experienceButtons.Children.Add(GroupButton("▰", "Chat", "ExperienceChatButton", BuiltIn("chat", "study", "tasks")));
         _experienceButtons.Children.Add(GroupButton("⌘", "Studio", "ExperienceStudioButton", BuiltIn("studio")));
         _experienceButtons.Children.Add(PlanButton());
         _experienceButtons.Children.Add(DirectButton("◉", "Browse", "ExperienceBrowseButton", () =>
@@ -667,7 +667,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             var active = button.Name switch
             {
                 "ExperienceHomeButton" => _shell.CurrentSurface == HavenSurface.Home,
-                "ExperienceChatButton" => _shell.CurrentSurface is HavenSurface.Chat or HavenSurface.Teach or HavenSurface.Do,
+                "ExperienceChatButton" => _shell.CurrentSurface is HavenSurface.Chat or HavenSurface.Study or HavenSurface.Tasks,
                 "ExperienceStudioButton" => _shell.CurrentSurface == HavenSurface.Studio,
                 "ExperiencePlanButton" => _shell.CurrentSurface == HavenSurface.Plan,
                 "ExperienceBrowseButton" => _shell.CurrentSurface == HavenSurface.Browse,
@@ -700,8 +700,8 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private static HavenSurface SurfaceForMode(HavenMode mode) => mode switch
     {
         HavenMode.Chat => HavenSurface.Chat,
-        HavenMode.Teach => HavenSurface.Teach,
-        HavenMode.Do => HavenSurface.Do,
+        HavenMode.Study => HavenSurface.Study,
+        HavenMode.Tasks => HavenSurface.Tasks,
         HavenMode.Studio => HavenSurface.Studio,
         _ => HavenSurface.Chat
     };

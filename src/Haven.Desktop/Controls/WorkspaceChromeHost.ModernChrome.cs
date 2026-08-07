@@ -1,6 +1,6 @@
 /*
  * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.ModernChrome.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * Where: src/Haven.OldHaven/Controls/WorkspaceChromeHost.ModernChrome.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
  * What: This file owns WorkspaceChromeHost. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
@@ -1091,8 +1091,8 @@ public sealed partial class WorkspaceChromeHost
         {
             HavenSurface.Home => "home",
             HavenSurface.Chat => "chat",
-            HavenSurface.Teach => "teach",
-            HavenSurface.Do => "tasks",
+            HavenSurface.Study => "study",
+            HavenSurface.Tasks => "tasks",
             HavenSurface.Studio => "studio",
             HavenSurface.Browse => "browse",
             HavenSurface.Plan => "plan",
@@ -1466,7 +1466,7 @@ public sealed partial class WorkspaceChromeHost
     {
         var text = value?.ToLowerInvariant() ?? string.Empty;
         if (text.Contains("chat")) return "chat";
-        if (text.Contains("teach") || text.Contains("learn")) return "teach";
+        if (text.Contains("study") || text.Contains("teach") || text.Contains("learn")) return "study";
         if (text.Contains("call") || text.Contains("phone")) return "call";
         if (text.Contains("studio") || text.Contains("code") || text.Contains("create")) return "studio";
         if (text.Contains("browse") || text.Contains("web")) return "browse";

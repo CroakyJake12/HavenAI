@@ -1,0 +1,9 @@
+input_commit=4d8b731a13c5aa233bd1bcb700673d4134da366e
+repair_exit=1
+Traceback (most recent call last):
+  File "/tmp/repair.py", line 550, in <module>
+    text = replace_once(text, button_anchor, button_new, "model catalog button")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/repair.py", line 17, in replace_once
+    raise RuntimeError(f"{label}: expected 1 occurrence, found {count}")
+RuntimeError: model catalog button: expected 1 occurrence, found 0

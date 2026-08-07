@@ -21,7 +21,12 @@ public sealed class ModeManifestValidator
     /// Stores allowed surfaces locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> AllowedSurfaces = new(StringComparer.OrdinalIgnoreCase)
-        { "Chat", "Do", "Teach", "Studio", "Browse", "Plan", "Phone", "Dashboard", "Training" };
+        {
+            "Chat", "Study", "Tasks", "Studio", "Browse", "Plan", "Phone", "Dashboard", "Training",
+            "Imagine", "Present", "Data", "Vision", "Play", "Translate", "Launcher", "Go",
+            // Accepted only so an older package can be imported and migrated.
+            "Do", "Teach"
+        };
 
     /// <summary>
     /// Stores allowed capabilities locally so this component can preserve the dependency, cache, or state between member calls.
@@ -33,7 +38,11 @@ public sealed class ModeManifestValidator
     /// Stores reserved keys locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
-        { "chat", "teach", "do", "studio", "browse", "plan", "training", "call", "home" };
+        {
+            "chat", "study", "tasks", "studio", "browse", "plan", "training", "call", "home",
+            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard",
+            "teach", "do"
+        };
 
     /// <summary>
     /// Validates this member before it crosses the next trust or persistence boundary.

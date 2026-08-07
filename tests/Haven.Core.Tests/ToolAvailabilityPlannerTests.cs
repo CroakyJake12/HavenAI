@@ -29,17 +29,17 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     public ToolAvailabilityPlannerTests() => Directory.CreateDirectory(_root);
 
     /// <summary>
-    /// Performs the workspace tools are hidden outside do and studio step owned by this component.
+    /// Performs the workspace tools are hidden outside Tasks and Studio step owned by this component.
     /// </summary>
     [Theory]
     [InlineData(HavenMode.Chat)]
-    [InlineData(HavenMode.Teach)]
-    public void WorkspaceToolsAreHiddenOutsideDoAndStudio(HavenMode mode)
+    [InlineData(HavenMode.Study)]
+    public void WorkspaceToolsAreHiddenOutsideTasksAndStudio(HavenMode mode)
     {
         var plan = Create(mode, file: PermissionMode.FullAccess, command: PermissionMode.FullAccess);
 
         Assert.DoesNotContain(plan.Definitions, definition => WorkspaceNames.Contains(definition.Name));
-        Assert.Contains("only in Haven Do or Haven Studio", plan.GetUnavailableReason("read_file"));
+        Assert.Contains("only in Haven Tasks or Haven Studio", plan.GetUnavailableReason("read_file"));
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     public void WorkspaceRequiresAnExistingRoot()
     {
         var missing = Path.Combine(_root, "missing");
-        var plan = Create(HavenMode.Do, workspaceRoot: missing, file: PermissionMode.FullAccess, command: PermissionMode.FullAccess);
+        var plan = Create(HavenMode.Tasks, workspaceRoot: missing, file: PermissionMode.FullAccess, command: PermissionMode.FullAccess);
 
         Assert.DoesNotContain(plan.Definitions, definition => WorkspaceNames.Contains(definition.Name));
         Assert.Contains("folder that exists locally", plan.GetUnavailableReason("run_command"));
@@ -135,14 +135,14 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     }
 
     /// <summary>
-    /// Performs the automation and macro tools are mode and plugin bound step owned by this component.
+    /// Performs the scheduled-action and reusable-task tools are mode and plugin bound step owned by this component.
     /// </summary>
     [Theory]
     [InlineData(HavenMode.Chat, "Automate", "", false)]
-    [InlineData(HavenMode.Teach, "Macro", "", false)]
-    [InlineData(HavenMode.Do, "Automate", "automation_create", true)]
-    [InlineData(HavenMode.Studio, "Macro", "macro_create,macro_list", true)]
-    public void AutomationAndMacroToolsAreModeAndPluginBound(
+    [InlineData(HavenMode.Study, "Automate", "", false)]
+    [InlineData(HavenMode.Tasks, "Automate", "automation_create,task_create,task_list", true)]
+    [InlineData(HavenMode.Studio, "Automate", "automation_create,task_create,task_list", true)]
+    public void TaskToolsAreModeAndPluginBound(
         HavenMode mode,
         string plugin,
         string expected,
@@ -151,7 +151,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         var plan = Create(mode, [Plugin(plugin)]);
 
         Assert.Equal(expected, string.Join(',', plan.Definitions
-            .Where(definition => definition.Name is "automation_create" or "macro_create" or "macro_list")
+            .Where(definition => definition.Name is "automation_create" or "task_create" or "task_list")
             .Select(definition => definition.Name)
             .OrderBy(name => name, StringComparer.Ordinal)));
         Assert.Equal(pluginAvailable, plan.IsPluginAvailable(plugin));
@@ -240,7 +240,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         [Definition("browser_navigate"), Definition("browser_read_page")],
         [Definition("browser_click"), Definition("browser_fill")],
         [Definition("automation_create")],
-        [Definition("macro_create"), Definition("macro_list")]);
+        [Definition("task_create"), Definition("task_list")]);
 
     /// <summary>
     /// Performs the definition step owned by this component.

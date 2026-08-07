@@ -79,8 +79,8 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
     /// </summary>
     public async Task<Lesson> CreateSubjectAsync(ContainerDefinition subject, CancellationToken cancellationToken)
     {
-        if (subject.Mode != HavenMode.Teach)
-            throw new ArgumentException("A subject must use Teach mode.", nameof(subject));
+        if (subject.Mode != HavenMode.Study)
+            throw new ArgumentException("A subject must use Study mode.", nameof(subject));
 
         var now = DateTimeOffset.UtcNow;
         var general = new Lesson(Guid.NewGuid(), subject.Id, "General", "General", "{}", 0, now, now);
@@ -142,8 +142,8 @@ public sealed class ContainerRepository(ISqliteConnectionFactory factory, IAppPa
 
         var detachedKind = (HavenMode)mode.Value switch
         {
-            HavenMode.Teach => ConversationKind.QuickChat,
-            HavenMode.Do => ConversationKind.Task,
+            HavenMode.Study => ConversationKind.QuickChat,
+            HavenMode.Tasks => ConversationKind.Task,
             HavenMode.Studio => ConversationKind.StudioChat,
             _ => ConversationKind.Chat
         };

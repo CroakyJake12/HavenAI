@@ -11,7 +11,7 @@ public sealed record DashboardSnapshot(
     int MessagesThisWeek,
     int ActiveProjects,
     int ChatGroups,
-    int TeachingSubjects,
+    int StudySubjects,
     int TasksDueToday,
     int OverdueTasks,
     int TasksCompletedThisWeek,
@@ -78,6 +78,23 @@ public sealed record DashboardTileLayout(
     int Order,
     bool IsVisible,
     DashboardTileSize Size);
+
+/// <summary>
+/// One user-created page in the Dashboard App. Mode IDs are stable across
+/// product renames, so page contents survive upgrades and catalogue reordering.
+/// </summary>
+public sealed record DashboardPageProfile(
+    string Id,
+    string Title,
+    List<Guid> ModeIds,
+    bool IncludeAllPinned,
+    int Order);
+
+/// <summary>Versioned Dashboard page-switcher state stored by the atomic settings store.</summary>
+public sealed record DashboardPageState(
+    int Version,
+    string SelectedPageId,
+    List<DashboardPageProfile> Pages);
 
 /// <summary>
 /// Represents dashboard plugin tile manifest and keeps its related state and behavior together.

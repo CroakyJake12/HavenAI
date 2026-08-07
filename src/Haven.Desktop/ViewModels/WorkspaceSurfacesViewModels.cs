@@ -1,7 +1,7 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Desktop/ViewModels/WorkspaceSurfacesViewModels.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
- * What: This file owns WorkspaceHomePageViewModel, WorkspaceHomeCardViewModel, AutomationSummaryViewModel, MacroSummaryViewModel, ProjectFeatureCardViewModel, DecisionItemViewModel, WorkspaceFileItemViewModel, WorkspaceVersionItemViewModel, EditorCommentViewModel, MacrosPageViewModel, MacroItemViewModel, ArchivePageViewModel, ArchiveItemViewModel. Read the type and member comments below as a map of each responsibility.
+ * What: This file owns workspace, project, editor, archive, and activity presentation models. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
@@ -48,20 +48,20 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
         _ = RefreshAsync();
     }
 
-    public string Title => _mode == HavenMode.Studio ? "Studio Home" : "Do Home";
+    public string Title => _mode == HavenMode.Studio ? "Studio Home" : "Tasks";
     public string Subtitle => _mode == HavenMode.Studio
         ? "Projects, live state, active Scheduled Actions, and the next useful step."
-        : "Task Groups, click-to-run macros, Scheduled Actions, and recent work.";
+        : "Task Groups, reusable tasks, Scheduled Actions, and recent work.";
     public string CollectionHeading => _mode == HavenMode.Studio ? "Projects" : "Task Groups";
     public string CreateLabel => _mode == HavenMode.Studio ? "New project" : "New Task Group";
     public bool IsStudio => _mode == HavenMode.Studio;
-    public bool IsDo => _mode == HavenMode.Do;
+    public bool IsTasks => _mode == HavenMode.Tasks;
     public bool HasAutomations => ActiveAutomations.Count > 0;
     public bool HasItems => Items.Count > 0;
-    public bool HasMacros => Macros.Count > 0;
+    public bool HasReusableTasks => ReusableTasks.Count > 0;
     public ObservableCollection<WorkspaceHomeCardViewModel> Items { get; } = [];
     public ObservableCollection<AutomationSummaryViewModel> ActiveAutomations { get; } = [];
-    public ObservableCollection<MacroSummaryViewModel> Macros { get; } = [];
+    public ObservableCollection<ReusableTaskSummaryViewModel> ReusableTasks { get; } = [];
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand CreateBlankCommand { get; }
@@ -109,13 +109,13 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
         foreach (var automation in (await _automations.GetAllAsync(CancellationToken.None)).Where(item => item.IsEnabled && item.Mode == _mode).Take(8))
             ActiveAutomations.Add(new AutomationSummaryViewModel(automation.Name, automation.Instruction, automation.NextRunAt?.LocalDateTime.ToString("g") ?? "Waiting for trigger"));
 
-        Macros.Clear();
-        if (_mode == HavenMode.Do)
-            foreach (var macro in (await _workspaceState.GetMacrosAsync(null, CancellationToken.None)).Take(12))
-                Macros.Add(new MacroSummaryViewModel(macro.Name, macro.Description));
+        ReusableTasks.Clear();
+        if (_mode == HavenMode.Tasks)
+            foreach (var task in (await _workspaceState.GetMacrosAsync(null, CancellationToken.None)).Take(12))
+                ReusableTasks.Add(new ReusableTaskSummaryViewModel(task.Name, task.Description));
         RaisePropertyChanged(nameof(HasAutomations));
         RaisePropertyChanged(nameof(HasItems));
-        RaisePropertyChanged(nameof(HasMacros));
+        RaisePropertyChanged(nameof(HasReusableTasks));
         Status = Items.Count == 0 ? $"No {CollectionHeading.ToLowerInvariant()} yet." : $"{Items.Count} {CollectionHeading.ToLowerInvariant()} available locally.";
     }
 
@@ -156,7 +156,7 @@ public sealed class WorkspaceHomeCardViewModel(ContainerDefinition definition, C
     public string WorkState => state is null ? "Folder not connected" : state.HasUncommittedWork ? "Uncommitted work" : "Working tree clean";
     public string BuildState => state?.LastBuildResult ?? "Build not run";
     public string RecommendedAction => state?.RecommendedAction ?? "Connect a project folder in settings";
-    public string Accent => definition.Mode == HavenMode.Studio ? "STUDIO" : "DO";
+    public string Accent => definition.Mode == HavenMode.Studio ? "STUDIO" : "TASKS";
 }
 
 /// <summary>
@@ -164,9 +164,9 @@ public sealed class WorkspaceHomeCardViewModel(ContainerDefinition definition, C
 /// </summary>
 public sealed record AutomationSummaryViewModel(string Name, string Instruction, string NextRun);
 /// <summary>
-/// Represents macro summary view model and keeps its related state and behavior together.
+/// Represents a reusable task summary.
 /// </summary>
-public sealed record MacroSummaryViewModel(string Name, string Description);
+public sealed record ReusableTaskSummaryViewModel(string Name, string Description);
 
 /// <summary>
 /// Represents project feature card view model and keeps its related state and behavior together.
@@ -218,75 +218,6 @@ public sealed class WorkspaceVersionItemViewModel(WorkspaceVersion definition)
 public sealed record EditorCommentViewModel(Guid Id, string Selection, string Prompt, DateTimeOffset CreatedAt)
 {
     public string Time => CreatedAt.ToString("t");
-}
-
-/// <summary>
-/// Represents macros page view model and keeps its related state and behavior together.
-/// </summary>
-public sealed class MacrosPageViewModel : ObservableObject
-{
-    private readonly IWorkspaceStateRepository _repository;
-    private readonly Guid? _containerId;
-    private readonly Func<string, Task> _invoke;
-    private string _name = string.Empty;
-    private string _description = string.Empty;
-    private string _instruction = string.Empty;
-    private string _status = "Macros run only when clicked or explicitly invoked with @Macro.";
-
-    public MacrosPageViewModel(IWorkspaceStateRepository repository, Guid? containerId, Func<string, Task> invoke)
-    {
-        _repository = repository;
-        _containerId = containerId;
-        _invoke = invoke;
-        CreateCommand = new AsyncRelayCommand(CreateAsync, () => !string.IsNullOrWhiteSpace(Name) && !string.IsNullOrWhiteSpace(Instruction));
-        InvokeCommand = new AsyncRelayCommand<MacroItemViewModel>(item => item is null ? Task.CompletedTask : _invoke(item.Definition.Instruction));
-        DeleteCommand = new AsyncRelayCommand<MacroItemViewModel>(DeleteAsync);
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync);
-        _ = RefreshAsync();
-    }
-
-    public ObservableCollection<MacroItemViewModel> Items { get; } = [];
-    public string Name { get => _name; set { if (SetProperty(ref _name, value)) CreateCommand.RaiseCanExecuteChanged(); } }
-    public string Description { get => _description; set => SetProperty(ref _description, value); }
-    public string Instruction { get => _instruction; set { if (SetProperty(ref _instruction, value)) CreateCommand.RaiseCanExecuteChanged(); } }
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
-    public AsyncRelayCommand CreateCommand { get; }
-    public AsyncRelayCommand<MacroItemViewModel> InvokeCommand { get; }
-    public AsyncRelayCommand<MacroItemViewModel> DeleteCommand { get; }
-    public AsyncRelayCommand RefreshCommand { get; }
-
-    private async Task RefreshAsync()
-    {
-        Items.Clear();
-        foreach (var item in await _repository.GetMacrosAsync(_containerId, CancellationToken.None)) Items.Add(new(item));
-    }
-
-    private async Task CreateAsync()
-    {
-        var now = DateTimeOffset.UtcNow;
-        await _repository.UpsertMacroAsync(new MacroDefinition(Guid.NewGuid(), Name.Trim(), Description.Trim(), Instruction.Trim(), _containerId, true, now, now), CancellationToken.None);
-        Name = Description = Instruction = string.Empty;
-        await RefreshAsync();
-        Status = "Macro created. It remains inert until clicked.";
-    }
-
-    private async Task DeleteAsync(MacroItemViewModel? item)
-    {
-        if (item is null) return;
-        await _repository.DeleteMacroAsync(item.Definition.Id, CancellationToken.None);
-        await RefreshAsync();
-    }
-}
-
-/// <summary>
-/// Represents macro item view model and keeps its related state and behavior together.
-/// </summary>
-public sealed class MacroItemViewModel(MacroDefinition definition)
-{
-    public MacroDefinition Definition => definition;
-    public string Name => definition.Name;
-    public string Description => definition.Description;
-    public string Instruction => definition.Instruction;
 }
 
 /// <summary>

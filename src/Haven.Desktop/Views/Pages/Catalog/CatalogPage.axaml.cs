@@ -192,7 +192,7 @@ public sealed partial class CatalogPage : UserControl
         headerGrid.Children.Add(badge);
 
         var descBlock = new TextBlock { Text = description, Classes = { "muted" }, Margin = new Avalonia.Thickness(0, 10, 0, 0) };
-        var metaBlock = new TextBlock { Text = meta, Foreground = Brush("HavenBlueBrush"), FontSize = 11 };
+        var metaBlock = new TextBlock { Text = meta, Foreground = Brush("HavenAccentSecondaryBrush"), FontSize = 11 };
 
         var deleteButton = new Button { Content = "Delete", Classes = { "danger" }, IsVisible = !isBuiltIn };
         var qName = $"Catalog.List.Item{ItemsPanel.Children.Count}";

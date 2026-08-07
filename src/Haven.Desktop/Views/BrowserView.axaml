@@ -1,30 +1,15 @@
-<!--
-  FILE DOCUMENTATION
-  Where: src/Haven.Desktop/Views/BrowserView.axaml in the Avalonia Desktop visual layer.
-  What: This markup constructs Haven.Desktop.Views.BrowserView. Its visual vocabulary includes: Grid, Border, ScrollViewer, ItemsControl, ItemsControl.ItemsPanel, ItemsPanelTemplate, StackPanel, ItemsControl.ItemTemplate, DataTemplate, Button, TextBlock, Button.ContextMenu, ContextMenu, MenuItem, TextBox, Button.Flyout, MenuFlyout, Separator, NativeWebView, SelectableTextBlock, CheckBox.
-  Data flow: Binding expressions read or update these view-model paths: HorizontalTabs, Tabs, IsSelected, IsPrivate, Title, NewTabCommand, NewPrivateTabCommand, BackCommand, ForwardCommand, HomeCommand, ReloadCommand, HardReloadCommand, StopCommand, Address, NavigateCommand, AddBookmarkCommand, ToggleBookmarksCommand, ToggleHistoryCommand, ToggleLoginsCommand, ToggleExtensionsCommand, PrintCommand, InspectCommand, ToggleAssistantCommand, ToggleSettingsCommand, HasNoBookmarks, Bookmarks, HasBookmarks, PrivacyLabel, SelectedTab.Group, Status, VerticalTabs, DisplayTitle, Group, IsAnyPanelOpen, IsBookmarksOpen, BookmarkSummary, BookmarkGroup, IsHistoryOpen, ClearHistoryCommand, History, VisitedAt, IsAssistantOpen, SummariseCommand, AssistantInput, AskAssistantCommand, AssistantOutput, IsSettingsOpen, HomePage, SearchTemplate, SaveHistory, OfferToSaveLogins, RestoreTabs, EnableExtensions, NewGroupName, CreateTabGroupCommand, SaveBrowserSettingsCommand, IsExtensionsOpen, ImportExtensionRequestedCommand, ConvertChromeExtensionRequestedCommand, Extensions, Name, Description, AllowedOrigins, IsLoginsOpen, LoginOrigin, LoginUsername, LoginPassword, SaveLoginCommand, Logins, Username, Origin.
-  Interaction: Direct event handlers in this file are: OnAddressKeyDown.
-  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
-  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
-  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
--->
-
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.BrowserView">
-  <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
-    <!-- Horizontal tabs remain the default. Switching tab orientation only moves the
-         tab controls; the NativeWebView below stays mounted in one stable host. -->
-    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-    <Border IsVisible="{Binding HorizontalTabs}"
+    <Border x:Name="HorizontalTabsBorder"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="0,0,0,1"
             Padding="10,7">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-          <ItemsControl ItemsSource="{Binding Tabs}">
+          <ItemsControl x:Name="HorizontalTabsList">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
@@ -42,8 +27,6 @@
                             IsVisible="{Binding IsSelected}" />
                     <Button Grid.Column="1"
                             Classes="chrome"
-                            Command="{Binding $parent[UserControl].DataContext.SelectTabCommand}"
-                            CommandParameter="{Binding}"
                             HorizontalContentAlignment="Left">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="Private" Foreground="{DynamicResource HavenAccentBrush}" FontSize="9" IsVisible="{Binding IsPrivate}" />
@@ -53,8 +36,6 @@
                     <Button Grid.Column="2"
                             Content="&#x00D7;"
                             Classes="chrome"
-                            Command="{Binding $parent[UserControl].DataContext.CloseTabCommand}"
-                            CommandParameter="{Binding}"
                             HorizontalAlignment="Right"
                             ToolTip.Tip="Close tab" />
                   </Grid>
@@ -63,51 +44,46 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </ScrollViewer>
-        <Button Grid.Column="1" Content="+" Classes="icon" Command="{Binding NewTabCommand}" ToolTip.Tip="New tab" />
-        <Button Grid.Column="2" Content="Private" Classes="ghost" Command="{Binding NewPrivateTabCommand}" ToolTip.Tip="New private tab" />
+        <Button x:Name="NewTabButton" Grid.Column="1" Content="+" Classes="icon" ToolTip.Tip="New tab" />
+        <Button x:Name="NewPrivateTabButton" Grid.Column="2" Content="Private" Classes="ghost" ToolTip.Tip="New private tab" />
       </Grid>
     </Border>
 
-    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6" Margin="10,8,10,6">
-      <Button Content="&#x2190;" Classes="icon" Command="{Binding BackCommand}" IsEnabled="{Binding CanGoBack}" ToolTip.Tip="Back" />
-      <Button Grid.Column="1" Content="&#x2192;" Classes="icon" Command="{Binding ForwardCommand}" IsEnabled="{Binding CanGoForward}" ToolTip.Tip="Forward" />
-      <Button Grid.Column="2" Content="&#x2302;" Classes="icon" Command="{Binding HomeCommand}" ToolTip.Tip="Home" />
-      <Button Grid.Column="3" Content="&#x21BB;" Classes="icon" Command="{Binding ReloadCommand}" ToolTip.Tip="Reload">
+      <Button x:Name="BackButton" Content="&#x2190;" Classes="icon" ToolTip.Tip="Back" />
+      <Button x:Name="ForwardButton" Grid.Column="1" Content="&#x2192;" Classes="icon" ToolTip.Tip="Forward" />
+      <Button x:Name="HomeButton" Grid.Column="2" Content="&#x2302;" Classes="icon" ToolTip.Tip="Home" />
+      <Button x:Name="ReloadButton" Grid.Column="3" Content="&#x21BB;" Classes="icon" ToolTip.Tip="Reload">
         <Button.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="Reload" Command="{Binding ReloadCommand}" />
-            <MenuItem Header="Hard reload and clear site cache" Command="{Binding HardReloadCommand}" />
-            <MenuItem Header="Stop" Command="{Binding StopCommand}" />
+            <MenuItem x:Name="ReloadMenuItem" Header="Reload" />
+            <MenuItem x:Name="HardReloadMenuItem" Header="Hard reload and clear site cache" />
+            <MenuItem x:Name="StopMenuItem" Header="Stop" />
           </ContextMenu>
         </Button.ContextMenu>
       </Button>
-      <TextBox Grid.Column="4" Text="{Binding Address}" PlaceholderText="Search or enter address" KeyDown="OnAddressKeyDown" />
-      <Button Grid.Column="5" Content="Go" Command="{Binding NavigateCommand}" Classes="accent" MinWidth="52" />
-      <Button Grid.Column="6" Content="&#x2606;" Classes="icon" Command="{Binding AddBookmarkCommand}" ToolTip.Tip="Save this page to bookmarks" />
-      <Button Grid.Column="7" Content="&#x22EF;" Classes="icon" ToolTip.Tip="Browser menu">
+      <TextBox x:Name="AddressBox" Grid.Column="4" PlaceholderText="Search or enter address" KeyDown="OnAddressKeyDown" />
+      <Button x:Name="NavigateButton" Grid.Column="5" Content="Go" Classes="accent" MinWidth="52" />
+      <Button x:Name="AddBookmarkButton" Grid.Column="6" Content="&#x2606;" Classes="icon" ToolTip.Tip="Save this page to bookmarks" />
+      <Button x:Name="MenuButton" Grid.Column="7" Content="&#x22EF;" Classes="icon" ToolTip.Tip="Browser menu">
         <Button.Flyout>
           <MenuFlyout>
-            <MenuItem Header="Bookmarks" Command="{Binding ToggleBookmarksCommand}" />
-            <MenuItem Header="History" Command="{Binding ToggleHistoryCommand}" />
-            <MenuItem Header="Passwords and logins" Command="{Binding ToggleLoginsCommand}" />
-            <MenuItem Header="Extensions" Command="{Binding ToggleExtensionsCommand}" />
+            <MenuItem x:Name="BookmarksMenuItem" Header="Bookmarks" />
+            <MenuItem x:Name="HistoryMenuItem" Header="History" />
+            <MenuItem x:Name="LoginsMenuItem" Header="Passwords and logins" />
+            <MenuItem x:Name="ExtensionsMenuItem" Header="Extensions" />
             <Separator />
-            <MenuItem Header="Print" Command="{Binding PrintCommand}" />
-            <MenuItem Header="Inspect" Command="{Binding InspectCommand}" />
-            <MenuItem Header="Hard reload" Command="{Binding HardReloadCommand}" />
+            <MenuItem x:Name="PrintMenuItem" Header="Print" />
+            <MenuItem x:Name="InspectMenuItem" Header="Inspect" />
             <Separator />
-            <MenuItem Header="Haven side assistant" Command="{Binding ToggleAssistantCommand}" />
-            <MenuItem Header="Browser settings" Command="{Binding ToggleSettingsCommand}" />
+            <MenuItem x:Name="AssistantMenuItem" Header="Haven side assistant" />
+            <MenuItem x:Name="SettingsMenuItem" Header="Browser settings" />
           </MenuFlyout>
         </Button.Flyout>
       </Button>
     </Grid>
 
-    <!-- Persistent, discoverable bookmark bar. The manager at the right provides
-         group selection and destructive actions; bookmark buttons open in the active tab. -->
-    <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-    <Border Grid.Row="2"
+    <Border x:Name="BookmarkBar" Grid.Row="2"
             Background="{DynamicResource HavenPanelBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="0,1,0,1"
@@ -116,22 +92,15 @@
         <TextBlock Text="Bookmarks" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="10" />
         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
           <Grid>
-            <TextBlock Text="Save the current page with the star button"
-                       Classes="muted2"
-                       FontSize="10"
-                       VerticalAlignment="Center"
-                       IsVisible="{Binding HasNoBookmarks}" />
-            <ItemsControl ItemsSource="{Binding Bookmarks}" IsVisible="{Binding HasBookmarks}">
+            <TextBlock x:Name="NoBookmarksText" Text="Save the current page with the star button"
+                       Classes="muted2" FontSize="10" VerticalAlignment="Center" />
+            <ItemsControl x:Name="BookmarksBarList" IsVisible="False">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Button Classes="ghost"
-                          Command="{Binding $parent[UserControl].DataContext.OpenBookmarkCommand}"
-                          CommandParameter="{Binding}"
-                          ToolTip.Tip="{Binding Address}"
-                          MaxWidth="180">
+                  <Button Classes="ghost" ToolTip.Tip="{Binding Address}" MaxWidth="180">
                     <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
                   </Button>
                 </DataTemplate>
@@ -139,23 +108,18 @@
             </ItemsControl>
           </Grid>
         </ScrollViewer>
-        <Button Grid.Column="2" Content="Manage" Classes="ghost" Command="{Binding ToggleBookmarksCommand}" ToolTip.Tip="Open bookmark manager" />
+        <Button x:Name="ManageBookmarksButton" Grid.Column="2" Content="Manage" Classes="ghost" ToolTip.Tip="Open bookmark manager" />
       </Grid>
     </Border>
 
-    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="14,4,14,7">
-      <TextBlock Text="{Binding PrivacyLabel}" Classes="muted" FontSize="10" />
-      <TextBlock Grid.Column="1" Text="{Binding SelectedTab.Group}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="10" Margin="0,0,14,0" />
-      <TextBlock Grid.Column="2" Text="{Binding Status}" Classes="muted" FontSize="10" MaxWidth="440" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="PrivacyLabel" Classes="muted" FontSize="10" />
+      <TextBlock x:Name="GroupLabel" Grid.Column="1" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="10" Margin="0,0,14,0" />
+      <TextBlock x:Name="StatusLabel" Grid.Column="2" Classes="muted" FontSize="10" MaxWidth="440" TextTrimming="CharacterEllipsis" />
     </Grid>
 
-    <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto">
-      <!-- A true vertical tab rail. It uses the same tab collection and commands as
-           the horizontal strip and never creates a second browser control. -->
-      <Border Width="232"
-              IsVisible="{Binding VerticalTabs}"
+      <Border x:Name="VerticalTabsBorder" Width="232"
               Background="{DynamicResource HavenElevatedBrush}"
               BorderBrush="{DynamicResource HavenLineBrush}"
               BorderThickness="0,1,1,0">
@@ -165,10 +129,10 @@
               <TextBlock Text="Open tabs" FontWeight="SemiBold" />
               <TextBlock Text="Vertical browser tabs" Classes="muted2" FontSize="9" />
             </StackPanel>
-            <Button Grid.Column="1" Content="+" Classes="icon" Command="{Binding NewTabCommand}" ToolTip.Tip="New tab" />
+            <Button x:Name="VerticalNewTabButton" Grid.Column="1" Content="+" Classes="icon" ToolTip.Tip="New tab" />
           </Grid>
           <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Tabs}" Margin="7,0">
+            <ItemsControl x:Name="VerticalTabsList" Margin="7,0">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Border Background="{DynamicResource HavenPanelBrush}"
@@ -182,8 +146,6 @@
                               IsVisible="{Binding IsSelected}" />
                       <Button Grid.Column="1"
                               Classes="chrome"
-                              Command="{Binding $parent[UserControl].DataContext.SelectTabCommand}"
-                              CommandParameter="{Binding}"
                               HorizontalContentAlignment="Stretch"
                               Padding="9,6">
                         <Grid RowDefinitions="Auto,Auto">
@@ -194,8 +156,6 @@
                       <Button Grid.Column="2"
                               Content="&#x00D7;"
                               Classes="chrome"
-                              Command="{Binding $parent[UserControl].DataContext.CloseTabCommand}"
-                              CommandParameter="{Binding}"
                               ToolTip.Tip="Close tab" />
                     </Grid>
                   </Border>
@@ -203,7 +163,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </ScrollViewer>
-          <Button Grid.Row="2" Content="New private tab" Classes="ghost" Margin="8" Command="{Binding NewPrivateTabCommand}" />
+          <Button x:Name="VerticalNewPrivateTabButton" Grid.Row="2" Content="New private tab" Classes="ghost" Margin="8" />
         </Grid>
       </Border>
 
@@ -214,10 +174,7 @@
               ClipToBounds="True">
         <Grid>
           <NativeWebView x:Name="NativeBrowser" />
-          <!-- Keep navigation transitions inside Haven's palette instead of exposing
-               the native host's default white surface while a page is being replaced. -->
-          <Border Background="{DynamicResource HavenPanelBrush}"
-                  IsVisible="{Binding IsLoading}">
+          <Border x:Name="LoadingOverlay" Background="{DynamicResource HavenPanelBrush}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
               <ProgressBar Width="190" Height="4" IsIndeterminate="True" />
               <TextBlock Text="Loading page…" Classes="muted" HorizontalAlignment="Center" />
@@ -226,55 +183,47 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="2"
+      <Border x:Name="SidePanel" Grid.Column="2"
               Width="360"
               Background="{DynamicResource HavenElevatedBrush}"
               BorderBrush="{DynamicResource HavenLineBrush}"
-              BorderThickness="1,1,0,0"
-              IsVisible="{Binding IsAnyPanelOpen}">
+              BorderThickness="1,1,0,0">
         <Grid>
-          <ScrollViewer IsVisible="{Binding IsBookmarksOpen}" VerticalScrollBarVisibility="Auto">
+          <ScrollViewer x:Name="BookmarksPanel" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16" Spacing="10">
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
                   <TextBlock Text="Bookmarks" Classes="sectionHeading" />
-                  <TextBlock Text="{Binding BookmarkSummary}" Classes="muted" FontSize="10" />
+                  <TextBlock x:Name="BookmarkSummary" Classes="muted" FontSize="10" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="Close" Classes="ghost" Command="{Binding ToggleBookmarksCommand}" />
+                <Button x:Name="CloseBookmarksButton" Grid.Column="1" Content="Close" Classes="ghost" />
               </Grid>
               <TextBlock Text="Choose a group, then save the page currently shown in the address bar." TextWrapping="Wrap" Classes="muted" FontSize="11" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                <TextBox Text="{Binding BookmarkGroup}" PlaceholderText="Bookmark group" />
-                <Button Grid.Column="1" Content="Save current page" Classes="accent" Command="{Binding AddBookmarkCommand}" />
+                <TextBox x:Name="BookmarkGroupBox" PlaceholderText="Bookmark group" />
+                <Button x:Name="SaveBookmarkButton" Grid.Column="1" Content="Save current page" Classes="accent" />
               </Grid>
-              <Border Classes="soft" Padding="12" IsVisible="{Binding HasNoBookmarks}">
+              <Border x:Name="NoBookmarksPanel" Classes="soft" Padding="12">
                 <StackPanel Spacing="4">
                   <TextBlock Text="No bookmarks yet" FontWeight="SemiBold" />
                   <TextBlock Text="Saved pages appear here and in the bookmark bar." Classes="muted" FontSize="10" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
-              <ItemsControl ItemsSource="{Binding Bookmarks}" IsVisible="{Binding HasBookmarks}">
+              <ItemsControl x:Name="BookmarksList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="card" Margin="0,3" Padding="9">
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                         <Button Classes="chrome"
                                 HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                Command="{Binding $parent[UserControl].DataContext.OpenBookmarkCommand}"
-                                CommandParameter="{Binding}">
+                                HorizontalContentAlignment="Left">
                           <StackPanel Spacing="2">
                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding Address}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding Group}" Foreground="{DynamicResource HavenBlueBrush}" FontSize="9" />
+                            <TextBlock Text="{Binding Group}" Foreground="{DynamicResource HavenAccentSecondaryBrush}" FontSize="9" />
                           </StackPanel>
                         </Button>
-                        <Button Grid.Column="1"
-                                Content="Delete"
-                                Classes="danger"
-                                Command="{Binding $parent[UserControl].DataContext.RemoveBookmarkCommand}"
-                                CommandParameter="{Binding}"
-                                ToolTip.Tip="Delete bookmark" />
+                        <Button Grid.Column="1" Content="Delete" Classes="danger" ToolTip.Tip="Delete bookmark" />
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -283,14 +232,21 @@
             </StackPanel>
           </ScrollViewer>
 
-          <ScrollViewer IsVisible="{Binding IsHistoryOpen}" VerticalScrollBarVisibility="Auto">
+          <ScrollViewer x:Name="HistoryPanel" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16" Spacing="9">
-              <Grid ColumnDefinitions="*,Auto"><TextBlock Text="History" Classes="sectionHeading" /><Button Grid.Column="1" Content="Clear" Classes="danger" Command="{Binding ClearHistoryCommand}" /></Grid>
-              <ItemsControl ItemsSource="{Binding History}">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="History" Classes="sectionHeading" />
+                <Button x:Name="ClearHistoryButton" Grid.Column="1" Content="Clear" Classes="danger" />
+              </Grid>
+              <ItemsControl x:Name="HistoryList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.OpenHistoryCommand}" CommandParameter="{Binding}">
-                      <StackPanel><TextBlock Text="{Binding Title}" /><TextBlock Text="{Binding Address}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" /><TextBlock Text="{Binding VisitedAt}" Classes="muted2" FontSize="9" /></StackPanel>
+                    <Button Classes="sidebar" HorizontalAlignment="Stretch">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Title}" />
+                        <TextBlock Text="{Binding Address}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding VisitedAt}" Classes="muted2" FontSize="9" />
+                      </StackPanel>
                     </Button>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -298,20 +254,87 @@
             </StackPanel>
           </ScrollViewer>
 
-          <ScrollViewer IsVisible="{Binding IsAssistantOpen}" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="16" Spacing="9"><TextBlock Text="Haven side assistant" Classes="sectionHeading" /><TextBlock Text="Uses visible page text and your selected local model." Classes="muted" FontSize="11" /><Button Content="Summarise page" Command="{Binding SummariseCommand}" /><TextBox Text="{Binding AssistantInput}" PlaceholderText="Ask about this page" AcceptsReturn="True" MinHeight="70" /><Button Content="Ask" Classes="accent" Command="{Binding AskAssistantCommand}" /><SelectableTextBlock Text="{Binding AssistantOutput}" Classes="soft" LineHeight="21" /></StackPanel>
+          <ScrollViewer x:Name="AssistantPanel" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16" Spacing="9">
+              <TextBlock Text="Haven side assistant" Classes="sectionHeading" />
+              <TextBlock Text="Uses visible page text and your selected local model." Classes="muted" FontSize="11" />
+              <Button x:Name="SummariseButton" Content="Summarise page" />
+              <TextBox x:Name="AssistantInputBox" PlaceholderText="Ask about this page" AcceptsReturn="True" MinHeight="70" />
+              <Button x:Name="AskAssistantButton" Content="Ask" Classes="accent" />
+              <SelectableTextBlock x:Name="AssistantOutputText" Classes="soft" LineHeight="21" />
+            </StackPanel>
           </ScrollViewer>
 
-          <ScrollViewer IsVisible="{Binding IsSettingsOpen}" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="16" Spacing="9"><TextBlock Text="Browser settings" Classes="sectionHeading" /><TextBlock Text="Tabs, history, credentials, and extensions stay in Haven's isolated profile." Classes="muted" FontSize="11" /><TextBox Text="{Binding HomePage}" PlaceholderText="Home page" /><TextBox Text="{Binding SearchTemplate}" PlaceholderText="Search URL containing {query}" /><CheckBox Content="Save history" IsChecked="{Binding SaveHistory}" /><CheckBox Content="Offer to save logins" IsChecked="{Binding OfferToSaveLogins}" /><CheckBox Content="Restore tabs" IsChecked="{Binding RestoreTabs}" /><CheckBox Content="Enable approved extensions" IsChecked="{Binding EnableExtensions}" /><CheckBox Content="Vertical browser tabs" IsChecked="{Binding VerticalTabs}" /><TextBox Text="{Binding NewGroupName}" PlaceholderText="Current tab group" /><Button Content="Put current tab in group" Command="{Binding CreateTabGroupCommand}" /><Button Content="Save browser settings" Classes="accent" Command="{Binding SaveBrowserSettingsCommand}" /></StackPanel>
+          <ScrollViewer x:Name="SettingsPanel" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16" Spacing="9">
+              <TextBlock Text="Browser settings" Classes="sectionHeading" />
+              <TextBlock Text="Tabs, history, credentials, and extensions stay in Haven's isolated profile." Classes="muted" FontSize="11" />
+              <TextBox x:Name="HomePageBox" PlaceholderText="Home page" />
+              <TextBox x:Name="SearchTemplateBox" PlaceholderText="Search URL containing {query}" />
+              <CheckBox x:Name="SaveHistoryCheckBox" Content="Save history" />
+              <CheckBox x:Name="OfferToSaveLoginsCheckBox" Content="Offer to save logins" />
+              <CheckBox x:Name="RestoreTabsCheckBox" Content="Restore tabs" />
+              <CheckBox x:Name="EnableExtensionsCheckBox" Content="Enable approved extensions" />
+              <CheckBox x:Name="VerticalTabsCheckBox" Content="Vertical browser tabs" />
+              <TextBox x:Name="NewGroupBox" PlaceholderText="Current tab group" />
+              <Button x:Name="CreateGroupButton" Content="Put current tab in group" />
+              <Button x:Name="SaveSettingsButton" Content="Save browser settings" Classes="accent" />
+            </StackPanel>
           </ScrollViewer>
 
-          <ScrollViewer IsVisible="{Binding IsExtensionsOpen}" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="16" Spacing="9"><TextBlock Text="Extensions" Classes="sectionHeading" /><TextBlock Text="Imports are disabled initially. Chrome conversion accepts only bounded content scripts and rejects privileged permissions." Classes="muted" FontSize="11" /><Grid ColumnDefinitions="*,*" ColumnSpacing="6"><Button Content="Import Haven extension" Command="{Binding ImportExtensionRequestedCommand}" /><Button Grid.Column="1" Content="Convert Chrome extension" Command="{Binding ConvertChromeExtensionRequestedCommand}" /></Grid><ItemsControl ItemsSource="{Binding Extensions}"><ItemsControl.ItemTemplate><DataTemplate><Border Classes="card" Margin="0,4"><StackPanel Spacing="5"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" /><TextBlock Text="{Binding AllowedOrigins}" Classes="muted2" FontSize="9" /><Grid ColumnDefinitions="*,Auto"><Button Content="Enable / disable" Command="{Binding $parent[UserControl].DataContext.ToggleExtensionCommand}" CommandParameter="{Binding}" /><Button Grid.Column="1" Content="Delete" Classes="danger" Command="{Binding $parent[UserControl].DataContext.DeleteExtensionCommand}" CommandParameter="{Binding}" /></Grid></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
+          <ScrollViewer x:Name="ExtensionsPanel" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16" Spacing="9">
+              <TextBlock Text="Extensions" Classes="sectionHeading" />
+              <TextBlock Text="Imports are disabled initially. Chrome conversion accepts only bounded content scripts and rejects privileged permissions." Classes="muted" FontSize="11" />
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                <Button x:Name="ImportExtensionButton" Content="Import Haven extension" />
+                <Button x:Name="ConvertChromeButton" Grid.Column="1" Content="Convert Chrome extension" />
+              </Grid>
+              <ItemsControl x:Name="ExtensionsList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="card" Margin="0,4">
+                      <StackPanel Spacing="5">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" />
+                        <TextBlock Text="{Binding AllowedOrigins}" Classes="muted2" FontSize="9" />
+                        <Grid ColumnDefinitions="*,Auto">
+                          <Button Content="Enable / disable" />
+                          <Button Grid.Column="1" Content="Delete" Classes="danger" />
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </ScrollViewer>
 
-          <ScrollViewer IsVisible="{Binding IsLoginsOpen}" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="16" Spacing="9"><TextBlock Text="Passwords and logins" Classes="sectionHeading" /><TextBlock Text="Passwords are encrypted by Windows Credential Manager. Autofill requires the exact saved origin and never submits." Classes="muted" FontSize="11" /><TextBox Text="{Binding LoginOrigin}" PlaceholderText="https://example.com" /><TextBox Text="{Binding LoginUsername}" PlaceholderText="Username" /><TextBox Text="{Binding LoginPassword}" PasswordChar="&#x25CF;" PlaceholderText="Password" /><Button Content="Save securely" Classes="accent" Command="{Binding SaveLoginCommand}" /><ItemsControl ItemsSource="{Binding Logins}"><ItemsControl.ItemTemplate><DataTemplate><Border Classes="card" Margin="0,4"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5"><StackPanel><TextBlock Text="{Binding Username}" /><TextBlock Text="{Binding Origin}" Classes="muted" FontSize="10" /></StackPanel><Button Grid.Column="1" Content="Autofill" Command="{Binding $parent[UserControl].DataContext.AutofillLoginCommand}" CommandParameter="{Binding}" /><Button Grid.Column="2" Content="Delete" Classes="danger" Command="{Binding $parent[UserControl].DataContext.DeleteLoginCommand}" CommandParameter="{Binding}" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
+          <ScrollViewer x:Name="LoginsPanel" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16" Spacing="9">
+              <TextBlock Text="Passwords and logins" Classes="sectionHeading" />
+              <TextBlock Text="Passwords are encrypted by Windows Credential Manager. Autofill requires the exact saved origin and never submits." Classes="muted" FontSize="11" />
+              <TextBox x:Name="LoginOriginBox" PlaceholderText="https://example.com" />
+              <TextBox x:Name="LoginUsernameBox" PlaceholderText="Username" />
+              <TextBox x:Name="LoginPasswordBox" PasswordChar="&#x25CF;" PlaceholderText="Password" />
+              <Button x:Name="SaveLoginButton" Content="Save securely" Classes="accent" />
+              <ItemsControl x:Name="LoginsList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="card" Margin="0,4">
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5">
+                        <StackPanel>
+                          <TextBlock Text="{Binding Username}" />
+                          <TextBlock Text="{Binding Origin}" Classes="muted" FontSize="10" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Autofill" />
+                        <Button Grid.Column="2" Content="Delete" Classes="danger" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </ScrollViewer>
         </Grid>
       </Border>

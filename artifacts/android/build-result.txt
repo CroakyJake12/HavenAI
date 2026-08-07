@@ -1,0 +1,19 @@
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31051000945
+input_commit=0182b39ae1a73faade764ce05c66784d66b5f1cf
+built_tree=0182b39ae1a73faade764ce05c66784d66b5f1cf
+repair_exit=1
+repair_log:
+  File "/tmp/haven-mobile-repair.py", line 40
+    SETTINGS_CS = 'using System.Net.Http;\nusing System.Text.Json;\nusing Avalonia;\nusing Avalonia.Controls;\nusing Avalonia.Controls.TemplateBorder>\n\n      <BrlateBorder>\n\n M\n        <TextBlock x:Name="BrowserState   %
+SyntaxError: source code cannot contain null bytes
+repair_part_hashes:
+4f44b0d022d2a5bb4065891a64c4856164ec99242bd575a7f7b9f03191dec851  scripts/apply_haven_mobile_consolidated_repairs.part0
+35785d6a840200da1d1823ab8a0865b0653d64425990e2147786d15b75c8e604  scripts/apply_haven_mobile_consolidated_repairs.part1
+2093bf5929399d7cc5a9faa5829fd39f91dc6c0862906c77ef7109dc6eca8281  scripts/apply_haven_mobile_consolidated_repairs.part1a
+d754a639ab96de0e04b45183e961d7408e4fa580e24fc753ea9f62cc9a8e4544  scripts/apply_haven_mobile_consolidated_repairs.part1b
+6480a9ba6de9162020d958d68677725f216dc43e4143cbafcb0bb26da3b4e2c2  scripts/apply_haven_mobile_consolidated_repairs.part2
+43155c62f0bc8013a480f2920221c9a26aa4429fae3bc56b950541f9e84d26b6  scripts/apply_haven_mobile_consolidated_repairs.part3
+repair_gzip_check:
+/tmp/haven-mobile-repair.py.gz: FAILED
+repair_script_check:
+/tmp/haven-mobile-repair.py: FAILED
