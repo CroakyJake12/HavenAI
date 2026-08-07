@@ -1,0 +1,43 @@
+name: Export Mobile Smoke Evidence
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/export-mobile-smoke-evidence.yml"]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Haven-6420be22-Mobile-Smoke
+          path: evidence
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 31173626019
+
+      - uses: actions/checkout@v4
+        with:
+          ref: mobile-smoke-result-6420be22
+          path: status
+          fetch-depth: 1
+
+      - name: Export evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf status/result
+          mkdir -p status/result
+          cp -a evidence/. status/result/
+          git -C status config user.name "github-actions[bot]"
+          git -C status config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C status add result
+          if ! git -C status diff --cached --quiet; then
+            git -C status commit -m "Export mobile smoke evidence"
+            git -C status push origin HEAD:mobile-smoke-result-6420be22
+          fi
