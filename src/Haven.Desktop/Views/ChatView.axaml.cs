@@ -277,9 +277,9 @@ public sealed partial class ChatView : UserControl
         var kind = chat.Mode switch
         {
             HavenMode.Chat => ConversationKind.Chat,
-            HavenMode.Teach when chat.SelectedLesson is null => ConversationKind.QuickChat,
-            HavenMode.Teach => ConversationKind.LessonChat,
-            HavenMode.Do => ConversationKind.Task,
+            HavenMode.Study when chat.SelectedLesson is null => ConversationKind.QuickChat,
+            HavenMode.Study => ConversationKind.LessonChat,
+            HavenMode.Tasks => ConversationKind.Task,
             HavenMode.Studio => ConversationKind.StudioChat,
             _ => ConversationKind.Chat
         };

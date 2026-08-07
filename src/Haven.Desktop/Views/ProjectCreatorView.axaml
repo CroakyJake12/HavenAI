@@ -2,8 +2,5 @@
     x:Class="Haven.Desktop.Views.ProjectCreatorView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <ScrollViewer
-      x:Name="RootScroll"
-      HorizontalScrollBarVisibility="Disabled"
-      VerticalScrollBarVisibility="Auto" />
+  <Grid x:Name="CodeBehindHost" />
 </UserControl>

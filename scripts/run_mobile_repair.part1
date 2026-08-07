@@ -1,0 +1,21 @@
+ needle not in text:
+    raise SystemExit("repair compatibility anchor not found")
+path.write_text(text.replace(needle, replacement, 1))
+PY
+python -m py_compile /tmp/repair.py
+if ! python /tmp/repair.py > artifacts/android/repair.log 2>&1; then
+  { echo "input_commit=${GITHUB_SHA}"; echo "repair_exit=1"; tail -n 300 artifacts/android/repair.log; } > artifacts/android/repair-result.txt
+  git config user.name github-actions[bot]
+  git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+  git add -f artifacts/android/repair-result.txt
+  git commit -m "Record consolidated mobile repair failure [skip ci]"
+  git push
+  exit 1
+fi
+git config user.name github-actions[bot]
+git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+git add src/Haven.Android/Haven.Android.csproj src/Haven.Android/HavenLauncherActivity.Apps.cs src/Haven.Android/HavenLauncherActivity.cs src/Haven.Android/MainView.Mobile.Drawers.cs src/Haven.Android/MainView.Mobile.Interactions.cs src/Haven.Android/MainView.Mobile.Layout.cs src/Haven.Android/ModelImportActivity.cs src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml src/Haven.Desktop/Views/Pages/Settings/SettingsPage.axaml.cs
+if ! git diff --cached --quiet; then
+  git commit -m "Apply consolidated Haven Mobile repairs [skip ci]"
+  git push
+fi

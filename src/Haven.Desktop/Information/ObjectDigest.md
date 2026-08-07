@@ -10,7 +10,7 @@ Auto-generated reference for all events exposed by the Haven event system.
 - `TopRail.Actions.HomeClick()` — Click the Home mode button
 - `TopRail.Actions.ChatClick()` — Click the Chat mode button
 - `TopRail.Actions.CallClick()` — Click the Call mode button
-- `TopRail.Actions.DoClick()` — Click the Do mode button
+- `TopRail.Actions.TasksClick()` — Click the Tasks mode button
 - `TopRail.Actions.StudioClick()` — Click the Studio mode button
 - `TopRail.Actions.BrowserClick()` — Click the Browser mode button
 - `TopRail.Actions.PlanClick()` — Click the Plan mode button
@@ -46,7 +46,7 @@ Auto-generated reference for all events exposed by the Haven event system.
 - `SideRail.Navigation.HomeClick()` — Click the Home mode button
 - `SideRail.Navigation.ChatClick()` — Click the Chat mode button
 - `SideRail.Navigation.CallClick()` — Click the Call mode button
-- `SideRail.Navigation.DoClick()` — Click the Do mode button
+- `SideRail.Navigation.TasksClick()` — Click the Tasks mode button
 - `SideRail.Navigation.StudioClick()` — Click the Studio mode button
 - `SideRail.Navigation.BrowserClick()` — Click the Browser mode button
 - `SideRail.Navigation.PlanClick()` — Click the Plan mode button
@@ -387,21 +387,6 @@ Auto-generated reference for all events exposed by the Haven event system.
 ### Actions
 - `Archive.Actions.SearchChanged()` — Search query changed
 - `Archive.Actions.Refresh()` — Click Refresh
-
----
-
-## Macros
-
-### List
-- `Macros.List.Item(index).Click()` — Click macro item at index
-- `Macros.List.Item(index).Hover()` — Hover over macro item at index
-- `Macros.List.Item(index).Leave()` — Leave macro item at index
-- `Macros.List.Item(index).Run()` — Run macro item at index
-- `Macros.List.Item(index).Delete()` — Delete macro item at index
-
-### Actions
-- `Macros.Actions.Refresh()` — Click Refresh
-- `Macros.Actions.Create()` — Click Create
 
 ---
 

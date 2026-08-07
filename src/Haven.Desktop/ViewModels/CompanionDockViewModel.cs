@@ -327,7 +327,8 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
     {
         SurfaceKind.Browse => "globe",
         SurfaceKind.Plan => "calendar",
-        SurfaceKind.Phone or SurfaceKind.Do => "phone",
+        SurfaceKind.Phone => "phone",
+        SurfaceKind.Tasks => "tasks",
         SurfaceKind.Chat => "chat",
         _ => "home"
     };
@@ -339,7 +340,7 @@ public sealed class CompanionCardViewModel : ObservableObject, IDisposable
     {
         SurfaceKind.Browse => "Browser",
         SurfaceKind.Plan => "Planner",
-        SurfaceKind.Do => "Do",
+        SurfaceKind.Tasks => "Tasks",
         SurfaceKind.Phone => "Call",
         SurfaceKind.Chat => "Chat",
         _ => "Activity"

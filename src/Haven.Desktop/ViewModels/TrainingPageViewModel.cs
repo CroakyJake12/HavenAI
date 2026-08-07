@@ -321,6 +321,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
         _exitTraining = exitTraining;
         WorkspacePath = Directory.GetCurrentDirectory();
         AvailableModels = Array.Empty<string>();
+        SelectedModel = _preferences.DefaultModel ?? string.Empty;
         StartSessionCommand = new AsyncRelayCommand(StartSessionAsync, () => !IsRunning);
         StopSessionCommand = new RelayCommand(StopSession, () => IsRunning);
         SubmitFeedbackCommand = new RelayCommand(SubmitFeedback);
@@ -339,7 +340,7 @@ public sealed class TrainingPageViewModel : ObservableObject, IDisposable
         {
             var models = await _ollama.GetModelsAsync(CancellationToken.None);
             AvailableModels = models.Select(m => m.Name).ToArray();
-            if (AvailableModels.Length > 0 && string.IsNullOrEmpty(SelectedModel))
+            if (AvailableModels.Length > 0 && !AvailableModels.Contains(SelectedModel, StringComparer.OrdinalIgnoreCase))
                 SelectedModel = AvailableModels[0];
         }
         catch { /* ollama not running */ }

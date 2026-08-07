@@ -1,6 +1,6 @@
 /*
  * FILE DOCUMENTATION
- * Where: src/Haven.Desktop/Controls/PlanAutomationControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * Where: src/Haven.OldHaven/Controls/PlanAutomationControl.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
  * What: This file owns PlanAutomationControl. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
@@ -51,7 +51,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
     /// </summary>
     private readonly TextBox _instruction = new()
     {
-        PlaceholderText = "What should Haven do or check?",
+        PlaceholderText = "What should Haven handle or check?",
         AcceptsReturn = true,
         TextWrapping = TextWrapping.Wrap,
         MinHeight = 86,

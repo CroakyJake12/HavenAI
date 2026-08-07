@@ -1,46 +1,39 @@
-<!--
-  FILE DOCUMENTATION
-  Where: src/Haven.Desktop/Views/ChatGroupView.axaml in the Avalonia Desktop visual layer.
-  What: This markup constructs Haven.Desktop.Views.ChatGroupView. Its visual vocabulary includes: ScrollViewer, StackPanel, Grid, TextBlock, Button, Border, ItemsControl, ItemsControl.ItemTemplate, DataTemplate.
-  Data flow: Binding expressions read or update these view-model paths: Name, Status, RefreshCommand, SettingsCommand, NewChatCommand, ChatCountLabel, PinnedCountLabel, LastActivityLabel, Instructions, Context, Resources, TypeLabel, SizeLabel, RecentChats, Title, UpdatedLabel, ArchiveCommand.
-  Interaction: Direct event handlers in this file are: AddReferences_OnClick.
-  Layout: Parent containers own placement and spacing; child controls own content and local presentation.
-  Styling: DynamicResource lookups intentionally allow the active Haven palette to change without rebuilding the visual tree.
-  Why XAML: Declarative markup keeps visual structure inspectable and separates it from runtime orchestration in code-behind/view models.
--->
-
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.ChatGroupView">
-  <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-    <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Margin="32" Spacing="20" MaxWidth="1100" HorizontalAlignment="Center">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
-        <Button Content="Back" Classes="secondary" Command="{Binding BackCommand}" VerticalAlignment="Top" />
+        <Button x:Name="BackButton" Content="Back" Classes="secondary" VerticalAlignment="Top" />
         <StackPanel Grid.Column="1">
           <TextBlock Text="Chat Group" Classes="eyebrow" />
-          <TextBlock Text="{Binding Name}" FontSize="28" FontWeight="SemiBold" />
-          <TextBlock Text="{Binding Status}" Classes="muted" Margin="0,4,0,0" />
+          <TextBlock x:Name="NameText" FontSize="28" FontWeight="SemiBold" />
+          <TextBlock x:Name="StatusText" Classes="muted" Margin="0,4,0,0" />
         </StackPanel>
-        <Button Grid.Column="2" Content="Refresh" Classes="secondary" Command="{Binding RefreshCommand}" />
-        <Button Grid.Column="3" Content="Settings" Classes="secondary" Command="{Binding SettingsCommand}" />
-        <Button Grid.Column="4" Content="New chat" Classes="primary" Command="{Binding NewChatCommand}" />
+        <Button x:Name="RefreshButton" Grid.Column="2" Content="Refresh" Classes="secondary" />
+        <Button x:Name="SettingsButton" Grid.Column="3" Content="Settings" Classes="secondary" />
+        <Button x:Name="NewChatButton" Grid.Column="4" Content="New chat" Classes="primary" />
       </Grid>
 
       <Border Classes="card">
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-            <StackPanel><TextBlock Text="Chats" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="{Binding ChatCountLabel}" Classes="muted"/></StackPanel>
-            <TextBlock Grid.Column="1" Text="{Binding PinnedCountLabel}" Classes="muted" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="2" Text="{Binding LastActivityLabel}" Classes="muted" VerticalAlignment="Center" />
+            <StackPanel>
+              <TextBlock Text="Chats" FontSize="18" FontWeight="SemiBold"/>
+              <TextBlock x:Name="ChatCountLabel" Classes="muted"/>
+            </StackPanel>
+            <TextBlock x:Name="PinnedCountLabel" Grid.Column="1" Classes="muted" VerticalAlignment="Center" />
+            <TextBlock x:Name="LastActivityLabel" Grid.Column="2" Classes="muted" VerticalAlignment="Center" />
           </Grid>
-          <TextBlock Text="No chats in this group yet." Classes="muted" IsVisible="{Binding !HasRecentChats}" />
-          <ItemsControl ItemsSource="{Binding RecentChats}">
+          <TextBlock x:Name="NoChatsText" Text="No chats in this group yet." Classes="muted" />
+          <ItemsControl x:Name="RecentChatsList">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Button Classes="sidebar" HorizontalAlignment="Stretch" Command="{Binding $parent[UserControl].DataContext.OpenChatCommand}" CommandParameter="{Binding}">
-                  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Title}"/><TextBlock Grid.Column="1" Text="{Binding UpdatedLabel}" Classes="muted"/></Grid>
+                <Button Classes="sidebar" HorizontalAlignment="Stretch">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Title}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding UpdatedLabel}" Classes="muted"/>
+                  </Grid>
                 </Button>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -48,7 +41,7 @@
         </StackPanel>
       </Border>
 
-      <Button Content="Archive Chat Group" Classes="secondary" HorizontalAlignment="Left" Command="{Binding ArchiveCommand}" />
+      <Button x:Name="ArchiveButton" Content="Archive Chat Group" Classes="secondary" HorizontalAlignment="Left" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

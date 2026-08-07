@@ -32,8 +32,8 @@ public sealed class ConversationScopeTests
         var lessonId = Guid.NewGuid();
         var general = Conversation(HavenMode.Chat, ConversationKind.Chat, null, null);
         var grouped = Conversation(HavenMode.Chat, ConversationKind.Chat, groupId, null);
-        var quick = Conversation(HavenMode.Teach, ConversationKind.QuickChat, null, null);
-        var lesson = Conversation(HavenMode.Teach, ConversationKind.LessonChat, subjectId, lessonId);
+        var quick = Conversation(HavenMode.Study, ConversationKind.QuickChat, null, null);
+        var lesson = Conversation(HavenMode.Study, ConversationKind.LessonChat, subjectId, lessonId);
         var call = Conversation(HavenMode.Chat, ConversationKind.Call, null, null);
 
         Assert.True(ConversationScope.GeneralChat.Matches(general));
@@ -41,10 +41,10 @@ public sealed class ConversationScopeTests
         Assert.False(ConversationScope.GeneralChat.Matches(call));
         Assert.True(ConversationScope.ForChatGroup(groupId).Matches(grouped));
         Assert.False(ConversationScope.ForChatGroup(groupId).Matches(general));
-        Assert.True(ConversationScope.TeachQuickChat.Matches(quick));
-        Assert.False(ConversationScope.TeachQuickChat.Matches(lesson));
-        Assert.True(ConversationScope.ForTeachLesson(subjectId, lessonId).Matches(lesson));
-        Assert.False(ConversationScope.ForTeachLesson(subjectId, Guid.NewGuid()).Matches(lesson));
+        Assert.True(ConversationScope.StudyQuickChat.Matches(quick));
+        Assert.False(ConversationScope.StudyQuickChat.Matches(lesson));
+        Assert.True(ConversationScope.ForStudyLesson(subjectId, lessonId).Matches(lesson));
+        Assert.False(ConversationScope.ForStudyLesson(subjectId, Guid.NewGuid()).Matches(lesson));
     }
 
     /// <summary>
@@ -58,8 +58,8 @@ public sealed class ConversationScopeTests
         var lessonId = Guid.NewGuid();
         Assert.Equal(ConversationScopeKind.GeneralChat, ConversationScope.From(Conversation(HavenMode.Chat, ConversationKind.Chat, null, null)).Kind);
         Assert.Equal(groupId, ConversationScope.From(Conversation(HavenMode.Chat, ConversationKind.Chat, groupId, null)).ContainerId);
-        Assert.Equal(ConversationScopeKind.TeachQuickChat, ConversationScope.From(Conversation(HavenMode.Teach, ConversationKind.QuickChat, null, null)).Kind);
-        Assert.Equal(lessonId, ConversationScope.From(Conversation(HavenMode.Teach, ConversationKind.LessonChat, subjectId, lessonId)).LessonId);
+        Assert.Equal(ConversationScopeKind.StudyQuickChat, ConversationScope.From(Conversation(HavenMode.Study, ConversationKind.QuickChat, null, null)).Kind);
+        Assert.Equal(lessonId, ConversationScope.From(Conversation(HavenMode.Study, ConversationKind.LessonChat, subjectId, lessonId)).LessonId);
         Assert.Throws<ArgumentException>(() => ConversationScope.ForChatGroup(Guid.Empty));
     }
 

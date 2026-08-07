@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Views.Shell.TopRail.AppLauncherControl">
+
+  <StackPanel Spacing="9">
+    <Border Width="480"
+            Background="{DynamicResource HavenElevatedBrush}"
+            BorderBrush="{DynamicResource HavenLineBrush}"
+            BorderThickness="1"
+            CornerRadius="24">
+      <StackPanel Spacing="10" Margin="16">
+        <TextBlock Text="Apps" FontSize="20" FontWeight="ExtraBold" />
+        <Grid>
+          <TextBox x:Name="SearchBox"
+                   PlaceholderText="Search"
+                   HorizontalAlignment="Stretch"
+                   Padding="38,10,12,10"
+                   FontSize="14" />
+          <controls:HavenIcon IconKey="search" Width="18" Height="18"
+                              Margin="13,0,0,0"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              IsHitTestVisible="False"
+                              Opacity="0.72" />
+        </Grid>
+        <ScrollViewer MaxHeight="400"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="SectionsPanel" Spacing="10" />
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+
+    <Border Width="480"
+            Background="{DynamicResource HavenElevatedBrush}"
+            BorderBrush="{DynamicResource HavenLineBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
+            Padding="4">
+      <Button x:Name="ManageButton"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch"
+              Padding="16,13"
+              Classes="sidebar">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <controls:HavenIcon IconKey="settings" Width="19" Height="19" />
+          <TextBlock Text="Manage Apps" FontWeight="ExtraBold" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+    </Border>
+  </StackPanel>
+</UserControl>

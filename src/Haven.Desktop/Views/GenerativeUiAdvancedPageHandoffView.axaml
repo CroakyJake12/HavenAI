@@ -32,7 +32,7 @@
                AcceptsReturn="True"
                TextWrapping="Wrap"
                MinHeight="92"
-               PlaceholderText="Example: Create a study dashboard page with a timetable, subject shortcuts, progress cards and a focus-session history. Reuse Plan and Teach data rather than copying it." />
+               PlaceholderText="Example: Create a study dashboard page with a timetable, subject shortcuts, progress cards and a focus-session history. Reuse Plan and Study data rather than copying it." />
 
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="9">
         <TextBlock x:Name="StatusText"

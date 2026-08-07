@@ -1,39 +1,46 @@
 using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Core;
 using Haven.Desktop.Controls;
-using Haven.Desktop.Services;
-using Haven.Desktop.ViewModels;
-
-#if ANDROID
-using Android.Content;
-using Android.Content.PM;
-#endif
 
 namespace Haven.Desktop.Views.Shell;
 
 public sealed partial class MainView
 {
+    public Task ApplyMobileStartupSurfaceAsync() => OpenHomeAsync();
+
+    public async Task ApplyMobileLaunchRequestAsync(string? surface, string? prompt)
+    {
+        if (!string.IsNullOrWhiteSpace(prompt))
+        {
+            await OpenNewChatAsync(prompt);
+            return;
+        }
+
+        if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenDashboardAsync();
+            return;
+        }
+
+        await ApplyMobileStartupSurfaceAsync();
+    }
 
     private async Task SubmitMobileGoAsync()
     {
         var text = _mobileGoInput?.Text?.Trim();
         if (string.IsNullOrWhiteSpace(text))
             return;
-
         var context = IsProjectOpen
             ? $"{ProductName}, project {ActiveProjectName}"
             : ProductName;
-
         if (_mobileGoInput is not null)
             _mobileGoInput.Text = string.Empty;
-
         await OpenNewChatAsync($"Current mobile screen: {context}. {text}");
     }
 
@@ -41,7 +48,6 @@ public sealed partial class MainView
     {
         if (e.Key != Key.Enter)
             return;
-
         e.Handled = true;
         _ = SubmitMobileGoAsync();
     }
@@ -51,12 +57,8 @@ public sealed partial class MainView
 
     private void OnMobileAffordancePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_mobileSwipeStartY is double start
-            && start - e.GetPosition(this).Y > 28)
-        {
+        if (_mobileSwipeStartY is double start && start - e.GetPosition(this).Y > 28)
             _ = OpenMobileContextDrawerAsync();
-        }
-
         _mobileSwipeStartY = null;
     }
 
@@ -75,17 +77,21 @@ public sealed partial class MainView
             return;
 
         var isHome = CurrentSurface == HavenSurface.Home;
+        var showChatAffordance = CurrentSurface == HavenSurface.Chat;
+        SidebarControl.IsVisible = false;
+        NativeSidebarHost.IsVisible = false;
+        ShellContextBar.IsVisible = false;
         if (_mobileHeader is not null)
-            _mobileHeader.IsVisible = !isHome;
+            _mobileHeader.IsVisible = true;
         if (_mobileBottomAffordance is not null)
-            _mobileBottomAffordance.IsVisible = !isHome;
+            _mobileBottomAffordance.IsVisible = showChatAffordance;
         if (_mobileHomeFooter is not null)
             _mobileHomeFooter.IsVisible = isHome;
-
         PageContent.Margin = isHome
-            ? new Thickness(0, 0, 0, 72)
-            : new Thickness(0, 0, 0, 58);
-
+            ? new Thickness(0, 0, 0, 78)
+            : showChatAffordance
+                ? new Thickness(0, 0, 0, 112)
+                : new Thickness(0);
         RefreshMobileTabs();
     }
 
@@ -98,29 +104,102 @@ public sealed partial class MainView
         foreach (var tab in OpenTabs)
         {
             var selected = tab;
-            var button = new Button
+            var isSelected = ReferenceEquals(tab, SelectedTab);
+            var labelRow = new StackPanel
             {
-                Content = tab.Title,
-                MinHeight = 38,
-                Padding = new Thickness(12, 5),
-                CornerRadius = new CornerRadius(14),
-                Background = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentSoftBrush")
-                    : Brushes.Transparent,
-                BorderBrush = ReferenceEquals(tab, SelectedTab)
-                    ? ResourceBrush("HavenAccentBorderBrush")
-                    : ResourceBrush("HavenLineBrush"),
-                BorderThickness = new Thickness(1)
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children =
+                {
+                    new HavenIcon
+                    {
+                        IconKey = IconForSurface(tab.Surface),
+                        Width = 16,
+                        Height = 16
+                    },
+                    new TextBlock
+                    {
+                        Text = tab.Title,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontWeight = isSelected ? FontWeight.Bold : FontWeight.SemiBold,
+                        FontSize = 12,
+                        MaxWidth = 150,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    }
+                }
             };
-            button.Click += (_, _) => SelectedTab = selected;
-            _mobileTabs.Children.Add(button);
+            var select = new Button
+            {
+                Content = labelRow,
+                MinHeight = 36,
+                Padding = new Thickness(10, 5),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0)
+            };
+            select.Click += (_, _) => SelectedTab = selected;
+
+            var tabRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 0,
+                Children = { select }
+            };
+            if (tab.IsCloseable)
+            {
+                var close = MobileIconButton("close", () => CloseTab(selected), "Close tab");
+                close.MinHeight = 34;
+                close.MinWidth = 30;
+                close.Padding = new Thickness(6);
+                close.Background = Brushes.Transparent;
+                close.BorderThickness = new Thickness(0);
+                tabRow.Children.Add(close);
+            }
+
+            var tabShell = new Grid
+            {
+                RowDefinitions = new RowDefinitions("Auto,2"),
+                Margin = new Thickness(0, 0, 3, 0)
+            };
+            tabShell.Children.Add(tabRow);
+            var underline = new Border
+            {
+                Height = 2,
+                Background = isSelected
+                    ? ResourceBrush("HavenAccentBrush")
+                    : Brushes.Transparent
+            };
+            Grid.SetRow(underline, 1);
+            tabShell.Children.Add(underline);
+            _mobileTabs.Children.Add(tabShell);
         }
+
+        var add = MobileIconButton("plus", () =>
+        {
+            if (AddNewTabCommand.CanExecute(null))
+                AddNewTabCommand.Execute(null);
+        }, "New tab");
+        add.MinHeight = 36;
+        add.MinWidth = 36;
+        add.CornerRadius = new CornerRadius(12);
+        add.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
+        add.BorderThickness = new Thickness(1);
+        _mobileTabs.Children.Add(add);
+    }
+    private void OpenMobileDrawer()
+    {
+        if (_mobileDrawerScrim is not null)
+            _mobileDrawerScrim.IsVisible = true;
+        if (_mobileDrawer is not null)
+            _mobileDrawer.IsVisible = true;
     }
 
     private void CloseMobileDrawer()
     {
         if (_mobileDrawer is not null)
             _mobileDrawer.IsVisible = false;
+        if (_mobileDrawerScrim is not null)
+            _mobileDrawerScrim.IsVisible = false;
     }
 
     private static void AddDrawerHeading(Panel panel, string text)
@@ -143,7 +222,6 @@ public sealed partial class MainView
             Height = 20,
             Margin = new Thickness(0, 2, 0, 0)
         };
-
         var text = new StackPanel
         {
             Spacing = 2,
@@ -151,7 +229,7 @@ public sealed partial class MainView
             {
                 new TextBlock
                 {
-                    Text = title,
+                    Text = HumanizeWords(title),
                     FontWeight = FontWeight.SemiBold,
                     TextTrimming = TextTrimming.CharacterEllipsis
                 },
@@ -164,7 +242,6 @@ public sealed partial class MainView
                 }
             }
         };
-
         var grid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*"),
@@ -173,7 +250,6 @@ public sealed partial class MainView
         grid.Children.Add(icon);
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
-
         return new Button
         {
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -206,7 +282,6 @@ public sealed partial class MainView
                 }
             }
         };
-
         var button = new Button
         {
             Content = content,
@@ -216,6 +291,41 @@ public sealed partial class MainView
         };
         button.Click += (_, _) => action();
         return button;
+    }
+
+    private static Button MobileIconButton(string iconKey, Action action, string tooltip)
+    {
+        var button = new Button
+        {
+            Content = new HavenIcon { IconKey = iconKey, Width = 18, Height = 18 },
+            MinHeight = 44,
+            MinWidth = 44,
+            Padding = new Thickness(10),
+            CornerRadius = new CornerRadius(14)
+        };
+        ToolTip.SetTip(button, tooltip);
+        button.Click += (_, _) => action();
+        return button;
+    }
+
+    private static string HumanizeWords(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+        var builder = new System.Text.StringBuilder(value.Length + 8);
+        for (var index = 0; index < value.Length; index++)
+        {
+            var current = value[index];
+            if (index > 0
+                && char.IsUpper(current)
+                && (char.IsLower(value[index - 1])
+                    || (index + 1 < value.Length && char.IsLower(value[index + 1]))))
+            {
+                builder.Append(' ');
+            }
+            builder.Append(current);
+        }
+        return builder.ToString();
     }
 
     private static IBrush? ResourceBrush(string key)
@@ -229,8 +339,6 @@ public sealed partial class MainView
             if (property?.GetValue(value) is string text && !string.IsNullOrWhiteSpace(text))
                 return text;
         }
-
         return value.ToString() ?? value.GetType().Name;
     }
-
 }

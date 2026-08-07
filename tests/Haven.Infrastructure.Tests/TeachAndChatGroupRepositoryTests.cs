@@ -35,21 +35,21 @@ public sealed class TeachAndChatGroupRepositoryTests : IDisposable
         var containers = new ContainerRepository(database);
         var now = DateTimeOffset.UtcNow;
         var group = new ContainerDefinition(Guid.NewGuid(), HavenMode.Chat, "Group", null, "", "", now, now);
-        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Teach, "Maths", null, "", "", now, now);
+        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, "", "", now, now);
         await containers.UpsertAsync(group, CancellationToken.None);
         var generalLesson = await containers.CreateSubjectAsync(subject, CancellationToken.None);
 
         var general = NewConversation(HavenMode.Chat, ConversationKind.Chat, null, null, now.AddMinutes(1));
         var grouped = NewConversation(HavenMode.Chat, ConversationKind.Chat, group.Id, null, now.AddMinutes(2));
-        var quick = NewConversation(HavenMode.Teach, ConversationKind.QuickChat, null, null, now.AddMinutes(3));
-        var lesson = NewConversation(HavenMode.Teach, ConversationKind.LessonChat, subject.Id, generalLesson.Id, now.AddMinutes(4));
+        var quick = NewConversation(HavenMode.Study, ConversationKind.QuickChat, null, null, now.AddMinutes(3));
+        var lesson = NewConversation(HavenMode.Study, ConversationKind.LessonChat, subject.Id, generalLesson.Id, now.AddMinutes(4));
         var call = NewConversation(HavenMode.Chat, ConversationKind.Call, null, null, now.AddMinutes(5));
         foreach (var item in new[] { general, grouped, quick, lesson, call }) await conversations.UpsertConversationAsync(item, CancellationToken.None);
 
         Assert.Equal(general.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.GeneralChat, 20, CancellationToken.None)).Id);
         Assert.Equal(grouped.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.ForChatGroup(group.Id), 20, CancellationToken.None)).Id);
-        Assert.Equal(quick.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.TeachQuickChat, 20, CancellationToken.None)).Id);
-        Assert.Equal(lesson.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.ForTeachLesson(subject.Id, generalLesson.Id), 20, CancellationToken.None)).Id);
+        Assert.Equal(quick.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.StudyQuickChat, 20, CancellationToken.None)).Id);
+        Assert.Equal(lesson.Id, Assert.Single(await conversations.GetRecentInScopeAsync(ConversationScope.ForStudyLesson(subject.Id, generalLesson.Id), 20, CancellationToken.None)).Id);
     }
 
     /// <summary>
@@ -61,13 +61,13 @@ public sealed class TeachAndChatGroupRepositoryTests : IDisposable
         var database = await CreateDatabaseAsync();
         var containers = new ContainerRepository(database);
         var now = DateTimeOffset.UtcNow;
-        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Teach, "Physics", null, "Shared context", "Teach carefully", now, now);
+        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Physics", null, "Shared context", "Study carefully", now, now);
 
         var lesson = await containers.CreateSubjectAsync(subject, CancellationToken.None);
 
         Assert.Equal("General", lesson.Name);
         Assert.Equal(subject.Id, lesson.SubjectId);
-        Assert.Equal(subject.Id, Assert.Single(await containers.GetByModeAsync(HavenMode.Teach, CancellationToken.None)).Id);
+        Assert.Equal(subject.Id, Assert.Single(await containers.GetByModeAsync(HavenMode.Study, CancellationToken.None)).Id);
         Assert.Equal(lesson.Id, Assert.Single(await containers.GetLessonsAsync(subject.Id, CancellationToken.None)).Id);
     }
 
@@ -83,11 +83,11 @@ public sealed class TeachAndChatGroupRepositoryTests : IDisposable
         var resources = new ContainerResourceRepository(_paths, database);
         var now = DateTimeOffset.UtcNow;
         var group = new ContainerDefinition(Guid.NewGuid(), HavenMode.Chat, "Group", null, "", "", now, now);
-        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Teach, "Subject", null, "", "", now, now);
+        var subject = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Subject", null, "", "", now, now);
         await containers.UpsertAsync(group, CancellationToken.None);
         var lesson = await containers.CreateSubjectAsync(subject, CancellationToken.None);
         var groupChat = NewConversation(HavenMode.Chat, ConversationKind.Chat, group.Id, null, now);
-        var lessonChat = NewConversation(HavenMode.Teach, ConversationKind.LessonChat, subject.Id, lesson.Id, now);
+        var lessonChat = NewConversation(HavenMode.Study, ConversationKind.LessonChat, subject.Id, lesson.Id, now);
         await conversations.UpsertConversationAsync(groupChat, CancellationToken.None);
         await conversations.UpsertConversationAsync(lessonChat, CancellationToken.None);
         await conversations.AddMessageAsync(new ChatMessage(Guid.NewGuid(), groupChat.Id, MessageRole.User, "Keep me", null, null, null, now), CancellationToken.None);

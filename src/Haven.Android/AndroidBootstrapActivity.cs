@@ -53,7 +53,7 @@ public sealed class AndroidBootstrapActivity : Activity
     {
         try
         {
-            var intent = new Intent(this, typeof(MainActivity));
+            var intent = new Intent(this, typeof(HavenLauncherActivity));
             StartActivity(intent);
             Finish();
         }

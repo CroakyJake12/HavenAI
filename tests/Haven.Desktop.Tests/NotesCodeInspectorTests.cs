@@ -81,7 +81,8 @@ public sealed class NotesCodeInspectorTests : IDisposable
             await Task.Delay(10);
             var normalize = buttons.Single(button => Equals(button.Content, "Normalize indentation"));
             normalize.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await Task.Delay(10);
+            for (var attempt = 0; attempt < 50 && (code.PlainText.Contains('\t') || !viewModel.IsDirty); attempt++)
+                await Task.Delay(10);
 
             Assert.Equal("C#", code.Metadata["haven.notes.code.language"]);
             Assert.Equal("2", code.Metadata["haven.notes.code.tab-size"]);

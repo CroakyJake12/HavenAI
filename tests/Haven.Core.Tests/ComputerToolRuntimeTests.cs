@@ -116,6 +116,8 @@ public sealed class ComputerToolRuntimeTests
         Assert.True(controller.State.IsActive);
         Assert.Equal(480, controller.State.CursorX);
         Assert.Equal(320, controller.State.CursorY);
+        Assert.Equal(1, controller.State.ActionNumber);
+        Assert.Equal(30, controller.State.ActionLimit);
     }
 
     /// <summary>

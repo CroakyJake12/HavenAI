@@ -116,7 +116,7 @@ public sealed partial class AutomationsPage : UserControl
         var stateLabel = new TextBlock { Text = def.IsEnabled ? "Enabled" : "Paused", Foreground = Brush("HavenAccentBrush"), FontSize = 10 };
         var nameStack = new StackPanel { Children = { nameBlock, stateLabel } };
 
-        var modeBlock = new TextBlock { Text = def.Mode.ToString(), Foreground = Brush("HavenBlueBrush"), VerticalAlignment = VerticalAlignment.Center };
+        var modeBlock = new TextBlock { Text = def.Mode.ToString(), Foreground = Brush("HavenAccentSecondaryBrush"), VerticalAlignment = VerticalAlignment.Center };
         var instructionBlock = new TextBlock { Text = def.Instruction, Classes = { "muted" }, VerticalAlignment = VerticalAlignment.Center };
         var nextRunBlock = new TextBlock { Text = def.NextRunAt?.LocalDateTime.ToString("g") ?? "Not scheduled", Classes = { "muted" }, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
 

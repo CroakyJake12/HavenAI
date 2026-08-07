@@ -12,7 +12,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Haven.Desktop.Views.LessonSettingsView">
-  <!-- Lesson Settings — configure a teaching lesson's name, topic group, and JSON structure -->
+  <!-- Lesson Settings — configure a Study lesson's name, topic group, and JSON structure -->
   <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer>
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
@@ -20,7 +20,7 @@
       <!-- Page header -->
       <TextBlock Text="LESSON SETTINGS" Classes="eyebrow" />
       <TextBlock Text="{Binding Name}" Classes="heading" />
-      <TextBlock Text="Organise the lesson and preserve its structured teaching outline." Classes="muted" />
+      <TextBlock Text="Organise the lesson and preserve its structured Study outline." Classes="muted" />
 
       <!-- ============================================================
            LESSON NAME + TOPIC GROUP

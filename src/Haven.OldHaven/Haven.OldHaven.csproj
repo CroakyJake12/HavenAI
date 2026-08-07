@@ -17,6 +17,7 @@
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
     <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <ProjectReference Include="..\Haven.Desktop\Haven.Desktop.csproj" />
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -29,5 +30,8 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="Styles\**\*.axaml" />
+    <AvaloniaResource Include="..\Haven.Desktop\Assets\haven.ico" Link="Assets\haven.ico" />
+    <AvaloniaResource Include="..\Haven.Desktop\Assets\haven-192.png" Link="Assets\haven-192.png" />
+    <AvaloniaResource Include="..\Haven.Desktop\Assets\haven-32.png" Link="Assets\haven-32.png" />
   </ItemGroup>
 </Project>

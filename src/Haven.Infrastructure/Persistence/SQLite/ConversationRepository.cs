@@ -45,8 +45,8 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         {
             ConversationScopeKind.GeneralChat => "mode=$mode AND kind=$kind AND container_id IS NULL AND lesson_id IS NULL",
             ConversationScopeKind.ChatGroup => "mode=$mode AND kind=$kind AND container_id=$containerId AND lesson_id IS NULL",
-            ConversationScopeKind.TeachQuickChat => "mode=$mode AND kind=$kind AND container_id IS NULL AND lesson_id IS NULL",
-            ConversationScopeKind.TeachLesson => "mode=$mode AND kind=$kind AND container_id=$containerId AND lesson_id=$lessonId",
+            ConversationScopeKind.StudyQuickChat => "mode=$mode AND kind=$kind AND container_id IS NULL AND lesson_id IS NULL",
+            ConversationScopeKind.StudyLesson => "mode=$mode AND kind=$kind AND container_id=$containerId AND lesson_id=$lessonId",
             _ => throw new ArgumentOutOfRangeException(nameof(scope))
         };
         command.CommandText = $"SELECT * FROM conversations WHERE is_temporary=0 AND is_archived=0 AND {scopePredicate} ORDER BY updated_at DESC LIMIT $limit;";
@@ -64,8 +64,8 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     private static ConversationKind KindForScope(ConversationScopeKind kind) => kind switch
     {
         ConversationScopeKind.GeneralChat or ConversationScopeKind.ChatGroup => ConversationKind.Chat,
-        ConversationScopeKind.TeachQuickChat => ConversationKind.QuickChat,
-        ConversationScopeKind.TeachLesson => ConversationKind.LessonChat,
+        ConversationScopeKind.StudyQuickChat => ConversationKind.QuickChat,
+        ConversationScopeKind.StudyLesson => ConversationKind.LessonChat,
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
 

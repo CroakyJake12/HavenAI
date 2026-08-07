@@ -1,36 +1,23 @@
-using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.Threading;
 using Haven.Core;
-using Haven.Desktop.Controls;
-using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
-
-#if ANDROID
-using Android.Content;
-using Android.Content.PM;
-#endif
 
 namespace Haven.Desktop.Views.Shell;
 
 public sealed partial class MainView
 {
-
     private async Task OpenMobileContextDrawerAsync()
     {
-        if (_mobileDrawer is null || _mobileDrawerContent is null)
+        if (_mobileDrawerContent is null)
             return;
 
         await RefreshRecentsAsync(CancellationToken.None);
         _mobileDrawerContent.Children.Clear();
         AddDrawerHeading(_mobileDrawerContent, RecentHeading);
 
-        foreach (var item in PinnedConversations.Concat(RecentConversations))
+        var conversations = PinnedConversations.Concat(RecentConversations).ToArray();
+        foreach (var item in conversations)
         {
             var conversation = item;
             var button = MobileListButton(
@@ -45,7 +32,7 @@ public sealed partial class MainView
             _mobileDrawerContent.Children.Add(button);
         }
 
-        if (!PinnedConversations.Any() && !RecentConversations.Any())
+        if (conversations.Length == 0)
         {
             _mobileDrawerContent.Children.Add(new TextBlock
             {
@@ -74,36 +61,26 @@ public sealed partial class MainView
                     "file"));
             }
         }
-        else
-        {
-            AddDrawerHeading(_mobileDrawerContent, ProductName);
-            _mobileDrawerContent.Children.Add(new TextBlock
-            {
-                Text = "Current mode: " + CurrentMode,
-                Foreground = ResourceBrush("HavenTextSoftBrush"),
-                Margin = new Thickness(4)
-            });
-        }
 
-        _mobileDrawer.IsVisible = true;
+        OpenMobileDrawer();
     }
 
     private async Task ShowMobileLauncherAsync()
     {
-        if (_mobileDrawer is null || _mobileDrawerContent is null)
+        if (_mobileDrawerContent is null)
             return;
 
         _mobileDrawerContent.Children.Clear();
         AddDrawerHeading(_mobileDrawerContent, "Haven apps");
 
         var modes = await _modeRegistry.GetModesAsync(CancellationToken.None);
-        foreach (var mode in modes)
+        foreach (var mode in modes.OrderBy(item => DisplayObject(item), StringComparer.CurrentCultureIgnoreCase))
         {
             var selected = mode;
             var button = MobileListButton(
                 DisplayObject(mode),
-                "Haven mode",
-                mode.Key);
+                "Haven app",
+                string.IsNullOrWhiteSpace(mode.Key) ? "apps" : mode.Key);
             button.Click += async (_, _) =>
             {
                 CloseMobileDrawer();
@@ -112,27 +89,81 @@ public sealed partial class MainView
             _mobileDrawerContent.Children.Add(button);
         }
 
-#if ANDROID
-        AddDrawerHeading(_mobileDrawerContent, "Installed apps");
-        foreach (var app in GetInstalledAndroidApps())
+        OpenMobileDrawer();
+    }
+
+    private void ShowMobileActions()
+    {
+        if (_mobileDrawerContent is null)
+            return;
+
+        _mobileDrawerContent.Children.Clear();
+        AddDrawerHeading(_mobileDrawerContent, "Actions");
+
+        foreach (var item in AllCommandItems)
         {
-            var selected = app;
-            var button = MobileListButton(selected.Label, selected.PackageName, "apps");
+            var action = item;
+            var button = MobileListButton(
+                action.Name,
+                action.Description,
+                ActionIcon(action.Name));
+            button.IsEnabled = action.RunCommand.CanExecute(null);
             button.Click += (_, _) =>
             {
                 CloseMobileDrawer();
-                LaunchAndroidApp(selected);
+                if (action.RunCommand.CanExecute(null))
+                    action.RunCommand.Execute(null);
             };
             _mobileDrawerContent.Children.Add(button);
         }
-#endif
 
-        _mobileDrawer.IsVisible = true;
+        OpenMobileDrawer();
+    }
+
+    private void AddMobileAction(string title, string detail, string icon, Action action)
+    {
+        if (_mobileDrawerContent is null)
+            return;
+
+        var button = MobileListButton(title, detail, icon);
+        button.Click += (_, _) => action();
+        _mobileDrawerContent.Children.Add(button);
+    }
+
+    private async Task ShowMobileInstalledAppsAsync()
+    {
+        if (_mobileDrawerContent is null)
+            return;
+
+        _mobileDrawerContent.Children.Clear();
+        AddDrawerHeading(_mobileDrawerContent, "Connect an app");
+        _mobileDrawerContent.Children.Add(new TextBlock
+        {
+            Text = "Selecting an app adds it to chat context. Haven will use supported Android APIs or documented web APIs and will not simply launch the app.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Foreground = ResourceBrush("HavenTextSoftBrush"),
+            Margin = new Thickness(4, 0, 4, 8)
+        });
+
+        var apps = await GetInstalledAndroidAppsAsync();
+        foreach (var app in apps)
+        {
+            var selected = app;
+            var button = MobileListButton(selected.Label, selected.PackageName, "apps");
+            button.Click += async (_, _) =>
+            {
+                CloseMobileDrawer();
+                await ConnectAndroidAppToChatAsync(selected);
+            };
+            _mobileDrawerContent.Children.Add(button);
+        }
+
+        OpenMobileDrawer();
     }
 
     private void ShowMobileNotifications()
     {
-        if (_mobileDrawer is null || _mobileDrawerContent is null)
+        if (_mobileDrawerContent is null)
             return;
 
         _mobileDrawerContent.Children.Clear();
@@ -142,7 +173,7 @@ public sealed partial class MainView
         {
             _mobileDrawerContent.Children.Add(new TextBlock
             {
-                Text = "You're all caught up.",
+                Text = "You’re all caught up.",
                 Foreground = ResourceBrush("HavenTextSoftBrush"),
                 Margin = new Thickness(4)
             });
@@ -155,7 +186,6 @@ public sealed partial class MainView
             _mobileDrawerContent.Children.Add(row);
         }
 
-        _mobileDrawer.IsVisible = true;
+        OpenMobileDrawer();
     }
-
 }

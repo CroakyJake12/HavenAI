@@ -15,16 +15,16 @@ namespace Haven.Desktop.Views;
 /// </summary>
 public sealed partial class ProjectCreatorView : UserControl
 {
-    private static readonly IBrush PageBrush = Brush("#FBFDF7");
-    private static readonly IBrush CardBrush = Brush("#FFFFFF");
-    private static readonly IBrush BorderBrush = Brush("#E2E8E0");
-    private static readonly IBrush MutedBrush = Brush("#687076");
-    private static readonly IBrush AccentBrush = Brush("#111111");
-    private static readonly IBrush AccentTextBrush = Brush("#FFFFFF");
-    private static readonly IBrush SelectedBrush = Brush("#E7F9FB");
-    private static readonly IBrush WarningBrush = Brush("#FFF7E6");
+    private static IBrush CardBrush => PaletteBrush("HavenPanelBrush", "#FFFFFF");
+    private static IBrush BorderBrush => PaletteBrush("HavenLineBrush", "#E2E8E0");
+    private static IBrush MutedBrush => PaletteBrush("HavenMutedBrush", "#687076");
+    private static IBrush AccentBrush => PaletteBrush("HavenAccentBrush", "#00A7B3");
+    private static IBrush AccentTextBrush => PaletteBrush("HavenAccentInkBrush", "#FFFFFF");
+    private static IBrush TextBrush => PaletteBrush("HavenTextBrush", "#111111");
+    private static IBrush SelectedBrush => PaletteBrush("HavenAccentSoftBrush", "#E7F9FB");
+    private static IBrush WarningBrush => PaletteBrush("HavenAccentSoftBrush", "#FFF7E6");
 
-    private readonly ScrollViewer _rootScroll;
+    private readonly Grid _rootHost;
     private readonly TextBox _promptBox;
     private readonly TextBox _templateSearchBox;
     private readonly TextBox _projectNameBox;
@@ -57,8 +57,8 @@ public sealed partial class ProjectCreatorView : UserControl
     {
         InitializeComponent();
 
-        _rootScroll = this.FindControl<ScrollViewer>("RootScroll")
-            ?? throw new InvalidOperationException("Project creator scroll host was not initialized.");
+        _rootHost = this.FindControl<Grid>("CodeBehindHost")
+            ?? throw new InvalidOperationException("Project creator host was not initialized.");
 
         _promptBox = new TextBox
         {
@@ -108,8 +108,8 @@ public sealed partial class ProjectCreatorView : UserControl
         _templatePanel = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
-            ItemWidth = 224,
-            ItemHeight = 164
+            ItemWidth = 300,
+            ItemHeight = 222
         };
 
         _packageDescriptionCard = Card(
@@ -153,8 +153,8 @@ public sealed partial class ProjectCreatorView : UserControl
         };
         AutomationProperties.SetName(_statusText, "Project creation status");
 
-        _rootScroll.Background = PageBrush;
-        _rootScroll.Content = BuildLayout();
+        _rootHost.Background = Brushes.Transparent;
+        _rootHost.Children.Add(BuildLayout());
 
         WireUiEvents();
         DataContextChanged += OnDataContextChanged;
@@ -188,6 +188,13 @@ public sealed partial class ProjectCreatorView : UserControl
             Children = { _approveButton }
         };
 
+        var existingActions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children = { _openFolderButton, _openProjectFileButton }
+        };
+
         _detailsCard = Card(
             new StackPanel
             {
@@ -202,53 +209,39 @@ public sealed partial class ProjectCreatorView : UserControl
                     Label("Destination"),
                     destinationRow,
                     _packageDescriptionCard,
+                    Heading("Open existing work", 16),
+                    new TextBlock
+                    {
+                        Text = "Choose a local project or an existing folder without running creation commands.",
+                        Foreground = MutedBrush,
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    existingActions,
                     approvalRow
                 }
             }, padding: 20);
         _detailsCard.IsVisible = false;
-
-        var existingActions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children = { _openFolderButton, _openProjectFileButton }
-        };
-        var existing = Card(
-            new StackPanel
-            {
-                Spacing = 10,
-                Children =
-                {
-                    Heading("Open existing work", 18),
-                    new TextBlock
-                    {
-                        Text = "Connecting an existing project does not run creation commands.",
-                        Foreground = MutedBrush,
-                        TextWrapping = TextWrapping.Wrap
-                    },
-                    existingActions
-                }
-            });
 
         _reviewButton.Content = new HavenIcon
         {
             IconKey = "send",
             Width = 24,
             Height = 24,
-            Foreground = Brushes.Black
+            Foreground = AccentTextBrush
         };
         _reviewButton.Width = 62;
         _reviewButton.Height = 62;
         _reviewButton.CornerRadius = new CornerRadius(22);
-        _reviewButton.Background = Brush("#62E6EF");
-        _reviewButton.Foreground = Brushes.Black;
+        _reviewButton.Background = AccentBrush;
+        _reviewButton.Foreground = AccentTextBrush;
         AutomationProperties.SetName(_reviewButton, "Review project proposal");
 
         var composer = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
             ColumnSpacing = 10,
-            Margin = new Thickness(0, 12, 0, 0)
+            MaxWidth = 1260,
+            HorizontalAlignment = HorizontalAlignment.Center
         };
         composer.Children.Add(_detailsToggleButton);
         Grid.SetColumn(_promptBox, 1);
@@ -274,16 +267,16 @@ public sealed partial class ProjectCreatorView : UserControl
 
         var content = new StackPanel
         {
-            Width = 1200,
-            MaxWidth = 1200,
+            Width = 1260,
+            MaxWidth = 1260,
             Spacing = 18,
-            Margin = new Thickness(32, 28, 32, 48),
+            Margin = new Thickness(32, 28, 32, 28),
             Children =
             {
                 new TextBlock
                 {
                     Text = "Create New Project",
-                    FontSize = 34,
+                    FontSize = 46,
                     FontWeight = FontWeight.Bold,
                     HorizontalAlignment = HorizontalAlignment.Center
                 },
@@ -293,17 +286,40 @@ public sealed partial class ProjectCreatorView : UserControl
                 installedTemplates,
                 _detailsCard,
                 _proposalCard,
-                existing,
-                composer,
-                _statusText,
             }
         };
 
-        return new Grid
+        var root = new Grid
         {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Children = { content }
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            Children =
+            {
+                new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                    Content = new Grid
+                    {
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Children = { content }
+                    }
+                }
+            }
         };
+        var footer = new Border
+        {
+            Padding = new Thickness(32, 10, 32, 26),
+            Child = new StackPanel
+            {
+                MaxWidth = 1260,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Spacing = 6,
+                Children = { _statusText, composer }
+            }
+        };
+        Grid.SetRow(footer, 1);
+        root.Children.Add(footer);
+        return root;
     }
 
     private Border BuildProposalCard()
@@ -424,8 +440,8 @@ public sealed partial class ProjectCreatorView : UserControl
     {
         "Console app" => "file",
         "Class library" => "folder",
-        "Web API" => "browser",
-        "Worker service" => "automations",
+        "Web API" => "browse",
+        "Worker service" => "tasks",
         _ => "file"
     };
 
@@ -433,12 +449,12 @@ public sealed partial class ProjectCreatorView : UserControl
     {
         var button = new Button
         {
-            Width = 210,
-            Height = 150,
-            Margin = new Thickness(0, 0, 14, 14),
-            Padding = new Thickness(16),
+            Width = 290,
+            Height = 210,
+            Margin = new Thickness(0, 0, 10, 12),
+            Padding = new Thickness(18),
             CornerRadius = new CornerRadius(24),
-            Background = Brush("#DFFBFD"),
+            Background = SelectedBrush,
             BorderBrush = BorderBrush,
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -453,11 +469,11 @@ public sealed partial class ProjectCreatorView : UserControl
                     new HavenIcon
                     {
                         IconKey = icon,
-                        Width = 48,
-                        Height = 48,
-                        Foreground = Brushes.Black
+                        Width = 64,
+                        Height = 64,
+                        Foreground = TextBrush
                     },
-                    Heading(title, 16),
+                     Heading(title, 17),
                     new TextBlock
                     {
                         Text = description,

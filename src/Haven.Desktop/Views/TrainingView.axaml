@@ -84,14 +84,15 @@
             <TextBox Text="{Binding WorkspacePath}" MinWidth="300"/>
           </StackPanel>
 
-          <!-- Row 2-3, Col 1: Model dropdown + duration numeric input -->
+          <!-- The universal header owns model selection for every surface. -->
           <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Vertical" Spacing="4">
-            <TextBlock Text="Model" Classes="section-header"/>
+            <TextBlock Text="Universal model" Classes="section-header"/>
             <TextBlock Text="Duration (minutes)" Classes="section-header"/>
           </StackPanel>
           <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" Spacing="8">
-            <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel}"
-                      MinWidth="200"/>
+            <Border Classes="statusPill" MinWidth="200" Padding="12,8">
+              <TextBlock Text="{Binding SelectedModel}" FontWeight="SemiBold"/>
+            </Border>
             <NumericUpDown Value="{Binding DurationMinutes}" Minimum="1" Maximum="480"
                           Increment="5" FormatString="F0" MinWidth="120"/>
           </StackPanel>
