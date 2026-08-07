@@ -20,14 +20,14 @@ public sealed partial class ChatPage
     {
         if (!_finalUiBuilt || _finalComposer is null)
         {
-            Dispatcher.UIThread.Post(ApplyAndroidMobileComposition);
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(ApplyAndroidMobileComposition);
             return;
         }
 
-        if (_finalComposer.Parent is not Grid composerRow
-            || composerRow.Parent is not Border composerSurface
-            || composerSurface.Parent is not StackPanel composerStack
-            || composerStack.Parent is not Grid main)
+        if (_finalComposer.Parent is not Grid composerRow ||
+            composerRow.Parent is not Border composerSurface ||
+            composerSurface.Parent is not StackPanel composerStack ||
+            composerStack.Parent is not Grid main)
         {
             return;
         }
@@ -40,7 +40,8 @@ public sealed partial class ChatPage
                 if (!ReferenceEquals(child, main))
                     child.IsVisible = false;
             }
-            Grid.SetColumn((main), 0);
+
+            Grid.SetColumn(main, 0);
         }
 
         var header = main.Children
@@ -54,23 +55,21 @@ public sealed partial class ChatPage
 
         if (_androidMobileCompositionApplied)
             return;
+
         _androidMobileCompositionApplied = true;
-        EnsureAndroidChatbarGrip(composerSurface, composerRow);
+        EnsureAndroidChatbarGrip(composerStack, composerSurface);
         composerSurface.PointerPressed += OnAndroidChatbarPointerPressed;
         composerSurface.PointerReleased += OnAndroidChatbarPointerReleased;
     }
 
     private void EnsureAndroidModeSwitcher(Grid header)
     {
-        var existing = header.Children
+        if (header.Children
             .OfType<Border>()
-            .FirstOrDefault(item => string.Equals(
-                item.Name,
-                "AndroidChatModeSwitcher",
-                StringComparison.Ordinal));
-
-        if (existing is not null)
+            .Any(item => string.Equals(item.Name, "AndroidChatModeSwitcher", StringComparison.Ordinal)))
+        {
             return;
+        }
 
         foreach (var text in header.Children.OfType<TextBlock>())
             text.IsVisible = false;
@@ -114,36 +113,29 @@ public sealed partial class ChatPage
         return button;
     }
 
-    private void EnsureAndroidChatbarGrip(Border composerSurface, Grid composerRow)
+    private void EnsureAndroidChatbarGrip(StackPanel composerStack, Border composerSurface)
     {
-        if (composerSurface.Child is Grid existing
-            && existing.Name == "AndroidChatbarWrapper")
+        if (composerStack.Children
+            .OfType<Border>()
+            .Any(item => string.Equals(item.Name, "AndroidChatbarGrip", StringComparison.Ordinal)))
         {
             return;
         }
 
-        composerSurface.Child = null;
-
         var grip = new Border
         {
+            Name = "AndroidChatbarGrip",
             Width = 42,
             Height = 4,
             CornerRadius = new CornerRadius(3),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 5),
-            Background = new SolidColorBrush(Color.FromArgb(60, 0, 0, 0)),
+            Margin = new Thickness(0, 0, 0, 2),
+            Background = new SolidColorBrush(Color.FromArgb(70, 0, 0, 0)),
             IsHitTestVisible = false
         };
 
-        var wrapper = new Grid
-        {
-            Name = "AndroidChatbarWrapper",
-            RowDefinitions = new RowDefinitions("Auto,*")
-        };
-        wrapper.Children.Add(grip);
-        Grid.SetRow(composerRow, 1);
-        wrapper.Children.Add(composerRow);
-        composerSurface.Child = wrapper;
+        var composerIndex = composerStack.Children.IndexOf(composerSurface);
+        composerStack.Children.Insert(Math.Max(0, composerIndex), grip);
     }
 
     private void OnAndroidChatbarPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -159,12 +151,11 @@ public sealed partial class ChatPage
 
         var end = e.GetPosition(target);
         _androidChatbarPointerStart = null;
+        if (start.Y - end.Y < 36)
+            return;
 
-        if (start.Y - end.Y >= 36)
-        {
-            e.Handled = true;
-            ShowAndroidChatSheet(target);
-        }
+        e.Handled = true;
+        ShowAndroidChatSheet(target);
     }
 
     private void ShowAndroidChatSheet(Control target)
@@ -182,23 +173,21 @@ public sealed partial class ChatPage
             Height = 4,
             CornerRadius = new CornerRadius(3),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 4),
             Background = new SolidColorBrush(Color.FromArgb(70, 0, 0, 0))
         });
         panel.Children.Add(new TextBlock
         {
             Text = "Chats",
             FontSize = 18,
-            FontWeight = FontWeight.ExtraBold,
-            Margin = new Thickness(2, 0, 0, 2)
+            FontWeight = FontWeight.ExtraBold
         });
 
-        var quickActions = new Grid
+        var quick = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*"),
             ColumnSpacing = 8
         };
-        quickActions.Children.Add(AndroidSheetButton("New chat", () =>
+        quick.Children.Add(AndroidSheetButton("New chat", () =>
         {
             _androidChatSheet?.Hide();
             FinalExecuteFirstCommand(
@@ -209,11 +198,13 @@ public sealed partial class ChatPage
             _finalComposer?.Focus();
         }));
 
-        var containerLabel = FinalReadString(DataContext, "NewContainerLabel");
-        if (string.IsNullOrWhiteSpace(containerLabel))
-            containerLabel = "+ Chat group";
-        containerLabel = containerLabel.Trim().TrimStart('+').Trim();
-        var newGroup = AndroidSheetButton("New " + containerLabel.TrimStart('+').Trim().ToLowerInvariant(), () =>
+        var groupLabel = Mode switch
+        {
+            HavenMode.Study => "New subject",
+            HavenMode.Tasks => "New research group",
+            _ => "New chat group"
+        };
+        var newGroup = AndroidSheetButton(groupLabel, () =>
         {
             _androidChatSheet?.Hide();
             FinalExecuteFirstCommand(
@@ -223,8 +214,8 @@ public sealed partial class ChatPage
                 "NewChatGroupCommand");
         });
         Grid.SetColumn(newGroup, 1);
-        quickActions.Children.Add(newGroup);
-        panel.Children.Add(quickActions);
+        quick.Children.Add(newGroup);
+        panel.Children.Add(quick);
 
         AddAndroidSheetSection(
             panel,
@@ -235,7 +226,12 @@ public sealed partial class ChatPage
 
         AddAndroidSheetSection(
             panel,
-            Mode == HavenMode.Study ? "Subjects" : Mode == HavenMode.Tasks ? "Research groups" : "Chat groups",
+            Mode switch
+            {
+                HavenMode.Study => "Subjects",
+                HavenMode.Tasks => "Research groups",
+                _ => "Chat groups"
+            },
             FinalReadItems(DataContext, "Containers", "ChatGroups").Take(12),
             "SelectContainerCommand",
             "SelectChatGroupCommand");
@@ -250,10 +246,10 @@ public sealed partial class ChatPage
         }
 
         var availableWidth = Bounds.Width > 0 ? Bounds.Width - 16 : 344;
-        var border = new Border
+        var content = new Border
         {
             Width = Math.Clamp(availableWidth, 280, 420),
-            MaxHeight = Bounds.Height > 0 ? Math.Max(300, Bounds.Height * 0.70) : 520,
+            MaxHeight = Bounds.Height > 0 ? Math.Max(300, Bounds.Height * 0.72) : 520,
             Background = FinalBrush("HavenElevatedBrush"),
             BorderBrush = FinalBrush("HavenLineBrush"),
             BorderThickness = new Thickness(1),
@@ -269,7 +265,7 @@ public sealed partial class ChatPage
         _androidChatSheet = new Flyout
         {
             Placement = PlacementMode.TopEdgeAlignedLeft,
-            Content = border
+            Content = content
         };
         _androidChatSheet.ShowAt(target);
     }
