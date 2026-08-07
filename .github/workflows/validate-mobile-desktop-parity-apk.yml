@@ -190,31 +190,31 @@ jobs:
             grep -q 'scrollable="true"' artifacts/smoke/drawer.xml
 
             python3 - "$package" artifacts/smoke/drawer.xml artifacts/smoke/drawer-tap.txt <<'PY'
-import re
-import sys
-import xml.etree.ElementTree as ET
-
-package, xml_path, out_path = sys.argv[1:]
-root = ET.parse(xml_path).getroot()
-candidates = []
-for node in root.iter("node"):
-    desc = node.attrib.get("content-desc", "")
-    bounds = node.attrib.get("bounds", "")
-    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
-    if "," not in desc or package in desc or match is None:
-        continue
-    x1, y1, x2, y2 = map(int, match.groups())
-    if x2 <= x1 or y2 <= y1:
-        continue
-    score = 0 if "com.android.settings" in desc else 1
-    candidates.append((score, desc, (x1 + x2) // 2, (y1 + y2) // 2))
-if not candidates:
-    raise SystemExit("No launchable app tile exposed in Haven app drawer")
-candidates.sort()
-_, desc, x, y = candidates[0]
-with open(out_path, "w", encoding="utf-8") as f:
-    f.write(f"{x} {y}\n{desc}\n")
-PY
+            import re
+            import sys
+            import xml.etree.ElementTree as ET
+            
+            package, xml_path, out_path = sys.argv[1:]
+            root = ET.parse(xml_path).getroot()
+            candidates = []
+            for node in root.iter("node"):
+                desc = node.attrib.get("content-desc", "")
+                bounds = node.attrib.get("bounds", "")
+                match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
+                if "," not in desc or package in desc or match is None:
+                    continue
+                x1, y1, x2, y2 = map(int, match.groups())
+                if x2 <= x1 or y2 <= y1:
+                    continue
+                score = 0 if "com.android.settings" in desc else 1
+                candidates.append((score, desc, (x1 + x2) // 2, (y1 + y2) // 2))
+            if not candidates:
+                raise SystemExit("No launchable app tile exposed in Haven app drawer")
+            candidates.sort()
+            _, desc, x, y = candidates[0]
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(f"{x} {y}\n{desc}\n")
+            PY
             read tap_x tap_y < artifacts/smoke/drawer-tap.txt
             adb shell input tap "$tap_x" "$tap_y"
             sleep 4
