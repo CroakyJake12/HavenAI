@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -7,19 +8,33 @@ public sealed partial class MainView
 {
     private void InstallMobileChatSidebarPolicy()
     {
+        // Keep the shared desktop sidebar and its commands intact. On Android it
+        // overlays the content column instead of reserving a desktop-width column.
         SidebarControl.IsVisible = false;
-        NativeSidebarHost.IsVisible = false;
-        SidebarControl.PropertyChanged += OnMobileSidebarHostPropertyChanged;
-        NativeSidebarHost.PropertyChanged += OnMobileSidebarHostPropertyChanged;
+        ConfigureMobileSidebarHost(NativeSidebarHost);
+        ApplyMobileChatSidebarState();
     }
 
-    private void OnMobileSidebarHostPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    private void ConfigureMobileSidebarHost(Control host)
     {
-        if (!_mobileLayoutApplied || sender is not Control control || !control.IsVisible)
+        host.HorizontalAlignment = HorizontalAlignment.Left;
+        host.VerticalAlignment = VerticalAlignment.Stretch;
+        host.Margin = new Thickness(0);
+        host.ZIndex = 40;
+        host.ClipToBounds = true;
+        host.IsHitTestVisible = true;
+    }
+
+    private void ApplyMobileChatSidebarState()
+    {
+        if (!_mobileLayoutApplied)
             return;
 
-        // Shared desktop shell state can re-enable the conversation sidebar after navigation.
-        // Android keeps the desktop sidebar implementation intact but collapsed out of the mobile visual tree.
-        control.IsVisible = false;
+        // Classic's sidebar remains a desktop-only layout. New Haven's existing
+        // native chat sidebar stays functional and opens above, rather than behind,
+        // the mobile workspace.
+        SidebarControl.IsVisible = false;
+        ConfigureMobileSidebarHost(NativeSidebarHost);
+        NativeSidebarHost.IsVisible = CurrentSurface == HavenSurface.Chat && IsSidebarOpen;
     }
 }
