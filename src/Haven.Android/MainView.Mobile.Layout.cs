@@ -36,6 +36,7 @@ public sealed partial class MainView
         SidebarControl.IsVisible = false;
         NativeSidebarHost.IsVisible = false;
         ShellContextBar.IsVisible = false;
+        InstallMobileChatSidebarPolicy();
 
         foreach (var child in body.Children)
         {
