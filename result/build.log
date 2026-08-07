@@ -1,4 +1,9 @@
-source=a508ed92aca25cf8badc1ccb33164ee3ed052c58
+source=9bd28a522e9377bf3074d1a05824746cb0d971c2
+run=31134950086
+Patched src/Haven.Android/HavenLauncherActivity.cs
+Patched src/Haven.Android/HavenLauncherActivity.Settings.cs
+Patched src/Haven.Android/ModelImportActivity.cs
+Native Android compatibility patch applied.
 .NET SDK:
  Version:           10.0.302
  Commit:            35b593bebf
@@ -100,84 +105,631 @@ Installing pack Microsoft.Android.Templates version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Templates version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
 Installing pack Microsoft.Android.Sdk.Linux version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 36.1.69...
-Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
+Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 9.0.18...
 Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
 Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 9.0.18...
-Installing pack Microsoft.Android.Sdk.Linux version 35.0.105...
-Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 35.0.105...
-Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 10.0.10...
-Installing pack Microsoft.Android.Ref.36 version 36.1.69...
-Writing workload pack installation record for Microsoft.Android.Ref.36 version 36.1.69...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
+Installing pack Microsoft.Android.Sdk.Linux version 35.0.105...
+Writing workload pack installation record for Microsoft.Android.Sdk.Linux version 35.0.105...
+Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x64 version 9.0.18...
+Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 9.0.18...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 10.0.10...
+Installing pack Microsoft.Android.Ref.36 version 36.1.69...
+Writing workload pack installation record for Microsoft.Android.Ref.36 version 36.1.69...
+Installing pack Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-x86 version 9.0.18...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 9.0.18...
+Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
 Installing pack Microsoft.Android.Runtime.36.android version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.36.android version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoAOTCompiler.Task version 10.0.10...
+Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
+Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-arm version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-arm version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 9.0.18...
-Installing pack Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
-Writing workload pack installation record for Microsoft.NET.Runtime.MonoTargets.Sdk version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-arm64 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-arm64 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 9.0.18...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 9.0.18...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x86 version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-x86 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-x86 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm version 10.0.10...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-x64 version 10.0.10...
+Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
+Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
 Installing pack Microsoft.Android.Runtime.Mono.36.android-x64 version 36.1.69...
 Writing workload pack installation record for Microsoft.Android.Runtime.Mono.36.android-x64 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.Mono.android-arm64 version 10.0.10...
-Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
-Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm version 10.0.10...
-Installing pack Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
-Writing workload pack installation record for Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
 Installing pack Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
 Writing workload pack installation record for Microsoft.NETCore.App.Runtime.AOT.linux-x64.Cross.android-arm64 version 10.0.10...
+Installing pack Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
+Writing workload pack installation record for Microsoft.Android.Runtime.CoreCLR.36.android-arm64 version 36.1.69...
 Garbage collecting for SDK feature band(s) 8.0.100 8.0.200 8.0.300 8.0.400 9.0.100 9.0.200 9.0.300 10.0.100 10.0.200 10.0.300...
 
 Successfully installed workload(s) android.
 
   Determining projects to restore...
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 150 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 150 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Application/Haven.Application.csproj (in 175 ms).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/Haven.Browser.csproj (in 175 ms).
   Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Core/Haven.Core.csproj (in 3 ms).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.31 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.48 sec).
-  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 3.82 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/Haven.Automations.csproj (in 1.29 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/Haven.Infrastructure.csproj (in 1.53 sec).
+  Restored /home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj (in 3.67 sec).
   Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
   Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
   Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
   Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
   Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(205,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuView' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(209,39): error CS0117: 'ResourceConstant.Drawable' does not contain a definition for 'IcMenuManage' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(288,46): error CS0246: The type or namespace name 'MainActivity' could not be found (are you missing a using directive or an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
-/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.Settings.cs(295,46): error CS0246: The type or namespace name 'MainActivity' could not be found (are you missing a using directive or an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+  Haven.Android -> /home/runner/work/HavenAI/HavenAI/src/Haven.Android/bin/Debug/net10.0-android/Haven.dll
+  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
+  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
+  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
+  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
+  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
+/usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/usr/share/dotnet/packs/Microsoft.Android.Sdk.Linux/36.1.69/tools/Xamarin.Android.Common.targets(2417,3): warning XA0141: Android 16 will require 16 KB page sizes, shared library 'libonnxruntime_providers_shared.so' does not have a 16 KB page size. Please inform the authors of the NuGet package 'Microsoft.ML.OnnxRuntime' version '1.22.0' which contains 'runtimes/linux-x64/native/libonnxruntime_providers_shared.so'. See https://developer.android.com/guide/practices/page-sizes for more details. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+obj/Debug/net10.0-android/lp/2/jl/jni/x86_64/libonnxruntime.so : warning XA4301: APK already contains the item lib/x86_64/libonnxruntime.so; ignoring. [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+Archive:  /tmp/haven-apk-result/Haven-Mobile.apk
+    testing: AndroidManifest.xml      OK
+    testing: res/drawable/haven_icon.xml   OK
+    testing: resources.arsc           OK
+    testing: lib/arm64-v8a/lib_Microsoft.CSharp.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.VisualBasic.Core.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.VisualBasic.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Win32.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Win32.Registry.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.AppContext.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Buffers.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Collections.Concurrent.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Collections.Immutable.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Collections.NonGeneric.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Collections.Specialized.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Collections.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.Annotations.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.DataAnnotations.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.EventBasedAsync.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.TypeConverter.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ComponentModel.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Configuration.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Console.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Core.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Data.Common.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Data.DataSetExtensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Data.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.Contracts.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.Debug.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.DiagnosticSource.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.FileVersionInfo.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.Process.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.StackTrace.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.TextWriterTraceListener.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.Tools.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.TraceSource.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.Tracing.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Drawing.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Drawing.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Dynamic.Runtime.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Formats.Asn1.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Formats.Tar.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Globalization.Calendars.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Globalization.Extensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Globalization.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Compression.Brotli.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Compression.FileSystem.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Compression.ZipFile.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Compression.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.FileSystem.AccessControl.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.FileSystem.DriveInfo.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.FileSystem.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.FileSystem.Watcher.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.FileSystem.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.IsolatedStorage.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.MemoryMappedFiles.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Pipelines.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Pipes.AccessControl.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Pipes.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.UnmanagedMemoryStream.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Linq.AsyncEnumerable.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Linq.Expressions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Linq.Parallel.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Linq.Queryable.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Linq.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Memory.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Http.Json.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Http.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.HttpListener.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Mail.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.NameResolution.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.NetworkInformation.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Ping.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Quic.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Requests.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Security.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.ServerSentEvents.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.ServicePoint.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.Sockets.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.WebClient.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.WebHeaderCollection.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.WebProxy.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.WebSockets.Client.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.WebSockets.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Net.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Numerics.Vectors.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Numerics.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ObjectModel.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Private.DataContractSerialization.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Private.Uri.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Private.Xml.Linq.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Private.Xml.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.DispatchProxy.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Emit.ILGeneration.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Emit.Lightweight.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Emit.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Extensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Metadata.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.TypeExtensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Reflection.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Resources.Reader.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Resources.ResourceManager.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Resources.Writer.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.CompilerServices.Unsafe.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.CompilerServices.VisualC.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Extensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Handles.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.InteropServices.JavaScript.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.InteropServices.RuntimeInformation.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.InteropServices.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Intrinsics.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Loader.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Numerics.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Serialization.Formatters.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Serialization.Json.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Serialization.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Serialization.Xml.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.Serialization.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Runtime.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.AccessControl.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Claims.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.Algorithms.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.Cng.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.Csp.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.Encoding.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.OpenSsl.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.X509Certificates.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Cryptography.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Principal.Windows.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.Principal.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.SecureString.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Security.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ServiceModel.Web.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ServiceProcess.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.Encoding.CodePages.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.Encoding.Extensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.Encoding.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.Encodings.Web.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.Json.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Text.RegularExpressions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.AccessControl.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Channels.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Overlapped.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Tasks.Dataflow.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Tasks.Extensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Tasks.Parallel.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Tasks.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Thread.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.ThreadPool.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.Timer.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Threading.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Transactions.Local.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Transactions.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.ValueTuple.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Web.HttpUtility.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Web.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Windows.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.Linq.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.ReaderWriter.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.Serialization.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.XDocument.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.XPath.XDocument.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.XPath.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.XmlDocument.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.XmlSerializer.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Xml.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.dll.so   OK
+    testing: lib/arm64-v8a/lib_WindowsBase.dll.so   OK
+    testing: lib/arm64-v8a/lib_mscorlib.dll.so   OK
+    testing: lib/arm64-v8a/lib_netstandard.dll.so   OK
+    testing: lib/arm64-v8a/lib_Java.Interop.dll.so   OK
+    testing: lib/arm64-v8a/lib_Mono.Android.Export.dll.so   OK
+    testing: lib/arm64-v8a/lib_Mono.Android.Runtime.dll.so   OK
+    testing: lib/arm64-v8a/lib_Mono.Android.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.IO.Hashing.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Private.CoreLib.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.pdb.so   OK
+    testing: lib/arm64-v8a/lib_KokoroSharp.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Data.Sqlite.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.AI.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.Binder.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.CommandLine.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.EnvironmentVariables.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.FileExtensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.Json.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Configuration.UserSecrets.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.DependencyInjection.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.DependencyInjection.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Diagnostics.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Diagnostics.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.FileProviders.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.FileProviders.Physical.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.FileSystemGlobbing.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Hosting.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Hosting.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Http.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.Abstractions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.Configuration.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.Console.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.Debug.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.EventLog.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Logging.EventSource.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Options.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Options.ConfigurationExtensions.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.Extensions.Primitives.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.ML.OnnxRuntime.dll.so   OK
+    testing: lib/arm64-v8a/lib_Microsoft.ML.OnnxRuntime.pdb.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.dll.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.Asio.dll.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.Core.dll.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.Midi.dll.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.Wasapi.dll.so   OK
+    testing: lib/arm64-v8a/lib_NAudio.WinMM.dll.so   OK
+    testing: lib/arm64-v8a/lib_NumSharp.dll.so   OK
+    testing: lib/arm64-v8a/lib_NumSharp.pdb.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Audio.OpenAL.dll.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Audio.OpenAL.pdb.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Core.dll.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Core.pdb.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Mathematics.dll.so   OK
+    testing: lib/arm64-v8a/lib_OpenTK.Mathematics.pdb.so   OK
+    testing: lib/arm64-v8a/lib_SQLitePCLRaw.batteries_v2.dll.so   OK
+    testing: lib/arm64-v8a/lib_SQLitePCLRaw.core.dll.so   OK
+    testing: lib/arm64-v8a/lib_SQLitePCLRaw.provider.e_sqlite3.dll.so   OK
+    testing: lib/arm64-v8a/lib_SQLitePCLRaw.provider.winsqlite3.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Diagnostics.EventLog.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Numerics.Tensors.dll.so   OK
+    testing: lib/arm64-v8a/lib_System.Speech.dll.so   OK
+    testing: lib/arm64-v8a/lib_WebRtcVadSharp.dll.so   OK
+    testing: lib/arm64-v8a/lib_WebRtcVadSharp.pdb.so   OK
+    testing: lib/arm64-v8a/lib_Whisper.net.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Application.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Application.pdb.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Automations.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Automations.pdb.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Browser.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Browser.pdb.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Core.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Core.pdb.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Infrastructure.dll.so   OK
+    testing: lib/arm64-v8a/lib_Haven.Infrastructure.pdb.so   OK
+    testing: lib/arm64-v8a/lib__Microsoft.Android.Resource.Designer.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.CSharp.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.VisualBasic.Core.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.VisualBasic.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Win32.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Win32.Registry.dll.so   OK
+    testing: lib/x86_64/lib_System.AppContext.dll.so   OK
+    testing: lib/x86_64/lib_System.Buffers.dll.so   OK
+    testing: lib/x86_64/lib_System.Collections.Concurrent.dll.so   OK
+    testing: lib/x86_64/lib_System.Collections.Immutable.dll.so   OK
+    testing: lib/x86_64/lib_System.Collections.NonGeneric.dll.so   OK
+    testing: lib/x86_64/lib_System.Collections.Specialized.dll.so   OK
+    testing: lib/x86_64/lib_System.Collections.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.Annotations.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.DataAnnotations.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.EventBasedAsync.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.TypeConverter.dll.so   OK
+    testing: lib/x86_64/lib_System.ComponentModel.dll.so   OK
+    testing: lib/x86_64/lib_System.Configuration.dll.so   OK
+    testing: lib/x86_64/lib_System.Console.dll.so   OK
+    testing: lib/x86_64/lib_System.Core.dll.so   OK
+    testing: lib/x86_64/lib_System.Data.Common.dll.so   OK
+    testing: lib/x86_64/lib_System.Data.DataSetExtensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Data.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.Contracts.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.Debug.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.DiagnosticSource.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.FileVersionInfo.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.Process.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.StackTrace.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.TextWriterTraceListener.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.Tools.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.TraceSource.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.Tracing.dll.so   OK
+    testing: lib/x86_64/lib_System.Drawing.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.Drawing.dll.so   OK
+    testing: lib/x86_64/lib_System.Dynamic.Runtime.dll.so   OK
+    testing: lib/x86_64/lib_System.Formats.Asn1.dll.so   OK
+    testing: lib/x86_64/lib_System.Formats.Tar.dll.so   OK
+    testing: lib/x86_64/lib_System.Globalization.Calendars.dll.so   OK
+    testing: lib/x86_64/lib_System.Globalization.Extensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Globalization.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Compression.Brotli.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Compression.FileSystem.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Compression.ZipFile.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Compression.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.FileSystem.AccessControl.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.FileSystem.DriveInfo.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.FileSystem.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.FileSystem.Watcher.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.FileSystem.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.IsolatedStorage.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.MemoryMappedFiles.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Pipelines.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Pipes.AccessControl.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Pipes.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.UnmanagedMemoryStream.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.dll.so   OK
+    testing: lib/x86_64/lib_System.Linq.AsyncEnumerable.dll.so   OK
+    testing: lib/x86_64/lib_System.Linq.Expressions.dll.so   OK
+    testing: lib/x86_64/lib_System.Linq.Parallel.dll.so   OK
+    testing: lib/x86_64/lib_System.Linq.Queryable.dll.so   OK
+    testing: lib/x86_64/lib_System.Linq.dll.so   OK
+    testing: lib/x86_64/lib_System.Memory.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Http.Json.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Http.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.HttpListener.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Mail.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.NameResolution.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.NetworkInformation.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Ping.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Quic.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Requests.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Security.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.ServerSentEvents.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.ServicePoint.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.Sockets.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.WebClient.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.WebHeaderCollection.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.WebProxy.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.WebSockets.Client.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.WebSockets.dll.so   OK
+    testing: lib/x86_64/lib_System.Net.dll.so   OK
+    testing: lib/x86_64/lib_System.Numerics.Vectors.dll.so   OK
+    testing: lib/x86_64/lib_System.Numerics.dll.so   OK
+    testing: lib/x86_64/lib_System.ObjectModel.dll.so   OK
+    testing: lib/x86_64/lib_System.Private.DataContractSerialization.dll.so   OK
+    testing: lib/x86_64/lib_System.Private.Uri.dll.so   OK
+    testing: lib/x86_64/lib_System.Private.Xml.Linq.dll.so   OK
+    testing: lib/x86_64/lib_System.Private.Xml.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.DispatchProxy.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Emit.ILGeneration.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Emit.Lightweight.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Emit.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Extensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Metadata.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.TypeExtensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Reflection.dll.so   OK
+    testing: lib/x86_64/lib_System.Resources.Reader.dll.so   OK
+    testing: lib/x86_64/lib_System.Resources.ResourceManager.dll.so   OK
+    testing: lib/x86_64/lib_System.Resources.Writer.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.CompilerServices.Unsafe.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.CompilerServices.VisualC.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Extensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Handles.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.InteropServices.JavaScript.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.InteropServices.RuntimeInformation.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.InteropServices.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Intrinsics.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Loader.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Numerics.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Serialization.Formatters.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Serialization.Json.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Serialization.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Serialization.Xml.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.Serialization.dll.so   OK
+    testing: lib/x86_64/lib_System.Runtime.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.AccessControl.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Claims.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.Algorithms.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.Cng.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.Csp.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.Encoding.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.OpenSsl.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.X509Certificates.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Cryptography.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Principal.Windows.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.Principal.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.SecureString.dll.so   OK
+    testing: lib/x86_64/lib_System.Security.dll.so   OK
+    testing: lib/x86_64/lib_System.ServiceModel.Web.dll.so   OK
+    testing: lib/x86_64/lib_System.ServiceProcess.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.Encoding.CodePages.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.Encoding.Extensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.Encoding.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.Encodings.Web.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.Json.dll.so   OK
+    testing: lib/x86_64/lib_System.Text.RegularExpressions.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.AccessControl.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Channels.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Overlapped.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Tasks.Dataflow.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Tasks.Extensions.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Tasks.Parallel.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Tasks.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Thread.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.ThreadPool.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.Timer.dll.so   OK
+    testing: lib/x86_64/lib_System.Threading.dll.so   OK
+    testing: lib/x86_64/lib_System.Transactions.Local.dll.so   OK
+    testing: lib/x86_64/lib_System.Transactions.dll.so   OK
+    testing: lib/x86_64/lib_System.ValueTuple.dll.so   OK
+    testing: lib/x86_64/lib_System.Web.HttpUtility.dll.so   OK
+    testing: lib/x86_64/lib_System.Web.dll.so   OK
+    testing: lib/x86_64/lib_System.Windows.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.Linq.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.ReaderWriter.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.Serialization.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.XDocument.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.XPath.XDocument.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.XPath.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.XmlDocument.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.XmlSerializer.dll.so   OK
+    testing: lib/x86_64/lib_System.Xml.dll.so   OK
+    testing: lib/x86_64/lib_System.dll.so   OK
+    testing: lib/x86_64/lib_WindowsBase.dll.so   OK
+    testing: lib/x86_64/lib_mscorlib.dll.so   OK
+    testing: lib/x86_64/lib_netstandard.dll.so   OK
+    testing: lib/x86_64/lib_Java.Interop.dll.so   OK
+    testing: lib/x86_64/lib_Mono.Android.Export.dll.so   OK
+    testing: lib/x86_64/lib_Mono.Android.Runtime.dll.so   OK
+    testing: lib/x86_64/lib_Mono.Android.dll.so   OK
+    testing: lib/x86_64/lib_System.IO.Hashing.dll.so   OK
+    testing: lib/x86_64/lib_System.Private.CoreLib.dll.so   OK
+    testing: lib/x86_64/lib_Haven.dll.so   OK
+    testing: lib/x86_64/lib_Haven.pdb.so   OK
+    testing: lib/x86_64/lib_KokoroSharp.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Data.Sqlite.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.AI.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.Binder.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.CommandLine.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.EnvironmentVariables.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.FileExtensions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.Json.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Configuration.UserSecrets.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.DependencyInjection.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.DependencyInjection.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Diagnostics.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Diagnostics.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.FileProviders.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.FileProviders.Physical.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.FileSystemGlobbing.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Hosting.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Hosting.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Http.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.Abstractions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.Configuration.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.Console.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.Debug.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.EventLog.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Logging.EventSource.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Options.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Options.ConfigurationExtensions.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.Extensions.Primitives.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.ML.OnnxRuntime.dll.so   OK
+    testing: lib/x86_64/lib_Microsoft.ML.OnnxRuntime.pdb.so   OK
+    testing: lib/x86_64/lib_NAudio.dll.so   OK
+    testing: lib/x86_64/lib_NAudio.Asio.dll.so   OK
+    testing: lib/x86_64/lib_NAudio.Core.dll.so   OK
+    testing: lib/x86_64/lib_NAudio.Midi.dll.so   OK
+    testing: lib/x86_64/lib_NAudio.Wasapi.dll.so   OK
+    testing: lib/x86_64/lib_NAudio.WinMM.dll.so   OK
+    testing: lib/x86_64/lib_NumSharp.dll.so   OK
+    testing: lib/x86_64/lib_NumSharp.pdb.so   OK
+    testing: lib/x86_64/lib_OpenTK.Audio.OpenAL.dll.so   OK
+    testing: lib/x86_64/lib_OpenTK.Audio.OpenAL.pdb.so   OK
+    testing: lib/x86_64/lib_OpenTK.Core.dll.so   OK
+    testing: lib/x86_64/lib_OpenTK.Core.pdb.so   OK
+    testing: lib/x86_64/lib_OpenTK.Mathematics.dll.so   OK
+    testing: lib/x86_64/lib_OpenTK.Mathematics.pdb.so   OK
+    testing: lib/x86_64/lib_SQLitePCLRaw.batteries_v2.dll.so   OK
+    testing: lib/x86_64/lib_SQLitePCLRaw.core.dll.so   OK
+    testing: lib/x86_64/lib_SQLitePCLRaw.provider.e_sqlite3.dll.so   OK
+    testing: lib/x86_64/lib_SQLitePCLRaw.provider.winsqlite3.dll.so   OK
+    testing: lib/x86_64/lib_System.Diagnostics.EventLog.dll.so   OK
+    testing: lib/x86_64/lib_System.Numerics.Tensors.dll.so   OK
+    testing: lib/x86_64/lib_System.Speech.dll.so   OK
+    testing: lib/x86_64/lib_WebRtcVadSharp.dll.so   OK
+    testing: lib/x86_64/lib_WebRtcVadSharp.pdb.so   OK
+    testing: lib/x86_64/lib_Whisper.net.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Application.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Application.pdb.so   OK
+    testing: lib/x86_64/lib_Haven.Automations.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Automations.pdb.so   OK
+    testing: lib/x86_64/lib_Haven.Browser.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Browser.pdb.so   OK
+    testing: lib/x86_64/lib_Haven.Core.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Core.pdb.so   OK
+    testing: lib/x86_64/lib_Haven.Infrastructure.dll.so   OK
+    testing: lib/x86_64/lib_Haven.Infrastructure.pdb.so   OK
+    testing: lib/x86_64/lib__Microsoft.Android.Resource.Designer.dll.so   OK
+    testing: classes.dex              OK
+    testing: lib/arm64-v8a/libarc.bin.so   OK
+    testing: lib/x86_64/libarc.bin.so   OK
+    testing: lib/arm64-v8a/libxamarin-app.so   OK
+    testing: lib/x86_64/libxamarin-app.so   OK
+    testing: lib/arm64-v8a/libSystem.Globalization.Native.so   OK
+    testing: lib/arm64-v8a/libSystem.IO.Compression.Native.so   OK
+    testing: lib/arm64-v8a/libSystem.Native.so   OK
+    testing: lib/arm64-v8a/libSystem.Security.Cryptography.Native.Android.so   OK
+    testing: lib/arm64-v8a/libmono-component-debugger.so   OK
+    testing: lib/arm64-v8a/libmono-component-hot_reload.so   OK
+    testing: lib/arm64-v8a/libmono-component-marshal-ilgen.so   OK
+    testing: lib/arm64-v8a/libmonosgen-2.0.so   OK
+    testing: lib/arm64-v8a/libmonodroid.so   OK
+    testing: lib/arm64-v8a/libxamarin-debug-app-helper.so   OK
+    testing: lib/arm64-v8a/libe_sqlite3.so   OK
+    testing: lib/x86_64/libSystem.Globalization.Native.so   OK
+    testing: lib/x86_64/libSystem.IO.Compression.Native.so   OK
+    testing: lib/x86_64/libSystem.Native.so   OK
+    testing: lib/x86_64/libSystem.Security.Cryptography.Native.Android.so   OK
+    testing: lib/x86_64/libmono-component-debugger.so   OK
+    testing: lib/x86_64/libmono-component-hot_reload.so   OK
+    testing: lib/x86_64/libmono-component-marshal-ilgen.so   OK
+    testing: lib/x86_64/libmonosgen-2.0.so   OK
+    testing: lib/x86_64/libmonodroid.so   OK
+    testing: lib/x86_64/libxamarin-debug-app-helper.so   OK
+    testing: lib/x86_64/libonnxruntime.so   OK
+    testing: lib/x86_64/libonnxruntime_providers_shared.so   OK
+    testing: lib/x86_64/libe_sqlite3.so   OK
+    testing: lib/arm64-v8a/libonnxruntime4j_jni.so   OK
+    testing: lib/arm64-v8a/libonnxruntime.so   OK
+    testing: lib/x86_64/libonnxruntime4j_jni.so   OK
+    testing: META-INF/ANDROIDD.SF     OK
+    testing: META-INF/ANDROIDD.RSA    OK
+    testing: META-INF/MANIFEST.MF     OK
+No errors detected in compressed data of /tmp/haven-apk-result/Haven-Mobile.apk.
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
 From https://github.com/CroakyJake12/HavenAI
- * [new branch]      apk-output-20260806-2204 -> apk-output-20260806-2204
-Previous HEAD position was a508ed9 Add deterministic emergency Android APK builder
-Switched to branch 'apk-output-20260806-2204'
-Removing src/
+ * branch            apk-output-20260806-2204 -> FETCH_HEAD
+Preparing worktree (detached HEAD 8eeaecd)
+HEAD is now at 8eeaecd Export Haven APK run 31132859351
