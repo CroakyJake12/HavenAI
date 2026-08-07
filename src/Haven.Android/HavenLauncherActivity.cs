@@ -104,7 +104,7 @@ public sealed partial class HavenLauncherActivity : Activity
 
         // Re-query launchable activities whenever the launcher comes to the
         // foreground so installs/uninstalls and a failed initial query recover.
-        _root?.Post(LoadAppAsync);
+        _root?.Post(LoadAppsAsync);
     }
 
     public override void OnBackPressed()
@@ -196,7 +196,7 @@ public sealed partial class HavenLauncherActivity : Activity
                 ViewGroup.LayoutParams.WrapContent)
         };
         _launcherStatus.SetTextColor(Color.Argb(220, 235, 225, 255));
-        _launcherStatus.SetTPadding(0, 0, 0, Dp(4));
+        _launcherStatus.SetPadding(0, 0, 0, Dp(4));
         _launcherStatus.Click += (_, _) => LoadAppsAsync();
         _root.AddView(_launcherStatus);
 
@@ -310,8 +310,6 @@ public sealed partial class HavenLauncherActivity : Activity
         {
             Text = text,
             TextSize = 12,
-            AllCaps = false,
-            MinWidth = 0,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WrapContent,
                 Dp(42))
@@ -320,6 +318,8 @@ public sealed partial class HavenLauncherActivity : Activity
                 RightMargin = Dp(2)
             }
         };
+        button.SetAllCaps(false);
+        button.SetMinWidth(0);
         button.SetTextColor(Color.White);
         button.SetBackgroundColor(Color.Transparent);
         button.Click += (_, _) => action();
