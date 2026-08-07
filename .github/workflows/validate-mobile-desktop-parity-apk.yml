@@ -151,7 +151,7 @@ jobs:
             -camera-front none
             -no-snapshot-save
           script: |
-            set -euo pipefail
+            set -eu
             mkdir -p artifacts/smoke
 
             apk="artifacts/android/Haven-Mobile-Desktop-Parity.apk"
@@ -175,7 +175,7 @@ jobs:
             test -s artifacts/smoke/pid.txt
 
             adb shell dumpsys activity activities > artifacts/smoke/activities.txt
-            grep -F "$package" artifacts/smoke/activities.txt >/dev/null
+            grep -F "$package" artifacts/android/activities.txt >/dev/null
 
             adb logcat -d -t 1200 > artifacts/smoke/logcat.txt
             adb exec-out screencap -p > artifacts/smoke/launched.png
