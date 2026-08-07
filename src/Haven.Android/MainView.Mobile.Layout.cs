@@ -14,7 +14,6 @@ public sealed partial class MainView
             return;
 
         _mobileLayoutApplied = true;
-
         if (Content is not Grid root)
             throw new InvalidOperationException("Haven's mobile shell requires the MainView root grid.");
 
@@ -22,14 +21,12 @@ public sealed partial class MainView
             .OfType<Grid>()
             .FirstOrDefault(candidate => Grid.GetRow(candidate) == 1)
             ?? throw new InvalidOperationException("Haven's main content grid was not found.");
-
         var contentHost = body.Children
             .OfType<Grid>()
             .FirstOrDefault(candidate => Grid.GetColumn(candidate) == 1)
             ?? throw new InvalidOperationException("Haven's content host was not found.");
 
-        // Mobile adapts the desktop shell instead of creating a second shell.
-        // Tabs, Actions and Model therefore keep the exact desktop controls and event flow.
+        // Mobile adapts the shared desktop shell instead of creating a parallel header.
         TopRail.IsVisible = true;
         TopRail.ApplyMobileCompactLayout();
 
@@ -52,8 +49,6 @@ public sealed partial class MainView
         ContentArea.CornerRadius = new CornerRadius(18);
         PageContent.Margin = new Thickness(0);
 
-        // Replace only the model click bridge so the desktop selector opens first,
-        // then Android-specific Hugging Face/download/import actions are appended.
         TopRail.ModelRequested -= OnTopRailModelRequested;
         TopRail.ModelRequested -= OnMobileTopRailModelRequested;
         TopRail.ModelRequested += OnMobileTopRailModelRequested;
@@ -80,5 +75,9 @@ public sealed partial class MainView
         NativeSidebarHost.IsVisible = false;
         ShellContextBar.IsVisible = false;
         PageContent.Margin = new Thickness(0);
+        ApplyMobileChatSidebarState();
+
+        if (CurrentPage is Haven.Desktop.Views.Pages.Chat.ChatPage chatPage)
+            Dispatcher.UIThread.Post(chatPage.ApplyAndroidMobileComposition);
     }
 }
