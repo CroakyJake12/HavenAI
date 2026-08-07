@@ -7,8 +7,39 @@ exec > >(tee "$RESULT_DIR/build.log") 2>&1
 status=0
 
 echo "source=$(git rev-parse HEAD)"
+
+python3 - <<'PY'
+from pathlib import Path
+
+replacements = {
+    Path("src/Haven.Android/HavenLauncherActivity.cs"): [
+        ('Android.Resource.Drawable.IcMenuView', 'SystemDrawable("ic_menu_view")'),
+        ('Android.Resource.Drawable.IcMenuManage', 'SystemDrawable("ic_menu_manage")'),
+    ],
+    Path("src/Haven.Android/HavenLauncherActivity.Settings.cs"): [
+        ('typeof(MainActivity)', 'typeof(AndroidBootstrapActivity)'),
+    ],
+}
+
+for path, pairs in replacements.items():
+    text = path.read_text(encoding="utf-8")
+    original = text
+    for old, new in pairs:
+        count = text.count(old)
+        expected = 2 if old == 'typeof(MainActivity)' else 1
+        if count != expected:
+            raise RuntimeError(f"{path}: expected {expected} occurrence(s) of {old!r}, found {count}")
+        text = text.replace(old, new)
+    if text != original:
+        path.write_text(text, encoding="utf-8")
+        print(f"Patched {path}")
+PY
+if [ "$?" -ne 0 ]; then status=20; fi
+
 dotnet --info
-dotnet workload install android || status=30
+if [ "$status" -eq 0 ]; then
+  dotnet workload install android || status=30
+fi
 if [ "$status" -eq 0 ]; then
   dotnet restore src/Haven.Android/Haven.Android.csproj || status=40
 fi
