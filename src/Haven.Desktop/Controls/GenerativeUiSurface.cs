@@ -11,6 +11,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Registry;
+using Haven.Desktop.HavenUI.Tokens;
 
 namespace Haven.Desktop.Controls;
 
@@ -61,6 +62,17 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         Rebuild(document);
     }
 
+    public void PresentExisting(GenUiDocument document)
+    {
+        GenerativeUiContractValidator.ValidateAndThrow(document);
+        var registered = _instances.TryGet(document.Origin.InstanceId)
+            ?? throw new InvalidOperationException("The generated UI instance is no longer registered.");
+        if (registered.Origin.ThreadId != document.Origin.ThreadId)
+            throw new InvalidOperationException("A generated UI instance cannot move between threads.");
+        _document = registered;
+        Rebuild(registered);
+    }
+
     private void OnDocumentChanged(object? sender, GenUiDocument document)
     {
         if (_disposed || _suppressStoreNotification || _document?.Origin.InstanceId != document.Origin.InstanceId) return;
@@ -78,19 +90,50 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         _controls.Clear();
         _inputValues.Clear();
         var root = Build(document.Root);
-        Content = new HavenCard
+        var content = new StackPanel
         {
-            Padding = new Thickness(18),
-            Child = new StackPanel
+            Spacing = 8,
+            Children = { root, _activity }
+        };
+
+        // Apply per-surface accent scoping if the document specifies one.
+        // This changes accent colors only for this surface, not globally.
+        var accentSurface = ResolveAccentSurface(document.AccentKey);
+        if (accentSurface.HasValue)
+        {
+            Content = new HavenAccentScope
             {
-                Spacing = 10,
-                Children =
-                {
-                    new TextBlock { Text = document.Title, FontSize = 20, FontWeight = FontWeight.ExtraBold },
-                    root,
-                    _activity
-                }
-            }
+                AccentSurface = accentSurface.Value,
+                Content = content
+            };
+        }
+        else
+        {
+            Content = content;
+        }
+    }
+
+    private static HavenSurface? ResolveAccentSurface(string? accentKey)
+    {
+        if (string.IsNullOrWhiteSpace(accentKey)) return null;
+        return accentKey.ToLowerInvariant() switch
+        {
+            "blue" or "studio" => HavenSurface.Studio,
+            "green" or "play" => HavenSurface.Play,
+            "orange" or "tasks" => HavenSurface.Tasks,
+            "purple" or "imagine" or "violet" => HavenSurface.Imagine,
+            "teal" or "data" or "cyan" => HavenSurface.Data,
+            "pink" or "rose" => HavenSurface.Imagine,
+            "yellow" or "plan" or "gold" => HavenSurface.Plan,
+            "red" or "danger" => HavenSurface.Tasks,
+            "indigo" or "study" => HavenSurface.Study,
+            "browse" or "sky" => HavenSurface.Browse,
+            "home" => HavenSurface.Home,
+            "chat" => HavenSurface.Chat,
+            "translate" => HavenSurface.Translate,
+            "present" => HavenSurface.Present,
+            "vision" => HavenSurface.Vision,
+            _ => null
         };
     }
 

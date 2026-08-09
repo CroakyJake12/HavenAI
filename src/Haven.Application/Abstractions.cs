@@ -187,6 +187,12 @@ public interface IOllamaClient
 }
 
 /// <summary>
+/// A structured delta from a streaming chat response that can contain
+/// content and/or thinking tokens.
+/// </summary>
+public sealed record ChatDelta(string? Content = null, string? Thinking = null);
+
+/// <summary>
 /// Represents generation options and keeps its related state and behavior together.
 /// </summary>
 public sealed record GenerationOptions(double Temperature = 0.7, int ContextLimit = 32768, int ActionLimit = 24);

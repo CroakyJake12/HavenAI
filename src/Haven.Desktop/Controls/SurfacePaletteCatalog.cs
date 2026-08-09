@@ -81,8 +81,13 @@ internal static class SurfacePaletteCatalog
             [HavenSurface.Dashboard] = Hue("#FF171D4A", "#FF3527FF", "#FF5868FF", "#FF2115C7", "#FF202750")
         };
 
-    internal static Palette For(HavenSurface surface, ThemeVariant? theme) =>
-        For(surface, theme == ThemeVariant.Dark ? HavenUiAppearance.Dark : HavenUiAppearance.Bright);
+    internal static Palette For(HavenSurface surface, ThemeVariant? theme)
+    {
+        var appearance = Avalonia.Application.Current?.Resources["HavenUiAppearance"] is HavenUiAppearance configured
+            ? configured
+            : theme == ThemeVariant.Dark ? HavenUiAppearance.Dark : HavenUiAppearance.Bright;
+        return For(surface, appearance);
+    }
 
     internal static Palette For(HavenSurface surface, HavenUiAppearance appearance)
     {

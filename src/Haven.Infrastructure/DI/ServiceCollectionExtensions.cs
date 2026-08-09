@@ -89,6 +89,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<GenUiLocalActionRegistry>();
         services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());
         services.AddSingleton<CalculatorTemplateRuntime>();
+        services.AddSingleton<StructuredFormTemplateRuntime>();
+        services.AddSingleton<ChoicePromptTemplateRuntime>();
+        services.AddSingleton<ChecklistTemplateRuntime>();
+        services.AddSingleton<DataGridTemplateRuntime>();
+        services.AddSingleton<CardDeckTemplateRuntime>();
+        services.AddSingleton<GraphTemplateRuntime>();
+        services.AddSingleton<TaskListTemplateRuntime>();
+        services.AddSingleton<DashboardTemplateRuntime>();
+        services.AddSingleton<AssessmentTemplateRuntime>();
+        services.AddSingleton<WorkflowTemplateRuntime>();
+        services.AddSingleton<CustomTemplateRuntime>();
         services.AddSingleton<BoundedGenUiEventAuditSink>();
         services.AddSingleton<IGenUiEventAuditSink>(provider => provider.GetRequiredService<BoundedGenUiEventAuditSink>());
         services.AddSingleton<GenerativeUiEventRouter>();

@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+             xmlns:controls="using:Haven.Desktop.Controls"
+             x:Class="Haven.Desktop.Controls.MessageView">
+
+    <StackPanel x:Name="Root" Spacing="8" Margin="0,4">
+
+        <!-- Header row: avatar + name + timestamp -->
+        <StackPanel x:Name="HeaderRow" Orientation="Horizontal" Spacing="10"
+                    VerticalAlignment="Center">
+            <Border x:Name="Avatar" Width="28" Height="28" CornerRadius="14"
+                    Background="{DynamicResource HavenAccentTertiaryBrush}">
+                <TextBlock x:Name="AvatarLetter" FontSize="12" FontWeight="ExtraBold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{DynamicResource HavenTextPrimaryBrush}" />
+            </Border>
+            <TextBlock x:Name="RoleLabel" FontSize="13" FontWeight="Bold"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource HavenTextPrimaryBrush}" />
+        </StackPanel>
+
+        <!-- Content: markdown body -->
+        <controls:ProductionMarkdownView x:Name="Body"
+                                         Margin="38,0,0,0"
+                                         Foreground="{DynamicResource HavenTextPrimaryBrush}" />
+
+        <!-- Streaming indicator with animated dots -->
+        <StackPanel x:Name="StreamingIndicator"
+                    IsVisible="False"
+                    Margin="38,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="6">
+            <hui:HavenProgressRing Width="16" Height="16" />
+            <TextBlock x:Name="StreamingText"
+                       FontSize="12"
+                       Foreground="{DynamicResource HavenTextMutedBrush}"
+                       VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- GenUI progress indicator -->
+        <StackPanel x:Name="GenUIProgress"
+                    IsVisible="False"
+                    Margin="38,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="6">
+            <hui:HavenProgressRing Width="16" Height="16" />
+            <TextBlock x:Name="GenUIProgressText"
+                       Text="Preparing interactive content…"
+                       FontSize="12"
+                       Foreground="{DynamicResource HavenAccentSecondaryBrush}"
+                       VerticalAlignment="Center" />
+        </StackPanel>
+
+    </StackPanel>
+</UserControl>

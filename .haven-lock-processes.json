@@ -1,0 +1,7 @@
+﻿{
+    "ProcessId":  26872,
+    "ParentProcessId":  30020,
+    "Name":  "powershell.exe",
+    "ExecutablePath":  "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "CommandLine":  "\"powershell.exe\" -NoProfile -NonInteractive -Command \"$repo=\u0027C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Visual Studio\\Haven AI\\Source\u0027; Get-CimInstance Win32_Process | Where-Object { $_.Name -match \u0027^(dotnet|testhost|vstest|MSBuild|Haven|VBCSCompiler)(\\.exe)?$\u0027 -or ($_.CommandLine -and $_.CommandLine -like \\\"*$repo*\\\") } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine | Sort-Object ProcessId | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath \u0027.haven-lock-processes.json\u0027 -Encoding UTF8\""
+}

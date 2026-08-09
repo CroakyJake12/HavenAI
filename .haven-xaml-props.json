@@ -1,0 +1,8 @@
+{
+  "Properties": {
+    "TargetsTriggeredByCompilation": "",
+    "EnableAvaloniaXamlCompilation": "true",
+    "AvaloniaXamlIlCompiler": "",
+    "AvaloniaUseCompiledBindingsByDefault": "false"
+  }
+}

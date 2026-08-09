@@ -16,10 +16,42 @@ public sealed class GenUiChatDirectiveParserTests
         Assert.Equal("6 * 7", result.Request?.Expression);
     }
 
+    [Fact]
+    public void Parses_live_structured_form_without_allowing_arbitrary_controls()
+    {
+        var result = GenUiChatDirectiveParser.Parse("""
+            ```haven-ui
+            {"version":1,"template":"structured-form","inputs":{"title":"Expense entry","schema":[{"id":"amount","label":"Amount","type":"text"},{"id":"category","label":"Category","type":"select","options":["Travel","Food"]}]}}
+            ```
+            """);
+
+        Assert.True(result.HasDirective);
+        Assert.Null(result.Error);
+        Assert.Equal("structured-form", result.Request?.TemplateKey);
+        Assert.Equal(2, result.Request?.Inputs["schema"].GetArrayLength());
+    }
+
+    [Fact]
+    public void Haven_question_is_removed_from_display_text_and_routed_to_choice_prompt()
+    {
+        var result = GenUiChatDirectiveParser.Parse("""
+            Choose one:
+            <haven-question>{"question":"Continue?","options":["Yes","No"]}</haven-question>
+            """);
+
+        Assert.True(result.HasDirective);
+        Assert.Null(result.Error);
+        Assert.Equal("Choose one:", result.DisplayContent);
+        Assert.DoesNotContain("haven-question", result.DisplayContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("choice-prompt", result.Request?.TemplateKey);
+        Assert.Equal("Continue?", result.Request?.Inputs["question"].GetString());
+    }
+
     [Theory]
     [InlineData("{\"version\":1,\"template\":\"whiteboard\",\"inputs\":{}}", "not available")]
     [InlineData("{\"version\":1,\"template\":\"calculator\",\"inputs\":{},\"xaml\":\"<Button/>\"}", "unsupported field")]
     [InlineData("{\"version\":1,\"template\":\"calculator\",\"inputs\":{\"command\":\"rm\"}}", "unsupported input")]
+    [InlineData("{\"version\":1,\"template\":\"structured-form\",\"inputs\":{\"schema\":[{\"id\":\"x\",\"label\":\"X\",\"type\":\"xaml\"}]}}", "type must be")]
     public void Rejects_unreleased_templates_and_arbitrary_or_executable_fields(string payload, string expected)
     {
         var result = GenUiChatDirectiveParser.Parse($"```haven-ui\n{payload}\n```");
@@ -39,17 +71,31 @@ public sealed class GenUiChatDirectiveParserTests
     }
 
     [Theory]
+    [InlineData("can you generate ui?")]
     [InlineData("can you generate ui yet?")]
     [InlineData("How is Generative UI progress?")]
     [InlineData("Is interactive UI available yet?")]
-    public void Availability_questions_get_a_truthful_live_production_demo(string prompt)
+    public void Availability_questions_get_a_truthful_multi_template_live_demo(string prompt)
     {
         var handled = GenUiChatDirectiveParser.TryCreateAvailabilityResponse(prompt, out var response);
 
         Assert.True(handled);
-        Assert.Contains("Calculator", response, StringComparison.Ordinal);
-        Assert.Contains("foundations", response, StringComparison.Ordinal);
-        Assert.NotNull(GenUiChatDirectiveParser.Parse(response).Request);
+        Assert.Contains("calculator", response, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("haven-ui", response, StringComparison.Ordinal);
+        var request = GenUiChatDirectiveParser.Parse(response).Request;
+        Assert.NotNull(request);
+        Assert.Equal("calculator", request.TemplateKey);
+    }
+
+    [Fact]
+    public void Model_instruction_describes_live_templates()
+    {
+        var instruction = GenUiChatDirectiveParser.ModelInstruction;
+
+        Assert.Contains("calculator", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("structured-form", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("checklist", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("haven-ui", instruction, StringComparison.Ordinal);
     }
 
     [Fact]

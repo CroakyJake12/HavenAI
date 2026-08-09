@@ -10,6 +10,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.Views;
 using Haven.Desktop.Views.Pages.Settings;
 
@@ -61,7 +62,7 @@ public sealed class GenerativeUiAdvancedHandoffViewTests
         {
             secondWindow.Show();
             Assert.True(handoff.IsVisible);
-            Assert.Single(handoff.GetVisualDescendants().OfType<Button>());
+            Assert.Single(handoff.GetVisualDescendants().OfType<HavenButton>());
         }
         finally
         {

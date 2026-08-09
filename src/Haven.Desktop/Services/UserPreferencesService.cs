@@ -196,6 +196,8 @@ public sealed class UserPreferencesService
     public bool AutoWakeOllama => _preferences.AutoWakeOllama;
     /// <summary>Reports whether Generative UI may replace Haven's launcher-selected base theme.</summary>
     public bool GenerativeUiEnabled => _preferences.GenerativeUiEnabled;
+    /// <summary>Reports whether local models should stay loaded when Haven's main UI is closed.</summary>
+    public bool AlwaysLoaded => _preferences.AlwaysLoaded;
     /// <summary>
     /// Gets or updates generation options, the bindable or domain state represented by this property.
     /// </summary>
@@ -431,6 +433,16 @@ public sealed class UserPreferencesService
     }
 
     /// <summary>
+    /// Enables or disables model residency (Always Loaded).
+    /// When enabled, the configured local model stays loaded after Haven's main UI closes.
+    /// </summary>
+    public void SetAlwaysLoaded(bool alwaysLoaded)
+    {
+        _preferences = _preferences with { AlwaysLoaded = alwaysLoaded };
+        Save();
+    }
+
+    /// <summary>
     /// Performs the set tool permissions step owned by this component.
     /// </summary>
     public void SetToolPermissions(PermissionMode file, PermissionMode command, PermissionMode browser, PermissionMode computer)
@@ -584,6 +596,11 @@ public sealed class UserPreferencesService
         /// Disabled is the safe default for existing preference files that predate this setting.
         /// </summary>
         public bool GenerativeUiEnabled { get; init; }
+        /// <summary>
+        /// Gets whether local models should remain loaded when Haven's main UI is closed.
+        /// Enables faster reopen and background task continuity at the cost of memory.
+        /// </summary>
+        public bool AlwaysLoaded { get; init; }
         /// <summary>
         /// Gets or updates temperature, the bindable or domain state represented by this property.
         /// </summary>

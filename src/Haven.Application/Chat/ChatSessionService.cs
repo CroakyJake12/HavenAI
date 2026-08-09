@@ -455,6 +455,7 @@ public sealed class ChatSessionService(
         else
         {
             var firstChunk = true;
+            var thinkingBuffer = new StringBuilder();
             await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
             {
                 if (firstChunk)
@@ -463,8 +464,18 @@ public sealed class ChatSessionService(
                     firstChunk = false;
                 }
 
-                buffer.Append(chunk);
-                yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+                // Detect thinking tokens (prefixed with \x00T:)
+                if (chunk.StartsWith("\x00T:"))
+                {
+                    var thinkingContent = chunk[3..];
+                    thinkingBuffer.Append(thinkingContent);
+                    yield return ChatStreamEvent.ThinkingDelta(assistantId, thinkingContent);
+                }
+                else
+                {
+                    buffer.Append(chunk);
+                    yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+                }
             }
         }
 
@@ -843,6 +854,7 @@ public sealed record ChatStreamEvent(
     ChatMessage? Message = null,
     Guid? MessageId = null,
     string? Delta = null,
+    string? Thinking = null,
     string? Model = null,
     string? Agent = null,
     CapabilityPreflightResult? PreflightResult = null,
@@ -861,6 +873,10 @@ public sealed record ChatStreamEvent(
     /// </summary>
     public static ChatStreamEvent AssistantDelta(Guid id, string delta) => new(ChatStreamEventKind.AssistantDelta, MessageId: id, Delta: delta);
     /// <summary>
+    /// Performs the thinking step owned by this component.
+    /// </summary>
+    public static ChatStreamEvent ThinkingDelta(Guid id, string thinking) => new(ChatStreamEventKind.ThinkingDelta, MessageId: id, Thinking: thinking);
+    /// <summary>
     /// Performs the assistant completed step owned by this component.
     /// </summary>
     public static ChatStreamEvent AssistantCompleted(ChatMessage message) => new(ChatStreamEventKind.AssistantCompleted, Message: message);
@@ -877,4 +893,4 @@ public sealed record ChatStreamEvent(
 /// <summary>
 /// Lists the supported chat stream event kind values used to make state explicit and type-safe.
 /// </summary>
-public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ToolActivity, PreflightFailed }
+public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ThinkingDelta, ToolActivity, PreflightFailed }

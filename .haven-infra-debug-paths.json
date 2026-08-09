@@ -1,0 +1,10 @@
+{
+  "Properties": {
+    "Platform": "x64",
+    "PlatformTarget": "x64",
+    "OutputPath": "bin\\x64\\Debug\\net10.0\\",
+    "IntermediateOutputPath": "obj\\x64\\Debug\\net10.0\\",
+    "TargetFramework": "net10.0",
+    "ProduceReferenceAssembly": "true"
+  }
+}

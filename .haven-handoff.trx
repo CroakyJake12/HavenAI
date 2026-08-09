@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="c72a1d37-1cf5-4c8f-9f10-21ad84e9c062" name="Jacob@DESKTOP-7CHJ9S6 2026-08-09 13:14:48" runUser="DESKTOP-7CHJ9S6\Jacob" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-09T13:14:48.8331111+01:00" queuing="2026-08-09T13:14:48.8331112+01:00" start="2026-08-09T13:14:47.5546580+01:00" finish="2026-08-09T13:14:48.8365133+01:00" />
+  <TestSettings name="default" id="adccfc49-b7f8-4c4c-be16-a5b2b17a9a95">
+    <Deployment runDeploymentRoot="Jacob_DESKTOP-7CHJ9S6_2026-08-09_13_14_48" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="b54874cc-cc6f-41a8-9e72-8675312ac79c" testId="0ab83f6a-0bb1-1880-d943-461b07bb8574" testName="Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests.HandoffViewCanDetachAndReattachWithoutBeingDisposed" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.2237176" startTime="2026-08-09T13:14:48.5028947+01:00" endTime="2026-08-09T13:14:48.7394807+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b54874cc-cc6f-41a8-9e72-8675312ac79c">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Single() Failure: The collection contained 2 items&#xD;
+Collection: [Button { ActualThemeVariant = Dark, Background = WhiteSmoke, BackgroundSizing = CenterBorder, BorderBrush = #ffe0e0e0, BorderThickness = 1,1,1,1, ··· }, HavenButton { ActualThemeVariant = Dark, Background = LinearGradientBrush { Dispatcher = Dispatcher { ··· }, EndPoint = 100%, 50%, GradientStops = [···], Item = (throws TargetParameterCountException), Item = (throws TargetParameterCountException), ··· }, BackgroundSizing = CenterBorder, BorderBrush = Transparent, BorderThickness = 0,0,0,0, ··· }]</Message>
+          <StackTrace>   at Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests.HandoffViewCanDetachAndReattachWithoutBeingDisposed() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GenerativeUiAdvancedHandoffViewTests.cs:line 64&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests.HandoffViewCanDetachAndReattachWithoutBeingDisposed" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="0ab83f6a-0bb1-1880-d943-461b07bb8574">
+      <Execution id="b54874cc-cc6f-41a8-9e72-8675312ac79c" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests" name="HandoffViewCanDetachAndReattachWithoutBeingDisposed" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="0ab83f6a-0bb1-1880-d943-461b07bb8574" executionId="b54874cc-cc6f-41a8-9e72-8675312ac79c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="1" executed="1" passed="0" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.10)&#xD;
+[xUnit.net 00:00:00.12]   Discovering: Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.30]   Discovered:  Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.43]   Starting:    Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.94]       Assert.Single() Failure: The collection contained 2 items&#xD;
+[xUnit.net 00:00:00.94]       Collection: [Button { ActualThemeVariant = Dark, Background = WhiteSmoke, BackgroundSizing = CenterBorder, BorderBrush = #ffe0e0e0, BorderThickness = 1,1,1,1, ··· }, HavenButton { ActualThemeVariant = Dark, Background = LinearGradientBrush { Dispatcher = Dispatcher { ··· }, EndPoint = 100%, 50%, GradientStops = [···], Item = (throws TargetParameterCountException), Item = (throws TargetParameterCountException), ··· }, BackgroundSizing = CenterBorder, BorderBrush = Transparent, BorderThickness = 0,0,0,0, ··· }]&#xD;
+[xUnit.net 00:00:00.94]       Stack Trace:&#xD;
+[xUnit.net 00:00:00.94]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GenerativeUiAdvancedHandoffViewTests.cs(64,0): at Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests.HandoffViewCanDetachAndReattachWithoutBeingDisposed()&#xD;
+[xUnit.net 00:00:00.94]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:00.94]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:00.95]   Finished:    Haven.Desktop.Tests (ID = '6af4a94bc17ebdbd1a28f789ec417e791bbca09ef8b01f58bbd623e29235e022')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="DESKTOP-7CHJ9S6" outcome="Error" timestamp="2026-08-09T13:14:48.7432664+01:00">
+        <Text>[xUnit.net 00:00:00.94]     Haven.Desktop.Tests.GenerativeUiAdvancedHandoffViewTests.HandoffViewCanDetachAndReattachWithoutBeingDisposed [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

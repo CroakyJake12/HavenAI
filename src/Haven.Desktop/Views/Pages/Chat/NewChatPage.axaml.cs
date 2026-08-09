@@ -33,6 +33,17 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
     private readonly CalculatorTemplateRuntime _calculatorTemplate;
+    private readonly StructuredFormTemplateRuntime _structuredFormTemplate;
+    private readonly ChoicePromptTemplateRuntime _choicePromptTemplate;
+    private readonly ChecklistTemplateRuntime _checklistTemplate;
+    private readonly DataGridTemplateRuntime _dataGridTemplate;
+    private readonly CardDeckTemplateRuntime _cardDeckTemplate;
+    private readonly GraphTemplateRuntime _graphTemplate;
+    private readonly TaskListTemplateRuntime _taskListTemplate;
+    private readonly DashboardTemplateRuntime _dashboardTemplate;
+    private readonly AssessmentTemplateRuntime _assessmentTemplate;
+    private readonly WorkflowTemplateRuntime _workflowTemplate;
+    private readonly CustomTemplateRuntime _customTemplate;
     private readonly List<ChatMessage> _messages = [];
     private readonly HashSet<Guid> _streamingMessages = [];
     private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
@@ -42,9 +53,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly List<string> _attachedContext = [];
     private readonly TaskAttachmentContext _taskAttachments = new();
     private readonly Dictionary<Guid, ProductionMarkdownView> _messageBodies = [];
-    private readonly Dictionary<Guid, GenerativeUiSurface> _generatedSurfaces = [];
-    private readonly Dictionary<Guid, Guid> _generatedInstanceIds = [];
-    private readonly Dictionary<Guid, string> _generatedSignatures = [];
+    private readonly Dictionary<Guid, string> _thinkingContent = new();
+    private readonly Dictionary<Guid, long> _thinkingStartTick = new();
+    private readonly Dictionary<Guid, long> _thinkingEndTick = new();
+    private readonly Dictionary<(Guid MessageId, int SurfaceIndex), GenerativeUiSurface> _generatedSurfaces = [];
+    private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
+    private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
     private readonly StackPanel _taskHistory = new() { Spacing = 6 };
     private ModeDefinition? _modeDefinition;
     private Conversation _conversation;
@@ -59,6 +73,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private bool _isTaskMode;
     private bool _lastReportedHasStarted;
     private bool _disposed;
+    private long _sendStartTick;
+    private readonly DispatcherTimer _sendProgressTimer;
 
     public NewChatPage(
         HavenEventBus bus,
@@ -69,7 +85,18 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         UserPreferencesService preferences,
         GenerativeUiEventRouter genUiRouter,
         GenUiInstanceStore genUiInstances,
-        CalculatorTemplateRuntime calculatorTemplate)
+        CalculatorTemplateRuntime calculatorTemplate,
+        StructuredFormTemplateRuntime structuredFormTemplate,
+        ChoicePromptTemplateRuntime choicePromptTemplate,
+        ChecklistTemplateRuntime checklistTemplate,
+        DataGridTemplateRuntime dataGridTemplate,
+        CardDeckTemplateRuntime cardDeckTemplate,
+        GraphTemplateRuntime graphTemplate,
+        TaskListTemplateRuntime taskListTemplate,
+        DashboardTemplateRuntime dashboardTemplate,
+        AssessmentTemplateRuntime assessmentTemplate,
+        WorkflowTemplateRuntime workflowTemplate,
+        CustomTemplateRuntime customTemplate)
     {
         _bus = bus;
         _conversations = conversations;
@@ -80,7 +107,33 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
         _calculatorTemplate = calculatorTemplate;
+        _structuredFormTemplate = structuredFormTemplate;
+        _choicePromptTemplate = choicePromptTemplate;
+        _checklistTemplate = checklistTemplate;
+        _dataGridTemplate = dataGridTemplate;
+        _cardDeckTemplate = cardDeckTemplate;
+        _graphTemplate = graphTemplate;
+        _taskListTemplate = taskListTemplate;
+        _dashboardTemplate = dashboardTemplate;
+        _assessmentTemplate = assessmentTemplate;
+        _workflowTemplate = workflowTemplate;
+        _customTemplate = customTemplate;
         _conversation = CreateConversation(HavenMode.Chat);
+
+        _sendProgressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _sendProgressTimer.Tick += (_, _) =>
+        {
+            if (!_isSending) return;
+            var elapsed = TimeSpan.FromMilliseconds(Environment.TickCount64 - _sendStartTick);
+            StatusText.Text = elapsed.TotalSeconds switch
+            {
+                < 15 => "Thinking\u2026",
+                < 30 => "Taking a moment\u2026",
+                < 60 => "Still working\u2026",
+                < 120 => "This is a complex request\u2026",
+                _ => $"Working for {(int)elapsed.TotalMinutes}m {(int)elapsed.Seconds}s\u2026"
+            };
+        };
 
         InitializeComponent();
         WireEvents();
@@ -840,6 +893,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         InstructionBox.Text = string.Empty;
         _bus.Fire("Chat.Composer.Send.Click");
         _isSending = true;
+        _sendStartTick = Environment.TickCount64;
+        _sendProgressTimer.Start();
         _sendCancellation = new CancellationTokenSource();
         RefreshVisualState();
 
@@ -922,6 +977,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         }
         finally
         {
+            _sendProgressTimer.Stop();
             _sendCancellation.Dispose();
             _sendCancellation = null;
             _isSending = false;
@@ -977,14 +1033,38 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                     };
                     if (_messageBodies.TryGetValue(deltaId, out var body))
                     {
-                        body.Text = GenUiChatDirectiveParser.Parse(_messages[index].Content).DisplayContent;
+                        var parsed = GenUiChatDirectiveParser.Parse(_messages[index].Content);
+                        // During streaming, show the text content. If the model is only
+                        // generating a haven-ui block with no surrounding text, show a
+                        // preview of what's being generated so the user isn't staring at
+                        // a blank "Thinking" state.
+                        if (!string.IsNullOrWhiteSpace(parsed.DisplayContent))
+                            body.Text = parsed.DisplayContent;
+                        else if (parsed.HasDirective && parsed.Requests.Count == 0)
+                            body.Text = "Generating interactive content\u2026";
+                        else
+                            body.Text = parsed.DisplayContent;
+
+                        if (parsed.HasDirective && parsed.Requests.Count == 0 && string.IsNullOrEmpty(parsed.Error))
+                            StatusText.Text = "Preparing interactive content\u2026";
                         rebuildMessages = false;
                         Dispatcher.UIThread.Post(() => MessagesScroll.ScrollToEnd(), DispatcherPriority.Background);
                     }
                 }
                 break;
+            case ChatStreamEventKind.ThinkingDelta when streamEvent.MessageId is { } thinkingId:
+                if (!_thinkingContent.ContainsKey(thinkingId))
+                {
+                    _thinkingContent[thinkingId] = string.Empty;
+                    _thinkingStartTick[thinkingId] = Environment.TickCount64;
+                }
+                _thinkingContent[thinkingId] += streamEvent.Thinking ?? string.Empty;
+                rebuildMessages = false;
+                break;
             case ChatStreamEventKind.AssistantCompleted when streamEvent.Message is not null:
                 _streamingMessages.Remove(streamEvent.Message.Id);
+                if (_thinkingStartTick.ContainsKey(streamEvent.Message.Id) && !_thinkingEndTick.ContainsKey(streamEvent.Message.Id))
+                    _thinkingEndTick[streamEvent.Message.Id] = Environment.TickCount64;
                 UpsertMessage(streamEvent.Message);
                 break;
             case ChatStreamEventKind.ToolActivity when streamEvent.ToolActivity is not null:
@@ -1060,60 +1140,119 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     {
         var directive = message.Role == MessageRole.Assistant
             ? GenUiChatDirectiveParser.Parse(message.Content)
-            : new GenUiChatDirectiveParseResult(message.Content, null, null, false);
-        var displayContent = string.IsNullOrWhiteSpace(directive.DisplayContent) && directive.Request is not null
-            ? "Interactive calculator"
+            : new GenUiChatDirectiveParseResult(message.Content, [], null, false);
+        var displayContent = string.IsNullOrWhiteSpace(directive.DisplayContent) && directive.Requests.Count > 0
+            ? ""
             : directive.DisplayContent;
-        var bubble = new MessageBubble
+
+        // ChatGPT-style message: clean text, no bubble chrome
+        var messageView = new MessageView
         {
             Role = message.Role,
             MessageContent = displayContent,
             AgentName = message.AgentName,
             IsStreaming = isStreaming
         };
-        _messageBodies[message.Id] = bubble.FindControl<ProductionMarkdownView>("Body")!;
+        _messageBodies[message.Id] = messageView.FindControl<ProductionMarkdownView>("Body")!;
 
-        var more = new HavenIconButton
+        messageView.PointerPressed += (_, args) =>
         {
-            Width = 48,
-            Height = 30,
-            Padding = new Thickness(12, 7),
-            Opacity = 0,
-            IsHitTestVisible = false,
-            HorizontalAlignment = message.Role == MessageRole.User
-                ? HorizontalAlignment.Right
-                : HorizontalAlignment.Left,
-            Content = new HavenIcon
-            {
-                IconKey = "more",
-                Width = 22,
-                Height = 12,
-                Foreground = ResourceBrush("HavenTextBrush", Colors.Black)
-            }
-        };
-        more.Click += (_, _) => ShowMessageActions(more, message);
-        bubble.PointerPressed += (_, args) =>
-        {
-            if (args.GetCurrentPoint(bubble).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed) return;
+            if (args.GetCurrentPoint(messageView).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed) return;
             args.Handled = true;
-            ShowMessageActions(bubble, message);
+            ShowMessageActions(messageView, message);
         };
 
-        var messageHost = new StackPanel
+        // The chat stream is the canvas. Messages and GenUI surfaces flow
+        // together in one scrollable vertical stream.
+        var stream = new StackPanel
         {
-            Spacing = 8,
-            HorizontalAlignment = message.Role == MessageRole.User
-                ? HorizontalAlignment.Right
-                : HorizontalAlignment.Stretch
+            Spacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        messageHost.Children.Add(bubble);
-        if (directive.Request is { } request)
-            messageHost.Children.Add(GetOrCreateGeneratedSurface(message, request));
-        else
-            RemoveGeneratedSurface(message.Id);
+
+        // Show thinking as a collapsible if present
+        if (_thinkingContent.TryGetValue(message.Id, out var thinking) && !string.IsNullOrWhiteSpace(thinking))
+        {
+            var elapsed = 0L;
+            if (_thinkingStartTick.TryGetValue(message.Id, out var startTick))
+            {
+                var endTick = _thinkingEndTick.TryGetValue(message.Id, out var et) ? et : Environment.TickCount64;
+                elapsed = Math.Max(0, (endTick - startTick) / 1000);
+            }
+            var header = elapsed > 0 ? $"Thought for {elapsed} seconds" : "Thinking\u2026";
+            var thinkingExpander = new HavenExpander
+            {
+                Header = header,
+                IsExpanded = false
+            };
+            var thinkingText = new TextBlock
+            {
+                Text = thinking,
+                FontSize = 12,
+                Foreground = ResourceBrush("HavenTextMutedBrush", Colors.Gray),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            thinkingExpander.Content = thinkingText;
+            stream.Children.Add(thinkingExpander);
+        }
+
+        stream.Children.Add(messageView);
+
+        // GenUI surfaces render as natural inline content in the chat stream.
+        // The chat area is the canvas — surfaces flow alongside messages.
+        for (var surfaceIndex = 0; surfaceIndex < directive.Requests.Count; surfaceIndex++)
+        {
+            var request = directive.Requests[surfaceIndex];
+            try
+            {
+                messageView.ShowGenUIProgress(request.TemplateKey);
+                var surface = GetOrCreateGeneratedSurface(message, surfaceIndex, request);
+
+                // Validate the generated UI after rendering
+                var warnings = ValidateGeneratedSurface(surface);
+                if (warnings.Count > 0)
+                {
+                    // Append validation warnings below the surface
+                    surface.Margin = new Thickness(0, 4, 0, 0);
+                    stream.Children.Add(surface);
+                    foreach (var warning in warnings)
+                    {
+                        stream.Children.Add(new TextBlock
+                        {
+                            Text = warning,
+                            FontSize = 11,
+                            Foreground = ResourceBrush("HavenWarningBrush", Colors.Orange),
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(4, 0, 0, 0)
+                        });
+                    }
+                }
+                else
+                {
+                    surface.Margin = new Thickness(0, 4, 0, 4);
+                    stream.Children.Add(surface);
+                }
+                messageView.HideGenUIProgress();
+            }
+            catch (Exception ex)
+            {
+                messageView.HideGenUIProgress();
+                stream.Children.Add(new TextBlock
+                {
+                    Text = $"Could not render {request.TemplateKey}: {ex.Message}",
+                    FontSize = 12,
+                    Foreground = ResourceBrush("HavenDangerBrush", Colors.Red),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(38, 0, 0, 0)
+                });
+            }
+        }
+        RemoveGeneratedSurfacesAfter(message.Id, directive.Requests.Count);
+
         if (!string.IsNullOrWhiteSpace(directive.Error))
         {
-            messageHost.Children.Add(new HavenCard
+            stream.Children.Add(new HavenCard
             {
                 Padding = new Thickness(12),
                 Child = new TextBlock
@@ -1125,67 +1264,155 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 }
             });
         }
-        var messageOverlay = new Grid();
-        messageOverlay.Children.Add(messageHost);
-        more.VerticalAlignment = VerticalAlignment.Bottom;
-        more.Margin = new Thickness(0, 0, 0, -32);
-        messageOverlay.Children.Add(more);
-        var hoverHost = new HavenAdaptiveSurface
-        {
-            Background = Brushes.Transparent,
-            Padding = new Thickness(26, 10),
-            Margin = new Thickness(-26, -10),
-            HorizontalAlignment = message.Role == MessageRole.User
-                ? HorizontalAlignment.Right
-                : HorizontalAlignment.Stretch,
-            Child = messageOverlay
-        };
-        hoverHost.PointerEntered += (_, _) =>
-        {
-            more.Opacity = 1;
-            more.IsHitTestVisible = true;
-        };
-        hoverHost.PointerExited += (_, _) =>
-        {
-            more.Opacity = 0;
-            more.IsHitTestVisible = false;
-        };
-        return hoverHost;
+
+        return stream;
     }
 
-    private GenerativeUiSurface GetOrCreateGeneratedSurface(ChatMessage message, GenUiTemplateRequest request)
+    /// <summary>
+    /// Validates a generated GenUI surface after rendering.
+    /// Returns warnings if the output is empty, broken, or inappropriate.
+    /// </summary>
+    private static List<string> ValidateGeneratedSurface(GenerativeUiSurface surface)
     {
-        var signature = request.TemplateKey + "|" + request.Expression;
-        if (_generatedSurfaces.TryGetValue(message.Id, out var existing)
-            && _generatedSignatures.TryGetValue(message.Id, out var existingSignature)
-            && existingSignature.Equals(signature, StringComparison.Ordinal)) return existing;
+        var warnings = new List<string>();
 
-        RemoveGeneratedSurface(message.Id);
+        // Check if the surface has any visible content
+        if (surface.Content is null)
+        {
+            warnings.Add("The generated UI rendered nothing.");
+            return warnings;
+        }
+
+        // Walk the visual tree to check for common issues
+        var controlCount = 0;
+        var emptyContainers = 0;
+
+        void WalkVisual(Avalonia.Visual visual, int depth)
+        {
+            if (depth > 20) return;
+
+            if (visual is Control)
+            {
+                controlCount++;
+                if (visual is Panel panel && panel.Children.Count == 0)
+                    emptyContainers++;
+            }
+
+            if (visual is Panel layoutPanel)
+            {
+                foreach (var child in layoutPanel.Children)
+                    WalkVisual(child, depth + 1);
+            }
+            else if (visual is ContentControl contentControl && contentControl.Content is Avalonia.Visual content)
+            {
+                WalkVisual(content, depth + 1);
+            }
+            else if (visual is Border border && border.Child is Avalonia.Visual borderChild)
+            {
+                WalkVisual(borderChild, depth + 1);
+            }
+        }
+
+        WalkVisual(surface, 0);
+
+        if (controlCount <= 1)
+            warnings.Add("The generated UI appears mostly empty — the model may not have provided enough components.");
+
+        if (emptyContainers > 0)
+            warnings.Add($"{emptyContainers} container(s) have no children — the model may have forgotten to nest items inside them.");
+
+        return warnings;
+    }
+
+    private GenerativeUiSurface GetOrCreateGeneratedSurface(ChatMessage message, int surfaceIndex, GenUiTemplateRequest request)
+    {
+        var slot = (message.Id, surfaceIndex);
+        var signature = request.Signature;
+        GenUiDocument? document = null;
+        var reuseRegisteredInstance = _generatedSignatures.TryGetValue(slot, out var existingSignature)
+            && existingSignature.Equals(signature, StringComparison.Ordinal)
+            && _generatedInstanceIds.TryGetValue(slot, out var existingInstanceId)
+            && (document = _genUiInstances.TryGet(existingInstanceId)) is not null;
+
+        if (reuseRegisteredInstance)
+        {
+            if (_generatedSurfaces.Remove(slot, out var previousSurface)) previousSurface.Dispose();
+            var surface = new GenerativeUiSurface(_genUiRouter, _genUiInstances)
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            surface.PresentExisting(document!);
+            _generatedSurfaces[slot] = surface;
+            _generatedInstanceIds[slot] = document!.Origin.InstanceId;
+            _generatedSignatures[slot] = signature;
+            return surface;
+        }
+
+        if (_generatedSurfaces.TryGetValue(slot, out var existing)
+            && _generatedSignatures.TryGetValue(slot, out var sig)
+            && sig.Equals(signature, StringComparison.Ordinal)) return existing;
+
+        RemoveGeneratedSurfacesForMessage(message.Id);
         var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
-        var document = _calculatorTemplate.Create(_conversation.Id, appKey, request.Expression);
-        var surface = new GenerativeUiSurface(_genUiRouter, _genUiInstances)
+        document = CreateGeneratedDocument(request, appKey);
+        // Apply per-surface accent if specified by the model
+        if (!string.IsNullOrWhiteSpace(request.AccentKey))
+            document = document with { AccentKey = request.AccentKey };
+        var newSurface = new GenerativeUiSurface(_genUiRouter, _genUiInstances)
         {
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        surface.Present(document);
-        _generatedSurfaces[message.Id] = surface;
-        _generatedInstanceIds[message.Id] = document.Origin.InstanceId;
-        _generatedSignatures[message.Id] = signature;
-        return surface;
+        newSurface.Present(document);
+        _generatedSurfaces[slot] = newSurface;
+        _generatedInstanceIds[slot] = document.Origin.InstanceId;
+        _generatedSignatures[slot] = signature;
+        return newSurface;
     }
+
+    private GenUiDocument CreateGeneratedDocument(GenUiTemplateRequest request, string appKey) =>
+        request.TemplateKey switch
+        {
+            "calculator" => _calculatorTemplate.Create(_conversation.Id, appKey, request.Expression),
+            "structured-form" => _structuredFormTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "choice-prompt" => _choicePromptTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "checklist" => _checklistTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "data-grid" => _dataGridTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "card-deck" => _cardDeckTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "graph" => _graphTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "task-list" => _taskListTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "dashboard" => _dashboardTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "assessment" => _assessmentTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "workflow" => _workflowTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            "custom" => _customTemplate.Create(_conversation.Id, appKey, request.Inputs),
+            _ => throw new InvalidOperationException($"Live GenUI template '{request.TemplateKey}' has no trusted runtime.")
+        };
 
     private void PruneGeneratedSurfaces()
     {
         var messageIds = _messages.Select(message => message.Id).ToHashSet();
-        foreach (var messageId in _generatedSurfaces.Keys.Where(id => !messageIds.Contains(id)).ToArray())
-            RemoveGeneratedSurface(messageId);
+        foreach (var slot in _generatedSurfaces.Keys.Where(key => !messageIds.Contains(key.MessageId)).ToArray())
+            RemoveGeneratedSurface(slot);
     }
 
-    private void RemoveGeneratedSurface(Guid messageId)
+    private void RemoveGeneratedSurface((Guid MessageId, int SurfaceIndex) slot)
     {
-        if (_generatedSurfaces.Remove(messageId, out var surface)) surface.Dispose();
-        if (_generatedInstanceIds.Remove(messageId, out var instanceId)) _genUiInstances.Remove(instanceId);
-        _generatedSignatures.Remove(messageId);
+        if (_generatedSurfaces.Remove(slot, out var surface)) surface.Dispose();
+        if (_generatedInstanceIds.Remove(slot, out var instanceId)) _genUiInstances.Remove(instanceId);
+        _generatedSignatures.Remove(slot);
+    }
+
+    private void RemoveGeneratedSurfacesForMessage(Guid messageId)
+    {
+        foreach (var slot in _generatedSurfaces.Keys.Where(key => key.MessageId == messageId).ToArray())
+            RemoveGeneratedSurface(slot);
+    }
+
+    private void RemoveGeneratedSurfacesAfter(Guid messageId, int keepCount)
+    {
+        foreach (var slot in _generatedSurfaces.Keys
+                     .Where(key => key.MessageId == messageId && key.SurfaceIndex >= keepCount)
+                     .ToArray())
+            RemoveGeneratedSurface(slot);
     }
 
     private void ShowMessageActions(Control anchor, ChatMessage message)
@@ -1615,7 +1842,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _disposed = true;
         _sendCancellation?.Cancel();
         _sendCancellation?.Dispose();
-        foreach (var messageId in _generatedSurfaces.Keys.ToArray()) RemoveGeneratedSurface(messageId);
+        foreach (var slot in _generatedSurfaces.Keys.ToArray()) RemoveGeneratedSurface(slot);
         AddButton.Dispose();
     }
 

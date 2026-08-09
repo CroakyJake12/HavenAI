@@ -52,6 +52,17 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
     private readonly CalculatorTemplateRuntime _calculatorTemplate;
+    private readonly StructuredFormTemplateRuntime _structuredFormTemplate;
+    private readonly ChoicePromptTemplateRuntime _choicePromptTemplate;
+    private readonly ChecklistTemplateRuntime _checklistTemplate;
+    private readonly DataGridTemplateRuntime _dataGridTemplate;
+    private readonly CardDeckTemplateRuntime _cardDeckTemplate;
+    private readonly GraphTemplateRuntime _graphTemplate;
+    private readonly TaskListTemplateRuntime _taskListTemplate;
+    private readonly DashboardTemplateRuntime _dashboardTemplate;
+    private readonly AssessmentTemplateRuntime _assessmentTemplate;
+    private readonly WorkflowTemplateRuntime _workflowTemplate;
+    private readonly CustomTemplateRuntime _customTemplate;
     private readonly BrowserSessionService _browser;
     private readonly BrowserDataService _browserData;
     private readonly WindowsAutomationRegistrationService _registration;
@@ -141,6 +152,17 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         GenerativeUiEventRouter genUiRouter,
         GenUiInstanceStore genUiInstances,
         CalculatorTemplateRuntime calculatorTemplate,
+        StructuredFormTemplateRuntime structuredFormTemplate,
+        ChoicePromptTemplateRuntime choicePromptTemplate,
+        ChecklistTemplateRuntime checklistTemplate,
+        DataGridTemplateRuntime dataGridTemplate,
+        CardDeckTemplateRuntime cardDeckTemplate,
+        GraphTemplateRuntime graphTemplate,
+        TaskListTemplateRuntime taskListTemplate,
+        DashboardTemplateRuntime dashboardTemplate,
+        AssessmentTemplateRuntime assessmentTemplate,
+        WorkflowTemplateRuntime workflowTemplate,
+        CustomTemplateRuntime customTemplate,
         BrowserSessionService browser,
         BrowserDataService browserData,
         WindowsAutomationRegistrationService registration,
@@ -184,6 +206,17 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
         _calculatorTemplate = calculatorTemplate;
+        _structuredFormTemplate = structuredFormTemplate;
+        _choicePromptTemplate = choicePromptTemplate;
+        _checklistTemplate = checklistTemplate;
+        _dataGridTemplate = dataGridTemplate;
+        _cardDeckTemplate = cardDeckTemplate;
+        _graphTemplate = graphTemplate;
+        _taskListTemplate = taskListTemplate;
+        _dashboardTemplate = dashboardTemplate;
+        _assessmentTemplate = assessmentTemplate;
+        _workflowTemplate = workflowTemplate;
+        _customTemplate = customTemplate;
         _browser = browser;
         _browserData = browserData;
         _registration = registration;
@@ -768,7 +801,18 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             _preferences,
             _genUiRouter,
             _genUiInstances,
-            _calculatorTemplate);
+            _calculatorTemplate,
+            _structuredFormTemplate,
+            _choicePromptTemplate,
+            _checklistTemplate,
+            _dataGridTemplate,
+            _cardDeckTemplate,
+            _graphTemplate,
+            _taskListTemplate,
+            _dashboardTemplate,
+            _assessmentTemplate,
+            _workflowTemplate,
+            _customTemplate);
         page.ModelChanged += OnNewChatModelChanged;
         page.ConversationStateChanged += OnNewChatConversationStateChanged;
         page.AddActionSelected += OnNewChatAddActionSelected;

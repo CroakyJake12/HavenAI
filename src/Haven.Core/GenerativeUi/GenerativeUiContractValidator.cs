@@ -24,6 +24,8 @@ public static class GenerativeUiContractValidator
         "style", "css", "xaml", "html", "javascript", "script", "code", "executable", "commandLine"
     };
 
+    public static bool ValidatePropertyName(string name) => !ForbiddenPropertyNames.Contains(name);
+
     public static IReadOnlyList<string> Validate(GenUiDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);

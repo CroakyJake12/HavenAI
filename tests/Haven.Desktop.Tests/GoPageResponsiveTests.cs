@@ -50,6 +50,42 @@ public sealed class GoPageResponsiveTests
         }
     }
 
+    [AvaloniaFact]
+    public void Wide_desktop_layout_keeps_primary_go_surfaces_centered()
+    {
+        using var page = new GoPage(new HavenEventBus());
+        var window = new Window { Width = 1728, Height = 1000, Content = page };
+        try
+        {
+            window.Show();
+            var prompt = page.FindControl<TextBlock>("HeroTitle")!;
+            var suggestions = page.FindControl<Grid>("SuggestionsGrid")!;
+            var instruction = page.FindControl<TextBox>("InstructionBox")!;
+
+            AssertInside(page, prompt);
+            AssertInside(page, suggestions);
+            AssertInside(page, instruction);
+            AssertCentered(page, prompt, tolerance: 1.0);
+            AssertCentered(page, suggestions, tolerance: 1.0);
+            AssertCentered(page, instruction, tolerance: 55.0);
+            Assert.True(suggestions.Bounds.Width >= 700);
+            Assert.True(instruction.Bounds.Width >= 650);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static void AssertCentered(Control page, Control child, double tolerance)
+    {
+        var topLeft = child.TranslatePoint(default, page);
+        Assert.NotNull(topLeft);
+        var childCenter = topLeft.Value.X + (child.Bounds.Width / 2);
+        var pageCenter = page.Bounds.Width / 2;
+        Assert.InRange(Math.Abs(childCenter - pageCenter), 0, tolerance);
+    }
+
     private static void AssertInside(Control page, Control child)
     {
         var topLeft = child.TranslatePoint(default, page);

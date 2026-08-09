@@ -577,6 +577,8 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="18" />
     <Setter Property="Padding" Value="8" />
+  </Style>
+  <Style Selector="FlyoutPresenter /template/ Border#LayoutRoot">
     <Setter Property="BoxShadow" Value="0 18 50 0 #88000000" />
   </Style>
   <Style Selector="MenuFlyoutPresenter">
@@ -586,6 +588,8 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="18" />
     <Setter Property="Padding" Value="8" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter /template/ Border#LayoutRoot">
     <Setter Property="BoxShadow" Value="0 18 50 0 #88000000" />
   </Style>
   <Style Selector="Menu">
@@ -1079,7 +1083,6 @@
     <Setter Property="Padding" Value="12"/><Setter Property="Background" Value="{DynamicResource HavenOverlaySurfaceBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource HavenTextPrimaryBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/>
     <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="22"/>
-    <Setter Property="BoxShadow" Value="0 18 50 0 #88000000"/>
   </Style>
   <Style Selector="ToolTip"><Setter Property="Background" Value="{DynamicResource HavenOverlaySurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource HavenTextPrimaryBrush}"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="10,7"/></Style>
 

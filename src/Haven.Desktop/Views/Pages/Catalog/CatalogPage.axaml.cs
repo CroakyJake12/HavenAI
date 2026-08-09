@@ -21,6 +21,7 @@ public sealed partial class CatalogPage : UserControl
     private readonly CatalogPageKind _kind;
 
     private bool _isCreating;
+    private Guid? _editingId;
 
     public CatalogPage(HavenEventBus bus, ICatalogRepository catalog, IOllamaClient ollama, CatalogPageKind kind)
     {
@@ -110,8 +111,7 @@ public sealed partial class CatalogPage : UserControl
         _bus.WirePointerEvents("Catalog.Actions.CloseCreate", CloseCreateButton);
         CloseCreateButton.Click += (_, _) =>
         {
-            _isCreating = false;
-            CreatePanel.IsVisible = false;
+            ResetCreatePanel();
             _bus.Fire("Catalog.Actions.CloseCreate");
         };
 
@@ -204,8 +204,13 @@ public sealed partial class CatalogPage : UserControl
             await DeleteItemAsync(id, isBuiltIn);
         };
 
-        var buttonGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Avalonia.Thickness(0, 9, 0, 0) };
-        Grid.SetColumn(deleteButton, 1);
+        var editButton = new HavenButton { Content = "Edit", IsVisible = !isBuiltIn, MinHeight = 32 };
+        editButton.Click += (_, _) => StartEditing(id, name, description);
+
+        var buttonGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6, Margin = new Avalonia.Thickness(0, 9, 0, 0) };
+        Grid.SetColumn(editButton, 1);
+        Grid.SetColumn(deleteButton, 2);
+        buttonGrid.Children.Add(editButton);
         buttonGrid.Children.Add(deleteButton);
 
         var contentGrid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
@@ -242,38 +247,35 @@ public sealed partial class CatalogPage : UserControl
         try
         {
             var now = DateTimeOffset.UtcNow;
+            var id = _editingId ?? Guid.NewGuid();
             if (_kind == CatalogPageKind.Agents)
             {
                 await _catalog.UpsertAgentAsync(new AgentDefinition(
-                    Guid.NewGuid(), name, desc, instr, "agent-custom",
+                    id, name, desc, instr, "agent-custom",
                     string.IsNullOrWhiteSpace(NewModelBox.Text) ? "default" : NewModelBox.Text.Trim(),
                     null, BuilderPromptBox.Text?.Trim() ?? "", "{\"mode\":\"ask\"}", false, true, now), CancellationToken.None);
             }
             else if (_kind == CatalogPageKind.Plugins)
             {
                 await _catalog.UpsertPluginAsync(new PluginDefinition(
-                    Guid.NewGuid(), name, desc, "plugin-custom", instr,
+                    id, name, desc, "plugin-custom", instr,
                     "[]", "[]", PluginPersistsCheck.IsChecked == true, false, true, now), CancellationToken.None);
             }
             else
             {
                 await _catalog.UpsertPromptAsync(new PromptDefinition(
-                    Guid.NewGuid(), name, desc, "prompt-custom", instr,
+                    id, name, desc, "prompt-custom", instr,
                     false, false, true, now), CancellationToken.None);
             }
 
-            NewNameBox.Text = string.Empty;
-            NewDescriptionBox.Text = string.Empty;
-            NewInstructionsBox.Text = string.Empty;
-            BuilderPromptBox.Text = string.Empty;
-            _isCreating = false;
-            CreatePanel.IsVisible = false;
+            var action = _editingId.HasValue ? "Updated" : "Created";
+            ResetCreatePanel();
             await RefreshAsync();
-            StatusText.Text = $"Created {name}. It is ready to use in chat.";
+            StatusText.Text = $"{action} {name}. It is ready to use in chat.";
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Could not create item: {ex.Message}";
+            StatusText.Text = $"Could not save item: {ex.Message}";
         }
     }
 
@@ -362,6 +364,34 @@ public sealed partial class CatalogPage : UserControl
         {
             StatusText.Text = $"Delete failed: {ex.Message}";
         }
+    }
+
+    private void StartEditing(Guid id, string name, string description)
+    {
+        _editingId = id;
+        _isCreating = true;
+        CreatePanel.IsVisible = true;
+        NewNameBox.Text = name;
+        NewDescriptionBox.Text = description;
+        CreateItemButton.Content = "Update";
+        StatusText.Text = $"Editing {name}. Change the fields and press Update.";
+    }
+
+    private void ResetCreatePanel()
+    {
+        _editingId = null;
+        _isCreating = false;
+        CreatePanel.IsVisible = false;
+        NewNameBox.Text = string.Empty;
+        NewDescriptionBox.Text = string.Empty;
+        NewInstructionsBox.Text = string.Empty;
+        BuilderPromptBox.Text = string.Empty;
+        CreateItemButton.Content = _kind switch
+        {
+            CatalogPageKind.Agents => "Create agent",
+            CatalogPageKind.Plugins => "Create plugin",
+            _ => "Create instruction"
+        };
     }
 
     private sealed class PluginImportManifest
