@@ -7,6 +7,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Components;
+using Haven.Desktop.HavenUI.Tokens;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -69,7 +71,14 @@ public sealed partial class MainView
         => Dispatcher.UIThread.Post(RefreshMobileChrome);
 
     private void OnMobileShellPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-        => Dispatcher.UIThread.Post(RefreshMobileChrome);
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (e.PropertyName == nameof(CurrentSurface))
+                HavenUiResourceApplier.Apply(SurfacePaletteCatalog.For(CurrentSurface, _preferences.Appearance));
+            RefreshMobileChrome();
+        });
+    }
 
     private void RefreshMobileChrome()
     {
@@ -128,14 +137,11 @@ public sealed partial class MainView
                     }
                 }
             };
-            var select = new Button
+            var select = new HavenTabButton
             {
                 Content = labelRow,
-                MinHeight = 36,
-                Padding = new Thickness(10, 5),
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(0)
+                IsSelected = isSelected,
+                MinHeight = 36
             };
             select.Click += (_, _) => SelectedTab = selected;
 
@@ -151,8 +157,6 @@ public sealed partial class MainView
                 close.MinHeight = 34;
                 close.MinWidth = 30;
                 close.Padding = new Thickness(6);
-                close.Background = Brushes.Transparent;
-                close.BorderThickness = new Thickness(0);
                 tabRow.Children.Add(close);
             }
 
@@ -162,12 +166,10 @@ public sealed partial class MainView
                 Margin = new Thickness(0, 0, 3, 0)
             };
             tabShell.Children.Add(tabRow);
-            var underline = new Border
+            var underline = new HavenSelectionIndicator
             {
                 Height = 2,
-                Background = isSelected
-                    ? ResourceBrush("HavenAccentBrush")
-                    : Brushes.Transparent
+                IsVisible = isSelected
             };
             Grid.SetRow(underline, 1);
             tabShell.Children.Add(underline);
@@ -250,12 +252,10 @@ public sealed partial class MainView
         grid.Children.Add(icon);
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
-        return new Button
+        return new HavenNavigationButton
         {
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             MinHeight = 52,
-            Padding = new Thickness(12, 8),
-            CornerRadius = new CornerRadius(16),
             Content = grid
         };
     }
@@ -282,12 +282,10 @@ public sealed partial class MainView
                 }
             }
         };
-        var button = new Button
+        var button = new HavenMobileActionButton
         {
             Content = content,
-            MinHeight = 44,
-            Padding = new Thickness(horizontalPadding, 6),
-            CornerRadius = new CornerRadius(14)
+            Padding = new Thickness(horizontalPadding, 6)
         };
         button.Click += (_, _) => action();
         return button;
@@ -295,13 +293,11 @@ public sealed partial class MainView
 
     private static Button MobileIconButton(string iconKey, Action action, string tooltip)
     {
-        var button = new Button
+        var button = new HavenIconButton
         {
             Content = new HavenIcon { IconKey = iconKey, Width = 18, Height = 18 },
-            MinHeight = 44,
             MinWidth = 44,
-            Padding = new Thickness(10),
-            CornerRadius = new CornerRadius(14)
+            Padding = new Thickness(10)
         };
         ToolTip.SetTip(button, tooltip);
         button.Click += (_, _) => action();

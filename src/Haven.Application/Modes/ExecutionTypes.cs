@@ -21,7 +21,7 @@ public sealed record TurnExecutionContext(
     string? WorkspaceRoot,
     ModelDescriptor Model,
     EffortLevel Effort,
-    IReadOnlyCollection<ActivePlugin> Plugins,
+    IReadOnlyCollection<ActiveCapability> Capabilities,
     IReadOnlyCollection<ActivePrompt> Prompts,
     PermissionMode FilePermission,
     PermissionMode CommandPermission,

@@ -29,12 +29,12 @@ public sealed partial class HavenLauncherActivity
             MaxValue = 7,
             Value = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7)
         };
-        var labels = new CheckBox(this)
+        var labels = new HavenNativeCheckBox(this)
         {
             Text = "Show app labels",
             Checked = Preferences.GetBoolean(LabelsKey, true)
         };
-        var packages = new CheckBox(this)
+        var packages = new HavenNativeCheckBox(this)
         {
             Text = "Show package names",
             Checked = Preferences.GetBoolean(PackagesKey, false)
@@ -309,7 +309,7 @@ public sealed partial class HavenLauncherActivity
         }
         catch
         {
-            _root.SetBackgroundColor(Color.Rgb(31, 24, 45));
+            _root.Background = HavenNativeSurface.Page();
         }
     }
 }

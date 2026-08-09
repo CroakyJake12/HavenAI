@@ -40,19 +40,28 @@ public sealed class ChatSessionService(
     public ToolAvailabilityPlan GetToolAvailability(
         HavenMode mode,
         string? workspaceRoot,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission)
     {
         using var computerPass = computerTools.CreatePass();
-        return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
+        return CreateAvailabilityPlan(mode, workspaceRoot, capabilities, filePermission, commandPermission, browserPermission,
             computerPass.Definitions);
     }
 
-    /// <summary>
-    /// Reports whether activate plugin applies to the current state.
-    /// </summary>
+    public bool CanUseCapability(
+        ActiveCapability capability,
+        HavenMode mode,
+        string? workspaceRoot,
+        PermissionMode filePermission,
+        PermissionMode commandPermission,
+        PermissionMode browserPermission) =>
+        GetToolAvailability(mode, workspaceRoot, [capability],
+            Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission))
+        .IsCapabilityAvailable(capability.Key);
+
+    /// <summary>Classic-only compatibility boundary pending deletion of its picker.</summary>
     public bool CanActivatePlugin(
         string pluginName,
         HavenMode mode,
@@ -60,8 +69,8 @@ public sealed class ChatSessionService(
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission) =>
-        GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
-            Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
+        CanUseCapability(ActiveCapability.FromLegacyPlugin(pluginName, pluginName), mode, workspaceRoot,
+            filePermission, commandPermission, browserPermission);
 
     /// <summary>
     /// Performs send asynchronously so I/O does not block the caller's thread.
@@ -71,7 +80,7 @@ public sealed class ChatSessionService(
         string prompt,
         ModelDescriptor model,
         EffortLevel effort,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         string agentName,
         string agentInstructions,
         DuoMode duoMode,
@@ -86,7 +95,8 @@ public sealed class ChatSessionService(
         PermissionMode filePermission = PermissionMode.FullAccess,
         PermissionMode commandPermission = PermissionMode.FullAccess,
         PermissionMode browserPermission = PermissionMode.FullAccess,
-        IReadOnlyCollection<ToolCapability>? explicitCapabilities = null)
+        IReadOnlyCollection<ToolCapability>? explicitCapabilities = null,
+        IReadOnlyCollection<ActiveCapability>? availableCapabilities = null)
     {
         ModelDescriptor etaModel = model;
 
@@ -150,6 +160,32 @@ public sealed class ChatSessionService(
                 cancellationToken).ConfigureAwait(false);
         }
 
+        // Haven owns the Generative UI registry, so a capability-status answer
+        // must come from deterministic host state rather than a model's stale
+        // self-description. The trusted directive is live evidence, not a mock.
+        if (GenUiChatDirectiveParser.TryCreateAvailabilityResponse(prompt, out var availabilityResponse))
+        {
+            var availabilityId = Guid.NewGuid();
+            execution.Update(ChatExecutionStage.Generating, "Opening Generative UI");
+            yield return ChatStreamEvent.AssistantStarted(availabilityId, model.Name, agentName);
+            yield return ChatStreamEvent.AssistantDelta(availabilityId, availabilityResponse);
+            var availabilityMessage = new ChatMessage(
+                availabilityId,
+                conversation.Id,
+                MessageRole.Assistant,
+                availabilityResponse,
+                agentName,
+                model.Name,
+                null,
+                DateTimeOffset.UtcNow);
+            if (!conversation.IsTemporary)
+                await conversations.AddMessageAsync(availabilityMessage, cancellationToken).ConfigureAwait(false);
+            execution.Complete();
+            execution.Changed -= PublishExecution;
+            yield return ChatStreamEvent.AssistantCompleted(availabilityMessage);
+            yield break;
+        }
+
         execution.Update(ChatExecutionStage.LoadingModel, "Loading Model");
         var installed = await _modelInventory.GetAsync(
             forceRefresh: false,
@@ -161,7 +197,7 @@ public sealed class ChatSessionService(
 
         var selectedCapabilities = explicitCapabilities is { Count: > 0 }
             ? explicitCapabilities.ToHashSet()
-            : CapabilitiesFromActivePlugins(plugins);
+            : ToolCapabilitiesFromRegisteredCapabilities(capabilities);
         var capabilitySelection = ChatCapabilitySelection.Create(
             prompt,
             selectedCapabilities);
@@ -187,23 +223,29 @@ public sealed class ChatSessionService(
         etaModel = turnModel;
 
         using var computerPassCandidate = computerTools.CreatePass();
+        var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
+                availableCapabilities ?? capabilities,
+                requiredCapabilities)
+            .Concat(capabilities)
+            .DistinctBy(capability => capability.Key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         var availabilityPlan = CreateAvailabilityPlan(
             conversation.Mode,
             workspaceRoot,
-            plugins,
+            selectedRegisteredCapabilities,
             filePermission,
             commandPermission,
             browserPermission,
             computerPassCandidate.Definitions);
 
         var modelPlan = availabilityPlan.RestrictToModel(turnModel);
-        var modelPlugins = FilterPluginsForTurn(
-            modelPlan.FilterPlugins(plugins),
+        var modelCapabilities = FilterCapabilitiesForTurn(
+            modelPlan.FilterCapabilities(selectedRegisteredCapabilities),
             requiredCapabilities);
 
         var check = preflight.Evaluate(
             turnModel,
-            modelPlugins,
+            modelCapabilities,
             images is { Count: > 0 },
             installed);
 
@@ -260,7 +302,7 @@ public sealed class ChatSessionService(
         }
 
         var system = BuildSystemPrompt(
-            conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
+            conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
             projectContext, projectInstructions, registeredContext, computerPass is not null);
         var assistantId = Guid.NewGuid();
@@ -437,27 +479,33 @@ public sealed class ChatSessionService(
     /// <summary>
     /// Creates availability plan with the invariants required by its callers.
     /// </summary>
-    private static HashSet<ToolCapability> CapabilitiesFromActivePlugins(
-        IReadOnlyCollection<ActivePlugin> plugins)
+    private static HashSet<ToolCapability> ToolCapabilitiesFromRegisteredCapabilities(
+        IReadOnlyCollection<ActiveCapability> capabilities)
     {
         var result = new HashSet<ToolCapability>();
-        foreach (var plugin in plugins)
+        foreach (var capability in capabilities)
         {
-            switch (plugin.Name.ToLowerInvariant())
+            switch (capability.Key)
             {
-                case "websearch":
+                case "web-search":
                     result.Add(ToolCapability.WebSearch);
                     result.Add(ToolCapability.Browser);
                     break;
-                case "browseruse":
+                case "browser-use":
                     result.Add(ToolCapability.Browser);
                     break;
-                case "computeruse":
+                case "computer-device-use":
                     result.Add(ToolCapability.ComputerUse);
                     break;
-                case "automate":
-                case "macro":
-                case "test":
+                case "create-automation":
+                case "run-task":
+                case "edit-task":
+                case "run-command":
+                case "run-script":
+                case "powershell":
+                case "read-file":
+                case "write-file":
+                case "run-tests":
                     result.Add(ToolCapability.Tools);
                     break;
             }
@@ -473,22 +521,24 @@ public sealed class ChatSessionService(
         capabilities.Contains(ToolCapability.WebSearch) ||
         capabilities.Contains(ToolCapability.ComputerUse);
 
-    private static IReadOnlyCollection<ActivePlugin> FilterPluginsForTurn(
-        IReadOnlyCollection<ActivePlugin> plugins,
-        IReadOnlySet<ToolCapability> capabilities)
+    private static IReadOnlyCollection<ActiveCapability> FilterCapabilitiesForTurn(
+        IReadOnlyCollection<ActiveCapability> registeredCapabilities,
+        IReadOnlySet<ToolCapability> required)
     {
-        if (NeedsToolRuntime(capabilities))
-        {
-            return plugins;
-        }
+        if (!NeedsToolRuntime(required)) return [];
 
-        return plugins
-            .Where(plugin => plugin.Name is not (
-                "Automate" or
-                "BrowserUse" or
-                "ComputerUse" or
-                "Test" or
-                "WebSearch"))
+        return registeredCapabilities
+            .Where(capability => capability.Key switch
+            {
+                "web-search" => required.Contains(ToolCapability.WebSearch),
+                "browser-use" => required.Contains(ToolCapability.Browser)
+                                 && !required.Contains(ToolCapability.WebSearch),
+                "computer-device-use" or "open-control-app" => required.Contains(ToolCapability.ComputerUse),
+                "create-automation" or "run-task" or "edit-task" or
+                "run-command" or "run-script" or "powershell" or
+                "read-file" or "write-file" or "run-tests" => required.Contains(ToolCapability.Tools),
+                _ => false
+            })
             .ToArray();
     }
 
@@ -598,7 +648,7 @@ public sealed class ChatSessionService(
     private ToolAvailabilityPlan CreateAvailabilityPlan(
         HavenMode mode,
         string? workspaceRoot,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission,
@@ -607,7 +657,7 @@ public sealed class ChatSessionService(
             new ToolAvailabilityContext(
                 mode,
                 workspaceRoot,
-                plugins,
+                capabilities,
                 filePermission,
                 commandPermission,
                 browserPermission,
@@ -727,7 +777,7 @@ public sealed class ChatSessionService(
     /// </summary>
     private static string BuildSystemPrompt(
         Conversation conversation,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         IReadOnlyCollection<ActivePrompt> prompts,
         string agentName,
         string agentInstructions,
@@ -762,8 +812,8 @@ public sealed class ChatSessionService(
             builder.Append("\nProject instructions and golden rules:\n").Append(projectInstructions.Trim());
         if (!string.IsNullOrWhiteSpace(registeredContext))
             builder.Append("\nRegistered conversation context and prior compact summaries:\n").Append(registeredContext.Trim());
-        foreach (var plugin in plugins.Where(plugin => !string.IsNullOrWhiteSpace(plugin.Instructions)))
-            builder.Append("\nPlugin @").Append(plugin.Name).Append(":\n").Append(plugin.Instructions.Trim());
+        foreach (var capability in capabilities.Where(capability => !string.IsNullOrWhiteSpace(capability.Instructions)))
+            builder.Append("\nCapability ").Append(capability.Name).Append(":\n").Append(capability.Instructions.Trim());
         foreach (var prompt in prompts.Where(prompt => !string.IsNullOrWhiteSpace(prompt.Instructions)))
             builder.Append("\nPrompt >").Append(prompt.Name).Append(":\n").Append(prompt.Instructions.Trim());
         if (!string.IsNullOrWhiteSpace(workspaceRoot))

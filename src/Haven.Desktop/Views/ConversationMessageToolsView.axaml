@@ -1,7 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.ConversationMessageToolsView">
-  <Border Background="{DynamicResource HavenPanel2Brush}"
+  <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}"
           BorderBrush="{DynamicResource HavenLineBrush}"
           BorderThickness="1"
           CornerRadius="12"
@@ -12,31 +13,31 @@
           <TextBlock Text="MESSAGE VERSIONS" Classes="eyebrow" />
           <TextBlock Text="Edit user turns, regenerate responses, bookmark messages, and restore saved versions." Classes="muted" FontSize="10" />
         </StackPanel>
-        <Button x:Name="RefreshButton" Grid.Column="1" Content="Refresh" />
+        <hui:HavenButton x:Name="RefreshButton" Grid.Column="1" Content="Refresh" />
       </Grid>
 
-      <ComboBox x:Name="MessageSelector" HorizontalAlignment="Stretch">
-        <ComboBox.ItemTemplate>
+      <hui:HavenComboBox x:Name="MessageSelector" HorizontalAlignment="Stretch">
+        <hui:HavenComboBox.ItemTemplate>
           <DataTemplate><TextBlock Text="{Binding DisplayName}" MaxWidth="760" TextTrimming="CharacterEllipsis" /></DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+        </hui:HavenComboBox.ItemTemplate>
+      </hui:HavenComboBox>
 
       <Grid ColumnDefinitions="2*,*" ColumnSpacing="12">
         <StackPanel Spacing="7">
           <TextBlock Text="EDIT USER MESSAGE" Classes="eyebrow" />
-          <TextBox x:Name="EditContentBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62" MaxHeight="150" />
+          <hui:HavenTextInput x:Name="EditContentBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62" MaxHeight="150" />
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
-            <ComboBox x:Name="EditModeSelector" />
-            <Button x:Name="ApplyEditButton" Grid.Column="1" Content="Apply edit" Classes="accent" />
+            <hui:HavenComboBox x:Name="EditModeSelector" />
+            <hui:HavenButton x:Name="ApplyEditButton" Grid.Column="1" Content="Apply edit" Classes="accent" />
           </Grid>
           <TextBlock Text="New Branch keeps the current path untouched. Overwrite Current Branch stores a recovery snapshot first." Classes="muted2" FontSize="9" />
         </StackPanel>
 
         <StackPanel Grid.Column="1" Spacing="7">
           <TextBlock Text="RESPONSE ACTIONS" Classes="eyebrow" />
-          <ComboBox x:Name="RegenerationModeSelector" />
-          <Button x:Name="RegenerateButton" Content="Regenerate response" />
-          <Button x:Name="BookmarkButton" />
+          <hui:HavenComboBox x:Name="RegenerationModeSelector" />
+          <hui:HavenButton x:Name="RegenerateButton" Content="Regenerate response" />
+          <hui:HavenButton x:Name="BookmarkButton" />
           <TextBlock Text="Older responses always regenerate into a new branch." Classes="muted2" FontSize="9" />
         </StackPanel>
       </Grid>
@@ -44,10 +45,10 @@
       <Separator />
 
       <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
-        <Button x:Name="PreviousVersionButton" Content="Previous version" />
-        <Button x:Name="NextVersionButton" Grid.Column="1" Content="Next version" />
+        <hui:HavenButton x:Name="PreviousVersionButton" Content="Previous version" />
+        <hui:HavenButton x:Name="NextVersionButton" Grid.Column="1" Content="Next version" />
         <TextBlock x:Name="VersionLabel" Grid.Column="2" Classes="muted" VerticalAlignment="Center" />
-        <ProgressBar x:Name="BusyIndicator" Grid.Column="3" Width="60" Height="4" IsIndeterminate="True" IsVisible="False" VerticalAlignment="Center" />
+        <hui:HavenProgressBar x:Name="BusyIndicator" Grid.Column="3" Width="60" Height="4" IsIndeterminate="True" IsVisible="False" VerticalAlignment="Center" />
       </Grid>
       <ItemsControl x:Name="VersionsList" MaxHeight="110">
         <ItemsControl.ItemTemplate>
@@ -61,5 +62,5 @@
       </ItemsControl>
       <TextBlock x:Name="StatusText" Classes="muted" FontSize="10" />
     </StackPanel>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

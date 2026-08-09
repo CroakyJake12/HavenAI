@@ -8,10 +8,8 @@ public sealed partial class HavenLauncherActivity
 {
     private GradientDrawable MagicalBackground(int radius)
     {
-        var background = new GradientDrawable();
-        background.SetColor(Color.Argb(225, 89, 48, 145));
+        var background = HavenNativeAccentPalette.Launcher.Primary.Create(radius);
         background.SetStroke(Dp(1), Color.Argb(210, 213, 165, 255));
-        background.SetCornerRadius(radius);
         return background;
     }
 

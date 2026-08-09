@@ -87,7 +87,7 @@ public sealed partial class StudioProjectView : UserControl
         Grid.SetColumn(main, 1);
         _root.Children.Add(main);
 
-        _settingsDialog = new Border
+        _settingsDialog = new HavenAdaptiveSurface
         {
             MinWidth = 720,
             MaxWidth = 1120,
@@ -100,7 +100,7 @@ public sealed partial class StudioProjectView : UserControl
             CornerRadius = new CornerRadius(36),
             Padding = new Thickness(46)
         };
-        _settingsOverlay = new Border
+        _settingsOverlay = new HavenAdaptiveSurface
         {
             IsVisible = false,
             Background = new SolidColorBrush(Color.FromArgb(88, 18, 24, 27)),
@@ -115,7 +115,7 @@ public sealed partial class StudioProjectView : UserControl
 
     private Control BuildSidebar()
     {
-        var back = new Button
+        var back = new HavenButton
         {
             Content = new StackPanel
             {
@@ -167,7 +167,7 @@ public sealed partial class StudioProjectView : UserControl
         Grid.SetRow(_settingsButton, 4);
         layout.Children.Add(_settingsButton);
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = PanelBrush,
             BorderBrush = LineBrush,
@@ -365,7 +365,7 @@ public sealed partial class StudioProjectView : UserControl
         }
 
         if (page.ProjectConversations.Count > 0 && page.Files.Count > 0)
-            _mainResults.Children.Add(new Border { Height = 1, Background = LineBrush, Margin = new Thickness(80, 4) });
+            _mainResults.Children.Add(new HavenAdaptiveSurface { Height = 1, Background = LineBrush, Margin = new Thickness(80, 4) });
 
         foreach (var file in page.Files.Where(item => Matches(item.RelativePath, query)).Take(120))
         {
@@ -381,7 +381,7 @@ public sealed partial class StudioProjectView : UserControl
                 ? "Start a project chat or connect files to this project."
                 : "No project chats or files match that search."));
 
-        var settings = new Button
+        var settings = new HavenButton
         {
             Content = new StackPanel
             {
@@ -414,7 +414,7 @@ public sealed partial class StudioProjectView : UserControl
             return;
         }
 
-        var name = new TextBox
+        var name = new HavenTextInput
         {
             Text = page.ProjectNameDraft,
             MinHeight = 54,
@@ -428,7 +428,7 @@ public sealed partial class StudioProjectView : UserControl
         };
         name.TextChanged += (_, _) => page.ProjectNameDraft = name.Text ?? string.Empty;
 
-        var context = new TextBox
+        var context = new HavenTextInput
         {
             Text = page.ProjectContextDraft,
             AcceptsReturn = true,
@@ -444,7 +444,7 @@ public sealed partial class StudioProjectView : UserControl
         };
         context.TextChanged += (_, _) => page.ProjectContextDraft = context.Text ?? string.Empty;
 
-        var generate = new Button
+        var generate = new HavenButton
         {
             Content = "Generate Context from Chats",
             Background = AccentSoftBrush,
@@ -462,7 +462,7 @@ public sealed partial class StudioProjectView : UserControl
             _status.Text = page.ConfigureStatus;
         };
 
-        var cancel = new Button
+        var cancel = new HavenButton
         {
             Content = "Cancel",
             Padding = new Thickness(24, 12),
@@ -476,7 +476,7 @@ public sealed partial class StudioProjectView : UserControl
             page.CancelProjectSettingsCommand.Execute(null);
             RefreshAll();
         };
-        var save = new Button
+        var save = new HavenButton
         {
             Content = "Save",
             Padding = new Thickness(28, 12),
@@ -608,12 +608,12 @@ public sealed partial class StudioProjectView : UserControl
                     : $"Haven will use {page.Files.Count} indexed project files, repository state, and this project's chats.")
             }
         };
-        new Flyout { Content = panel }.ShowAt(target);
+        new HavenAdaptivePopup { Content = panel }.ShowAt(target);
     }
 
     private static Border ResultRow(string title, string detail, string icon, Action action)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Background = Brushes.Transparent,
@@ -632,7 +632,7 @@ public sealed partial class StudioProjectView : UserControl
             }
         };
         button.Click += (_, _) => action();
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = PanelBrush,
             BorderBrush = LineBrush,
@@ -663,7 +663,7 @@ public sealed partial class StudioProjectView : UserControl
 
     private static void AddCommandButton(Panel panel, string label, ICommand command)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = label,
             Margin = new Thickness(0, 0, 8, 8),
@@ -715,7 +715,7 @@ public sealed partial class StudioProjectView : UserControl
 
     private static Button RoundIconButton(string icon, string automationName)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = new HavenIcon { IconKey = icon, Width = 24, Height = 24 },
             Width = 58,

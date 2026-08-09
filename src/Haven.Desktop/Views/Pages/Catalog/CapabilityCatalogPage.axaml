@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+             x:Class="Haven.Desktop.Views.Pages.Catalog.CapabilityCatalogPage">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="30,25">
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+      <StackPanel>
+        <TextBlock Text="Capabilities" Classes="heading" />
+        <TextBlock Text="One registry for what Haven can discover, attach, and use through permissioned providers."
+                   Classes="muted" Margin="0,4,0,0" />
+      </StackPanel>
+      <hui:HavenButton Grid.Column="1" x:Name="TemplateLabButton" Content="Template Preview Lab" Classes="chrome" />
+      <hui:HavenButton Grid.Column="2" x:Name="RefreshButton" Content="Refresh" Classes="chrome" />
+      <hui:HavenButton Grid.Column="3" x:Name="CreateToggleButton" Content="Create capability" Classes="accent" />
+    </Grid>
+
+    <hui:HavenAdaptiveSurface Grid.Row="1" x:Name="CreatePanel" Classes="card" Margin="0,20,0,12" IsVisible="False">
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="CAPABILITY CREATOR" Classes="eyebrow" VerticalAlignment="Center" />
+          <hui:HavenButton Grid.Column="1" x:Name="CloseCreateButton" Classes="icon" ToolTip.Tip="Close creator" Content="×" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <hui:HavenTextInput x:Name="BuilderPromptBox" PlaceholderText="Describe the capability and its safety boundary" />
+          <hui:HavenButton Grid.Column="1" x:Name="BuildWithAiButton" Content="Build with AI" />
+        </Grid>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+          <hui:HavenTextInput x:Name="NameBox" PlaceholderText="Name" />
+          <hui:HavenTextInput Grid.Column="1" x:Name="KeyBox" PlaceholderText="Stable key (for example: analyse-document)" />
+        </Grid>
+        <hui:HavenTextInput x:Name="DescriptionBox" PlaceholderText="Short description" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+          <hui:HavenComboBox x:Name="OwnerAppBox" PlaceholderText="Owning App" />
+          <hui:HavenTextInput Grid.Column="1" x:Name="ImplementationKeyBox" PlaceholderText="Implementation key" />
+          <hui:HavenTextInput Grid.Column="2" x:Name="ProviderBox" PlaceholderText="Provider ID" Text="user.declarative" />
+        </Grid>
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+          <hui:HavenTextInput x:Name="IconKeyBox" PlaceholderText="Icon key" Text="bolt" />
+          <hui:HavenComboBox Grid.Column="1" x:Name="PlatformBox" />
+          <hui:HavenComboBox Grid.Column="2" x:Name="RiskBox" />
+          <hui:HavenComboBox Grid.Column="3" x:Name="AvailabilityBox" />
+        </Grid>
+        <hui:HavenTextInput x:Name="InstructionsBox" PlaceholderText="Provider and safety instructions"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="180" />
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+          <hui:HavenTextInput x:Name="SemanticActionsBox" Text="[]" PlaceholderText="Semantic actions JSON array" />
+          <hui:HavenTextInput Grid.Column="1" x:Name="DependenciesBox" Text="[]" PlaceholderText="Dependencies JSON array" />
+        </Grid>
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="16">
+          <hui:HavenCheckBox x:Name="AttachableCheck" Content="Attachable" IsChecked="True" />
+          <hui:HavenCheckBox Grid.Column="1" x:Name="AgentUsableCheck" Content="Agent usable" />
+          <TextBlock Grid.Column="2" Text="Attachment is relevance only; permission and provider availability remain separate."
+                     Classes="muted" FontSize="11" VerticalAlignment="Center" />
+          <hui:HavenButton Grid.Column="3" x:Name="CreateButton" Content="Create" Classes="accent" MinWidth="120" />
+        </Grid>
+      </StackPanel>
+    </hui:HavenAdaptiveSurface>
+
+    <TextBlock Grid.Row="2" x:Name="StatusText" Classes="muted" FontSize="11" Margin="2,2,0,12" />
+    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+      <StackPanel x:Name="GroupsPanel" Spacing="18" />
+    </ScrollViewer>
+  </Grid>
+</UserControl>

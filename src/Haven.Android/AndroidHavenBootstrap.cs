@@ -43,7 +43,7 @@ internal static class AndroidHavenBootstrap
                     "Haven services were not created before Android requested its main view.");
 
             var preferences = services.GetRequiredService<UserPreferencesService>();
-            preferences.ApplyTheme("new-haven", save: false);
+            preferences.ApplyAppearance(preferences.Appearance, save: false);
 
             // Android can recreate an Activity. Create a fresh Avalonia control graph while
             // reusing Haven's application and infrastructure services.

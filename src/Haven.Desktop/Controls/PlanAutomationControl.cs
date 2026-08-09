@@ -15,6 +15,7 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Automations;
 using Haven.Core;
+using Haven.Desktop.HavenUI.Components.Buttons;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Controls;
@@ -159,13 +160,13 @@ public sealed class PlanAutomationControl : Button, IDisposable
 
         _saveButton.Classes.Add("accent");
         _saveButton.Click += async (_, _) => await SaveAsync();
-        var reset = new Button { Content = "Clear" };
+        var reset = new HavenButton { Content = "Clear" };
         reset.Click += (_, _) => ResetEditor();
-        var refresh = new Button { Content = "Refresh" };
+        var refresh = new HavenButton { Content = "Refresh" };
         refresh.Click += async (_, _) => await RefreshAsync();
-        var register = new Button { Content = "Enable background checks" };
+        var register = new HavenButton { Content = "Enable background checks" };
         register.Click += async (_, _) => await RegisterWorkerAsync();
-        var unregister = new Button { Content = "Disable background checks" };
+        var unregister = new HavenButton { Content = "Disable background checks" };
         unregister.Click += async (_, _) => await UnregisterWorkerAsync();
 
         _kind.SelectedItem = AutomationScheduleKind.Daily;
@@ -177,7 +178,7 @@ public sealed class PlanAutomationControl : Button, IDisposable
         foreach (var control in new AvaloniaObject[] { _onceDate, _time, _day, _intervalHours, _conditionMinutes })
             control.PropertyChanged += (_, _) => UpdateScheduleHint();
 
-        Flyout = new Flyout
+        Flyout = new HavenAdaptivePopup
         {
             Placement = PlacementMode.Left,
             Content = BuildEditor(
@@ -430,29 +431,19 @@ public sealed class PlanAutomationControl : Button, IDisposable
             definition.ScheduleKind,
             definition.ScheduleJson,
             DateTimeOffset.Now);
-        var edit = new Button { Content = "Edit" };
+        var edit = new HavenButton { Content = "Edit" };
         edit.Click += (_, _) => LoadForEdit(definition);
-        var toggle = new Button { Content = definition.IsEnabled ? "Disable" : "Enable" };
+        var toggle = new HavenButton { Content = definition.IsEnabled ? "Disable" : "Enable" };
         toggle.Click += async (_, _) => await ToggleAsync(definition);
-        var run = new Button { Content = "Run now" };
+        var run = new HavenButton { Content = "Run now" };
         run.Classes.Add("accent");
         run.Click += async (_, _) => await RunNowAsync(definition);
-        var history = new Button { Content = "History" };
+        var history = new HavenButton { Content = "History" };
         history.Click += async (_, _) => await ShowHistoryAsync(definition);
-        var delete = new Button { Content = "Delete" };
-        var deleteArmed = false;
-        delete.Click += async (_, _) =>
-        {
-            if (!deleteArmed)
-            {
-                deleteArmed = true;
-                delete.Content = "Confirm delete";
-                return;
-            }
-            await DeleteAsync(definition);
-        };
+        var delete = new HoldToConfirmButton { Content = "Delete" };
+        delete.Click += async (_, _) => await DeleteAsync(definition);
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Padding = new Thickness(11),
             CornerRadius = new CornerRadius(12),

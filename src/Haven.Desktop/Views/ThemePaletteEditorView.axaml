@@ -11,37 +11,38 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.ThemePaletteEditorView">
   <!-- Section: Keeps the region usable when content exceeds the available window size. -->
   <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
     <!-- Section: Hosts the WrapPanel portion of this view at this position in the visual tree. -->
     <WrapPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Background" Classes="muted" /><TextBox Text="{Binding Background}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Elevated" Classes="muted" /><TextBox Text="{Binding Elevated}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel" Classes="muted" /><TextBox Text="{Binding Panel}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 2" Classes="muted" /><TextBox Text="{Binding Panel2}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 3" Classes="muted" /><TextBox Text="{Binding Panel3}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel hover" Classes="muted" /><TextBox Text="{Binding PanelHover}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Text" Classes="muted" /><TextBox Text="{Binding Text}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Soft text" Classes="muted" /><TextBox Text="{Binding TextSoft}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted" Classes="muted" /><TextBox Text="{Binding Muted}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted 2" Classes="muted" /><TextBox Text="{Binding Muted2}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent" Classes="muted" /><TextBox Text="{Binding Accent}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent ink" Classes="muted" /><TextBox Text="{Binding AccentInk}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent soft" Classes="muted" /><TextBox Text="{Binding AccentSoft}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue" Classes="muted" /><TextBox Text="{Binding Blue}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue soft" Classes="muted" /><TextBox Text="{Binding BlueSoft}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Danger" Classes="muted" /><TextBox Text="{Binding Danger}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Warning" Classes="muted" /><TextBox Text="{Binding Warning}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Line" Classes="muted" /><TextBox Text="{Binding Line}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Strong line" Classes="muted" /><TextBox Text="{Binding LineStrong}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Active nub" Classes="muted" /><TextBox Text="{Binding Nub}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic tint" Classes="muted" /><TextBox Text="{Binding AcrylicTint}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic fallback" Classes="muted" /><TextBox Text="{Binding AcrylicFallback}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button" Classes="muted" /><TextBox Text="{Binding Button}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button hover" Classes="muted" /><TextBox Text="{Binding ButtonHover}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button pressed" Classes="muted" /><TextBox Text="{Binding ButtonPressed}" /></StackPanel>
-      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Focus" Classes="muted" /><TextBox Text="{Binding Focus}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Background" Classes="muted" /><hui:HavenTextInput Text="{Binding Background}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Elevated" Classes="muted" /><hui:HavenTextInput Text="{Binding Elevated}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel" Classes="muted" /><hui:HavenTextInput Text="{Binding Panel}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 2" Classes="muted" /><hui:HavenTextInput Text="{Binding Panel2}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel 3" Classes="muted" /><hui:HavenTextInput Text="{Binding Panel3}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Panel hover" Classes="muted" /><hui:HavenTextInput Text="{Binding PanelHover}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Text" Classes="muted" /><hui:HavenTextInput Text="{Binding Text}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Soft text" Classes="muted" /><hui:HavenTextInput Text="{Binding TextSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted" Classes="muted" /><hui:HavenTextInput Text="{Binding Muted}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Muted 2" Classes="muted" /><hui:HavenTextInput Text="{Binding Muted2}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent" Classes="muted" /><hui:HavenTextInput Text="{Binding Accent}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent ink" Classes="muted" /><hui:HavenTextInput Text="{Binding AccentInk}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Accent soft" Classes="muted" /><hui:HavenTextInput Text="{Binding AccentSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue" Classes="muted" /><hui:HavenTextInput Text="{Binding Blue}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Blue soft" Classes="muted" /><hui:HavenTextInput Text="{Binding BlueSoft}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Danger" Classes="muted" /><hui:HavenTextInput Text="{Binding Danger}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Warning" Classes="muted" /><hui:HavenTextInput Text="{Binding Warning}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Line" Classes="muted" /><hui:HavenTextInput Text="{Binding Line}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Strong line" Classes="muted" /><hui:HavenTextInput Text="{Binding LineStrong}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Active nub" Classes="muted" /><hui:HavenTextInput Text="{Binding Nub}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic tint" Classes="muted" /><hui:HavenTextInput Text="{Binding AcrylicTint}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Acrylic fallback" Classes="muted" /><hui:HavenTextInput Text="{Binding AcrylicFallback}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button" Classes="muted" /><hui:HavenTextInput Text="{Binding Button}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button hover" Classes="muted" /><hui:HavenTextInput Text="{Binding ButtonHover}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Button pressed" Classes="muted" /><hui:HavenTextInput Text="{Binding ButtonPressed}" /></StackPanel>
+      <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Focus" Classes="muted" /><hui:HavenTextInput Text="{Binding Focus}" /></StackPanel>
     </WrapPanel>
   </ScrollViewer>
 </UserControl>

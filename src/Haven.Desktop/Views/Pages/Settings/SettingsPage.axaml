@@ -1,6 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:views="using:Haven.Desktop.Views"
+             xmlns:local="using:Haven.Desktop.Views.Pages.Settings"
+             xmlns:havenUi="using:Haven.Desktop.HavenUI.Components.Buttons"
              x:Class="Haven.Desktop.Views.Pages.Settings.SettingsPage">
 
   <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -11,54 +14,53 @@
                  Classes="muted"
                  TextWrapping="Wrap" />
 
-      <views:GenerativeUiThemeSelectorView x:Name="GenerativeUiSelector" />
-      <views:GenerativeUiAdvancedPageHandoffView />
+      <local:HavenAppearanceSettingsView />
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <StackPanel>
               <TextBlock Text="LOCAL MODELS" Classes="eyebrow" />
               <TextBlock Text="Model manager" Classes="sectionHeading" Margin="0,4,0,0" />
             </StackPanel>
-            <Button Grid.Column="1" x:Name="RefreshModelsButton" Content="Refresh" />
+            <hui:HavenButton Grid.Column="1" x:Name="RefreshModelsButton" Content="Refresh" />
           </Grid>
 
-          <TextBox x:Name="ModelSearchBox"
+          <hui:HavenTextInput x:Name="ModelSearchBox"
                    PlaceholderText="Search installed models" />
 
           <WrapPanel x:Name="ModelsPanel" />
 
           <StackPanel Spacing="8">
             <TextBlock Text="Active model" Classes="muted" />
-            <ComboBox x:Name="ModelCombo" HorizontalAlignment="Stretch" />
+            <hui:HavenComboBox x:Name="ModelCombo" HorizontalAlignment="Stretch" />
             <TextBlock Text="Reasoning effort" Classes="muted" />
-            <ComboBox x:Name="EffortCombo" HorizontalAlignment="Stretch" />
-            <Button x:Name="SaveDefaultsButton"
+            <hui:HavenComboBox x:Name="EffortCombo" HorizontalAlignment="Stretch" />
+            <hui:HavenButton x:Name="SaveDefaultsButton"
                     Content="Save defaults"
                     Classes="accent"
                     HorizontalAlignment="Stretch" />
-            <Button x:Name="DeleteModelButton"
+            <hui:HavenButton x:Name="DeleteModelButton"
                     Content="Delete selected model"
                     Classes="danger"
                     HorizontalAlignment="Stretch" />
           </StackPanel>
 
-          <Border x:Name="DeleteConfirmBorder"
+          <hui:HavenAdaptiveSurface x:Name="DeleteConfirmBorder"
                   Classes="permission"
                   IsVisible="False">
             <StackPanel Spacing="8">
               <TextBlock Text="Permanently remove the selected model from Ollama?"
                          TextWrapping="Wrap" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <Button x:Name="CancelDeleteButton" Content="Cancel" />
-                <Button Grid.Column="1"
-                        x:Name="ConfirmDeleteButton"
-                        Content="Delete model"
-                        Classes="danger" />
+                <hui:HavenButton x:Name="CancelDeleteButton" Content="Cancel" />
+                <havenUi:HoldToConfirmButton Grid.Column="1"
+                                             x:Name="ConfirmDeleteButton"
+                                             Content="Delete model"
+                                             ActionLabel="delete model" />
               </Grid>
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <Separator />
 
@@ -66,23 +68,23 @@
           <TextBlock Text="Enter an Ollama model name or choose a recommended model."
                      Classes="muted"
                      TextWrapping="Wrap" />
-          <TextBox x:Name="InstallModelBox"
+          <hui:HavenTextInput x:Name="InstallModelBox"
                    PlaceholderText="e.g. qwen3:4b" />
           <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-            <Button x:Name="BrowseModelsButton"
+            <hui:HavenButton x:Name="BrowseModelsButton"
                     Content="Browse models" />
-            <Button Grid.Column="1"
+            <hui:HavenButton Grid.Column="1"
                     x:Name="InstallModelButton"
                     Content="Install"
                     Classes="accent" />
           </Grid>
-          <ProgressBar x:Name="InstallProgress"
+          <hui:HavenProgressBar x:Name="InstallProgress"
                        Value="0"
                        Minimum="0"
                        Maximum="1"
                        Height="8" />
 
-          <Border x:Name="RecommendedModelsBorder"
+          <hui:HavenAdaptiveSurface x:Name="RecommendedModelsBorder"
                   Classes="permission"
                   IsVisible="False">
             <StackPanel Spacing="8">
@@ -91,92 +93,92 @@
                          Classes="muted"
                          TextWrapping="Wrap" />
               <WrapPanel x:Name="RecommendedModelsPanel" />
-              <Button x:Name="HuggingFaceSearchButton"
+              <hui:HavenButton x:Name="HuggingFaceSearchButton"
                       Content="Search public Hugging Face GGUF models"
                       HorizontalAlignment="Stretch" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <views:ProviderConnectionsView />
       <views:ReliabilityStatusView />
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="9">
           <TextBlock Text="ADVANCED GENERATION" Classes="eyebrow" />
           <TextBlock Text="Temperature (0–2)" Classes="muted" />
-          <NumericUpDown x:Name="TemperatureBox"
+          <hui:HavenNumericInput x:Name="TemperatureBox"
                          Minimum="0"
                          Maximum="2"
                          Increment="0.1"
                          FormatString="0.0" />
           <TextBlock Text="Context limit" Classes="muted" />
-          <NumericUpDown x:Name="ContextLimitBox"
+          <hui:HavenNumericInput x:Name="ContextLimitBox"
                          Minimum="2048"
                          Maximum="262144"
                          Increment="1024" />
           <TextBlock Text="Maximum tool actions per turn" Classes="muted" />
-          <NumericUpDown x:Name="ActionLimitBox"
+          <hui:HavenNumericInput x:Name="ActionLimitBox"
                          Minimum="1"
                          Maximum="100" />
-          <Button x:Name="SaveAdvancedButton"
+          <hui:HavenButton x:Name="SaveAdvancedButton"
                   Content="Save advanced limits"
                   HorizontalAlignment="Stretch" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="8">
           <TextBlock Text="FEATURES" Classes="eyebrow" />
-          <CheckBox x:Name="AutoSwitchCheck"
+          <hui:HavenCheckBox x:Name="AutoSwitchCheck"
                     Content="Automatically switch to a compatible model" />
-          <CheckBox x:Name="AgenticInChatCheck"
+          <hui:HavenCheckBox x:Name="AgenticInChatCheck"
                     Content="Show agentic plugins in Haven Chat" />
-          <CheckBox x:Name="ConfidenceCheck"
+          <hui:HavenCheckBox x:Name="ConfidenceCheck"
                     Content="Show confidence indicators" />
-          <CheckBox x:Name="AutoCompactCheck"
+          <hui:HavenCheckBox x:Name="AutoCompactCheck"
                     Content="Compact context automatically" />
           <TextBlock Text="Compact when context reaches this percent"
                      Classes="muted"
                      TextWrapping="Wrap" />
-          <NumericUpDown x:Name="CompactPercentBox"
+          <hui:HavenNumericInput x:Name="CompactPercentBox"
                          Minimum="50"
                          Maximum="95" />
-          <CheckBox x:Name="AdaptiveHelpCheck"
+          <hui:HavenCheckBox x:Name="AdaptiveHelpCheck"
                     Content="Adaptive project help" />
-          <CheckBox x:Name="BrowserSideCheck"
+          <hui:HavenCheckBox x:Name="BrowserSideCheck"
                     Content="Browser side assistant" />
-          <CheckBox x:Name="AutoWakeCheck"
+          <hui:HavenCheckBox x:Name="AutoWakeCheck"
                     Content="Wake Ollama automatically when a local model is offline" />
-          <Button x:Name="SaveFeaturesButton"
+          <hui:HavenButton x:Name="SaveFeaturesButton"
                   Content="Save feature settings"
                   HorizontalAlignment="Stretch" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="10">
           <TextBlock Text="TOOL PERMISSIONS" Classes="eyebrow" />
           <TextBlock Text="Ask is the safest default. Device Use replaces Computer Use on mobile."
                      Classes="muted"
                      TextWrapping="Wrap" />
           <TextBlock Text="Files" Classes="muted" />
-          <ComboBox x:Name="FilePermCombo" />
+          <hui:HavenComboBox x:Name="FilePermCombo" />
           <TextBlock Text="Commands" Classes="muted" />
-          <ComboBox x:Name="CommandPermCombo" />
+          <hui:HavenComboBox x:Name="CommandPermCombo" />
           <TextBlock Text="Browser" Classes="muted" />
-          <ComboBox x:Name="BrowserPermCombo" />
+          <hui:HavenComboBox x:Name="BrowserPermCombo" />
           <TextBlock Text="Device Use" Classes="muted" />
-          <ComboBox x:Name="ComputerPermCombo" />
-          <Button x:Name="SavePermissionsButton"
+          <hui:HavenComboBox x:Name="ComputerPermCombo" />
+          <hui:HavenButton x:Name="SavePermissionsButton"
                   Content="Save permissions"
                   Classes="accent"
                   HorizontalAlignment="Stretch" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="7">
           <TextBlock Text="LOCAL DATA" Classes="eyebrow" />
           <TextBlock x:Name="DataStatement"
@@ -184,8 +186,8 @@
                      TextWrapping="Wrap"
                      Text="Haven stores data locally in your user profile. Nothing leaves your device without a provider you explicitly configure." />
         </StackPanel>
-      </Border>
-      <Border Classes="card">
+      </hui:HavenAdaptiveSurface>
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="7">
           <TextBlock Text="ISOLATED BROWSER" Classes="eyebrow" />
           <TextBlock x:Name="BrowserStatement"
@@ -193,8 +195,8 @@
                      TextWrapping="Wrap"
                      Text="The browser runs in an isolated profile. Cookies, history and logins never leak between sessions." />
         </StackPanel>
-      </Border>
-      <Border Classes="card">
+      </hui:HavenAdaptiveSurface>
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="7">
           <TextBlock Text="WORKSPACE SAFETY" Classes="eyebrow" />
           <TextBlock x:Name="SafetyStatement"
@@ -202,7 +204,7 @@
                      TextWrapping="Wrap"
                      Text="Haven never modifies files outside the active workspace without explicit permission." />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <TextBlock x:Name="StatusText"
                  Classes="muted"

@@ -116,7 +116,7 @@ public sealed partial class WorkspaceChromeHost
             MaterialOpacity = isLight ? 0.86 : 0.72
         };
 
-        _floatingTopRailHost = new Border
+        _floatingTopRailHost = new HavenAdaptiveSurface
         {
             Margin = new Thickness(8, 4, 8, 4),
             CornerRadius = new CornerRadius(22),
@@ -183,7 +183,7 @@ public sealed partial class WorkspaceChromeHost
     /// </summary>
     private static Button CaptionButton(Control content, string tooltip)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = content,
             Width = 40,
@@ -372,7 +372,7 @@ public sealed partial class WorkspaceChromeHost
             MaterialOpacity = isLight ? 0.84 : 0.70
         };
 
-        _magicalModeRailHost = new Border
+        _magicalModeRailHost = new HavenAdaptiveSurface
         {
             Width = 70,
             Margin = new Thickness(7, 8, 3, 10),

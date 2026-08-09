@@ -134,7 +134,7 @@ internal sealed class DeveloperToolsWindow : Window
         _searchBox.VerticalContentAlignment = VerticalAlignment.Center;
         _searchBox.TextChanged += (_, _) => RefreshTree();
 
-        var toolbar = new Border
+        var toolbar = new HavenAdaptiveSurface
         {
             Background = PanelBrush,
             BorderBrush = BorderBrush,
@@ -167,7 +167,7 @@ internal sealed class DeveloperToolsWindow : Window
         _tree.HorizontalAlignment = HorizontalAlignment.Stretch;
         _tree.VerticalAlignment = VerticalAlignment.Stretch;
 
-        var treePanel = new Border
+        var treePanel = new HavenAdaptiveSurface
         {
             Background = PanelBrush,
             BorderBrush = BorderBrush,
@@ -210,7 +210,7 @@ internal sealed class DeveloperToolsWindow : Window
         var applyButton = ToolbarButton("Apply", "Apply the value immediately to the selected runtime element");
         applyButton.Click += (_, _) => ApplyLiveEdit();
 
-        var liveEditor = new Border
+        var liveEditor = new HavenAdaptiveSurface
         {
             Background = PanelAltBrush,
             CornerRadius = new CornerRadius(6),
@@ -284,11 +284,11 @@ internal sealed class DeveloperToolsWindow : Window
             }
         };
 
-        var detailsTabs = new TabControl
+        var detailsTabs = new HavenTabView
         {
             Items =
             {
-                new TabItem
+                new HavenTabItem
                 {
                     Header = "Properties",
                     Content = new ScrollViewer
@@ -297,7 +297,7 @@ internal sealed class DeveloperToolsWindow : Window
                         VerticalScrollBarVisibility = ScrollBarVisibility.Auto
                     }
                 },
-                new TabItem
+                new HavenTabItem
                 {
                     Header = "AXAML source",
                     Content = sourcePanel
@@ -323,7 +323,7 @@ internal sealed class DeveloperToolsWindow : Window
 
         _status.Foreground = MutedBrush;
         _status.VerticalAlignment = VerticalAlignment.Center;
-        var statusBar = new Border
+        var statusBar = new HavenAdaptiveSurface
         {
             Background = PanelBrush,
             BorderBrush = BorderBrush,
@@ -492,7 +492,7 @@ internal sealed class DeveloperToolsWindow : Window
 
     private static Button ToolbarButton(string text, string tip)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = text,
             Padding = new Thickness(12, 7),
@@ -543,7 +543,7 @@ internal sealed class DeveloperToolsWindow : Window
                     Margin = new Thickness(9, 7),
                     VerticalAlignment = VerticalAlignment.Top
                 }, 0),
-                AtColumn(new Border
+                AtColumn(new HavenAdaptiveSurface
                 {
                     BorderBrush = BorderBrush,
                     BorderThickness = new Thickness(1, 0, 0, 0),

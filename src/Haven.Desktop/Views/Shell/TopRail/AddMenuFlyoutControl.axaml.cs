@@ -19,7 +19,7 @@ public sealed partial class AddMenuFlyoutControl : UserControl
         base.OnAttachedToVisualTree(e);
         FileButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.File);
         AgentButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.Agent);
-        PluginButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.Plugin);
+        CapabilityButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.Capability);
         InstructionButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.Instruction);
         AppButton.Click += (_, _) => ActionSelected?.Invoke(this, AddMenu.AddMenuAction.App);
     }
@@ -28,7 +28,7 @@ public sealed partial class AddMenuFlyoutControl : UserControl
     {
         FileButton.Classes.Remove("sidebarActive");
         AgentButton.Classes.Remove("sidebarActive");
-        PluginButton.Classes.Remove("sidebarActive");
+        CapabilityButton.Classes.Remove("sidebarActive");
         InstructionButton.Classes.Remove("sidebarActive");
         AppButton.Classes.Remove("sidebarActive");
 
@@ -36,7 +36,7 @@ public sealed partial class AddMenuFlyoutControl : UserControl
         {
             AddMenu.AddMenuAction.File => FileButton,
             AddMenu.AddMenuAction.Agent => AgentButton,
-            AddMenu.AddMenuAction.Plugin => PluginButton,
+            AddMenu.AddMenuAction.Capability => CapabilityButton,
             AddMenu.AddMenuAction.Instruction => InstructionButton,
             AddMenu.AddMenuAction.App => AppButton,
             _ => null

@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Views.Pages.Tasks;
 
@@ -30,11 +31,19 @@ public sealed partial class TasksPage : UserControl
 
     private readonly IWorkspaceStateRepository _tasks;
     private readonly IAutomationRepository _automations;
+    private readonly IConversationRepository _conversations;
     private readonly Guid? _containerId;
     private readonly Func<Task> _startOneTimeTask;
     private readonly Func<string, Task> _runTask;
-    private readonly WrapPanel _manualItems = new() { Orientation = Orientation.Horizontal };
-    private readonly WrapPanel _automaticItems = new() { Orientation = Orientation.Horizontal };
+    private readonly Func<Conversation, Task> _openTaskHistory;
+    private readonly StackPanel _manualItems = new() { Spacing = 8 };
+    private readonly StackPanel _automaticItems = new() { Spacing = 8 };
+    private readonly StackPanel _runningItems = new() { Spacing = 8 };
+    private readonly StackPanel _historyItems = new() { Spacing = 8 };
+    private readonly StackPanel _runningView = new() { Spacing = 14 };
+    private readonly StackPanel _historyView = new() { Spacing = 14, IsVisible = false };
+    private readonly StackPanel _reusableView = new() { Spacing = 20, IsVisible = false };
+    private readonly HavenSearchInput _taskSearch = new() { PlaceholderText = "Search tasks" };
     private readonly TextBlock _emptyText = Muted("No reusable tasks yet. Create one to give Haven a repeatable outcome and rules.");
     private readonly TextBlock _status = Muted(string.Empty);
     private readonly Grid _dashboard = new();
@@ -46,9 +55,9 @@ public sealed partial class TasksPage : UserControl
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto
     };
     private readonly TextBlock _editorTitle = Heading("Create Task", 42);
-    private readonly TextBox _name = Field("Task Name");
-    private readonly TextBox _goal = Field("Your Desired Outcome");
-    private readonly TextBox _rules = Field("Define rules that must be followed.", multiline: true);
+    private readonly HavenTextInput _name = Field("Task Name");
+    private readonly HavenTextInput _goal = Field("Your Desired Outcome");
+    private readonly HavenTextInput _rules = Field("Define rules that must be followed.", multiline: true);
     private readonly TextBlock _assistantMessage = new()
     {
         Text = "Ask me anything about this task. I can configure it, test it, and explain how it will run.",
@@ -56,18 +65,15 @@ public sealed partial class TasksPage : UserControl
         FontSize = 15,
         FontWeight = FontWeight.SemiBold
     };
-    private readonly TextBox _assistant = Field("Ask Haven Anything");
-    private readonly Border _instructionsOverlay = new() { IsVisible = false };
-    private readonly TextBox _instructions = new()
+    private readonly HavenTextInput _assistant = Field("Ask Haven Anything");
+    private readonly HavenPopupCard _instructionsOverlay = new() { IsVisible = false };
+    private readonly HavenMultilineInput _instructions = new()
     {
         AcceptsReturn = true,
         TextWrapping = TextWrapping.Wrap,
         FontFamily = "Cascadia Mono, Consolas",
         MinHeight = 420,
         Padding = new Thickness(18),
-        Background = FieldBrush,
-        BorderBrush = BorderStroke,
-        BorderThickness = new Thickness(1),
         CornerRadius = new CornerRadius(16)
     };
     private MacroDefinition? _editing;
@@ -77,15 +83,19 @@ public sealed partial class TasksPage : UserControl
     public TasksPage(
         IWorkspaceStateRepository tasks,
         IAutomationRepository automations,
+        IConversationRepository conversations,
         Guid? containerId,
         Func<Task> startOneTimeTask,
-        Func<string, Task> runTask)
+        Func<string, Task> runTask,
+        Func<Conversation, Task> openTaskHistory)
     {
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _automations = automations ?? throw new ArgumentNullException(nameof(automations));
+        _conversations = conversations ?? throw new ArgumentNullException(nameof(conversations));
         _containerId = containerId;
         _startOneTimeTask = startOneTimeTask ?? throw new ArgumentNullException(nameof(startOneTimeTask));
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
+        _openTaskHistory = openTaskHistory ?? throw new ArgumentNullException(nameof(openTaskHistory));
 
         InitializeComponent();
         var host = this.FindControl<Grid>("CodeBehindHost")
@@ -110,64 +120,147 @@ public sealed partial class TasksPage : UserControl
 
     private void BuildDashboard()
     {
-        var runTab = TabButton("Run", selected: true);
-        var editTab = TabButton("Edit", selected: false);
-        runTab.Click += (_, _) =>
-        {
-            _editMode = false;
-            ApplyTabState(runTab, true);
-            ApplyTabState(editTab, false);
-            _status.Text = "Choose a task to run it in a persistent Tasks conversation.";
-        };
-        editTab.Click += (_, _) =>
-        {
-            _editMode = true;
-            ApplyTabState(runTab, false);
-            ApplyTabState(editTab, true);
-            _status.Text = "Choose a reusable task to edit it.";
-        };
+        var runningTab = TabButton("Running", selected: true);
+        var historyTab = TabButton("Task History", selected: false);
+        var reusableTab = TabButton("Reusable Tasks", selected: false);
+        var tabs = new[] { runningTab, historyTab, reusableTab };
 
-        var oneTime = SoftButton("Run a One-Time Task");
-        oneTime.MinWidth = 250;
+        void SelectSection(HavenTabButton selected, StackPanel view, bool editMode, string status)
+        {
+            foreach (var tab in tabs) ApplyTabState(tab, ReferenceEquals(tab, selected));
+            _runningView.IsVisible = ReferenceEquals(view, _runningView);
+            _historyView.IsVisible = ReferenceEquals(view, _historyView);
+            _reusableView.IsVisible = ReferenceEquals(view, _reusableView);
+            _editMode = editMode;
+            _status.Text = status;
+            ApplyTaskSearch();
+        }
+
+        runningTab.Click += (_, _) => SelectSection(
+            runningTab, _runningView, false,
+            "Live one-time and reusable task runs appear here while they are active.");
+        historyTab.Click += (_, _) => SelectSection(
+            historyTab, _historyView, false,
+            "Open a previous Tasks conversation to continue or review it.");
+        reusableTab.Click += (_, _) => SelectSection(
+            reusableTab, _reusableView, true,
+            "Select a reusable task to edit it; use its Run button to execute it.");
+
+        var oneTime = AccentButton("+ New Task");
+        oneTime.MinWidth = 138;
         oneTime.Click += async (_, _) => await StartOneTimeTaskAsync();
 
-        var create = AccentButton("+ Create a Re-Usable Task");
-        create.MinWidth = 280;
+        var create = AccentButton("+ Create Reusable");
+        create.MinWidth = 176;
         create.Click += (_, _) => ShowEditor(null);
 
-        var header = new Grid
+        var tabsHost = new ScrollViewer
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
-            ColumnSpacing = 10,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 24,
+                Children = { runningTab, historyTab, reusableTab }
+            }
+        };
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+            Children = { oneTime, create }
+        };
+        var navigation = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 14,
             Children =
             {
-                new StackPanel
-                {
-                    Spacing = 18,
-                    Children =
-                    {
-                        Heading("Haven Tasks", 44),
-                        new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { runTab, editTab } }
-                    }
-                },
-                Column(oneTime, 1),
-                Column(create, 2)
+                tabsHost,
+                Column(actions, 1)
             }
         };
 
-        var content = new StackPanel
+        _taskSearch.MinHeight = 52;
+        _taskSearch.CornerRadius = new CornerRadius(26);
+        _taskSearch.Padding = new Thickness(46, 10, 18, 10);
+        _taskSearch.TextChanged += (_, _) => ApplyTaskSearch();
+        var searchHost = new Grid
         {
-            Spacing = 28,
-            Margin = new Thickness(34, 28, 34, 42),
             Children =
             {
-                header,
-                TaskSection("Manual Tasks", _manualItems),
-                TaskSection("Automatic Tasks", _automaticItems),
-                _emptyText,
+                _taskSearch,
+                new HavenIcon
+                {
+                    IconKey = "search",
+                    Width = 19,
+                    Height = 19,
+                    Margin = new Thickness(17, 0, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsHitTestVisible = false
+                }
+            }
+        };
+
+        _runningView.Children.Add(_runningItems);
+        _historyView.Children.Add(_historyItems);
+        _reusableView.Children.Add(TaskSection("Manual Tasks", _manualItems));
+        _reusableView.Children.Add(TaskSection("Automatic Tasks", _automaticItems));
+        _reusableView.Children.Add(_emptyText);
+
+        var title = new TextBlock
+        {
+            Text = "Tasks",
+            FontSize = 40,
+            FontWeight = FontWeight.ExtraBold,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        var content = new StackPanel
+        {
+            Spacing = 22,
+            Margin = new Thickness(42, 18, 42, 42),
+            Children =
+            {
+                title,
+                navigation,
+                searchHost,
+                _runningView,
+                _historyView,
+                _reusableView,
                 _status
             }
         };
+
+        void ApplyResponsiveLayout(double width)
+        {
+            var compact = width < 720;
+            content.Margin = compact
+                ? new Thickness(18, 14, 18, 30)
+                : new Thickness(42, 18, 42, 42);
+            content.Spacing = compact ? 18 : 22;
+            title.FontSize = compact ? 36 : 40;
+
+            navigation.ColumnDefinitions = compact
+                ? new ColumnDefinitions("*")
+                : new ColumnDefinitions("*,Auto");
+            navigation.RowDefinitions = compact
+                ? new RowDefinitions("Auto,Auto")
+                : new RowDefinitions("Auto");
+            navigation.RowSpacing = compact ? 14 : 0;
+            navigation.ColumnSpacing = compact ? 0 : 14;
+            Grid.SetColumn(actions, compact ? 0 : 1);
+            Grid.SetRow(actions, compact ? 1 : 0);
+            actions.HorizontalAlignment = compact
+                ? HorizontalAlignment.Left
+                : HorizontalAlignment.Right;
+            tabsHost.HorizontalAlignment = HorizontalAlignment.Stretch;
+        }
+
+        SizeChanged += (_, args) => ApplyResponsiveLayout(args.NewSize.Width);
+        ApplyResponsiveLayout(Bounds.Width);
 
         _dashboard.Children.Add(new ScrollViewer
         {
@@ -191,12 +284,9 @@ public sealed partial class TasksPage : UserControl
         viewInstructions.HorizontalAlignment = HorizontalAlignment.Stretch;
         viewInstructions.Click += (_, _) => ShowInstructions();
 
-        var form = new Border
+        var form = new HavenCard
         {
             Width = 390,
-            Background = CardBrush,
-            BorderBrush = BorderStroke,
-            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(20),
             Padding = new Thickness(18),
             Child = new Grid
@@ -218,18 +308,15 @@ public sealed partial class TasksPage : UserControl
             }
         };
 
-        var assistantBubble = new Border
+        var assistantBubble = new HavenCard
         {
             MaxWidth = 830,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Background = CardBrush,
-            BorderBrush = BorderStroke,
-            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(22),
             Padding = new Thickness(18),
             Child = _assistantMessage
         };
-        var assistantSend = AccentIconButton("send", "Ask Haven about this task");
+        var assistantSend = AccentIconButton("arrow-up", "Ask Haven about this task");
         assistantSend.Click += async (_, _) => await AskAssistantAsync();
         _assistant.KeyDown += async (_, e) =>
         {
@@ -240,15 +327,18 @@ public sealed partial class TasksPage : UserControl
             }
         };
 
-        var composer = new Grid
+        var composer = new HavenComposerShell
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            ColumnSpacing = 10,
-            Children =
+            Child = new Grid
             {
-                RoundButton("plus", "Task context is included"),
-                Column(_assistant, 1),
-                Column(assistantSend, 2)
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 10,
+                Children =
+                {
+                    RoundButton("plus", "Task context is included"),
+                    Column(_assistant, 1),
+                    Column(assistantSend, 2)
+                }
             }
         };
 
@@ -295,9 +385,6 @@ public sealed partial class TasksPage : UserControl
         };
 
         _instructionsOverlay.Margin = new Thickness(48);
-        _instructionsOverlay.Background = CardBrush;
-        _instructionsOverlay.BorderBrush = BorderStroke;
-        _instructionsOverlay.BorderThickness = new Thickness(1);
         _instructionsOverlay.CornerRadius = new CornerRadius(30);
         _instructionsOverlay.Padding = new Thickness(24);
         _instructionsOverlay.Child = new Grid
@@ -327,12 +414,17 @@ public sealed partial class TasksPage : UserControl
         _busy = true;
         _manualItems.Children.Clear();
         _automaticItems.Children.Clear();
+        _runningItems.Children.Clear();
+        _historyItems.Children.Clear();
         _status.Text = "Loading Haven Tasks…";
         try
         {
             var reusableTask = _tasks.GetMacrosAsync(_containerId, CancellationToken.None);
             var scheduledTask = _automations.GetAllAsync(CancellationToken.None);
-            await Task.WhenAll(reusableTask, scheduledTask);
+            var historyTask = _conversations.GetRecentAsync(HavenMode.Tasks, 50, CancellationToken.None);
+            await Task.WhenAll(reusableTask, scheduledTask, historyTask);
+
+            _runningItems.Children.Add(Muted("No task is currently reporting an active run."));
 
             foreach (var item in reusableTask.Result.Where(item => item.IsEnabled))
                 _manualItems.Children.Add(TaskChip(item.Name, async () =>
@@ -351,8 +443,15 @@ public sealed partial class TasksPage : UserControl
                 _automaticItems.Children.Add(TaskChip(item.Name, () => InvokeAsync(item.Instruction), detail));
             }
 
+            foreach (var conversation in historyTask.Result.Where(item => !item.IsArchived))
+                _historyItems.Children.Add(HistoryRow(conversation));
+
+            if (_historyItems.Children.Count == 0)
+                _historyItems.Children.Add(Muted("No completed or saved Tasks conversations yet."));
+
             _emptyText.IsVisible = _manualItems.Children.Count == 0 && _automaticItems.Children.Count == 0;
             _status.Text = $"{_manualItems.Children.Count} reusable and {_automaticItems.Children.Count} automatic task{(_manualItems.Children.Count + _automaticItems.Children.Count == 1 ? string.Empty : "s")} available.";
+            ApplyTaskSearch();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -366,25 +465,75 @@ public sealed partial class TasksPage : UserControl
 
     private Control TaskChip(string name, Func<Task> action, object context)
     {
-        var button = new Button
+        var detail = context switch
         {
-            Content = name,
-            Margin = new Thickness(0, 0, 12, 10),
-            MinWidth = 160,
-            MinHeight = 54,
-            Padding = new Thickness(20, 10),
-            CornerRadius = new CornerRadius(24),
-            Background = AccentPaleBrush,
-            BorderThickness = new Thickness(0),
-            FontSize = 15,
-            FontStyle = FontStyle.Italic,
-            FontWeight = FontWeight.SemiBold,
-            HorizontalContentAlignment = HorizontalAlignment.Center
+            MacroDefinition macro when !string.IsNullOrWhiteSpace(macro.Description) => macro.Description,
+            string text => text,
+            _ => "Ready to run"
+        };
+        var actionLabel = _editMode && context is MacroDefinition ? "Edit" : "Run";
+        var button = new HavenNavigationButton
+        {
+            Tag = name,
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 14,
+                Children =
+                {
+                    new HavenPill
+                    {
+                        Width = 42,
+                        Height = 42,
+                        CornerRadius = new CornerRadius(21),
+                        Background = AccentBrush,
+                        Child = new HavenIcon
+                        {
+                            IconKey = "tasks",
+                            Width = 19,
+                            Height = 19,
+                            Foreground = AccentInkBrush,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    },
+                    Column(new StackPanel
+                    {
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Spacing = 2,
+                        Children =
+                        {
+                            new TextBlock { Text = name, FontSize = 14, FontWeight = FontWeight.ExtraBold },
+                            new TextBlock { Text = detail, FontSize = 11, Foreground = MutedBrush, TextTrimming = TextTrimming.CharacterEllipsis }
+                        }
+                    }, 1),
+                    Column(new HavenPill
+                    {
+                        MinWidth = 76,
+                        Padding = new Thickness(16, 8),
+                        CornerRadius = new CornerRadius(18),
+                        Background = AccentBrush,
+                        Child = new TextBlock
+                        {
+                            Text = actionLabel,
+                            FontSize = 12,
+                            FontWeight = FontWeight.ExtraBold,
+                            Foreground = AccentInkBrush,
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        }
+                    }, 2)
+                }
+            },
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 64,
+            Padding = new Thickness(12, 9),
+            CornerRadius = new CornerRadius(18),
         };
         button.Click += async (_, _) => await action();
         if (context is MacroDefinition item)
         {
-            button.ContextMenu = new ContextMenu
+            button.ContextMenu = new HavenContextMenu
             {
                 ItemsSource = new object[]
                 {
@@ -394,12 +543,59 @@ public sealed partial class TasksPage : UserControl
                 }
             };
         }
-        else if (context is string detail)
+        else if (context is string tooltipDetail)
         {
-            ToolTip.SetTip(button, detail);
+            ToolTip.SetTip(button, tooltipDetail);
         }
         AutomationProperties.SetName(button, $"{(_editMode ? "Edit" : "Run")} task {name}");
         return button;
+    }
+
+    private Control HistoryRow(Conversation conversation)
+    {
+        var row = new HavenNavigationButton
+        {
+            Tag = conversation.Title,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 62,
+            Padding = new Thickness(14, 10),
+            CornerRadius = new CornerRadius(18),
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 14,
+                Children =
+                {
+                    new HavenIcon { IconKey = "clock", Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center },
+                    Column(new StackPanel
+                    {
+                        Spacing = 2,
+                        Children =
+                        {
+                            new TextBlock { Text = conversation.Title, FontWeight = FontWeight.ExtraBold, FontSize = 14 },
+                            new TextBlock { Text = conversation.UpdatedAt.LocalDateTime.ToString("g"), Foreground = MutedBrush, FontSize = 11 }
+                        }
+                    }, 1),
+                    Column(new TextBlock { Text = "Open", FontWeight = FontWeight.ExtraBold, VerticalAlignment = VerticalAlignment.Center }, 2)
+                }
+            }
+        };
+        row.Click += async (_, _) => await _openTaskHistory(conversation);
+        return row;
+    }
+
+    private void ApplyTaskSearch()
+    {
+        var query = _taskSearch.Text?.Trim() ?? string.Empty;
+        foreach (var panel in new[] { _manualItems, _automaticItems, _historyItems })
+        {
+            foreach (var child in panel.Children)
+            {
+                if (child.Tag is not string label) continue;
+                child.IsVisible = query.Length == 0 || label.Contains(query, StringComparison.OrdinalIgnoreCase);
+            }
+        }
     }
 
     private void ShowEditor(MacroDefinition? item)
@@ -547,110 +743,79 @@ public sealed partial class TasksPage : UserControl
         Children = { Heading(title, 17), content }
     };
 
-    private static MenuItem MenuItem(string label, Action action)
+    private static HavenMenuItem MenuItem(string label, Action action)
     {
-        var item = new MenuItem { Header = label };
+        var item = new HavenMenuItem { Header = label };
         item.Click += (_, _) => action();
         return item;
     }
 
-    private static Button TabButton(string label, bool selected)
+    private static HavenTabButton TabButton(string label, bool selected)
     {
-        var button = new Button
+        var button = new HavenTabButton
         {
             Content = label,
-            Background = Brushes.Transparent,
-            // Keep the underline in layout for every state. Only its colour
-            // changes, so selecting a tab never shifts either label.
-            BorderThickness = new Thickness(0, 0, 0, 3),
-            BorderBrush = selected ? AccentBrush : Brushes.Transparent,
-            Foreground = selected ? AccentBrush : TextBrush,
-            Padding = new Thickness(4, 4, 4, 7),
-            CornerRadius = new CornerRadius(0),
+            IsSelected = selected,
             FontSize = 16,
             FontWeight = FontWeight.Bold
         };
         return button;
     }
 
-    private static void ApplyTabState(Button button, bool selected)
+    private static void ApplyTabState(HavenTabButton button, bool selected)
     {
-        button.BorderThickness = new Thickness(0, 0, 0, 3);
-        button.BorderBrush = selected ? AccentBrush : Brushes.Transparent;
-        button.Foreground = selected ? AccentBrush : TextBrush;
+        button.IsSelected = selected;
     }
 
-    private static Button AccentButton(string label) => new()
+    private static HavenPrimaryButton AccentButton(string label) => new()
     {
         Content = label,
-        MinHeight = 52,
-        Padding = new Thickness(24, 12),
-        CornerRadius = new CornerRadius(26),
-        Background = AccentBrush,
-        Foreground = AccentInkBrush,
-        BorderThickness = new Thickness(0),
         FontWeight = FontWeight.Bold,
         FontSize = 15
     };
 
-    private static Button SoftButton(string label) => new()
+    private static HavenTertiaryButton SoftButton(string label) => new()
     {
         Content = label,
-        MinHeight = 52,
-        Padding = new Thickness(24, 12),
-        CornerRadius = new CornerRadius(26),
-        Background = AccentSoftBrush,
-        Foreground = TextBrush,
-        BorderThickness = new Thickness(0),
         FontWeight = FontWeight.Bold,
         FontSize = 15
     };
 
-    private static Button AccentIconButton(string icon, string name)
+    private static HavenIconButton AccentIconButton(string icon, string name)
     {
-        var button = new Button
+        var button = new HavenIconButton
         {
+            Classes = { "accent" },
             Width = 62,
             Height = 62,
-            CornerRadius = new CornerRadius(22),
-            Background = AccentBrush,
-            BorderThickness = new Thickness(0),
             Content = new HavenIcon { IconKey = icon, Width = 27, Height = 27, Foreground = AccentInkBrush }
         };
         AutomationProperties.SetName(button, name);
         return button;
     }
 
-    private static Button RoundButton(string icon, string name)
+    private static HavenIconButton RoundButton(string icon, string name)
     {
-        var button = new Button
+        var button = new HavenIconButton
         {
             Width = 62,
             Height = 62,
             CornerRadius = new CornerRadius(31),
-            Background = CardBrush,
-            BorderBrush = BorderStroke,
-            BorderThickness = new Thickness(1),
             Content = new HavenIcon { IconKey = icon, Width = 24, Height = 24 }
         };
         AutomationProperties.SetName(button, name);
         return button;
     }
 
-    private static TextBox Field(string placeholder, bool multiline = false) => new()
+    private static HavenTextInput Field(string placeholder, bool multiline = false)
     {
-        PlaceholderText = placeholder,
-        AcceptsReturn = multiline,
-        TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
-        MinHeight = multiline ? 124 : 48,
-        Padding = new Thickness(14),
-        CornerRadius = new CornerRadius(16),
-        Background = FieldBrush,
-        BorderBrush = BorderStroke,
-        BorderThickness = new Thickness(1),
-        FontSize = 14,
-        VerticalContentAlignment = multiline ? VerticalAlignment.Top : VerticalAlignment.Center
-    };
+        HavenTextInput field = multiline ? new HavenMultilineInput() : new HavenTextInput();
+        field.PlaceholderText = placeholder;
+        field.MinHeight = multiline ? 124 : 48;
+        field.FontSize = 14;
+        field.VerticalContentAlignment = multiline ? VerticalAlignment.Top : VerticalAlignment.Center;
+        return field;
+    }
 
     private static TextBlock Heading(string text, double size) => new()
     {

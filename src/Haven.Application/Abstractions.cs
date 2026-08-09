@@ -83,6 +83,29 @@ public interface ICatalogRepository
     Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken);
 }
 
+/// <summary>Persists the authoritative Capability Registry independently of obsolete Plugin records.</summary>
+public interface ICapabilityRepository
+{
+    Task<IReadOnlyList<CapabilityDefinition>> GetCapabilitiesAsync(CancellationToken cancellationToken);
+    Task UpsertCapabilityAsync(CapabilityDefinition capability, CancellationToken cancellationToken);
+    Task SetCapabilityEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
+    Task DeleteCustomCapabilityAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>Persists and searches the extensible Generative UI Template Registry.</summary>
+public interface IGenUiTemplateRepository
+{
+    Task<GenUiTemplateDefinition?> GetByKeyAsync(string key, CancellationToken cancellationToken);
+    Task<IReadOnlyList<GenUiTemplateDefinition>> SearchAsync(
+        string query,
+        CapabilityPlatform platform,
+        string? compatibleAppKey,
+        int limit,
+        CancellationToken cancellationToken);
+    Task UpsertAsync(GenUiTemplateDefinition template, CancellationToken cancellationToken);
+    Task DeleteCustomAsync(Guid id, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// Defines the workspace state repository contract so callers depend on a capability rather than one implementation.
 /// </summary>

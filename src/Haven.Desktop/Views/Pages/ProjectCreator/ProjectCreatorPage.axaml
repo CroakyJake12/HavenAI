@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.Pages.ProjectCreator.ProjectCreatorPage"
              AttachedToVisualTree="OnProjectCreatorAttached">
   <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -17,7 +18,7 @@
 
       <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
             ColumnSpacing="12" RowSpacing="12">
-        <Button x:Name="SelectDotNetButton"
+        <hui:HavenButton x:Name="SelectDotNetButton"
                 Grid.Row="0" Grid.Column="0"
                 Classes="choice"
                 HorizontalContentAlignment="Stretch"
@@ -27,9 +28,9 @@
             <TextBlock Text="Start from a clean local .NET project."
                        Classes="muted" TextWrapping="Wrap" />
           </StackPanel>
-        </Button>
+        </hui:HavenButton>
 
-        <Button x:Name="OpenProjectFileButton"
+        <hui:HavenButton x:Name="OpenProjectFileButton"
                 Grid.Row="0" Grid.Column="1"
                 Classes="choice"
                 HorizontalContentAlignment="Stretch"
@@ -39,9 +40,9 @@
             <TextBlock Text="Open an existing solution or project file."
                        Classes="muted" TextWrapping="Wrap" />
           </StackPanel>
-        </Button>
+        </hui:HavenButton>
 
-        <Button x:Name="OpenGitHubButton"
+        <hui:HavenButton x:Name="OpenGitHubButton"
                 Grid.Row="1" Grid.Column="0"
                 Classes="choice"
                 HorizontalContentAlignment="Stretch"
@@ -52,9 +53,9 @@
             <TextBlock Text="Clone an HTTPS repository and connect it to Haven."
                        Classes="muted" TextWrapping="Wrap" />
           </StackPanel>
-        </Button>
+        </hui:HavenButton>
 
-        <Button x:Name="OpenFolderButton"
+        <hui:HavenButton x:Name="OpenFolderButton"
                 Grid.Row="1" Grid.Column="1"
                 Classes="choice"
                 HorizontalContentAlignment="Stretch"
@@ -64,10 +65,10 @@
             <TextBlock Text="Connect a local source folder without changing its files."
                        Classes="muted" TextWrapping="Wrap" />
           </StackPanel>
-        </Button>
+        </hui:HavenButton>
       </Grid>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="12">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
@@ -77,13 +78,13 @@
                          Classes="muted"
                          FontSize="11" />
             </StackPanel>
-            <Button x:Name="ConnectVisualStudioButton"
+            <hui:HavenButton x:Name="ConnectVisualStudioButton"
                     Grid.Column="1"
                     Content="Connect"
                     Classes="ghost" />
           </Grid>
 
-          <Border x:Name="ConnectVisualStudioCard"
+          <hui:HavenAdaptiveSurface x:Name="ConnectVisualStudioCard"
                   IsVisible="False"
                   Padding="12"
                   CornerRadius="12">
@@ -94,24 +95,24 @@
                          Classes="muted"
                          FontSize="11" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content=".NET Project"
+            <hui:HavenButton Content=".NET Project"
                     Classes="chip"
                     Click="OnChooseDotNetFromVisualStudioClicked" />
-            <Button Content="Existing Project"
+            <hui:HavenButton Content="Existing Project"
                     Classes="chip"
                     Click="OnChooseExistingFromVisualStudioClicked" />
-            <Button x:Name="SelectPackageButton"
+            <hui:HavenButton x:Name="SelectPackageButton"
                     Content="NuGet Package"
                     Classes="chip"
                     IsVisible="False" />
           </StackPanel>
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="14">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
@@ -129,14 +130,14 @@
           <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
             <StackPanel Spacing="5">
               <TextBlock Text="Project name" Classes="eyebrow" />
-              <TextBox x:Name="ProjectNameBox"
+              <hui:HavenTextInput x:Name="ProjectNameBox"
                        PlaceholderText="MyProject" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="5">
               <TextBlock Text="Destination" Classes="eyebrow" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
-                <TextBox x:Name="DestinationBox" />
-                <Button x:Name="BrowseButton"
+                <hui:HavenTextInput x:Name="DestinationBox" />
+                <hui:HavenButton x:Name="BrowseButton"
                         Grid.Column="1"
                         Content="Browse" />
               </Grid>
@@ -152,7 +153,7 @@
                       Spacing="8"
                       IsVisible="False">
             <TextBlock Text="Package description" Classes="eyebrow" />
-            <TextBox x:Name="PackageDescriptionBox"
+            <hui:HavenTextInput x:Name="PackageDescriptionBox"
                      AcceptsReturn="True"
                      MinHeight="76"
                      TextWrapping="Wrap"
@@ -164,14 +165,14 @@
                        Classes="muted"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center" />
-            <Button x:Name="CreateButton"
+            <hui:HavenButton x:Name="CreateButton"
                     Grid.Column="1"
                     Content="Create Project"
                     Classes="accent"
                     MinWidth="150" />
           </Grid>
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

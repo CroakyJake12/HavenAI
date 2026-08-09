@@ -1141,7 +1141,9 @@ public sealed class ChatPageViewModel : ObservableObject
             prepared = await AddGroupResourceImagesAsync(prepared, _sendCancellation.Token);
             if (Messages.Count == 0)
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
-            var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
+            var active = Plugins.Where(x => x.IsActive)
+                .Select(x => ActiveCapability.FromLegacyPlugin(x.Name, x.IconKey, x.Instructions))
+                .ToArray();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
             var selectedAgent = ResolveAgent(prompt);

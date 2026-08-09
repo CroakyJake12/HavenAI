@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.Pages.Chat.ChatPage"
              AttachedToVisualTree="OnFinalCodeBehindAttached"
              DetachedFromVisualTree="OnFinalCodeBehindDetached">
@@ -9,14 +10,14 @@
     <!-- Compatibility controls retained for the existing ChatPage code-behind.
          They are never rendered; the visible surface is built in C#. -->
     <StackPanel IsVisible="False" IsHitTestVisible="False">
-      <ListBox x:Name="MessageScroller" />
-      <Button x:Name="DismissOverlay" />
-      <TextBox x:Name="ComposerBox" />
-      <Button x:Name="AttachButton" />
-      <Button x:Name="PluginButton" />
-      <Button x:Name="PromptButton" />
-      <Button x:Name="StopButton" />
-      <Button x:Name="SendButton" />
+      <hui:HavenListBox x:Name="MessageScroller" />
+      <hui:HavenButton x:Name="DismissOverlay" />
+      <hui:HavenTextInput x:Name="ComposerBox" />
+      <hui:HavenButton x:Name="AttachButton" />
+      <hui:HavenButton x:Name="PluginButton" />
+      <hui:HavenButton x:Name="PromptButton" />
+      <hui:HavenButton x:Name="StopButton" />
+      <hui:HavenButton x:Name="SendButton" />
     </StackPanel>
   </Grid>
 </UserControl>

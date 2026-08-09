@@ -90,7 +90,7 @@ public sealed partial class SettingsPage : UserControl
         foreach (var model in RecommendedModels)
         {
             var selected = model;
-            var button = new Button
+            var button = new HavenButton
             {
                 Content = selected,
                 Margin = new Avalonia.Thickness(0, 0, 8, 8),

@@ -375,7 +375,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
     {
         run.Id = Unique(run.Id, usedIds, changes, "text run");
         run.Text ??= string.Empty;
-        run.FontFamily = string.IsNullOrWhiteSpace(run.FontFamily) ? "Inter" : run.FontFamily.Trim();
+        run.FontFamily = string.IsNullOrWhiteSpace(run.FontFamily) || run.FontFamily.Equals("Inter", StringComparison.OrdinalIgnoreCase)
+            ? "Montserrat"
+            : run.FontFamily.Trim();
         run.FontSize = ClampFinite(run.FontSize, 14, 4, 300);
         run.Foreground = ValidColour(run.Foreground) ? run.Foreground : "#FFEEEEEE";
         run.Background = ValidColour(run.Background) ? run.Background : "#00000000";

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Shell.TopRail.AddMenuCatalogueControl">
 
@@ -9,7 +10,7 @@
                FontWeight="ExtraBold"
                Margin="10,5,10,0" />
     <Grid>
-      <TextBox x:Name="SearchBox"
+      <hui:HavenTextInput x:Name="SearchBox"
                PlaceholderText="Search"
                HorizontalAlignment="Stretch"
                Padding="38,10,12,10" />

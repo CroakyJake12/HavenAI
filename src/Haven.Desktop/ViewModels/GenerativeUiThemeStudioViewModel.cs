@@ -101,7 +101,7 @@ public sealed class GenerativeUiThemeStudioViewModel : ObservableObject
     /// <summary>
     /// Stores draft font family locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private string _draftFontFamily = "Segoe UI Variable, Segoe UI, Montserrat, sans-serif";
+    private string _draftFontFamily = "Montserrat";
     /// <summary>
     /// Stores draft base font size locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>

@@ -1,15 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Controls.FlyoutPanel">
 
-    <StackPanel x:Name="Panel"
-                Width="260"
-                Spacing="3"
-                Margin="12">
-        <TextBlock x:Name="Title"
-                   FontSize="20"
-                   FontWeight="ExtraBold"
-                   Margin="10,5,10,8" />
-        <StackPanel x:Name="ContentHost" Spacing="3" />
-    </StackPanel>
+    <hui:HavenDropdownCard Width="360">
+        <StackPanel x:Name="Panel" Spacing="3">
+            <TextBlock x:Name="Title"
+                       FontSize="20"
+                       FontWeight="ExtraBold"
+                       Margin="4,0,4,8" />
+            <StackPanel x:Name="ContentHost" Spacing="3" />
+        </StackPanel>
+    </hui:HavenDropdownCard>
 </UserControl>

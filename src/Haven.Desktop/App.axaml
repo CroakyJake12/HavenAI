@@ -6,7 +6,7 @@
              xmlns:pages="using:Haven.Desktop.Views.Pages.WorkspaceEditor"
              xmlns:studio="using:Haven.Desktop.Views.Pages.StudioProject"
              x:Class="Haven.Desktop.App"
-             RequestedThemeVariant="Light">
+             RequestedThemeVariant="Dark">
 
   <Application.Styles>
     <FluentTheme />

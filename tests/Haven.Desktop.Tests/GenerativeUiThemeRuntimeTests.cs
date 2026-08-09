@@ -45,6 +45,7 @@ public sealed class GenerativeUiThemeRuntimeTests
         Assert.Equal(Color.Parse(theme.Light.Background), BrushColour("HavenBackgroundBrush"));
         Assert.Equal(Color.Parse(theme.Light.Text), BrushColour("HavenTextBrush"));
         Assert.Equal(Color.Parse(theme.Light.Accent), BrushColour("HavenAccentBrush"));
+        AssertAccentIsGradient("HavenAccentBrush");
 
         await runtime.ApplyAsync(
             theme.Id,
@@ -55,6 +56,7 @@ public sealed class GenerativeUiThemeRuntimeTests
         Assert.Equal(Color.Parse(theme.Dark.Background), BrushColour("HavenBackgroundBrush"));
         Assert.Equal(Color.Parse(theme.Dark.Text), BrushColour("HavenTextBrush"));
         Assert.Equal(Color.Parse(theme.Dark.Accent), BrushColour("HavenAccentBrush"));
+        AssertAccentIsGradient("HavenAccentBrush");
         Assert.Equal(GenerativeThemeAppearance.Dark, store.Selection.Appearance);
         Assert.Contains(diagnostics.Events, item => item.EventName == "theme-applied");
     }
@@ -105,7 +107,20 @@ public sealed class GenerativeUiThemeRuntimeTests
     private static Color BrushColour(string key)
     {
         Assert.True(Avalonia.Application.Current!.Resources.TryGetValue(key, out var value));
-        return Assert.IsType<SolidColorBrush>(value).Color;
+        return value switch
+        {
+            SolidColorBrush solid => solid.Color,
+            LinearGradientBrush gradient => gradient.GradientStops.OrderBy(stop => stop.Offset).First().Color,
+            _ => throw new Xunit.Sdk.XunitException($"Resource '{key}' was not a supported Haven brush.")
+        };
+    }
+
+    private static void AssertAccentIsGradient(string key)
+    {
+        Assert.True(Avalonia.Application.Current!.Resources.TryGetValue(key, out var value));
+        var gradient = Assert.IsType<LinearGradientBrush>(value);
+        Assert.True(gradient.GradientStops.Count >= 3);
+        Assert.True(gradient.GradientStops.Select(stop => stop.Color).Distinct().Count() >= 2);
     }
 
     /// <summary>

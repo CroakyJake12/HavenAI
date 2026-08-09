@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Catalog.CatalogPage"
              Loaded="OnLoaded">
@@ -11,35 +12,35 @@
         <TextBlock x:Name="TitleText" Classes="heading" />
         <TextBlock x:Name="SubtitleText" Classes="muted" Margin="0,4,0,0" />
       </StackPanel>
-      <Button Grid.Column="1" x:Name="RefreshButton" Content="Refresh" Classes="chrome" Margin="0,0,8,0" />
-      <Button Grid.Column="2" x:Name="UploadPluginButton" Content="Upload plugin" Classes="chrome" Margin="0,0,8,0" />
-      <Button Grid.Column="3" x:Name="CreateToggleButton" Classes="accent" />
+      <hui:HavenButton Grid.Column="1" x:Name="RefreshButton" Content="Refresh" Classes="chrome" Margin="0,0,8,0" />
+      <hui:HavenButton Grid.Column="2" x:Name="UploadPluginButton" Content="Upload plugin" Classes="chrome" Margin="0,0,8,0" />
+      <hui:HavenButton Grid.Column="3" x:Name="CreateToggleButton" Classes="accent" />
     </Grid>
 
-    <Border Grid.Row="1" Classes="card" Margin="0,20,0,12" x:Name="CreatePanel" IsVisible="False">
+    <hui:HavenAdaptiveSurface Grid.Row="1" Classes="card" Margin="0,20,0,12" x:Name="CreatePanel" IsVisible="False">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10" ColumnSpacing="10">
         <Grid ColumnDefinitions="*,Auto" Grid.ColumnSpan="2">
           <TextBlock x:Name="BuilderTitleText" Classes="eyebrow" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Classes="icon" x:Name="CloseCreateButton" ToolTip.Tip="Close creator">
+          <hui:HavenButton Grid.Column="1" Classes="icon" x:Name="CloseCreateButton" ToolTip.Tip="Close creator">
             <controls:HavenIcon IconKey="close" Width="14" Height="14" />
-          </Button>
+          </hui:HavenButton>
         </Grid>
-        <TextBox Grid.Row="1" x:Name="BuilderPromptBox" MinHeight="38" />
-        <Button Grid.Row="1" Grid.Column="1" x:Name="BuildWithAiButton" Content="Build with AI" />
+        <hui:HavenTextInput Grid.Row="1" x:Name="BuilderPromptBox" MinHeight="38" />
+        <hui:HavenButton Grid.Row="1" Grid.Column="1" x:Name="BuildWithAiButton" Content="Build with AI" />
         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="1*,1.5*" ColumnSpacing="10">
-          <TextBox x:Name="NewNameBox" PlaceholderText="Name" />
-          <TextBox Grid.Column="1" x:Name="NewDescriptionBox" PlaceholderText="Short description" />
+          <hui:HavenTextInput x:Name="NewNameBox" PlaceholderText="Name" />
+          <hui:HavenTextInput Grid.Column="1" x:Name="NewDescriptionBox" PlaceholderText="Short description" />
         </Grid>
-        <TextBox Grid.Row="3" Grid.ColumnSpan="2" x:Name="NewInstructionsBox"
+        <hui:HavenTextInput Grid.Row="3" Grid.ColumnSpan="2" x:Name="NewInstructionsBox"
                  PlaceholderText="Instructions" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="105" MaxHeight="230" />
         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10" x:Name="AgentFields">
           <TextBlock Text="Preferred model" Classes="muted" VerticalAlignment="Center" />
-          <TextBox x:Name="NewModelBox" PlaceholderText="Use current model" Width="230" />
+          <hui:HavenTextInput x:Name="NewModelBox" PlaceholderText="Use current model" Width="230" />
         </StackPanel>
-        <CheckBox Grid.Row="4" x:Name="PluginPersistsCheck" Content="Keep active between messages" IsVisible="False" VerticalAlignment="Center" />
-        <Button Grid.Row="4" Grid.Column="1" x:Name="CreateItemButton" Classes="accent" MinWidth="120" />
+        <hui:HavenCheckBox Grid.Row="4" x:Name="PluginPersistsCheck" Content="Keep active between messages" IsVisible="False" VerticalAlignment="Center" />
+        <hui:HavenButton Grid.Row="4" Grid.Column="1" x:Name="CreateItemButton" Classes="accent" MinWidth="120" />
       </Grid>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
     <TextBlock Grid.Row="2" x:Name="StatusText" Classes="muted" FontSize="11" Margin="2,2,0,12" />
 

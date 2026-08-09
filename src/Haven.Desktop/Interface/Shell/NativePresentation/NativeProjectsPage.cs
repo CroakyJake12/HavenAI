@@ -14,13 +14,13 @@ namespace Haven.Desktop.Views.Shell.NativePresentation;
 
 internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
 {
-    private static IBrush CardBrush => PaletteBrush("HavenPanelBrush", "#FFFFFF");
-    private static IBrush MutedBrush => PaletteBrush("HavenMutedBrush", "#687076");
-    private new static IBrush BorderBrush => PaletteBrush("HavenLineBrush", "#E4E9E1");
-    private static IBrush AccentBrush => PaletteBrush("HavenAccentBrush", "#00A7B3");
-    private static IBrush AccentInkBrush => PaletteBrush("HavenAccentInkBrush", "#FFFFFF");
+    private static IBrush CardBrush => PaletteBrush("HavenCardSurfaceBrush", "#11152A");
+    private static IBrush MutedBrush => PaletteBrush("HavenTextSecondaryBrush", "#A8AEC8");
+    private new static IBrush BorderBrush => PaletteBrush("HavenBorderSubtleBrush", "#343B5C");
+    private static IBrush AccentBrush => PaletteBrush("HavenAccentPrimaryBrush", "#00A7B3");
+    private static IBrush AccentInkBrush => PaletteBrush("HavenAccentForegroundBrush", "#FFFFFF");
     private static IBrush TextBrush => PaletteBrush("HavenTextBrush", "#111111");
-    private static IBrush CyanBrush => PaletteBrush("HavenAccentSoftBrush", "#DCF7F8");
+    private static IBrush CyanBrush => PaletteBrush("HavenAccentTertiaryBrush", "#173A55");
     private static IBrush AttentionBrush => PaletteBrush("HavenAttentionBrush", "#FFF9A8");
     private static IBrush AttentionBorderBrush => PaletteBrush("HavenAttentionBorderBrush", "#E4DF52");
 
@@ -66,7 +66,7 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         _archiveProjectFallback = archiveProjectFallback ?? throw new ArgumentNullException(nameof(archiveProjectFallback));
         _stateStore = stateStore ?? new NativeProjectUiStateStore();
 
-        _searchBox = new TextBox
+        _searchBox = new HavenTextInput
         {
             PlaceholderText = "Search Projects",
             MinWidth = 700,
@@ -88,7 +88,7 @@ internal sealed partial class NativeProjectsPage : ContentControl, IDisposable
         _refreshButton.Click += OnRefreshClicked;
         AutomationProperties.SetName(_refreshButton, "Refresh projects");
 
-        _newProjectButton = Button("Create New Project", false);
+        _newProjectButton = Button("Create New Project", true);
         _newProjectButton.MinWidth = 680;
         _newProjectButton.MinHeight = 62;
         _newProjectButton.FontSize = 17;

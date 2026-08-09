@@ -81,6 +81,7 @@ public sealed partial class BrowserView : UserControl
     {
         InitializeComponent();
         _nativeBrowser = NativeBrowser;
+        WireSidePanels();
         ConfigureEnvironmentForCurrentTab(_nativeBrowser);
         DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPage);
         AttachedToVisualTree += (_, _) =>
@@ -98,6 +99,48 @@ public sealed partial class BrowserView : UserControl
         _cleanupTimer = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background,
             (_, _) => CleanupInactiveTabs());
         _cleanupTimer.Start();
+    }
+
+    private void WireSidePanels()
+    {
+        BookmarksMenuItem.Click += (_, _) => ShowSidePanel(BookmarksPanel);
+        HistoryMenuItem.Click += (_, _) => ShowSidePanel(HistoryPanel);
+        LoginsMenuItem.Click += (_, _) => ShowSidePanel(LoginsPanel);
+        ExtensionsMenuItem.Click += (_, _) => ShowSidePanel(ExtensionsPanel);
+        AssistantMenuItem.Click += (_, _) => ShowSidePanel(AssistantPanel);
+        SettingsMenuItem.Click += (_, _) => ShowSidePanel(SettingsPanel);
+        CloseBookmarksButton.Click += (_, _) => HideSidePanels();
+    }
+
+    private void ShowSidePanel(Control panel)
+    {
+        if (SidePanel.IsVisible && panel.IsVisible)
+        {
+            HideSidePanels();
+            return;
+        }
+        var panels = new Control[]
+        {
+            BookmarksPanel,
+            HistoryPanel,
+            LoginsPanel,
+            ExtensionsPanel,
+            AssistantPanel,
+            SettingsPanel
+        };
+        foreach (var candidate in panels) candidate.IsVisible = ReferenceEquals(candidate, panel);
+        SidePanel.IsVisible = true;
+    }
+
+    private void HideSidePanels()
+    {
+        BookmarksPanel.IsVisible = false;
+        HistoryPanel.IsVisible = false;
+        LoginsPanel.IsVisible = false;
+        ExtensionsPanel.IsVisible = false;
+        AssistantPanel.IsVisible = false;
+        SettingsPanel.IsVisible = false;
+        SidePanel.IsVisible = false;
     }
 
     /// <summary>

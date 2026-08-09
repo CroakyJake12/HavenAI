@@ -11,6 +11,7 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.GeneratedPageView">
   <!-- Section: Keeps the region usable when content exceeds the available window size. -->
@@ -27,14 +28,14 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <StackPanel Spacing="8" Margin="0,0,0,10">
-              <Border Classes="card" IsVisible="{Binding IsText}">
+              <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding IsText}">
                 <StackPanel Spacing="6">
                   <TextBlock Text="{Binding Title}" Classes="sectionHeading" />
                   <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
                 </StackPanel>
-              </Border>
+              </hui:HavenAdaptiveSurface>
 
-              <Border Classes="card" IsVisible="{Binding IsShortcutGrid}">
+              <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding IsShortcutGrid}">
                 <StackPanel Spacing="10">
                   <TextBlock Text="{Binding Title}" Classes="sectionHeading" />
                   <ItemsControl ItemsSource="{Binding Shortcuts}">
@@ -43,27 +44,27 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Button Width="250" MinHeight="92" Margin="0,0,9,9" Padding="13"
+                        <hui:HavenButton Width="250" MinHeight="92" Margin="0,0,9,9" Padding="13"
                                 Command="{Binding InvokeCommand}" HorizontalContentAlignment="Stretch">
                           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
-                            <Border Width="38" Height="38" CornerRadius="11" Background="{DynamicResource HavenAccentSoftBrush}">
+                            <hui:HavenAdaptiveSurface Width="38" Height="38" CornerRadius="11" Background="{DynamicResource HavenAccentSoftBrush}">
                               <controls:HavenIcon IconKey="{Binding IconKey}" Width="19" Height="19"
                                                   Foreground="{DynamicResource HavenAccentBrush}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
+                            </hui:HavenAdaptiveSurface>
                             <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                               <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                               <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" TextWrapping="Wrap" MaxLines="2" />
                             </StackPanel>
                           </Grid>
-                        </Button>
+                        </hui:HavenButton>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                 </StackPanel>
-              </Border>
+              </hui:HavenAdaptiveSurface>
 
-              <Border Classes="card" IsVisible="{Binding IsTimer}">
+              <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding IsTimer}">
                 <StackPanel Spacing="10">
                   <Grid ColumnDefinitions="*,Auto">
                     <StackPanel>
@@ -72,27 +73,27 @@
                     </StackPanel>
                     <TextBlock Grid.Column="1" Text="{Binding TimeLabel}" FontSize="30" FontWeight="SemiBold" VerticalAlignment="Center" />
                   </Grid>
-                  <ProgressBar Value="{Binding TimerProgress}" Maximum="100" Height="7" />
+                  <hui:HavenProgressBar Value="{Binding TimerProgress}" Maximum="100" Height="7" />
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="{Binding TimerActionLabel}" Classes="accent" Command="{Binding ToggleTimerCommand}" />
-                    <Button Content="Reset" Command="{Binding ResetTimerCommand}" />
+                    <hui:HavenButton Content="{Binding TimerActionLabel}" Classes="accent" Command="{Binding ToggleTimerCommand}" />
+                    <hui:HavenButton Content="Reset" Command="{Binding ResetTimerCommand}" />
                     <TextBlock Text="Complete" Foreground="{DynamicResource HavenAccentBrush}" FontWeight="SemiBold"
                                IsVisible="{Binding IsTimerComplete}" VerticalAlignment="Center" />
                   </StackPanel>
                 </StackPanel>
-              </Border>
+              </hui:HavenAdaptiveSurface>
 
-              <Border Classes="card" IsVisible="{Binding IsCommandButton}">
+              <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding IsCommandButton}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                   <StackPanel>
                     <TextBlock Text="{Binding Title}" Classes="sectionHeading" />
                     <TextBlock Text="{Binding Text}" Classes="muted" TextWrapping="Wrap" />
                   </StackPanel>
-                  <Button Grid.Column="1" Content="{Binding CommandButtonLabel}" Classes="accent" Command="{Binding InvokeCommand}" VerticalAlignment="Center" />
+                  <hui:HavenButton Grid.Column="1" Content="{Binding CommandButtonLabel}" Classes="accent" Command="{Binding InvokeCommand}" VerticalAlignment="Center" />
                 </Grid>
-              </Border>
+              </hui:HavenAdaptiveSurface>
 
-              <Border Height="1" Background="{DynamicResource HavenLineStrongBrush}" IsVisible="{Binding IsDivider}" />
+              <hui:HavenAdaptiveSurface Height="1" Background="{DynamicResource HavenLineStrongBrush}" IsVisible="{Binding IsDivider}" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

@@ -129,7 +129,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         var settings = RailButton("⚙", "Settings", "ExperienceSettingsButton");
         settings.Click += (_, _) => _shell?.NavigateSettingsCommand.Execute(null);
 
-        var rail = new Border
+        var rail = new HavenAdaptiveSurface
         {
             Width = 66,
             Margin = new Thickness(7, 7, 3, 7),
@@ -200,7 +200,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private Grid BuildModeOverlay()
     {
-        var close = new Button { Content = "Close" };
+        var close = new HavenButton { Content = "Close" };
         close.Classes.Add("secondary");
         close.Click += (_, _) => _overlay.IsVisible = false;
         return new Grid
@@ -209,7 +209,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             Background = new SolidColorBrush(Color.FromArgb(224, 8, 8, 10)),
             Children =
             {
-                new Border
+                new HavenAdaptiveSurface
                 {
                     Margin = new Thickness(28),
                     Padding = new Thickness(24),
@@ -372,7 +372,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             _shell?.NavigateAutomationsCommand.Execute(null);
             return Task.CompletedTask;
         }));
-        button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
+        button.Flyout = new HavenAdaptivePopup { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
 
@@ -387,7 +387,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             panel.Children.Add(FlyoutEntry(mode.Name, mode.Description, mode.IconKey, () => OpenModeAsync(mode)));
         if (modes.Count == 0)
             panel.Children.Add(new TextBlock { Text = "Apps are still loading…", Classes = { "muted" }, Margin = new Thickness(10) });
-        button.Flyout = new Flyout { Placement = PlacementMode.Right, Content = panel };
+        button.Flyout = new HavenAdaptivePopup { Placement = PlacementMode.Right, Content = panel };
         return button;
     }
 
@@ -411,7 +411,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
         {
             if (!_isReorderMode) await OpenModeAsync(mode);
         };
-        button.ContextMenu = new ContextMenu
+        button.ContextMenu = new HavenContextMenu
         {
             ItemsSource = new object[]
             {
@@ -487,14 +487,14 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     private Control BuildModeCard(ModeDefinition mode, bool isPinned)
     {
         var isFixed = FixedModeKeys.Contains(mode.Key);
-        var open = new Button { Content = "Open" };
+        var open = new HavenButton { Content = "Open" };
         open.Classes.Add("accent");
         open.Click += async (_, _) =>
         {
             _overlay.IsVisible = false;
             await OpenModeAsync(mode);
         };
-        var pin = new Button
+        var pin = new HavenButton
         {
             Content = isFixed ? "Fixed on rail" : isPinned ? "Unpin" : "Pin",
             IsEnabled = !isFixed
@@ -506,7 +506,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
             RebuildModeCards();
         };
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Padding = new Thickness(14),
             CornerRadius = new CornerRadius(14),
@@ -519,7 +519,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 ColumnSpacing = 12,
                 Children =
                 {
-                    new Border
+                    new HavenAdaptiveSurface
                     {
                         Width = 42,
                         Height = 42,
@@ -736,7 +736,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private static Button RailButton(string glyph, string tooltip, string name)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Name = name,
             Width = 50,
@@ -756,7 +756,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private static Button FlyoutEntry(string title, string description, string iconKey, Func<Task> action)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -789,7 +789,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
     /// </summary>
     private static MenuItem MenuAction(string header, Action action)
     {
-        var item = new MenuItem { Header = header };
+        var item = new HavenMenuItem { Header = header };
         item.Click += (_, _) => action();
         return item;
     }

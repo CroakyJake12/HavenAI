@@ -1,35 +1,31 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.Pages.Home.NewDashboardPage">
   <Grid Background="Transparent" RowDefinitions="Auto,*">
-    <Border Margin="24,74,24,0"
+    <hui:HavenToolbar Margin="24,74,24,0"
             Padding="7,6"
-            Background="{DynamicResource HavenPanelBrush}"
-            BorderBrush="{DynamicResource HavenLineBrush}"
-            BorderThickness="1"
             CornerRadius="20">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
         <ScrollViewer HorizontalScrollBarVisibility="Hidden"
                       VerticalScrollBarVisibility="Disabled">
           <StackPanel x:Name="PageTabsPanel" Orientation="Horizontal" Spacing="5"/>
         </ScrollViewer>
-        <Button x:Name="ConfigurePageButton"
+        <hui:HavenIconButton x:Name="ConfigurePageButton"
                 Grid.Column="1"
-                Classes="icon compact"
                 Width="40" Height="40"
                 ToolTip.Tip="Edit dashboard page">
           <controls:HavenIcon IconKey="edit" Width="17" Height="17"/>
-        </Button>
-        <Button x:Name="AddPageButton"
+        </hui:HavenIconButton>
+        <hui:HavenIconButton x:Name="AddPageButton"
                 Grid.Column="2"
-                Classes="icon compact"
                 Width="40" Height="40"
                 ToolTip.Tip="Create dashboard page">
           <controls:HavenIcon IconKey="plus" Width="17" Height="17"/>
-        </Button>
+        </hui:HavenIconButton>
       </Grid>
-    </Border>
+    </hui:HavenToolbar>
 
     <ScrollViewer Grid.Row="1" Margin="24,18,24,28"
                   HorizontalScrollBarVisibility="Disabled"
@@ -43,7 +39,7 @@
         <StackPanel Spacing="12">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="Pinned Apps &amp; Activities" FontSize="16" FontWeight="ExtraBold" VerticalAlignment="Center"/>
-            <Button x:Name="EditPinnedButton" Grid.Column="1" Classes="chip" Content="Edit Pinned"/>
+            <hui:HavenChipButton x:Name="EditPinnedButton" Grid.Column="1" Content="Edit Pinned"/>
           </Grid>
           <WrapPanel x:Name="PinnedPanel" Orientation="Horizontal" ItemWidth="220" ItemHeight="148"/>
           <TextBlock x:Name="PinnedEmptyText" Text="Pin apps from the App launcher to keep them here." Classes="muted" IsVisible="False"/>
@@ -53,9 +49,8 @@
       </StackPanel>
     </ScrollViewer>
 
-    <Button x:Name="EditWithHavenButton"
+    <hui:HavenPrimaryButton x:Name="EditWithHavenButton"
             Grid.RowSpan="2"
-            Classes="chip"
             Content="Edit With Haven"
             HorizontalAlignment="Right"
             VerticalAlignment="Bottom"

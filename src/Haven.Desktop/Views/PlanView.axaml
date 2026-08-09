@@ -11,8 +11,10 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              xmlns:converters="using:Haven.Desktop.Converters"
+             xmlns:havenUi="using:Haven.Desktop.HavenUI.Components.Buttons"
              x:Class="Haven.Desktop.Views.PlanView">
   <!-- Section: Defines reusable theme resources here so descendant controls resolve consistent values at runtime. -->
   <UserControl.Resources>
@@ -22,7 +24,7 @@
   <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
   <Grid ColumnDefinitions="220,*,320" Background="{DynamicResource HavenBackgroundBrush}">
     <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-    <Border Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
+    <hui:HavenAdaptiveSurface Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel>
           <TextBlock Text="PLAN" Classes="eyebrow" />
@@ -31,7 +33,7 @@
         <ItemsControl Grid.Row="1" ItemsSource="{Binding Views}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Button Content="{Binding Name}"
+              <hui:HavenButton Content="{Binding Name}"
                       HorizontalContentAlignment="Left"
                       Command="{Binding $parent[UserControl].DataContext.SelectViewCommand}"
                       CommandParameter="{Binding}"
@@ -45,50 +47,50 @@
             <TextBlock Text="COLLECTIONS" Classes="eyebrow" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Text="Local" Classes="muted" FontSize="11" />
           </Grid>
-          <ListBox ItemsSource="{Binding Collections}" SelectedItem="{Binding SelectedCollection}" Margin="0,8,0,0">
-            <ListBox.ItemTemplate>
+          <hui:HavenListBox ItemsSource="{Binding Collections}" SelectedItem="{Binding SelectedCollection}" Margin="0,8,0,0">
+            <hui:HavenListBox.ItemTemplate>
               <DataTemplate>
                 <Grid ColumnDefinitions="*,Auto,Auto">
                   <TextBlock Text="{Binding Name}" Margin="8,7" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Classes="icon compact" ToolTip.Tip="Move collection up"
+                  <hui:HavenButton Grid.Column="1" Classes="icon compact" ToolTip.Tip="Move collection up"
                           Command="{Binding $parent[UserControl].DataContext.MoveCollectionUpCommand}" CommandParameter="{Binding}">
                     <controls:HavenIcon IconKey="chevron-down" RenderTransform="rotate(180deg)" Width="13" Height="13" />
-                  </Button>
-                  <Button Grid.Column="2" Classes="icon compact" Margin="3,0,0,0" ToolTip.Tip="Move collection down"
+                  </hui:HavenButton>
+                  <hui:HavenButton Grid.Column="2" Classes="icon compact" Margin="3,0,0,0" ToolTip.Tip="Move collection down"
                           Command="{Binding $parent[UserControl].DataContext.MoveCollectionDownCommand}" CommandParameter="{Binding}">
                     <controls:HavenIcon IconKey="chevron-down" Width="13" Height="13" />
-                  </Button>
+                  </hui:HavenButton>
                 </Grid>
               </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+            </hui:HavenListBox.ItemTemplate>
+          </hui:HavenListBox>
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,9,0,0">
-            <TextBox Text="{Binding NewCollectionName}" PlaceholderText="New collection" />
-            <Button Grid.Column="1" Classes="icon" Command="{Binding CreateCollectionCommand}" ToolTip.Tip="Create collection">
+            <hui:HavenTextInput Text="{Binding NewCollectionName}" PlaceholderText="New collection" />
+            <hui:HavenButton Grid.Column="1" Classes="icon" Command="{Binding CreateCollectionCommand}" ToolTip.Tip="Create collection">
               <controls:HavenIcon IconKey="plus" Width="14" Height="14" />
-            </Button>
+            </hui:HavenButton>
           </Grid>
-          <TextBox Text="{Binding SelectedCollectionName}" PlaceholderText="Collection name" Margin="0,7,0,5" />
+          <hui:HavenTextInput Text="{Binding SelectedCollectionName}" PlaceholderText="Collection name" Margin="0,7,0,5" />
           <Grid ColumnDefinitions="*,Auto">
-            <Button Content="Rename" Command="{Binding RenameCollectionCommand}" HorizontalContentAlignment="Left" />
-            <Button Grid.Column="1" Content="Archive" Command="{Binding RequestArchiveCollectionCommand}" Margin="5,0,0,0" />
+            <hui:HavenButton Content="Rename" Command="{Binding RenameCollectionCommand}" HorizontalContentAlignment="Left" />
+            <hui:HavenButton Grid.Column="1" Content="Archive" Command="{Binding RequestArchiveCollectionCommand}" Margin="5,0,0,0" />
           </Grid>
-          <Border Classes="card" Padding="9" Margin="0,7,0,0" IsVisible="{Binding IsArchiveCollectionConfirming}">
+          <hui:HavenAdaptiveSurface Classes="card" Padding="9" Margin="0,7,0,0" IsVisible="{Binding IsArchiveCollectionConfirming}">
             <StackPanel>
               <TextBlock Text="Archive this collection? Tasks remain stored locally." Classes="muted" TextWrapping="Wrap" FontSize="10" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="5" Margin="0,6,0,0">
-                <Button Content="Cancel" Command="{Binding CancelArchiveCollectionCommand}" />
-                <Button Grid.Column="1" Content="Archive" Classes="danger" Command="{Binding ArchiveCollectionCommand}" />
+                <hui:HavenButton Content="Cancel" Command="{Binding CancelArchiveCollectionCommand}" />
+                <hui:HavenButton Grid.Column="1" Content="Archive" Classes="danger" Command="{Binding ArchiveCollectionCommand}" />
               </Grid>
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
           </StackPanel>
         </ScrollViewer>
-        <Border Grid.Row="3" Classes="card" Padding="12">
+        <hui:HavenAdaptiveSurface Grid.Row="3" Classes="card" Padding="12">
           <TextBlock Text="Tasks stay local. Calendar accounts are optional and sync events only." Classes="muted" TextWrapping="Wrap" FontSize="11" />
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="28,24">
@@ -97,42 +99,42 @@
           <TextBlock Text="{Binding Title}" Classes="heading" />
           <TextBlock Text="{Binding PeriodLabel}" Classes="muted" Margin="0,3,0,0" />
         </StackPanel>
-        <Button Grid.Column="1" Classes="icon" Command="{Binding PreviousPeriodCommand}" Margin="0,0,6,0" ToolTip.Tip="Previous period">
+        <hui:HavenButton Grid.Column="1" Classes="icon" Command="{Binding PreviousPeriodCommand}" Margin="0,0,6,0" ToolTip.Tip="Previous period">
           <controls:HavenIcon IconKey="chevron-left" Width="14" Height="14" />
-        </Button>
-        <Button Grid.Column="2" Content="Today" Command="{Binding TodayCommand}" Margin="0,0,6,0" />
-        <Button Grid.Column="3" Classes="icon" Command="{Binding NextPeriodCommand}" ToolTip.Tip="Next period">
+        </hui:HavenButton>
+        <hui:HavenButton Grid.Column="2" Content="Today" Command="{Binding TodayCommand}" Margin="0,0,6,0" />
+        <hui:HavenButton Grid.Column="3" Classes="icon" Command="{Binding NextPeriodCommand}" ToolTip.Tip="Next period">
           <controls:HavenIcon IconKey="chevron-left" RenderTransform="rotate(180deg)" Width="14" Height="14" />
-        </Button>
+        </hui:HavenButton>
       </Grid>
 
-      <Border Grid.Row="1" Classes="card" Margin="0,18,0,10" Padding="14">
+      <hui:HavenAdaptiveSurface Grid.Row="1" Classes="card" Margin="0,18,0,10" Padding="14">
         <Grid ColumnDefinitions="*,160,130,Auto" ColumnSpacing="8">
-          <TextBox Text="{Binding NewTaskTitle}" PlaceholderText="Add a task…" />
-          <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding NewTaskDueDate, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Due date" />
-          <ComboBox Grid.Column="2" ItemsSource="{Binding Priorities}" SelectedItem="{Binding NewTaskPriority}" />
-          <Button Grid.Column="3" Content="Add task" Classes="primary" Command="{Binding CreateTaskCommand}" />
+          <hui:HavenTextInput Text="{Binding NewTaskTitle}" PlaceholderText="Add a task…" />
+          <hui:HavenCalendarPicker Grid.Column="1" SelectedDate="{Binding NewTaskDueDate, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Due date" />
+          <hui:HavenComboBox Grid.Column="2" ItemsSource="{Binding Priorities}" SelectedItem="{Binding NewTaskPriority}" />
+          <hui:HavenButton Grid.Column="3" Content="Add task" Classes="primary" Command="{Binding CreateTaskCommand}" />
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Grid.Row="2" Classes="card" Margin="0,0,0,10" Padding="14">
+      <hui:HavenAdaptiveSurface Grid.Row="2" Classes="card" Margin="0,0,0,10" Padding="14">
         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,150,145" ColumnSpacing="8" RowSpacing="8">
-          <TextBox Text="{Binding NewEventTitle}" PlaceholderText="Add a calendar event…" />
-          <ComboBox Grid.Column="1" ItemsSource="{Binding Calendars}" SelectedItem="{Binding SelectedCalendar}" PlaceholderText="Calendar">
-            <ComboBox.ItemTemplate>
+          <hui:HavenTextInput Text="{Binding NewEventTitle}" PlaceholderText="Add a calendar event…" />
+          <hui:HavenComboBox Grid.Column="1" ItemsSource="{Binding Calendars}" SelectedItem="{Binding SelectedCalendar}" PlaceholderText="Calendar">
+            <hui:HavenComboBox.ItemTemplate>
               <DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <CalendarDatePicker Grid.Column="2" SelectedDate="{Binding NewEventDate, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Date" />
+            </hui:HavenComboBox.ItemTemplate>
+          </hui:HavenComboBox>
+          <hui:HavenCalendarPicker Grid.Column="2" SelectedDate="{Binding NewEventDate, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Date" />
           <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,140,Auto,140,*,Auto" ColumnSpacing="8">
             <TextBlock Text="Starts" Classes="muted" VerticalAlignment="Center" />
-            <TimePicker Grid.Column="1" SelectedTime="{Binding NewEventStart}" ClockIdentifier="24HourClock" MinWidth="140" />
+            <hui:HavenTimePicker Grid.Column="1" SelectedTime="{Binding NewEventStart}" ClockIdentifier="24HourClock" MinWidth="140" />
             <TextBlock Grid.Column="2" Text="Ends" Classes="muted" VerticalAlignment="Center" />
-            <TimePicker Grid.Column="3" SelectedTime="{Binding NewEventEnd}" ClockIdentifier="24HourClock" MinWidth="140" />
-            <Button Grid.Column="5" Content="Add event" Classes="primary" Command="{Binding CreateEventCommand}" HorizontalContentAlignment="Center" />
+            <hui:HavenTimePicker Grid.Column="3" SelectedTime="{Binding NewEventEnd}" ClockIdentifier="24HourClock" MinWidth="140" />
+            <hui:HavenButton Grid.Column="5" Content="Add event" Classes="primary" Command="{Binding CreateEventCommand}" HorizontalContentAlignment="Center" />
           </Grid>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <ScrollViewer Grid.Row="3">
         <Grid>
@@ -144,35 +146,35 @@
             <ItemsControl ItemsSource="{Binding Tasks}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Classes="card" Margin="0,0,0,8" Padding="14">
+                  <hui:HavenAdaptiveSurface Classes="card" Margin="0,0,0,8" Padding="14">
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
-                      <Border Width="24" Height="34" CornerRadius="6" Background="{DynamicResource HavenPanel2Brush}"
+                      <hui:HavenAdaptiveSurface Width="24" Height="34" CornerRadius="6" Background="{DynamicResource HavenPanel2Brush}"
                               PointerPressed="TaskDrag_OnPointerPressed" Cursor="SizeAll">
                         <controls:HavenIcon IconKey="more" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="muted" />
-                      </Border>
-                      <Button Grid.Column="1" Classes="icon" Width="34" Height="34" Margin="6,0,0,0"
+                      </hui:HavenAdaptiveSurface>
+                      <hui:HavenButton Grid.Column="1" Classes="icon" Width="34" Height="34" Margin="6,0,0,0"
                               Command="{Binding $parent[UserControl].DataContext.CompleteTaskCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="Complete task">
                         <controls:HavenIcon IconKey="check" Width="14" Height="14" />
-                      </Button>
+                      </hui:HavenButton>
                       <StackPanel Grid.Column="2" Margin="12,0">
                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding Meta}" Classes="muted" FontSize="11" Margin="0,3,0,0" />
                       </StackPanel>
-                      <Button Grid.Column="3" Content="Edit" Margin="0,0,6,0"
+                      <hui:HavenButton Grid.Column="3" Content="Edit" Margin="0,0,6,0"
                               Command="{Binding $parent[UserControl].DataContext.EditTaskCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="4" Content="Subtask" Margin="0,0,6,0"
+                      <hui:HavenButton Grid.Column="4" Content="Subtask" Margin="0,0,6,0"
                               Command="{Binding $parent[UserControl].DataContext.AddSubtaskCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="5" Content="Start" Margin="0,0,6,0"
+                      <hui:HavenButton Grid.Column="5" Content="Start" Margin="0,0,6,0"
                               Command="{Binding $parent[UserControl].DataContext.StartTaskCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="6" Content="Delete"
-                              Command="{Binding $parent[UserControl].DataContext.DeleteTaskCommand}"
-                              CommandParameter="{Binding}" />
+                      <havenUi:HoldToConfirmButton Grid.Column="6" Content="Delete"
+                                                   Command="{Binding $parent[UserControl].DataContext.DeleteTaskCommand}"
+                                                   CommandParameter="{Binding}" />
                     </Grid>
-                  </Border>
+                  </hui:HavenAdaptiveSurface>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -181,21 +183,21 @@
             <ItemsControl ItemsSource="{Binding Events}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Classes="card" Margin="0,0,0,8" Padding="14">
+                  <hui:HavenAdaptiveSurface Classes="card" Margin="0,0,0,8" Padding="14">
                     <Grid ColumnDefinitions="6,*,Auto,Auto">
-                      <Border Background="{DynamicResource HavenAccentBrush}" CornerRadius="3" />
+                      <hui:HavenAdaptiveSurface Background="{DynamicResource HavenAccentBrush}" CornerRadius="3" />
                       <StackPanel Grid.Column="1" Margin="12,0">
                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" Margin="0,3,0,0" />
                       </StackPanel>
-                      <Button Grid.Column="2" Content="Edit" Margin="0,0,6,0"
+                      <hui:HavenButton Grid.Column="2" Content="Edit" Margin="0,0,6,0"
                               Command="{Binding $parent[UserControl].DataContext.EditEventCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="3" Content="Delete" IsVisible="{Binding CanDelete}"
-                              Command="{Binding $parent[UserControl].DataContext.DeleteEventCommand}"
-                              CommandParameter="{Binding}" />
+                      <havenUi:HoldToConfirmButton Grid.Column="3" Content="Delete" IsVisible="{Binding CanDelete}"
+                                                   Command="{Binding $parent[UserControl].DataContext.DeleteEventCommand}"
+                                                   CommandParameter="{Binding}" />
                     </Grid>
-                  </Border>
+                  </hui:HavenAdaptiveSurface>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -207,7 +209,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Classes="card" Margin="4" Padding="12" VerticalAlignment="Stretch"
+                <hui:HavenAdaptiveSurface Classes="card" Margin="4" Padding="12" VerticalAlignment="Stretch"
                         DragDrop.AllowDrop="True" DragDrop.DragOver="PlannerDropTarget_OnDragOver" DragDrop.Drop="BoardColumn_OnDrop">
                   <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
@@ -217,28 +219,28 @@
                     <ItemsControl ItemsSource="{Binding Tasks}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                          <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10" Margin="0,0,0,8">
+                          <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}" CornerRadius="10" Padding="10" Margin="0,0,0,8">
                             <StackPanel>
                               <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                                <Border Grid.Column="1" Width="24" Height="24" CornerRadius="5" Background="{DynamicResource HavenPanel3Brush}"
+                                <hui:HavenAdaptiveSurface Grid.Column="1" Width="24" Height="24" CornerRadius="5" Background="{DynamicResource HavenPanel3Brush}"
                                         PointerPressed="TaskDrag_OnPointerPressed" Cursor="SizeAll">
                                   <controls:HavenIcon IconKey="more" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="muted" />
-                                </Border>
+                                </hui:HavenAdaptiveSurface>
                               </Grid>
                               <TextBlock Text="{Binding Meta}" Classes="muted" FontSize="10" Margin="0,3,0,7" />
                               <Grid ColumnDefinitions="*,*,*" ColumnSpacing="5">
-                                <Button Content="Edit" Command="{Binding $parent[UserControl].DataContext.EditTaskCommand}" CommandParameter="{Binding}" />
-                                <Button Grid.Column="1" Content="Start" Command="{Binding $parent[UserControl].DataContext.StartTaskCommand}" CommandParameter="{Binding}" />
-                                <Button Grid.Column="2" Content="Done" Command="{Binding $parent[UserControl].DataContext.CompleteTaskCommand}" CommandParameter="{Binding}" />
+                                <hui:HavenButton Content="Edit" Command="{Binding $parent[UserControl].DataContext.EditTaskCommand}" CommandParameter="{Binding}" />
+                                <hui:HavenButton Grid.Column="1" Content="Start" Command="{Binding $parent[UserControl].DataContext.StartTaskCommand}" CommandParameter="{Binding}" />
+                                <hui:HavenButton Grid.Column="2" Content="Done" Command="{Binding $parent[UserControl].DataContext.CompleteTaskCommand}" CommandParameter="{Binding}" />
                               </Grid>
                             </StackPanel>
-                          </Border>
+                          </hui:HavenAdaptiveSurface>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
                   </StackPanel>
-                </Border>
+                </hui:HavenAdaptiveSurface>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -249,7 +251,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Classes="card" Margin="3" Padding="9" MinHeight="124" VerticalAlignment="Stretch"
+                <hui:HavenAdaptiveSurface Classes="card" Margin="3" Padding="9" MinHeight="124" VerticalAlignment="Stretch"
                         DragDrop.AllowDrop="True" DragDrop.DragOver="PlannerDropTarget_OnDragOver" DragDrop.Drop="CalendarDay_OnDrop">
                   <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,7">
@@ -259,18 +261,18 @@
                     <ItemsControl ItemsSource="{Binding Entries}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                          <Border Background="{DynamicResource HavenAccentSoftBrush}" CornerRadius="6" Padding="5,3" Margin="0,0,0,4"
+                          <hui:HavenAdaptiveSurface Background="{DynamicResource HavenAccentSoftBrush}" CornerRadius="6" Padding="5,3" Margin="0,0,0,4"
                                   PointerPressed="CalendarEntryDrag_OnPointerPressed" Cursor="SizeAll">
                             <StackPanel>
                               <TextBlock Text="{Binding Time}" FontSize="9" Foreground="{DynamicResource HavenAccentBrush}" />
                               <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontSize="10" />
                             </StackPanel>
-                          </Border>
+                          </hui:HavenAdaptiveSurface>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
                   </StackPanel>
-                </Border>
+                </hui:HavenAdaptiveSurface>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -279,69 +281,69 @@
     </Grid>
 
     <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-    <Border Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
+    <hui:HavenAdaptiveSurface Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
       <ScrollViewer>
         <StackPanel>
-          <Border Classes="card" IsVisible="{Binding HasTaskEditor}" Padding="14" Margin="0,0,0,14">
+          <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding HasTaskEditor}" Padding="14" Margin="0,0,0,14">
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="EDIT TASK" Classes="eyebrow" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" Command="{Binding CloseTaskEditorCommand}" ToolTip.Tip="Close task editor"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button>
+                <hui:HavenButton Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" Command="{Binding CloseTaskEditorCommand}" ToolTip.Tip="Close task editor"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></hui:HavenButton>
               </Grid>
-              <TextBox Text="{Binding TaskEditor.Title}" PlaceholderText="Title" Margin="0,9,0,6" />
-              <TextBox Text="{Binding TaskEditor.Notes}" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.Title}" PlaceholderText="Title" Margin="0,9,0,6" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.Notes}" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <ComboBox ItemsSource="{Binding TaskEditor.Priorities}" SelectedItem="{Binding TaskEditor.Priority}" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding TaskEditor.Statuses}" SelectedItem="{Binding TaskEditor.Status}" />
+                <hui:HavenComboBox ItemsSource="{Binding TaskEditor.Priorities}" SelectedItem="{Binding TaskEditor.Priority}" />
+                <hui:HavenComboBox Grid.Column="1" ItemsSource="{Binding TaskEditor.Statuses}" SelectedItem="{Binding TaskEditor.Status}" />
               </Grid>
-              <ComboBox ItemsSource="{Binding TaskEditor.Parents}" SelectedItem="{Binding TaskEditor.SelectedParent}" Margin="0,6,0,0">
-                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
-              </ComboBox>
+              <hui:HavenComboBox ItemsSource="{Binding TaskEditor.Parents}" SelectedItem="{Binding TaskEditor.SelectedParent}" Margin="0,6,0,0">
+                <hui:HavenComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></hui:HavenComboBox.ItemTemplate>
+              </hui:HavenComboBox>
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <CalendarDatePicker SelectedDate="{Binding TaskEditor.StartsAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Start" />
-                <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding TaskEditor.DueAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Due" />
+                <hui:HavenCalendarPicker SelectedDate="{Binding TaskEditor.StartsAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Start" />
+                <hui:HavenCalendarPicker Grid.Column="1" SelectedDate="{Binding TaskEditor.DueAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Due" />
               </Grid>
-              <CalendarDatePicker SelectedDate="{Binding TaskEditor.ReminderAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Reminder" Margin="0,6,0,0" />
-              <TextBox Text="{Binding TaskEditor.Tags}" PlaceholderText="Tags, separated by commas" Margin="0,6,0,0" />
-              <TextBox Text="{Binding TaskEditor.EstimatedMinutes}" PlaceholderText="Estimate in minutes" Margin="0,6,0,0" />
-              <TextBox Text="{Binding TaskEditor.RecurrenceRule}" PlaceholderText="Recurrence, e.g. FREQ=WEEKLY;BYDAY=MO" Margin="0,6,0,0" />
-              <TextBox Text="{Binding TaskEditor.TimeZoneId}" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker SelectedDate="{Binding TaskEditor.ReminderAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.Tags}" PlaceholderText="Tags, separated by commas" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.EstimatedMinutes}" PlaceholderText="Estimate in minutes" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.RecurrenceRule}" PlaceholderText="Recurrence, e.g. FREQ=WEEKLY;BYDAY=MO" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding TaskEditor.TimeZoneId}" PlaceholderText="Time zone" Margin="0,6,0,0" />
               <TextBlock Text="{Binding TaskEditor.Message}" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
-              <Button Content="Save task" Classes="primary" Command="{Binding TaskEditor.SaveCommand}" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Save task" Classes="primary" Command="{Binding TaskEditor.SaveCommand}" HorizontalAlignment="Stretch" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
-          <Border Classes="card" IsVisible="{Binding HasEventEditor}" Padding="14" Margin="0,0,0,14">
+          <hui:HavenAdaptiveSurface Classes="card" IsVisible="{Binding HasEventEditor}" Padding="14" Margin="0,0,0,14">
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="EDIT EVENT" Classes="eyebrow" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" Command="{Binding CloseEventEditorCommand}" ToolTip.Tip="Close event editor"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></Button>
+                <hui:HavenButton Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" Command="{Binding CloseEventEditorCommand}" ToolTip.Tip="Close event editor"><controls:HavenIcon IconKey="close" Width="13" Height="13" /></hui:HavenButton>
               </Grid>
-              <TextBox Text="{Binding EventEditor.Title}" PlaceholderText="Title" Margin="0,9,0,6" />
-              <TextBox Text="{Binding EventEditor.Notes}" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
-              <TextBox Text="{Binding EventEditor.Location}" PlaceholderText="Location" Margin="0,6,0,0" />
-              <CalendarDatePicker SelectedDate="{Binding EventEditor.Date, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}, ConverterParameter=Required}" PlaceholderText="Date" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding EventEditor.Title}" PlaceholderText="Title" Margin="0,9,0,6" />
+              <hui:HavenTextInput Text="{Binding EventEditor.Notes}" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <hui:HavenTextInput Text="{Binding EventEditor.Location}" PlaceholderText="Location" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker SelectedDate="{Binding EventEditor.Date, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}, ConverterParameter=Required}" PlaceholderText="Date" Margin="0,6,0,0" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <TimePicker SelectedTime="{Binding EventEditor.StartTime}" ClockIdentifier="24HourClock" />
-                <TimePicker Grid.Column="1" SelectedTime="{Binding EventEditor.EndTime}" ClockIdentifier="24HourClock" />
+                <hui:HavenTimePicker SelectedTime="{Binding EventEditor.StartTime}" ClockIdentifier="24HourClock" />
+                <hui:HavenTimePicker Grid.Column="1" SelectedTime="{Binding EventEditor.EndTime}" ClockIdentifier="24HourClock" />
               </Grid>
-              <CheckBox Content="All day" IsChecked="{Binding EventEditor.IsAllDay}" Margin="0,6,0,0" />
-              <CalendarDatePicker SelectedDate="{Binding EventEditor.ReminderAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Reminder" Margin="0,6,0,0" />
-              <TextBox Text="{Binding EventEditor.RecurrenceRule}" PlaceholderText="Recurrence, e.g. FREQ=MONTHLY" Margin="0,6,0,0" />
-              <TextBox Text="{Binding EventEditor.TimeZoneId}" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <hui:HavenCheckBox Content="All day" IsChecked="{Binding EventEditor.IsAllDay}" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker SelectedDate="{Binding EventEditor.ReminderAt, Mode=TwoWay, Converter={StaticResource DateTimeOffsetDateConverter}}" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding EventEditor.RecurrenceRule}" PlaceholderText="Recurrence, e.g. FREQ=MONTHLY" Margin="0,6,0,0" />
+              <hui:HavenTextInput Text="{Binding EventEditor.TimeZoneId}" PlaceholderText="Time zone" Margin="0,6,0,0" />
               <TextBlock Text="{Binding EventEditor.Message}" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
-              <Button Content="Save event" Classes="primary" Command="{Binding EventEditor.SaveCommand}" IsEnabled="{Binding EventEditor.CanSave}" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Save event" Classes="primary" Command="{Binding EventEditor.SaveCommand}" IsEnabled="{Binding EventEditor.CanSave}" HorizontalAlignment="Stretch" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <TextBlock Text="PLAN WITH HAVEN" Classes="eyebrow" />
           <TextBlock Text="AI assistance" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,4" />
           <TextBlock Text="Ask Haven to break down a goal, organise a week, or resolve conflicts. You approve every edit." Classes="muted" TextWrapping="Wrap" />
-          <TextBox Text="{Binding AiPrompt}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104" Margin="0,14,0,8"
+          <hui:HavenTextInput Text="{Binding AiPrompt}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104" Margin="0,14,0,8"
                    PlaceholderText="Plan my college deadlines around work…" />
-          <Button Content="Draft changes" Classes="primary" Command="{Binding AskAiCommand}" HorizontalAlignment="Stretch" />
+          <hui:HavenButton Content="Draft changes" Classes="primary" Command="{Binding AskAiCommand}" HorizontalAlignment="Stretch" />
 
-          <Border Classes="card" Margin="0,14,0,0" IsVisible="{Binding HasPendingProposal}" Padding="14">
+          <hui:HavenAdaptiveSurface Classes="card" Margin="0,14,0,0" IsVisible="{Binding HasPendingProposal}" Padding="14">
             <StackPanel>
               <TextBlock Text="REVIEW PROPOSAL" Classes="eyebrow" />
               <TextBlock Text="{Binding PendingProposalSummary}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,7,0,10" />
@@ -356,33 +358,33 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,6,0,0">
-                <Button Content="Dismiss" Command="{Binding DismissProposalCommand}" />
-                <Button Grid.Column="1" Content="Apply" Classes="primary" Command="{Binding ApplyProposalCommand}" />
+                <hui:HavenButton Content="Dismiss" Command="{Binding DismissProposalCommand}" />
+                <hui:HavenButton Grid.Column="1" Content="Apply" Classes="primary" Command="{Binding ApplyProposalCommand}" />
               </Grid>
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <TextBlock Text="CALENDAR ACCOUNTS" Classes="eyebrow" Margin="0,24,0,8" />
           <ItemsControl ItemsSource="{Binding Providers}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Classes="card" Margin="0,0,0,8" Padding="12">
+                <hui:HavenAdaptiveSurface Classes="card" Margin="0,0,0,8" Padding="12">
                   <StackPanel>
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,8" />
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                      <Button Content="Connect"
+                      <hui:HavenButton Content="Connect"
                               Command="{Binding $parent[UserControl].DataContext.ConnectProviderCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="1" Content="Sync"
+                      <hui:HavenButton Grid.Column="1" Content="Sync"
                               Command="{Binding $parent[UserControl].DataContext.SyncProviderCommand}"
                               CommandParameter="{Binding}" />
-                      <Button Grid.Column="2" Content="Disconnect"
+                      <hui:HavenButton Grid.Column="2" Content="Disconnect"
                               Command="{Binding $parent[UserControl].DataContext.DisconnectProviderCommand}"
                               CommandParameter="{Binding}" />
                     </Grid>
                   </StackPanel>
-                </Border>
+                </hui:HavenAdaptiveSurface>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -394,31 +396,31 @@
             <ItemsControl ItemsSource="{Binding Conflicts}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Classes="card" Margin="0,0,0,10" Padding="12">
+                  <hui:HavenAdaptiveSurface Classes="card" Margin="0,0,0,10" Padding="12">
                     <StackPanel>
                       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
                       <TextBlock Text="{Binding Detected}" Classes="muted" FontSize="10" Margin="0,2,0,8" />
                       <TextBlock Text="{Binding HavenVersion}" TextWrapping="Wrap" FontSize="11" />
                       <TextBlock Text="{Binding ProviderVersion}" TextWrapping="Wrap" FontSize="11" Margin="0,3,0,10" />
                       <Grid ColumnDefinitions="*,*,*" ColumnSpacing="5">
-                        <Button Content="Keep Haven"
+                        <hui:HavenButton Content="Keep Haven"
                                 Command="{Binding $parent[UserControl].DataContext.KeepHavenConflictCommand}"
                                 CommandParameter="{Binding}" />
-                        <Button Grid.Column="1" Content="Keep provider"
+                        <hui:HavenButton Grid.Column="1" Content="Keep provider"
                                 Command="{Binding $parent[UserControl].DataContext.KeepProviderConflictCommand}"
                                 CommandParameter="{Binding}" />
-                        <Button Grid.Column="2" Content="Duplicate"
+                        <hui:HavenButton Grid.Column="2" Content="Duplicate"
                                 Command="{Binding $parent[UserControl].DataContext.DuplicateConflictCommand}"
                                 CommandParameter="{Binding}" />
                       </Grid>
                     </StackPanel>
-                  </Border>
+                  </hui:HavenAdaptiveSurface>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
         </StackPanel>
       </ScrollViewer>
-    </Border>
+    </hui:HavenAdaptiveSurface>
   </Grid>
 </UserControl>

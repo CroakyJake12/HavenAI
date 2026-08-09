@@ -54,10 +54,10 @@ public sealed class BrowserUtilitiesControlTests
     {
         using var control = new BrowserUtilitiesControl();
         var buttons = control.Children.OfType<Button>().ToArray();
-        var find = Assert.IsType<Flyout>(buttons[0].Flyout);
-        var zoom = Assert.IsType<Flyout>(buttons[1].Flyout);
-        var policy = Assert.IsType<Flyout>(buttons[2].Flyout);
-        var tools = Assert.IsType<Flyout>(buttons[3].Flyout);
+        var find = Assert.IsAssignableFrom<Flyout>(buttons[0].Flyout);
+        var zoom = Assert.IsAssignableFrom<Flyout>(buttons[1].Flyout);
+        var policy = Assert.IsAssignableFrom<Flyout>(buttons[2].Flyout);
+        var tools = Assert.IsAssignableFrom<Flyout>(buttons[3].Flyout);
 
         var findPanel = Assert.IsType<StackPanel>(find.Content);
         var zoomPanel = Assert.IsType<StackPanel>(zoom.Content);

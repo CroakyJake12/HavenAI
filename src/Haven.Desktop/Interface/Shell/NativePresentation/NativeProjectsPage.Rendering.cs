@@ -224,7 +224,7 @@ internal sealed partial class NativeProjectsPage
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Children = { icon, title }
         };
-        var tile = new Button
+        var tile = new HavenButton
         {
             Width = 290,
             Height = 210,
@@ -254,19 +254,19 @@ internal sealed partial class NativeProjectsPage
 
     private ContextMenu BuildProjectContextMenu(ProjectRow row)
     {
-        var open = new MenuItem { Header = "Open" };
+        var open = new HavenMenuItem { Header = "Open" };
         open.Click += async (_, _) => await OpenProjectAsync(row);
 
-        var pin = new MenuItem { Header = row.IsPinned ? "Unpin" : "Pin" };
+        var pin = new HavenMenuItem { Header = row.IsPinned ? "Unpin" : "Pin" };
         pin.Click += async (_, _) => await SetPinnedAsync(row, !row.IsPinned);
 
-        var readState = new MenuItem { Header = row.IsUnread ? "Mark read" : "Mark unread" };
+        var readState = new HavenMenuItem { Header = row.IsUnread ? "Mark read" : "Mark unread" };
         readState.Click += async (_, _) => await SetReadStateAsync(row, markUnread: !row.IsUnread);
 
-        var archive = new MenuItem { Header = "Archive" };
+        var archive = new HavenMenuItem { Header = "Archive" };
         archive.Click += async (_, _) => await ArchiveProjectAsync(row);
 
-        return new ContextMenu { ItemsSource = new object[] { open, pin, readState, archive } };
+        return new HavenContextMenu { ItemsSource = new object[] { open, pin, readState, archive } };
     }
 
     private static Control BuildProjectTooltip(ProjectRow row) => new StackPanel

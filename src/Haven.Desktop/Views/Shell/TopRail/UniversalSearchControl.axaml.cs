@@ -105,7 +105,7 @@ public sealed partial class UniversalSearchControl : UserControl
         layout.Children.Add(copy);
         if (!string.IsNullOrWhiteSpace(item.KindLabel))
         {
-            var kind = new Border
+            var kind = new HavenAdaptiveSurface
             {
                 Background = Avalonia.Application.Current?.Resources["HavenPanel2Brush"] as Avalonia.Media.IBrush,
                 CornerRadius = new CornerRadius(999),
@@ -116,7 +116,7 @@ public sealed partial class UniversalSearchControl : UserControl
             layout.Children.Add(kind);
         }
 
-        var button = new Button
+        var button = new HavenButton
         {
             Content = layout,
             HorizontalAlignment = HorizontalAlignment.Stretch,

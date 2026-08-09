@@ -36,7 +36,7 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         var original = Conversation("present-in-backup");
         await conversations.UpsertConversationAsync(original, CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
-        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(10, CancellationToken.None));
+        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(13, CancellationToken.None));
 
         var newer = Conversation("created-after-backup");
         await conversations.UpsertConversationAsync(newer, CancellationToken.None);
@@ -71,7 +71,7 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         var original = Conversation("original");
         await conversations.UpsertConversationAsync(original, CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
-        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(10, CancellationToken.None));
+        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(13, CancellationToken.None));
         var current = Conversation("must-survive-refused-restore");
         await conversations.UpsertConversationAsync(current, CancellationToken.None);
 
@@ -117,7 +117,7 @@ public sealed class DatabaseRestoreServiceTests : IDisposable
         var database = new SqliteDatabase(_paths);
         await database.InitializeAsync(CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
-        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(10, CancellationToken.None));
+        var backup = Assert.IsType<DatabaseBackupInfo>(await maintenance.PrepareForMigrationAsync(13, CancellationToken.None));
         var restore = new DatabaseRestoreService(_paths, diagnostics);
         await restore.RequestRestoreAsync(Path.GetFileName(backup.DatabasePath), CancellationToken.None);
 

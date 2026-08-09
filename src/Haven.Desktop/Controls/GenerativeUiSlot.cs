@@ -146,7 +146,7 @@ public sealed class GenerativeUiSlot : StackPanel
     /// </summary>
     private Button CreateTemporary(string presentation)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Classes = { presentation == "compact" ? "chip" : "chrome" },
             VerticalAlignment = VerticalAlignment.Center
@@ -172,7 +172,7 @@ public sealed class GenerativeUiSlot : StackPanel
         labelBinding.StringFormat = "{}{0}%";
         label.Bind(TextBlock.TextProperty, labelBinding);
 
-        var button = new Button
+        var button = new HavenButton
         {
             Width = presentation == "labelled" ? 94 : 42,
             Height = 40,
@@ -187,11 +187,11 @@ public sealed class GenerativeUiSlot : StackPanel
         var contextLabel = new TextBlock();
         contextLabel.Classes.Add("muted");
         contextLabel.Bind(TextBlock.TextProperty, BindingFor("ContextLabel"));
-        var progress = new ProgressBar { Maximum = 100 };
+        var progress = new HavenProgressBar { Maximum = 100 };
         progress.Bind(RangeBase.ValueProperty, BindingFor("ContextPercent"));
-        var compact = new Button { Content = "Compact now" };
+        var compact = new HavenButton { Content = "Compact now" };
         compact.Bind(Button.CommandProperty, BindingFor("CompactContextCommand"));
-        button.Flyout = new Flyout
+        button.Flyout = new HavenAdaptivePopup
         {
             Content = new StackPanel
             {
@@ -218,7 +218,7 @@ public sealed class GenerativeUiSlot : StackPanel
         stack.Children.Add(new TextBlock { Text = "GENERATED PAGES", FontWeight = Avalonia.Media.FontWeight.SemiBold, FontSize = 11 });
         foreach (var page in _runtime?.GetPages() ?? [])
         {
-            var pageButton = new Button
+            var pageButton = new HavenButton
             {
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Content = new StackPanel
@@ -235,11 +235,11 @@ public sealed class GenerativeUiSlot : StackPanel
             pageButton.Click += (_, _) => OpenGeneratedPage(page);
             stack.Children.Add(pageButton);
         }
-        var launcher = new Button
+        var launcher = new HavenButton
         {
             Content = "Pages",
             VerticalAlignment = VerticalAlignment.Center,
-            Flyout = new Flyout { Content = stack }
+            Flyout = new HavenAdaptivePopup { Content = stack }
         };
         launcher.Classes.Add("status");
         ToolTip.SetTip(launcher, "Open pages created with Theme Studio");

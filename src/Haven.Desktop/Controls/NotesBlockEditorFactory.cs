@@ -51,7 +51,7 @@ public static class NotesBlockEditorFactory
             NotesBlockKind.HtmlWidget => BuildHtml(viewModel, block),
             NotesBlockKind.Canvas => BuildCanvas(viewModel, block, refresh),
             NotesBlockKind.Flashcard => BuildFlashcard(block, beginEdit, endEdit, refresh),
-            NotesBlockKind.Divider => new Border
+            NotesBlockKind.Divider => new HavenAdaptiveSurface
             {
                 Height = 2,
                 Margin = new Thickness(8, 22),
@@ -61,7 +61,7 @@ public static class NotesBlockEditorFactory
         };
 
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"), ColumnSpacing = 6 };
-        header.Children.Add(new Border
+        header.Children.Add(new HavenAdaptiveSurface
         {
             Padding = new Thickness(7, 3),
             CornerRadius = new CornerRadius(8),
@@ -79,7 +79,7 @@ public static class NotesBlockEditorFactory
         header.Children.Add(WithColumn(SmallButton("↓", () => { viewModel.MoveBlockDownCommand.Execute(block); refresh(); }, "Move block down"), 3));
         header.Children.Add(WithColumn(SmallButton("Delete", () => { viewModel.DeleteBlockCommand.Execute(block); refresh(); }, "Delete block", true), 4));
 
-        var card = new Border
+        var card = new HavenAdaptiveSurface
         {
             Padding = new Thickness(12),
             CornerRadius = new CornerRadius(13),
@@ -109,7 +109,7 @@ public static class NotesBlockEditorFactory
             block.Runs.Add(new NotesTextRun
             {
                 Text = block.PlainText,
-                FontFamily = block.Kind == NotesBlockKind.Code ? "Cascadia Mono" : "Inter",
+                FontFamily = block.Kind == NotesBlockKind.Code ? "Cascadia Mono" : "Montserrat",
                 FontSize = block.Kind == NotesBlockKind.Heading ? 24 : 14,
                 Bold = block.Kind == NotesBlockKind.Heading,
                 Italic = block.Kind == NotesBlockKind.Quote
@@ -117,7 +117,7 @@ public static class NotesBlockEditorFactory
         }
 
         var root = new StackPanel { Spacing = 8 };
-        var style = new ComboBox
+        var style = new HavenComboBox
         {
             ItemsSource = new[] { "normal", "heading-1", "heading-2", "quote", "code" },
             SelectedItem = block.StyleId,
@@ -138,7 +138,7 @@ public static class NotesBlockEditorFactory
             await endEdit(block, "Applied style " + selected);
             refresh();
         };
-        var alignment = new ComboBox
+        var alignment = new HavenComboBox
         {
             ItemsSource = Enum.GetValues<NotesTextAlignment>(),
             SelectedItem = block.Paragraph.Alignment,
@@ -151,7 +151,7 @@ public static class NotesBlockEditorFactory
             block.Paragraph.Alignment = value;
             await endEdit(block, "Changed paragraph alignment");
         };
-        var lineSpacing = new NumericUpDown
+        var lineSpacing = new HavenNumericInput
         {
             Minimum = 0.5m,
             Maximum = 10m,
@@ -169,7 +169,7 @@ public static class NotesBlockEditorFactory
         root.Children.Add(SmallButton("+ Formatted run", async () =>
         {
             await beginEdit(block);
-            block.Runs.Add(new NotesTextRun { FontFamily = block.Kind == NotesBlockKind.Code ? "Cascadia Mono" : "Inter" });
+            block.Runs.Add(new NotesTextRun { FontFamily = block.Kind == NotesBlockKind.Code ? "Cascadia Mono" : "Montserrat" });
             SyncPlainText(block);
             await endEdit(block, "Added formatted text run");
             refresh();
@@ -188,7 +188,7 @@ public static class NotesBlockEditorFactory
         Func<NotesBlock, string, Task> endEdit,
         Action refresh)
     {
-        var text = new TextBox
+        var text = new HavenTextInput
         {
             Text = run.Text,
             AcceptsReturn = true,
@@ -207,13 +207,13 @@ public static class NotesBlockEditorFactory
         var italic = FormatToggle("I", run.Italic, value => run.Italic = value, beginEdit, endEdit, block, fontStyle: FontStyle.Italic);
         var underline = FormatToggle("U", run.Underline, value => run.Underline = value, beginEdit, endEdit, block);
         var strike = FormatToggle("S", run.StrikeThrough, value => run.StrikeThrough = value, beginEdit, endEdit, block);
-        var font = new TextBox { Text = run.FontFamily, MinWidth = 110, PlaceholderText = "Font" };
-        var size = new NumericUpDown { Minimum = 4, Maximum = 300, Value = (decimal)run.FontSize, Width = 76 };
-        var foreground = new TextBox { Text = run.Foreground, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
-        var background = new TextBox { Text = run.Background, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
-        var link = new TextBox { Text = run.Link ?? string.Empty, MinWidth = 150, PlaceholderText = "Optional link" };
+        var font = new HavenTextInput { Text = run.FontFamily, MinWidth = 110, PlaceholderText = "Font" };
+        var size = new HavenNumericInput { Minimum = 4, Maximum = 300, Value = (decimal)run.FontSize, Width = 76 };
+        var foreground = new HavenTextInput { Text = run.Foreground, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
+        var background = new HavenTextInput { Text = run.Background, MinWidth = 105, PlaceholderText = "#AARRGGBB" };
+        var link = new HavenTextInput { Text = run.Link ?? string.Empty, MinWidth = 150, PlaceholderText = "Optional link" };
         foreach (var input in new[] { font, foreground, background, link }) input.GotFocus += async (_, _) => await beginEdit(block);
-        font.LostFocus += async (_, _) => { run.FontFamily = string.IsNullOrWhiteSpace(font.Text) ? "Inter" : font.Text.Trim(); await endEdit(block, "Changed font"); };
+        font.LostFocus += async (_, _) => { run.FontFamily = string.IsNullOrWhiteSpace(font.Text) ? "Montserrat" : font.Text.Trim(); await endEdit(block, "Changed font"); };
         foreground.LostFocus += async (_, _) => { run.Foreground = foreground.Text?.Trim() ?? run.Foreground; await endEdit(block, "Changed text colour"); };
         background.LostFocus += async (_, _) => { run.Background = background.Text?.Trim() ?? run.Background; await endEdit(block, "Changed highlight"); };
         link.LostFocus += async (_, _) => { run.Link = string.IsNullOrWhiteSpace(link.Text) ? null : link.Text.Trim(); await endEdit(block, "Changed link"); };
@@ -230,7 +230,7 @@ public static class NotesBlockEditorFactory
             refresh();
         }, "Remove formatted run", true);
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Padding = new Thickness(8),
             CornerRadius = new CornerRadius(9),
@@ -261,7 +261,7 @@ public static class NotesBlockEditorFactory
         FontWeight? fontWeight = null,
         FontStyle? fontStyle = null)
     {
-        var toggle = new ToggleButton
+        var toggle = new HavenToggleButton
         {
             Content = label,
             IsChecked = value,
@@ -289,7 +289,7 @@ public static class NotesBlockEditorFactory
     {
         block.List ??= new NotesListData { Items = [new NotesListItem { Text = "List item" }] };
         var root = new StackPanel { Spacing = 7 };
-        var type = new ComboBox { ItemsSource = Enum.GetValues<NotesListKind>(), SelectedItem = block.List.Kind, Width = 160 };
+        var type = new HavenComboBox { ItemsSource = Enum.GetValues<NotesListKind>(), SelectedItem = block.List.Kind, Width = 160 };
         type.SelectionChanged += async (_, _) =>
         {
             if (type.SelectedItem is not NotesListKind kind || kind == block.List.Kind) return;
@@ -302,13 +302,13 @@ public static class NotesBlockEditorFactory
         foreach (var item in block.List.Items.ToArray())
         {
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 6 };
-            var check = new CheckBox { IsChecked = item.Checked, IsVisible = block.List.Kind == NotesListKind.Checklist };
+            var check = new HavenCheckBox { IsChecked = item.Checked, IsVisible = block.List.Kind == NotesListKind.Checklist };
             check.IsCheckedChanged += async (_, _) => { await beginEdit(block); item.Checked = check.IsChecked == true; await endEdit(block, "Changed checklist item"); };
-            var text = new TextBox { Text = item.Text };
+            var text = new HavenTextInput { Text = item.Text };
             text.GotFocus += async (_, _) => await beginEdit(block);
             text.TextChanged += (_, _) => item.Text = text.Text ?? string.Empty;
             text.LostFocus += async (_, _) => await endEdit(block, "Edited list item");
-            var level = new NumericUpDown { Minimum = 0, Maximum = 8, Value = item.Level, Width = 60 };
+            var level = new HavenNumericInput { Minimum = 0, Maximum = 8, Value = item.Level, Width = 60 };
             level.GotFocus += async (_, _) => await beginEdit(block);
             level.ValueChanged += (_, _) => item.Level = (int)(level.Value ?? 0m);
             level.LostFocus += async (_, _) => await endEdit(block, "Changed list nesting");
@@ -367,7 +367,7 @@ public static class NotesBlockEditorFactory
         for (var columnIndex = 0; columnIndex < columns; columnIndex++)
         {
             var cell = block.Table.Rows[rowIndex].Cells[columnIndex];
-            var editor = new TextBox
+            var editor = new HavenTextInput
             {
                 Text = cell.Text,
                 MinWidth = 80,
@@ -402,15 +402,15 @@ public static class NotesBlockEditorFactory
     {
         if (block.Media is null) return new TextBlock { Text = "Media metadata is missing.", Classes = { "muted" } };
         var media = block.Media;
-        var alt = new TextBox { Text = media.AltText, PlaceholderText = "Accessible alternative text" };
-        var caption = new TextBox { Text = media.Caption, PlaceholderText = "Caption", AcceptsReturn = true };
-        var wrapping = new ComboBox
+        var alt = new HavenTextInput { Text = media.AltText, PlaceholderText = "Accessible alternative text" };
+        var caption = new HavenTextInput { Text = media.Caption, PlaceholderText = "Caption", AcceptsReturn = true };
+        var wrapping = new HavenComboBox
         {
             ItemsSource = new[] { "Inline", "Square", "Tight", "Behind text", "In front of text" },
             SelectedItem = media.Wrapping
         };
-        var width = new NumericUpDown { Minimum = 1, Maximum = 10000, Value = (decimal)media.Width };
-        var height = new NumericUpDown { Minimum = 1, Maximum = 10000, Value = (decimal)media.Height };
+        var width = new HavenNumericInput { Minimum = 1, Maximum = 10000, Value = (decimal)media.Width };
+        var height = new HavenNumericInput { Minimum = 1, Maximum = 10000, Value = (decimal)media.Height };
         foreach (var input in new[] { alt, caption }) input.GotFocus += async (_, _) => await beginEdit(block);
         alt.LostFocus += async (_, _) => { media.AltText = alt.Text ?? string.Empty; await endEdit(block, "Edited media alternative text"); };
         caption.LostFocus += async (_, _) => { media.Caption = caption.Text ?? string.Empty; await endEdit(block, "Edited media caption"); };
@@ -447,8 +447,8 @@ public static class NotesBlockEditorFactory
     {
         block.Equation ??= new NotesEquationData();
         var equation = block.Equation;
-        var mode = new ComboBox { ItemsSource = Enum.GetValues<NotesEquationViewMode>(), SelectedItem = equation.ViewMode, Width = 120 };
-        var source = new TextBox
+        var mode = new HavenComboBox { ItemsSource = Enum.GetValues<NotesEquationViewMode>(), SelectedItem = equation.ViewMode, Width = 120 };
+        var source = new HavenTextInput
         {
             Text = equation.Source,
             AcceptsReturn = true,
@@ -456,7 +456,7 @@ public static class NotesBlockEditorFactory
             FontFamily = new FontFamily("Cascadia Mono"),
             TextWrapping = TextWrapping.Wrap
         };
-        var alternative = new TextBox
+        var alternative = new HavenTextInput
         {
             Text = equation.AccessibleAlternative,
             PlaceholderText = "Accessible spoken or textual alternative",
@@ -465,8 +465,8 @@ public static class NotesBlockEditorFactory
         };
         var rendered = new TextBlock { Text = equation.RenderedText, FontSize = 24, TextWrapping = TextWrapping.Wrap };
         var error = new TextBlock { Text = equation.Error, Foreground = ResourceBrush("HavenDangerBrush", Colors.IndianRed), TextWrapping = TextWrapping.Wrap };
-        var numbered = new CheckBox { Content = "Number equation", IsChecked = equation.Numbered };
-        var label = new TextBox { Text = equation.Label, PlaceholderText = "Equation label" };
+        var numbered = new HavenCheckBox { Content = "Number equation", IsChecked = equation.Numbered };
+        var label = new HavenTextInput { Text = equation.Label, PlaceholderText = "Equation label" };
         var ready = false;
         async Task ApplyAsync()
         {
@@ -505,10 +505,10 @@ public static class NotesBlockEditorFactory
     {
         block.Html ??= new NotesHtmlData();
         var data = block.Html;
-        var mode = new ComboBox { ItemsSource = Enum.GetValues<NotesHtmlViewMode>(), SelectedItem = data.ViewMode, Width = 120 };
-        var scripts = new CheckBox { Content = "Allow scripts", IsChecked = data.AllowScripts };
-        var network = new CheckBox { Content = "Allow HTTPS network requests", IsChecked = data.AllowNetwork };
-        var forms = new CheckBox { Content = "Allow forms", IsChecked = data.AllowForms };
+        var mode = new HavenComboBox { ItemsSource = Enum.GetValues<NotesHtmlViewMode>(), SelectedItem = data.ViewMode, Width = 120 };
+        var scripts = new HavenCheckBox { Content = "Allow scripts", IsChecked = data.AllowScripts };
+        var network = new HavenCheckBox { Content = "Allow HTTPS network requests", IsChecked = data.AllowNetwork };
+        var forms = new HavenCheckBox { Content = "Allow forms", IsChecked = data.AllowForms };
         var html = SourceEditor("HTML", data.HtmlSource);
         var css = SourceEditor("CSS", data.CssSource);
         var javascript = SourceEditor("JavaScript", data.JavaScriptSource);
@@ -537,13 +537,13 @@ public static class NotesBlockEditorFactory
         network.IsCheckedChanged += async (_, _) => await ApplyAsync();
         forms.IsCheckedChanged += async (_, _) => await ApplyAsync();
         ready = true;
-        var sources = new TabControl
+        var sources = new HavenTabView
         {
             ItemsSource = new object[]
             {
-                new TabItem { Header = "HTML", Content = html },
-                new TabItem { Header = "CSS", Content = css },
-                new TabItem { Header = "JavaScript", Content = javascript }
+                new HavenTabItem { Header = "HTML", Content = html },
+                new HavenTabItem { Header = "CSS", Content = css },
+                new HavenTabItem { Header = "JavaScript", Content = javascript }
             }
         };
         var split = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 9 };
@@ -576,11 +576,11 @@ public static class NotesBlockEditorFactory
         block.Canvas ??= new NotesCanvasData();
         var canvas = block.Canvas;
         var ink = new NotesInkCanvasControl { CanvasData = canvas };
-        var tool = new ComboBox { ItemsSource = new[] { "pen", "highlighter", "eraser" }, SelectedItem = "pen", Width = 120 };
-        var colour = new TextBox { Text = "#FF2F80ED", Width = 120 };
-        var width = new Slider { Minimum = 0.5, Maximum = 40, Value = 2.5, Width = 150 };
-        var infinite = new CheckBox { Content = "Infinite canvas", IsChecked = canvas.Infinite };
-        var layers = new ComboBox
+        var tool = new HavenComboBox { ItemsSource = new[] { "pen", "highlighter", "eraser" }, SelectedItem = "pen", Width = 120 };
+        var colour = new HavenTextInput { Text = "#FF2F80ED", Width = 120 };
+        var width = new HavenSlider { Minimum = 0.5, Maximum = 40, Value = 2.5, Width = 150 };
+        var infinite = new HavenCheckBox { Content = "Infinite canvas", IsChecked = canvas.Infinite };
+        var layers = new HavenComboBox
         {
             ItemsSource = canvas.GhostLayers,
             Width = 170,
@@ -675,7 +675,7 @@ public static class NotesBlockEditorFactory
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 9
                 },
-                new Border
+                new HavenAdaptiveSurface
                 {
                     CornerRadius = new CornerRadius(9),
                     BorderBrush = ResourceBrush("HavenLineStrongBrush", Color.FromArgb(80, 255, 255, 255)),
@@ -713,7 +713,7 @@ public static class NotesBlockEditorFactory
                 Classes = { "muted2" },
                 FontSize = 9
             });
-            var text = new TextBox { Text = canvasObject.Text };
+            var text = new HavenTextInput { Text = canvasObject.Text };
             text.GotFocus += async (_, _) => await viewModel.BeginBlockEditAsync(block);
             text.TextChanged += (_, _) => canvasObject.Text = text.Text ?? string.Empty;
             text.LostFocus += async (_, _) =>
@@ -721,7 +721,7 @@ public static class NotesBlockEditorFactory
                 await viewModel.CommitBlockEditAsync(block, "Edited canvas object");
                 ink.InvalidateVisual();
             };
-            var locked = new CheckBox { Content = "Lock", IsChecked = canvasObject.Locked };
+            var locked = new HavenCheckBox { Content = "Lock", IsChecked = canvasObject.Locked };
             locked.IsCheckedChanged += async (_, _) =>
             {
                 await viewModel.BeginBlockEditAsync(block);
@@ -756,9 +756,9 @@ public static class NotesBlockEditorFactory
     {
         block.Flashcard ??= new NotesFlashcardData { Front = "Question", Back = "Answer" };
         var card = block.Flashcard;
-        var front = new TextBox { Text = card.Front, AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
-        var back = new TextBox { Text = card.Back, AcceptsReturn = true, MinHeight = 90, TextWrapping = TextWrapping.Wrap };
-        var hint = new TextBox { Text = card.Hint, PlaceholderText = "Optional hint" };
+        var front = new HavenTextInput { Text = card.Front, AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
+        var back = new HavenTextInput { Text = card.Back, AcceptsReturn = true, MinHeight = 90, TextWrapping = TextWrapping.Wrap };
+        var hint = new HavenTextInput { Text = card.Hint, PlaceholderText = "Optional hint" };
         foreach (var input in new[] { front, back, hint }) input.GotFocus += async (_, _) => await beginEdit(block);
         front.TextChanged += (_, _) => card.Front = front.Text ?? string.Empty;
         back.TextChanged += (_, _) => card.Back = back.Text ?? string.Empty;
@@ -835,7 +835,7 @@ public static class NotesBlockEditorFactory
     /// </summary>
     private static Button SmallButton(string label, Action action, string tooltip, bool danger = false)
     {
-        var button = new Button { Content = label, Margin = new Thickness(2) };
+        var button = new HavenButton { Content = label, Margin = new Thickness(2) };
         button.Classes.Add(danger ? "danger" : "secondary");
         button.Click += (_, _) => action();
         ToolTip.SetTip(button, tooltip);

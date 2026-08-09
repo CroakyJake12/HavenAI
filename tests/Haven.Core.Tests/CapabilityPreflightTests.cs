@@ -35,10 +35,14 @@ public sealed class CapabilityPreflightTests
     /// Performs the tool capable model can use browser plugin step owned by this component.
     /// </summary>
     [Fact]
-    public void ToolCapableModelCanUseBrowserPlugin()
+    public void ToolCapableModelCanUseBrowserCapability()
     {
         var model = Model("tools", ToolCapability.Text, ToolCapability.Tools);
-        var result = new CapabilityPreflightService().Evaluate(model, [new ActivePlugin("BrowserUse", "browser-use", false)], false, [model]);
+        var result = new CapabilityPreflightService().Evaluate(
+            model,
+            [ActiveCapability.FromDefinition(CapabilityRegistryCatalog.BuiltIns.Single(item => item.Key == "browser-use"))],
+            false,
+            [model]);
         Assert.True(result.IsCompatible);
     }
 

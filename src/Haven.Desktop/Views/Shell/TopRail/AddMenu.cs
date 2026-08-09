@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -11,10 +12,10 @@ namespace Haven.Desktop.Views.Shell.TopRail;
 /// Mockup-defined composer Add menu. Catalogues open as a second panel beside
 /// the Add panel; no legacy catalogue page or inline dropdown is reused.
 /// </summary>
-public sealed class AddMenu : Button, IDisposable
+public sealed class AddMenu : HavenIconButton, IDisposable
 {
     private IReadOnlyList<AgentDefinition> _agents = [];
-    private IReadOnlyList<PluginDefinition> _plugins = [];
+    private IReadOnlyList<CapabilityDefinition> _capabilities = [];
     private IReadOnlyList<PromptDefinition> _instructions = [];
     private IReadOnlyList<ModeDefinition> _apps = [];
     private readonly List<Button> _topLevelItems = [];
@@ -25,7 +26,6 @@ public sealed class AddMenu : Button, IDisposable
     public AddMenu()
     {
         Content = new HavenIcon { IconKey = "plus", Width = 18, Height = 18 };
-        Classes.Add("chrome");
         ToolTip.SetTip(this, "Add");
         Click += OnClick;
     }
@@ -41,12 +41,12 @@ public sealed class AddMenu : Button, IDisposable
 
     public void SetCatalogue(
         IReadOnlyList<AgentDefinition> agents,
-        IReadOnlyList<PluginDefinition> plugins,
+        IReadOnlyList<CapabilityDefinition> capabilities,
         IReadOnlyList<PromptDefinition> instructions,
         IReadOnlyList<ModeDefinition> apps)
     {
         _agents = agents.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
-        _plugins = plugins.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
+        _capabilities = capabilities.Where(item => item.IsEnabled && item.IsAttachable).OrderBy(item => item.Name).ToArray();
         _instructions = instructions.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
         _apps = apps.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
     }
@@ -59,7 +59,7 @@ public sealed class AddMenu : Button, IDisposable
     private Flyout BuildFlyout()
     {
         _topLevelItems.Clear();
-        var panel = new StackPanel { Width = 260, Spacing = 3, Margin = new Thickness(12) };
+        var panel = new StackPanel { Spacing = 6 };
         panel.Children.Add(new TextBlock
         {
             Text = "Add",
@@ -69,10 +69,16 @@ public sealed class AddMenu : Button, IDisposable
         });
         panel.Children.Add(BuildTopLevelItem("File", "file", AddMenuAction.File));
         panel.Children.Add(BuildTopLevelItem("Agent", "agents", AddMenuAction.Agent));
-        panel.Children.Add(BuildTopLevelItem("Plugin", "plugin", AddMenuAction.Plugin));
+        panel.Children.Add(BuildTopLevelItem("Capability", "bolt", AddMenuAction.Capability));
         panel.Children.Add(BuildTopLevelItem("Instruction", "prompt", AddMenuAction.Instruction));
         panel.Children.Add(BuildTopLevelItem("App", "rocket", AddMenuAction.App));
-        return new Flyout { Placement = PlacementMode.TopEdgeAlignedLeft, Content = panel };
+        var card = new HavenDropdownCard
+        {
+            Width = 286,
+            MinWidth = 286,
+            Child = panel
+        };
+        return new HavenDropdown { Placement = PlacementMode.TopEdgeAlignedLeft, Content = card };
     }
 
     private Button BuildTopLevelItem(string label, string iconKey, AddMenuAction action)
@@ -89,8 +95,8 @@ public sealed class AddMenu : Button, IDisposable
                 return;
             }
 
-            foreach (var item in _topLevelItems) item.Classes.Remove("sidebarActive");
-            button.Classes.Add("sidebarActive");
+            foreach (var item in _topLevelItems) item.Classes.Remove("selected");
+            button.Classes.Add("selected");
             ActionSelected?.Invoke(this, action);
             ShowCatalogue(button, action);
         };
@@ -100,7 +106,7 @@ public sealed class AddMenu : Button, IDisposable
     private void ShowCatalogue(Control anchor, AddMenuAction action)
     {
         _catalogFlyout?.Hide();
-        var search = new TextBox
+        var search = new HavenTextInput
         {
             PlaceholderText = "Search",
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -117,9 +123,13 @@ public sealed class AddMenu : Button, IDisposable
                     AddAgentSection(results, "Personalities", _agents.Where(IsPersonality), query);
                     AddAgentSection(results, "Tools", _agents.Where(item => !IsPersonality(item)), query);
                     break;
-                case AddMenuAction.Plugin:
-                    AddPluginSection(results, "General", _plugins.Where(item => !item.IsAgentic), query);
-                    AddPluginSection(results, "Productivity", _plugins.Where(item => item.IsAgentic), query);
+                case AddMenuAction.Capability:
+                    AddCapabilitySection(results, "General", _capabilities.Where(item => item.OwnerAppKey.Equals(CapabilityRegistryCatalog.GeneralOwner, StringComparison.OrdinalIgnoreCase)), query);
+                    foreach (var group in _capabilities
+                                 .Where(item => !item.OwnerAppKey.Equals(CapabilityRegistryCatalog.GeneralOwner, StringComparison.OrdinalIgnoreCase))
+                                 .GroupBy(item => item.OwnerAppKey, StringComparer.OrdinalIgnoreCase)
+                                 .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                        AddCapabilitySection(results, group.Key, group, query);
                     break;
                 case AddMenuAction.Instruction:
                     AddInstructionSection(results, "Instructions", _instructions, query);
@@ -143,23 +153,21 @@ public sealed class AddMenu : Button, IDisposable
         var title = action switch
         {
             AddMenuAction.Agent => "Agents",
-            AddMenuAction.Plugin => "Plugins",
+            AddMenuAction.Capability => "Capabilities",
             AddMenuAction.Instruction => "Instructions",
             _ => "Apps"
         };
         var footer = action switch
         {
             AddMenuAction.Agent => "Create new Agents in Studio",
-            AddMenuAction.Plugin => "Create new Plugins in Studio",
+            AddMenuAction.Capability => "Create new Capabilities in Studio",
             AddMenuAction.Instruction => "Create new Instructions in Studio",
             _ => "Manage Apps"
         };
 
         var panel = new StackPanel
         {
-            Width = 340,
             Spacing = 9,
-            Margin = new Thickness(10),
             Children =
             {
                 new TextBlock { Text = title, FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 0) },
@@ -184,7 +192,13 @@ public sealed class AddMenu : Button, IDisposable
             }
         };
         Rebuild();
-        _catalogFlyout = new Flyout { Placement = PlacementMode.RightEdgeAlignedBottom, Content = panel };
+        var card = new HavenDropdownCard
+        {
+            Width = 360,
+            MinWidth = 360,
+            Child = panel
+        };
+        _catalogFlyout = new HavenDropdown { Placement = PlacementMode.RightEdgeAlignedBottom, Content = card };
         _catalogFlyout.ShowAt(anchor);
         search.Focus();
     }
@@ -201,14 +215,14 @@ public sealed class AddMenu : Button, IDisposable
         }
     }
 
-    private void AddPluginSection(StackPanel panel, string heading, IEnumerable<PluginDefinition> source, string query)
+    private void AddCapabilitySection(StackPanel panel, string heading, IEnumerable<CapabilityDefinition> source, string query)
     {
         var items = source.Where(item => Matches(item.Name, item.Description, query)).ToArray();
         AddHeading(panel, heading, items.Length);
         foreach (var item in items)
         {
             var row = BuildRow(item.IconKey, item.Name, item.Description);
-            row.Click += (_, _) => Select(new AddMenuSelection(AddMenuAction.Plugin, item));
+            row.Click += (_, _) => Select(new AddMenuSelection(AddMenuAction.Capability, item));
             panel.Children.Add(row);
         }
     }
@@ -271,16 +285,15 @@ public sealed class AddMenu : Button, IDisposable
         };
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
-        var button = new Button
+        var button = new HavenDropdownItemButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(12, 10),
-            MinHeight = 48,
+            MinHeight = 52,
             CornerRadius = new CornerRadius(14),
             Content = grid
         };
-        button.Classes.Add("sidebar");
         return button;
     }
 
@@ -301,7 +314,7 @@ public sealed class AddMenu : Button, IDisposable
         _flyout?.Hide();
     }
 
-    public enum AddMenuAction { File, Agent, Plugin, Instruction, App }
+    public enum AddMenuAction { File, Agent, Capability, Instruction, App }
 }
 
 public sealed record AddMenuSelection(AddMenu.AddMenuAction Kind, object Item);

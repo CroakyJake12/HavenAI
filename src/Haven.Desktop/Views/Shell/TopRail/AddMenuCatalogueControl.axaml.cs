@@ -13,7 +13,7 @@ namespace Haven.Desktop.Views.Shell.TopRail;
 public sealed partial class AddMenuCatalogueControl : UserControl
 {
     private IReadOnlyList<AgentDefinition> _agents = [];
-    private IReadOnlyList<PluginDefinition> _plugins = [];
+    private IReadOnlyList<CapabilityDefinition> _capabilities = [];
     private IReadOnlyList<PromptDefinition> _instructions = [];
     private IReadOnlyList<ModeDefinition> _apps = [];
     private AddMenu.AddMenuAction _currentAction;
@@ -28,12 +28,12 @@ public sealed partial class AddMenuCatalogueControl : UserControl
 
     public void Configure(
         IReadOnlyList<AgentDefinition> agents,
-        IReadOnlyList<PluginDefinition> plugins,
+        IReadOnlyList<CapabilityDefinition> capabilities,
         IReadOnlyList<PromptDefinition> instructions,
         IReadOnlyList<ModeDefinition> apps)
     {
         _agents = agents;
-        _plugins = plugins;
+        _capabilities = capabilities;
         _instructions = instructions;
         _apps = apps;
     }
@@ -44,14 +44,14 @@ public sealed partial class AddMenuCatalogueControl : UserControl
         TitleText.Text = action switch
         {
             AddMenu.AddMenuAction.Agent => "Agents",
-            AddMenu.AddMenuAction.Plugin => "Plugins",
+            AddMenu.AddMenuAction.Capability => "Capabilities",
             AddMenu.AddMenuAction.Instruction => "Instructions",
             _ => "Apps"
         };
         FooterText.Text = action switch
         {
             AddMenu.AddMenuAction.Agent => "Create new Agents in Studio",
-            AddMenu.AddMenuAction.Plugin => "Create new Plugins in Studio",
+            AddMenu.AddMenuAction.Capability => "Create new Capabilities in Studio",
             AddMenu.AddMenuAction.Instruction => "Create new Instructions in Studio",
             _ => "Manage Apps"
         };
@@ -70,9 +70,13 @@ public sealed partial class AddMenuCatalogueControl : UserControl
                 AddAgentSection("Personalities", _agents.Where(IsPersonality), query);
                 AddAgentSection("Tools", _agents.Where(item => !IsPersonality(item)), query);
                 break;
-            case AddMenu.AddMenuAction.Plugin:
-                AddPluginSection("General", _plugins.Where(item => !item.IsAgentic), query);
-                AddPluginSection("Productivity", _plugins.Where(item => item.IsAgentic), query);
+            case AddMenu.AddMenuAction.Capability:
+                AddCapabilitySection("General", _capabilities.Where(item => item.OwnerAppKey.Equals(CapabilityRegistryCatalog.GeneralOwner, StringComparison.OrdinalIgnoreCase)), query);
+                foreach (var group in _capabilities
+                             .Where(item => !item.OwnerAppKey.Equals(CapabilityRegistryCatalog.GeneralOwner, StringComparison.OrdinalIgnoreCase))
+                             .GroupBy(item => item.OwnerAppKey, StringComparer.OrdinalIgnoreCase)
+                             .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                    AddCapabilitySection(group.Key, group, query);
                 break;
             case AddMenu.AddMenuAction.Instruction:
                 AddInstructionSection("Instructions", _instructions, query);
@@ -95,14 +99,14 @@ public sealed partial class AddMenuCatalogueControl : UserControl
         }
     }
 
-    private void AddPluginSection(string heading, IEnumerable<PluginDefinition> source, string query)
+    private void AddCapabilitySection(string heading, IEnumerable<CapabilityDefinition> source, string query)
     {
         var items = source.Where(item => Matches(item.Name, item.Description, query)).ToArray();
         AddHeading(heading, items.Length);
         foreach (var item in items)
         {
             var row = BuildRow(item.IconKey, item.Name, item.Description);
-            row.Click += (_, _) => Select(new AddMenuSelection(AddMenu.AddMenuAction.Plugin, item));
+            row.Click += (_, _) => Select(new AddMenuSelection(AddMenu.AddMenuAction.Capability, item));
             ResultsPanel.Children.Add(row);
         }
     }
@@ -163,7 +167,7 @@ public sealed partial class AddMenuCatalogueControl : UserControl
         };
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,

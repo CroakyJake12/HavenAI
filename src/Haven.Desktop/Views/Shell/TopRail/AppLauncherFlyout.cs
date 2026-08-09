@@ -18,7 +18,7 @@ internal static class AppLauncherFlyout
         Action<ModeDefinition, bool> launch,
         Action manage)
     {
-        var search = new TextBox
+        var search = new HavenTextInput
         {
             PlaceholderText = "Search",
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -26,7 +26,7 @@ internal static class AppLauncherFlyout
             FontSize = 14
         };
         var results = new StackPanel { Spacing = 7, Margin = new Thickness(0, 0, 2, 4) };
-        var flyout = new Flyout
+        var flyout = new HavenAdaptivePopup
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = FloatingPresenterTheme()
@@ -86,7 +86,7 @@ internal static class AppLauncherFlyout
             IsHitTestVisible = false, Opacity = 0.72
         });
 
-        var main = new Border
+        var main = new HavenAdaptiveSurface
         {
             Width = 420,
             Background = ResourceBrush("HavenElevatedBrush", Colors.White),
@@ -111,7 +111,7 @@ internal static class AppLauncherFlyout
                 }
             }
         };
-        var manageButton = new Button
+        var manageButton = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -133,7 +133,7 @@ internal static class AppLauncherFlyout
             flyout.Hide();
             manage();
         };
-        var footer = new Border
+        var footer = new HavenAdaptiveSurface
         {
             Width = 420,
             Background = ResourceBrush("HavenElevatedBrush", Colors.White),
@@ -162,7 +162,7 @@ internal static class AppLauncherFlyout
         };
         Grid.SetColumn(text, 1);
         content.Children.Add(text);
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,

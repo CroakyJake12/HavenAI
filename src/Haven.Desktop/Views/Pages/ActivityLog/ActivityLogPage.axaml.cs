@@ -85,7 +85,7 @@ public sealed partial class ActivityLogPage : UserControl
             Text = conv.Title, FontWeight = FontWeight.SemiBold, FontSize = 13,
             MaxLines = 1, TextTrimming = TextTrimming.CharacterEllipsis
         };
-        var modeBadge = new Border
+        var modeBadge = new HavenAdaptiveSurface
         {
             Background = Brush("StrokeBrush"),
             CornerRadius = new CornerRadius(4), Padding = new Avalonia.Thickness(6, 2),
@@ -108,7 +108,7 @@ public sealed partial class ActivityLogPage : UserControl
         var contentGrid = new Grid { RowDefinitions = new RowDefinitions("Auto"), ColumnDefinitions = new ColumnDefinitions("*") };
         contentGrid.Children.Add(headerGrid);
 
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left,

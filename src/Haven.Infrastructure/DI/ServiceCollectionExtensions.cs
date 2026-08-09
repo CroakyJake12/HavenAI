@@ -82,6 +82,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
+        services.AddSingleton<ICapabilityRepository, CapabilityRepository>();
+        services.AddSingleton<CapabilityRegistryService>();
+        services.AddSingleton<IGenUiTemplateRepository, GenUiTemplateRepository>();
+        services.AddSingleton<GenUiInstanceStore>();
+        services.AddSingleton<GenUiLocalActionRegistry>();
+        services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());
+        services.AddSingleton<CalculatorTemplateRuntime>();
+        services.AddSingleton<BoundedGenUiEventAuditSink>();
+        services.AddSingleton<IGenUiEventAuditSink>(provider => provider.GetRequiredService<BoundedGenUiEventAuditSink>());
+        services.AddSingleton<GenerativeUiEventRouter>();
         services.AddSingleton<IWorkspaceStateRepository, WorkspaceStateRepository>();
         services.AddSingleton<IProjectIntelligenceService, ProjectIntelligenceService>();
         services.AddSingleton<IAutomationRepository, AutomationRepository>();

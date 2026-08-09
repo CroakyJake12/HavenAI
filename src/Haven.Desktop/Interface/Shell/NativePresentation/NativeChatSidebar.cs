@@ -18,12 +18,13 @@ namespace Haven.Desktop.Views.Shell.NativePresentation;
 /// </summary>
 internal sealed class NativeChatSidebar : UserControl, IDisposable
 {
-    private static readonly IBrush SurfaceBrush = Solid("#FAFCF8");
-    private static readonly IBrush HoverBrush = Solid("#EDF3ED");
-    private static readonly IBrush ActiveBrush = Solid("#BCEFF3");
-    private static readonly IBrush DividerBrush = Solid("#E1E8E0");
-    private static readonly IBrush MutedBrush = Solid("#5F6862");
-    private static readonly IBrush UnreadBrush = Solid("#F278D1");
+    private static readonly IBrush SurfaceBrush = Resource("HavenPanelBrush", "#F50C0F1A");
+    private static readonly IBrush FieldBrush = Resource("HavenPanel2Brush", "#F5121628");
+    private static readonly IBrush HoverBrush = Resource("HavenPanelHoverBrush", "#FF222941");
+    private static readonly IBrush ActiveBrush = Resource("HavenAccentSoftBrush", "#FF202750");
+    private static readonly IBrush DividerBrush = Resource("HavenLineBrush", "#FF2D3551");
+    private static readonly IBrush MutedBrush = Resource("HavenMutedBrush", "#FFA9AEC4");
+    private static readonly IBrush UnreadBrush = Resource("HavenAttentionBorderBrush", "#FFFF78D1");
 
     private readonly IConversationRepository _conversations;
     private readonly IContainerRepository _containers;
@@ -75,13 +76,13 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _switchMode = switchMode ?? throw new ArgumentNullException(nameof(switchMode));
         _stateStore = stateStore ?? new NativeChatUiStateStore();
 
-        _searchBox = new TextBox
+        _searchBox = new HavenTextInput
         {
             PlaceholderText = "Search",
             MinHeight = 44,
             Padding = new Thickness(40, 9, 12, 9),
             CornerRadius = new CornerRadius(13),
-            Background = Solid("#F3F5F2"),
+            Background = FieldBrush,
             BorderThickness = new Thickness(0),
             FontWeight = FontWeight.SemiBold
         };
@@ -197,10 +198,10 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private Control BuildLayout()
     {
-        var modeButton = new Button
+        var modeButton = new HavenButton
         {
             Padding = new Thickness(10, 7),
-            Background = Solid("#F3F5F2"),
+            Background = FieldBrush,
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(999),
             Content = new StackPanel
@@ -294,9 +295,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             }
         };
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
-            Width = 286,
+            Width = 330,
             Padding = new Thickness(14),
             Background = SurfaceBrush,
             BorderBrush = DividerBrush,
@@ -312,7 +313,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         panel.Children.Add(ModeButton("chat", "Chat", HavenMode.Chat));
         panel.Children.Add(ModeButton("study", "Study", HavenMode.Study));
         panel.Children.Add(ModeButton("tasks", "Tasks", HavenMode.Tasks));
-        return new Flyout { Placement = PlacementMode.BottomEdgeAlignedLeft, Content = panel };
+        return new HavenAdaptivePopup { Placement = PlacementMode.BottomEdgeAlignedLeft, Content = panel };
     }
 
     private Button ModeButton(string icon, string label, HavenMode mode)
@@ -413,7 +414,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             return groupButton;
         }
 
-        var toggle = new Button
+        var toggle = new HavenButton
         {
             Width = 28,
             Height = 28,
@@ -482,7 +483,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         var rename = MenuItem("Rename", () => ShowRenameConversation(chat));
         var pin = MenuItem(chat.IsPinned ? "Unpin" : "Pin", () => _ = ToggleConversationPinAsync(chat));
         var read = MenuItem(IsUnread(chat) ? "Mark read" : "Mark unread", () => _ = ToggleConversationReadAsync(chat));
-        var move = new MenuItem { Header = $"Move to {GroupName(_currentMode, plural: false)}" };
+        var move = new HavenMenuItem { Header = $"Move to {GroupName(_currentMode, plural: false)}" };
         var moveItems = new List<MenuItem>
         {
             MenuItem("No group", () => _ = MoveConversationAsync(chat, null))
@@ -493,7 +494,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         move.ItemsSource = moveItems;
         var archive = MenuItem("Archive", () => _ = ArchiveConversationAsync(chat));
         var delete = MenuItem("Delete", () => _ = DeleteConversationAsync(chat));
-        return new ContextMenu { ItemsSource = new object[] { rename, pin, read, move, archive, delete } };
+        return new HavenContextMenu { ItemsSource = new object[] { rename, pin, read, move, archive, delete } };
     }
 
     private ContextMenu BuildGroupContextMenu(ContainerDefinition group, NativeChatItemState state)
@@ -504,7 +505,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         var create = MenuItem("New chat", () => _ = StartChatAsync(group.Id));
         var archive = MenuItem("Archive", () => _ = ArchiveGroupAsync(group));
         var delete = MenuItem("Delete and detach chats", () => _ = DeleteGroupAsync(group));
-        return new ContextMenu { ItemsSource = new object[] { rename, pin, expand, create, archive, delete } };
+        return new HavenContextMenu { ItemsSource = new object[] { rename, pin, expand, create, archive, delete } };
     }
 
     private async Task StartChatAsync(Guid? groupId)
@@ -522,9 +523,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private void ShowCreateGroupFlyout(Control anchor)
     {
         var groupName = GroupName(_currentMode, plural: false);
-        var editor = new TextBox { PlaceholderText = groupName + " name", MinWidth = 250 };
-        var create = new Button { Content = "Create " + groupName, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var flyout = new Flyout
+        var editor = new HavenTextInput { PlaceholderText = groupName + " name", MinWidth = 250 };
+        var create = new HavenButton { Content = "Create " + groupName, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var flyout = new HavenAdaptivePopup
         {
             Placement = PlacementMode.TopEdgeAlignedLeft,
             Content = new StackPanel
@@ -586,9 +587,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private void ShowRenameFlyout(string currentName, Func<string, Task> save)
     {
-        var editor = new TextBox { Text = currentName, MinWidth = 260 };
-        var apply = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var flyout = new Flyout
+        var editor = new HavenTextInput { Text = currentName, MinWidth = 260 };
+        var apply = new HavenButton { Content = "Save", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var flyout = new HavenAdaptivePopup
         {
             Content = new StackPanel
             {
@@ -728,7 +729,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center
         };
-        var unreadDot = new Border
+        var unreadDot = new HavenAdaptiveSurface
         {
             Width = 8,
             Height = 8,
@@ -743,7 +744,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             ColumnSpacing = 9,
             Children = { iconControl, WithColumn(label, 1), WithColumn(unreadDot, 2) }
         };
-        var button = new Button
+        var button = new HavenButton
         {
             Content = content,
             MinHeight = 39,
@@ -769,7 +770,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private static Button ActionButton(string icon, string text)
     {
         var button = NavigationButton(icon, text, false, false);
-        button.Background = Solid("#F3F5F2");
+        button.Background = FieldBrush;
         return button;
     }
 
@@ -817,7 +818,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private static MenuItem MenuItem(string header, Action action)
     {
-        var item = new MenuItem { Header = header };
+        var item = new HavenMenuItem { Header = header };
         item.Click += (_, _) => action();
         return item;
     }
@@ -838,6 +839,9 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     }
 
     private static IBrush Solid(string color) => new SolidColorBrush(Color.Parse(color));
+
+    private static IBrush Resource(string key, string fallback) =>
+        Avalonia.Application.Current?.Resources[key] as IBrush ?? Solid(fallback);
 
     private static T WithRow<T>(T control, int row) where T : Control
     {

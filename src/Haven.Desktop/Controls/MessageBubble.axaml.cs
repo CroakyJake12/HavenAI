@@ -69,13 +69,15 @@ public sealed partial class MessageBubble : UserControl
         var isUser = Role == MessageRole.User;
 
         RoleLabel.Text = isUser ? "You" : "Haven";
-        Body.Markdown = string.IsNullOrEmpty(MessageContent) && IsStreaming ? "Thinking…" : MessageContent;
+        Body.Text = string.IsNullOrEmpty(MessageContent) && IsStreaming ? "Thinking…" : MessageContent;
 
-        Bubble.MaxWidth = isUser ? 680 : 900;
-        Bubble.HorizontalAlignment = isUser ? global::Avalonia.Layout.HorizontalAlignment.Right : global::Avalonia.Layout.HorizontalAlignment.Stretch;
+        Bubble.MaxWidth = isUser ? 620 : 820;
+        Bubble.HorizontalAlignment = isUser
+            ? global::Avalonia.Layout.HorizontalAlignment.Right
+            : global::Avalonia.Layout.HorizontalAlignment.Left;
         Bubble.Background = isUser
-            ? ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE0F7FA"))
-            : new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
+            ? ResourceBrush("HavenAccentTertiaryBrush", Color.Parse("#FF202750"))
+            : ResourceBrush("HavenCardSurfaceBrush", Color.Parse("#F50D1020"));
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>

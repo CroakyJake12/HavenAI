@@ -11,9 +11,10 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.ConversationUsageView">
   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-  <Border Background="{DynamicResource HavenPanel2Brush}"
+  <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}"
           BorderBrush="{DynamicResource HavenLineBrush}"
           BorderThickness="1"
           CornerRadius="12"
@@ -28,9 +29,9 @@
         <TextBlock Text="{Binding Status}" Classes="muted2" FontSize="9" />
       </StackPanel>
       <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-        <Button Content="Refresh usage" Command="{Binding RefreshCommand}" />
-        <ProgressBar Width="70" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+        <hui:HavenButton Content="Refresh usage" Command="{Binding RefreshCommand}" />
+        <hui:HavenProgressBar Width="70" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
       </StackPanel>
     </Grid>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

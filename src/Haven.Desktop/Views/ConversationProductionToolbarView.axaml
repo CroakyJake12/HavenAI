@@ -11,39 +11,40 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.ConversationProductionToolbarView">
   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-  <Border Background="{DynamicResource HavenPanelBrush}"
+  <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanelBrush}"
           BorderBrush="{DynamicResource HavenLineBrush}"
           BorderThickness="0,0,0,1"
           Padding="18,8">
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Spacing="8">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-        <Button Classes="subtle" Content="{Binding ExpandLabel}" Command="{Binding ToggleExpandedCommand}" />
+        <hui:HavenButton Classes="subtle" Content="{Binding ExpandLabel}" Command="{Binding ToggleExpandedCommand}" />
         <TextBlock Grid.Column="1" Text="{Binding Status}" Classes="muted" FontSize="10" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <ProgressBar Grid.Column="2" Width="64" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+        <hui:HavenProgressBar Grid.Column="2" Width="64" Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
       </Grid>
 
-      <Border IsVisible="{Binding IsExpanded}" Classes="card" Padding="14">
+      <hui:HavenAdaptiveSurface IsVisible="{Binding IsExpanded}" Classes="card" Padding="14">
         <StackPanel x:Name="ExpandedContent" Spacing="12">
           <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
             <StackPanel Spacing="6">
               <TextBlock Text="BRANCHES" Classes="eyebrow" />
               <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
-                <ComboBox ItemsSource="{Binding Branches}" SelectedItem="{Binding SelectedBranch}">
-                  <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Grid.Column="1" Content="New branch" Command="{Binding CreateBranchCommand}" />
-                <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}" />
+                <hui:HavenComboBox ItemsSource="{Binding Branches}" SelectedItem="{Binding SelectedBranch}">
+                  <hui:HavenComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" /></DataTemplate></hui:HavenComboBox.ItemTemplate>
+                </hui:HavenComboBox>
+                <hui:HavenButton Grid.Column="1" Content="New branch" Command="{Binding CreateBranchCommand}" />
+                <hui:HavenButton Grid.Column="2" Content="Refresh" Command="{Binding RefreshCommand}" />
               </Grid>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Spacing="6">
               <TextBlock Text="CLOUD MODEL" Classes="eyebrow" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
-                <ComboBox x:Name="CloudModelSelector" ItemsSource="{Binding CloudModels}" SelectionChanged="OnCloudModelChanged">
-                  <ComboBox.ItemTemplate>
+                <hui:HavenComboBox x:Name="CloudModelSelector" ItemsSource="{Binding CloudModels}" SelectionChanged="OnCloudModelChanged">
+                  <hui:HavenComboBox.ItemTemplate>
                     <DataTemplate>
                       <StackPanel>
                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
@@ -54,8 +55,8 @@
                         </StackPanel>
                       </StackPanel>
                     </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
+                  </hui:HavenComboBox.ItemTemplate>
+                </hui:HavenComboBox>
                 <TextBlock Grid.Column="1" Text="Ollama remains available in the normal model picker." Classes="muted" FontSize="9" MaxWidth="230" VerticalAlignment="Center" />
               </Grid>
             </StackPanel>
@@ -67,19 +68,19 @@
             <StackPanel Spacing="6">
               <TextBlock Text="SEARCH THIS CONVERSATION" Classes="eyebrow" />
               <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
-                <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search saved messages" />
-                <Button Grid.Column="1" Content="Search" Command="{Binding SearchCommand}" />
-                <Button Grid.Column="2" Content="Clear" Command="{Binding ClearSearchCommand}" />
+                <hui:HavenTextInput Text="{Binding SearchQuery}" PlaceholderText="Search saved messages" />
+                <hui:HavenButton Grid.Column="1" Content="Search" Command="{Binding SearchCommand}" />
+                <hui:HavenButton Grid.Column="2" Content="Clear" Command="{Binding ClearSearchCommand}" />
               </Grid>
               <ItemsControl ItemsSource="{Binding SearchResults}" MaxHeight="130">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Background="{DynamicResource HavenPanel2Brush}" CornerRadius="9" Padding="9,6" Margin="0,3,0,0">
+                    <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}" CornerRadius="9" Padding="9,6" Margin="0,3,0,0">
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBlock Text="{Binding Snippet}" FontSize="10" MaxLines="2" TextTrimming="CharacterEllipsis" />
                         <TextBlock Grid.Column="1" Text="{Binding TimeLabel}" Classes="muted2" FontSize="9" />
                       </Grid>
-                    </Border>
+                    </hui:HavenAdaptiveSurface>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
@@ -87,27 +88,27 @@
 
             <StackPanel Grid.Column="1" Spacing="6">
               <TextBlock Text="EXPORT" Classes="eyebrow" />
-              <Button Content="Markdown" Command="{Binding ExportMarkdownCommand}" HorizontalAlignment="Stretch" />
-              <Button Content="JSON" Command="{Binding ExportJsonCommand}" HorizontalAlignment="Stretch" />
-              <Button Content="Plain text" Command="{Binding ExportTextCommand}" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Markdown" Command="{Binding ExportMarkdownCommand}" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="JSON" Command="{Binding ExportJsonCommand}" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Plain text" Command="{Binding ExportTextCommand}" HorizontalAlignment="Stretch" />
             </StackPanel>
 
             <StackPanel Grid.Column="2" Spacing="6">
               <TextBlock Text="TEMPORARY LAN SHARE" Classes="eyebrow" />
               <TextBlock Text="Read-only · token protected · one-hour expiry" Classes="muted" FontSize="9" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
-                <Button Content="Start share" Command="{Binding StartShareCommand}" />
-                <Button Grid.Column="1" Content="Stop" Classes="danger" Command="{Binding StopShareCommand}" />
+                <hui:HavenButton Content="Start share" Command="{Binding StartShareCommand}" />
+                <hui:HavenButton Grid.Column="1" Content="Stop" Classes="danger" Command="{Binding StopShareCommand}" />
               </Grid>
-              <TextBox Text="{Binding ShareAddress}" IsReadOnly="True" PlaceholderText="No active share" />
+              <hui:HavenTextInput Text="{Binding ShareAddress}" IsReadOnly="True" PlaceholderText="No active share" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
                 <TextBlock Text="{Binding ShareExpiryLabel}" Classes="muted2" FontSize="9" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="Copy link" Click="OnCopyShareClicked" IsEnabled="{Binding HasActiveShare}" />
+                <hui:HavenButton Grid.Column="1" Content="Copy link" Click="OnCopyShareClicked" IsEnabled="{Binding HasActiveShare}" />
               </Grid>
             </StackPanel>
           </Grid>
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
     </StackPanel>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

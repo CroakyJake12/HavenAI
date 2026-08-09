@@ -6,7 +6,7 @@ using Haven.Desktop.Controls;
 namespace Haven.Desktop.Views.Shell.TopRail;
 
 /// <summary>
-/// Fixed Actions entry point for the top rail. Pinned and recommended actions live
+/// Fixed Capabilities entry point for the top rail. Pinned and recommended capabilities live
 /// inside the contextual flyout so the header never changes width unexpectedly.
 /// </summary>
 public sealed class DynamicActionToolbar : StackPanel, IDisposable
@@ -22,7 +22,7 @@ public sealed class DynamicActionToolbar : StackPanel, IDisposable
     {
         Orientation = Orientation.Horizontal;
         VerticalAlignment = VerticalAlignment.Center;
-        _actionsButton = new Button
+        _actionsButton = new HavenButton
         {
             Content = new StackPanel
             {
@@ -33,20 +33,21 @@ public sealed class DynamicActionToolbar : StackPanel, IDisposable
                     new HavenIcon { IconKey = "bolt", Width = 19, Height = 19 },
                     new TextBlock
                     {
-                        Text = "Actions",
+                        Text = "Capabilities",
                         FontWeight = Avalonia.Media.FontWeight.ExtraBold,
                         FontSize = 14,
                         VerticalAlignment = VerticalAlignment.Center
                     }
                 }
             },
-            Height = 46,
-            Padding = new Thickness(15, 7),
-            CornerRadius = new CornerRadius(18),
+            Height = 42,
+            Padding = new Thickness(16, 0),
+            CornerRadius = new CornerRadius(21),
             VerticalAlignment = VerticalAlignment.Center
         };
-        _actionsButton.Classes.Add("chrome");
-        ToolTip.SetTip(_actionsButton, "Actions · Ctrl+K");
+        _actionsButton.Classes.Add("headerPill");
+        _actionsButton.Classes.Add("accent");
+        ToolTip.SetTip(_actionsButton, "Capabilities · Ctrl+K");
         _actionsButton.Click += (_, _) =>
         {
             ActionsClicked?.Invoke(this, EventArgs.Empty);
@@ -74,7 +75,7 @@ public sealed class DynamicActionToolbar : StackPanel, IDisposable
     {
         _flyoutControl ??= CreateFlyoutControl();
         _flyoutControl.SetActions(_availableActions);
-        _flyout ??= new Flyout
+        _flyout ??= new HavenAdaptivePopup
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = Avalonia.Application.Current?.TryFindResource(

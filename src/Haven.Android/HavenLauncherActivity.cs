@@ -184,6 +184,7 @@ public sealed partial class HavenLauncherActivity : Activity
 
         _root.AddView(BuildBottomBar());
         SetContentView(_root);
+        AndroidTypography.ApplyTree(_root);
         ApplyWallpaper();
         RenderWidgets();
     }
@@ -202,11 +203,11 @@ public sealed partial class HavenLauncherActivity : Activity
         row.Background = MagicalBackground(Dp(28));
 
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuView,
+            Resource.Drawable.ic_apps,
             "All apps",
             ShowAppDrawer));
         row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuManage,
+            Resource.Drawable.ic_haven_go,
             "Open Haven Go",
             OpenHavenDashboard));
 

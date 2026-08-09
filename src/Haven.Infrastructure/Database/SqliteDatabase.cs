@@ -460,6 +460,74 @@ internal static class Migrations
                 moved_at TEXT NOT NULL
             );
             CREATE INDEX ix_conversation_moves_conversation ON conversation_moves(conversation_id, moved_at DESC);
+        """),
+        new(11, """
+            CREATE TABLE capabilities(
+                id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                owner_app_key TEXT NOT NULL,
+                icon_key TEXT NOT NULL,
+                instructions TEXT NOT NULL,
+                implementation_key TEXT NOT NULL,
+                semantic_actions_json TEXT NOT NULL DEFAULT '[]',
+                platforms INTEGER NOT NULL DEFAULT 0,
+                risk_class INTEGER NOT NULL DEFAULT 0,
+                availability INTEGER NOT NULL DEFAULT 0,
+                dependencies_json TEXT NOT NULL DEFAULT '[]',
+                provider_id TEXT NOT NULL,
+                is_attachable INTEGER NOT NULL DEFAULT 1,
+                is_agent_usable INTEGER NOT NULL DEFAULT 1,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_capabilities_owner_name ON capabilities(owner_app_key,name);
+            CREATE INDEX ix_capabilities_platform_enabled ON capabilities(platforms,is_enabled);
+        """),
+        new(12, """
+            CREATE TABLE genui_templates(
+                id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                version TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                category TEXT NOT NULL,
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                canonical_implementation TEXT NOT NULL,
+                scale INTEGER NOT NULL,
+                recommended_apps_json TEXT NOT NULL DEFAULT '[]',
+                compatible_apps_json TEXT NOT NULL DEFAULT '[]',
+                inputs_json TEXT NOT NULL DEFAULT '[]',
+                outputs_json TEXT NOT NULL DEFAULT '[]',
+                emitted_events_json TEXT NOT NULL DEFAULT '[]',
+                configurable_properties_json TEXT NOT NULL DEFAULT '[]',
+                data_requirements_json TEXT NOT NULL DEFAULT '[]',
+                supported_interactions_json TEXT NOT NULL DEFAULT '[]',
+                havenui_primitives_json TEXT NOT NULL DEFAULT '[]',
+                app_services_json TEXT NOT NULL DEFAULT '[]',
+                capabilities_json TEXT NOT NULL DEFAULT '[]',
+                model_capabilities_json TEXT NOT NULL DEFAULT '[]',
+                requires_network INTEGER NOT NULL DEFAULT 0,
+                supports_offline INTEGER NOT NULL DEFAULT 1,
+                platforms INTEGER NOT NULL,
+                accessibility_summary TEXT NOT NULL,
+                supports_persistence INTEGER NOT NULL DEFAULT 1,
+                supports_thread_scope INTEGER NOT NULL DEFAULT 1,
+                supports_user_apps INTEGER NOT NULL DEFAULT 1,
+                supports_mini_apps INTEGER NOT NULL DEFAULT 0,
+                supports_embedding INTEGER NOT NULL DEFAULT 1,
+                agent_interaction INTEGER NOT NULL,
+                deterministic_without_model INTEGER NOT NULL DEFAULT 0,
+                state_ownership INTEGER NOT NULL,
+                maturity INTEGER NOT NULL DEFAULT 0,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_genui_templates_category_name ON genui_templates(category,name);
+            CREATE INDEX ix_genui_templates_platform_enabled ON genui_templates(platforms,is_enabled);
         """)
     ];
 }

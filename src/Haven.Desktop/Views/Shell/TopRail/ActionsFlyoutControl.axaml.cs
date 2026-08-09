@@ -13,7 +13,7 @@ public sealed partial class ActionsFlyoutControl : UserControl
 {
     private static readonly string[] CategoryOrder =
     [
-        "Pinned", "Recommended", "Chat", "Study", "Tasks", "Studio", "Browser",
+        "Pinned", "Recommended", "General", "Chat", "Study", "Tasks", "Studio", "Browser",
         "Plan", "Data", "Media", "File", "View", "Tools", "Help"
     ];
 
@@ -76,13 +76,13 @@ public sealed partial class ActionsFlyoutControl : UserControl
 
         if (matches.Length == 0)
         {
-            SectionsPanel.Children.Add(new Border
+            SectionsPanel.Children.Add(new HavenAdaptiveSurface
             {
                 CornerRadius = new CornerRadius(16),
                 Padding = new Thickness(18),
                 Child = new TextBlock
                 {
-                    Text = "No actions match this search in the current app.",
+                    Text = "No capabilities match this search in the current App.",
                     Classes = { "muted" },
                     TextWrapping = Avalonia.Media.TextWrapping.Wrap
                 }
@@ -138,7 +138,7 @@ public sealed partial class ActionsFlyoutControl : UserControl
         Grid.SetColumn(label, 1);
         content.Children.Add(label);
 
-        var button = new Button
+        var button = new HavenButton
         {
             Content = content,
             HorizontalAlignment = HorizontalAlignment.Stretch,

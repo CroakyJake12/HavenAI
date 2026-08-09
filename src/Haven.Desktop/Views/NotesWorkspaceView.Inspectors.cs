@@ -48,14 +48,14 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap,
             FontSize = 10
         });
-        var model = new ComboBox
+        var model = new HavenComboBox
         {
             ItemsSource = _page.Models,
             SelectedItem = _page.SelectedModelName
         };
         model.SelectionChanged += (_, _) => _page.SelectedModelName = model.SelectedItem as string ?? string.Empty;
         _aiPanel.Children.Add(model);
-        var instruction = new TextBox
+        var instruction = new HavenTextInput
         {
             Text = _page.AiInstruction,
             PlaceholderText = "Explain, rewrite, plan, check consistency, create revision cards…",
@@ -65,7 +65,7 @@ public sealed partial class NotesWorkspaceView
         };
         instruction.TextChanged += (_, _) => _page.AiInstruction = instruction.Text ?? string.Empty;
         _aiPanel.Children.Add(instruction);
-        var context = new CheckBox
+        var context = new HavenCheckBox
         {
             Content = "Allow the model to receive this document's text context",
             IsChecked = _page.AllowDocumentContext
@@ -129,9 +129,9 @@ public sealed partial class NotesWorkspaceView
             new TextBlock { Text = "PROPOSAL", Classes = { "eyebrow" } },
             new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
             new TextBlock { Text = "Original", FontWeight = FontWeight.SemiBold },
-            new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 130, TextWrapping = TextWrapping.Wrap },
+            new HavenTextInput { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 130, TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "Proposed", FontWeight = FontWeight.SemiBold },
-            new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 180, TextWrapping = TextWrapping.Wrap },
+            new HavenTextInput { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 180, TextWrapping = TextWrapping.Wrap },
             new TextBlock
             {
                 Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")}",
@@ -179,14 +179,14 @@ public sealed partial class NotesWorkspaceView
             TextWrapping = TextWrapping.Wrap,
             FontSize = 9
         });
-        var target = new ComboBox
+        var target = new HavenComboBox
         {
             ItemsSource = Enum.GetValues<NotesMediaAiTarget>(),
             SelectedItem = block.Kind is NotesBlockKind.Audio or NotesBlockKind.Video
                 ? NotesMediaAiTarget.Transcript
                 : NotesMediaAiTarget.AltText
         };
-        var mediaInstruction = new TextBox
+        var mediaInstruction = new HavenTextInput
         {
             PlaceholderText = "Optional extra instruction for this media field",
             AcceptsReturn = true,
@@ -247,9 +247,9 @@ public sealed partial class NotesWorkspaceView
             new TextBlock { Text = "PROPOSED " + NotesMediaAiReview.DisplayName(target).ToUpperInvariant(), Classes = { "eyebrow" } },
             new TextBlock { Text = change.Explanation, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
             new TextBlock { Text = "Current value", FontWeight = FontWeight.SemiBold },
-            new TextBox { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 110, TextWrapping = TextWrapping.Wrap },
+            new HavenTextInput { Text = change.OriginalContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 110, TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "Proposed value", FontWeight = FontWeight.SemiBold },
-            new TextBox { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 160, TextWrapping = TextWrapping.Wrap },
+            new HavenTextInput { Text = change.ProposedContent, IsReadOnly = true, AcceptsReturn = true, MaxHeight = 160, TextWrapping = TextWrapping.Wrap },
             new TextBlock
             {
                 Text = $"{change.ProviderId} · {change.ModelName} · {change.CitationIds.Count} cited source{(change.CitationIds.Count == 1 ? string.Empty : "s")} · full document context {(change.SentDocumentContext ? "allowed" : "not sent")}",
@@ -285,7 +285,7 @@ public sealed partial class NotesWorkspaceView
     {
         _reviewPanel.Children.Clear();
         _reviewPanel.Children.Add(new TextBlock { Text = "COMMENTS", Classes = { "eyebrow" } });
-        var commentBox = new TextBox
+        var commentBox = new HavenTextInput
         {
             PlaceholderText = "Comment on the selected block",
             AcceptsReturn = true,
@@ -367,10 +367,10 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildCitationEditor(NotesCitation citation)
     {
-        var title = new TextBox { Text = citation.Title, PlaceholderText = "Source title" };
-        var authors = new TextBox { Text = citation.Authors, PlaceholderText = "Authors" };
-        var url = new TextBox { Text = citation.Url, PlaceholderText = "https://…" };
-        var evidence = new TextBox
+        var title = new HavenTextInput { Text = citation.Title, PlaceholderText = "Source title" };
+        var authors = new HavenTextInput { Text = citation.Authors, PlaceholderText = "Authors" };
+        var url = new HavenTextInput { Text = citation.Url, PlaceholderText = "https://…" };
+        var evidence = new HavenTextInput
         {
             Text = citation.EvidenceExcerpt,
             PlaceholderText = "Evidence excerpt",
@@ -422,7 +422,7 @@ public sealed partial class NotesWorkspaceView
         });
         foreach (var version in _page.Versions)
         {
-            var button = new Button
+            var button = new HavenButton
             {
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Content = new StackPanel
@@ -476,7 +476,7 @@ public sealed partial class NotesWorkspaceView
             Classes = { "muted" },
             FontSize = 10
         });
-        var language = new TextBox { Text = document.Language, PlaceholderText = "Language, e.g. en-GB" };
+        var language = new HavenTextInput { Text = document.Language, PlaceholderText = "Language, e.g. en-GB" };
         language.GotFocus += (_, _) => BeginDocumentMetadataEdit();
         language.LostFocus += (_, _) =>
         {
@@ -484,7 +484,7 @@ public sealed partial class NotesWorkspaceView
             CommitMetadataEdit("Changed document language");
         };
         _informationPanel.Children.Add(Labeled("Language", language));
-        var layout = new ComboBox { ItemsSource = Enum.GetValues<NotesLayoutMode>(), SelectedItem = document.LayoutMode };
+        var layout = new HavenComboBox { ItemsSource = Enum.GetValues<NotesLayoutMode>(), SelectedItem = document.LayoutMode };
         layout.SelectionChanged += (_, _) =>
         {
             if (layout.SelectedItem is not NotesLayoutMode mode || mode == document.LayoutMode) return;
@@ -529,11 +529,11 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildPageSetup(NotesDocument document)
     {
-        var width = new NumericUpDown { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.WidthPoints };
-        var height = new NumericUpDown { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.HeightPoints };
-        var margins = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)document.PageSetup.MarginTopPoints };
-        var orientation = new ComboBox { ItemsSource = new[] { "Portrait", "Landscape" }, SelectedItem = document.PageSetup.Orientation };
-        var pageNumbers = new CheckBox { Content = "Show page numbers", IsChecked = document.PageSetup.ShowPageNumbers };
+        var width = new HavenNumericInput { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.WidthPoints };
+        var height = new HavenNumericInput { Minimum = 72, Maximum = 5000, Value = (decimal)document.PageSetup.HeightPoints };
+        var margins = new HavenNumericInput { Minimum = 0, Maximum = 1000, Value = (decimal)document.PageSetup.MarginTopPoints };
+        var orientation = new HavenComboBox { ItemsSource = new[] { "Portrait", "Landscape" }, SelectedItem = document.PageSetup.Orientation };
+        var pageNumbers = new HavenCheckBox { Content = "Show page numbers", IsChecked = document.PageSetup.ShowPageNumbers };
         var ready = false;
         void Commit()
         {

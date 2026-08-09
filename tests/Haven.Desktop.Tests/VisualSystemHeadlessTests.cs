@@ -42,12 +42,39 @@ public sealed class VisualSystemHeadlessTests
 
         Assert.Equal(36, button.MinHeight);
         Assert.Equal(new CornerRadius(10), button.CornerRadius);
+        Assert.Equal(FontWeight.Bold, button.FontWeight);
+        Assert.Contains("Montserrat", button.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(new CornerRadius(16), acrylic.CornerRadius);
         Assert.NotEqual(0, acrylic.FallbackColor.A);
 
         var backdrop = acrylic.GetVisualDescendants().OfType<ExperimentalAcrylicBorder>().Single();
         Assert.NotNull(backdrop.Material);
         Assert.Equal(AcrylicBackgroundSource.Digger, backdrop.Material.BackgroundSource);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void HavenChromeUsesBundledMontserratWithThickDefaultWeights()
+    {
+        var label = new TextBlock { Text = "Haven" };
+        var input = new TextBox { Text = "Settings" };
+        var button = new Button { Content = "Open" };
+        var window = new Window
+        {
+            Width = 360,
+            Height = 180,
+            Content = new StackPanel { Children = { label, input, button } }
+        };
+
+        window.Show();
+
+        Assert.Contains("Montserrat", label.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Montserrat", input.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Montserrat", button.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(FontWeight.SemiBold, label.FontWeight);
+        Assert.Equal(FontWeight.SemiBold, input.FontWeight);
+        Assert.Equal(FontWeight.Bold, button.FontWeight);
+
         window.Close();
     }
 

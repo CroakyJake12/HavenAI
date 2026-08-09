@@ -4,9 +4,9 @@
         x:Class="Haven.Desktop.MainWindow"
         Title="Haven"
         Width="1440" Height="920"
-        MinWidth="1050" MinHeight="700"
-        Icon="/Assets/haven.ico"
-        RequestedThemeVariant="Light">
+        MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/haven.ico">
 
     <!-- Background is managed dynamically by TidalBackground -->
 

@@ -1,17 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Controls.DashboardCard">
 
-    <Button x:Name="Card"
+    <hui:HavenSuggestionButton x:Name="Card"
             Width="208" Height="136"
             Margin="0,0,12,12"
             Padding="16"
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch"
-            Background="{DynamicResource HavenAccentSoftBrush}"
-            BorderBrush="{DynamicResource HavenLineBrush}"
-            BorderThickness="1"
             CornerRadius="24">
         <StackPanel Spacing="9"
                     VerticalAlignment="Center"
@@ -31,5 +29,5 @@
                        TextAlignment="Center"
                        HorizontalAlignment="Center" />
         </StackPanel>
-    </Button>
+    </hui:HavenSuggestionButton>
 </UserControl>

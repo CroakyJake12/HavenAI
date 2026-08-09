@@ -82,7 +82,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
             Foreground = Brushes.Black
         };
 
-        var titleArea = new Border
+        var titleArea = new HavenAdaptiveSurface
         {
             Background = Brushes.Transparent,
             Padding = new Thickness(0),
@@ -151,7 +151,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         _toolbar.Children.Add(shareButton);
         _toolbar.Children.Add(settingsButton);
 
-        _detailPanel = new Border
+        _detailPanel = new HavenAdaptiveSurface
         {
             IsVisible = false,
             Padding = new Thickness(14),
@@ -167,7 +167,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         compactContent.Children.Add(_summaryText);
         compactContent.Children.Add(_toolbar);
 
-        var compactBar = new Border
+        var compactBar = new HavenAdaptiveSurface
         {
             Width = 570,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -181,7 +181,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         root.Children.Add(_detailPanel);
         root.Children.Add(compactBar);
 
-        _surface = new Border
+        _surface = new HavenAdaptiveSurface
         {
             Width = 820,
             MaxWidth = 840,
@@ -276,7 +276,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         AddMenuButton(panel, "App", () => ShowUnavailable(
             "Apps can be opened from the app launcher while the session remains active."));
 
-        new Flyout
+        new HavenAdaptivePopup
         {
             Placement = PlacementMode.TopEdgeAlignedRight,
             Content = panel
@@ -285,7 +285,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
     private static void AddMenuButton(StackPanel panel, string label, Action action)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = label,
             HorizontalContentAlignment = HorizontalAlignment.Left
@@ -297,7 +297,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
     private static void AddMenuButton(StackPanel panel, string label, Func<System.Threading.Tasks.Task> action)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = label,
             HorizontalContentAlignment = HorizontalAlignment.Left
@@ -409,7 +409,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         addButton.Click += (_, _) => ShowAddMenu(addButton);
         composer.Children.Add(addButton);
 
-        _transcriptInput = new TextBox
+        _transcriptInput = new HavenTextInput
         {
             Text = _viewModel.TypedTranscript,
             PlaceholderText = _viewModel.IsActive
@@ -517,7 +517,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
                 content.Children.Add(Muted("Interrupted"));
             }
 
-            _transcriptMessages.Children.Add(new Border
+            _transcriptMessages.Children.Add(new HavenAdaptiveSurface
             {
                 Child = content,
                 MaxWidth = isUser ? 560 : 680,
@@ -552,7 +552,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         stack.Children.Add(Text("Share", 13, FontWeight.SemiBold));
         stack.Children.Add(Muted(_viewModel.ScreenShareStatus));
 
-        var share = new Button
+        var share = new HavenButton
         {
             Content = _viewModel.IsScreenSharing ? "Stop sharing" : "Share Screen or App",
             IsEnabled = _viewModel.IsActive && _viewModel.CanShareScreen,
@@ -561,7 +561,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         share.Click += (_, _) => Execute(_viewModel.ToggleScreenShareCommand);
         stack.Children.Add(share);
 
-        var camera = new Button
+        var camera = new HavenButton
         {
             Content = "Connect Camera",
             IsEnabled = false,
@@ -577,7 +577,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var stack = new StackPanel { Spacing = 10 };
         stack.Children.Add(Text("Settings", 16, FontWeight.Bold));
 
-        var microphone = new ComboBox
+        var microphone = new HavenComboBox
         {
             ItemsSource = _viewModel.InputDevices.Count == 0
                 ? new[] { "System default" }
@@ -621,7 +621,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         stack.Children.Add(Text("Voice session settings", 13, FontWeight.SemiBold));
 
         stack.Children.Add(Muted("Microphone"));
-        var microphone = new ComboBox
+        var microphone = new HavenComboBox
         {
             ItemsSource = _viewModel.InputDevices.Count == 0
                 ? new[] { "System default" }
@@ -641,7 +641,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         stack.Children.Add(microphone);
 
         stack.Children.Add(Muted("Voice"));
-        var voice = new ComboBox
+        var voice = new HavenComboBox
         {
             ItemsSource = _viewModel.Voices.Count == 0
                 ? new[] { "System voice" }
@@ -664,7 +664,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var reasoning = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         foreach (var percent in new[] { 25, 50, 75, 100 })
         {
-            var button = new Button { Content = $"{percent}%" };
+            var button = new HavenButton { Content = $"{percent}%" };
             button.Click += (_, _) =>
             {
                 _viewModel.Effort = EffortFromPercent(percent);
@@ -683,7 +683,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var stack = new StackPanel { Spacing = 10 };
         stack.Children.Add(SettingRow("Model", Text(_viewModel.SelectedModelName, 14, FontWeight.Bold)));
 
-        var voice = new ComboBox
+        var voice = new HavenComboBox
         {
             ItemsSource = _viewModel.Voices.Count == 0
                 ? new[] { "System voice" }
@@ -736,7 +736,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var reasoning = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         foreach (var percent in new[] { 25, 50, 75, 100 })
         {
-            var button = new Button
+            var button = new HavenButton
             {
                 Content = $"{percent}%",
                 IsEnabled = _viewModel.ReasoningPercent != percent
@@ -820,7 +820,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
             ColumnSpacing = 9
         };
-        row.Children.Add(new Border
+        row.Children.Add(new HavenAdaptiveSurface
         {
             Width = 30,
             Height = 30,
@@ -954,7 +954,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
     private static Button IconButton(string iconKey, string toolTip)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = new PathIcon
             {
@@ -980,7 +980,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
     private static Button ActionButton(string text, bool positive)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = text,
             MinWidth = 92,

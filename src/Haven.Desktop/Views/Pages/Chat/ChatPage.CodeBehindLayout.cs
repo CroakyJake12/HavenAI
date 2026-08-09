@@ -84,7 +84,7 @@ public sealed partial class ChatPage
 
     private void BuildFinalChatUi()
     {
-        _finalSearchBox = new TextBox
+        _finalSearchBox = new HavenTextInput
         {
             PlaceholderText = "Search chats",
             MinHeight = 38,
@@ -92,7 +92,7 @@ public sealed partial class ChatPage
         };
         _finalSearchBox.TextChanged += (_, _) => RefreshFinalSidebar();
 
-        var newChatButton = new Button
+        var newChatButton = new HavenButton
         {
             Content = "New chat",
             HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -109,7 +109,7 @@ public sealed partial class ChatPage
             _finalComposer?.Focus();
         };
 
-        var modeButton = new Button
+        var modeButton = new HavenButton
         {
             Content = "Chat",
             HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -133,7 +133,7 @@ public sealed partial class ChatPage
             Content = _finalSidebarSections
         });
 
-        var sidebar = new Border
+        var sidebar = new HavenAdaptiveSurface
         {
             Width = 282,
             Background = FinalBrush("HavenPanelBrush"),
@@ -185,7 +185,7 @@ public sealed partial class ChatPage
         conversationLayer.Children.Add(_finalEmptyTitle);
         conversationLayer.Children.Add(_finalMessageScroll);
 
-        _finalResolveButton = new Button
+        _finalResolveButton = new HavenButton
         {
             Content = "Resolve Problems",
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -195,7 +195,7 @@ public sealed partial class ChatPage
         _finalResolveButton.Click += (_, _) =>
             FinalExecuteFirstCommand(null, "ResolveErrorsCommand", "ResolveProblemsCommand");
 
-        _finalComposer = new TextBox
+        _finalComposer = new HavenTextInput
         {
             PlaceholderText = "Ask Haven anything",
             AcceptsReturn = true,
@@ -207,7 +207,7 @@ public sealed partial class ChatPage
         };
         _finalComposer.KeyDown += OnFinalComposerKeyDown;
 
-        var addButton = new Button
+        var addButton = new HavenButton
         {
             Content = "+",
             MinWidth = 46,
@@ -217,7 +217,7 @@ public sealed partial class ChatPage
         addButton.Classes.Add("icon");
         addButton.Click += (_, _) => ShowFinalAddMenu(addButton);
 
-        _finalStopButton = new Button
+        _finalStopButton = new HavenButton
         {
             Content = "Stop",
             IsVisible = false,
@@ -226,7 +226,7 @@ public sealed partial class ChatPage
         _finalStopButton.Click += (_, _) =>
             FinalExecuteFirstCommand(null, "StopCommand", "CancelCommand");
 
-        _finalSendButton = new Button
+        _finalSendButton = new HavenButton
         {
             Content = "➤",
             MinWidth = 52,
@@ -249,7 +249,7 @@ public sealed partial class ChatPage
         Grid.SetColumn(_finalSendButton, 3);
         composerRow.Children.Add(_finalSendButton);
 
-        var composerSurface = new Border
+        var composerSurface = new HavenAdaptiveSurface
         {
             Background = FinalBrush("HavenPanelBrush"),
             BorderBrush = FinalBrush("HavenLineBrush"),
@@ -427,7 +427,7 @@ public sealed partial class ChatPage
                 continue;
             }
 
-            var button = new Button
+            var button = new HavenButton
             {
                 Content = label,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -471,7 +471,7 @@ public sealed partial class ChatPage
             var isUser = role.Contains("user", StringComparison.OrdinalIgnoreCase) ||
                          role.Contains("you", StringComparison.OrdinalIgnoreCase);
 
-            var bubble = new Border
+            var bubble = new HavenAdaptiveSurface
             {
                 MaxWidth = 780,
                 HorizontalAlignment = isUser
@@ -554,7 +554,7 @@ public sealed partial class ChatPage
         AddFinalMenuButton(panel, "Instruction", "OpenPromptPickerCommand");
         AddFinalMenuButton(panel, "App", "OpenAppPickerCommand");
 
-        new Flyout
+        new HavenAdaptivePopup
         {
             Placement = PlacementMode.TopEdgeAlignedLeft,
             Content = panel
@@ -566,7 +566,7 @@ public sealed partial class ChatPage
         string title,
         params string[] commandNames)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = title,
             HorizontalContentAlignment = HorizontalAlignment.Left
@@ -604,7 +604,7 @@ public sealed partial class ChatPage
 
         foreach (var percent in new[] { 25, 50, 75, 100 })
         {
-            var button = new Button
+            var button = new HavenButton
             {
                 Content = $"{percent}%",
                 MinWidth = 58
@@ -631,7 +631,7 @@ public sealed partial class ChatPage
 
         stack.Children.Add(choices);
 
-        new Flyout
+        new HavenAdaptivePopup
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             Content = stack

@@ -69,7 +69,7 @@ public sealed class MagicalBackdrop : Grid, IDisposable
             ]
         };
 
-        Children.Add(new Border
+        Children.Add(new HavenAdaptiveSurface
         {
             IsHitTestVisible = false,
             Opacity = isLight ? 0.24 : 0.42,

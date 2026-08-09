@@ -21,9 +21,11 @@ public sealed partial class MainView
         var page = new TasksPage(
             _workspaceState,
             _automations,
+            _conversations,
             containerId,
             StartOneTimeTaskAsync,
-            InvokeTaskAsync);
+            InvokeTaskAsync,
+            OpenNativeConversationAsync);
 
         AddOrSelectTab(
             key,
@@ -35,6 +37,23 @@ public sealed partial class MainView
 
     private async Task InvokeTaskAsync(string instruction)
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            var page = CreateNewChatPage();
+            page.ConfigureTaskMode();
+            await ConfigureAddMenuAsync(page);
+            AddOrSelectTab(
+                "task-run-" + Guid.NewGuid().ToString("N")[..8],
+                "Run Task",
+                page,
+                true,
+                HavenSurface.Tasks,
+                forceNewTab: true);
+            ApplyShellVisualState();
+            page.Submit(instruction);
+            return;
+        }
+
         AddOrSelectTab(
             "chat-tasks",
             "Run Task",

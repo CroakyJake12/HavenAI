@@ -53,7 +53,7 @@ public sealed partial class NavigationFlyout : UserControl
         };
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,

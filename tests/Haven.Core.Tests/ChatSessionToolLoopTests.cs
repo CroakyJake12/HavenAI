@@ -93,7 +93,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         var events = new List<ChatStreamEvent>();
         await foreach (var item in service.SendAsync(
                            conversation, "open notepad", model, EffortLevel.Medium,
-                           [new ActivePlugin("ComputerUse", "computer-use", false)], "Default", "",
+                           [ActiveCapability.FromDefinition(CapabilityRegistryCatalog.BuiltIns.Single(item => item.Key == "computer-device-use"))], "Default", "",
                            DuoMode.Solo, null, "", "", null, CancellationToken.None))
             events.Add(item);
 
@@ -118,7 +118,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         var events = new List<ChatStreamEvent>();
         await foreach (var item in service.SendAsync(
                            conversation, "click the Save button", model, EffortLevel.Medium,
-                           [new ActivePlugin("ComputerUse", "computer-use", false)], "Default", "",
+                           [ActiveCapability.FromDefinition(CapabilityRegistryCatalog.BuiltIns.Single(item => item.Key == "computer-device-use"))], "Default", "",
                            DuoMode.Solo, null, "", "", null, CancellationToken.None))
             events.Add(item);
 

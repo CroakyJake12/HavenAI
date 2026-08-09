@@ -101,22 +101,24 @@ public sealed partial class ModeLibraryPage : UserControl
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brush("HavenAccentBrush")
         };
-        var iconBorder = new Border
+        var iconBorder = new HavenAdaptiveSurface
         {
-            Width = 36, Height = 36, CornerRadius = new CornerRadius(8),
-            Background = Brush("HavenAccentSoftBrush"),
+            Width = 58, Height = 58, CornerRadius = new CornerRadius(18),
+            Background = Brush("HavenAccentTertiaryBrush"),
             VerticalAlignment = VerticalAlignment.Top, Child = icon
         };
+        icon.Width = 28;
+        icon.Height = 28;
 
-        var nameBlock = new TextBlock { Text = mode.Name, FontSize = 14, FontWeight = FontWeight.SemiBold };
-        var pinnedBadge = new Border
+        var nameBlock = new TextBlock { Text = mode.Name, FontSize = 18, FontWeight = FontWeight.ExtraBold };
+        var pinnedBadge = new HavenAdaptiveSurface
         {
             CornerRadius = new CornerRadius(4),
             Background = Brush("HavenAccentSoftBrush"),
             Padding = new Avalonia.Thickness(6, 2), IsVisible = isPinned,
             Child = new TextBlock { Text = "Pinned", FontSize = 9, Foreground = Brush("HavenAccentBrush"), FontWeight = FontWeight.SemiBold }
         };
-        var sourceBadge = new Border
+        var sourceBadge = new HavenAdaptiveSurface
         {
             CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255)),
             Padding = new Avalonia.Thickness(6, 2),
@@ -127,13 +129,13 @@ public sealed partial class ModeLibraryPage : UserControl
         nameRow.Children.Add(pinnedBadge);
         nameRow.Children.Add(sourceBadge);
 
-        var descBlock = new TextBlock { Text = mode.Description, FontSize = 12, Foreground = Brush("HavenTextSoftBrush"), TextWrapping = TextWrapping.Wrap };
+        var descBlock = new TextBlock { Text = mode.Description, FontSize = 12, FontWeight = FontWeight.SemiBold, Foreground = Brush("HavenTextSoftBrush"), TextWrapping = TextWrapping.Wrap, MaxLines = 3 };
 
         var nameStack = new StackPanel { Spacing = 2 };
         nameStack.Children.Add(nameRow);
         nameStack.Children.Add(descBlock);
 
-        var pinButton = new Button { Classes = { "ghost" }, Padding = new Avalonia.Thickness(6) };
+        var pinButton = new HavenTertiaryButton { MinHeight = 38, Padding = new Avalonia.Thickness(14, 7) };
         pinButton.Content = isPinned ? "Unpin" : "Pin";
         ToolTip.SetTip(pinButton, isPinned ? "Unpin from sidebar" : "Pin to sidebar");
 
@@ -162,18 +164,21 @@ public sealed partial class ModeLibraryPage : UserControl
         var actionsStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Top };
         actionsStack.Children.Add(pinButton);
 
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 12 };
+        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 14, RowSpacing = 14 };
         grid.Children.Add(iconBorder);
         Grid.SetColumn(mainStack, 1);
         grid.Children.Add(mainStack);
-        Grid.SetColumn(actionsStack, 2);
+        Grid.SetRow(actionsStack, 2);
+        Grid.SetColumnSpan(actionsStack, 2);
+        actionsStack.HorizontalAlignment = HorizontalAlignment.Right;
         grid.Children.Add(actionsStack);
 
-        var border = new Border
+        var border = new HavenCard
         {
-            CornerRadius = new CornerRadius(8),
-            Background = Brush("HavenPanelBrush"),
-            Padding = new Avalonia.Thickness(14), Margin = new Avalonia.Thickness(0, 0, 0, 8),
+            Width = 330,
+            MinHeight = 214,
+            Padding = new Avalonia.Thickness(20),
+            Margin = new Avalonia.Thickness(8),
             Child = grid
         };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");

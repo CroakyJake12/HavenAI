@@ -11,6 +11,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components.Buttons;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Pages.Plan;
@@ -34,6 +35,8 @@ public sealed partial class PlanPage : UserControl
     private bool _isRefreshing;
     private bool _refreshQueued;
     private bool _isActive;
+    private bool _compactViewsOpen;
+    private bool _compactInspectorOpen;
 
     private PlannerCollectionItemViewModel? _selectedCollection;
     private PlannerCalendarItemViewModel? _selectedCalendar;
@@ -51,6 +54,7 @@ public sealed partial class PlanPage : UserControl
     private readonly ObservableCollection<PlannerProposedChangeItemViewModel> _pendingChanges = [];
     private readonly ObservableCollection<CalendarProviderItemViewModel> _providers = [];
     private readonly ObservableCollection<CalendarConflictItemViewModel> _conflicts = [];
+    private readonly Dictionary<PlannerViewKind, HavenNavigationButton> _viewButtons = [];
 
     private static readonly IReadOnlyList<PlannerViewOption> Views =
     [
@@ -77,6 +81,19 @@ public sealed partial class PlanPage : UserControl
         InitializeComponent();
         WireEvents();
         PopulateStaticCombos();
+        SizeChanged += (_, args) => ApplyResponsiveLayout(args.NewSize.Width);
+        CompactViewsButton.Click += (_, _) =>
+        {
+            _compactViewsOpen = !_compactViewsOpen;
+            _compactInspectorOpen = false;
+            ApplyResponsiveLayout(Bounds.Width);
+        };
+        CompactInspectorButton.Click += (_, _) =>
+        {
+            _compactInspectorOpen = !_compactInspectorOpen;
+            _compactViewsOpen = false;
+            ApplyResponsiveLayout(Bounds.Width);
+        };
 
         _calendarSyncTimer = new DispatcherTimer(TimeSpan.FromMinutes(5), DispatcherPriority.Background,
             async (_, _) => await SyncConnectedCalendarsAsync());
@@ -98,6 +115,28 @@ public sealed partial class PlanPage : UserControl
         _calendarSyncTimer.Stop();
         _calendarSyncCancellation?.Cancel();
         _refreshCancellation?.Cancel();
+    }
+
+    private void ApplyResponsiveLayout(double width)
+    {
+        if (width <= 0) return;
+        var medium = width < 1180;
+        var narrow = width < 900;
+        CompactViewsButton.IsVisible = medium;
+        CompactInspectorButton.IsVisible = medium;
+
+        if (!medium)
+        {
+            ViewsRail.IsVisible = true;
+            PlannerInspector.IsVisible = true;
+            RootGrid.ColumnDefinitions = new ColumnDefinitions("240,*,360");
+            return;
+        }
+
+        ViewsRail.IsVisible = _compactViewsOpen;
+        PlannerInspector.IsVisible = !narrow || _compactInspectorOpen;
+        RootGrid.ColumnDefinitions = new ColumnDefinitions(
+            $"{(_compactViewsOpen ? 240 : 0)},*,{(PlannerInspector.IsVisible ? (narrow ? 320 : 340) : 0)}");
     }
 
     // ============================================================
@@ -122,12 +161,13 @@ public sealed partial class PlanPage : UserControl
         for (int i = 0; i < Views.Count; i++)
         {
             var view = Views[i];
-            var button = new Button
+            var button = new HavenNavigationButton
             {
                 Content = view.Name,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 0, 0, 4)
             };
+            _viewButtons[view.Kind] = button;
             var qName = $"Plan.Views.Item{i}";
             button.RegisterWithEvents(qName, _bus);
             button.Click += (_, _) =>
@@ -316,6 +356,13 @@ public sealed partial class PlanPage : UserControl
         set
         {
             _selectedView = value;
+            foreach (var (kind, button) in _viewButtons)
+                button.Classes.Set("selected", kind == value);
+            if (Bounds.Width is > 0 and < 1180)
+            {
+                _compactViewsOpen = false;
+                ApplyResponsiveLayout(Bounds.Width);
+            }
             TitleText.Text = value switch
             {
                 PlannerViewKind.Today => "Today",
@@ -507,7 +554,7 @@ public sealed partial class PlanPage : UserControl
             tasksPanel.Children.Add(CreateBoardTaskCard(task, column));
 
         var stack = new StackPanel { Children = { header, tasksPanel } };
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Classes = { "card" },
             Margin = new Thickness(4),
@@ -527,7 +574,7 @@ public sealed partial class PlanPage : UserControl
         var qName = $"Plan.Board.Task{_tasks.IndexOf(task)}";
 
         var titleBlock = new TextBlock { Text = task.Title, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontWeight = Avalonia.Media.FontWeight.SemiBold };
-        var dragHandle = new Border
+        var dragHandle = new HavenAdaptiveSurface
         {
             Width = 24, Height = 24, CornerRadius = new CornerRadius(5),
             Background = Brush("HavenPanel3Brush"),
@@ -544,9 +591,9 @@ public sealed partial class PlanPage : UserControl
 
         var metaBlock = new TextBlock { Text = task.Meta, Classes = { "muted" }, FontSize = 10, Margin = new Thickness(0, 3, 0, 7) };
 
-        var editButton = new Button { Content = "Edit", Classes = { "compact" } };
-        var startButton = new Button { Content = "Start", Classes = { "compact" } };
-        var doneButton = new Button { Content = "Done", Classes = { "compact" } };
+        var editButton = new HavenButton { Content = "Edit", Classes = { "compact" } };
+        var startButton = new HavenButton { Content = "Start", Classes = { "compact" } };
+        var doneButton = new HavenButton { Content = "Done", Classes = { "compact" } };
 
         editButton.RegisterWithEvents($"{qName}.Edit", _bus);
         editButton.Click += (_, _) =>
@@ -577,7 +624,7 @@ public sealed partial class PlanPage : UserControl
         buttons.Children.Add(doneButton);
 
         var stack = new StackPanel { Children = { header, metaBlock, buttons } };
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Background = Brush("HavenPanel2Brush"),
             CornerRadius = new CornerRadius(10),
@@ -633,7 +680,7 @@ public sealed partial class PlanPage : UserControl
         var entriesPanel = new StackPanel();
         foreach (var entry in dayVm.Entries)
         {
-            var entryBorder = new Border
+            var entryBorder = new HavenAdaptiveSurface
             {
                 Background = Brush("HavenAccentSoftBrush"),
                 CornerRadius = new CornerRadius(6),
@@ -660,7 +707,7 @@ public sealed partial class PlanPage : UserControl
         }
 
         var stack = new StackPanel { Children = { header, entriesPanel } };
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Classes = { "card" },
             Margin = new Thickness(3),
@@ -691,7 +738,7 @@ public sealed partial class PlanPage : UserControl
         var index = _tasks.IndexOf(task);
         var qName = $"Plan.Tasks.Item{index}";
 
-        var dragHandle = new Border
+        var dragHandle = new HavenAdaptiveSurface
         {
             Width = 24, Height = 34, CornerRadius = new CornerRadius(6),
             Background = Brush("HavenPanel2Brush"),
@@ -701,7 +748,7 @@ public sealed partial class PlanPage : UserControl
         dragHandle.PointerPressed += async (_, e) => await StartDragAsync(e, $"haven-plan:task:{task.Id:D}");
         dragHandle.RegisterWithEvents($"{qName}.Drag", _bus);
 
-        var completeButton = new Button
+        var completeButton = new HavenButton
         {
             Classes = { "icon" },
             Width = 34, Height = 34,
@@ -720,10 +767,10 @@ public sealed partial class PlanPage : UserControl
         var metaBlock = new TextBlock { Text = task.Meta, Classes = { "muted" }, FontSize = 11, Margin = new Thickness(0, 3, 0, 0) };
         var textStack = new StackPanel { Children = { titleBlock, metaBlock }, Margin = new Thickness(12, 0) };
 
-        var editButton = new Button { Content = "Edit", Margin = new Thickness(0, 0, 6, 0) };
-        var subtaskButton = new Button { Content = "Subtask", Margin = new Thickness(0, 0, 6, 0) };
-        var startButton = new Button { Content = "Start", Margin = new Thickness(0, 0, 6, 0) };
-        var deleteButton = new Button { Content = "Delete" };
+        var editButton = new HavenButton { Content = "Edit", Margin = new Thickness(0, 0, 6, 0) };
+        var subtaskButton = new HavenButton { Content = "Subtask", Margin = new Thickness(0, 0, 6, 0) };
+        var startButton = new HavenButton { Content = "Start", Margin = new Thickness(0, 0, 6, 0) };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete" };
 
         editButton.RegisterWithEvents($"{qName}.Edit", _bus);
         editButton.Click += (_, _) => { _bus.Fire($"{qName}.Edit"); OpenTaskEditor(task); };
@@ -752,7 +799,7 @@ public sealed partial class PlanPage : UserControl
         Grid.SetColumn(deleteButton, 6);
         grid.Children.Add(deleteButton);
 
-        var border = new Border { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(14), Child = grid };
+        var border = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(14), Child = grid };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
         border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
         return border;
@@ -773,13 +820,13 @@ public sealed partial class PlanPage : UserControl
         var index = _events.IndexOf(plannerEvent);
         var qName = $"Plan.Events.Item{index}";
 
-        var accentBar = new Border { Background = Brush("HavenAccentBrush"), CornerRadius = new CornerRadius(3) };
+        var accentBar = new HavenAdaptiveSurface { Background = Brush("HavenAccentBrush"), CornerRadius = new CornerRadius(3) };
         var titleBlock = new TextBlock { Text = plannerEvent.Title, FontWeight = Avalonia.Media.FontWeight.SemiBold };
         var detailBlock = new TextBlock { Text = plannerEvent.Detail, Classes = { "muted" }, FontSize = 11, Margin = new Thickness(0, 3, 0, 0) };
         var textStack = new StackPanel { Children = { titleBlock, detailBlock }, Margin = new Thickness(12, 0) };
 
-        var editButton = new Button { Content = "Edit", Margin = new Thickness(0, 0, 6, 0) };
-        var deleteButton = new Button { Content = "Delete", IsVisible = plannerEvent.CanDelete };
+        var editButton = new HavenButton { Content = "Edit", Margin = new Thickness(0, 0, 6, 0) };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete", IsVisible = plannerEvent.CanDelete };
 
         editButton.RegisterWithEvents($"{qName}.Edit", _bus);
         editButton.Click += (_, _) => { _bus.Fire($"{qName}.Edit"); OpenEventEditor(plannerEvent); };
@@ -796,7 +843,7 @@ public sealed partial class PlanPage : UserControl
         Grid.SetColumn(deleteButton, 3);
         grid.Children.Add(deleteButton);
 
-        var border = new Border { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(14), Child = grid };
+        var border = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(14), Child = grid };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
         border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
         return border;
@@ -809,14 +856,14 @@ public sealed partial class PlanPage : UserControl
             CollectionsList.Items.Clear();
             foreach (var collection in _collections)
             {
-                var moveUpButton = new Button
+                var moveUpButton = new HavenButton
                 {
                     Classes = { "icon", "compact" },
                     Content = new HavenIcon { IconKey = "chevron-down", Width = 13, Height = 13 },
                     RenderTransform = new Avalonia.Media.RotateTransform(180)
                 };
                 ToolTip.SetTip(moveUpButton, "Move collection up");
-                var moveDownButton = new Button
+                var moveDownButton = new HavenButton
                 {
                     Classes = { "icon", "compact" },
                     Content = new HavenIcon { IconKey = "chevron-down", Width = 13, Height = 13 }
@@ -841,7 +888,7 @@ public sealed partial class PlanPage : UserControl
                 Grid.SetColumn(moveDownButton, 2);
                 itemGrid.Children.Add(moveDownButton);
 
-                var listItem = new ListBoxItem { Content = itemGrid, DataContext = collection };
+                var listItem = new HavenListBoxItem { Content = itemGrid, DataContext = collection };
                 listItem.PointerEntered += (_, _) => _bus.Fire($"Plan.Collections.Item{idx}.Hover");
                 listItem.PointerExited += (_, _) => _bus.Fire($"Plan.Collections.Item{idx}.Leave");
                 CollectionsList.Items.Add(listItem);
@@ -868,9 +915,9 @@ public sealed partial class PlanPage : UserControl
                 var nameBlock = new TextBlock { Text = provider.Name, FontWeight = Avalonia.Media.FontWeight.SemiBold };
                 var statusBlock = new TextBlock { Text = provider.Status, Classes = { "muted" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 4, 0, 8) };
 
-                var connectButton = new Button { Content = "Connect" };
-                var syncButton = new Button { Content = "Sync" };
-                var disconnectButton = new Button { Content = "Disconnect" };
+                var connectButton = new HavenPrimaryButton { Content = "Connect calendar" };
+                var syncButton = new HavenSecondaryButton { Content = "Sync now" };
+                var disconnectButton = new HavenNegativeButton { Content = "Disconnect" };
 
                 var qName = $"Plan.Calendar.Provider{_providers.IndexOf(provider)}";
                 connectButton.RegisterWithEvents($"{qName}.Connect", _bus);
@@ -881,15 +928,23 @@ public sealed partial class PlanPage : UserControl
                 syncButton.Click += async (_, _) => { _bus.Fire($"{qName}.Sync"); await SyncProviderAsync(provider); };
                 disconnectButton.Click += async (_, _) => { _bus.Fire($"{qName}.Disconnect"); await DisconnectProviderAsync(provider); };
 
-                var buttons = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*"), ColumnSpacing = 6 };
+                var buttons = new Grid
+                {
+                    RowDefinitions = new RowDefinitions("Auto,Auto"),
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 8,
+                    RowSpacing = 8
+                };
+                Grid.SetColumnSpan(connectButton, 2);
                 buttons.Children.Add(connectButton);
-                Grid.SetColumn(syncButton, 1);
+                Grid.SetRow(syncButton, 1);
                 buttons.Children.Add(syncButton);
-                Grid.SetColumn(disconnectButton, 2);
+                Grid.SetRow(disconnectButton, 1);
+                Grid.SetColumn(disconnectButton, 1);
                 buttons.Children.Add(disconnectButton);
 
                 var stack = new StackPanel { Children = { nameBlock, statusBlock, buttons } };
-                var border = new Border { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(12), Child = stack };
+                var border = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(12), Child = stack };
                 CalendarProvidersPanel.Items.Add(border);
             }
         }
@@ -907,9 +962,9 @@ public sealed partial class PlanPage : UserControl
                 var havenBlock = new TextBlock { Text = conflict.HavenVersion, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontSize = 11 };
                 var providerBlock = new TextBlock { Text = conflict.ProviderVersion, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 3, 0, 10) };
 
-                var keepHavenButton = new Button { Content = "Keep Haven" };
-                var keepProviderButton = new Button { Content = "Keep provider" };
-                var duplicateButton = new Button { Content = "Duplicate" };
+                var keepHavenButton = new HavenButton { Content = "Keep Haven" };
+                var keepProviderButton = new HavenButton { Content = "Keep provider" };
+                var duplicateButton = new HavenButton { Content = "Duplicate" };
 
                 var idx = _conflicts.IndexOf(conflict);
                 keepHavenButton.RegisterWithEvents($"Plan.Conflict{idx}.KeepHaven", _bus);
@@ -928,7 +983,7 @@ public sealed partial class PlanPage : UserControl
                 buttons.Children.Add(duplicateButton);
 
                 var stack = new StackPanel { Children = { titleBlock, detectedBlock, havenBlock, providerBlock, buttons } };
-                var border = new Border { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(12), Child = stack };
+                var border = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(12), Child = stack };
                 ConflictsItemsPanel.Items.Add(border);
             }
         }

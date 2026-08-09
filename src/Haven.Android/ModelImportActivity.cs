@@ -43,7 +43,7 @@ public sealed class ModelImportActivity : Activity
                 ViewGroup.LayoutParams.MatchParent)
         };
         root.SetPadding(Dp(18), Dp(20), Dp(18), Dp(18));
-        root.SetBackgroundColor(Color.Rgb(24, 18, 38));
+        root.Background = HavenNativeSurface.Page();
 
         var title = new TextView(this)
         {
@@ -128,17 +128,15 @@ public sealed class ModelImportActivity : Activity
             1f));
 
         SetContentView(root);
+        AndroidTypography.ApplyTree(root);
     }
 
     private Button ActionButton(string label, Action action)
     {
-        var button = new Button(this)
+        var button = new HavenNativeButton(this)
         {
             Text = label
         };
-        button.SetAllCaps(false);
-        button.SetTextColor(Color.White);
-        button.SetBackgroundColor(Color.Rgb(89, 48, 145));
         button.Click += (_, _) => action();
         return button;
     }
@@ -347,6 +345,7 @@ public sealed class ModelImportActivity : Activity
             };
             empty.SetTextColor(Color.Argb(210, 225, 218, 240));
             _list.AddView(empty);
+            AndroidTypography.ApplyTree(_list);
             return;
         }
 
@@ -368,11 +367,10 @@ public sealed class ModelImportActivity : Activity
             text.SetTextColor(Color.White);
             row.AddView(text);
 
-            var remove = new Button(this)
+            var remove = new HavenNativeNegativeButton(this)
             {
                 Text = "Remove"
             };
-            remove.SetAllCaps(false);
             remove.Click += (_, _) =>
             {
                 try
@@ -389,6 +387,8 @@ public sealed class ModelImportActivity : Activity
             row.AddView(remove);
             _list.AddView(row);
         }
+
+        AndroidTypography.ApplyTree(_list);
     }
 
     private DirectoryInfo GetModelDirectory()

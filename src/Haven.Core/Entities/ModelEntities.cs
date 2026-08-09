@@ -39,9 +39,61 @@ public sealed record ModelDescriptor(
 }
 
 /// <summary>
-/// Represents an active plugin.
+/// A capability registered for discovery during one model turn. Registration
+/// makes it discoverable; permission policy and runtime availability still
+/// decide whether any concrete tool may execute.
 /// </summary>
-public sealed record ActivePlugin(string Name, string IconKey, bool Persists, string Instructions = "");
+public sealed record ActiveCapability(
+    string Key,
+    string Name,
+    string IconKey,
+    string Instructions,
+    string ImplementationKey,
+    string OwnerAppKey)
+{
+    public static ActiveCapability FromDefinition(CapabilityDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return new(
+            definition.Key,
+            definition.Name,
+            definition.IconKey,
+            definition.Instructions,
+            definition.ImplementationKey,
+            definition.OwnerAppKey);
+    }
+
+    /// <summary>Temporary adapter for Classic-only callers while that surface is deleted.</summary>
+    public static ActiveCapability FromLegacyPlugin(PluginDefinition plugin) => new(
+        LegacyKey(plugin.Name),
+        plugin.Name,
+        plugin.IconKey,
+        plugin.Instructions,
+        "legacy." + plugin.Name.ToLowerInvariant(),
+        CapabilityRegistryCatalog.GeneralOwner);
+
+    public static ActiveCapability FromLegacyPlugin(
+        string name,
+        string iconKey,
+        string instructions = "") => new(
+        LegacyKey(name),
+        name,
+        iconKey,
+        instructions,
+        "legacy." + name.ToLowerInvariant(),
+        CapabilityRegistryCatalog.GeneralOwner);
+
+    private static string LegacyKey(string name) => name switch
+    {
+        "BrowserUse" => "browser-use",
+        "ComputerUse" => "computer-device-use",
+        "WebSearch" => "web-search",
+        "Automate" => "create-automation",
+        "Test" => "run-tests",
+        "DuoMode" => "duo",
+        _ => "legacy-" + name.ToLowerInvariant()
+    };
+}
 /// <summary>
 /// Represents an active prompt.
 /// </summary>

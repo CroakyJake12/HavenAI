@@ -112,13 +112,13 @@ public sealed class TrainingRunner(
                                 "Explain your reasoning before each action so the report captures your thought process. " +
                                 "Workspace: " + workspaceRoot + " " +
                                 "Do not ask questions — make reasonable assumptions and proceed.";
-        var plugins = Array.Empty<ActivePlugin>();
+        var capabilities = Array.Empty<ActiveCapability>();
 
         try
         {
             await foreach (var chatEvent in sessions.SendAsync(
                 conversation, taskPrompt, model, preferences.DefaultEffort,
-                plugins, agentName, agentInstructions, DuoMode.Solo,
+                capabilities, agentName, agentInstructions, DuoMode.Solo,
                 workspaceRoot, null, null, null,
                 cancellationToken,
                 generationOptions: new GenerationOptions(

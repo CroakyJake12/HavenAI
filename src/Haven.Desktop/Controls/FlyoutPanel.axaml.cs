@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Controls;
 
@@ -38,7 +39,7 @@ public sealed partial class FlyoutPanel : UserControl
     /// </summary>
     public Flyout CreateFlyout(PlacementMode placement = PlacementMode.BottomEdgeAlignedLeft)
     {
-        return new Flyout
+        return new HavenDropdown
         {
             Placement = placement,
             Content = this

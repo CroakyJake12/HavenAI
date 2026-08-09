@@ -11,6 +11,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using Haven.Desktop.Views;
+using Haven.Desktop.Views.Pages.Settings;
 
 namespace Haven.Desktop.Tests;
 
@@ -20,10 +21,11 @@ namespace Haven.Desktop.Tests;
 public sealed class GenerativeUiAdvancedHandoffViewTests
 {
     /// <summary>
-    /// Performs the settings loads exactly one reviewed advanced handoff after theme studio step owned by this component.
+    /// Ensures the superseded theme Studio/handoff is not reachable from normal
+    /// Settings after the canonical HavenUI appearance migration.
     /// </summary>
     [AvaloniaFact]
-    public void SettingsLoadsExactlyOneReviewedAdvancedHandoffAfterThemeStudio()
+    public void SettingsDoesNotLoadSupersededThemeStudioOrAdvancedHandoff()
     {
         var settings = new SettingsView();
         var window = new Window { Content = settings };
@@ -31,20 +33,9 @@ public sealed class GenerativeUiAdvancedHandoffViewTests
         {
             window.Show();
             var children = settings.GetVisualDescendants().ToArray();
-            var selector = Assert.Single(children.OfType<GenerativeUiThemeSelectorView>());
-            var handoff = Assert.Single(children.OfType<GenerativeUiAdvancedPageHandoffView>());
-
-            var selectorIndex = Array.IndexOf(children, selector);
-            var handoffIndex = Array.IndexOf(children, handoff);
-            Assert.True(selectorIndex >= 0);
-            Assert.True(handoffIndex > selectorIndex);
-
-            var labels = handoff.GetVisualDescendants()
-                .OfType<TextBlock>()
-                .Select(item => item.Text ?? string.Empty)
-                .ToArray();
-            Assert.Contains("Build with Haven Studio", labels);
-            Assert.Contains(labels, value => value.Contains("Nothing is created or installed automatically", StringComparison.Ordinal));
+            Assert.Single(children.OfType<HavenAppearanceSettingsView>());
+            Assert.Empty(children.OfType<GenerativeUiThemeSelectorView>());
+            Assert.Empty(children.OfType<GenerativeUiAdvancedPageHandoffView>());
         }
         finally
         {

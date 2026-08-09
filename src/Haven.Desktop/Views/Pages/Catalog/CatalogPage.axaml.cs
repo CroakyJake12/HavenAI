@@ -8,6 +8,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components.Buttons;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Pages.Catalog;
@@ -171,14 +172,14 @@ public sealed partial class CatalogPage : UserControl
     private Border CreateCard(string name, string iconKey, string description, string meta, bool isEnabled, bool isBuiltIn, Guid id)
     {
         var icon = new HavenIcon { IconKey = iconKey, Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        var iconBorder = new Border
+        var iconBorder = new HavenAdaptiveSurface
         {
             Width = 34, Height = 34, CornerRadius = new CornerRadius(10),
             Background = Brush("HavenAccentSoftBrush"),
             Child = icon
         };
         var nameBlock = new TextBlock { Text = name, FontSize = 17, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-        var badge = new Border
+        var badge = new HavenAdaptiveSurface
         {
             Background = Brush("HavenAccentSoftBrush"),
             CornerRadius = new CornerRadius(999), Padding = new Avalonia.Thickness(8, 3),
@@ -194,7 +195,7 @@ public sealed partial class CatalogPage : UserControl
         var descBlock = new TextBlock { Text = description, Classes = { "muted" }, Margin = new Avalonia.Thickness(0, 10, 0, 0) };
         var metaBlock = new TextBlock { Text = meta, Foreground = Brush("HavenAccentSecondaryBrush"), FontSize = 11 };
 
-        var deleteButton = new Button { Content = "Delete", Classes = { "danger" }, IsVisible = !isBuiltIn };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete", IsVisible = !isBuiltIn };
         var qName = $"Catalog.List.Item{ItemsPanel.Children.Count}";
         deleteButton.RegisterWithEvents(qName + ".Delete", _bus);
         deleteButton.Click += async (_, _) =>
@@ -216,7 +217,7 @@ public sealed partial class CatalogPage : UserControl
         Grid.SetRow(buttonGrid, 3);
         contentGrid.Children.Add(buttonGrid);
 
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Classes = { "card" }, Width = 324, MinHeight = 150, Margin = new Avalonia.Thickness(0, 0, 14, 14),
             Child = contentGrid

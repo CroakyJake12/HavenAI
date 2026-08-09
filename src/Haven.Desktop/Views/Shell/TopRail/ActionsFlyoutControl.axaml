@@ -1,19 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Shell.TopRail.ActionsFlyoutControl">
 
   <StackPanel Spacing="9">
-    <Border Width="690"
+    <hui:HavenAdaptiveSurface Width="690"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
             CornerRadius="24">
       <StackPanel Spacing="10" Margin="16">
-        <TextBlock Text="Actions" FontSize="20" FontWeight="ExtraBold" />
+        <TextBlock Text="Capabilities" FontSize="20" FontWeight="ExtraBold" />
         <Grid>
-          <TextBox x:Name="SearchBox"
-                   PlaceholderText="Search actions"
+          <hui:HavenTextInput x:Name="SearchBox"
+                   PlaceholderText="Search capabilities"
                    Padding="38,10,12,10"
                    FontSize="14" />
           <controls:HavenIcon IconKey="search" Width="17" Height="17"
@@ -29,24 +30,24 @@
           <StackPanel x:Name="SectionsPanel" Spacing="4" />
         </ScrollViewer>
       </StackPanel>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
-    <Border Width="690"
+    <hui:HavenAdaptiveSurface Width="690"
             Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
             CornerRadius="20"
             Padding="4">
-      <Button x:Name="EditActionsButton"
+      <hui:HavenButton x:Name="EditActionsButton"
               HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Stretch"
               Padding="14,11"
               Classes="sidebar">
         <StackPanel Orientation="Horizontal" Spacing="12">
           <controls:HavenIcon IconKey="settings" Width="19" Height="19" />
-          <TextBlock Text="Edit Actions" FontWeight="ExtraBold" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock Text="Edit Capabilities" FontWeight="ExtraBold" FontSize="14" VerticalAlignment="Center" />
         </StackPanel>
-      </Button>
-    </Border>
+      </hui:HavenButton>
+    </hui:HavenAdaptiveSurface>
   </StackPanel>
 </UserControl>

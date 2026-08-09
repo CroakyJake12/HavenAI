@@ -147,7 +147,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         };
         ToolTip.SetTip(switchGlyph, "Model and effort settings");
 
-        _button = new Button
+        _button = new HavenButton
         {
             Content = new StackPanel
             {
@@ -171,7 +171,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center
         };
-        _effortSlider = new Slider
+        _effortSlider = new HavenSlider
         {
             Minimum = ReasoningScale.MinimumPercentage,
             Maximum = ReasoningScale.MaximumPercentage,
@@ -197,7 +197,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         _effortSlider.Classes.Add("effort");
         _effortSlider.ValueChanged += OnEffortValueChanged;
 
-        _mainFlyout = new Flyout
+        _mainFlyout = new HavenAdaptivePopup
         {
             Placement = PlacementMode.Top,
             Content = BuildMainPanel()
@@ -314,7 +314,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
         Func<Control> contentFactory,
         string tooltip)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -329,7 +329,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                     WithColumn(new TextBlock { Text = "›", FontSize = 18, VerticalAlignment = VerticalAlignment.Center }, 2)
                 }
             },
-            Flyout = new Flyout { Placement = PlacementMode.Right, Content = contentFactory() }
+            Flyout = new HavenAdaptivePopup { Placement = PlacementMode.Right, Content = contentFactory() }
         };
         button.Classes.Add("sidebar");
         ToolTip.SetTip(button, tooltip);
@@ -343,7 +343,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     {
         var preferences = App.Services?.GetService<UserPreferencesService>();
         var options = preferences?.GenerationOptions ?? new Haven.Application.GenerationOptions(0.7, 32768, 20);
-        var temperature = new NumericUpDown
+        var temperature = new HavenNumericInput
         {
             Minimum = 0,
             Maximum = 2,
@@ -351,14 +351,14 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             Value = (decimal)options.Temperature,
             FormatString = "0.0"
         };
-        var context = new NumericUpDown
+        var context = new HavenNumericInput
         {
             Minimum = 2048,
             Maximum = 262144,
             Increment = 1024,
             Value = options.ContextLimit
         };
-        var actions = new NumericUpDown
+        var actions = new HavenNumericInput
         {
             Minimum = 1,
             Maximum = 100,
@@ -366,7 +366,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
             Value = options.ActionLimit
         };
         var status = new TextBlock { Classes = { "muted" }, FontSize = 10, TextWrapping = TextWrapping.Wrap };
-        var save = new Button { Content = "Save advanced configurations" };
+        var save = new HavenButton { Content = "Save advanced configurations" };
         save.Classes.Add("accent");
         save.Click += (_, _) =>
         {
@@ -441,7 +441,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// </summary>
     private Button RecoveryButton(string glyph, string title, string instruction)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -466,7 +466,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
     /// </summary>
     private Control BuildModelPanel()
     {
-        var search = new TextBox { PlaceholderText = "Search configured models" };
+        var search = new HavenTextInput { PlaceholderText = "Search configured models" };
         var modelButtons = new StackPanel { Spacing = 4 };
 
         void Rebuild()
@@ -504,7 +504,7 @@ public sealed class ModelConfigurationControl : UserControl, IDisposable
                     modelButtons.Children.Add(new TextBlock { Text = "RECOMMENDED", Classes = { "eyebrow" }, Margin = new Thickness(4, 9, 4, 4) });
                 var model = displayed[index];
                 var selected = ReferenceEquals(model, chat.SelectedModel);
-                var button = new Button
+                var button = new HavenButton
                 {
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Stretch,

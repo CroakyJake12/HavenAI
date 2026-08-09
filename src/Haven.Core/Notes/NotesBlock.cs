@@ -132,7 +132,7 @@ public sealed class NotesTextRun
     /// <summary>
     /// Gets or sets the font family.
     /// </summary>
-    public string FontFamily { get; set; } = "Inter";
+    public string FontFamily { get; set; } = "Montserrat";
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>

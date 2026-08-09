@@ -155,7 +155,7 @@ public sealed partial class NotesWorkspaceView
                             liveBlock.Runs.Add(new NotesTextRun
                             {
                                 Text = separator + text,
-                                FontFamily = "Inter",
+                                FontFamily = "Montserrat",
                                 FontSize = liveBlock.Kind == NotesBlockKind.Heading ? 24 : 14,
                                 Bold = liveBlock.Kind == NotesBlockKind.Heading,
                                 Italic = liveBlock.Kind == NotesBlockKind.Quote
@@ -204,7 +204,7 @@ public sealed partial class NotesWorkspaceView
         block.Metadata.TryGetValue(CodeWrapKey, out var savedWrap);
         block.Metadata.TryGetValue(CodeLineNumbersKey, out var savedLineNumbers);
         block.Metadata.TryGetValue(CodeTabSizeKey, out var savedTabSize);
-        var language = new ComboBox
+        var language = new HavenComboBox
         {
             ItemsSource = new[]
             {
@@ -215,24 +215,24 @@ public sealed partial class NotesWorkspaceView
             MinWidth = 160
         };
         if (language.SelectedIndex < 0) language.SelectedIndex = 0;
-        var wrap = new CheckBox
+        var wrap = new HavenCheckBox
         {
             Content = "Wrap long lines",
             IsChecked = !bool.TryParse(savedWrap, out var wrapValue) || wrapValue
         };
-        var lineNumbers = new CheckBox
+        var lineNumbers = new HavenCheckBox
         {
             Content = "Show line numbers in preview",
             IsChecked = !bool.TryParse(savedLineNumbers, out var lineNumberValue) || lineNumberValue
         };
-        var tabSize = new NumericUpDown
+        var tabSize = new HavenNumericInput
         {
             Minimum = 1,
             Maximum = 16,
             Increment = 1,
             Value = int.TryParse(savedTabSize, out var parsedTabSize) ? Math.Clamp(parsedTabSize, 1, 16) : 4
         };
-        var preview = new TextBox
+        var preview = new HavenTextInput
         {
             IsReadOnly = true,
             AcceptsReturn = true,
@@ -337,7 +337,7 @@ public sealed partial class NotesWorkspaceView
             Margin = new Thickness(0, 6, 0, 0)
         });
         var maximumColumns = Math.Max(1, table.Rows.Count == 0 ? 1 : table.Rows.Max(row => row.Cells.Count));
-        var column = new NumericUpDown
+        var column = new HavenNumericInput
         {
             Minimum = 1,
             Maximum = maximumColumns,
@@ -375,7 +375,7 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(actions);
         _blockPanel.Children.Add(result);
 
-        var delimited = new TextBox
+        var delimited = new HavenTextInput
         {
             Text = NotesTableOperations.ToDelimitedText(table),
             AcceptsReturn = true,
@@ -449,7 +449,7 @@ public sealed partial class NotesWorkspaceView
         _blockPanel.Children.Add(actions);
 
         var transform = NotesMediaTransformStore.Load(block);
-        var transcript = new TextBox
+        var transcript = new HavenTextInput
         {
             Text = transform.Transcript,
             AcceptsReturn = true,
@@ -466,7 +466,7 @@ public sealed partial class NotesWorkspaceView
         };
         _blockPanel.Children.Add(Labeled("Transcript", transcript));
 
-        var captions = new TextBox
+        var captions = new HavenTextInput
         {
             Text = transform.Captions,
             AcceptsReturn = true,

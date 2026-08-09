@@ -197,7 +197,7 @@ public sealed class ProductionMarkdownView : UserControl
     /// <summary>
     /// Builds quote from the currently available inputs.
     /// </summary>
-    private static Control BuildQuote(string text) => new Border
+    private static Control BuildQuote(string text) => new HavenAdaptiveSurface
     {
         BorderThickness = new Thickness(3, 0, 0, 0),
         BorderBrush = Brush("HavenAccentSecondaryBrush"),
@@ -216,7 +216,7 @@ public sealed class ProductionMarkdownView : UserControl
         ColumnSpacing = 8,
         Children =
         {
-            new CheckBox { IsChecked = isChecked, IsEnabled = false, VerticalAlignment = VerticalAlignment.Top },
+            new HavenCheckBox { IsChecked = isChecked, IsEnabled = false, VerticalAlignment = VerticalAlignment.Top },
             WithColumn(BuildInlineText(text, 13, FontWeight.Normal), 1)
         }
     };
@@ -253,7 +253,7 @@ public sealed class ProductionMarkdownView : UserControl
         header.Children.Add(ActionButton("Ask to apply", 3, MarkdownCodeAction.AskToApply, language, code));
         var stack = new StackPanel { Spacing = 6 };
         stack.Children.Add(header);
-        var codeBox = new TextBox
+        var codeBox = new HavenTextInput
         {
             Text = code,
             IsReadOnly = true,
@@ -271,7 +271,7 @@ public sealed class ProductionMarkdownView : UserControl
             codeBox,
             Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         stack.Children.Add(codeBox);
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = Brush("HavenPanel3Brush"),
             BorderBrush = Brush("HavenLineStrongBrush"),
@@ -287,7 +287,7 @@ public sealed class ProductionMarkdownView : UserControl
     /// </summary>
     private Button ActionButton(string label, int column, MarkdownCodeAction action, string language, string code)
     {
-        var button = new Button { Content = label, FontSize = 10, Padding = new Thickness(8, 4) };
+        var button = new HavenButton { Content = label, FontSize = 10, Padding = new Thickness(8, 4) };
         Grid.SetColumn(button, column);
         button.Click += async (_, _) =>
         {
@@ -307,7 +307,7 @@ public sealed class ProductionMarkdownView : UserControl
     private static Control BuildEquation(string latex)
     {
         var display = FormatLatex(latex);
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = Brush("HavenPanel2Brush"),
             CornerRadius = new CornerRadius(10),
@@ -349,7 +349,7 @@ public sealed class ProductionMarkdownView : UserControl
             for (var column = 0; column < columns; column++)
             {
                 var text = column < rows[row].Count ? rows[row][column].Trim() : string.Empty;
-                var cell = new Border
+                var cell = new HavenAdaptiveSurface
                 {
                     Background = Brush(row == 0 ? "HavenPanel3Brush" : "HavenPanel2Brush"),
                     Padding = new Thickness(8, 6),

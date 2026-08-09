@@ -23,7 +23,7 @@ public sealed partial class GeneratedPagesFlyout : UserControl
         PagesList.Children.Clear();
         foreach (var page in pages)
         {
-            var pageButton = new Button
+            var pageButton = new HavenButton
             {
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Content = new StackPanel

@@ -77,7 +77,7 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         _banner.Title = "Haven Computer Use controls";
         _banner.Width = 1400;
         _banner.Height = 136;
-        _banner.Content = new Border
+        _banner.Content = new HavenAdaptiveSurface
         {
             Background = new LinearGradientBrush
             {
@@ -105,7 +105,7 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         _status.Width = 250;
         _status.Height = 102;
         _status.IsHitTestVisible = false;
-        _status.Content = new Border
+        _status.Content = new HavenAdaptiveSurface
         {
             Background = new LinearGradientBrush
             {

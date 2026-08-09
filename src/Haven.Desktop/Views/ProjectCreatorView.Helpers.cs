@@ -54,7 +54,7 @@ public sealed partial class ProjectCreatorView
 
     private static TextBox FieldTextBox(string automationName)
     {
-        var box = new TextBox
+        var box = new HavenTextInput
         {
             MinHeight = 42,
             Padding = new Thickness(12),
@@ -73,7 +73,7 @@ public sealed partial class ProjectCreatorView
 
     private static Button PrimaryButton(string text)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = text,
             Background = AccentBrush,
@@ -88,7 +88,7 @@ public sealed partial class ProjectCreatorView
 
     private static Button SecondaryButton(string text)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = text,
             Background = CardBrush,
@@ -104,7 +104,7 @@ public sealed partial class ProjectCreatorView
 
     private static Button IconButton(string iconKey, string automationName)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = new HavenIcon
             {

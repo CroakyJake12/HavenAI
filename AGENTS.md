@@ -1,6 +1,35 @@
 # Editing Haven
 
-This repository contains Haven's local-first .NET 10 and Avalonia application. Make changes in this source tree in place. Do not create versioned copies, handoff folders, or ZIP files unless the user explicitly requests one.
+These rules are mandatory for every agent, subagent, generated-code agent and automated tool modifying Haven. A change is not valid or complete if it violates an applicable Haven rule, even if it compiles, tests pass or the immediate feature appears to work.
+
+This repository contains Haven's local-first .NET 10 and Avalonia application. Make changes in this source tree in place. Do not create versioned copies, handoff folders or ZIP files unless the user explicitly requests one.
+
+## Required read-before-edit rules
+
+Read this file first, determine the affected subsystem, then read every applicable authoritative rule file before editing:
+
+- `HAVEN_UI_RULES.md` — mandatory before creating, editing, refactoring, reviewing, debugging, migrating or generating any Haven-owned UI; includes the Theme Modification Lock, Montserrat typography and Floating Activities.
+- `docs/ARCHITECTURE_RULES.md` — layers, Apps, stable IDs, routing, persistence and state ownership.
+- `docs/SECURITY_RULES.md` — privacy, credentials, approvals and sandbox boundaries.
+- `docs/PLATFORM_RULES.md` — Windows/Android parity, platform providers, Haven Home, model residency and runtime hosts.
+- `docs/GENUI_RULES.md` — GenUI events/state/actions, Apps, templates and attachment routing.
+- `docs/BACKGROUND_LEARNING_RULES.md` — Background Learning, Haven Library, API Bank and scheduling.
+- `docs/AGENT_TOOL_EXECUTION_RULES.md` — capabilities, agent loops, file/command/vision execution and observed results.
+- `docs/VALIDATION_RULES.md` — mandatory build, runtime, visual, device, lifecycle and evidence requirements.
+
+The Generative UI release is currently incomplete. Before continuing release work, read `docs/releases/generative-ui-2026-08-08/GENUI_RELEASE_SUCCESS_RUBRIC.md`, verify the requirement-index count/hash metadata, load the active unresolved work package, and retrieve detailed indexed records/original source ranges as needed. Do not replace unresolved requirements with a context summary. This release ledger is temporary execution state and does not override permanent Haven rules.
+
+Rule precedence:
+
+1. Explicit current user instruction that expressly changes an applicable Haven rule.
+2. Mandatory repository rules in this file and the authoritative files above.
+3. Subsystem-specific instructions.
+4. Existing implementation conventions.
+5. Agent defaults/preferences.
+
+An ordinary feature request does not silently override a rule. Existing legacy code does not authorise repeating a violation.
+
+Delegation and generated code do not relax these requirements. The parent agent must ensure every subagent reads the applicable rules. Before completion, identify all applicable rules, inspect for bypasses, run the required validation, fix violations and repeat. If any applicable mandatory rule is knowingly broken or any required runtime remains unvalidated, the task/pass is incomplete.
 
 ## Source of truth
 

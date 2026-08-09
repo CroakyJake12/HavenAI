@@ -284,7 +284,7 @@ public sealed partial class CallPage : UserControl
     {
         for (int i = 0; i < 20; i++)
         {
-            var bar = new Border
+            var bar = new HavenAdaptiveSurface
             {
                 CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Color.Parse("#0078D4")),
@@ -512,7 +512,7 @@ public sealed partial class CallPage : UserControl
         var statusPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { liveLabel } };
 
         var stack = new StackPanel { Spacing = 6, Children = { headerGrid, bodyText, statusPanel } };
-        var bubble = new Border
+        var bubble = new HavenAdaptiveSurface
         {
             Margin = new Avalonia.Thickness(0, 0, 0, 14), Padding = new Avalonia.Thickness(14),
             Background = new SolidColorBrush(Color.Parse("#33FFFFFF")),

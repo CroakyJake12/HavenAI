@@ -112,7 +112,7 @@ public static class NotesDocumentLayoutSurface
         }
 
         var background = TryBrush(setup.Background, Brushes.White);
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Width = usableWidth,
             MinHeight = minimumHeight,
@@ -344,20 +344,20 @@ public sealed class NotesFreeformPageControl : UserControl
     /// </summary>
     private void Build()
     {
-        var zoom = new Slider { Minimum = 0.25, Maximum = 3, Value = 1, Width = 180 };
+        var zoom = new HavenSlider { Minimum = 0.25, Maximum = 3, Value = 1, Width = 180 };
         zoom.ValueChanged += (_, _) =>
         {
             _zoom = zoom.Value;
             _surface.RenderTransform = new ScaleTransform(_zoom, _zoom);
             _status.Text = StatusText();
         };
-        var reset = new Button { Content = "Reset view" };
+        var reset = new HavenButton { Content = "Reset view" };
         reset.Click += (_, _) =>
         {
             zoom.Value = 1;
             _surface.RenderTransform = Transform.Identity;
         };
-        var addText = new Button { Content = "+ Text" };
+        var addText = new HavenButton { Content = "+ Text" };
         addText.Click += (_, _) =>
         {
             _viewModel.AddParagraphCommand.Execute(null);
@@ -371,7 +371,7 @@ public sealed class NotesFreeformPageControl : UserControl
             }
             _refresh();
         };
-        var addCanvas = new Button { Content = "+ Ink canvas" };
+        var addCanvas = new HavenButton { Content = "+ Ink canvas" };
         addCanvas.Click += (_, _) =>
         {
             _viewModel.AddCanvasCommand.Execute(null);
@@ -419,7 +419,7 @@ public sealed class NotesFreeformPageControl : UserControl
         var width = Math.Clamp(Read(block, "freeform-width", block.Kind == NotesBlockKind.Canvas ? 720 : 400), 180, 1800);
         var height = Math.Clamp(Read(block, "freeform-height", block.Kind == NotesBlockKind.Canvas ? 540 : 240), 100, 1400);
         var body = NotesBlockEditorFactory.Build(_viewModel, block, _beginEdit, _endEdit, _refresh, _importMedia);
-        var header = new Border
+        var header = new HavenAdaptiveSurface
         {
             Height = 28,
             Background = new SolidColorBrush(Color.FromArgb(55, 47, 128, 237)),
@@ -432,7 +432,7 @@ public sealed class NotesFreeformPageControl : UserControl
                 VerticalAlignment = VerticalAlignment.Center
             }
         };
-        var resize = new Border
+        var resize = new HavenAdaptiveSurface
         {
             Width = 20,
             Height = 20,
@@ -441,7 +441,7 @@ public sealed class NotesFreeformPageControl : UserControl
             VerticalAlignment = VerticalAlignment.Bottom,
             Child = new TextBlock { Text = "↘", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 10 }
         };
-        var frame = new Border
+        var frame = new HavenAdaptiveSurface
         {
             Width = width,
             Height = height,

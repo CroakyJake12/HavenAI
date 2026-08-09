@@ -50,7 +50,6 @@ public sealed partial class SettingsView : UserControl, IDisposable
     public void Dispose()
     {
         _motionPreferences.Changed -= OnMotionPreferencesChanged;
-        GenerativeUiSelector.Dispose();
         DataContext = null;
     }
 }

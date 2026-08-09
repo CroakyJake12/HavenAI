@@ -4,9 +4,13 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.Services;
+using Haven.Desktop.HavenUI.Components;
 using Haven.Core;
+using System.Collections.Specialized;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -23,6 +27,7 @@ public sealed partial class TopRail : UserControl, IDisposable
     private AppLauncherControl? _appLauncherControl;
     private Flyout? _searchFlyout;
     private UniversalSearchControl? _searchControl;
+    private NotificationService? _notificationService;
     private bool _eventsWired;
     private bool _disposed;
 
@@ -71,6 +76,7 @@ public sealed partial class TopRail : UserControl, IDisposable
         TabStrip.Children.Clear();
         foreach (var tab in tabs)
             TabStrip.Children.Add(BuildTab(tab));
+        Dispatcher.UIThread.Post(UpdateTabScrollButtons);
     }
 
     /// <summary>Opens the searchable Actions menu, including for Ctrl+K.</summary>
@@ -96,8 +102,23 @@ public sealed partial class TopRail : UserControl, IDisposable
 
     public void SetModelSummary(string? modelName, int reasoningPercent)
     {
+        var clampedEffort = Math.Clamp(reasoningPercent, 0, 100);
         UniversalModelName.Text = ModelConfigurationControl.SimplifyModelName(modelName);
-        UniversalReasoningValue.Text = $"{Math.Clamp(reasoningPercent, 0, 100)}%";
+        UniversalReasoningValue.Text = $"{clampedEffort}%";
+        UniversalModelButton.EffortPercentage = clampedEffort;
+        UniversalReasoningValue.ClearValue(TextBlock.ForegroundProperty);
+    }
+
+    /// <summary>Connects header unread state to Haven's actual notification service.</summary>
+    public void AttachNotifications(NotificationService notifications)
+    {
+        ArgumentNullException.ThrowIfNull(notifications);
+        if (ReferenceEquals(_notificationService, notifications)) return;
+        if (_notificationService is not null)
+            _notificationService.Notifications.CollectionChanged -= OnNotificationsChanged;
+        _notificationService = notifications;
+        _notificationService.Notifications.CollectionChanged += OnNotificationsChanged;
+        RefreshNotificationState();
     }
 
     public void SetModelSelectorEnabled(bool enabled) => UniversalModelButton.IsEnabled = enabled;
@@ -123,7 +144,7 @@ public sealed partial class TopRail : UserControl, IDisposable
             _searchFlyout?.Hide();
             openSettings();
         };
-        _searchFlyout = new Flyout
+        _searchFlyout = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = Avalonia.Application.Current?.TryFindResource(
@@ -139,12 +160,14 @@ public sealed partial class TopRail : UserControl, IDisposable
     public void ShowNotifications()
     {
         _notificationCentre ??= CreateNotificationCentre();
-        _notificationFlyout ??= new Flyout
+        _notificationFlyout ??= new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = FloatingPresenterTheme(),
             Content = _notificationCentre
         };
+        if (_notificationService is not null)
+            _notificationCentre.SetNotifications(_notificationService.Notifications);
         _notificationCentre.Open();
         _notificationFlyout.ShowAt(NotificationsButton);
     }
@@ -173,7 +196,7 @@ public sealed partial class TopRail : UserControl, IDisposable
                 _appLauncherFlyout?.Hide();
                 manage();
             });
-        _appLauncherFlyout = new Flyout
+        _appLauncherFlyout = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = FloatingPresenterTheme(),
@@ -196,6 +219,9 @@ public sealed partial class TopRail : UserControl, IDisposable
         AppsButton.Click += OnAppsClicked;
         UniversalModelButton.Click += OnModelClicked;
         NotificationsButton.Click += OnNotificationsClicked;
+        TabScrollLeftButton.Click += (_, _) => ScrollTabs(-240);
+        TabScrollRightButton.Click += (_, _) => ScrollTabs(240);
+        TabScroller.ScrollChanged += (_, _) => UpdateTabScrollButtons();
         SearchButton.Click += OnSearchClicked;
         ActionToolbar.ActionsClicked += OnActionsClicked;
     }
@@ -213,7 +239,7 @@ public sealed partial class TopRail : UserControl, IDisposable
             MaxWidth = 180
         };
 
-        var underline = new Border
+        var underline = new HavenAdaptiveSurface
         {
             Height = 3,
             Width = Math.Clamp((tab.Title.Length * 7.2) + 12, 30, 170),
@@ -232,18 +258,17 @@ public sealed partial class TopRail : UserControl, IDisposable
             Children = { title, underline }
         };
 
-        var button = new Button
+        var button = new HavenTabButton
         {
             Content = titleAndUnderline,
+            IsSelected = tab.IsSelected,
             MinWidth = 72,
             MaxWidth = 230,
             Height = 48,
             Padding = new Thickness(12, 5, 12, 3),
-            Background = tab.IsSelected
-                ? new SolidColorBrush(Color.FromArgb(30, 255, 255, 255))
-                : Brushes.Transparent,
+            Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(11),
+            CornerRadius = new CornerRadius(0),
             Tag = tab.Key
         };
         ToolTip.SetTip(button, tab.Title);
@@ -264,32 +289,28 @@ public sealed partial class TopRail : UserControl, IDisposable
 
     private Flyout BuildTabMenu(TopRailTab tab)
     {
-        var rename = new Button
+        var rename = new HavenDropdownItemButton
         {
             Content = BuildMenuContent("edit", "Rename tab"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
-        rename.Classes.Add("sidebar");
-
-        var close = new Button
+        var close = new HavenDropdownItemButton
         {
             Content = BuildMenuContent("close", "Close tab"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             IsEnabled = tab.IsCloseable
         };
-        close.Classes.Add("sidebar");
-
-        var menu = new Flyout
+        var menu = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedLeft,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children = { rename, close }
+                Width = 286,
+                MinWidth = 286,
+                Padding = new Thickness(8),
+                Child = new StackPanel { Spacing = 5, Children = { rename, close } }
             }
         };
         rename.Click += (_, _) =>
@@ -308,28 +329,30 @@ public sealed partial class TopRail : UserControl, IDisposable
 
     private void ShowRenameFlyout(TopRailTab tab)
     {
-        var input = new TextBox
+        var input = new HavenTextInput
         {
             Text = tab.Title,
             MinWidth = 240,
             SelectionStart = 0,
             SelectionEnd = tab.Title.Length
         };
-        var save = new Button { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Stretch };
-        save.Classes.Add("primary");
-        var flyout = new Flyout
+        var save = new HavenPrimaryButton { Content = "Rename", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var flyout = new HavenDropdown
         {
             Placement = PlacementMode.Bottom,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children =
+                Width = 310,
+                MinWidth = 310,
+                Child = new StackPanel
                 {
-                    new TextBlock { Text = "Rename tab", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
-                    input,
-                    save
+                    Spacing = 10,
+                    Children =
+                    {
+                        new TextBlock { Text = "Rename tab", FontSize = 20, FontWeight = FontWeight.ExtraBold },
+                        input,
+                        save
+                    }
                 }
             }
         };
@@ -425,8 +448,61 @@ public sealed partial class TopRail : UserControl, IDisposable
     {
         var centre = new NotificationCentre { Height = 520 };
         centre.CloseRequested += (_, _) => _notificationFlyout?.Hide();
+        centre.DismissRequested += (_, id) => _notificationService?.Dismiss(id);
         return centre;
     }
+
+    private void OnNotificationsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshNotificationState();
+
+    private void RefreshNotificationState()
+    {
+        var count = _notificationService?.Notifications.Count ?? 0;
+        var colour = NotificationUrgencyColour(count);
+        var brush = new SolidColorBrush(colour);
+        NotificationBadge.IsVisible = count > 0;
+        NotificationBadge.Background = brush;
+        NotificationBadgeText.Text = Math.Min(count, 30).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        NotificationsButton.Foreground = count > 0
+            ? brush
+            : ResourceBrush("HavenTextPrimaryBrush", Colors.Black);
+        if (_notificationCentre is not null && _notificationService is not null)
+            _notificationCentre.SetNotifications(_notificationService.Notifications);
+    }
+
+    private void ScrollTabs(double delta)
+    {
+        var maximum = Math.Max(0, TabScroller.Extent.Width - TabScroller.Viewport.Width);
+        TabScroller.Offset = new Vector(Math.Clamp(TabScroller.Offset.X + delta, 0, maximum), 0);
+        UpdateTabScrollButtons();
+    }
+
+    private void UpdateTabScrollButtons()
+    {
+        var availability = GetTabScrollAvailability(TabScroller.Offset.X, TabScroller.Extent.Width, TabScroller.Viewport.Width);
+        TabScrollLeftButton.IsVisible = availability.CanScrollLeft;
+        TabScrollRightButton.IsVisible = availability.CanScrollRight;
+    }
+
+    internal static (bool CanScrollLeft, bool CanScrollRight) GetTabScrollAvailability(double offset, double extent, double viewport) =>
+        (offset > 0.5, extent - viewport - offset > 0.5);
+
+    internal static Color EffortColour(int reasoningPercent)
+    {
+        var t = Math.Clamp((reasoningPercent - 20) / 80d, 0d, 1d);
+        return Lerp(Color.Parse("#FFFBC02D"), Color.Parse("#FFFF6D00"), t);
+    }
+
+    internal static Color NotificationUrgencyColour(int unreadCount)
+    {
+        var t = Math.Clamp(unreadCount / 30d, 0d, 1d);
+        return Lerp(Color.Parse("#FFFFD54F"), Color.Parse("#FFFF1744"), t);
+    }
+
+    private static Color Lerp(Color from, Color to, double amount) => Color.FromArgb(
+        255,
+        (byte)Math.Round(from.R + ((to.R - from.R) * amount)),
+        (byte)Math.Round(from.G + ((to.G - from.G) * amount)),
+        (byte)Math.Round(from.B + ((to.B - from.B) * amount)));
 
     private void OnActionsClicked(object? sender, EventArgs e)
     {
@@ -450,6 +526,9 @@ public sealed partial class TopRail : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         _notificationCentre?.Dispose();
+        if (_notificationService is not null)
+            _notificationService.Notifications.CollectionChanged -= OnNotificationsChanged;
+        _notificationService = null;
         _appLauncherFlyout?.Hide();
         _searchFlyout?.Hide();
         ActionToolbar.Dispose();

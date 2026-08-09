@@ -95,14 +95,14 @@ internal sealed partial class NativeProjectsPage
             RowDefinitions = new RowDefinitions("*,Auto"),
             Children =
             {
-                new Border
+                new HavenAdaptiveSurface
                 {
                     Padding = new Thickness(40, 30, 40, 12),
                     Child = body
                 }
             }
         };
-        var createHost = new Border
+        var createHost = new HavenAdaptiveSurface
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(32, 12, 32, 22),
@@ -121,7 +121,7 @@ internal sealed partial class NativeProjectsPage
         var connect = Button("Connect existing folder", false);
         connect.Click += async (_, _) => await ConnectExistingAsync();
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             BorderBrush = BorderBrush,
             BorderThickness = new Thickness(1),
@@ -181,12 +181,12 @@ internal sealed partial class NativeProjectsPage
         {
             Text = text,
             FontSize = size,
-            FontWeight = FontWeight.Bold
+            FontWeight = FontWeight.ExtraBold
         };
 
     private static Button Button(string text, bool primary)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Content = text,
             MinHeight = 38,
@@ -204,7 +204,7 @@ internal sealed partial class NativeProjectsPage
 
     private static Button IconButton(string icon, string accessibleName)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Width = 52,
             Height = 52,

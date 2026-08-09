@@ -536,7 +536,7 @@ internal static class BuiltInThemes
             timestamp,
             light,
             dark,
-            new GenerativeThemeTypography("Segoe UI Variable, Segoe UI, Montserrat, sans-serif", 14, 1.35, 0),
+            new GenerativeThemeTypography("Montserrat", 14, 1.35, 0),
             new GenerativeThemeShape(10, 14, 16, 1, false, true),
             GenerativeUiCatalog.DefaultLayout,
             []);

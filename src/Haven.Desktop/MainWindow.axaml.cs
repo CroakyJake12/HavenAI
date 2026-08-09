@@ -9,11 +9,17 @@ namespace Haven.Desktop;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private readonly UserPreferencesService? _preferences;
     private MainView? _shell;
     private TidalBackground? _tidalBackground;
 
-    public MainWindow()
+    public MainWindow() : this(null)
     {
+    }
+
+    public MainWindow(UserPreferencesService? preferences)
+    {
+        _preferences = preferences;
         InitializeComponent();
         DataContextChanged += (_, _) =>
         {
@@ -28,7 +34,13 @@ public sealed partial class MainWindow : Window
 
     private void SetupBackground()
     {
-        _tidalBackground = new TidalBackground(this);
+        _tidalBackground?.Dispose();
+        _tidalBackground = new TidalBackground(this, _preferences?.Appearance ?? Haven.Core.HavenUiAppearance.SuperDark);
+        if (_preferences is not null)
+        {
+            _preferences.AppearanceChanged -= OnAppearanceChanged;
+            _preferences.AppearanceChanged += OnAppearanceChanged;
+        }
 
         // Surface changes include dedicated apps such as Browse, Imagine and
         // Dashboard, whereas CurrentMode only describes conversation storage.
@@ -46,8 +58,13 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnAppearanceChanged(object? sender, EventArgs e) =>
+        _tidalBackground?.SetAppearance(_preferences?.Appearance ?? Haven.Core.HavenUiAppearance.SuperDark);
+
     protected override void OnClosed(EventArgs e)
     {
+        if (_preferences is not null)
+            _preferences.AppearanceChanged -= OnAppearanceChanged;
         _tidalBackground?.Dispose();
         base.OnClosed(e);
     }

@@ -11,9 +11,10 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.GenerativeUiAdvancedPageHandoffView">
   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-  <Border Classes="card">
+  <hui:HavenAdaptiveSurface Classes="card">
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Spacing="10">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -23,12 +24,12 @@
           <TextBlock Text="Theme Studio directly supports safe text, shortcuts, command buttons and local timers. Describe a richer page here to hand it into a fresh Studio chat using Haven's normal reviewed implementation flow."
                      Classes="muted" FontSize="10" TextWrapping="Wrap" />
         </StackPanel>
-        <Border Grid.Column="1" Background="{DynamicResource HavenAccentSoftBrush}" CornerRadius="999" Padding="9,4" VerticalAlignment="Top">
+        <hui:HavenAdaptiveSurface Grid.Column="1" Background="{DynamicResource HavenAccentSoftBrush}" CornerRadius="999" Padding="9,4" VerticalAlignment="Top">
           <TextBlock Text="REVIEWED HANDOFF" Foreground="{DynamicResource HavenAccentBrush}" FontSize="8" FontWeight="SemiBold" />
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
 
-      <TextBox x:Name="RequestBox"
+      <hui:HavenTextInput x:Name="RequestBox"
                AcceptsReturn="True"
                TextWrapping="Wrap"
                MinHeight="92"
@@ -38,11 +39,11 @@
         <TextBlock x:Name="StatusText"
                    Text="Nothing is created or installed automatically. The complete specification opens in Studio for review."
                    Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center" />
-        <Button Grid.Column="1"
+        <hui:HavenButton Grid.Column="1"
                 Content="Open reviewed Studio handoff"
                 Classes="accent"
                 Click="OnOpenStudioClicked" />
       </Grid>
     </StackPanel>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

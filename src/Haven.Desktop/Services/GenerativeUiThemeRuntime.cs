@@ -13,6 +13,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Haven.Desktop.HavenUI.Tokens;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
@@ -335,10 +336,13 @@ public sealed class GenerativeUiThemeRuntime(
         SetBrush(application, "HavenTextSoftBrush", palette.TextSoft);
         SetBrush(application, "HavenMutedBrush", palette.Muted);
         SetBrush(application, "HavenMuted2Brush", palette.Muted2);
-        SetBrush(application, "HavenAccentBrush", palette.Accent);
-        SetBrush(application, "HavenAccentInkBrush", ChooseReadableInk(palette.Accent, palette.AccentInk));
-        SetBrush(application, "HavenAccentSoftBrush", palette.AccentSoft);
-        SetBrush(application, "HavenAccentSecondaryBrush", palette.Blue);
+        HavenUiResourceApplier.ApplyAccentPalette(HavenAccentPalette.FromAnchors(
+            Color.Parse(palette.Accent),
+            Color.Parse(palette.Blue),
+            Color.Parse(palette.Nub),
+            Color.Parse(ChooseReadableInk(palette.Accent, palette.AccentInk)),
+            Color.Parse(palette.AccentSoft),
+            Color.Parse(palette.Panel)));
         SetBrush(application, "HavenBlueSoftBrush", palette.BlueSoft);
         SetBrush(application, "HavenDangerBrush", palette.Danger);
         SetBrush(application, "HavenWarningBrush", palette.Warning);
@@ -349,7 +353,6 @@ public sealed class GenerativeUiThemeRuntime(
         SetBrush(application, "HavenButtonHoverBrush", palette.ButtonHover);
         SetBrush(application, "HavenButtonPressedBrush", palette.ButtonPressed);
         SetBrush(application, "HavenFocusBrush", palette.Focus);
-        SetBrush(application, "PrimaryBrush", palette.Accent);
         SetBrush(application, "StrokeBrush", shape.ShowCardBorders ? palette.LineStrong : "#00000000");
         SetBrush(application, "SurfaceCardBrush", palette.Panel);
         SetBrush(application, "TextPrimaryBrush", palette.Text);
@@ -372,7 +375,9 @@ public sealed class GenerativeUiThemeRuntime(
         _generatedStyles.Clear();
 
         var windowStyle = new Style(selector => selector.OfType<Window>());
-        windowStyle.Setters.Add(new Setter(TemplatedControl.FontFamilyProperty, new FontFamily(theme.Typography.FontFamily)));
+        windowStyle.Setters.Add(new Setter(
+            TemplatedControl.FontFamilyProperty,
+            new FontFamily("avares://Haven/Assets/Fonts/MontserratStatic#Montserrat")));
         windowStyle.Setters.Add(new Setter(TemplatedControl.FontSizeProperty, theme.Typography.BaseFontSize));
         _generatedStyles.Add(windowStyle);
 

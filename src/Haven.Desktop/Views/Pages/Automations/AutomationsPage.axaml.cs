@@ -8,6 +8,7 @@ using Haven.Automations;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components.Buttons;
 
 namespace Haven.Desktop.Views.Pages.Automations;
 
@@ -120,9 +121,9 @@ public sealed partial class AutomationsPage : UserControl
         var instructionBlock = new TextBlock { Text = def.Instruction, Classes = { "muted" }, VerticalAlignment = VerticalAlignment.Center };
         var nextRunBlock = new TextBlock { Text = def.NextRunAt?.LocalDateTime.ToString("g") ?? "Not scheduled", Classes = { "muted" }, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
 
-        var runNowButton = new Button { Content = "Run now" };
-        var toggleButton = new Button { Content = def.IsEnabled ? "Pause" : "Resume" };
-        var deleteButton = new Button { Content = "Delete", Classes = { "danger" } };
+        var runNowButton = new HavenButton { Content = "Run now" };
+        var toggleButton = new HavenButton { Content = def.IsEnabled ? "Pause" : "Resume" };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete" };
 
         runNowButton.RegisterWithEvents($"{qName}.Run", _bus);
         runNowButton.Click += async (_, _) =>
@@ -164,7 +165,7 @@ public sealed partial class AutomationsPage : UserControl
         Grid.SetColumn(deleteButton, 6);
         grid.Children.Add(deleteButton);
 
-        var border = new Border { Classes = { "card" }, Margin = new Avalonia.Thickness(0, 0, 0, 10), Child = grid };
+        var border = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Avalonia.Thickness(0, 0, 0, 10), Child = grid };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
         border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
         return border;

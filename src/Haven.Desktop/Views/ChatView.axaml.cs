@@ -96,7 +96,7 @@ public sealed partial class ChatView : UserControl
         _messageTools = new ConversationMessageToolsView { Width = 650 };
         _messageTools.BranchChanged += OnBranchChanged;
         _messageTools.RegenerationRequested += OnMessageRegenerationRequested;
-        _messageToolsFlyout = new Flyout { Content = _messageTools };
+        _messageToolsFlyout = new HavenAdaptivePopup { Content = _messageTools };
 
         if (App.Services is { } services)
         {

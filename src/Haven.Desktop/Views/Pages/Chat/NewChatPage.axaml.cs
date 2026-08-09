@@ -11,6 +11,8 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components;
+using Haven.Desktop.HavenUI.Components.Buttons;
 using Haven.Desktop.Views.Shell.TopRail;
 
 namespace Haven.Desktop.Views.Pages.Chat;
@@ -28,13 +30,21 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly ChatSessionService _sessions;
     private readonly IConversationVersioningService _versioning;
     private readonly UserPreferencesService _preferences;
+    private readonly GenerativeUiEventRouter _genUiRouter;
+    private readonly GenUiInstanceStore _genUiInstances;
+    private readonly CalculatorTemplateRuntime _calculatorTemplate;
     private readonly List<ChatMessage> _messages = [];
     private readonly HashSet<Guid> _streamingMessages = [];
-    private readonly List<PluginDefinition> _activePlugins = [];
+    private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
+    private IReadOnlyList<ModeDefinition> _availableApps = [];
     private readonly List<PromptDefinition> _activeInstructions = [];
     private readonly List<string> _attachedImages = [];
     private readonly List<string> _attachedContext = [];
-    private readonly Dictionary<Guid, MarkdownView> _messageBodies = [];
+    private readonly TaskAttachmentContext _taskAttachments = new();
+    private readonly Dictionary<Guid, ProductionMarkdownView> _messageBodies = [];
+    private readonly Dictionary<Guid, GenerativeUiSurface> _generatedSurfaces = [];
+    private readonly Dictionary<Guid, Guid> _generatedInstanceIds = [];
+    private readonly Dictionary<Guid, string> _generatedSignatures = [];
     private readonly StackPanel _taskHistory = new() { Spacing = 6 };
     private ModeDefinition? _modeDefinition;
     private Conversation _conversation;
@@ -56,7 +66,10 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         IOllamaClient ollama,
         ChatSessionService sessions,
         IConversationVersioningService versioning,
-        UserPreferencesService preferences)
+        UserPreferencesService preferences,
+        GenerativeUiEventRouter genUiRouter,
+        GenUiInstanceStore genUiInstances,
+        CalculatorTemplateRuntime calculatorTemplate)
     {
         _bus = bus;
         _conversations = conversations;
@@ -64,11 +77,15 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _sessions = sessions;
         _versioning = versioning;
         _preferences = preferences;
+        _genUiRouter = genUiRouter;
+        _genUiInstances = genUiInstances;
+        _calculatorTemplate = calculatorTemplate;
         _conversation = CreateConversation(HavenMode.Chat);
 
         InitializeComponent();
         WireEvents();
         RefreshVisualState();
+        SizeChanged += (_, args) => ApplyResponsiveLayout(args.NewSize.Width);
         _ = InitialiseAsync();
     }
 
@@ -132,12 +149,42 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         InstructionBox.PlaceholderText = "Describe your task";
         StatusText.Text = "Describe what you want Haven to complete. Haven will ask only for details that materially affect the result.";
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        ApplyResponsiveLayout(Bounds.Width);
         _ = RefreshTaskHistoryAsync();
+    }
+
+    private void ApplyResponsiveLayout(double width)
+    {
+        if (width <= 0) return;
+        var compact = width < 760;
+        var showCompactTaskRail = compact && _isTaskMode;
+
+        SurfaceGrid.ColumnDefinitions = compact
+            ? new ColumnDefinitions("*")
+            : new ColumnDefinitions(_isTaskMode ? "340,*" : "0,*");
+        SurfaceGrid.RowDefinitions = showCompactTaskRail
+            ? new RowDefinitions("Auto,*")
+            : new RowDefinitions("*");
+        SurfaceGrid.ColumnSpacing = compact ? 0 : 18;
+        SurfaceGrid.RowSpacing = showCompactTaskRail ? 12 : 0;
+
+        Grid.SetColumn(TasksSidebarHost, 0);
+        Grid.SetRow(TasksSidebarHost, 0);
+        Grid.SetColumn(ChatWorkspace, compact ? 0 : 1);
+        Grid.SetRow(ChatWorkspace, showCompactTaskRail ? 1 : 0);
+
+        TasksSidebarHost.MaxHeight = showCompactTaskRail ? 205 : double.PositiveInfinity;
+        TasksSidebarHost.Margin = showCompactTaskRail
+            ? new Thickness(14, 10, 14, 0)
+            : new Thickness(0);
+        ChatWorkspace.Margin = compact
+            ? new Thickness(14, 4, 14, 8)
+            : new Thickness(32, 10, 32, 4);
     }
 
     private Control BuildTasksSidebar()
     {
-        var newTask = new Button
+        var newTask = new HavenPrimaryButton
         {
             Content = new StackPanel
             {
@@ -153,9 +200,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             HorizontalAlignment = HorizontalAlignment.Stretch,
             MinHeight = 54,
             Padding = new Thickness(16, 10),
-            CornerRadius = new CornerRadius(16),
-            Background = ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE5F7D4")),
-            BorderThickness = new Thickness(0)
+            CornerRadius = new CornerRadius(16)
         };
         newTask.Click += async (_, _) =>
         {
@@ -201,7 +246,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 foreach (var conversation in conversations.Where(item => !item.IsArchived))
                 {
                     var captured = conversation;
-                    var button = new Button
+                    var button = new HavenNavigationButton
                     {
                         Content = new StackPanel
                         {
@@ -224,12 +269,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         MinHeight = 44,
                         Padding = new Thickness(10, 7),
-                        CornerRadius = new CornerRadius(13),
-                        Background = captured.Id == ConversationId
-                            ? ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE5F7D4"))
-                            : Brushes.Transparent,
-                        BorderThickness = new Thickness(0)
+                        CornerRadius = new CornerRadius(13)
                     };
+                    button.Classes.Set("selected", captured.Id == ConversationId);
                     button.Click += async (_, _) => await LoadConversationAsync(captured);
                     AutomationProperties.SetName(button, "Open task " + captured.Title);
                     _taskHistory.Children.Add(button);
@@ -382,10 +424,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     public void SetAddCatalogue(
         IReadOnlyList<AgentDefinition> agents,
-        IReadOnlyList<PluginDefinition> plugins,
+        IReadOnlyList<CapabilityDefinition> capabilities,
         IReadOnlyList<PromptDefinition> instructions,
-        IReadOnlyList<ModeDefinition> apps) =>
-        AddButton.SetCatalogue(agents, plugins, instructions, apps);
+        IReadOnlyList<ModeDefinition> apps)
+    {
+        _availableCapabilities = capabilities;
+        _availableApps = apps;
+        AddButton.SetCatalogue(agents, capabilities, instructions, apps);
+    }
 
     public async Task LoadConversationAsync(Conversation conversation)
     {
@@ -406,15 +452,43 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 _activeAgent = agent;
                 StatusText.Text = $"{agent.Name} selected.";
                 break;
-            case PluginDefinition plugin:
-                if (_activePlugins.All(item => item.Id != plugin.Id)) _activePlugins.Add(plugin);
-                StatusText.Text = $"{plugin.Name} added.";
+            case CapabilityDefinition capability:
+                AttachCapability(capability);
                 break;
             case PromptDefinition instruction:
                 if (_activeInstructions.All(item => item.Id != instruction.Id)) _activeInstructions.Add(instruction);
                 StatusText.Text = $"{instruction.Name} instruction added.";
                 break;
+            case ModeDefinition app:
+                _taskAttachments.AttachApp(app);
+                StatusText.Text = $"{app.Name} attached to this task.";
+                break;
         }
+    }
+
+    public bool IsCapabilityAttached(Guid capabilityId) =>
+        _taskAttachments.IsCapabilityAttached(capabilityId);
+
+    public void ToggleCapability(CapabilityDefinition capability)
+    {
+        if (_taskAttachments.IsCapabilityAttached(capability.Id))
+        {
+            _taskAttachments.RemoveCapability(capability.Id);
+            StatusText.Text = $"{capability.Name} removed from this task context.";
+            return;
+        }
+        AttachCapability(capability);
+    }
+
+    public void AttachSnapshot(TaskAttachmentSnapshot snapshot) =>
+        _taskAttachments.AttachSnapshot(snapshot);
+
+    private void AttachCapability(CapabilityDefinition capability)
+    {
+        var owner = _availableApps.FirstOrDefault(app =>
+            app.Key.Equals(capability.OwnerAppKey, StringComparison.OrdinalIgnoreCase));
+        _taskAttachments.AttachCapability(capability, owner);
+        StatusText.Text = $"{capability.Name} attached as task relevance; permissions are unchanged.";
     }
 
     public async Task AddFileAsync()
@@ -426,14 +500,23 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Title = "Add files to this chat",
             AllowMultiple = true
         });
-        foreach (var file in files)
+        await AddFilesAsync(files.Select(file => file.TryGetLocalPath()).OfType<string>());
+    }
+
+    public async Task AddFilesAsync(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var added = 0;
+        foreach (var path in paths.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var path = file.TryGetLocalPath();
-            if (string.IsNullOrWhiteSpace(path)) continue;
             var extension = Path.GetExtension(path).ToLowerInvariant();
             if (extension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif")
             {
-                _attachedImages.Add(path);
+                if (!_attachedImages.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    _attachedImages.Add(path);
+                    added++;
+                }
                 continue;
             }
             try
@@ -442,18 +525,20 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 if (info.Length > 2_000_000)
                 {
                     _attachedContext.Add($"Attached file: {info.Name} ({info.Length:N0} bytes; content omitted because it is too large)." );
+                    added++;
                     continue;
                 }
                 var text = await File.ReadAllTextAsync(path, CancellationToken.None);
                 _attachedContext.Add($"Attached file {info.Name}:\n{text}");
+                added++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 StatusText.Text = $"Could not attach {Path.GetFileName(path)}.";
             }
         }
-        if (files.Count > 0)
-            StatusText.Text = $"{files.Count} file{(files.Count == 1 ? "" : "s")} added.";
+        if (added > 0)
+            StatusText.Text = $"{added} file{(added == 1 ? "" : "s")} attached to this task.";
     }
 
     public string? GetLastAssistantResponse() =>
@@ -489,32 +574,34 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     public void ShowRenameFlyout()
     {
-        var editor = new TextBox
+        var editor = new HavenTextInput
         {
             Text = _conversation.Title,
             MinWidth = 300,
             FontSize = 14,
             FontWeight = FontWeight.SemiBold
         };
-        var save = new Button
+        var save = new HavenPrimaryButton
         {
             Content = "Rename chat",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center
         };
-        var flyout = new Flyout
+        var flyout = new HavenDropdown
         {
             Placement = PlacementMode.Top,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children =
+                Width = 360,
+                Child = new StackPanel
                 {
-                    new TextBlock { Text = "Rename chat", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
-                    editor,
-                    save
+                    Spacing = 10,
+                    Children =
+                    {
+                        new TextBlock { Text = "Rename chat", FontSize = 20, FontWeight = FontWeight.ExtraBold },
+                        editor,
+                        save
+                    }
                 }
             }
         };
@@ -534,23 +621,29 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public void ShowDeleteConfirmation()
     {
         if (_messages.Count == 0) return;
-        var cancel = new Button { Content = "Cancel", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var delete = new Button { Content = "Delete chat", HorizontalAlignment = HorizontalAlignment.Stretch };
-        delete.Classes.Add("negative");
-        var flyout = new Flyout
+        var cancel = new HavenTertiaryButton { Content = "Cancel", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var delete = new HoldToConfirmButton
+        {
+            Content = "Delete chat",
+            ActionLabel = "delete chat",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var flyout = new HavenPopup
         {
             Placement = PlacementMode.Top,
-            Content = new StackPanel
+            Content = new HavenPopupCard
             {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children =
+                Width = 520,
+                Child = new StackPanel
                 {
-                    new TextBlock { Text = "Delete this chat?", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
-                    new TextBlock { Text = "This permanently removes the conversation and its messages.", TextWrapping = TextWrapping.Wrap },
-                    delete,
-                    cancel
+                    Spacing = 10,
+                    Children =
+                    {
+                        new TextBlock { Text = "Delete this chat?", FontSize = 20, FontWeight = FontWeight.ExtraBold },
+                        new TextBlock { Text = "This permanently removes the conversation and its messages.", TextWrapping = TextWrapping.Wrap },
+                        delete,
+                        cancel
+                    }
                 }
             }
         };
@@ -667,15 +760,15 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             }
         };
 
-        _resolveProblemsFlyout = new Flyout
+        _resolveProblemsFlyout = new HavenDropdown
         {
             Placement = PlacementMode.Top,
-            Content = panel
+            Content = new HavenDropdownCard { Width = 410, Child = panel }
         };
         _resolveProblemsFlyout.ShowAt(ResolveProblemsButton);
     }
 
-    private Button BuildProblemResolutionAction(
+    private HavenDropdownItemButton BuildProblemResolutionAction(
         string icon,
         string title,
         string description,
@@ -712,16 +805,15 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         Grid.SetColumn(copy, 1);
         grid.Children.Add(copy);
 
-        var button = new Button
+        var button = new HavenDropdownItemButton
         {
             Content = grid,
             MinHeight = 48,
             Padding = new Thickness(12, 10),
-            CornerRadius = new CornerRadius(14),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Role = HavenDropdownItemRole.Main
         };
-        button.Classes.Add("sidebar");
         button.Click += (_, _) =>
         {
             _resolveProblemsFlyout?.Hide();
@@ -778,7 +870,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                                instruction,
                                _selectedModel,
                                _preferences.DefaultEffort,
-                               _activePlugins.Select(item => new ActivePlugin(item.Name, item.IconKey, item.Persists, item.Instructions)).ToArray(),
+                               [],
                                _activeAgent?.Name ?? "Haven",
                                _activeAgent?.Instructions ?? string.Empty,
                                DuoMode.Solo,
@@ -792,7 +884,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                                generationOptions: _preferences.GenerationOptions,
                                filePermission: _preferences.FilePermission,
                                commandPermission: _preferences.CommandPermission,
-                               browserPermission: _preferences.BrowserPermission).ConfigureAwait(false))
+                               browserPermission: _preferences.BrowserPermission,
+                               availableCapabilities: _availableCapabilities.Select(ActiveCapability.FromDefinition).ToArray()).ConfigureAwait(false))
             {
                 if (streamEvent.Kind == ChatStreamEventKind.AssistantDelta &&
                     streamEvent.MessageId is { } deltaMessageId)
@@ -845,7 +938,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             if (!string.IsNullOrWhiteSpace(mode.SystemPromptSuffix))
                 sections.Add(mode.SystemPromptSuffix.Trim());
         }
+        if (_taskAttachments.BuildAppContext() is { } appContext)
+            sections.Add(appContext);
+        if (_taskAttachments.BuildCapabilityContext() is { } capabilityContext)
+            sections.Add(capabilityContext);
         sections.AddRange(_attachedContext.Where(item => !string.IsNullOrWhiteSpace(item)));
+        sections.Add(GenUiChatDirectiveParser.ModelInstruction);
         return sections.Count == 0 ? null : string.Join("\n\n", sections);
     }
 
@@ -879,7 +977,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                     };
                     if (_messageBodies.TryGetValue(deltaId, out var body))
                     {
-                        body.Markdown = _messages[index].Content;
+                        body.Text = GenUiChatDirectiveParser.Parse(_messages[index].Content).DisplayContent;
                         rebuildMessages = false;
                         Dispatcher.UIThread.Post(() => MessagesScroll.ScrollToEnd(), DispatcherPriority.Background);
                     }
@@ -941,10 +1039,13 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
         MessagesPanel.Children.Clear();
         _messageBodies.Clear();
+        PruneGeneratedSurfaces();
         foreach (var message in _messages)
             MessagesPanel.Children.Add(BuildMessage(message, _streamingMessages.Contains(message.Id)));
 
         ResolveProblemsButton.IsVisible = HasStarted;
+        EmptyState.IsVisible = !HasStarted;
+        MessagesScroll.IsVisible = HasStarted;
         if (_lastReportedHasStarted != HasStarted)
         {
             _lastReportedHasStarted = HasStarted;
@@ -957,20 +1058,25 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     private Control BuildMessage(ChatMessage message, bool isStreaming)
     {
+        var directive = message.Role == MessageRole.Assistant
+            ? GenUiChatDirectiveParser.Parse(message.Content)
+            : new GenUiChatDirectiveParseResult(message.Content, null, null, false);
+        var displayContent = string.IsNullOrWhiteSpace(directive.DisplayContent) && directive.Request is not null
+            ? "Interactive calculator"
+            : directive.DisplayContent;
         var bubble = new MessageBubble
         {
             Role = message.Role,
-            MessageContent = message.Content,
+            MessageContent = displayContent,
             AgentName = message.AgentName,
             IsStreaming = isStreaming
         };
-        _messageBodies[message.Id] = bubble.FindControl<MarkdownView>("Body")!;
+        _messageBodies[message.Id] = bubble.FindControl<ProductionMarkdownView>("Body")!;
 
-        var more = new Button
+        var more = new HavenIconButton
         {
             Width = 48,
             Height = 30,
-            CornerRadius = new CornerRadius(15),
             Padding = new Thickness(12, 7),
             Opacity = 0,
             IsHitTestVisible = false,
@@ -985,7 +1091,6 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 Foreground = ResourceBrush("HavenTextBrush", Colors.Black)
             }
         };
-        more.Classes.Add("chip");
         more.Click += (_, _) => ShowMessageActions(more, message);
         bubble.PointerPressed += (_, args) =>
         {
@@ -999,10 +1104,33 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             Spacing = 8,
             HorizontalAlignment = message.Role == MessageRole.User
                 ? HorizontalAlignment.Right
-                : HorizontalAlignment.Stretch,
-            Children = { bubble, more }
+                : HorizontalAlignment.Stretch
         };
-        var hoverHost = new Border
+        messageHost.Children.Add(bubble);
+        if (directive.Request is { } request)
+            messageHost.Children.Add(GetOrCreateGeneratedSurface(message, request));
+        else
+            RemoveGeneratedSurface(message.Id);
+        if (!string.IsNullOrWhiteSpace(directive.Error))
+        {
+            messageHost.Children.Add(new HavenCard
+            {
+                Padding = new Thickness(12),
+                Child = new TextBlock
+                {
+                    Text = "Interactive content unavailable: " + directive.Error,
+                    Classes = { "muted" },
+                    FontWeight = FontWeight.Bold,
+                    TextWrapping = TextWrapping.Wrap
+                }
+            });
+        }
+        var messageOverlay = new Grid();
+        messageOverlay.Children.Add(messageHost);
+        more.VerticalAlignment = VerticalAlignment.Bottom;
+        more.Margin = new Thickness(0, 0, 0, -32);
+        messageOverlay.Children.Add(more);
+        var hoverHost = new HavenAdaptiveSurface
         {
             Background = Brushes.Transparent,
             Padding = new Thickness(26, 10),
@@ -1010,7 +1138,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             HorizontalAlignment = message.Role == MessageRole.User
                 ? HorizontalAlignment.Right
                 : HorizontalAlignment.Stretch,
-            Child = messageHost
+            Child = messageOverlay
         };
         hoverHost.PointerEntered += (_, _) =>
         {
@@ -1023,6 +1151,41 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             more.IsHitTestVisible = false;
         };
         return hoverHost;
+    }
+
+    private GenerativeUiSurface GetOrCreateGeneratedSurface(ChatMessage message, GenUiTemplateRequest request)
+    {
+        var signature = request.TemplateKey + "|" + request.Expression;
+        if (_generatedSurfaces.TryGetValue(message.Id, out var existing)
+            && _generatedSignatures.TryGetValue(message.Id, out var existingSignature)
+            && existingSignature.Equals(signature, StringComparison.Ordinal)) return existing;
+
+        RemoveGeneratedSurface(message.Id);
+        var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
+        var document = _calculatorTemplate.Create(_conversation.Id, appKey, request.Expression);
+        var surface = new GenerativeUiSurface(_genUiRouter, _genUiInstances)
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        surface.Present(document);
+        _generatedSurfaces[message.Id] = surface;
+        _generatedInstanceIds[message.Id] = document.Origin.InstanceId;
+        _generatedSignatures[message.Id] = signature;
+        return surface;
+    }
+
+    private void PruneGeneratedSurfaces()
+    {
+        var messageIds = _messages.Select(message => message.Id).ToHashSet();
+        foreach (var messageId in _generatedSurfaces.Keys.Where(id => !messageIds.Contains(id)).ToArray())
+            RemoveGeneratedSurface(messageId);
+    }
+
+    private void RemoveGeneratedSurface(Guid messageId)
+    {
+        if (_generatedSurfaces.Remove(messageId, out var surface)) surface.Dispose();
+        if (_generatedInstanceIds.Remove(messageId, out var instanceId)) _genUiInstances.Remove(instanceId);
+        _generatedSignatures.Remove(messageId);
     }
 
     private void ShowMessageActions(Control anchor, ChatMessage message)
@@ -1055,15 +1218,13 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             await DeleteMessageAsync(message);
         };
 
-        _messageActionsFlyout = new Flyout
+        _messageActionsFlyout = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
                 Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children = { edit, copy, branch, delete }
+                Child = new StackPanel { Spacing = 3, Children = { edit, copy, branch, delete } }
             }
         };
         _messageActionsFlyout.ShowAt(anchor);
@@ -1095,15 +1256,13 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             RefreshMessages();
         };
 
-        _messageActionsFlyout = new Flyout
+        _messageActionsFlyout = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedLeft,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
                 Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children = { regenerate, copy, branch, forget }
+                Child = new StackPanel { Spacing = 3, Children = { regenerate, copy, branch, forget } }
             }
         };
         _messageActionsFlyout.ShowAt(anchor);
@@ -1116,11 +1275,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         current.Click += async (_, _) => await RegenerateResponseAsync(message, ResponseRegenerationMode.Here);
         branch.Click += async (_, _) => await RegenerateResponseAsync(message, ResponseRegenerationMode.NewBranch);
 
-        var modelChip = new Border
+        var modelChip = new HavenPill
         {
             HorizontalAlignment = HorizontalAlignment.Center,
-            Background = ResourceBrush("HavenPanel2Brush", Color.Parse("#FFF4F4F4")),
-            CornerRadius = new CornerRadius(999),
             Padding = new Thickness(16, 7),
             Margin = new Thickness(0, 4, 0, 0),
             Child = new TextBlock
@@ -1132,15 +1289,13 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         };
 
         _messageSecondaryFlyout?.Hide();
-        _messageSecondaryFlyout = new Flyout
+        _messageSecondaryFlyout = new HavenDropdown
         {
             Placement = PlacementMode.Right,
-            Content = new StackPanel
+            Content = new HavenDropdownCard
             {
                 Width = 300,
-                Spacing = 2,
-                Margin = new Thickness(8),
-                Children = { current, branch, modelChip }
+                Child = new StackPanel { Spacing = 2, Children = { current, branch, modelChip } }
             }
         };
         _messageSecondaryFlyout.ShowAt(anchor);
@@ -1220,7 +1375,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
     private void ShowMessageEditor(Control anchor, ChatMessage message, MessageEditChoice choice)
     {
-        var editor = new TextBox
+        var editor = new HavenMultilineInput
         {
             Text = message.Content,
             AcceptsReturn = true,
@@ -1229,25 +1384,27 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             MinHeight = 120,
             MaxHeight = 300
         };
-        var apply = new Button
+        var apply = new HavenPrimaryButton
         {
             Content = choice == MessageEditChoice.MemoryOnly ? "Apply for this session" : "Apply edit",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center
         };
-        var editorFlyout = new Flyout
+        var editorFlyout = new HavenPopup
         {
             Placement = PlacementMode.Left,
-            Content = new StackPanel
+            Content = new HavenPopupCard
             {
                 Width = 390,
-                Spacing = 10,
-                Margin = new Thickness(12),
-                Children =
+                Child = new StackPanel
                 {
-                    new TextBlock { Text = "Edit message", FontSize = 20, FontWeight = FontWeight.ExtraBold, Margin = new Thickness(10, 5, 10, 8) },
-                    editor,
-                    apply
+                    Spacing = 10,
+                    Children =
+                    {
+                        new TextBlock { Text = "Edit message", FontSize = 20, FontWeight = FontWeight.ExtraBold },
+                        editor,
+                        apply
+                    }
                 }
             }
         };
@@ -1370,10 +1527,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         if (recent.Length == 0)
             panel.Children.Add(new TextBlock { Text = "No other saved chats yet.", Margin = new Thickness(10) });
         _messageSecondaryFlyout?.Hide();
-        _messageSecondaryFlyout = new Flyout
+        _messageSecondaryFlyout = new HavenDropdown
         {
             Placement = PlacementMode.Left,
-            Content = new ScrollViewer { MaxHeight = 430, Content = panel }
+            Content = new HavenDropdownCard
+            {
+                Width = 360,
+                Child = new ScrollViewer { MaxHeight = 430, Content = panel }
+            }
         };
         _messageSecondaryFlyout.ShowAt(anchor);
     }
@@ -1454,6 +1615,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _disposed = true;
         _sendCancellation?.Cancel();
         _sendCancellation?.Dispose();
+        foreach (var messageId in _generatedSurfaces.Keys.ToArray()) RemoveGeneratedSurface(messageId);
         AddButton.Dispose();
     }
 

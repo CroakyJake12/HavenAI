@@ -1024,7 +1024,9 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
             prepared = await AddGroupResourceImagesAsync(prepared, _sendCancellation.Token);
             if (Messages.Count == 0)
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
-            var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
+            var active = Plugins.Where(x => x.IsActive)
+                .Select(x => ActiveCapability.FromLegacyPlugin(x.Name, x.IconKey, x.Instructions))
+                .ToArray();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var check = _preflight.Evaluate(SelectedModel, active, prepared.Images is { Count: > 0 }, Models);
             if (!check.IsCompatible && _preferences.AutoSwitchCompatibleModels && check.SuggestedModel is not null)

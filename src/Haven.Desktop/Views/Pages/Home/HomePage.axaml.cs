@@ -208,12 +208,12 @@ public sealed partial class HomePage : UserControl
         var icon = new HavenIcon { IconKey = def.IconKey, Width = 20, Height = 20 };
         var titleBlock = new TextBlock { Text = def.Title, FontWeight = Avalonia.Media.FontWeight.SemiBold, FontSize = 16, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
 
-        var badgeBorder = new Border { Classes = { "warningPill" }, IsVisible = data.Badge is not null };
+        var badgeBorder = new HavenAdaptiveSurface { Classes = { "warningPill" }, IsVisible = data.Badge is not null };
         if (data.Badge is not null)
             badgeBorder.Child = new TextBlock { Text = data.Badge, FontSize = 10 };
 
         var iconRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 10 };
-        iconRow.Children.Add(new Border { Classes = { "iconPlate" }, Child = icon });
+        iconRow.Children.Add(new HavenAdaptiveSurface { Classes = { "iconPlate" }, Child = icon });
         Grid.SetColumn(titleBlock, 1);
         iconRow.Children.Add(titleBlock);
         Grid.SetColumn(badgeBorder, 2);
@@ -228,14 +228,14 @@ public sealed partial class HomePage : UserControl
         valuesStack.Children.Add(secondaryText);
         valuesStack.Children.Add(descriptionText);
 
-        var openButton = new Button { Classes = { "subtle" }, Content = "Open" };
-        var moveEarlier = new Button { Classes = { "icon", "compact" }, Content = new HavenIcon { IconKey = "chevron-left", Width = 14, Height = 14 } };
+        var openButton = new HavenButton { Classes = { "subtle" }, Content = "Open" };
+        var moveEarlier = new HavenButton { Classes = { "icon", "compact" }, Content = new HavenIcon { IconKey = "chevron-left", Width = 14, Height = 14 } };
         ToolTip.SetTip(moveEarlier, "Move earlier");
         var moveLaterIcon = new HavenIcon { IconKey = "chevron-left", Width = 14, Height = 14 };
         moveLaterIcon.RenderTransform = new Avalonia.Media.RotateTransform(180);
-        var moveLater = new Button { Classes = { "icon", "compact" }, Content = moveLaterIcon };
+        var moveLater = new HavenButton { Classes = { "icon", "compact" }, Content = moveLaterIcon };
         ToolTip.SetTip(moveLater, "Move later");
-        var hideButton = new Button { Classes = { "icon", "compact" }, Content = new HavenIcon { IconKey = "close", Width = 13, Height = 13 } };
+        var hideButton = new HavenButton { Classes = { "icon", "compact" }, Content = new HavenIcon { IconKey = "close", Width = 13, Height = 13 } };
         ToolTip.SetTip(hideButton, "Hide tile");
 
         var buttonRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto"), ColumnSpacing = 4 };
@@ -254,7 +254,7 @@ public sealed partial class HomePage : UserControl
         Grid.SetRow(buttonRow, 2);
         contentGrid.Children.Add(buttonRow);
 
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Classes = { "dashboardTile" },
             Width = 270,
@@ -294,7 +294,7 @@ public sealed partial class HomePage : UserControl
     private Button CreateHiddenTileChip(TileEntry entry)
     {
         var def = entry.Definition;
-        var chip = new Button
+        var chip = new HavenButton
         {
             Classes = { "chip" },
             Margin = new Avalonia.Thickness(0, 0, 6, 6),
@@ -319,7 +319,7 @@ public sealed partial class HomePage : UserControl
         {
             foreach (var item in agenda)
             {
-                var dot = new Border { Classes = { "agendaDot" } };
+                var dot = new HavenAdaptiveSurface { Classes = { "agendaDot" } };
                 var titleBlock = new TextBlock { Text = item.Title, FontWeight = Avalonia.Media.FontWeight.SemiBold };
                 var detailBlock = new TextBlock { Text = item.Detail, Classes = { "muted" }, FontSize = 11 };
                 var stack = new StackPanel { Children = { titleBlock, detailBlock } };
@@ -332,7 +332,7 @@ public sealed partial class HomePage : UserControl
                 Grid.SetColumn(timeLabel, 2);
                 grid.Children.Add(timeLabel);
 
-                var button = new Button { Classes = { "sidebar" }, Content = grid };
+                var button = new HavenButton { Classes = { "sidebar" }, Content = grid };
                 var qName = $"Home.Agenda.Item{panel.Children.Count}";
                 button.RegisterWithEvents(qName, _bus);
                 button.Click += async (_, _) =>
@@ -366,7 +366,7 @@ public sealed partial class HomePage : UserControl
                 Grid.SetColumn(updatedLabel, 2);
                 grid.Children.Add(updatedLabel);
 
-                var button = new Button { Classes = { "sidebar" }, Content = grid };
+                var button = new HavenButton { Classes = { "sidebar" }, Content = grid };
                 var qName = $"Home.RecentWork.Item{panel.Children.Count}";
                 button.RegisterWithEvents(qName, _bus);
                 button.Click += async (_, _) =>

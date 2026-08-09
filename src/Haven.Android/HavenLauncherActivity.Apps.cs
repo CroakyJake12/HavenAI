@@ -121,6 +121,7 @@ public sealed partial class HavenLauncherActivity
         _pageIndicator.Text = PageCount <= 1
             ? "Swipe up for apps"
             : $"{_page + 1} / {PageCount}  •  Swipe up for apps";
+        AndroidTypography.ApplyTree(_grid);
     }
 
     private View BuildAppTile(LauncherApp app, int width, int height)
@@ -243,7 +244,7 @@ public sealed partial class HavenLauncherActivity
                 ViewGroup.LayoutParams.MatchParent)
         };
         shell.SetPadding(Dp(12), Dp(16), Dp(12), Dp(12));
-        shell.SetBackgroundColor(Color.Rgb(24, 18, 38));
+        shell.Background = HavenNativeSurface.Page();
 
         var header = new LinearLayout(this)
         {
@@ -292,6 +293,7 @@ public sealed partial class HavenLauncherActivity
         shell.AddView(scroll);
 
         dialog.SetContentView(shell);
+        AndroidTypography.ApplyTree(shell);
         dialog.Show();
         dialog.Window?.SetLayout(
             ViewGroup.LayoutParams.MatchParent,

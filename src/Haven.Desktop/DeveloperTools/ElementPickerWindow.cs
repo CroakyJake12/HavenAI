@@ -36,7 +36,7 @@ internal sealed class ElementPickerWindow : Window
         TransparencyBackgroundFallback = Brushes.Transparent;
         TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
 
-        _highlight = new Border
+        _highlight = new HavenAdaptiveSurface
         {
             IsHitTestVisible = false,
             BorderBrush = new SolidColorBrush(Color.FromRgb(64, 158, 255)),

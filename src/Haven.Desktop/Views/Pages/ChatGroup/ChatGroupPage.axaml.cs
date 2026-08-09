@@ -124,7 +124,7 @@ public sealed partial class ChatGroupPage : UserControl
                 Grid.SetColumn(updatedText, 1);
                 grid.Children.Add(updatedText);
 
-                var button = new Button { Classes = { "sidebar" }, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, Content = grid };
+                var button = new HavenButton { Classes = { "sidebar" }, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch, Content = grid };
                 var capturedChat = chat;
                 button.Click += async (_, _) => await _openChat(capturedChat);
                 RecentChatsPanel.Children.Add(button);

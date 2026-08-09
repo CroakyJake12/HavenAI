@@ -13,6 +13,7 @@ using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
+using Haven.Desktop.Views.Pages.Settings;
 
 namespace Haven.Desktop.Tests;
 
@@ -43,27 +44,31 @@ public sealed class GenerativeUiViewTests
     }
 
     /// <summary>
-    /// Performs the settings replaces legacy theme creator with one generative ui selector step owned by this component.
+    /// Ensures production Settings exposes one canonical four-position HavenUI
+    /// control and no obsolete theme editor.
     /// </summary>
     [AvaloniaFact]
-    public void SettingsReplacesLegacyThemeCreatorWithOneGenerativeUiSelector()
+    public void SettingsUsesOneHavenUiAppearanceControlWithoutLegacyThemeStudio()
     {
         var settings = new SettingsView();
         var window = new Window { Content = settings };
         try
         {
             window.Show();
-            var selectors = settings.GetVisualDescendants()
-                .OfType<GenerativeUiThemeSelectorView>()
+            var appearances = settings.GetVisualDescendants()
+                .OfType<HavenAppearanceSettingsView>()
                 .ToArray();
+            var selectors = settings.GetVisualDescendants().OfType<GenerativeUiThemeSelectorView>().ToArray();
             var text = settings.GetVisualDescendants()
                 .OfType<TextBlock>()
                 .Select(item => item.Text ?? string.Empty)
                 .ToArray();
 
-            Assert.Single(selectors);
-            Assert.Contains(text, value => value.Equals("GENERATIVE UI", StringComparison.Ordinal));
-            Assert.DoesNotContain(text, value => value.Equals("Theme Creator", StringComparison.OrdinalIgnoreCase));
+            Assert.Single(appearances);
+            Assert.Empty(selectors);
+            Assert.Contains(text, value => value.Equals("HavenUI brightness", StringComparison.Ordinal));
+            Assert.Contains(text, value => value.Equals("Super Bright", StringComparison.Ordinal));
+            Assert.Contains(text, value => value.Equals("Super Dark", StringComparison.Ordinal));
         }
         finally
         {

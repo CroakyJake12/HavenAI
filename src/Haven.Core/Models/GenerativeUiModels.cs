@@ -3,6 +3,18 @@
 namespace Haven.Core;
 
 /// <summary>
+/// The four colour-only appearances supported by the canonical HavenUI design
+/// system. Numeric order matches the discrete Settings brightness slider.
+/// </summary>
+public enum HavenUiAppearance
+{
+    SuperBright = 0,
+    Bright = 1,
+    Dark = 2,
+    SuperDark = 3
+}
+
+/// <summary>
 /// Lists the supported generative theme appearance values used to make state explicit and type-safe.
 /// </summary>
 public enum GenerativeThemeAppearance

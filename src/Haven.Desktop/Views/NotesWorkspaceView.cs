@@ -252,7 +252,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             return Task.CompletedTask;
         }, "Move this document to recoverable trash", danger: true), 3));
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = ResourceBrush("HavenSurfaceBrush", Color.FromRgb(28, 28, 31)),
             BorderBrush = ResourceBrush("HavenBorderBrush", Color.FromRgb(55, 55, 62)),
@@ -319,7 +319,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             {
                 new TextBlock { Text = "LIBRARY", Classes = { "eyebrow" } },
                 searchGrid,
-                new Border { Height = 145, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _searchPanel } },
+                new HavenAdaptiveSurface { Height = 145, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _searchPanel } },
                 new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
@@ -329,9 +329,9 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
                         WithColumn(ActionButton("+", async () => await _page.NewDocumentCommand.ExecuteAsync(), "New document"), 1)
                     }
                 },
-                new Border { MinHeight = 180, MaxHeight = 320, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _documentsPanel } },
+                new HavenAdaptiveSurface { MinHeight = 180, MaxHeight = 320, Child = new ScrollViewer { VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = _documentsPanel } },
                 structureHeader,
-                new Border { MinHeight = 150, Child = structure }
+                new HavenAdaptiveSurface { MinHeight = 150, Child = structure }
             }
         };
         return Card(content);
@@ -358,7 +358,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Cancel", () => { _page.CancelDeleteDocumentCommand.Execute(null); RefreshDeleteConfirmation(); return Task.CompletedTask; }, "Cancel delete"), 1));
         _deleteConfirmation.Children.Add(WithColumn(ActionButton("Move to trash", async () => { await _page.DeleteDocumentCommand.ExecuteAsync(); RefreshDeleteConfirmation(); }, "Confirm recoverable delete", danger: true), 2));
 
-        var page = new Border
+        var page = new HavenAdaptiveSurface
         {
             MaxWidth = 900,
             MinHeight = 1080,
@@ -383,7 +383,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
             }
         };
 
-        var statusBar = new Border
+        var statusBar = new HavenAdaptiveSurface
         {
             Background = ResourceBrush("HavenSurfaceBrush", Color.FromRgb(28, 28, 31)),
             BorderBrush = ResourceBrush("HavenBorderBrush", Color.FromRgb(55, 55, 62)),
@@ -412,16 +412,16 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private Control BuildInspectorPane()
     {
-        var tabs = new TabControl
+        var tabs = new HavenTabView
         {
             Focusable = true,
             ItemsSource = new object[]
             {
-                new TabItem { Header = "Block", Content = InspectorScroll(_blockPanel) },
-                new TabItem { Header = "AI", Content = InspectorScroll(_aiPanel) },
-                new TabItem { Header = "Review", Content = InspectorScroll(_reviewPanel) },
-                new TabItem { Header = "Versions", Content = InspectorScroll(_versionsPanel) },
-                new TabItem { Header = "Document", Content = InspectorScroll(_informationPanel) }
+                new HavenTabItem { Header = "Block", Content = InspectorScroll(_blockPanel) },
+                new HavenTabItem { Header = "AI", Content = InspectorScroll(_aiPanel) },
+                new HavenTabItem { Header = "Review", Content = InspectorScroll(_reviewPanel) },
+                new HavenTabItem { Header = "Versions", Content = InspectorScroll(_versionsPanel) },
+                new HavenTabItem { Header = "Document", Content = InspectorScroll(_informationPanel) }
             }
         };
         AutomationProperties.SetName(tabs, "Advanced document tools");
@@ -568,7 +568,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         {
             foreach (var document in _page.Documents)
             {
-                var button = new Button
+                var button = new HavenButton
                 {
                     HorizontalContentAlignment = HorizontalAlignment.Stretch,
                     Content = new StackPanel
@@ -601,7 +601,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         {
             foreach (var hit in _page.SearchResults)
             {
-                var button = new Button
+                var button = new HavenButton
                 {
                     HorizontalContentAlignment = HorizontalAlignment.Stretch,
                     Content = new StackPanel
@@ -632,7 +632,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         {
             foreach (var section in _page.Sections)
             {
-                var button = new Button { Content = section.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                var button = new HavenButton { Content = section.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 button.Classes.Add(ReferenceEquals(section, _page.CurrentSection) ? "accent" : "sidebar");
                 button.Click += (_, _) => _page.SelectSection(section);
                 panel.Children.Add(button);
@@ -642,7 +642,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         {
             foreach (var page in _page.Pages)
             {
-                var button = new Button { Content = page.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                var button = new HavenButton { Content = page.Title, HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 button.Classes.Add(ReferenceEquals(page, _page.CurrentPage) ? "accent" : "sidebar");
                 button.Click += (_, _) => _page.SelectPage(page);
                 panel.Children.Add(button);
@@ -675,7 +675,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
         if (block.Kind is not (NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote))
             return advanced;
 
-        var editor = new TextBox
+        var editor = new HavenTextInput
         {
             Text = block.PlainText,
             AcceptsReturn = true,
@@ -701,7 +701,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
 
         Control writingSurface = editor;
         if (block.Kind == NotesBlockKind.Quote)
-            writingSurface = new Border
+            writingSurface = new HavenAdaptiveSurface
             {
                 BorderBrush = ResourceBrush("HavenAccentBrush", Color.FromRgb(47, 128, 237)),
                 BorderThickness = new Thickness(3, 0, 0, 0),
@@ -709,7 +709,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
                 Child = editor
             };
 
-        var tools = new Expander
+        var tools = new HavenExpander
         {
             Header = "Formatting and block tools",
             Content = advanced,
@@ -886,7 +886,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private Button AddBlockButton(string label, System.Windows.Input.ICommand command)
     {
-        var button = new Button { Content = label, Command = command, Margin = new Thickness(2) };
+        var button = new HavenButton { Content = label, Command = command, Margin = new Thickness(2) };
         button.Click += (_, _) => QueueRefresh();
         ToolTip.SetTip(button, "Insert " + label.ToLowerInvariant() + " block");
         return button;
@@ -907,7 +907,7 @@ public sealed partial class NotesWorkspaceView : UserControl, IDisposable
     /// </summary>
     private static Button ActionButton(string label, Func<Task> action, string tooltip, bool danger = false)
     {
-        var button = new Button { Content = label };
+        var button = new HavenButton { Content = label };
         button.Classes.Add(danger ? "danger" : "secondary");
         button.Click += async (_, _) => await action();
         ToolTip.SetTip(button, tooltip);

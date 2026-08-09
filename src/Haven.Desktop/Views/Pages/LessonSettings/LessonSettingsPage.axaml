@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.LessonSettings.LessonSettingsPage"
              Loaded="OnLoaded">
@@ -10,30 +11,30 @@
       <TextBlock x:Name="NameHeading" Classes="heading" />
       <TextBlock Text="Organise the lesson and preserve its structured Study outline." Classes="muted" />
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="9">
           <TextBlock Text="Lesson name" Classes="muted" FontSize="11" />
-          <TextBox x:Name="NameBox" />
+          <hui:HavenTextInput x:Name="NameBox" />
           <TextBlock Text="Topic group" Classes="muted" FontSize="11" Margin="0,5,0,0" />
-          <TextBox x:Name="TopicGroupBox" PlaceholderText="General" />
+          <hui:HavenTextInput x:Name="TopicGroupBox" PlaceholderText="General" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="9">
           <TextBlock Text="STRUCTURE" Classes="eyebrow" />
           <TextBlock Text="JSON outline used to preserve sections, objectives, and progress metadata." Classes="muted" FontSize="11" />
-          <TextBox x:Name="StructureJsonBox"
+          <hui:HavenTextInput x:Name="StructureJsonBox"
                    AcceptsReturn="True"
                    TextWrapping="NoWrap"
                    FontFamily="Cascadia Code, Consolas"
                    MinHeight="190" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock x:Name="StatusText" Classes="muted" VerticalAlignment="Center" />
-        <Button Grid.Column="1" x:Name="SaveButton" Content="Save lesson" Classes="accent" />
+        <hui:HavenButton Grid.Column="1" x:Name="SaveButton" Content="Save lesson" Classes="accent" />
       </Grid>
     </StackPanel>
   </ScrollViewer>

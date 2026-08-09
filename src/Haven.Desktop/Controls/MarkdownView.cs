@@ -157,7 +157,7 @@ public sealed partial class MarkdownView : UserControl
 
             if (IsRule(line))
             {
-                _blocks.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 5), Background = Brush("HavenLineStrongBrush", "#2B2D31") });
+                _blocks.Children.Add(new HavenAdaptiveSurface { Height = 1, Margin = new Thickness(0, 5), Background = Brush("HavenLineStrongBrush", "#2B2D31") });
                 index++;
                 continue;
             }
@@ -216,7 +216,7 @@ public sealed partial class MarkdownView : UserControl
                     quote.Append(lines[index].TrimStart().TrimStart('>').TrimStart());
                     index++;
                 }
-                _blocks.Children.Add(new Border
+                _blocks.Children.Add(new HavenAdaptiveSurface
                 {
                     BorderBrush = Brush("HavenAccentBrush", "#72E0BD"),
                     BorderThickness = new Thickness(3, 0, 0, 0),
@@ -268,7 +268,7 @@ public sealed partial class MarkdownView : UserControl
         };
         Grid.SetRow(text, 1);
         panel.Children.Add(text);
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = Brush("HavenBackgroundBrush", "#080B10"),
             BorderBrush = Brush("HavenLineStrongBrush", "#2B2D31"),
@@ -284,7 +284,7 @@ public sealed partial class MarkdownView : UserControl
     /// </summary>
     private Control CreateMathBlock(string latex)
     {
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = Brush("HavenBackgroundBrush", "#080B10"),
             BorderBrush = Brush("HavenLineBrush", "#1B1D22"),
@@ -320,7 +320,7 @@ public sealed partial class MarkdownView : UserControl
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             for (var column = 0; column < values[row].Length; column++)
             {
-                var cell = new Border
+                var cell = new HavenAdaptiveSurface
                 {
                     Background = row == 0 ? Brush("HavenPanel3Brush", "#151D29") : Brush("HavenPanel2Brush", "#111721"),
                     BorderBrush = Brush("HavenLineStrongBrush", "#2B2D31"),
@@ -333,7 +333,7 @@ public sealed partial class MarkdownView : UserControl
                 grid.Children.Add(cell);
             }
         }
-        return new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Child = grid };
+        return new HavenAdaptiveSurface { CornerRadius = new CornerRadius(8), ClipToBounds = true, Child = grid };
     }
 
     /// <summary>

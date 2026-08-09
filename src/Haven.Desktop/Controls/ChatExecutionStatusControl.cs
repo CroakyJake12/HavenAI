@@ -42,7 +42,7 @@ public sealed class ChatExecutionStatusControl : UserControl, IDisposable
         {
             Children =
             {
-                new Expander
+                new HavenExpander
                 {
                     Header = _status,
                     Content = new ScrollViewer

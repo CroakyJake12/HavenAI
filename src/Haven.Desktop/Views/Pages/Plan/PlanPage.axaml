@@ -1,12 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Plan.PlanPage">
 
-  <Grid ColumnDefinitions="220,*,320" Background="{DynamicResource HavenBackgroundBrush}">
+  <Grid x:Name="RootGrid" ColumnDefinitions="240,*,360" Background="Transparent">
 
     <!-- Column 0: Views list + Collections -->
-    <Border Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
+    <hui:HavenAdaptiveSurface x:Name="ViewsRail" Grid.Column="0" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="0,0,1,0" Padding="18,22">
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel>
           <TextBlock Text="PLAN" Classes="eyebrow" />
@@ -19,76 +20,78 @@
               <TextBlock Text="COLLECTIONS" Classes="eyebrow" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="Local" Classes="muted" FontSize="11" />
             </Grid>
-            <ListBox x:Name="CollectionsList" Margin="0,8,0,0" />
+            <hui:HavenListBox x:Name="CollectionsList" Margin="0,8,0,0" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,9,0,0">
-              <TextBox x:Name="NewCollectionNameBox" PlaceholderText="New collection" />
-              <Button Grid.Column="1" Classes="icon" x:Name="CreateCollectionButton" ToolTip.Tip="Create collection">
+              <hui:HavenTextInput x:Name="NewCollectionNameBox" PlaceholderText="New collection" />
+              <hui:HavenButton Grid.Column="1" Classes="icon" x:Name="CreateCollectionButton" ToolTip.Tip="Create collection">
                 <controls:HavenIcon IconKey="plus" Width="14" Height="14" />
-              </Button>
+              </hui:HavenButton>
             </Grid>
-            <TextBox x:Name="SelectedCollectionNameBox" PlaceholderText="Collection name" Margin="0,7,0,5" />
+            <hui:HavenTextInput x:Name="SelectedCollectionNameBox" PlaceholderText="Collection name" Margin="0,7,0,5" />
             <Grid ColumnDefinitions="*,Auto">
-              <Button x:Name="RenameCollectionButton" Content="Rename" HorizontalContentAlignment="Left" />
-              <Button Grid.Column="1" x:Name="ArchiveCollectionRequestButton" Content="Archive" Margin="5,0,0,0" />
+              <hui:HavenButton x:Name="RenameCollectionButton" Content="Rename" HorizontalContentAlignment="Left" />
+              <hui:HavenButton Grid.Column="1" x:Name="ArchiveCollectionRequestButton" Content="Archive" Margin="5,0,0,0" />
             </Grid>
-            <Border Classes="card" Padding="9" Margin="0,7,0,0" IsVisible="False" x:Name="ArchiveConfirmPanel">
+            <hui:HavenAdaptiveSurface Classes="card" Padding="9" Margin="0,7,0,0" IsVisible="False" x:Name="ArchiveConfirmPanel">
               <StackPanel>
                 <TextBlock Text="Archive this collection? Tasks remain stored locally." Classes="muted" TextWrapping="Wrap" FontSize="10" />
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="5" Margin="0,6,0,0">
-                  <Button x:Name="CancelArchiveButton" Content="Cancel" />
-                  <Button Grid.Column="1" x:Name="ConfirmArchiveButton" Content="Archive" Classes="danger" />
+                  <hui:HavenButton x:Name="CancelArchiveButton" Content="Cancel" />
+                  <hui:HavenButton Grid.Column="1" x:Name="ConfirmArchiveButton" Content="Archive" Classes="danger" />
                 </Grid>
               </StackPanel>
-            </Border>
+            </hui:HavenAdaptiveSurface>
           </StackPanel>
         </ScrollViewer>
-        <Border Grid.Row="3" Classes="card" Padding="12">
+        <hui:HavenAdaptiveSurface Grid.Row="3" Classes="card" Padding="12">
           <TextBlock Text="Tasks stay local. Calendar accounts are optional and sync events only." Classes="muted" TextWrapping="Wrap" FontSize="11" />
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
     <!-- Column 1: Title/period header, task/event creation, content area -->
-    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="28,24">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <StackPanel>
+    <Grid x:Name="PlannerWorkspace" Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="28,24">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+        <hui:HavenTertiaryButton x:Name="CompactViewsButton" Content="Views" IsVisible="False" />
+        <hui:HavenTertiaryButton x:Name="CompactInspectorButton" Grid.Column="1" Content="Assist" IsVisible="False" />
+        <StackPanel Grid.Column="2">
           <TextBlock x:Name="TitleText" Classes="heading" />
           <TextBlock x:Name="PeriodText" Classes="muted" Margin="0,3,0,0" />
         </StackPanel>
-        <Button Grid.Column="1" Classes="icon" x:Name="PreviousPeriodButton" Margin="0,0,6,0" ToolTip.Tip="Previous period">
+        <hui:HavenButton Grid.Column="3" Classes="icon" x:Name="PreviousPeriodButton" Margin="0,0,6,0" ToolTip.Tip="Previous period">
           <controls:HavenIcon IconKey="chevron-left" Width="14" Height="14" />
-        </Button>
-        <Button Grid.Column="2" Content="Today" x:Name="TodayButton" Margin="0,0,6,0" />
-        <Button Grid.Column="3" Classes="icon" x:Name="NextPeriodButton" ToolTip.Tip="Next period">
+        </hui:HavenButton>
+        <hui:HavenButton Grid.Column="4" Content="Today" x:Name="TodayButton" Margin="0,0,6,0" />
+        <hui:HavenButton Grid.Column="5" Classes="icon" x:Name="NextPeriodButton" ToolTip.Tip="Next period">
           <controls:HavenIcon IconKey="chevron-left" RenderTransform="rotate(180deg)" Width="14" Height="14" />
-        </Button>
+        </hui:HavenButton>
       </Grid>
 
       <!-- Task creation -->
-      <Border Grid.Row="1" Classes="card" Margin="0,18,0,10" Padding="14">
+      <hui:HavenAdaptiveSurface Grid.Row="1" Classes="card" Margin="0,18,0,10" Padding="14">
         <Grid ColumnDefinitions="*,160,130,Auto" ColumnSpacing="8">
-          <TextBox x:Name="NewTaskTitleBox" PlaceholderText="Add a task…" />
-          <CalendarDatePicker x:Name="NewTaskDueDatePicker" Grid.Column="1" PlaceholderText="Due date" />
-          <ComboBox x:Name="NewTaskPriorityCombo" Grid.Column="2" />
-          <Button Grid.Column="3" Content="Add task" Classes="primary" x:Name="CreateTaskButton" />
+          <hui:HavenTextInput x:Name="NewTaskTitleBox" PlaceholderText="Add a task…" />
+          <hui:HavenCalendarPicker x:Name="NewTaskDueDatePicker" Grid.Column="1" PlaceholderText="Due date" />
+          <hui:HavenComboBox x:Name="NewTaskPriorityCombo" Grid.Column="2" />
+          <hui:HavenButton Grid.Column="3" Content="Add task" Classes="primary" x:Name="CreateTaskButton" />
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- Event creation -->
-      <Border Grid.Row="2" Classes="card" Margin="0,0,0,10" Padding="14">
+      <hui:HavenAdaptiveSurface Grid.Row="2" Classes="card" Margin="0,0,0,10" Padding="14">
         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,150,145" ColumnSpacing="8" RowSpacing="8">
-          <TextBox x:Name="NewEventTitleBox" PlaceholderText="Add a calendar event…" />
-          <ComboBox x:Name="NewEventCalendarCombo" Grid.Column="1" PlaceholderText="Calendar" />
-          <CalendarDatePicker x:Name="NewEventDatePicker" Grid.Column="2" PlaceholderText="Date" />
+          <hui:HavenTextInput x:Name="NewEventTitleBox" PlaceholderText="Add a calendar event…" />
+          <hui:HavenComboBox x:Name="NewEventCalendarCombo" Grid.Column="1" PlaceholderText="Calendar" />
+          <hui:HavenCalendarPicker x:Name="NewEventDatePicker" Grid.Column="2" PlaceholderText="Date" />
           <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,140,Auto,140,*,Auto" ColumnSpacing="8">
             <TextBlock Text="Starts" Classes="muted" VerticalAlignment="Center" />
-            <TimePicker x:Name="NewEventStartPicker" Grid.Column="1" ClockIdentifier="24HourClock" MinWidth="140" />
+            <hui:HavenTimePicker x:Name="NewEventStartPicker" Grid.Column="1" ClockIdentifier="24HourClock" MinWidth="140" />
             <TextBlock Grid.Column="2" Text="Ends" Classes="muted" VerticalAlignment="Center" />
-            <TimePicker x:Name="NewEventEndPicker" Grid.Column="3" ClockIdentifier="24HourClock" MinWidth="140" />
-            <Button Grid.Column="5" Content="Add event" Classes="primary" x:Name="CreateEventButton" HorizontalContentAlignment="Center" />
+            <hui:HavenTimePicker x:Name="NewEventEndPicker" Grid.Column="3" ClockIdentifier="24HourClock" MinWidth="140" />
+            <hui:HavenButton Grid.Column="5" Content="Add event" Classes="primary" x:Name="CreateEventButton" HorizontalContentAlignment="Center" />
           </Grid>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- Content area -->
       <ScrollViewer Grid.Row="3">
@@ -99,9 +102,9 @@
               <TextBlock Text="TASKS" Classes="eyebrow" />
               <TextBlock x:Name="TaskStatusText" Grid.Column="1" Classes="muted" FontSize="11" />
             </Grid>
-            <ListBox x:Name="TaskItemsPanel" BorderThickness="0" Background="Transparent" />
+            <hui:HavenListBox x:Name="TaskItemsPanel" BorderThickness="0" Background="Transparent" />
             <TextBlock Text="CALENDAR" Classes="eyebrow" Margin="2,16,2,8" />
-            <ListBox x:Name="EventItemsPanel" BorderThickness="0" Background="Transparent" />
+            <hui:HavenListBox x:Name="EventItemsPanel" BorderThickness="0" Background="Transparent" />
           </StackPanel>
 
           <!-- Board view -->
@@ -114,85 +117,85 @@
     </Grid>
 
     <!-- Column 2: Task/event editors, AI prompt, calendar accounts -->
-    <Border Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
+    <hui:HavenAdaptiveSurface x:Name="PlannerInspector" Grid.Column="2" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1,0,0,0" Padding="18,22">
       <ScrollViewer>
         <StackPanel>
           <!-- Task editor -->
-          <Border Classes="card" IsVisible="False" x:Name="TaskEditorPanel" Padding="14" Margin="0,0,0,14">
+          <hui:HavenAdaptiveSurface Classes="card" IsVisible="False" x:Name="TaskEditorPanel" Padding="14" Margin="0,0,0,14">
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="EDIT TASK" Classes="eyebrow" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseTaskEditorButton" ToolTip.Tip="Close task editor">
+                <hui:HavenButton Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseTaskEditorButton" ToolTip.Tip="Close task editor">
                   <controls:HavenIcon IconKey="close" Width="13" Height="13" />
-                </Button>
+                </hui:HavenButton>
               </Grid>
-              <TextBox x:Name="TaskEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
-              <TextBox x:Name="TaskEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <hui:HavenTextInput x:Name="TaskEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
+              <hui:HavenTextInput x:Name="TaskEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <ComboBox x:Name="TaskEditorPriorityCombo" />
-                <ComboBox x:Name="TaskEditorStatusCombo" Grid.Column="1" />
+                <hui:HavenComboBox x:Name="TaskEditorPriorityCombo" />
+                <hui:HavenComboBox x:Name="TaskEditorStatusCombo" Grid.Column="1" />
               </Grid>
-              <ComboBox x:Name="TaskEditorParentCombo" Margin="0,6,0,0" />
+              <hui:HavenComboBox x:Name="TaskEditorParentCombo" Margin="0,6,0,0" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <CalendarDatePicker x:Name="TaskEditorStartsAtPicker" PlaceholderText="Start" />
-                <CalendarDatePicker x:Name="TaskEditorDueAtPicker" Grid.Column="1" PlaceholderText="Due" />
+                <hui:HavenCalendarPicker x:Name="TaskEditorStartsAtPicker" PlaceholderText="Start" />
+                <hui:HavenCalendarPicker x:Name="TaskEditorDueAtPicker" Grid.Column="1" PlaceholderText="Due" />
               </Grid>
-              <CalendarDatePicker x:Name="TaskEditorReminderAtPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
-              <TextBox x:Name="TaskEditorTagsBox" PlaceholderText="Tags, separated by commas" Margin="0,6,0,0" />
-              <TextBox x:Name="TaskEditorEstimateBox" PlaceholderText="Estimate in minutes" Margin="0,6,0,0" />
-              <TextBox x:Name="TaskEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=WEEKLY;BYDAY=MO" Margin="0,6,0,0" />
-              <TextBox x:Name="TaskEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker x:Name="TaskEditorReminderAtPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="TaskEditorTagsBox" PlaceholderText="Tags, separated by commas" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="TaskEditorEstimateBox" PlaceholderText="Estimate in minutes" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="TaskEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=WEEKLY;BYDAY=MO" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="TaskEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
               <TextBlock x:Name="TaskEditorMessageText" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
-              <Button Content="Save task" Classes="primary" x:Name="SaveTaskButton" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Save task" Classes="primary" x:Name="SaveTaskButton" HorizontalAlignment="Stretch" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- Event editor -->
-          <Border Classes="card" IsVisible="False" x:Name="EventEditorPanel" Padding="14" Margin="0,0,0,14">
+          <hui:HavenAdaptiveSurface Classes="card" IsVisible="False" x:Name="EventEditorPanel" Padding="14" Margin="0,0,0,14">
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="EDIT EVENT" Classes="eyebrow" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseEventEditorButton" ToolTip.Tip="Close event editor">
+                <hui:HavenButton Grid.Column="1" Classes="icon" Width="30" Height="30" Padding="0" x:Name="CloseEventEditorButton" ToolTip.Tip="Close event editor">
                   <controls:HavenIcon IconKey="close" Width="13" Height="13" />
-                </Button>
+                </hui:HavenButton>
               </Grid>
-              <TextBox x:Name="EventEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
-              <TextBox x:Name="EventEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
-              <TextBox x:Name="EventEditorLocationBox" PlaceholderText="Location" Margin="0,6,0,0" />
-              <CalendarDatePicker x:Name="EventEditorDatePicker" PlaceholderText="Date" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="EventEditorTitleBox" PlaceholderText="Title" Margin="0,9,0,6" />
+              <hui:HavenTextInput x:Name="EventEditorNotesBox" PlaceholderText="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+              <hui:HavenTextInput x:Name="EventEditorLocationBox" PlaceholderText="Location" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker x:Name="EventEditorDatePicker" PlaceholderText="Date" Margin="0,6,0,0" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="6" Margin="0,6,0,0">
-                <TimePicker x:Name="EventEditorStartPicker" ClockIdentifier="24HourClock" />
-                <TimePicker x:Name="EventEditorEndPicker" Grid.Column="1" ClockIdentifier="24HourClock" />
+                <hui:HavenTimePicker x:Name="EventEditorStartPicker" ClockIdentifier="24HourClock" />
+                <hui:HavenTimePicker x:Name="EventEditorEndPicker" Grid.Column="1" ClockIdentifier="24HourClock" />
               </Grid>
-              <CheckBox x:Name="EventEditorAllDayCheck" Content="All day" Margin="0,6,0,0" />
-              <CalendarDatePicker x:Name="EventEditorReminderPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
-              <TextBox x:Name="EventEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=MONTHLY" Margin="0,6,0,0" />
-              <TextBox x:Name="EventEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
+              <hui:HavenCheckBox x:Name="EventEditorAllDayCheck" Content="All day" Margin="0,6,0,0" />
+              <hui:HavenCalendarPicker x:Name="EventEditorReminderPicker" PlaceholderText="Reminder" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="EventEditorRecurrenceBox" PlaceholderText="Recurrence, e.g. FREQ=MONTHLY" Margin="0,6,0,0" />
+              <hui:HavenTextInput x:Name="EventEditorTimeZoneBox" PlaceholderText="Time zone" Margin="0,6,0,0" />
               <TextBlock x:Name="EventEditorMessageText" Classes="muted" TextWrapping="Wrap" FontSize="10" Margin="0,7,0,7" />
-              <Button Content="Save event" Classes="primary" x:Name="SaveEventButton" HorizontalAlignment="Stretch" />
+              <hui:HavenButton Content="Save event" Classes="primary" x:Name="SaveEventButton" HorizontalAlignment="Stretch" />
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- AI prompt -->
           <TextBlock Text="PLAN WITH HAVEN" Classes="eyebrow" />
           <TextBlock Text="AI assistance" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,4" />
           <TextBlock Text="Ask Haven to break down a goal, organise a week, or resolve conflicts. You approve every edit." Classes="muted" TextWrapping="Wrap" />
-          <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104" Margin="0,14,0,8"
+          <hui:HavenTextInput x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104" Margin="0,14,0,8"
                    PlaceholderText="Plan my college deadlines around work…" />
-          <Button Content="Draft changes" Classes="primary" x:Name="AskAiButton" HorizontalAlignment="Stretch" />
+          <hui:HavenButton Content="Draft changes" Classes="primary" x:Name="AskAiButton" HorizontalAlignment="Stretch" />
 
           <!-- Proposal review -->
-          <Border Classes="card" Margin="0,14,0,0" IsVisible="False" x:Name="ProposalPanel" Padding="14">
+          <hui:HavenAdaptiveSurface Classes="card" Margin="0,14,0,0" IsVisible="False" x:Name="ProposalPanel" Padding="14">
             <StackPanel>
               <TextBlock Text="REVIEW PROPOSAL" Classes="eyebrow" />
               <TextBlock x:Name="ProposalSummaryText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,7,0,10" />
               <ItemsControl x:Name="ProposalChangesPanel" />
               <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,6,0,0">
-                <Button x:Name="DismissProposalButton" Content="Dismiss" />
-                <Button Grid.Column="1" x:Name="ApplyProposalButton" Content="Apply" Classes="primary" />
+                <hui:HavenButton x:Name="DismissProposalButton" Content="Dismiss" />
+                <hui:HavenButton Grid.Column="1" x:Name="ApplyProposalButton" Content="Apply" Classes="primary" />
               </Grid>
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- Calendar accounts -->
           <TextBlock Text="CALENDAR ACCOUNTS" Classes="eyebrow" Margin="0,24,0,8" />
@@ -207,6 +210,6 @@
           </StackPanel>
         </StackPanel>
       </ScrollViewer>
-    </Border>
+    </hui:HavenAdaptiveSurface>
   </Grid>
 </UserControl>

@@ -1,9 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.CallView"
              Loaded="OnLoaded">
-  <Border Padding="24">
+  <hui:HavenAdaptiveSurface Padding="24">
     <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">
@@ -15,20 +16,20 @@
           <TextBlock Text="A private local voice conversation with your Ollama model"
                      Foreground="{DynamicResource HavenMutedBrush}"/>
         </StackPanel>
-        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
+        <hui:HavenAdaptiveSurface Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
                 BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
                 CornerRadius="999" Padding="12,6" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="7">
             <Ellipse Width="8" Height="8" Fill="{DynamicResource HavenAccentBrush}"/>
             <TextBlock x:Name="StateLabel" FontWeight="SemiBold" FontSize="12"/>
           </StackPanel>
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
 
       <Grid Grid.Row="1" ColumnDefinitions="320,*" ColumnSpacing="18">
         <ScrollViewer Grid.Column="0">
           <StackPanel Spacing="14">
-            <Border Background="{DynamicResource HavenPanel2Brush}"
+            <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}"
                     BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
                     CornerRadius="14" Padding="16">
               <StackPanel Spacing="12">
@@ -36,49 +37,49 @@
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Ollama model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox x:Name="ModelSelector" HorizontalAlignment="Stretch"/>
+                  <hui:HavenComboBox x:Name="ModelSelector" HorizontalAlignment="Stretch"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Conversation mode" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox x:Name="InputModeSelector"/>
+                  <hui:HavenComboBox x:Name="InputModeSelector"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Microphone" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox x:Name="InputDeviceSelector"/>
+                  <hui:HavenComboBox x:Name="InputDeviceSelector"/>
                   <TextBlock x:Name="SpeechInputStatus" TextWrapping="Wrap" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Speech model" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox x:Name="SpeechModelSelector"/>
+                  <hui:HavenComboBox x:Name="SpeechModelSelector"/>
                   <TextBlock x:Name="SpeechModelStatus" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                   <StackPanel x:Name="SpeechModelSetupPanel" Spacing="7" IsVisible="False">
-                    <ProgressBar x:Name="SpeechModelProgress" IsVisible="False" Maximum="100"/>
-                    <Button x:Name="DownloadSpeechModelButton" Content="Download model"
+                    <hui:HavenProgressBar x:Name="SpeechModelProgress" IsVisible="False" Maximum="100"/>
+                    <hui:HavenButton x:Name="DownloadSpeechModelButton" Content="Download model"
                             Classes="secondary" HorizontalAlignment="Stretch"/>
                   </StackPanel>
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                   <TextBlock Text="Voice" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
-                  <ComboBox x:Name="VoiceSelector"/>
+                  <hui:HavenComboBox x:Name="VoiceSelector"/>
                   <TextBlock x:Name="SelectedVoiceDescription" TextWrapping="Wrap" FontSize="10"
                              Foreground="{DynamicResource HavenMutedBrush}" />
-                  <CheckBox x:Name="EnableSpeechOutputCheckBox" Content="Speak Haven responses"/>
+                  <hui:HavenCheckBox x:Name="EnableSpeechOutputCheckBox" Content="Speak Haven responses"/>
                   <TextBlock x:Name="SpeechOutputStatus" TextWrapping="Wrap" FontSize="11"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
 
-                <Button x:Name="StartCallButton" Content="Start local call"
+                <hui:HavenButton x:Name="StartCallButton" Content="Start local call"
                         Classes="primary" HorizontalAlignment="Stretch"/>
               </StackPanel>
-            </Border>
+            </hui:HavenAdaptiveSurface>
 
-            <Border Background="{DynamicResource HavenPanel2Brush}"
+            <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanel2Brush}"
                     BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
                     CornerRadius="14" Padding="14">
               <StackPanel Spacing="6">
@@ -92,22 +93,22 @@
                     <Ellipse Width="8" Height="8" Fill="#EF4444"/>
                     <TextBlock Text="Screen sharing is on" FontSize="11" FontWeight="SemiBold"/>
                   </StackPanel>
-                  <Border x:Name="ScreenPreviewBorder" CornerRadius="10" ClipToBounds="True"
+                  <hui:HavenAdaptiveSurface x:Name="ScreenPreviewBorder" CornerRadius="10" ClipToBounds="True"
                           BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
                           Background="#FF000000" MinHeight="96" MaxHeight="160" IsVisible="False">
                     <Image x:Name="ScreenPreview" Stretch="Uniform"/>
-                  </Border>
+                  </hui:HavenAdaptiveSurface>
                 </StackPanel>
               </StackPanel>
-            </Border>
+            </hui:HavenAdaptiveSurface>
           </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
+        <hui:HavenAdaptiveSurface Grid.Column="1" Background="{DynamicResource HavenPanel2Brush}"
                 BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
                 CornerRadius="14">
           <Grid RowDefinitions="Auto,*,Auto">
-            <Border Grid.Row="0" Padding="18,14" BorderBrush="{DynamicResource HavenLineBrush}"
+            <hui:HavenAdaptiveSurface Grid.Row="0" Padding="18,14" BorderBrush="{DynamicResource HavenLineBrush}"
                     BorderThickness="0,0,0,1">
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
@@ -115,42 +116,42 @@
                   <TextBlock x:Name="Status" TextWrapping="Wrap" FontSize="12"
                              Foreground="{DynamicResource HavenMutedBrush}"/>
                 </StackPanel>
-                <Button x:Name="InterruptButton" Grid.Column="1" Content="Interrupt"
+                <hui:HavenButton x:Name="InterruptButton" Grid.Column="1" Content="Interrupt"
                         Classes="subtle" VerticalAlignment="Center"/>
               </Grid>
-            </Border>
+            </hui:HavenAdaptiveSurface>
 
             <Grid Grid.Row="1">
               <StackPanel x:Name="EmptyTranscriptPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9">
-                <Border Width="72" Height="72" CornerRadius="36"
+                <hui:HavenAdaptiveSurface Width="72" Height="72" CornerRadius="36"
                         Background="{DynamicResource HavenAccentSoftBrush}">
                   <controls:HavenIcon IconKey="call" Width="32" Height="32"
                             Foreground="{DynamicResource HavenAccentBrush}" HorizontalAlignment="Center"
                             VerticalAlignment="Center"/>
-                </Border>
+                </hui:HavenAdaptiveSurface>
                 <TextBlock Text="Start a call, then speak or type below" FontWeight="SemiBold"/>
                 <TextBlock Text="Typed transcript mode works even when optional audio components are unavailable."
                            FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
               </StackPanel>
 
-              <ListBox x:Name="TranscriptScroller" Padding="18" IsVisible="False"
+              <hui:HavenListBox x:Name="TranscriptScroller" Padding="18" IsVisible="False"
                        BorderThickness="0" Background="Transparent"/>
             </Grid>
 
-            <Border Grid.Row="2" Padding="16" BorderBrush="{DynamicResource HavenLineBrush}"
+            <hui:HavenAdaptiveSurface Grid.Row="2" Padding="16" BorderBrush="{DynamicResource HavenLineBrush}"
                     BorderThickness="0,1,0,0">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBox x:Name="TypedTranscriptBox" Grid.Column="0"
+                <hui:HavenTextInput x:Name="TypedTranscriptBox" Grid.Column="0"
                          PlaceholderText="Type what you want to say…"/>
-                <Button x:Name="SendTranscriptButton" Grid.Column="1" Content="Send"
+                <hui:HavenButton x:Name="SendTranscriptButton" Grid.Column="1" Content="Send"
                         Classes="primary" MinWidth="76"/>
               </Grid>
-            </Border>
+            </hui:HavenAdaptiveSurface>
           </Grid>
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
 
-      <Border Grid.Row="2" Background="{DynamicResource HavenPanel2Brush}"
+      <hui:HavenAdaptiveSurface Grid.Row="2" Background="{DynamicResource HavenPanel2Brush}"
               BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1"
               CornerRadius="14" Padding="14">
         <Grid ColumnDefinitions="*,Auto,*">
@@ -161,23 +162,23 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Width="3" Height="{Binding Height}" CornerRadius="2"
+                <hui:HavenAdaptiveSurface Width="3" Height="{Binding Height}" CornerRadius="2"
                         Background="{DynamicResource HavenAccentBrush}" VerticalAlignment="Center"/>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="MuteButton" Content="Mute" Classes="secondary"/>
-            <Button x:Name="PushToTalkButton" Content="Hold to talk" Classes="primary"
+            <hui:HavenButton x:Name="MuteButton" Content="Mute" Classes="secondary"/>
+            <hui:HavenButton x:Name="PushToTalkButton" Content="Hold to talk" Classes="primary"
                     PointerPressed="OnPushToTalkPressed" PointerReleased="OnPushToTalkReleased"
                     PointerCaptureLost="OnPushToTalkCaptureLost"/>
-            <Button x:Name="PauseButton" Content="Pause" Classes="secondary"/>
-            <Button x:Name="ShareButton" Content="Share screen" Classes="secondary"/>
-            <Button x:Name="EndCallButton" Content="End call" Classes="danger"/>
+            <hui:HavenButton x:Name="PauseButton" Content="Pause" Classes="secondary"/>
+            <hui:HavenButton x:Name="ShareButton" Content="Share screen" Classes="secondary"/>
+            <hui:HavenButton x:Name="EndCallButton" Content="End call" Classes="danger"/>
           </StackPanel>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
     </Grid>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

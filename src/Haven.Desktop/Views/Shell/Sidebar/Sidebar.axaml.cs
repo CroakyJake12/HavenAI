@@ -51,8 +51,8 @@ public sealed partial class Sidebar : UserControl
             _eventBus.WirePointerEvents("Sidebar.StudioHome", StudioHomeButton);
         if (AgentsFullButton is not null)
             _eventBus.WirePointerEvents("Sidebar.Agents", AgentsFullButton);
-        if (PluginsButton is not null)
-            _eventBus.WirePointerEvents("Sidebar.Plugins", PluginsButton);
+        if (CapabilitiesButton is not null)
+            _eventBus.WirePointerEvents("Sidebar.Capabilities", CapabilitiesButton);
         if (PromptsButton is not null)
             _eventBus.WirePointerEvents("Sidebar.Prompts", PromptsButton);
         if (MoreToolsButton is not null)

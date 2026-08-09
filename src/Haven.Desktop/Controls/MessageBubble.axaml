@@ -1,13 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Controls.MessageBubble">
 
-    <Border x:Name="Bubble"
+    <hui:HavenAdaptiveSurface x:Name="Bubble"
             MaxWidth="900"
             HorizontalAlignment="Stretch"
-            Background="#D2FFFFFF"
-            BorderBrush="#2D000000"
+            Background="{DynamicResource HavenCardSurfaceBrush}"
+            BorderBrush="{DynamicResource HavenBorderSubtleBrush}"
             BorderThickness="1"
             CornerRadius="18"
             Padding="22,18">
@@ -16,8 +17,8 @@
                        FontWeight="Bold"
                        FontSize="12"
                        Foreground="{DynamicResource HavenTextBrush}" />
-            <controls:MarkdownView x:Name="Body"
-                                   Foreground="{DynamicResource HavenTextBrush}" />
+            <controls:ProductionMarkdownView x:Name="Body"
+                                             Foreground="{DynamicResource HavenTextPrimaryBrush}" />
         </StackPanel>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 </UserControl>
