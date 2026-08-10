@@ -1,6 +1,5 @@
 <!--
-  DefaultTheme.axaml — Consolidated Haven theme
-  Combines resources from App.axaml and styles from MagicalTheme.axaml into one file.
+  DefaultTheme.axaml — canonical HavenUI theme resources and styles.
 -->
 
 <Styles xmlns="https://github.com/avaloniaui"
@@ -681,7 +680,7 @@
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
   </Style>
-  <Style Selector="Border.magicalFloatingRail">
+  <Style Selector="Border.havenFloatingRail">
     <Setter Property="Background" Value="{DynamicResource HavenElevatedBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource HavenLineBrush}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -922,6 +921,25 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector=":is(hui|HavenTextInput):focus"><Setter Property="BorderBrush" Value="{DynamicResource HavenAccentPrimaryBrush}"/><Setter Property="Effect"><DropShadowEffect Color="{DynamicResource HavenAccentPrimaryGlowColor}" BlurRadius="14" Opacity="0.38"/></Setter></Style>
+  <!-- Fluent's inner template focus border must use HavenUI tokens too. -->
+  <Style Selector=":is(hui|HavenTextInput):focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Background" Value="{DynamicResource HavenInputSurfaceBrush}" />
+  </Style>
+  <Style Selector=":is(hui|HavenTextInput):focus-visible /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector=":is(hui|HavenTextInput):pointerover">
+    <Setter Property="Background" Value="{DynamicResource HavenStateHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentTertiaryBrush}" />
+  </Style>
+  <Style Selector=":is(hui|HavenTextInput):pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource HavenStateHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentTertiaryBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
   <Style Selector=":is(hui|HavenTextInput) /template/ Button"><Setter Property="IsVisible" Value="False"/></Style>
   <Style Selector="hui|HavenSearchInput"><Setter Property="MinHeight" Value="46"/><Setter Property="Padding" Value="18,0"/><Setter Property="CornerRadius" Value="23"/></Style>
   <Style Selector="hui|HavenMultilineInput"><Setter Property="MinHeight" Value="112"/><Setter Property="Padding" Value="18,15"/><Setter Property="CornerRadius" Value="24"/><Setter Property="VerticalContentAlignment" Value="Top"/></Style>
@@ -1045,6 +1063,10 @@
   <Style Selector=":is(hui|HavenCard)">
     <Setter Property="Background" Value="{DynamicResource HavenCardSurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/><Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="20"/><Setter Property="Padding" Value="18"/><Setter Property="BoxShadow" Value="0 14 34 0 #66000000"/>
+  </Style>
+  <Style Selector=":is(hui|HavenCard):pointerover">
+    <Setter Property="Background" Value="{DynamicResource HavenStateHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HavenAccentTertiaryBrush}" />
   </Style>
   <Style Selector="hui|HavenAdaptiveSurface.card, hui|HavenAdaptiveSurface.report-panel">
     <Setter Property="Background" Value="{DynamicResource HavenCardSurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="20"/><Setter Property="Padding" Value="18"/>

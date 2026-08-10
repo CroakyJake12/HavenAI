@@ -84,6 +84,8 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<ComputerUseOverlayCoordinator>();
         collection.AddSingleton<AutomationDeliveryController>();
         collection.AddSingleton<GenerativeUiThemeRuntime>();
+        collection.AddSingleton<FloatingActivityStateStore>();
+        collection.AddSingleton<IFloatingActivityHost, DesktopFloatingActivityHost>();
         collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
         collection.AddSingleton<HavenEventBus>();
         collection.AddSingleton<MainView>();

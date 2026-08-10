@@ -28,7 +28,8 @@ public interface IGenUiEventAuditSink
 public sealed class GenerativeUiEventRouter(
     IEnumerable<IGenUiEventHandler> handlers,
     IGenUiEventAuditSink audit,
-    GenUiInstanceStore instances)
+    GenUiInstanceStore instances,
+    IPermissionDecisionEngine? permissions = null)
 {
     private readonly IReadOnlyList<IGenUiEventHandler> _handlers = handlers.ToArray();
 
@@ -43,6 +44,30 @@ public sealed class GenerativeUiEventRouter(
         if (errors.Count > 0) throw new InvalidOperationException(string.Join(" ", errors));
         if (!binding.ActionId.Equals(semanticEvent.ActionId, StringComparison.Ordinal))
             throw new InvalidOperationException("Event action ID does not match its registered binding.");
+
+        var decision = permissions?.Evaluate(
+            binding.TargetKey,
+            binding.RiskClass,
+            binding.RequiresPermission,
+            $"Generated UI requested action '{binding.ActionId}'.");
+        if (decision?.Kind == PermissionDecisionKind.Ask)
+        {
+            var pending = Result(
+                semanticEvent,
+                GenUiActionStatus.PermissionRequired,
+                decision.Reason,
+                System.Text.Json.JsonSerializer.SerializeToElement(new
+                {
+                    scope = decision.Scope,
+                    action = binding.ActionId,
+                    reason = decision.Reason,
+                    allow = true,
+                    deny = true,
+                    alwaysAllow = true
+                }));
+            await audit.RecordAsync(semanticEvent, pending, cancellationToken).ConfigureAwait(false);
+            return pending;
+        }
 
         var handler = _handlers.FirstOrDefault(candidate =>
             candidate.RouteKind == binding.Route && candidate.CanHandle(binding.TargetKey));

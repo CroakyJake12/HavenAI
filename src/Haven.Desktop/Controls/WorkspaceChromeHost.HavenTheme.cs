@@ -1,6 +1,6 @@
 /*
  * FILE DOCUMENTATION
- * Where: src/Haven.OldHaven/Controls/WorkspaceChromeHost.MagicalTheme.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
+ * Where: src/Haven.Desktop/Controls/WorkspaceChromeHost.HavenTheme.cs, in the Desktop controls layer, containing reusable Avalonia behavior and visual building blocks.
  * What: This file owns WorkspaceChromeHost. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: The file keeps one cohesive responsibility in a predictable location so callers can find and replace it without unrelated changes.
@@ -25,14 +25,6 @@ namespace Haven.Desktop.Controls;
 public sealed partial class WorkspaceChromeHost
 {
     /// <summary>
-    /// Stores magical styles gate locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private static readonly object MagicalStylesGate = new();
-    /// <summary>
-    /// Stores magical styles loaded locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private static bool _magicalStylesLoaded;
-
     /// <summary>
     /// Stores maximize geometry locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -45,17 +37,13 @@ public sealed partial class WorkspaceChromeHost
         "M7,4 L20,4 L20,17 L17,17 L17,7 L7,7 Z M4,7 L16,7 L16,20 L4,20 Z M6,9 L6,18 L14,18 L14,9 Z");
 
     /// <summary>
-    /// Stores magical backdrop locally so this component can preserve the dependency, cache, or state between member calls.
-    /// </summary>
-    private MagicalBackdrop? _magicalBackdrop;
-    /// <summary>
     /// Stores motion preferences locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private MotionPreferencesService? _motionPreferences;
     /// <summary>
-    /// Stores magical mode rail host locally so this component can preserve the dependency, cache, or state between member calls.
+    /// Stores Haven mode rail host locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private Border? _magicalModeRailHost;
+    private Border? _havenModeRailHost;
     /// <summary>
     /// Stores floating top rail host locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -74,13 +62,13 @@ public sealed partial class WorkspaceChromeHost
     private Button? _maximizeButton;
 
     /// <summary>
-    /// Builds magical backdrop from the currently available inputs.
+    /// Builds the transparent Haven backdrop host.
     /// </summary>
-    private MagicalBackdrop BuildMagicalBackdrop()
+    private Border BuildHavenBackdrop()
     {
-        _magicalBackdrop = new MagicalBackdrop();
-        Grid.SetRowSpan(_magicalBackdrop, 2);
-        return _magicalBackdrop;
+        var backdrop = new Border { Background = Brushes.Transparent };
+        Grid.SetRowSpan(backdrop, 2);
+        return backdrop;
     }
 
     /// <summary>
@@ -124,7 +112,7 @@ public sealed partial class WorkspaceChromeHost
             VerticalAlignment = VerticalAlignment.Stretch,
             Child = acrylic
         };
-        _floatingTopRailHost.Classes.Add("magicalFloatingRail");
+        _floatingTopRailHost.Classes.Add("havenFloatingRail");
         _floatingTopRailHost.PointerPressed += OnTopRailPointerPressed;
         return _floatingTopRailHost;
     }
@@ -199,39 +187,36 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs the initialize magical theme step owned by this component.
+    /// Initializes Haven theme conformance and motion behavior.
     /// </summary>
-    private void InitializeMagicalTheme()
+    private void InitializeHavenTheme()
     {
-        EnsureMagicalStylesLoaded();
-        if (!Classes.Contains("magicalShell")) Classes.Add("magicalShell");
+        if (!Classes.Contains("havenShell")) Classes.Add("havenShell");
 
         _motionPreferences = MotionPreferencesService.Current;
         _motionPreferences.Changed += OnMotionPreferenceChanged;
-        AttachedToVisualTree += OnMagicalAttachedToVisualTree;
+        AttachedToVisualTree += OnHavenAttachedToVisualTree;
 
         DecorateModeRail();
         ApplyMotionPreference();
     }
 
     /// <summary>
-    /// Performs the dispose magical theme step owned by this component.
+    /// Disposes Haven theme conformance and motion behavior.
     /// </summary>
-    private void DisposeMagicalTheme()
+    private void DisposeHavenTheme()
     {
         if (_motionPreferences is not null)
             _motionPreferences.Changed -= OnMotionPreferenceChanged;
-        AttachedToVisualTree -= OnMagicalAttachedToVisualTree;
+        AttachedToVisualTree -= OnHavenAttachedToVisualTree;
 
         if (_floatingTopRailHost is not null)
             _floatingTopRailHost.PointerPressed -= OnTopRailPointerPressed;
         if (_hostWindow is not null)
             _hostWindow.PropertyChanged -= OnHostWindowPropertyChanged;
 
-        _magicalBackdrop?.Dispose();
-        _magicalBackdrop = null;
         _motionPreferences = null;
-        _magicalModeRailHost = null;
+        _havenModeRailHost = null;
         _floatingTopRailHost = null;
         _hostWindow = null;
         _maximizeIcon = null;
@@ -239,26 +224,13 @@ public sealed partial class WorkspaceChromeHost
     }
 
     /// <summary>
-    /// Performs the ensure magical styles loaded step owned by this component.
+    /// Legacy style loading is intentionally removed; DefaultTheme is the active source.
     /// </summary>
-    private static void EnsureMagicalStylesLoaded()
-    {
-        lock (MagicalStylesGate)
-        {
-            if (_magicalStylesLoaded || Avalonia.Application.Current is not { } application) return;
-
-            application.Styles.Add(new StyleInclude(new Uri("avares://Haven/"))
-            {
-                Source = new Uri("avares://Haven/Styles/MagicalTheme.axaml")
-            });
-            _magicalStylesLoaded = true;
-        }
-    }
 
     /// <summary>
-    /// Handles the magical attached to visual tree event raised by the UI or runtime.
+    /// Handles the Haven shell attachment event raised by the UI or runtime.
     /// </summary>
-    private void OnMagicalAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    private void OnHavenAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         DecorateModeRail();
         ConfigureHostWindow();
@@ -343,7 +315,7 @@ public sealed partial class WorkspaceChromeHost
     /// </summary>
     private void DecorateModeRail()
     {
-        if (_magicalModeRailHost is not null) return;
+        if (_havenModeRailHost is not null) return;
 
         var rail = _experienceShell.Children
             .OfType<Border>()
@@ -372,7 +344,7 @@ public sealed partial class WorkspaceChromeHost
             MaterialOpacity = isLight ? 0.84 : 0.70
         };
 
-        _magicalModeRailHost = new HavenAdaptiveSurface
+        _havenModeRailHost = new HavenAdaptiveSurface
         {
             Width = 70,
             Margin = new Thickness(7, 8, 3, 10),
@@ -381,9 +353,9 @@ public sealed partial class WorkspaceChromeHost
             VerticalAlignment = VerticalAlignment.Stretch,
             Child = acrylic
         };
-        _magicalModeRailHost.Classes.Add("magicalFloatingRail");
-        Grid.SetColumn(_magicalModeRailHost, 0);
-        _experienceShell.Children.Insert(0, _magicalModeRailHost);
+        _havenModeRailHost.Classes.Add("havenFloatingRail");
+        Grid.SetColumn(_havenModeRailHost, 0);
+        _experienceShell.Children.Insert(0, _havenModeRailHost);
     }
 
     /// <summary>
@@ -404,8 +376,6 @@ public sealed partial class WorkspaceChromeHost
         else if (!Classes.Contains("motionEnabled"))
             Classes.Add("motionEnabled");
 
-        if (_magicalBackdrop is not null)
-            _magicalBackdrop.ReduceMotion = reduceAnimations;
     }
 
     private static bool UsesLightAppearance() =>

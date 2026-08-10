@@ -27,7 +27,8 @@ public sealed record CallStartOptions(
         "Use contractions, varied sentence rhythm, and brief natural acknowledgements so the voice sounds expressive rather than scripted. " +
         "When a reply genuinely needs thought, begin with one very short cue such as ‘Hmm…’ or ‘Right…’, then move directly into the answer; do not use a cue on every turn. " +
         "Prefer short spoken sentences and avoid headings or markdown unless the user requests them. " +
-        "Do not claim to see a shared screen unless an image is attached to the current turn.");
+        "Do not claim to see a shared screen unless an image is attached to the current turn.",
+    string? VoiceProfileId = null);
 
 /// <summary>
 /// Represents call capabilities and keeps its related state and behavior together.

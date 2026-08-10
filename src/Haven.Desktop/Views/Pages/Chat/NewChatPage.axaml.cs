@@ -63,6 +63,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private ModeDefinition? _modeDefinition;
     private Conversation _conversation;
     private AgentDefinition? _activeAgent;
+    private ChatActionMode? _chatActionModeOverride;
+    private GenerativeUiResponseMode? _chatGenerativeUiResponseModeOverride;
     private ModelDescriptor? _selectedModel;
     private string? _pendingInstruction;
     private CancellationTokenSource? _sendCancellation;
@@ -153,6 +155,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public Conversation CurrentConversation => _conversation;
     public bool IsTemporary => _conversation.IsTemporary;
     public bool HasStarted => _messages.Count > 0;
+    public string ActiveAgentName => _activeAgent?.Name ?? "No Agent (Default)";
+    public ChatActionMode EffectiveChatActionMode => _chatActionModeOverride ?? ChatActionMode.AllowBasicActions;
 
     /// <summary>
     /// Gives the shared conversation canvas a registered app identity. The
@@ -167,6 +171,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
         _modeDefinition = mode;
         _conversation = CreateConversation(mode.BaseMode);
+        _chatActionModeOverride = null;
+        _chatGenerativeUiResponseModeOverride = null;
         InstructionBox.PlaceholderText = mode.Key switch
         {
             "imagine" => "Describe an image, style or visual concept",
@@ -195,6 +201,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _isTaskMode = true;
         _modeDefinition = null;
         _conversation = CreateConversation(HavenMode.Tasks);
+        _chatActionModeOverride = null;
+        _chatGenerativeUiResponseModeOverride = null;
         SurfaceGrid.ColumnDefinitions = new ColumnDefinitions("340,*");
         SurfaceTitle.IsVisible = true;
         TasksSidebarHost.IsVisible = true;
@@ -449,6 +457,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     {
         _sendCancellation?.Cancel();
         _conversation = CreateConversation(mode, containerId, lessonId);
+        _chatActionModeOverride = null;
+        _chatGenerativeUiResponseModeOverride = null;
         _messages.Clear();
         _streamingMessages.Clear();
         _pendingInstruction = null;
@@ -489,6 +499,8 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     public async Task LoadConversationAsync(Conversation conversation)
     {
         _conversation = conversation;
+        _chatActionModeOverride = null;
+        _chatGenerativeUiResponseModeOverride = null;
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
         RefreshMessages();
@@ -511,6 +523,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             case PromptDefinition instruction:
                 if (_activeInstructions.All(item => item.Id != instruction.Id)) _activeInstructions.Add(instruction);
                 StatusText.Text = $"{instruction.Name} instruction added.";
+                break;
+            case ChatActionMode actionMode:
+                _chatActionModeOverride = actionMode;
+                StatusText.Text = $"{ActionModeLabel(actionMode)} for this chat.";
+                break;
+            case GenerativeUiResponseMode responseMode:
+                _chatGenerativeUiResponseModeOverride = responseMode;
+                StatusText.Text = $"{VisualResponseModeLabel(responseMode)} for this chat.";
                 break;
             case ModeDefinition app:
                 _taskAttachments.AttachApp(app);
@@ -723,6 +743,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
         SendButton.Click += OnSendClicked;
         InstructionBox.KeyDown += OnInstructionKeyDown;
+        AddButton.CurrentAgentNameProvider = () => ActiveAgentName;
         AddButton.ActionSelected += OnAddActionSelected;
         AddButton.CatalogItemSelected += OnCatalogItemSelected;
         ResolveProblemsButton.Click += OnResolveProblemsClicked;
@@ -940,7 +961,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                                filePermission: _preferences.FilePermission,
                                commandPermission: _preferences.CommandPermission,
                                browserPermission: _preferences.BrowserPermission,
-                               availableCapabilities: _availableCapabilities.Select(ActiveCapability.FromDefinition).ToArray()).ConfigureAwait(false))
+                               availableCapabilities: ActiveCapabilitiesForCurrentChat()).ConfigureAwait(false))
             {
                 if (streamEvent.Kind == ChatStreamEventKind.AssistantDelta &&
                     streamEvent.MessageId is { } deltaMessageId)
@@ -985,6 +1006,33 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         }
     }
 
+    private IReadOnlyList<ActiveCapability> ActiveCapabilitiesForCurrentChat()
+    {
+        IEnumerable<CapabilityDefinition> allowed = EffectiveChatActionMode switch
+        {
+            ChatActionMode.JustChat => [],
+            ChatActionMode.AllowBasicActions => _availableCapabilities.Where(item => item.RiskClass is CapabilityRiskClass.ReadOnly or CapabilityRiskClass.Low),
+            _ => _availableCapabilities
+        };
+        return allowed.Select(ActiveCapability.FromDefinition).ToArray();
+    }
+
+    private static string ActionModeLabel(ChatActionMode mode) => mode switch
+    {
+        ChatActionMode.AllowAllActions => "Allow All Actions",
+        ChatActionMode.JustChat => "Just Chat",
+        _ => "Allow Basic Actions"
+    };
+
+    private static string VisualResponseModeLabel(GenerativeUiResponseMode mode) => mode switch
+    {
+        GenerativeUiResponseMode.AlwaysVisual => "Always Visual",
+        GenerativeUiResponseMode.PreferVisual => "Prefer Visual",
+        GenerativeUiResponseMode.PreferText => "Prefer Text",
+        GenerativeUiResponseMode.AlwaysText => "Always Text",
+        _ => "Auto"
+    };
+
     private string? BuildRegisteredContext()
     {
         var sections = new List<string>();
@@ -999,7 +1047,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         if (_taskAttachments.BuildCapabilityContext() is { } capabilityContext)
             sections.Add(capabilityContext);
         sections.AddRange(_attachedContext.Where(item => !string.IsNullOrWhiteSpace(item)));
-        sections.Add(GenUiChatDirectiveParser.ModelInstruction);
+        sections.Add(GenUiChatDirectiveParser.ModelInstructionFor(_chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto));
         return sections.Count == 0 ? null : string.Join("\n\n", sections);
     }
 
@@ -1211,6 +1259,11 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
                 // Validate the generated UI after rendering
                 var warnings = ValidateGeneratedSurface(surface);
+                if (surface.Document is { } generatedDocument)
+                {
+                    warnings.AddRange(GenUiDocumentQualityValidator.Validate(generatedDocument)
+                        .Select(issue => $"GenUI self-check: {issue.Message}"));
+                }
                 if (warnings.Count > 0)
                 {
                     // Append validation warnings below the surface

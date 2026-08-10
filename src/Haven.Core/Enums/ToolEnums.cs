@@ -28,6 +28,19 @@ public enum EffortLevel { Low, Medium, High, Max }
 /// Permission mode values.
 /// </summary>
 public enum PermissionMode { Ask, AutoSafe, FullAccess }
+
+/// <summary>
+/// Defines the ceiling on action-taking for a chat. This is intentionally
+/// separate from PermissionMode: permission modes control approval semantics,
+/// while this value controls which categories of actions may be selected at all.
+/// </summary>
+public enum ChatActionMode { AllowAllActions, AllowBasicActions, JustChat }
+
+/// <summary>
+/// Controls how strongly Haven should choose Generative UI on its own. Explicit
+/// user requests for visual or interactive UI remain eligible in every mode.
+/// </summary>
+public enum GenerativeUiResponseMode { AlwaysVisual, PreferVisual, Auto, PreferText, AlwaysText }
 /// <summary>
 /// Container resource kind values.
 /// </summary>

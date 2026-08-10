@@ -46,6 +46,8 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
     public event EventHandler<GenUiEvent>? SemanticEventEmitted;
     public event EventHandler<GenUiActionResult>? ActionCompleted;
 
+    public GenUiDocument? Document => _document;
+
     public void Present(GenUiDocument document)
     {
         GenerativeUiContractValidator.ValidateAndThrow(document);

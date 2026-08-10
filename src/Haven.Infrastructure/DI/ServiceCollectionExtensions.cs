@@ -118,6 +118,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CallOptimizedOllamaClient>();
         services.AddSingleton<CallCoordinator>();
         services.AddSingleton<ResponsiveCallCoordinator>();
+        services.AddSingleton<VoiceProfileCatalog>();
+        services.AddSingleton<IKnowledgeLibrary, KnowledgeLibraryService>();
+        services.AddSingleton<IApiBank, ApiBankService>();
+        services.AddSingleton<BackgroundLearningScheduler>();
+        services.AddSingleton<IBackgroundLearningScheduler>(provider => provider.GetRequiredService<BackgroundLearningScheduler>());
+        services.AddSingleton<IPermissionDecisionEngine, PermissionDecisionEngine>();
         services.AddSingleton<ICallCoordinator>(provider => provider.GetRequiredService<ResponsiveCallCoordinator>());
         services.AddSingleton<ILegacyStateMigrator, LegacyStateMigrator>();
         services.AddSingleton<IWorkspaceToolService, WorkspaceToolService>();

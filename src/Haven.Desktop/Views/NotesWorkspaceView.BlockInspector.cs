@@ -285,15 +285,15 @@ public sealed partial class NotesWorkspaceView
         {
             var spaces = new string(' ', Decimal.ToInt32(tabSize.Value ?? 4));
             _ = BeginEditingAsync(block);
+            block.PlainText = block.PlainText.Replace("\t", spaces, StringComparison.Ordinal);
             if (block.Runs.Count == 0)
             {
-                block.PlainText = block.PlainText.Replace("\t", spaces, StringComparison.Ordinal);
+                // PlainText is already normalized above.
             }
             else
             {
                 foreach (var run in block.Runs)
                     run.Text = run.Text.Replace("\t", spaces, StringComparison.Ordinal);
-                block.PlainText = string.Concat(block.Runs.Select(run => run.Text));
             }
             _ = EndEditingAsync(block, "Normalized code indentation");
             RebuildPreview();

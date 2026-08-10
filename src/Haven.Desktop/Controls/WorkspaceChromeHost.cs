@@ -40,7 +40,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
 
         ExtractLegacyChrome(existingShell);
 
-        Children.Add(BuildMagicalBackdrop());
+        Children.Add(BuildHavenBackdrop());
         Children.Add(BuildFloatingTopRail(BuildModernTopBar()));
 
         _experienceShell = new ExperienceShellHost(existingShell);
@@ -49,7 +49,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
 
         InitializeModernChrome();
         InitializeActionsBridge();
-        InitializeMagicalTheme();
+        InitializeHavenTheme();
     }
 
     /// <summary>
@@ -102,7 +102,7 @@ public sealed partial class WorkspaceChromeHost : Grid, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        DisposeMagicalTheme();
+        DisposeHavenTheme();
         DisposeActionsBridge();
         DisposeModernChrome();
         _experienceShell.Dispose();

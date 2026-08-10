@@ -56,7 +56,13 @@ public static class GenUiChatDirectiveParser
                 {"version":1,"template":"calculator","inputs":{"expression":"2 + 2"}}
                 ```
 
-                Templates: `calculator` (expression), `structured-form` (title, schema with id/label/type), `checklist` (items array), `data-grid` (columns, rows), `dashboard` (panels), `card-deck` (cards with front/back), `graph` (expressions), `task-list` (tasks), `workflow` (steps), `assessment` (questions). Use `choice-prompt` for quick 2-3 option questions.
+                Templates: `calculator` (expression), `structured-form` (title, schema with id/label/type), `checklist` (items array), `data-grid` (columns, rows), `dashboard` (panels), `card-deck` (cards/items with front and back content), `graph` (expressions), `task-list` (tasks), `workflow` (steps), `assessment` (questions). Use `choice-prompt` for quick 2-3 option questions.
+
+                Selection rules are strict: use `calculator` only when the user asks for arithmetic or calculation. Never use a calculator as a generic Generative UI demo or as the answer to "can you generate UI?" For flashcards, use `card-deck` and provide multiple real cards/items with front and back content. For a unique request such as a crafting table, use `custom` and build the purpose-specific interface with nested HavenUI components. If the user asks whether GenUI is available without requesting a UI, answer briefly and do not emit a calculator block.
+
+                Generative UI is a complete task surface, not a decorative widget or proof-of-concept. Before emitting UI, determine the user's actual purpose, choose the simplest suitable App/template/foundation, and implement the normal core workflow implied by the requested name. A flashcard deck must support reveal, response/confidence, progress and navigation. A whiteboard must support the relevant tools, selection, editing, undo/redo and persistence. A crafting table must support item placement, removal, recipe/output state and a useful inventory interaction. A board, calendar, editor, quiz, dashboard or form must likewise expose its expected core interactions rather than only a static shell.
+
+                After generating the declaration, perform a self-check before presenting it: verify the JSON/contract, every component type, nested container content, stable IDs, action bindings, state ownership, result/update paths, empty/loading/error states, accessibility names, responsive layout and whether the surface actually fulfills the user's requested purpose. Repair or extend the declaration when the check finds a missing core interaction. Do not present a static placeholder as a completed interactive experience. Keep conversation available alongside the surface.
 
                 When no template fits the request, generate a custom UI using HavenUI components. Use `template` set to `"custom"` and provide a `components` array instead of `inputs`. Each component has `id`, `type`, `props`, and optional `children` and `actions`. Available types: `HavenStack` (vertical layout), `HavenGrid` (grid with `columns` prop), `HavenCard` (rounded surface), `HavenText` (text with `text` prop), `HavenButton` (button with `label` prop and an action), `HavenTextInput` (text field with `placeholder` prop), `HavenSelect` (dropdown with `options` array), `HavenToggle` (switch with `value` boolean), `HavenSlider` (range with `minimum`/`maximum`), `HavenProgress` (bar with `value` 0-100), `HavenStatus` (status pill with `text` prop), `HavenToolbar` (horizontal bar), `HavenList` (vertical list with `items` array).
 
@@ -75,6 +81,23 @@ public static class GenUiChatDirectiveParser
                 ```
                 """;
         }
+    }
+
+    /// <summary>
+    /// Applies the user's autonomous Generative UI preference without disabling
+    /// explicit requests for interactive or visual responses.
+    /// </summary>
+    public static string ModelInstructionFor(GenerativeUiResponseMode mode)
+    {
+        var preference = mode switch
+        {
+            GenerativeUiResponseMode.AlwaysVisual => "Response preference: Always Visual. When the request can be represented usefully with Haven Generative UI, render it; prefer interactive or visual UI over a text-only presentation.",
+            GenerativeUiResponseMode.PreferVisual => "Response preference: Prefer Visual. Prefer Haven Generative UI whenever it is a natural fit, falling back to text when UI would add little value.",
+            GenerativeUiResponseMode.PreferText => "Response preference: Prefer Text. Default to a text response and use Haven Generative UI autonomously only when it provides a clear usability advantage.",
+            GenerativeUiResponseMode.AlwaysText => "Response preference: Always Text. Do not invoke Haven Generative UI on your own. You may still render Haven Generative UI when the user explicitly asks for a visual, interactive, generated, or UI response.",
+            _ => "Response preference: Auto. Choose between text and Haven Generative UI based on which format best serves the request."
+        };
+        return preference + "\n\n" + ModelInstruction;
     }
 
     /// <summary>
@@ -106,10 +129,7 @@ public static class GenUiChatDirectiveParser
 
         var liveNames = string.Join(", ", LiveTemplates().Select(template => template.Name));
         response = $$$$"""
-            Yes—Haven can render interactive UI. Available templates: {{{{liveNames}}}}. Use a `haven-ui` fenced code block with `version`, `template`, and `inputs`. Example:
-            ```haven-ui
-            {"version":1,"template":"calculator","inputs":{"expression":"2+2"}}
-            ```
+            Yes—Haven can render interactive UI in the chat canvas. Available templates include {{{{liveNames}}}}. Templates are reusable foundations, not the limit of Haven's UI capability. For a specific request, describe the purpose and Haven will choose the appropriate foundation or compose a custom HavenUI surface.
             """;
         return true;
     }
@@ -215,6 +235,13 @@ public static class GenUiChatDirectiveParser
                 // Pass all inputs through to the runtime — don't reject unknown keys.
                 // The model may use alternative input names that the runtime can handle.
                 foreach (var property in inputProperties) parsedInputs[property.Name] = property.Value.Clone();
+                if (template.Key.Equals("card-deck", StringComparison.OrdinalIgnoreCase)
+                    && !parsedInputs.ContainsKey("cards")
+                    && parsedInputs.TryGetValue("items", out var itemAlias)
+                    && itemAlias.ValueKind == JsonValueKind.Array)
+                {
+                    parsedInputs["cards"] = itemAlias.Clone();
+                }
             }
 
             var inputError = ValidateInputs(template.Key, parsedInputs);
@@ -333,6 +360,8 @@ public static class GenUiChatDirectiveParser
 
     private static string? ValidateCalculatorInputs(IReadOnlyDictionary<string, JsonElement> inputs)
     {
+        if (inputs.Keys.Any(key => !key.Equals("expression", StringComparison.Ordinal)))
+            return "The calculator request contains an unsupported input.";
         if (!inputs.TryGetValue("expression", out var expression)) return null;
         if (expression.ValueKind != JsonValueKind.String) return "The calculator expression must be text.";
         return expression.GetString()?.Length > MaximumExpressionLength
@@ -471,8 +500,11 @@ public static class GenUiChatDirectiveParser
 
     private static string? ValidateCardDeckInputs(IReadOnlyDictionary<string, JsonElement> inputs)
     {
-        if (!inputs.TryGetValue("cards", out var cards) || cards.ValueKind != JsonValueKind.Array)
+        var hasCards = inputs.TryGetValue("cards", out var cards) && cards.ValueKind == JsonValueKind.Array;
+        var hasItems = inputs.TryGetValue("items", out var items) && items.ValueKind == JsonValueKind.Array;
+        if (!hasCards && !hasItems)
             return "Card deck requires a cards array.";
+        cards = hasCards ? cards : items;
         var entries = cards.EnumerateArray().ToArray();
         if (entries.Length is < 1 or > 100)
             return "Card deck requires between 1 and 100 cards.";

@@ -275,6 +275,21 @@ public sealed partial class HavenLauncherActivity
             dialog.Dismiss));
         shell.AddView(header);
 
+        var search = new EditText(this)
+        {
+            Hint = "Search installed apps",
+            SingleLine = true,
+            TextSize = 15,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                Dp(48))
+        };
+        search.SetTextColor(Color.White);
+        search.SetHintTextColor(Color.Argb(180, 235, 225, 255));
+        search.Background = RoundedBackground(Color.Argb(70, 255, 255, 255), Dp(18));
+        search.SetPadding(Dp(16), 0, Dp(16), 0);
+        shell.AddView(search);
+
         var scroll = new ScrollView(this)
         {
             LayoutParameters = new LinearLayout.LayoutParams(
@@ -287,8 +302,33 @@ public sealed partial class HavenLauncherActivity
             ColumnCount = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7)
         };
         var width = (Resources?.DisplayMetrics?.WidthPixels ?? 1080) / grid.ColumnCount;
-        foreach (var app in _apps)
-            grid.AddView(BuildAppTile(app, width, Dp(96)));
+        void RenderMatches(string? query)
+        {
+            grid.RemoveAllViews();
+            var normalized = query?.Trim() ?? string.Empty;
+            var matches = string.IsNullOrWhiteSpace(normalized)
+                ? _apps
+                : _apps.Where(app => app.Label.Contains(normalized, StringComparison.CurrentCultureIgnoreCase)
+                    || app.PackageName.Contains(normalized, StringComparison.OrdinalIgnoreCase)).ToArray();
+            foreach (var app in matches)
+                grid.AddView(BuildAppTile(app, width, Dp(96)));
+            if (matches.Count == 0)
+            {
+                var empty = new TextView(this)
+                {
+                    Text = "No installed apps match this search.",
+                    Gravity = GravityFlags.Center,
+                    LayoutParameters = new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MatchParent,
+                        Dp(72))
+                };
+                empty.SetTextColor(Color.Argb(220, 235, 225, 255));
+                grid.AddView(empty);
+            }
+        }
+
+        search.TextChanged += (_, args) => RenderMatches(args.Text?.ToString());
+        RenderMatches(string.Empty);
         scroll.AddView(grid);
         shell.AddView(scroll);
 

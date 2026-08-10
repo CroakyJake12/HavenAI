@@ -75,16 +75,14 @@ public sealed class GenUiChatDirectiveParserTests
     [InlineData("can you generate ui yet?")]
     [InlineData("How is Generative UI progress?")]
     [InlineData("Is interactive UI available yet?")]
-    public void Availability_questions_get_a_truthful_multi_template_live_demo(string prompt)
+    public void Availability_questions_describe_capability_without_emitting_demo_ui(string prompt)
     {
         var handled = GenUiChatDirectiveParser.TryCreateAvailabilityResponse(prompt, out var response);
 
         Assert.True(handled);
-        Assert.Contains("calculator", response, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("haven-ui", response, StringComparison.Ordinal);
-        var request = GenUiChatDirectiveParser.Parse(response).Request;
-        Assert.NotNull(request);
-        Assert.Equal("calculator", request.TemplateKey);
+        Assert.Contains("interactive UI", response, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("card", response, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(GenUiChatDirectiveParser.Parse(response).Requests);
     }
 
     [Fact]
@@ -96,6 +94,22 @@ public sealed class GenUiChatDirectiveParserTests
         Assert.Contains("structured-form", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("checklist", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("haven-ui", instruction, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CardDeckAcceptsItemsAliasAndObjectTextCards()
+    {
+        const string content = """
+            ```haven-ui
+            {"version":1,"template":"card-deck","inputs":{"items":[{"id":1,"front":{"text":"2 + 3"},"back":{"text":"5"}}]}}
+            ```
+            """;
+
+        var result = GenUiChatDirectiveParser.Parse(content);
+
+        Assert.Null(result.Error);
+        Assert.Equal("card-deck", result.Request?.TemplateKey);
+        Assert.True(result.Request!.Inputs.ContainsKey("cards"));
     }
 
     [Fact]

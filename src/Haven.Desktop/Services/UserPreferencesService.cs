@@ -196,8 +196,14 @@ public sealed class UserPreferencesService
     public bool AutoWakeOllama => _preferences.AutoWakeOllama;
     /// <summary>Reports whether Generative UI may replace Haven's launcher-selected base theme.</summary>
     public bool GenerativeUiEnabled => _preferences.GenerativeUiEnabled;
+    
+
+    
+
     /// <summary>Reports whether local models should stay loaded when Haven's main UI is closed.</summary>
     public bool AlwaysLoaded => _preferences.AlwaysLoaded;
+    /// <summary>Returns user-created Voice Profiles persisted in the local preference store.</summary>
+    public IReadOnlyList<VoiceProfile> CustomVoiceProfiles => _preferences.CustomVoiceProfiles;
     /// <summary>
     /// Gets or updates generation options, the bindable or domain state represented by this property.
     /// </summary>
@@ -436,10 +442,39 @@ public sealed class UserPreferencesService
     /// Enables or disables model residency (Always Loaded).
     /// When enabled, the configured local model stays loaded after Haven's main UI closes.
     /// </summary>
+
+    
+
+
+    
+
+
     public void SetAlwaysLoaded(bool alwaysLoaded)
     {
         _preferences = _preferences with { AlwaysLoaded = alwaysLoaded };
         Save();
+    }
+
+    public void UpsertCustomVoiceProfile(VoiceProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var profiles = _preferences.CustomVoiceProfiles
+            .Where(existing => !existing.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase))
+            .Append(profile with { IsBuiltIn = false })
+            .ToArray();
+        _preferences = _preferences with { CustomVoiceProfiles = profiles };
+        Save();
+    }
+
+    public bool RemoveCustomVoiceProfile(string id)
+    {
+        var profiles = _preferences.CustomVoiceProfiles
+            .Where(profile => !profile.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (profiles.Length == _preferences.CustomVoiceProfiles.Count) return false;
+        _preferences = _preferences with { CustomVoiceProfiles = profiles };
+        Save();
+        return true;
     }
 
     /// <summary>
@@ -596,11 +631,16 @@ public sealed class UserPreferencesService
         /// Disabled is the safe default for existing preference files that predate this setting.
         /// </summary>
         public bool GenerativeUiEnabled { get; init; }
+
+
+
+
         /// <summary>
         /// Gets whether local models should remain loaded when Haven's main UI is closed.
         /// Enables faster reopen and background task continuity at the cost of memory.
         /// </summary>
         public bool AlwaysLoaded { get; init; }
+        public IReadOnlyList<VoiceProfile> CustomVoiceProfiles { get; init; } = [];
         /// <summary>
         /// Gets or updates temperature, the bindable or domain state represented by this property.
         /// </summary>

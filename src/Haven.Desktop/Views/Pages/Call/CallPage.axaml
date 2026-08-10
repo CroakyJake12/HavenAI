@@ -51,6 +51,31 @@
                 </StackPanel>
 
                 <StackPanel Spacing="5">
+                  <TextBlock Text="Voice Profile" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <hui:HavenComboBox x:Name="VoiceProfileCombo" IsEnabled="True"/>
+                  <TextBlock x:Name="VoiceProfileDescription" TextWrapping="Wrap" FontSize="10"
+                             Foreground="{DynamicResource HavenMutedBrush}"/>
+                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                    <hui:HavenButton x:Name="NewVoiceProfileButton" Content="New" />
+                    <hui:HavenButton x:Name="EditVoiceProfileButton" Grid.Column="1" Content="Edit" />
+                    <hui:HavenButton x:Name="DeleteVoiceProfileButton" Grid.Column="2" Content="Delete" Classes="danger" />
+                  </Grid>
+                  <hui:HavenAdaptiveSurface x:Name="VoiceProfileEditor" IsVisible="False"
+                                            Background="{DynamicResource HavenBackgroundSecondaryBrush}"
+                                            Padding="10">
+                    <StackPanel Spacing="7">
+                      <hui:HavenTextInput x:Name="VoiceProfileNameBox" PlaceholderText="Profile name" />
+                      <hui:HavenMultilineInput x:Name="VoiceProfileDescriptionBox" PlaceholderText="Description" MinHeight="48" />
+                      <hui:HavenMultilineInput x:Name="VoiceProfileInstructionsBox" PlaceholderText="Voice instructions" MinHeight="90" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                        <hui:HavenButton x:Name="SaveVoiceProfileButton" Content="Save" Classes="accent" />
+                        <hui:HavenButton x:Name="CancelVoiceProfileButton" Content="Cancel" Grid.Column="1" />
+                      </Grid>
+                    </StackPanel>
+                  </hui:HavenAdaptiveSurface>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
                   <TextBlock Text="Microphone" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
                   <hui:HavenComboBox x:Name="InputDeviceCombo" IsEnabled="True"/>
                   <TextBlock x:Name="SpeechInputStatus" TextWrapping="Wrap" FontSize="11"
