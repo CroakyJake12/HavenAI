@@ -1,0 +1,22 @@
+source_commit=8d86c7be8995d0728eccb378a3185fa305f8b4c7
+workflow_run=https://github.com/CroakyJake12/HavenAI/actions/runs/31158181788
+publish_exit=1
+
+  Haven.Core -> /home/runner/work/HavenAI/HavenAI/src/Haven.Core/bin/Debug/net10.0/Haven.Core.dll
+  Haven.Application -> /home/runner/work/HavenAI/HavenAI/src/Haven.Application/bin/Debug/net10.0/Haven.Application.dll
+  Haven.Automations -> /home/runner/work/HavenAI/HavenAI/src/Haven.Automations/bin/Debug/net10.0/Haven.Automations.dll
+  Haven.Browser -> /home/runner/work/HavenAI/HavenAI/src/Haven.Browser/bin/Debug/net10.0/Haven.Browser.dll
+  Haven.Infrastructure -> /home/runner/work/HavenAI/HavenAI/src/Haven.Infrastructure/bin/x64/Debug/net10.0/Haven.Infrastructure.dll
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(107,21): error CS0103: The name 'LoadAppAsync' does not exist in the current context [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(199,25): error CS1061: 'TextView' does not contain a definition for 'SetTPadding' and no accessible extension method 'SetTPadding' accepting a first argument of type 'TextView' could be found (are you missing a using directive or an assembly reference?) [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(313,13): error CS0117: 'Button' does not contain a definition for 'AllCaps' [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/HavenLauncherActivity.cs(314,13): error CS0200: Property or indexer 'TextView.MinWidth' cannot be assigned to -- it is read only [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(17,21): error CS0649: Field 'MainView._mobileDrawerScrim' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(18,21): error CS0649: Field 'MainView._mobileDrawer' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(15,21): error CS0649: Field 'MainView._mobileBottomAffordance' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(16,21): error CS0649: Field 'MainView._mobileHomeFooter' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(14,25): error CS0649: Field 'MainView._mobileTabs' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(19,25): error CS0649: Field 'MainView._mobileDrawerContent' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(13,21): error CS0649: Field 'MainView._mobileHeader' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(20,22): error CS0649: Field 'MainView._mobileGoInput' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]
+/home/runner/work/HavenAI/HavenAI/src/Haven.Android/MainView.Mobile.Layout.cs(21,22): error CS0649: Field 'MainView._mobilePageContent' is never assigned to, and will always have its default value null [/home/runner/work/HavenAI/HavenAI/src/Haven.Android/Haven.Android.csproj]

@@ -68,7 +68,7 @@ public sealed partial class HavenLauncherActivity : Activity
         _widgetManager = AppWidgetManager.GetInstance(this);
 
         BuildSurface();
-        LoadAppsAsync();
+        _root?.Post(LoadAppsAsync);
     }
 
     protected override void OnStart()
@@ -80,7 +80,7 @@ public sealed partial class HavenLauncherActivity : Activity
         }
         catch
         {
-            // Keep the launcher usable when a widget provider rejects hosting.
+            // A rejected widget provider must not take the launcher down.
         }
     }
 
@@ -101,6 +101,10 @@ public sealed partial class HavenLauncherActivity : Activity
         base.OnResume();
         ApplyWallpaper();
         RenderWidgets();
+
+        // Re-query launchable activities whenever the launcher comes to the
+        // foreground so installs/uninstalls and a failed initial query recover.
+        _root?.Post(LoadAppsAsync);
     }
 
     public override void OnBackPressed()
@@ -109,11 +113,7 @@ public sealed partial class HavenLauncherActivity : Activity
         {
             _page = 0;
             RenderPage();
-            return;
         }
-
-        // The launcher owns the root back destination.
-        return;
     }
 
     private void BuildSurface()
@@ -126,10 +126,32 @@ public sealed partial class HavenLauncherActivity : Activity
                 ViewGroup.LayoutParams.MatchParent)
         };
         _root.SetPadding(Dp(12), Dp(10), Dp(12), Dp(10));
-        _root.SetOnTouchListener(new SwipeTouchListener(
-            onSwipeUp: ShowAppDrawer,
-            onSwipeLeft: () => ChangePage(1),
-            onSwipeRight: () => ChangePage(-1)));
+        _root.Focusable = true;
+        _root.Clickable = true;
+        AttachLauncherSwipes(_root);
+
+        var top = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                Dp(54))
+        };
+        top.SetGravity(GravityFlags.CenterVertical);
+
+        var title = new TextView(this)
+        {
+            Text = "Haven",
+            TextSize = 20,
+            Typeface = Typeface.DefaultBold,
+            Gravity = GravityFlags.CenterVertical,
+            LayoutParameters = new LinearLayout.LayoutParams(0, Dp(54), 1f)
+        };
+        title.SetTextColor(Color.White);
+        top.AddView(title);
+        top.AddView(LauncherTextButton("All apps", ShowAppDrawer));
+        top.AddView(LauncherTextButton("Go", OpenHavenGo));
+        _root.AddView(top);
 
         _widgetStrip = new LinearLayout(this)
         {
@@ -152,34 +174,43 @@ public sealed partial class HavenLauncherActivity : Activity
         {
             Gravity = GravityFlags.Center,
             TextSize = 12,
+            Text = "Loading aps…",
+            Clickable = true,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
-                Dp(28))
+                Dp(30))
         };
         _pageIndicator.SetTextColor(Color.White);
+        _pageIndicator.Click += (_, _) => ShowAppDrawer();
+        AttachLauncherSwipes(_pageIndicator);
         _root.AddView(_pageIndicator);
+
         _launcherStatus = new TextView(this)
         {
             Text = "Loading apps…",
             TextSize = 12,
             Gravity = GravityFlags.Center,
+            Clickable = true,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
                 ViewGroup.LayoutParams.WrapContent)
         };
         _launcherStatus.SetTextColor(Color.Argb(220, 235, 225, 255));
         _launcherStatus.SetPadding(0, 0, 0, Dp(4));
+        _launcherStatus.Click += (_, _) => LoadAppsAsync();
         _root.AddView(_launcherStatus);
 
         _grid = new GridLayout(this)
         {
             UseDefaultMargins = false,
             AlignmentMode = GridAlign.Bounds,
+            Clickable = true,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
                 0,
                 1f)
         };
+        AttachLauncherSwipes(_grid);
         _root.AddView(_grid);
 
         _root.AddView(BuildBottomBar());
@@ -188,41 +219,54 @@ public sealed partial class HavenLauncherActivity : Activity
         RenderWidgets();
     }
 
+    private void AttachLauncherSwipes(View view)
+        => view.SetOnTouchListener(new SwipeTouchListener(
+            onSwipeUp: ShowAppDrawer,
+            onSwipeLeft: () => ChangePage(1),
+            onSwipeRight: () => ChangePage(-1)));
+
     private View BuildBottomBar()
     {
-        var row = new LinearLayout(this)
+        var shell = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                ViewGroup.LayoutParams.WrapContent)
+        };
+        shell.SetPadding(Dp(7), Dp(7), Dp(7), Dp(7));
+        shell.Background = MagicalBackground(Dp(28));
+
+        var controls = new LinearLayout(this)
         {
             Orientation = Orientation.Horizontal,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
-                Dp(66))
+                Dp(46))
         };
-        row.SetGravity(GravityFlags.CenterVertical);
-        row.SetPadding(Dp(7), Dp(7), Dp(7), Dp(7));
-        row.Background = MagicalBackground(Dp(28));
+        controls.SetGravity(GravityFlags.CenterVertical);
+        controls.AddView(LauncherTextButton("Apps", ShowAppDrawer));
+        controls.AddView(LauncherTextButton("Go", OpenHavenGo));
+        controls.AddView(LauncherTextButton("Settings", ShowLauncherSettings));
+        shell.AddView(controls);
 
-        row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuView,
-            "All apps",
-            ShowAppDrawer));
-        row.AddView(IconButton(
-            Android.Resource.Drawable.IcMenuManage,
-            "Open Haven Go",
-            OpenHavenDashboard));
-
-        row.AddView(IconButton(
-            SystemDrawable("ic_menu_preferences"),
-            "Launcher settings",
-            ShowLauncherSettings));
+        var goRow = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                Dp(54))
+        };
+        goRow.SetGravity(GravityFlags.CenterVertical);
 
         var go = new EditText(this)
         {
             Hint = "Go — ask Haven",
             TextSize = 15,
-            LayoutParameters = new LinearLayout.LayoutParams(0, Dp(50), 1f)
+            LayoutParameters = new LinearLayout.LayoutParams(0, Dp(48), 1f)
             {
-                LeftMargin = Dp(6),
-                RightMargin = Dp(6)
+                LeftMargin = Dp(4),
+                RightMargin = Dp(4)
             }
         };
         go.SetSingleLine(true);
@@ -239,21 +283,47 @@ public sealed partial class HavenLauncherActivity : Activity
                 args.Handled = true;
             }
         };
-        row.AddView(go);
-
-        row.AddView(IconButton(
-            SystemDrawable("ic_menu_send"),
-            "Send to Haven",
-            () =>
+        goRow.AddView(go);
+        goRow.AddView(LauncherTextButton("Send", () =>
+        {
+            if (!string.IsNullOrWhiteSpace(go.Text))
             {
-                if (!string.IsNullOrWhiteSpace(go.Text))
-                {
-                    OpenHavenChat(go.Text!);
-                    go.Text = string.Empty;
-                }
-            }));
+                OpenHavenChat(go.Text!);
+                go.Text = string.Empty;
+            }
+        }));
+        shell.AddView(goRow);
 
-        return row;
+        return shell;
+    }
+
+    private void OpenHavenGo()
+    {
+        var intent = new Intent(this, typeof(MainActivity));
+        intent.PutExtra("haven_surface", "go");
+        StartActivity(intent);
+    }
+
+    private Button LauncherTextButton(string text, Action action)
+    {
+        var button = new Button(this)
+        {
+            Text = text,
+            TextSize = 12,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WrapContent,
+                Dp(42))
+            {
+                LeftMargin = Dp(2),
+                RightMargin = Dp(2)
+            }
+        };
+        button.SetAllCaps(false);
+        button.SetMinWidth(0);
+        button.SetTextColor(Color.White);
+        button.SetBackgroundColor(Color.Transparent);
+        button.Click += (_, _) => action();
+        return button;
     }
 
     private int SystemDrawable(string name)
@@ -270,7 +340,8 @@ public sealed partial class HavenLauncherActivity : Activity
                 RightMargin = Dp(2)
             }
         };
-        button.SetImageResource(resource);
+        if (resource != 0)
+            button.SetImageResource(resource);
         button.SetColorFilter(Color.White);
         button.SetBackgroundColor(Color.Transparent);
         button.Click += (_, _) => action();
