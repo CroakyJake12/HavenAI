@@ -15,7 +15,7 @@ namespace Haven.Application;
 /// Preserves the normal call coordinator contract while reducing cold-start delay
 /// and preventing an enabled spoken call from sitting silently on a slow turn.
 /// </summary>
-public sealed class ResponsiveCallCoordinator : ICallCoordinator
+public sealed class ResponsiveCallCoordinator : ICallCoordinator, IVoiceReactionSource
 {
     private static readonly TimeSpan CueDelay = TimeSpan.FromMilliseconds(1250);
 
@@ -54,6 +54,7 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         _inner.TranscriptChanged += OnInnerTranscriptChanged;
         _inner.AudioLevelChanged += OnInnerAudioLevelChanged;
         _inner.ScreenPreviewChanged += OnInnerScreenPreviewChanged;
+        _inner.VoiceReactionChanged += OnInnerVoiceReactionChanged;
     }
 
     public CallState State => _inner.State;
@@ -63,11 +64,15 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     public bool IsActive => _inner.IsActive;
     public bool IsMuted => _inner.IsMuted;
     public bool IsScreenSharing => _inner.IsScreenSharing;
+    public VoiceProfile? ActiveVoiceProfile => _inner.ActiveVoiceProfile;
+    public VoiceReaction? LatestVoiceReaction => _inner.LatestVoiceReaction;
+    public VoiceReaction? CurrentVoiceReaction => _inner.CurrentVoiceReaction;
 
     public event EventHandler<CallStateChangedEventArgs>? StateChanged;
     public event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;
     public event EventHandler<CallAudioLevelEventArgs>? AudioLevelChanged;
     public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
+    public event EventHandler<VoiceReactionEventArgs>? VoiceReactionChanged;
 
     public async Task<CallSession> StartAsync(
         CallStartOptions options,
@@ -269,6 +274,9 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
     private void OnInnerScreenPreviewChanged(object? sender, ScreenShareSnapshotEventArgs e) =>
         ScreenPreviewChanged?.Invoke(this, e);
 
+    private void OnInnerVoiceReactionChanged(object? sender, VoiceReactionEventArgs e) =>
+        VoiceReactionChanged?.Invoke(this, e);
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
@@ -280,6 +288,7 @@ public sealed class ResponsiveCallCoordinator : ICallCoordinator
         _inner.TranscriptChanged -= OnInnerTranscriptChanged;
         _inner.AudioLevelChanged -= OnInnerAudioLevelChanged;
         _inner.ScreenPreviewChanged -= OnInnerScreenPreviewChanged;
+        _inner.VoiceReactionChanged -= OnInnerVoiceReactionChanged;
         await _inner.DisposeAsync().ConfigureAwait(false);
         GC.SuppressFinalize(this);
     }

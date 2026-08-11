@@ -28,7 +28,8 @@ public sealed record CallStartOptions(
         "When a reply genuinely needs thought, begin with one very short cue such as ‘Hmm…’ or ‘Right…’, then move directly into the answer; do not use a cue on every turn. " +
         "Prefer short spoken sentences and avoid headings or markdown unless the user requests them. " +
         "Do not claim to see a shared screen unless an image is attached to the current turn.",
-    string? VoiceProfileId = null);
+    string? VoiceProfileId = null,
+    VoiceProfile? VoiceProfile = null);
 
 /// <summary>
 /// Represents call capabilities and keeps its related state and behavior together.
@@ -245,6 +246,7 @@ public interface ICallCoordinator : IAsyncDisposable
     bool IsActive { get; }
     bool IsMuted { get; }
     bool IsScreenSharing { get; }
+
 
     event EventHandler<CallStateChangedEventArgs>? StateChanged;
     event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;

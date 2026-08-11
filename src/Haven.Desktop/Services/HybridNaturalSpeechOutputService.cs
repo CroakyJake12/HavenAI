@@ -22,7 +22,7 @@ namespace Haven.Desktop.Services;
 /// modern Windows synthesizer. Cached neural models are prepared in the background
 /// so the first spoken answer does not pay model-loading cost.
 /// </summary>
-public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISpeechOutputWarmup, IAsyncDisposable
+public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, IAdaptiveSpeechOutputService, ISpeechOutputWarmup, IAsyncDisposable
 {
     private const string NeuralPrefix = "kokoro:";
     private readonly WindowsNaturalSpeechOutputService _windows;
@@ -79,7 +79,15 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
         _ = ResolveVoiceProfile(voiceName[NeuralPrefix.Length..]);
     }
 
-    public async Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken)
+    public Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken) =>
+        SpeakAsync(text, voiceName, outputDeviceId, VoiceDeliveryStyle.Conversational, cancellationToken);
+
+    public async Task SpeakAsync(
+        string text,
+        string? voiceName,
+        string? outputDeviceId,
+        VoiceDeliveryStyle style,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (string.IsNullOrWhiteSpace(text)) return;
@@ -101,7 +109,7 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
 
             var handle = engine.Speak(spokenText, voice, new KokoroTTSPipelineConfig
             {
-                Speed = ResolveSpeed(id, spokenText),
+                Speed = ResolveSpeed(id, spokenText, style),
                 PreprocessText = true
             });
             handle.OnSpeechCompleted += _ => completion.TrySetResult();
@@ -185,7 +193,7 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
         return value;
     }
 
-    private static float ResolveSpeed(string voiceId, string text)
+    private static float ResolveSpeed(string voiceId, string text, VoiceDeliveryStyle style)
     {
         var speed = voiceId switch
         {
@@ -200,7 +208,8 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
         };
 
         var value = text.Trim();
-        // Slow down for questions (more thoughtful)
+        speed *= style.Pace;
+        // Preserve small sentence-level cadence adjustments inside the profile envelope.
         if (value.EndsWith('?')) speed -= 0.03f;
         // Speed up for exclamations (more energetic)
         if (value.EndsWith('!')) speed += 0.02f;
@@ -211,7 +220,7 @@ public sealed class HybridNaturalSpeechOutputService : ISpeechOutputService, ISp
             value.Contains("unfortunately", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("sadly", StringComparison.OrdinalIgnoreCase))
             speed -= 0.02f;
-        return Math.Clamp(speed, 1.02f, 1.12f);
+        return Math.Clamp(speed, 0.90f, 1.24f);
     }
 
     private async Task WarmCachedModelSafelyAsync()

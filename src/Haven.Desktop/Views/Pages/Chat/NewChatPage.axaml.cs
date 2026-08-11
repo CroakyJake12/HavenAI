@@ -50,7 +50,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private IReadOnlyList<ModeDefinition> _availableApps = [];
     private readonly List<PromptDefinition> _activeInstructions = [];
     private readonly List<string> _attachedImages = [];
-    private readonly List<string> _attachedContext = [];
+    private readonly Dictionary<string, string> _attachedContext = new(StringComparer.OrdinalIgnoreCase);
     private readonly TaskAttachmentContext _taskAttachments = new();
     private readonly Dictionary<Guid, ProductionMarkdownView> _messageBodies = [];
     private readonly Dictionary<Guid, string> _thinkingContent = new();
@@ -59,6 +59,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), GenerativeUiSurface> _generatedSurfaces = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
+    private readonly Dictionary<Guid, GenerativeUiStreamingPreview> _generatedStreamingPreviews = [];
     private readonly StackPanel _taskHistory = new() { Spacing = 6 };
     private ModeDefinition? _modeDefinition;
     private Conversation _conversation;
@@ -71,6 +72,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     private Flyout? _resolveProblemsFlyout;
     private Flyout? _messageActionsFlyout;
     private Flyout? _messageSecondaryFlyout;
+    private Flyout? _attachmentsFlyout;
     private bool _isSending;
     private bool _isTaskMode;
     private bool _lastReportedHasStarted;
@@ -361,6 +363,12 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         return control;
     }
 
+    private static T Column<T>(T control, int column) where T : Control
+    {
+        Grid.SetColumn(control, column);
+        return control;
+    }
+
     public void SelectModel(ModelDescriptor model)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -457,12 +465,18 @@ public sealed partial class NewChatPage : UserControl, IDisposable
     {
         _sendCancellation?.Cancel();
         _conversation = CreateConversation(mode, containerId, lessonId);
+        _activeAgent = null;
+        _activeInstructions.Clear();
         _chatActionModeOverride = null;
         _chatGenerativeUiResponseModeOverride = null;
+        _attachedImages.Clear();
+        _attachedContext.Clear();
+        _taskAttachments.Clear();
         _messages.Clear();
         _streamingMessages.Clear();
         _pendingInstruction = null;
         StatusText.Text = string.Empty;
+        RefreshAttachmentBar();
         RefreshMessages();
     }
 
@@ -535,6 +549,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             case ModeDefinition app:
                 _taskAttachments.AttachApp(app);
                 StatusText.Text = $"{app.Name} attached to this task.";
+                RefreshAttachmentBar();
                 break;
         }
     }
@@ -548,13 +563,18 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         {
             _taskAttachments.RemoveCapability(capability.Id);
             StatusText.Text = $"{capability.Name} removed from this task context.";
+            RefreshAttachmentBar();
             return;
         }
         AttachCapability(capability);
     }
 
-    public void AttachSnapshot(TaskAttachmentSnapshot snapshot) =>
+    public void AttachSnapshot(TaskAttachmentSnapshot snapshot)
+    {
         _taskAttachments.AttachSnapshot(snapshot);
+        RefreshAttachmentBar();
+        _ = AddFilesAsync(snapshot.Files);
+    }
 
     private void AttachCapability(CapabilityDefinition capability)
     {
@@ -562,6 +582,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             app.Key.Equals(capability.OwnerAppKey, StringComparison.OrdinalIgnoreCase));
         _taskAttachments.AttachCapability(capability, owner);
         StatusText.Text = $"{capability.Name} attached as task relevance; permissions are unchanged.";
+        RefreshAttachmentBar();
     }
 
     public async Task AddFileAsync()
@@ -588,6 +609,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 if (!_attachedImages.Contains(path, StringComparer.OrdinalIgnoreCase))
                 {
                     _attachedImages.Add(path);
+                    _taskAttachments.AttachFiles([path]);
                     added++;
                 }
                 continue;
@@ -597,12 +619,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                 var info = new FileInfo(path);
                 if (info.Length > 2_000_000)
                 {
-                    _attachedContext.Add($"Attached file: {info.Name} ({info.Length:N0} bytes; content omitted because it is too large)." );
+                    _attachedContext[path] = $"Attached file: {info.Name} ({info.Length:N0} bytes; content omitted because it is too large).";
+                    _taskAttachments.AttachFiles([path]);
                     added++;
                     continue;
                 }
                 var text = await File.ReadAllTextAsync(path, CancellationToken.None);
-                _attachedContext.Add($"Attached file {info.Name}:\n{text}");
+                _attachedContext[path] = $"Attached file {info.Name}:\n{text}";
+                _taskAttachments.AttachFiles([path]);
                 added++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -611,7 +635,183 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             }
         }
         if (added > 0)
+        {
             StatusText.Text = $"{added} file{(added == 1 ? "" : "s")} attached to this task.";
+            RefreshAttachmentBar();
+        }
+    }
+
+    private void RefreshAttachmentBar()
+    {
+        AttachmentBar.Children.Clear();
+        AttachmentBar.IsVisible = !_taskAttachments.IsEmpty;
+        if (_taskAttachments.IsEmpty) return;
+
+        var parts = new List<string>();
+        if (_taskAttachments.Apps.Count == 1) parts.Add(_taskAttachments.Apps[0].Name);
+        else if (_taskAttachments.Apps.Count > 1) parts.Add($"{_taskAttachments.Apps.Count} Apps");
+        if (_taskAttachments.Capabilities.Count > 0)
+            parts.Add($"{_taskAttachments.Capabilities.Count} tool{(_taskAttachments.Capabilities.Count == 1 ? "" : "s")}");
+        if (_taskAttachments.Files.Count > 0)
+            parts.Add($"{_taskAttachments.Files.Count} file{(_taskAttachments.Files.Count == 1 ? "" : "s")}");
+
+        var manage = new HavenChipButton
+        {
+            MinHeight = 34,
+            Padding = new Thickness(12, 6),
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Children =
+                {
+                    new HavenIcon { IconKey = "paperclip", Width = 15, Height = 15 },
+                    new TextBlock
+                    {
+                        Text = string.Join(" + ", parts),
+                        FontWeight = FontWeight.Bold,
+                        VerticalAlignment = VerticalAlignment.Center
+                    },
+                    new HavenIcon { IconKey = "chevron-up", Width = 13, Height = 13 }
+                }
+            }
+        };
+        AutomationProperties.SetName(manage, "Manage Attachments: " + string.Join(", ", parts));
+        manage.Click += (_, _) => ShowAttachmentsFlyout(manage);
+        AttachmentBar.Children.Add(manage);
+    }
+
+    private void ShowAttachmentsFlyout(Control anchor)
+    {
+        _attachmentsFlyout?.Hide();
+
+        var items = new StackPanel { Spacing = 6 };
+        foreach (var app in _taskAttachments.Apps.ToArray())
+        {
+            var captured = app;
+            items.Children.Add(BuildAttachmentRow(
+                "rocket", captured.Name, "Haven App",
+                () =>
+                {
+                    _taskAttachments.RemoveApp(captured.Id);
+                    StatusText.Text = $"{captured.Name} removed from this task context.";
+                }));
+        }
+        foreach (var capability in _taskAttachments.Capabilities.ToArray())
+        {
+            var captured = capability;
+            items.Children.Add(BuildAttachmentRow(
+                captured.IconKey, captured.Name, "Capability relevance",
+                () =>
+                {
+                    _taskAttachments.RemoveCapability(captured.Id);
+                    StatusText.Text = $"{captured.Name} removed from this task context.";
+                }));
+        }
+        foreach (var path in _taskAttachments.Files.ToArray())
+        {
+            var captured = path;
+            items.Children.Add(BuildAttachmentRow(
+                "paperclip", Path.GetFileName(captured), "File",
+                () =>
+                {
+                    _taskAttachments.RemoveFile(captured);
+                    _attachedImages.RemoveAll(item => item.Equals(captured, StringComparison.OrdinalIgnoreCase));
+                    _attachedContext.Remove(captured);
+                    StatusText.Text = $"{Path.GetFileName(captured)} removed from this task context.";
+                }));
+        }
+
+        var add = new HavenPrimaryButton
+        {
+            Content = "Attach more files",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 42
+        };
+        add.Click += async (_, _) =>
+        {
+            _attachmentsFlyout?.Hide();
+            await AddFileAsync();
+        };
+
+        var panel = new StackPanel
+        {
+            Width = 360,
+            Spacing = 10,
+            Children =
+            {
+                new TextBlock { Text = "Manage Attachments", FontSize = 22, FontWeight = FontWeight.ExtraBold },
+                new TextBlock
+                {
+                    Text = "Attached context is used for this chat only. Capabilities remain subject to Haven permissions.",
+                    Classes = { "muted" },
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap
+                },
+                new ScrollViewer
+                {
+                    MaxHeight = 310,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = items
+                },
+                add
+            }
+        };
+
+        _attachmentsFlyout = new HavenDropdown
+        {
+            Placement = PlacementMode.Top,
+            Content = new HavenDropdownCard
+            {
+                Width = 388,
+                Padding = new Thickness(14),
+                Child = panel
+            }
+        };
+        _attachmentsFlyout.ShowAt(anchor);
+    }
+
+    private Control BuildAttachmentRow(string iconKey, string name, string detail, Action remove)
+    {
+        var removeButton = new HavenIconButton
+        {
+            Width = 36,
+            Height = 36,
+            Content = new HavenIcon { IconKey = "close", Width = 14, Height = 14 }
+        };
+        ToolTip.SetTip(removeButton, "Remove " + name);
+        AutomationProperties.SetName(removeButton, "Remove " + name);
+        removeButton.Click += (_, _) =>
+        {
+            remove();
+            _attachmentsFlyout?.Hide();
+            RefreshAttachmentBar();
+        };
+
+        return new HavenDropdownCard
+        {
+            Padding = new Thickness(10, 7),
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnSpacing = 10,
+                Children =
+                {
+                    new HavenIcon { IconKey = iconKey, Width = 19, Height = 19, VerticalAlignment = VerticalAlignment.Center },
+                    Column(new StackPanel
+                    {
+                        Spacing = 1,
+                        Children =
+                        {
+                            new TextBlock { Text = name, FontWeight = FontWeight.Bold, TextTrimming = TextTrimming.CharacterEllipsis },
+                            new TextBlock { Text = detail, Classes = { "muted" }, FontSize = 10 }
+                        }
+                    }, 1),
+                    Column(removeButton, 2)
+                }
+            }
+        };
     }
 
     public string? GetLastAssistantResponse() =>
@@ -1046,7 +1246,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             sections.Add(appContext);
         if (_taskAttachments.BuildCapabilityContext() is { } capabilityContext)
             sections.Add(capabilityContext);
-        sections.AddRange(_attachedContext.Where(item => !string.IsNullOrWhiteSpace(item)));
+        sections.AddRange(_attachedContext.Values.Where(item => !string.IsNullOrWhiteSpace(item)));
         sections.Add(GenUiChatDirectiveParser.ModelInstructionFor(_chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto));
         return sections.Count == 0 ? null : string.Join("\n\n", sections);
     }
@@ -1082,6 +1282,7 @@ public sealed partial class NewChatPage : UserControl, IDisposable
                     if (_messageBodies.TryGetValue(deltaId, out var body))
                     {
                         var parsed = GenUiChatDirectiveParser.Parse(_messages[index].Content);
+                        var looksLikeDirective = GenerativeUiStreamingPreview.LooksLikeDirective(_messages[index].Content);
                         // During streaming, show the text content. If the model is only
                         // generating a haven-ui block with no surrounding text, show a
                         // preview of what's being generated so the user isn't staring at
@@ -1095,7 +1296,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
                         if (parsed.HasDirective && parsed.Requests.Count == 0 && string.IsNullOrEmpty(parsed.Error))
                             StatusText.Text = "Preparing interactive content\u2026";
-                        rebuildMessages = false;
+                        if (_generatedStreamingPreviews.TryGetValue(deltaId, out var preview))
+                            preview.Update(_messages[index].Content);
+
+                        // Mount a typed skeleton as soon as the directive
+                        // marker arrives, then swap it for the trusted surface
+                        // as soon as the streamed JSON becomes valid.
+                        rebuildMessages = parsed.Requests.Count > 0
+                                          || (looksLikeDirective && !_generatedStreamingPreviews.ContainsKey(deltaId));
                         Dispatcher.UIThread.Post(() => MessagesScroll.ScrollToEnd(), DispatcherPriority.Background);
                     }
                 }
@@ -1247,6 +1455,24 @@ public sealed partial class NewChatPage : UserControl, IDisposable
 
         stream.Children.Add(messageView);
 
+        if (isStreaming && directive.Requests.Count == 0
+                        && (GenerativeUiStreamingPreview.LooksLikeDirective(message.Content)
+                            || ShouldExpectGeneratedSurface(message)))
+        {
+            if (!_generatedStreamingPreviews.TryGetValue(message.Id, out var preview))
+            {
+                preview = new GenerativeUiStreamingPreview();
+                _generatedStreamingPreviews[message.Id] = preview;
+            }
+            preview.Update(message.Content);
+            preview.Margin = new Thickness(0, 4);
+            stream.Children.Add(preview);
+        }
+        else if (_generatedStreamingPreviews.Remove(message.Id, out var obsoletePreview))
+        {
+            obsoletePreview.Dispose();
+        }
+
         // GenUI surfaces render as natural inline content in the chat stream.
         // The chat area is the canvas — surfaces flow alongside messages.
         for (var surfaceIndex = 0; surfaceIndex < directive.Requests.Count; surfaceIndex++)
@@ -1321,6 +1547,27 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         return stream;
     }
 
+    private bool ShouldExpectGeneratedSurface(ChatMessage assistantMessage)
+    {
+        var responseMode = _chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto;
+        if (responseMode == GenerativeUiResponseMode.AlwaysVisual) return true;
+
+        var index = _messages.FindIndex(message => message.Id == assistantMessage.Id);
+        var prompt = index > 0
+            ? _messages.Take(index).LastOrDefault(message => message.Role == MessageRole.User)?.Content
+            : null;
+        if (string.IsNullOrWhiteSpace(prompt)) return responseMode == GenerativeUiResponseMode.PreferVisual;
+
+        string[] explicitVisualTerms =
+        [
+            "generative ui", "generate ui", "generated ui", "interactive ui",
+            "flashcard", "whiteboard", "dashboard", "calculator", "data grid",
+            "interactive form", "quiz", "assessment", "workflow", "task list",
+            "graph", "chart", "visual response"
+        ];
+        return explicitVisualTerms.Any(term => prompt.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>
     /// Validates a generated GenUI surface after rendering.
     /// Returns warnings if the output is empty, broken, or inappropriate.
@@ -1382,6 +1629,14 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var slot = (message.Id, surfaceIndex);
         var signature = request.Signature;
         GenUiDocument? document = null;
+
+        // Normal transcript refreshes must not remount a live generated
+        // surface. Remounting restarts motion and makes state blink.
+        if (_generatedSurfaces.TryGetValue(slot, out var mounted)
+            && _generatedSignatures.TryGetValue(slot, out var mountedSignature)
+            && mountedSignature.Equals(signature, StringComparison.Ordinal))
+            return mounted;
+
         var reuseRegisteredInstance = _generatedSignatures.TryGetValue(slot, out var existingSignature)
             && existingSignature.Equals(signature, StringComparison.Ordinal)
             && _generatedInstanceIds.TryGetValue(slot, out var existingInstanceId)
@@ -1400,10 +1655,6 @@ public sealed partial class NewChatPage : UserControl, IDisposable
             _generatedSignatures[slot] = signature;
             return surface;
         }
-
-        if (_generatedSurfaces.TryGetValue(slot, out var existing)
-            && _generatedSignatures.TryGetValue(slot, out var sig)
-            && sig.Equals(signature, StringComparison.Ordinal)) return existing;
 
         RemoveGeneratedSurfacesForMessage(message.Id);
         var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
@@ -1445,6 +1696,11 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         var messageIds = _messages.Select(message => message.Id).ToHashSet();
         foreach (var slot in _generatedSurfaces.Keys.Where(key => !messageIds.Contains(key.MessageId)).ToArray())
             RemoveGeneratedSurface(slot);
+        foreach (var messageId in _generatedStreamingPreviews.Keys.Where(id => !messageIds.Contains(id)).ToArray())
+        {
+            _generatedStreamingPreviews[messageId].Dispose();
+            _generatedStreamingPreviews.Remove(messageId);
+        }
     }
 
     private void RemoveGeneratedSurface((Guid MessageId, int SurfaceIndex) slot)
@@ -1895,7 +2151,10 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         _disposed = true;
         _sendCancellation?.Cancel();
         _sendCancellation?.Dispose();
+        _attachmentsFlyout?.Hide();
         foreach (var slot in _generatedSurfaces.Keys.ToArray()) RemoveGeneratedSurface(slot);
+        foreach (var preview in _generatedStreamingPreviews.Values) preview.Dispose();
+        _generatedStreamingPreviews.Clear();
         AddButton.Dispose();
     }
 

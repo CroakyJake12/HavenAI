@@ -98,6 +98,42 @@ public sealed class TaskAttachmentContextTests
         Assert.Equal("studio", target.Apps[0].Key);
     }
 
+    [Fact]
+    public void FilesAndExplicitAppsCanBeRemovedWithoutOrphaningCapabilityOwners()
+    {
+        var tasks = CreateApp("tasks", "Tasks");
+        var studio = CreateApp("studio", "Studio");
+        var capability = CapabilityRegistryCatalog.BuiltIns.Single(item => item.Key == "run-task");
+        var file = Path.Combine(Path.GetTempPath(), "repair-pass.txt");
+        var context = new TaskAttachmentContext();
+        context.AttachFiles([file]);
+        context.AttachApp(studio);
+        context.AttachCapability(capability, tasks);
+
+        Assert.True(context.RemoveFile(file.ToUpperInvariant()));
+        Assert.True(context.RemoveApp(studio.Id));
+        Assert.Empty(context.Files);
+        Assert.Single(context.Apps);
+        Assert.Equal(tasks.Id, context.Apps[0].Id);
+    }
+
+    [Fact]
+    public void ClearRemovesEveryAttachmentKind()
+    {
+        var app = CreateApp("tasks", "Tasks");
+        var capability = CapabilityRegistryCatalog.BuiltIns.Single(item => item.Key == "run-task");
+        var context = new TaskAttachmentContext();
+        context.AttachFiles([Path.Combine(Path.GetTempPath(), "repair-pass.txt")]);
+        context.AttachApp(app);
+        context.AttachCapability(capability, app);
+
+        context.Clear();
+
+        Assert.True(context.IsEmpty);
+        Assert.Null(context.BuildAppContext());
+        Assert.Null(context.BuildCapabilityContext());
+    }
+
     private static ModeDefinition CreateApp(string key, string name)
     {
         var now = DateTimeOffset.UtcNow;

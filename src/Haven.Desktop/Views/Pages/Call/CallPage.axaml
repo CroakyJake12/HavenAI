@@ -118,7 +118,7 @@
                     CornerRadius="14" Padding="14">
               <StackPanel Spacing="6">
                 <TextBlock Text="Privacy" FontWeight="SemiBold"/>
-                <TextBlock Text="Audio and screen frames stay in memory only. Haven stores the text transcript and call metadata, never raw media."
+                <TextBlock Text="Audio and screen frames stay in memory only. Voice modes may also keep text transient for the current call; modes that retain a transcript store text and call metadata, never raw media."
                            TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource HavenMutedBrush}"/>
                 <TextBlock x:Name="ScreenShareStatus" TextWrapping="Wrap" FontSize="11"
                            Foreground="{DynamicResource HavenMutedBrush}" Text="Checking..."/>
@@ -141,6 +141,18 @@
                   <TextBlock Text="Live transcript" FontSize="16" FontWeight="SemiBold"/>
                   <TextBlock x:Name="TranscriptStatus" TextWrapping="Wrap" FontSize="12"
                              Foreground="{DynamicResource HavenMutedBrush}" Text="Ready to call"/>
+                  <hui:HavenAdaptiveSurface x:Name="VoiceReactionPanel" IsVisible="False"
+                          Margin="0,6,0,0" Padding="9,5" CornerRadius="8"
+                          Background="{DynamicResource HavenAccentSoftBrush}"
+                          AutomationProperties.Name="Live Voice reaction">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock x:Name="VoiceModeStatus" FontSize="11" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource HavenAccentBrush}"/>
+                      <TextBlock Text="·" FontSize="11" Foreground="{DynamicResource HavenMutedBrush}"/>
+                      <TextBlock x:Name="VoiceReactionStatus" FontSize="11" TextWrapping="Wrap"
+                                 Foreground="{DynamicResource HavenMutedBrush}"/>
+                    </StackPanel>
+                  </hui:HavenAdaptiveSurface>
                 </StackPanel>
                 <hui:HavenButton Grid.Column="1" x:Name="InterruptButton" Content="Interrupt"
                         Classes="subtle" VerticalAlignment="Center" IsEnabled="False"/>

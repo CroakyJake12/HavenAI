@@ -759,34 +759,44 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         await _newDashboardPage.ActivateAsync(CancellationToken.None);
     }
 
-    private async Task OpenNewChatAsync(string? instruction = null, bool forceNewTab = false)
+    private async Task OpenNewChatAsync(
+        string? instruction = null,
+        bool forceNewTab = false,
+        TaskAttachmentSnapshot? initialAttachments = null)
     {
         if (forceNewTab)
         {
             var page = CreateNewChatPage();
-            await ConfigureAddMenuAsync(page);
+            // Configure the optional Add catalogue after Chat is visible and submission has started.
             var key = "new-chat-" + Guid.NewGuid().ToString("N")[..8];
             AddOrSelectTab(key, "Chat", page, true, HavenSurface.Chat, forceNewTab: true);
             ApplyShellVisualState();
             await RefreshNativeChatSidebarAsync();
+            if (initialAttachments is not null) page.AttachSnapshot(initialAttachments);
             if (!string.IsNullOrWhiteSpace(instruction)) page.Submit(instruction);
             else page.FocusComposer();
+            await ConfigureAddMenuAsync(page);
             return;
         }
 
         if (_newChatPage is null)
         {
             _newChatPage = CreateNewChatPage();
-            await ConfigureAddMenuAsync(_newChatPage);
+            // Add-menu catalogue configuration runs after Chat is visible.
         }
         AddOrSelectTab("new-chat-general", "Chat", _newChatPage, false, HavenSurface.Chat);
         ApplyShellVisualState();
         await RefreshNativeChatSidebarAsync();
 
         if (!string.IsNullOrWhiteSpace(instruction))
+        {
+            if (initialAttachments is not null) _newChatPage.AttachSnapshot(initialAttachments);
             _newChatPage.Submit(instruction);
+        }
         else
             _newChatPage.FocusComposer();
+
+        await ConfigureAddMenuAsync(_newChatPage);
 
     }
 
@@ -1498,10 +1508,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         page.SubmitRequested += async (_, instruction) =>
         {
             var attachments = page.TakeAttachments();
-            await OpenNewChatAsync();
-            if (_newChatPage is null) return;
-            _newChatPage.AttachSnapshot(attachments);
-            _newChatPage.Submit(instruction);
+            await OpenNewChatAsync(instruction, initialAttachments: attachments);
         };
         page.RefreshSuggestionsRequested += (_, _) =>
             QueueGoSuggestionRefresh(page, "The user asked Haven for another set of useful next actions.", TimeSpan.Zero, true);

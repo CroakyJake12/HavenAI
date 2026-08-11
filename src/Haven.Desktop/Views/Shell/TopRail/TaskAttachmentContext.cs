@@ -76,6 +76,27 @@ public sealed class TaskAttachmentContext
         return true;
     }
 
+    public bool RemoveFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        var normalized = Path.GetFullPath(path.Trim());
+        var existing = _files.FirstOrDefault(item => item.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        return existing is not null && _files.Remove(existing);
+    }
+
+    public bool RemoveApp(Guid appId)
+    {
+        var app = _apps.FirstOrDefault(item => item.Id == appId);
+        if (app is null) return false;
+        _explicitAppIds.Remove(appId);
+        // Removing an owning App also removes its capability relevance. That
+        // keeps the prompt context internally valid instead of leaving a tool
+        // attached without the App that defines it.
+        _capabilities.RemoveAll(item => item.OwnerAppKey.Equals(app.Key, StringComparison.OrdinalIgnoreCase));
+        _apps.Remove(app);
+        return true;
+    }
+
     public bool IsCapabilityAttached(Guid capabilityId) =>
         _capabilities.Any(item => item.Id == capabilityId);
 
@@ -106,6 +127,14 @@ public sealed class TaskAttachmentContext
         _capabilities.Clear();
         _explicitAppIds.Clear();
         return snapshot;
+    }
+
+    public void Clear()
+    {
+        _files.Clear();
+        _apps.Clear();
+        _capabilities.Clear();
+        _explicitAppIds.Clear();
     }
 
     public string? BuildAppContext()

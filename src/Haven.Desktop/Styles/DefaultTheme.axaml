@@ -6,6 +6,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:Haven.Desktop.Controls"
         xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+        xmlns:floating="using:Haven.Desktop.HavenUI.Floating"
         xmlns:tokens="using:Haven.Desktop.HavenUI.Tokens">
 
   <!-- ============================================================
@@ -862,6 +863,7 @@
     <Setter Property="Foreground" Value="{DynamicResource HavenAccentForegroundBrush}" />
     <Setter Property="FontWeight" Value="ExtraBold" />
   </Style>
+  <Style Selector=":is(Button).havenHeaderPill.negative"><Setter Property="Background" Value="{DynamicResource HavenDangerBrush}"/><Setter Property="Foreground" Value="{DynamicResource HavenAccentForegroundBrush}"/></Style>
 
   <!-- Model picker intentionally owns its reasoning-level palette. -->
   <Style Selector=":is(Button).havenModelPicker">
@@ -1087,6 +1089,8 @@
   <Style Selector="hui|HavenPageSurface"><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="32,24"/></Style>
   <Style Selector="tokens|HavenAccentScope"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/></Style>
   <Style Selector="hui|HavenPanel"><Setter Property="Padding" Value="18"/><Setter Property="CornerRadius" Value="20"/><Setter Property="Background" Value="{DynamicResource HavenBackgroundSecondaryBrush}"/></Style>
+  <Style Selector="floating|HavenFloatingSurface"><Setter Property="Padding" Value="16"/><Setter Property="CornerRadius" Value="28"/><Setter Property="Background" Value="{DynamicResource HavenOverlaySurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BoxShadow" Value="0 18 52 0 #70000000"/></Style>
+  <Style Selector="floating|HavenFloatingSurface.voice"><Setter Property="MinWidth" Value="520"/><Setter Property="MaxWidth" Value="760"/></Style>
   <Style Selector="hui|HavenToolbar"><Setter Property="MinHeight" Value="54"/><Setter Property="Padding" Value="8"/><Setter Property="CornerRadius" Value="27"/><Setter Property="Background" Value="{DynamicResource HavenBackgroundSecondaryBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BoxShadow" Value="0 10 28 0 #66000000"/></Style>
   <Style Selector="hui|HavenNavigationRail"><Setter Property="Padding" Value="10"/><Setter Property="CornerRadius" Value="24"/><Setter Property="Background" Value="{DynamicResource HavenBackgroundSecondaryBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource HavenBorderSubtleBrush}"/><Setter Property="BorderThickness" Value="1"/></Style>
   <Style Selector="hui|HavenHeader"><Setter Property="MinHeight" Value="64"/><Setter Property="Padding" Value="18,10"/></Style>

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Automation;
@@ -12,6 +13,7 @@ using Haven.Core;
 using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Registry;
 using Haven.Desktop.HavenUI.Tokens;
+using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Controls;
 
@@ -33,6 +35,7 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         HorizontalAlignment = HorizontalAlignment.Left
     };
     private GenUiDocument? _document;
+    private CancellationTokenSource? _revealCancellation;
     private bool _suppressStoreNotification;
     private bool _disposed;
 
@@ -61,7 +64,7 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         {
             _suppressStoreNotification = false;
         }
-        Rebuild(document);
+        Rebuild(document, progressively: true);
     }
 
     public void PresentExisting(GenUiDocument document)
@@ -72,7 +75,7 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         if (registered.Origin.ThreadId != document.Origin.ThreadId)
             throw new InvalidOperationException("A generated UI instance cannot move between threads.");
         _document = registered;
-        Rebuild(registered);
+        Rebuild(registered, progressively: false);
     }
 
     private void OnDocumentChanged(object? sender, GenUiDocument document)
@@ -82,13 +85,16 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         {
             if (_document is null) return;
             if (StructureKey(_document.Root) == StructureKey(document.Root)) UpdateTree(document.Root);
-            else Rebuild(document);
+            else Rebuild(document, progressively: true);
             _document = document;
         });
     }
 
-    private void Rebuild(GenUiDocument document)
+    private void Rebuild(GenUiDocument document, bool progressively)
     {
+        _revealCancellation?.Cancel();
+        _revealCancellation?.Dispose();
+        _revealCancellation = null;
         _controls.Clear();
         _inputValues.Clear();
         var root = Build(document.Root);
@@ -113,7 +119,113 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         {
             Content = content;
         }
+
+        if (progressively && !MotionPreferencesService.Current.ReduceAnimations)
+            BeginProgressiveReveal(document.Root);
     }
+
+    private void BeginProgressiveReveal(GenUiComponent root)
+    {
+        var controls = EnumerateComponents(root)
+            .Where(component => IsRevealable(component.ComponentType))
+            .Select(component => _controls.GetValueOrDefault(component.ComponentId))
+            .OfType<Control>()
+            .Distinct()
+            .ToArray();
+        if (controls.Length == 0) return;
+
+        foreach (var control in controls) control.Opacity = 0.08;
+        _revealCancellation = new CancellationTokenSource();
+        _ = RevealProgressivelyAsync(controls, _revealCancellation.Token);
+    }
+
+    private static async Task RevealProgressivelyAsync(IReadOnlyList<Control> controls, CancellationToken cancellationToken)
+    {
+        var fades = new List<Task>();
+        var staggerMilliseconds = Math.Clamp(680d / Math.Max(1, controls.Count), 18, 58);
+        try
+        {
+            foreach (var control in controls)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                fades.Add(FadeInAsync(control, cancellationToken));
+                await Task.Delay(TimeSpan.FromMilliseconds(staggerMilliseconds), cancellationToken);
+            }
+            await Task.WhenAll(fades);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private static async Task FadeInAsync(Control control, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        var duration = TimeSpan.FromMilliseconds(170);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var progress = Math.Clamp(Stopwatch.GetElapsedTime(started).TotalMilliseconds / duration.TotalMilliseconds, 0, 1);
+            var eased = 1 - Math.Pow(1 - progress, 3);
+            control.Opacity = 0.08 + eased * 0.92;
+            if (progress >= 1) break;
+            await Task.Delay(16, cancellationToken);
+        }
+    }
+
+    private async Task AnimateFlashcardAsync(HavenCard card, GenUiComponent component)
+    {
+        if (MotionPreferencesService.Current.ReduceAnimations)
+        {
+            await EmitAsync(component, GenUiEventType.ActionInvoked, null);
+            return;
+        }
+
+        card.IsHitTestVisible = false;
+        var transform = card.RenderTransform as ScaleTransform ?? new ScaleTransform(1, 1);
+        card.RenderTransform = transform;
+        try
+        {
+            await AnimateFlipHalfAsync(transform, 1, 0.035);
+            await EmitAsync(component, GenUiEventType.ActionInvoked, null);
+
+            // State patches are posted by the instance store. Yielding here
+            // lets the answer replace the question while the card is edge-on.
+            await Task.Yield();
+            await AnimateFlipHalfAsync(transform, 0.035, 1);
+        }
+        finally
+        {
+            transform.ScaleX = 1;
+            transform.ScaleY = 1;
+            card.IsHitTestVisible = true;
+        }
+    }
+
+    private static async Task AnimateFlipHalfAsync(ScaleTransform transform, double from, double to)
+    {
+        var started = Stopwatch.GetTimestamp();
+        const double durationMilliseconds = 155;
+        while (true)
+        {
+            var progress = Math.Clamp(Stopwatch.GetElapsedTime(started).TotalMilliseconds / durationMilliseconds, 0, 1);
+            var eased = progress < 0.5
+                ? 4 * progress * progress * progress
+                : 1 - Math.Pow(-2 * progress + 2, 3) / 2;
+            transform.ScaleX = from + (to - from) * eased;
+            transform.ScaleY = 1 - Math.Sin(progress * Math.PI) * 0.055;
+            if (progress >= 1) break;
+            await Task.Delay(16);
+        }
+    }
+
+    private static IEnumerable<GenUiComponent> EnumerateComponents(GenUiComponent component)
+    {
+        yield return component;
+        foreach (var child in component.Children)
+        foreach (var descendant in EnumerateComponents(child))
+            yield return descendant;
+    }
+
+    private static bool IsRevealable(string componentType) => componentType is not
+        ("HavenWorkspace" or "HavenStack" or "HavenGrid" or "HavenSplitView" or "HavenForm" or "HavenWizard");
 
     private static HavenSurface? ResolveAccentSurface(string? accentKey)
     {
@@ -193,22 +305,41 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
 
     private Control BuildGrid(GenUiComponent component)
     {
-        var columns = Math.Clamp((int)GetDouble(component, "columns", 2), 1, 6);
-        var rows = (int)Math.Ceiling(component.Children.Count / (double)columns);
+        var requestedColumns = Math.Clamp((int)GetDouble(component, "columns", 2), 1, 6);
+        var spacing = Math.Max(0, GetDouble(component, "spacing", 12));
+        var itemMinWidth = Math.Max(180, GetDouble(component, "itemMinWidth", 280));
+        var responsive = GetBool(component, "responsive");
+        var controls = component.Children.Select(Build).ToArray();
+        var maxColumns = Math.Max(1, Math.Min(requestedColumns, controls.Length));
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions(string.Join(',', Enumerable.Repeat("*", columns))),
-            RowDefinitions = new RowDefinitions(string.Join(',', Enumerable.Repeat("Auto", Math.Max(1, rows)))),
-            ColumnSpacing = 8,
-            RowSpacing = 8
+            ColumnSpacing = spacing,
+            RowSpacing = spacing,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        for (var index = 0; index < component.Children.Count; index++)
+
+        void ApplyLayout(double availableWidth)
         {
-            var child = Build(component.Children[index]);
-            Grid.SetColumn(child, index % columns);
-            Grid.SetRow(child, index / columns);
-            grid.Children.Add(child);
+            var columns = maxColumns;
+            if (responsive && availableWidth > 0)
+            {
+                var widthBoundColumns = Math.Max(1, (int)Math.Floor((availableWidth + spacing) / (itemMinWidth + spacing)));
+                columns = Math.Min(maxColumns, widthBoundColumns);
+            }
+
+            grid.ColumnDefinitions = new ColumnDefinitions(string.Join(',', Enumerable.Repeat("*", columns)));
+            var rows = (int)Math.Ceiling(controls.Length / (double)columns);
+            grid.RowDefinitions = new RowDefinitions(string.Join(',', Enumerable.Repeat("Auto", Math.Max(1, rows))));
+            for (var index = 0; index < controls.Length; index++)
+            {
+                Grid.SetColumn(controls[index], index % columns);
+                Grid.SetRow(controls[index], index / columns);
+            }
         }
+
+        ApplyLayout(Bounds.Width);
+        foreach (var child in controls) grid.Children.Add(child);
+        grid.SizeChanged += (_, args) => ApplyLayout(args.NewSize.Width);
         return grid;
     }
 
@@ -226,13 +357,37 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
 
     private Control BuildCard(GenUiComponent component)
     {
-        var stack = new StackPanel { Spacing = 8 };
-        foreach (var child in component.Children) stack.Children.Add(Build(child));
-        return new HavenCard
+        var stack = new StackPanel
         {
-            Padding = new Thickness(14),
-            Child = stack
+            Spacing = GetDouble(component, "spacing", 8),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center
         };
+        foreach (var child in component.Children) stack.Children.Add(Build(child));
+        var isFlashcard = string.Equals(GetString(component, "variant"), "flashcard", StringComparison.OrdinalIgnoreCase);
+        var card = new HavenCard
+        {
+            Padding = isFlashcard ? new Thickness(28) : new Thickness(14),
+            Child = stack,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        if (isFlashcard)
+        {
+            card.Background = ResourceBrush("HavenAccentBrush", Color.FromRgb(47, 56, 255));
+            card.Cursor = new Cursor(StandardCursorType.Hand);
+            card.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
+        }
+        if (component.Actions.Count > 0)
+        {
+            card.PointerPressed += async (_, args) =>
+            {
+                if (!args.GetCurrentPoint(card).Properties.IsLeftButtonPressed) return;
+                args.Handled = true;
+                if (isFlashcard) await AnimateFlashcardAsync(card, component);
+                else await EmitAsync(component, GenUiEventType.ActionInvoked, null);
+            };
+        }
+        return card;
     }
 
     private Button BuildButton(GenUiComponent component)
@@ -313,20 +468,53 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
         return tabs;
     }
 
-    private static Control BuildVisualFoundation(GenUiComponent component) => new HavenPanel
+    private Control BuildVisualFoundation(GenUiComponent component)
     {
-        MinHeight = 180,
-        CornerRadius = new CornerRadius(16),
-        Child = new TextBlock
+        if (component.ComponentType.Equals("HavenCanvas", StringComparison.Ordinal))
         {
-            Text = GetString(component, "emptyText") ?? $"{component.ComponentType} foundation",
-            Classes = { "muted" },
-            FontWeight = FontWeight.Bold,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap
+            var stateKey = "canvas." + component.ComponentId;
+            JsonElement? persisted = null;
+            if (_document?.State.TryGetValue(stateKey, out var existingState) == true)
+                persisted = existingState;
+
+            return new GeneratedWhiteboardControl(
+                GetString(component, "title") ?? "Whiteboard",
+                GetString(component, "prompt") ?? GetString(component, "emptyText") ?? string.Empty,
+                GetDouble(component, "minHeight", 420),
+                persisted,
+                state =>
+                {
+                    var document = _document;
+                    if (document is null) return;
+                    _instances.ApplyPatch(new GenUiStatePatch(
+                        Guid.NewGuid(),
+                        document.Origin.InstanceId,
+                        GenUiPatchOperation.Replace,
+                        "state",
+                        stateKey,
+                        state,
+                        DateTimeOffset.UtcNow));
+                },
+                component.Actions.Count == 0
+                    ? null
+                    : request => EmitAsync(component, GenUiEventType.ActionInvoked, request));
         }
-    };
+
+        return new HavenPanel
+        {
+            MinHeight = 180,
+            CornerRadius = new CornerRadius(16),
+            Child = new TextBlock
+            {
+                Text = GetString(component, "emptyText") ?? $"{component.ComponentType} foundation",
+                Classes = { "muted" },
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap
+            }
+        };
+    }
 
     private void UpdateTree(GenUiComponent component)
     {
@@ -375,6 +563,17 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
                 break;
             case TextBlock text:
                 text.Text = GetString(component, "text") ?? GetString(component, "label") ?? string.Empty;
+                var fontSize = GetDouble(component, "fontSize", 0);
+                if (fontSize > 0) text.FontSize = fontSize;
+                text.TextAlignment = GetString(component, "textAlignment")?.ToLowerInvariant() switch
+                {
+                    "center" => TextAlignment.Center,
+                    "right" => TextAlignment.Right,
+                    _ => TextAlignment.Left
+                };
+                if (string.Equals(GetString(component, "tone"), "onAccent", StringComparison.OrdinalIgnoreCase))
+                    text.Foreground = Brushes.White;
+                text.Opacity = Math.Clamp(GetDouble(component, "opacity", 1), 0, 1);
                 break;
             case StackPanel list when component.ComponentType is "HavenList" or "HavenTable":
                 list.Children.Clear();
@@ -382,6 +581,23 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
                     list.Children.Add(new TextBlock { Text = item, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.Medium });
                 break;
         }
+
+        var minWidth = GetDouble(component, "minWidth", 0);
+        if (minWidth > 0) control.MinWidth = minWidth;
+        var minHeight = GetDouble(component, "minHeight", 0);
+        if (minHeight > 0) control.MinHeight = minHeight;
+        var width = GetDouble(component, "width", 0);
+        if (width > 0) control.Width = width;
+        var height = GetDouble(component, "height", 0);
+        if (height > 0) control.Height = height;
+        control.HorizontalAlignment = GetString(component, "horizontalAlignment")?.ToLowerInvariant() switch
+        {
+            "left" => HorizontalAlignment.Left,
+            "center" => HorizontalAlignment.Center,
+            "right" => HorizontalAlignment.Right,
+            "stretch" => HorizontalAlignment.Stretch,
+            _ => control.HorizontalAlignment
+        };
     }
 
     private async Task EmitAsync(GenUiComponent component, GenUiEventType eventType, JsonElement? value)
@@ -463,6 +679,9 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _revealCancellation?.Cancel();
+        _revealCancellation?.Dispose();
+        _revealCancellation = null;
         _instances.DocumentChanged -= OnDocumentChanged;
         Content = null;
         _controls.Clear();

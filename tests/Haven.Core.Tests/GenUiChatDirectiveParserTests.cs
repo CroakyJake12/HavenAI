@@ -86,7 +86,7 @@ public sealed class GenUiChatDirectiveParserTests
     }
 
     [Fact]
-    public void Model_instruction_describes_live_templates()
+    public void Model_instruction_describes_live_templates_and_spatial_custom_primitives()
     {
         var instruction = GenUiChatDirectiveParser.ModelInstruction;
 
@@ -94,6 +94,27 @@ public sealed class GenUiChatDirectiveParserTests
         Assert.Contains("structured-form", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("checklist", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("haven-ui", instruction, StringComparison.Ordinal);
+        Assert.Contains("HavenCanvas", instruction, StringComparison.Ordinal);
+        Assert.Contains("responsive", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fullscreen", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("patches", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("declarative", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("you do not need to define the logic", instruction, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("flashcards")]
+    [InlineData("questions")]
+    public void CardDeckNormalizesCommonArrayAliases(string alias)
+    {
+        var content = $"```haven-ui\n{{\"version\":1,\"template\":\"card-deck\",\"inputs\":{{\"{alias}\":[{{\"question\":\"Capital of France?\",\"answer\":\"Paris\"}}]}}}}\n```";
+
+        var result = GenUiChatDirectiveParser.Parse(content);
+
+        Assert.Null(result.Error);
+        Assert.Equal("card-deck", result.Request?.TemplateKey);
+        Assert.True(result.Request!.Inputs.ContainsKey("cards"));
+        Assert.Single(result.Request.Inputs["cards"].EnumerateArray());
     }
 
     [Fact]
@@ -110,6 +131,23 @@ public sealed class GenUiChatDirectiveParserTests
         Assert.Null(result.Error);
         Assert.Equal("card-deck", result.Request?.TemplateKey);
         Assert.True(result.Request!.Inputs.ContainsKey("cards"));
+    }
+
+    [Fact]
+    public void CustomCraftingSurfaceAcceptsNestedCardButtonActionTree()
+    {
+        const string content = """
+            ```haven-ui
+            {"version":1,"template":"custom","title":"Crafting Table","accent":"green","components":[{"id":"crafting","type":"HavenGrid","props":{"columns":3,"responsive":true},"children":[{"id":"slot-1","type":"HavenCard","props":{},"children":[{"id":"slot-1-label","type":"HavenText","props":{"text":"Oak Plank"}},{"id":"slot-1-place","type":"HavenButton","props":{"label":"Place"},"actions":[{"id":"slot.place.1"}]}]}]},{"id":"status","type":"HavenStatus","props":{"text":"Place items to craft"}}]}
+            ```
+            """;
+
+        var result = GenUiChatDirectiveParser.Parse(content);
+
+        Assert.True(result.HasDirective);
+        Assert.Null(result.Error);
+        Assert.Equal("custom", result.Request?.TemplateKey);
+        Assert.Equal(2, result.Request?.Inputs["components"].GetArrayLength());
     }
 
     [Fact]

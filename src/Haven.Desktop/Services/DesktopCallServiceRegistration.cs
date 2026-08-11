@@ -37,13 +37,16 @@ public static class DesktopCallServiceRegistration
         // Re-registering these after Infrastructure keeps ordinary Chat/Studio on the
         // full IOllamaClient while the live voice surface uses the optimized wrapper.
         services.AddSingleton<CallOptimizedOllamaClient>();
+        services.AddSingleton<IVoiceReactionActionRouter, SurfaceVoiceReactionActionRouter>();
         services.AddSingleton<CallCoordinator>(provider => new CallCoordinator(
             provider.GetRequiredService<ICallRepository>(),
             provider.GetRequiredService<IConversationRepository>(),
             provider.GetRequiredService<CallOptimizedOllamaClient>(),
             provider.GetRequiredService<ISpeechInputService>(),
             provider.GetRequiredService<ISpeechOutputService>(),
-            provider.GetRequiredService<IScreenShareService>()));
+            provider.GetRequiredService<IScreenShareService>(),
+            voiceProfiles: provider.GetRequiredService<VoiceProfileCatalog>(),
+            voiceReactionRouter: provider.GetRequiredService<IVoiceReactionActionRouter>()));
         services.AddSingleton<ResponsiveCallCoordinator>();
         services.AddSingleton<ICallCoordinator>(provider =>
         {

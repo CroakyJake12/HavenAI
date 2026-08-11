@@ -1,8 +1,13 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Floating;
 
 namespace Haven.Desktop.Services;
@@ -26,7 +31,8 @@ public sealed class DesktopFloatingActivityHost(FloatingActivityStateStore state
         cancellationToken.ThrowIfCancellationRequested();
         if (!IsAvailable) throw new PlatformNotSupportedException(UnavailableReason);
 
-        var surface = new HavenFloatingSurface { Content = content.Content };
+        var activityContent = content.Content as Control
+                              ?? new ContentControl { Content = content.Content };
         var window = new Window
         {
             Title = definition.Title,
@@ -41,22 +47,97 @@ public sealed class DesktopFloatingActivityHost(FloatingActivityStateStore state
             Background = Brushes.Transparent,
             TransparencyBackgroundFallback = Brushes.Transparent,
             TransparencyLevelHint = [WindowTransparencyLevel.Transparent],
-            Content = surface
         };
-        window.Closed += (_, _) => _windows.Remove(definition.Id);
-        _windows[definition.Id] = window;
 
-        var snapshot = new FloatingActivitySnapshot(
-            definition.Id,
-            FloatingActivityState.Presented,
-            window.Width,
-            window.Height,
-            window.Position.X,
-            window.Position.Y);
-        stateStore.Set(snapshot);
-        StateChanged?.Invoke(this, snapshot);
+        var close = new HavenIconButton
+        {
+            Width = 34,
+            Height = 34,
+            IsVisible = definition.IsDismissible,
+            Content = new TextBlock
+            {
+                Text = "×",
+                FontSize = 20,
+                FontWeight = FontWeight.Bold,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        AutomationProperties.SetName(close, "Close " + definition.Title);
+        close.Click += (_, _) => window.Close();
+
+        var dragBar = new HavenToolbar
+        {
+            Padding = new Thickness(8, 4, 6, 4),
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = definition.Title,
+                        FontSize = 13,
+                        FontWeight = FontWeight.ExtraBold,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0)
+                    },
+                    Column(close, 1)
+                }
+            }
+        };
+        AutomationProperties.SetName(dragBar, "Drag " + definition.Title);
+        dragBar.PointerPressed += (_, args) =>
+        {
+            if (!args.GetCurrentPoint(dragBar).Properties.IsLeftButtonPressed
+                || args.Source is Control source
+                && (source is Button || source.FindAncestorOfType<Button>() is not null)) return;
+            window.BeginMoveDrag(args);
+            args.Handled = true;
+        };
+
+        var surface = new HavenFloatingSurface
+        {
+            Child = new Grid
+            {
+                RowDefinitions = new RowDefinitions("Auto,*"),
+                RowSpacing = 8,
+                Children = { dragBar, Row(activityContent, 1) }
+            }
+        };
+        window.Content = surface;
+
+        if (stateStore.Get(definition.Id) is { } previous)
+        {
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Width = Math.Max(window.MinWidth, previous.Width);
+            window.Height = Math.Max(window.MinHeight, previous.Height);
+            window.Position = new PixelPoint((int)Math.Round(previous.X), (int)Math.Round(previous.Y));
+        }
+
+        void PublishState(FloatingActivityState state)
+        {
+            var snapshot = new FloatingActivitySnapshot(
+                definition.Id,
+                state,
+                Math.Max(window.MinWidth, window.Width),
+                Math.Max(window.MinHeight, window.Height),
+                window.Position.X,
+                window.Position.Y);
+            stateStore.Set(snapshot);
+            StateChanged?.Invoke(this, snapshot);
+        }
+
+        window.PositionChanged += (_, _) => PublishState(FloatingActivityState.Presented);
+        window.SizeChanged += (_, _) => PublishState(FloatingActivityState.Presented);
+        window.Closed += (_, _) =>
+        {
+            _windows.Remove(definition.Id);
+            PublishState(FloatingActivityState.Dismissed);
+        };
+        _windows[definition.Id] = window;
         window.Show();
-        return Task.FromResult(snapshot);
+        PublishState(FloatingActivityState.Presented);
+        return Task.FromResult(stateStore.Get(definition.Id)!);
     }
 
     public Task<FloatingActivitySnapshot> UpdateAsync(FloatingActivitySnapshot snapshot, CancellationToken cancellationToken)
@@ -66,9 +147,10 @@ public sealed class DesktopFloatingActivityHost(FloatingActivityStateStore state
         {
             window.Width = Math.Max(240, snapshot.Width);
             window.Height = Math.Max(160, snapshot.Height);
-            stateStore.Set(snapshot);
-            StateChanged?.Invoke(this, snapshot);
+            window.Position = new PixelPoint((int)Math.Round(snapshot.X), (int)Math.Round(snapshot.Y));
         }
+        stateStore.Set(snapshot);
+        StateChanged?.Invoke(this, snapshot);
         return Task.FromResult(snapshot);
     }
 
@@ -87,5 +169,17 @@ public sealed class DesktopFloatingActivityHost(FloatingActivityStateStore state
         foreach (var window in _windows.Values.ToArray()) window.Close();
         _windows.Clear();
         return ValueTask.CompletedTask;
+    }
+
+    private static T Column<T>(T control, int column) where T : Control
+    {
+        Grid.SetColumn(control, column);
+        return control;
+    }
+
+    private static T Row<T>(T control, int row) where T : Control
+    {
+        Grid.SetRow(control, row);
+        return control;
     }
 }

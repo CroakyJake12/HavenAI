@@ -6,12 +6,11 @@ namespace Haven.Desktop.HavenUI.Floating;
 /// Canonical visible surface for detached HavenUI content. The host window
 /// remains transparent; this control owns the visible HavenUI material.
 /// </summary>
-public sealed class HavenFloatingSurface : ContentControl
+public sealed class HavenFloatingSurface : Border
 {
     public HavenFloatingSurface()
     {
         Classes.Add("havenFloatingSurface");
-        HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-        VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
     }
 }

@@ -76,6 +76,8 @@ public sealed partial class CallPage : UserControl
         _coordinator.StateChanged += OnStateChanged;
         _coordinator.TranscriptChanged += OnTranscriptChanged;
         _coordinator.AudioLevelChanged += OnAudioLevelChanged;
+        if (_coordinator is IVoiceReactionSource reactionSource)
+            reactionSource.VoiceReactionChanged += OnVoiceReactionChanged;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
@@ -357,16 +359,17 @@ public sealed partial class CallPage : UserControl
                 _selectedVoice?.Id, _enableSpeechOutput);
             options = options with
             {
-                SystemPrompt = _selectedVoiceProfile is null
-                    ? options.SystemPrompt
-                    : $"{options.SystemPrompt}\n\nVoice Profile: {_selectedVoiceProfile.Name}.\n{_selectedVoiceProfile.Instructions}",
-                VoiceProfileId = _selectedVoiceProfile?.Id
+                VoiceProfileId = _selectedVoiceProfile?.Id,
+                VoiceProfile = _selectedVoiceProfile
             };
             await _coordinator.StartAsync(
                 options,
                 _selectedSpeechModel?.IsInstalled == true ? _selectedSpeechModel : null,
                 CancellationToken.None);
             _isActive = true;
+            VoiceModeStatus.Text = _selectedVoiceProfile?.Name ?? "Voice";
+            VoiceReactionStatus.Text = "Live reactions ready";
+            VoiceReactionPanel.IsVisible = true;
             UpdateControlStates();
             _bus.Fire("Call.Status.Active");
         }
@@ -436,6 +439,7 @@ public sealed partial class CallPage : UserControl
         try { await _coordinator.EndAsync(CancellationToken.None); }
         catch (Exception ex) { TranscriptStatus.Text = $"Call cleanup failed: {ex.Message}"; }
         _isActive = false;
+        VoiceReactionPanel.IsVisible = false;
         _isPaused = false;
         UpdateControlStates();
         _bus.Fire("Call.Status.Ended");
@@ -593,6 +597,14 @@ public sealed partial class CallPage : UserControl
 
     private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs e) =>
         Dispatcher.UIThread.Post(() => UpdateWaveform(e.Level));
+
+    private void OnVoiceReactionChanged(object? sender, VoiceReactionEventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        var source = _coordinator as IVoiceReactionSource;
+        VoiceModeStatus.Text = source?.ActiveVoiceProfile?.Name ?? _selectedVoiceProfile?.Name ?? "Voice";
+        VoiceReactionStatus.Text = e.Reaction.Summary;
+        VoiceReactionPanel.IsVisible = _coordinator.IsActive;
+    });
 
     private void AddTranscriptBubble(TranscriptEntry entry)
     {

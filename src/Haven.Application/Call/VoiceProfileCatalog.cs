@@ -19,7 +19,7 @@ public sealed class VoiceProfileCatalog
             "General Voice",
             "Natural local voice conversation.",
             "Respond naturally and concisely for speech. Keep answers clear and conversational.",
-            ContinuousListening: false),
+            ContinuousListening: true),
         new(
             "lesson",
             "Lesson Voice",
@@ -36,8 +36,24 @@ public sealed class VoiceProfileCatalog
             "development",
             "Development Voice",
             "Support spoken development and debugging work.",
-            "Help inspect, explain and validate development work. Use Studio and Tasks capabilities through their normal permission and workspace boundaries.",
-            AllowAutomaticActions: false)
+            "Help inspect, explain and validate development work. Use Studio and Tasks capabilities through their normal permission and workspace boundaries. Keep spoken debugging steps compact and announce the next concrete check before expanding.",
+            AllowAutomaticActions: false),
+        new(
+            "news-reader",
+            "News Reader",
+            "Read and explain source-backed material with broadcast-style pacing.",
+            "Sound like a calm local news reader: lead with the key fact, distinguish source text from inference, use short transitions, and avoid conversational filler. When Browse is explicitly requested, use the normal trusted Browse route; never invent unseen source details.",
+            ContinuousListening: true,
+            AllowAutomaticActions: true,
+            RetainTranscript: false),
+        new(
+            "commentator",
+            "Commentator",
+            "React live to an ongoing activity with faster, higher-energy delivery.",
+            "Act as a concise live commentator. React to meaningful changes instead of narrating every second, use energetic but controlled phrasing, avoid repeating the same observation, and never claim to see or know activity that has not arrived through current Voice or screen context.",
+            ContinuousListening: true,
+            AllowAutomaticActions: false,
+            RetainTranscript: false)
     ];
 
     public IReadOnlyList<VoiceProfile> GetAll()

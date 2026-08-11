@@ -18,7 +18,7 @@ namespace Haven.Application;
 /// only expose transcripts/snapshots, which keeps raw audio and video out of
 /// persistence by construction.
 /// </summary>
-public sealed class CallCoordinator : ICallCoordinator
+public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
 {
     /// <summary>
     /// Stores default system prompt locally so this component can preserve the dependency, cache, or state between member calls.
@@ -56,6 +56,10 @@ public sealed class CallCoordinator : ICallCoordinator
     /// Stores time provider locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly TimeProvider _timeProvider;
+    private readonly VoiceProfileCatalog _voiceProfiles;
+    private readonly IVoiceReactionActionRouter? _voiceReactionRouter;
+    private readonly List<OllamaMessage> _ephemeralHistory = [];
+    private VoiceReactionRuntime? _voiceReactionRuntime;
     /// <summary>
     /// Stores lifecycle gate locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -101,7 +105,9 @@ public sealed class CallCoordinator : ICallCoordinator
         ISpeechInputService speechInput,
         ISpeechOutputService speechOutput,
         IScreenShareService screenShare,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        VoiceProfileCatalog? voiceProfiles = null,
+        IVoiceReactionActionRouter? voiceReactionRouter = null)
     {
         _calls = calls;
         _conversations = conversations;
@@ -110,6 +116,8 @@ public sealed class CallCoordinator : ICallCoordinator
         _speechOutput = speechOutput;
         _screenShare = screenShare;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _voiceProfiles = voiceProfiles ?? new VoiceProfileCatalog();
+        _voiceReactionRouter = voiceReactionRouter;
         _screenShare.SourceClosed += OnScreenShareSourceClosed;
         _screenShare.SnapshotAvailable += OnScreenShareSnapshotAvailable;
     }
@@ -138,6 +146,9 @@ public sealed class CallCoordinator : ICallCoordinator
     /// Reports whether screen sharing applies to the current state.
     /// </summary>
     public bool IsScreenSharing => _screenShare.IsSharing;
+    public VoiceProfile? ActiveVoiceProfile { get; private set; }
+    public VoiceReaction? LatestVoiceReaction => _voiceReactionRuntime?.Current;
+    public VoiceReaction? CurrentVoiceReaction => LatestVoiceReaction;
 
     /// <summary>
     /// Gets or updates capabilities, the bindable or domain state represented by this property.
@@ -169,6 +180,7 @@ public sealed class CallCoordinator : ICallCoordinator
     /// Stores screen preview changed locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
+    public event EventHandler<VoiceReactionEventArgs>? VoiceReactionChanged;
 
     /// <summary>
     /// Performs start asynchronously so I/O does not block the caller's thread.
@@ -191,6 +203,11 @@ public sealed class CallCoordinator : ICallCoordinator
             _lifetimeCts?.Dispose();
             _lifetimeCts = new CancellationTokenSource();
             _options = options;
+            ActiveVoiceProfile = options.VoiceProfile ?? _voiceProfiles.Find(options.VoiceProfileId);
+            _voiceReactionRuntime = ActiveVoiceProfile is null
+                ? null
+                : new VoiceReactionRuntime(ActiveVoiceProfile, _timeProvider);
+            _ephemeralHistory.Clear();
             _speechModel = speechModel;
             IsMuted = false;
 
@@ -348,6 +365,7 @@ public sealed class CallCoordinator : ICallCoordinator
                 ? "The latest frame will be included with each completed turn."
                 : "The selected model is not vision-capable, so frames will not be sent.";
             SetState(State, $"Sharing {source.Name}. {suffix}");
+            await PublishVoiceReactionAsync(_voiceReactionRuntime?.ObserveScreenContext(true), cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -367,6 +385,7 @@ public sealed class CallCoordinator : ICallCoordinator
         if (!_screenShare.IsSharing) return;
         await _screenShare.StopAsync(cancellationToken).ConfigureAwait(false);
         SetState(State, "Screen sharing stopped.");
+        await PublishVoiceReactionAsync(_voiceReactionRuntime?.ObserveScreenContext(false), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -434,6 +453,7 @@ public sealed class CallCoordinator : ICallCoordinator
 
             if (fromSpeech) SetState(CallState.Transcribing, "Transcript ready");
             var now = _timeProvider.GetUtcNow();
+            var retainTranscript = ActiveVoiceProfile?.RetainTranscript ?? true;
             var userMessage = new ChatMessage(
                 userMessageId,
                 conversation.Id,
@@ -445,7 +465,10 @@ public sealed class CallCoordinator : ICallCoordinator
                 now);
             CurrentConversation = conversation = conversation with { UpdatedAt = now };
             await _conversations.UpsertConversationAsync(CurrentConversation, turnToken).ConfigureAwait(false);
-            await _conversations.AddMessageAsync(userMessage, turnToken).ConfigureAwait(false);
+            if (retainTranscript)
+                await _conversations.AddMessageAsync(userMessage, turnToken).ConfigureAwait(false);
+            else
+                AppendEphemeral(new OllamaMessage("user", text));
             TranscriptChanged?.Invoke(this, new(userMessage.Id, MessageRole.User, userMessage.Content, false, true));
 
             SetState(CallState.Thinking, "Haven is thinking…");
@@ -456,6 +479,8 @@ public sealed class CallCoordinator : ICallCoordinator
                     message.Role == MessageRole.User ? "user" : "assistant",
                     message.Content))
                 .ToList();
+            if (!retainTranscript)
+                requestMessages = _ephemeralHistory.ToList();
 
             ScreenShareSnapshot? snapshot = null;
             if (_screenShare.IsSharing && options.Model.Supports(ToolCapability.Vision))
@@ -487,7 +512,7 @@ public sealed class CallCoordinator : ICallCoordinator
                     options.Model.Name,
                     requestMessages,
                     options.Effort,
-                    string.IsNullOrWhiteSpace(options.SystemPrompt) ? DefaultSystemPrompt : options.SystemPrompt,
+                    BuildVoiceSystemPrompt(options),
                     Options: new GenerationOptions(Temperature: 0.65, ContextLimit: 32768, ActionLimit: 0));
 
                 await foreach (var delta in _ollama.StreamChatAsync(request, turnToken).ConfigureAwait(false))
@@ -527,7 +552,10 @@ public sealed class CallCoordinator : ICallCoordinator
                     var assistant = new ChatMessage(
                         assistantId, conversation.Id, MessageRole.Assistant, content,
                         "Haven", options.Model.Name, metadata, _timeProvider.GetUtcNow());
-                    await _conversations.AddMessageAsync(assistant, CancellationToken.None).ConfigureAwait(false);
+                    if (retainTranscript)
+                        await _conversations.AddMessageAsync(assistant, CancellationToken.None).ConfigureAwait(false);
+                    else
+                        AppendEphemeral(new OllamaMessage("assistant", content));
                     TranscriptChanged?.Invoke(this, new(assistantId, MessageRole.Assistant, content, false, true, interrupted));
                 }
             }
@@ -566,7 +594,7 @@ public sealed class CallCoordinator : ICallCoordinator
             try
             {
                 SetState(CallState.Speaking, "Haven is speaking…");
-                await _speechOutput.SpeakAsync(
+                await SpeakWithProfileAsync(
                     sentence,
                     _options?.VoiceName,
                     _options?.OutputDeviceId,
@@ -584,6 +612,29 @@ public sealed class CallCoordinator : ICallCoordinator
     /// <summary>
     /// Performs handle speech input event asynchronously so I/O does not block the caller's thread.
     /// </summary>
+    private Task SpeakWithProfileAsync(
+        string sentence,
+        string? voiceName,
+        string? outputDeviceId,
+        CancellationToken cancellationToken)
+    {
+        if (_speechOutput is IAdaptiveSpeechOutputService adaptiveSpeech)
+        {
+            var delivery = VoiceDeliveryStylePolicy.Resolve(
+                ActiveVoiceProfile,
+                _voiceReactionRuntime?.Current,
+                sentence);
+            return adaptiveSpeech.SpeakAsync(
+                sentence,
+                voiceName,
+                outputDeviceId,
+                delivery,
+                cancellationToken);
+        }
+
+        return _speechOutput.SpeakAsync(sentence, voiceName, outputDeviceId, cancellationToken);
+    }
+
     private async Task HandleSpeechInputEventAsync(SpeechInputEvent inputEvent, CancellationToken cancellationToken)
     {
         if (!IsActive || _ending || IsMuted || State == CallState.Paused) return;
@@ -594,24 +645,37 @@ public sealed class CallCoordinator : ICallCoordinator
                     await InterruptAsync(cancellationToken).ConfigureAwait(false);
                 _partialUserMessageId = Guid.NewGuid();
                 SetState(CallState.Transcribing, "Listening to you…");
+                await PublishVoiceReactionAsync(_voiceReactionRuntime?.ObserveSpeechStarted(), cancellationToken).ConfigureAwait(false);
                 break;
             case SpeechInputEventKind.PartialTranscript when !string.IsNullOrWhiteSpace(inputEvent.Text):
                 if (_partialUserMessageId == Guid.Empty) _partialUserMessageId = Guid.NewGuid();
                 TranscriptChanged?.Invoke(this, new(
                     _partialUserMessageId, MessageRole.User, inputEvent.Text!, false, false));
+                await PublishVoiceReactionAsync(_voiceReactionRuntime?.ObservePartial(inputEvent.Text!), cancellationToken).ConfigureAwait(false);
                 break;
             case SpeechInputEventKind.FinalTranscript when !string.IsNullOrWhiteSpace(inputEvent.Text):
                 if (_partialUserMessageId == Guid.Empty) _partialUserMessageId = Guid.NewGuid();
                 var messageId = _partialUserMessageId;
                 _partialUserMessageId = Guid.Empty;
+                var reactions = _voiceReactionRuntime?.ObserveFinal(inputEvent.Text!);
+                if (_voiceReactionRuntime is not null && reactions is { Count: 0 })
+                    break;
+                if (reactions is not null)
+                {
+                    foreach (var reaction in reactions)
+                        await PublishVoiceReactionAsync(reaction, cancellationToken).ConfigureAwait(false);
+                }
                 await RunTurnAsync(inputEvent.Text!, true, messageId, cancellationToken).ConfigureAwait(false);
+                _voiceReactionRuntime?.ResetTransientAfterTurn();
                 break;
             case SpeechInputEventKind.AudioLevel:
                 AudioLevelChanged?.Invoke(this, new(Math.Clamp(inputEvent.AudioLevel, 0, 1)));
                 break;
             case SpeechInputEventKind.SpeechEnded:
                 _partialUserMessageId = Guid.Empty;
-                SetState(CallState.Listening, "No speech was detected · listening");
+                SetState(CallState.Listening, ActiveVoiceProfile?.ContinuousListening == true
+                    ? $"{ActiveVoiceProfile.Name} · still listening"
+                    : "No speech was detected · listening");
                 break;
             case SpeechInputEventKind.Error:
                 await FailAsync(inputEvent.Error ?? "Speech input failed.").ConfigureAwait(false);
@@ -627,7 +691,12 @@ public sealed class CallCoordinator : ICallCoordinator
     /// </summary>
     private Task StartSpeechInputAsync(CancellationToken cancellationToken) =>
         _speechInput.StartAsync(
-            new SpeechInputOptions(_options?.InputDeviceId, _speechModel, _options?.InputMode ?? CallInputMode.HandsFree),
+            new SpeechInputOptions(
+                _options?.InputDeviceId,
+                _speechModel,
+                ActiveVoiceProfile is null || ActiveVoiceProfile.ContinuousListening
+                    ? _options?.InputMode ?? CallInputMode.HandsFree
+                    : CallInputMode.PushToTalk),
             HandleSpeechInputEventAsync,
             cancellationToken);
 
@@ -680,6 +749,9 @@ public sealed class CallCoordinator : ICallCoordinator
         }
         finally
         {
+            _ephemeralHistory.Clear();
+            _voiceReactionRuntime = null;
+            ActiveVoiceProfile = null;
             _ending = false;
         }
     }
@@ -714,6 +786,56 @@ public sealed class CallCoordinator : ICallCoordinator
     /// <summary>
     /// Performs the ensure active step owned by this component.
     /// </summary>
+    private async Task PublishVoiceReactionAsync(VoiceReaction? reaction, CancellationToken cancellationToken)
+    {
+        if (reaction is null) return;
+        VoiceReactionChanged?.Invoke(this, new VoiceReactionEventArgs(reaction));
+
+        if (reaction.Kind != VoiceReactionKind.ActionSuggested
+            || reaction.Action is not { } action
+            || ActiveVoiceProfile?.AllowAutomaticActions != true
+            || action.RequiresConfirmation
+            || _voiceReactionRouter is null)
+            return;
+
+        if (await _voiceReactionRouter.RouteAsync(action, cancellationToken).ConfigureAwait(false))
+        {
+            var executed = _voiceReactionRuntime?.MarkActionExecuted(action);
+            if (executed is not null)
+                VoiceReactionChanged?.Invoke(this, new VoiceReactionEventArgs(executed));
+        }
+    }
+
+    private void AppendEphemeral(OllamaMessage message)
+    {
+        _ephemeralHistory.Add(message);
+        const int maximumMessages = 24;
+        if (_ephemeralHistory.Count > maximumMessages)
+            _ephemeralHistory.RemoveRange(0, _ephemeralHistory.Count - maximumMessages);
+    }
+
+    private string BuildVoiceSystemPrompt(CallStartOptions options)
+    {
+        var basePrompt = string.IsNullOrWhiteSpace(options.SystemPrompt) ? DefaultSystemPrompt : options.SystemPrompt!;
+        if (ActiveVoiceProfile is null) return basePrompt;
+
+        var parts = new List<string>
+        {
+            basePrompt,
+            $"Voice mode: {ActiveVoiceProfile.Name}. {ActiveVoiceProfile.Instructions}",
+            ActiveVoiceProfile.RequiresRealtimeProcessing
+                ? "React to live speech state as it changes, but answer only the completed user turn."
+                : "Do not infer meaning from partial speech; respond to completed turns only.",
+            ActiveVoiceProfile.ContinuousListening
+                ? "Maintain the current live activity context across utterances until the activity clearly changes."
+                : "Treat each completed utterance independently unless the conversation itself supplies context."
+        };
+        var runtimeContext = _voiceReactionRuntime?.BuildContextNote();
+        if (!string.IsNullOrWhiteSpace(runtimeContext))
+            parts.Add($"Live Voice context: {runtimeContext}");
+        return string.Join("\n\n", parts);
+    }
+
     private void EnsureActive()
     {
         if (!IsActive || CurrentConversation is null || _options is null)

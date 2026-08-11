@@ -56,6 +56,8 @@ public static class GenUiChatDirectiveParser
                 {"version":1,"template":"calculator","inputs":{"expression":"2 + 2"}}
                 ```
 
+                Stream for immediate feedback: when the response will contain Generative UI, begin the first `haven-ui` fence immediately (or after one short orienting sentence), put `version` and `template` before the larger inputs/components payload, and do not narrate a long plan before the declaration. Haven mounts a template-shaped loading skeleton from those first streamed fields, then progressively reveals the trusted controls as the declaration completes.
+
                 Templates: `calculator` (expression), `structured-form` (title, schema with id/label/type), `checklist` (items array), `data-grid` (columns, rows), `dashboard` (panels), `card-deck` (cards/items with front and back content), `graph` (expressions), `task-list` (tasks), `workflow` (steps), `assessment` (questions). Use `choice-prompt` for quick 2-3 option questions.
 
                 Selection rules are strict: use `calculator` only when the user asks for arithmetic or calculation. Never use a calculator as a generic Generative UI demo or as the answer to "can you generate UI?" For flashcards, use `card-deck` and provide multiple real cards/items with front and back content. For a unique request such as a crafting table, use `custom` and build the purpose-specific interface with nested HavenUI components. If the user asks whether GenUI is available without requesting a UI, answer briefly and do not emit a calculator block.
@@ -64,9 +66,11 @@ public static class GenUiChatDirectiveParser
 
                 After generating the declaration, perform a self-check before presenting it: verify the JSON/contract, every component type, nested container content, stable IDs, action bindings, state ownership, result/update paths, empty/loading/error states, accessibility names, responsive layout and whether the surface actually fulfills the user's requested purpose. Repair or extend the declaration when the check finds a missing core interaction. Do not present a static placeholder as a completed interactive experience. Keep conversation available alongside the surface.
 
-                When no template fits the request, generate a custom UI using HavenUI components. Use `template` set to `"custom"` and provide a `components` array instead of `inputs`. Each component has `id`, `type`, `props`, and optional `children` and `actions`. Available types: `HavenStack` (vertical layout), `HavenGrid` (grid with `columns` prop), `HavenCard` (rounded surface), `HavenText` (text with `text` prop), `HavenButton` (button with `label` prop and an action), `HavenTextInput` (text field with `placeholder` prop), `HavenSelect` (dropdown with `options` array), `HavenToggle` (switch with `value` boolean), `HavenSlider` (range with `minimum`/`maximum`), `HavenProgress` (bar with `value` 0-100), `HavenStatus` (status pill with `text` prop), `HavenToolbar` (horizontal bar), `HavenList` (vertical list with `items` array).
+                When no template fits the request, generate a custom UI using HavenUI components. Use `template` set to `"custom"` and provide a `components` array instead of `inputs`. Each component has `id`, `type`, `props`, and optional `children` and `actions`. Available types include: `HavenStack` (vertical layout), `HavenGrid` (responsive grid; use `columns`, `spacing`, `responsive`, and `itemMinWidth`), `HavenSplitView` (two-region composition), `HavenCard` (rounded surface), `HavenText` (supports `text`, `fontSize`, `textAlignment`, `emphasis`, and scoped accent-safe `tone`), `HavenButton` (button with `label` prop and an action), `HavenTextInput`, `HavenSelect`, `HavenToggle`, `HavenSlider`, `HavenProgress`, `HavenStatus`, `HavenToolbar`, `HavenList`, `HavenTabs`, and `HavenCanvas`. Layout components may use bounded `minWidth`, `minHeight`, `width`, `height`, and `horizontalAlignment` props. Use these primitives to fill the available chat width when the task benefits from a wide or spatial workspace instead of defaulting to a single vertical stack.
 
-                To make components interactive, add an `actions` array with objects like `{"id":"my-action"}`. Haven routes these actions automatically — you do not need to define the logic. Button clicks, toggle changes, text submits, and slider drags all emit events.
+                `HavenCanvas` is the live interactive whiteboard primitive: it supports inline and fullscreen pen/highlighter/eraser input, pressure-aware ink, colours and thickness, select/move/copy/cut/paste/delete, text, shapes, image insertion, grid/ruler, pan/zoom/fit, undo/redo, stable semantic element IDs, bounded persisted board state, and selected-state requests back to Haven when an action is attached. For whiteboard or scratchboard requests, use a custom UI containing one `HavenCanvas` with a useful `title`, optional `prompt`, a generous `minHeight`, and an appropriate declarative action when the user should be able to ask Haven to edit it; do not simulate a board with generic cards. Do not describe `HavenGraph` or `HavenChart` foundations as fully interactive until their live renderers are complete.
+
+                To make custom components interactive, use bounded declarative actions. Each action requires an `id` and may include a short `message` plus `patches`. A patch is `{"target":"component-id-or-state","path":"property-or-state-key","value":<JSON literal>}`. `target` may be an existing component ID or the literal `state`; `path` names a trusted component property or state key. Example: `{"id":"slot.place","message":"Placed oak plank.","patches":[{"target":"slot-label","path":"text","value":"Oak Plank"},{"target":"state","path":"slot1","value":"oak_plank"}]}`. Use patches for the normal state transitions of games, practice tools, boards, workflows, and other custom experiences. Actions are declarative only: never emit code, scripts, commands, URLs, or executable expressions. Button clicks, toggle changes, text submits, and slider drags all emit events.
 
                 Container types like HavenGrid, HavenStack, HavenCard MUST have a `children` array. HavenGrid arranges children into columns. Example — an interactive crafting table with clickable slots:
                 ```haven-ui
@@ -184,7 +188,7 @@ public static class GenUiChatDirectiveParser
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
-                MaxDepth = 8
+                MaxDepth = GenerativeUiContractValidator.MaximumDepth * 4
             });
             var root = json.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
@@ -236,11 +240,14 @@ public static class GenUiChatDirectiveParser
                 // The model may use alternative input names that the runtime can handle.
                 foreach (var property in inputProperties) parsedInputs[property.Name] = property.Value.Clone();
                 if (template.Key.Equals("card-deck", StringComparison.OrdinalIgnoreCase)
-                    && !parsedInputs.ContainsKey("cards")
-                    && parsedInputs.TryGetValue("items", out var itemAlias)
-                    && itemAlias.ValueKind == JsonValueKind.Array)
+                    && !parsedInputs.ContainsKey("cards"))
                 {
-                    parsedInputs["cards"] = itemAlias.Clone();
+                    foreach (var alias in new[] { "items", "flashcards", "questions" })
+                    {
+                        if (!parsedInputs.TryGetValue(alias, out var aliasValue) || aliasValue.ValueKind != JsonValueKind.Array) continue;
+                        parsedInputs["cards"] = aliasValue.Clone();
+                        break;
+                    }
                 }
             }
 
@@ -264,7 +271,7 @@ public static class GenUiChatDirectiveParser
                     {
                         AllowTrailingCommas = true,
                         CommentHandling = JsonCommentHandling.Disallow,
-                        MaxDepth = 8
+                        MaxDepth = GenerativeUiContractValidator.MaximumDepth * 4
                     });
                     // Re-parse with the repaired JSON by recursing
                     var repairedContent = content[..opening] + OpeningFence + "\n" + repaired + "\n```" + content[(closing + 3)..];
@@ -500,11 +507,17 @@ public static class GenUiChatDirectiveParser
 
     private static string? ValidateCardDeckInputs(IReadOnlyDictionary<string, JsonElement> inputs)
     {
-        var hasCards = inputs.TryGetValue("cards", out var cards) && cards.ValueKind == JsonValueKind.Array;
-        var hasItems = inputs.TryGetValue("items", out var items) && items.ValueKind == JsonValueKind.Array;
-        if (!hasCards && !hasItems)
+        JsonElement cards = default;
+        var found = false;
+        foreach (var key in new[] { "cards", "items", "flashcards", "questions" })
+        {
+            if (!inputs.TryGetValue(key, out var candidate) || candidate.ValueKind != JsonValueKind.Array) continue;
+            cards = candidate;
+            found = true;
+            break;
+        }
+        if (!found)
             return "Card deck requires a cards array.";
-        cards = hasCards ? cards : items;
         var entries = cards.EnumerateArray().ToArray();
         if (entries.Length is < 1 or > 100)
             return "Card deck requires between 1 and 100 cards.";

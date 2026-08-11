@@ -154,17 +154,19 @@ public sealed class DataGridTemplateRuntime
 
 public sealed class CardDeckTemplateRuntime
 {
-    private const string RevealAction = "card-deck.reveal";
+    private const string FlipAction = "card-deck.flip";
     private const string RateAction = "card-deck.rate";
     private const string NextAction = "card-deck.next";
+    private const string PreviousAction = "card-deck.previous";
     private readonly GenUiInstanceStore _instances;
 
     public CardDeckTemplateRuntime(GenUiLocalActionRegistry localActions, GenUiInstanceStore instances)
     {
         _instances = instances;
-        localActions.RegisterOrReplace(RevealAction, RevealAsync);
+        localActions.RegisterOrReplace(FlipAction, FlipAsync);
         localActions.RegisterOrReplace(RateAction, RateAsync);
         localActions.RegisterOrReplace(NextAction, NextAsync);
+        localActions.RegisterOrReplace(PreviousAction, PreviousAsync);
     }
 
     public GenUiDocument Create(Guid threadId, string appKey, IReadOnlyDictionary<string, JsonElement> inputs)
@@ -172,130 +174,219 @@ public sealed class CardDeckTemplateRuntime
         var template = TemplateRegistryCatalog.BuiltIns.Single(item => item.Key == "card-deck");
         var instanceId = Guid.NewGuid();
         var origin = new GenUiOrigin(threadId, appKey, template.Id, instanceId);
-        // Accept both "cards" and "items" as input names
-        var cards = inputs.TryGetValue("cards", out var cardsEl) && cardsEl.ValueKind == JsonValueKind.Array
-            ? cardsEl.EnumerateArray().ToArray()
-            : inputs.TryGetValue("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array
-                ? itemsEl.EnumerateArray().ToArray()
-                : Array.Empty<JsonElement>();
-
-        var front = cards.Length > 0 ? ReadCardText(cards[0], "front") : "No cards";
+        var cards = ReadCards(inputs);
         var total = cards.Length;
+        var visibleSlots = Math.Min(2, total);
+        var cardSlots = Enumerable.Range(0, visibleSlots)
+            .Select(slot => BuildCardSlot(slot, slot, cards))
+            .ToArray();
 
         return new GenUiDocument(
             Guid.NewGuid(), GenerativeUiContractValidator.CurrentContractVersion, origin, "Flashcards", appKey,
-            new GenUiComponent("card-deck.workspace", "HavenStack", Props(("spacing", 12)), [],
+            new GenUiComponent("card-deck.workspace", "HavenStack",
+                Props(("spacing", 14), ("minHeight", 360), ("automationName", "Flashcard deck")), [],
             [
                 new GenUiComponent("card-deck.progress", "HavenProgress",
-                    Props(("value", 0), ("automationName", "Card progress")), [], []),
-                new GenUiComponent("card-deck.card", "HavenCard", Props(("spacing", 10)), [],
+                    Props(("value", total > 0 ? 100d / total : 0d), ("automationName", "Card progress")), [], []),
+                new GenUiComponent("card-deck.viewport", "HavenGrid",
+                    Props(("columns", Math.Max(1, visibleSlots)), ("spacing", 18), ("responsive", true),
+                        ("itemMinWidth", 300), ("automationName", "Flashcard viewport")), [], cardSlots),
+                new GenUiComponent("card-deck.controls", "HavenToolbar", Props(("spacing", 10)), [],
                 [
-                    new GenUiComponent("card-deck.front", "HavenText",
-                        Props(("text", front), ("emphasis", true), ("automationName", "Card front")), [], []),
-                    new GenUiComponent("card-deck.back", "HavenText",
-                        Props(("text", "Press Reveal to see the answer"), ("automationName", "Card back")), [], [])
-                ]),
-                new GenUiComponent("card-deck.actions", "HavenToolbar", Props(("spacing", 10)), [],
-                [
-                    new GenUiComponent("card-deck.reveal", "HavenButton", Props(("label", "Reveal")), [Action(RevealAction)], []),
-                    new GenUiComponent("card-deck.rate-easy", "HavenButton", Props(("label", "Easy")), [Action(RateAction)], []),
-                    new GenUiComponent("card-deck.rate-hard", "HavenButton", Props(("label", "Hard")), [Action(RateAction)], []),
-                    new GenUiComponent("card-deck.next", "HavenButton", Props(("label", "Next")), [Action(NextAction)], [])
+                    new GenUiComponent("card-deck.previous", "HavenButton",
+                        Props(("label", "‹"), ("kind", "tertiary"), ("automationName", "Previous card")),
+                        [Action(PreviousAction)], []),
+                    new GenUiComponent("card-deck.rate-review", "HavenButton",
+                        Props(("label", "Need review"), ("kind", "text"), ("automationName", "Mark card for review")),
+                        [Action(RateAction)], []),
+                    new GenUiComponent("card-deck.rate-got-it", "HavenButton",
+                        Props(("label", "Got it"), ("kind", "text"), ("automationName", "Mark card as known")),
+                        [Action(RateAction)], []),
+                    new GenUiComponent("card-deck.next", "HavenButton",
+                        Props(("label", "›"), ("kind", "primary"), ("automationName", "Next card")),
+                        [Action(NextAction)], [])
                 ]),
                 new GenUiComponent("card-deck.status", "HavenStatus",
-                    Props(("text", $"Card 1 of {total}"), ("automationName", "Deck status")), [], [])
+                    Props(("text", total == 0 ? "No cards" : $"Card 1 of {total}"),
+                        ("automationName", "Deck status")), [], [])
             ]),
             new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
                 ["currentIndex"] = JsonSerializer.SerializeToElement(0),
-                ["revealed"] = JsonSerializer.SerializeToElement(false),
+                ["slot0Revealed"] = JsonSerializer.SerializeToElement(false),
+                ["slot1Revealed"] = JsonSerializer.SerializeToElement(false),
                 ["totalCards"] = JsonSerializer.SerializeToElement(total),
-                ["cardsData"] = cards.Length > 0 ? JsonSerializer.SerializeToElement(cards.Select(c => new
+                ["cardsData"] = JsonSerializer.SerializeToElement(cards.Select(c => new
                 {
                     front = ReadCardText(c, "front"),
                     back = ReadCardText(c, "back")
-                }).ToArray()) : JsonSerializer.SerializeToElement(Array.Empty<object>())
+                }).ToArray())
             }, DateTimeOffset.UtcNow);
     }
 
-    private Task<GenUiActionResult> RevealAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken)
+    private static GenUiComponent BuildCardSlot(int slot, int cardIndex, IReadOnlyList<JsonElement> cards)
+    {
+        var front = cardIndex >= 0 && cardIndex < cards.Count ? ReadCardText(cards[cardIndex], "front") : "No card";
+        return new GenUiComponent($"card-deck.card.{slot}", "HavenCard",
+            Props(("variant", "flashcard"), ("minHeight", 280), ("automationName", $"Flashcard {slot + 1}")),
+            [Action(FlipAction)],
+        [
+            new GenUiComponent($"card-deck.text.{slot}", "HavenText",
+                Props(("text", front), ("emphasis", true), ("tone", "onAccent"),
+                    ("fontSize", 30), ("textAlignment", "center"),
+                    ("automationName", $"Flashcard {slot + 1} content")), [], []),
+            new GenUiComponent($"card-deck.hint.{slot}", "HavenText",
+                Props(("text", "Click to flip"), ("tone", "onAccent"), ("fontSize", 15),
+                    ("textAlignment", "center"), ("opacity", 0.9)), [], [])
+        ]);
+    }
+
+    private Task<GenUiActionResult> FlipAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = DateTimeOffset.UtcNow;
         var document = _instances.TryGet(semanticEvent.Origin.InstanceId);
-        var backText = "Answer revealed";
-        if (document?.State.TryGetValue("cardsData", out var cardsData) == true && cardsData.ValueKind == JsonValueKind.Array
-            && document.State.TryGetValue("currentIndex", out var idx) && idx.TryGetInt32(out var currentIndex))
-        {
-            var cards = cardsData.EnumerateArray().ToArray();
-            if (currentIndex >= 0 && currentIndex < cards.Length && cards[currentIndex].TryGetProperty("back", out var back))
-                backText = back.GetString() ?? backText;
-        }
+        if (document is null)
+            return Task.FromResult(GenerativeUiEventRouter.Result(
+                semanticEvent, GenUiActionStatus.Failed, "The flashcard deck is no longer available.",
+                JsonSerializer.SerializeToElement(new { error = "missing-instance" }), []));
+
+        var slot = ParseSlot(semanticEvent.ComponentId);
+        var currentIndex = ReadInt(document, "currentIndex");
+        var total = ReadInt(document, "totalCards");
+        var cardIndex = total > 0 ? (currentIndex + slot) % total : 0;
+        var stateKey = $"slot{slot}Revealed";
+        var revealed = document.State.TryGetValue(stateKey, out var revealedElement)
+            && revealedElement.ValueKind == JsonValueKind.True;
+        var nextRevealed = !revealed;
+        var cardText = ReadStoredCardText(document, cardIndex, nextRevealed ? "back" : "front");
+        var now = DateTimeOffset.UtcNow;
+
         return Task.FromResult(GenerativeUiEventRouter.Result(
-            semanticEvent, GenUiActionStatus.Completed, "Card revealed.",
-            JsonSerializer.SerializeToElement(new { revealed = true }),
+            semanticEvent, GenUiActionStatus.Completed, nextRevealed ? "Card answer revealed." : "Card question shown.",
+            JsonSerializer.SerializeToElement(new { cardIndex, revealed = nextRevealed }),
             [
-                Patch(semanticEvent, "state", "revealed", true, now),
-                Patch(semanticEvent, "card-deck.back", "text", backText, now),
-                Patch(semanticEvent, "card-deck.status", "text", "Revealed! Rate your confidence.", now)
+                Patch(semanticEvent, "state", stateKey, nextRevealed, now),
+                Patch(semanticEvent, $"card-deck.text.{slot}", "text", cardText, now),
+                Patch(semanticEvent, $"card-deck.hint.{slot}", "text",
+                    nextRevealed ? "Click to show question" : "Click to flip", now),
+                Patch(semanticEvent, "card-deck.status", "text",
+                    nextRevealed ? $"Answer shown for card {cardIndex + 1}" : $"Card {cardIndex + 1} question", now)
             ]));
     }
 
     private Task<GenUiActionResult> RateAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = DateTimeOffset.UtcNow;
-        return Task.FromResult(GenerativeUiEventRouter.Result(
-            semanticEvent, GenUiActionStatus.Completed, "Rating recorded.",
-            JsonSerializer.SerializeToElement(new { rated = true }),
-            [Patch(semanticEvent, "card-deck.status", "text", "Rated. Press Next.", now)]));
-    }
-
-    private Task<GenUiActionResult> NextAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var now = DateTimeOffset.UtcNow;
         var document = _instances.TryGet(semanticEvent.Origin.InstanceId);
-        var nextIndex = 0;
-        var nextFront = "Next card";
-        var cardNum = 1;
-        var total = 0;
-
-        if (document?.State.TryGetValue("currentIndex", out var idx) == true && idx.TryGetInt32(out var currentIndex)
-            && document.State.TryGetValue("totalCards", out var tot) && tot.TryGetInt32(out var totalCards))
-        {
-            nextIndex = (currentIndex + 1) % totalCards;
-            cardNum = nextIndex + 1;
-            total = totalCards;
-        }
-
-        if (document?.State.TryGetValue("cardsData", out var cardsData) == true && cardsData.ValueKind == JsonValueKind.Array)
-        {
-            var cards = cardsData.EnumerateArray().ToArray();
-            if (nextIndex >= 0 && nextIndex < cards.Length && cards[nextIndex].TryGetProperty("front", out var front))
-                nextFront = front.GetString() ?? nextFront;
-        }
-
+        var currentIndex = document is null ? 0 : ReadInt(document, "currentIndex");
+        var confidence = semanticEvent.ComponentId.EndsWith("got-it", StringComparison.Ordinal)
+            ? "got-it"
+            : "review";
+        var summary = confidence == "got-it" ? "Marked as known." : "Marked for review.";
+        var now = DateTimeOffset.UtcNow;
         return Task.FromResult(GenerativeUiEventRouter.Result(
-            semanticEvent, GenUiActionStatus.Completed, "Next card.",
-            JsonSerializer.SerializeToElement(new { next = true }),
+            semanticEvent, GenUiActionStatus.Completed, summary,
+            JsonSerializer.SerializeToElement(new { cardIndex = currentIndex, confidence }),
             [
-                Patch(semanticEvent, "state", "currentIndex", nextIndex, now),
-                Patch(semanticEvent, "state", "revealed", false, now),
-                Patch(semanticEvent, "card-deck.front", "text", nextFront, now),
-                Patch(semanticEvent, "card-deck.back", "text", "Press Reveal to see the answer", now),
-                Patch(semanticEvent, "card-deck.status", "text", $"Card {cardNum} of {total}", now)
+                Patch(semanticEvent, "state", $"confidence.{currentIndex}", confidence, now),
+                Patch(semanticEvent, "card-deck.status", "text",
+                    confidence == "got-it" ? "Got it. Move on when ready." : "Marked for review.", now)
             ]));
     }
 
-    /// <summary>Reads card text from either a string or an object with a "text" property.</summary>
+    private Task<GenUiActionResult> NextAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken) =>
+        MoveAsync(semanticEvent, 1, cancellationToken);
+
+    private Task<GenUiActionResult> PreviousAsync(GenUiEvent semanticEvent, CancellationToken cancellationToken) =>
+        MoveAsync(semanticEvent, -1, cancellationToken);
+
+    private Task<GenUiActionResult> MoveAsync(GenUiEvent semanticEvent, int delta, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var document = _instances.TryGet(semanticEvent.Origin.InstanceId);
+        if (document is null)
+            return Task.FromResult(GenerativeUiEventRouter.Result(
+                semanticEvent, GenUiActionStatus.Failed, "The flashcard deck is no longer available.",
+                JsonSerializer.SerializeToElement(new { error = "missing-instance" }), []));
+
+        var currentIndex = ReadInt(document, "currentIndex");
+        var total = ReadInt(document, "totalCards");
+        if (total <= 0)
+            return Task.FromResult(GenerativeUiEventRouter.Result(
+                semanticEvent, GenUiActionStatus.Failed, "The flashcard deck contains no cards.",
+                JsonSerializer.SerializeToElement(new { error = "empty-deck" }), []));
+
+        var nextIndex = (currentIndex + delta + total) % total;
+        var visibleSlots = Math.Min(2, total);
+        var now = DateTimeOffset.UtcNow;
+        var patches = new List<GenUiStatePatch>
+        {
+            Patch(semanticEvent, "state", "currentIndex", nextIndex, now),
+            Patch(semanticEvent, "state", "slot0Revealed", false, now),
+            Patch(semanticEvent, "state", "slot1Revealed", false, now),
+            Patch(semanticEvent, "card-deck.progress", "value", (nextIndex + 1d) * 100d / total, now),
+            Patch(semanticEvent, "card-deck.status", "text", $"Card {nextIndex + 1} of {total}", now)
+        };
+
+        for (var slot = 0; slot < visibleSlots; slot++)
+        {
+            var cardIndex = (nextIndex + slot) % total;
+            patches.Add(Patch(semanticEvent, $"card-deck.text.{slot}", "text",
+                ReadStoredCardText(document, cardIndex, "front"), now));
+            patches.Add(Patch(semanticEvent, $"card-deck.hint.{slot}", "text", "Click to flip", now));
+        }
+
+        return Task.FromResult(GenerativeUiEventRouter.Result(
+            semanticEvent, GenUiActionStatus.Completed,
+            delta > 0 ? "Next card." : "Previous card.",
+            JsonSerializer.SerializeToElement(new { currentIndex = nextIndex }), patches));
+    }
+
+    private static JsonElement[] ReadCards(IReadOnlyDictionary<string, JsonElement> inputs)
+    {
+        foreach (var key in new[] { "cards", "items", "flashcards", "questions" })
+        {
+            if (inputs.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.Array)
+                return value.EnumerateArray().ToArray();
+        }
+        return [];
+    }
+
+    private static int ParseSlot(string componentId)
+    {
+        var separator = componentId.LastIndexOf('.');
+        return separator >= 0 && int.TryParse(componentId[(separator + 1)..], out var slot)
+            ? Math.Clamp(slot, 0, 1)
+            : 0;
+    }
+
+    private static int ReadInt(GenUiDocument document, string key) =>
+        document.State.TryGetValue(key, out var value) && value.TryGetInt32(out var result) ? result : 0;
+
+    private static string ReadStoredCardText(GenUiDocument document, int cardIndex, string field)
+    {
+        if (!document.State.TryGetValue("cardsData", out var cardsData) || cardsData.ValueKind != JsonValueKind.Array)
+            return string.Empty;
+        var cards = cardsData.EnumerateArray().ToArray();
+        if (cardIndex < 0 || cardIndex >= cards.Length || !cards[cardIndex].TryGetProperty(field, out var value))
+            return string.Empty;
+        return value.GetString() ?? string.Empty;
+    }
+
     private static string ReadCardText(JsonElement card, string field)
     {
-        if (!card.TryGetProperty(field, out var el)) return "";
-        if (el.ValueKind == JsonValueKind.String) return el.GetString() ?? "";
-        if (el.ValueKind == JsonValueKind.Object && el.TryGetProperty("text", out var text))
-            return text.GetString() ?? "";
-        return el.ToString();
+        var aliases = field == "front"
+            ? new[] { "front", "question", "prompt", "term", "title" }
+            : new[] { "back", "answer", "response", "definition", "content" };
+        foreach (var alias in aliases)
+        {
+            if (!card.TryGetProperty(alias, out var element)) continue;
+            if (element.ValueKind == JsonValueKind.String) return element.GetString() ?? string.Empty;
+            if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("text", out var text))
+                return text.GetString() ?? string.Empty;
+            return element.ToString();
+        }
+        return string.Empty;
     }
 
     private static GenUiActionBinding Action(string id) => new(id, GenUiRouteKind.Local, id, CapabilityRiskClass.Low, false);

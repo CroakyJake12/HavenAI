@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Haven.Desktop.Controls;
@@ -150,6 +151,9 @@ public sealed partial class ActionsFlyoutControl : UserControl
             BorderBrush = ResourceBrush("HavenLineBrush", Avalonia.Media.Color.FromArgb(24, 0, 0, 0)),
             BorderThickness = new Thickness(1)
         };
+        var automationKey = string.Concat(action.Label.Where(char.IsLetterOrDigit));
+        AutomationProperties.SetAutomationId(button, $"CapabilityAction_{automationKey}");
+        AutomationProperties.SetName(button, action.Label);
         var normalBackground = button.Background;
         button.PointerEntered += (_, _) =>
             button.Background = ResourceBrush("HavenAccentSoftBrush", Avalonia.Media.Color.Parse("#FFE2F7F5"));

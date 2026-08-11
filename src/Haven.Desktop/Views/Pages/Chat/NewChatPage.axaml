@@ -69,6 +69,12 @@
                    Foreground="{DynamicResource HavenTextSoftBrush}"
                    FontSize="11" />
 
+        <StackPanel x:Name="AttachmentBar"
+                    IsVisible="False"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="8" />
+
         <hui:HavenComposerShell HorizontalAlignment="Stretch" MaxWidth="900">
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <topRail:AddMenu x:Name="AddButton" Classes="accent" Width="44" Height="44" />

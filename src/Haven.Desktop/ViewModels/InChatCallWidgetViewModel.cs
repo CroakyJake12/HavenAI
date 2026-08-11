@@ -22,6 +22,9 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     private ModelDescriptor? _selectedModel;
     private CallAudioDevice? _selectedInputDevice;
     private CallVoice? _selectedVoice;
+    private VoiceProfile? _selectedVoiceProfile = VoiceProfileCatalog.BuiltIns.FirstOrDefault(profile => profile.Id == "general")
+        ?? VoiceProfileCatalog.BuiltIns.FirstOrDefault();
+    private string _liveReaction = "Live reactions ready";
     private EffortLevel _effort = EffortLevel.Low;
     private int _speechSpeedPercent = 100;
     private string _typedTranscript = string.Empty;
@@ -70,6 +73,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         _callCoordinator.StateChanged += OnCallStateChanged;
         _callCoordinator.TranscriptChanged += OnTranscriptChanged;
         _callCoordinator.AudioLevelChanged += OnAudioLevelChanged;
+        if (_callCoordinator is IVoiceReactionSource reactionSource)
+            reactionSource.VoiceReactionChanged += OnVoiceReactionChanged;
     }
 
     public string Status
@@ -153,6 +158,31 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<CallAudioDevice> InputDevices => _callCoordinator.Capabilities.InputDevices;
     public IReadOnlyList<CallVoice> Voices => _callCoordinator.Capabilities.Voices;
+    public IReadOnlyList<VoiceProfile> VoiceProfiles => VoiceProfileCatalog.BuiltIns;
+
+    public VoiceProfile? SelectedVoiceProfile
+    {
+        get => _selectedVoiceProfile;
+        set
+        {
+            if (IsActive) return;
+            if (SetProperty(ref _selectedVoiceProfile, value))
+            {
+                RaisePropertyChanged(nameof(ActiveVoiceModeName));
+            }
+        }
+    }
+
+    public string ActiveVoiceModeName =>
+        (_callCoordinator as IVoiceReactionSource)?.ActiveVoiceProfile?.Name
+        ?? SelectedVoiceProfile?.Name
+        ?? "Voice";
+
+    public string LiveReaction
+    {
+        get => _liveReaction;
+        private set => SetProperty(ref _liveReaction, value);
+    }
     public bool CanShareScreen => _callCoordinator.Capabilities.CanShareScreen;
     public bool IsScreenSharing => _callCoordinator.IsScreenSharing;
     public string ScreenShareStatus => IsScreenSharing
@@ -297,7 +327,9 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                     Model: _selectedModel,
                     InputDeviceId: SelectedInputDevice?.Id,
                     VoiceName: SelectedVoice?.Name,
-                    Effort: Effort),
+                    Effort: Effort,
+                    VoiceProfileId: SelectedVoiceProfile?.Id,
+                    VoiceProfile: SelectedVoiceProfile),
                 null,
                 CancellationToken.None);
 
@@ -504,10 +536,21 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         Avalonia.Threading.Dispatcher.UIThread.Post(() => AudioLevel = args.Level);
     }
 
+    private void OnVoiceReactionChanged(object? sender, VoiceReactionEventArgs args)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LiveReaction = args.Reaction.Summary;
+            RaisePropertyChanged(nameof(ActiveVoiceModeName));
+        });
+    }
+
     public void Dispose()
     {
         _callCoordinator.StateChanged -= OnCallStateChanged;
         _callCoordinator.TranscriptChanged -= OnTranscriptChanged;
         _callCoordinator.AudioLevelChanged -= OnAudioLevelChanged;
+        if (_callCoordinator is IVoiceReactionSource reactionSource)
+            reactionSource.VoiceReactionChanged -= OnVoiceReactionChanged;
     }
 }

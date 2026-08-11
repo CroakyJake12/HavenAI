@@ -12,6 +12,8 @@ public sealed class VoiceProfileCatalogTests
 
         Assert.Contains(catalog.GetAll(), profile => profile.Id == "general");
         Assert.Contains(catalog.GetAll(), profile => profile.Id == "lesson");
+        Assert.Contains(catalog.GetAll(), profile => profile.Id == "news-reader");
+        Assert.Contains(catalog.GetAll(), profile => profile.Id == "commentator");
     }
 
     [Fact]

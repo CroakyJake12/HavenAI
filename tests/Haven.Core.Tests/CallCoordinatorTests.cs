@@ -257,6 +257,82 @@ public sealed class CallCoordinatorTests
     /// <summary>
     /// Performs the sentence chunker emits only complete speech chunks step owned by this component.
     /// </summary>
+    [Fact]
+    public async Task LessonVoiceKeepsTranscriptEphemeralAndInjectsLivePhaseContext()
+    {
+        var conversations = new MemoryConversationRepository();
+        var input = new FakeSpeechInput();
+        var ollama = new FakeOllamaClient(["Got it."]);
+        var lesson = VoiceProfileCatalog.BuiltIns.Single(profile => profile.Id == "lesson") with { RetainTranscript = false };
+        await using var coordinator = new CallCoordinator(
+            new MemoryCallRepository(), conversations, ollama, input,
+            new FakeSpeechOutput(), new FakeScreenShare());
+        var reactions = new List<VoiceReaction>();
+        coordinator.VoiceReactionChanged += (_, args) => reactions.Add(args.Reaction);
+        var session = await coordinator.StartAsync(
+            new CallStartOptions(Model(), EnableSpeechOutput: false, VoiceProfileId: lesson.Id, VoiceProfile: lesson),
+            null,
+            CancellationToken.None);
+
+        await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.PartialTranscript, "Today we are learning about mens rea"));
+        await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.FinalTranscript, "Today we are learning about mens rea"));
+        var requestAfterFirstFinal = ollama.LastRequest;
+        await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.FinalTranscript, "Today we are learning about mens rea"));
+
+        Assert.False(conversations.Messages.TryGetValue(session.ConversationId, out var persisted) && persisted.Count > 0);
+        Assert.NotNull(requestAfterFirstFinal);
+        Assert.Contains("Voice mode: Lesson Voice", requestAfterFirstFinal!.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("Current lesson phase: Explanation", requestAfterFirstFinal.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains(reactions, reaction => reaction.LessonPhase == LessonVoicePhase.Explanation);
+        Assert.Same(requestAfterFirstFinal, ollama.LastRequest);
+    }
+
+    [Fact]
+    public async Task AutomaticVoiceActionsRouteOnlySafeNonConsequentialIntent()
+    {
+        var input = new FakeSpeechInput();
+        var router = new FakeVoiceReactionRouter();
+        var profile = new VoiceProfile(
+            "auto", "Auto Voice", "", "React to explicit workspace requests.",
+            ContinuousListening: true,
+            AllowAutomaticActions: true,
+            RetainTranscript: false);
+        await using var coordinator = new CallCoordinator(
+            new MemoryCallRepository(), new MemoryConversationRepository(), new FakeOllamaClient(["Okay."]), input,
+            new FakeSpeechOutput(), new FakeScreenShare(),
+            voiceReactionRouter: router);
+        await coordinator.StartAsync(
+            new CallStartOptions(Model(), EnableSpeechOutput: false, VoiceProfile: profile),
+            null,
+            CancellationToken.None);
+
+        await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.FinalTranscript, "look this up about photosynthesis"));
+        await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.FinalTranscript, "remind me that homework is due tomorrow"));
+
+        var routed = Assert.Single(router.Actions);
+        Assert.Equal(HavenSurface.Browse, routed.TargetSurface);
+        Assert.False(routed.RequiresConfirmation);
+    }
+
+    [Fact]
+    public async Task CommentatorVoicePassesCommentaryDeliveryToAdaptiveSpeech()
+    {
+        var speech = new FakeSpeechOutput();
+        var profile = VoiceProfileCatalog.BuiltIns.Single(item => item.Id == "commentator");
+        await using var coordinator = new CallCoordinator(
+            new MemoryCallRepository(), new MemoryConversationRepository(),
+            new FakeOllamaClient(["That is a big change!"]),
+            new FakeSpeechInput(), speech, new FakeScreenShare());
+        await coordinator.StartAsync(
+            new CallStartOptions(Model(), EnableSpeechOutput: true, VoiceProfileId: profile.Id, VoiceProfile: profile),
+            null,
+            CancellationToken.None);
+
+        await coordinator.SubmitTextAsync("Give me the live update.", CancellationToken.None);
+
+        Assert.Contains(speech.Styles, style => style.Label == "Commentary" && style.Pace > 1.08f);
+    }
+
     [Theory]
     [InlineData("First sentence. Second sentence!", 2)]
     [InlineData("Question? Tail", 1)]
@@ -403,6 +479,18 @@ public sealed class CallCoordinatorTests
     /// <summary>
     /// Represents fake ollama client and keeps its related state and behavior together.
     /// </summary>
+    private sealed class FakeVoiceReactionRouter : IVoiceReactionActionRouter
+    {
+        public List<VoiceReactionAction> Actions { get; } = [];
+
+        public Task<bool> RouteAsync(VoiceReactionAction action, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Actions.Add(action);
+            return Task.FromResult(true);
+        }
+    }
+
     private sealed class FakeOllamaClient(IReadOnlyList<string> chunks) : IOllamaClient
     {
         /// <summary>
@@ -533,7 +621,7 @@ public sealed class CallCoordinatorTests
     /// <summary>
     /// Represents fake speech output and keeps its related state and behavior together.
     /// </summary>
-    private sealed class FakeSpeechOutput : ISpeechOutputService
+    private sealed class FakeSpeechOutput : ISpeechOutputService, IAdaptiveSpeechOutputService
     {
         /// <summary>
         /// Reports whether available applies to the current state.
@@ -555,6 +643,7 @@ public sealed class CallCoordinatorTests
         /// Gets or updates spoken, the bindable or domain state represented by this property.
         /// </summary>
         public List<string> Spoken { get; } = [];
+        public List<VoiceDeliveryStyle> Styles { get; } = [];
         /// <summary>
         /// Gets or updates stop count, the bindable or domain state represented by this property.
         /// </summary>
@@ -562,6 +651,18 @@ public sealed class CallCoordinatorTests
         /// <summary>
         /// Performs speak asynchronously so I/O does not block the caller's thread.
         /// </summary>
+        public Task SpeakAsync(
+            string text,
+            string? voiceName,
+            string? outputDeviceId,
+            VoiceDeliveryStyle style,
+            CancellationToken cancellationToken)
+        {
+            Spoken.Add(text);
+            Styles.Add(style);
+            return Task.CompletedTask;
+        }
+
         public Task SpeakAsync(string text, string? voiceName, string? outputDeviceId, CancellationToken cancellationToken)
         {
             Spoken.Add(text);

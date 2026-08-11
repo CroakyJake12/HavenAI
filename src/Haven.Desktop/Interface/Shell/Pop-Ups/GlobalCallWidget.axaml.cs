@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -14,6 +15,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Components;
+using Haven.Desktop.HavenUI.Floating;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Shell.Overlays;
@@ -24,20 +27,22 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
     private readonly DispatcherTimer _durationTimer;
     private readonly List<string> _selectedContext = [];
 
-    private Border? _surface;
+    private HavenFloatingSurface? _surface;
     private TextBlock? _statusText;
     private TextBlock? _durationText;
     private TextBlock? _summaryText;
     private TextBlock? _muteLabel;
     private PathIcon? _muteIcon;
-    private Button? _callActionButton;
+    private HavenHeaderPillButton? _callActionButton;
+    private HavenSelect? _voiceModeSelect;
+    private TextBlock? _reactionText;
     private TextBlock? _transcriptBody;
     private StackPanel? _transcriptMessages;
     private ScrollViewer? _transcriptScroller;
     private TextBox? _transcriptInput;
     private Button? _transcriptSendButton;
-    private StackPanel? _toolbar;
-    private Border? _detailPanel;
+    private HavenToolbar? _toolbar;
+    private HavenPanel? _detailPanel;
     private DateTimeOffset? _startedAt;
     private string? _openPanel;
     private Point? _dragStart;
@@ -79,20 +84,15 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
             Data = HavenIcon.GeometryFor("mic"),
             Width = 20,
             Height = 20,
-            Foreground = Brushes.Black
+            Foreground = Brush("HavenTextPrimaryBrush")
         };
 
-        var titleArea = new HavenAdaptiveSurface
+        var titleArea = new StackPanel
         {
-            Background = Brushes.Transparent,
-            Padding = new Thickness(0),
-            Child = new StackPanel
+            Spacing = 0,
+            Children =
             {
-                Spacing = 0,
-                Children =
-                {
-                    Text("Voice", 16, FontWeight.Bold)
-                }
+                Text("Voice", 16, FontWeight.Bold)
             }
         };
         titleArea.Tapped += (_, _) => TogglePanel("model");
@@ -111,25 +111,70 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         header.PointerMoved += OnDragPointerMoved;
         header.PointerReleased += OnDragPointerReleased;
 
-        _toolbar = new StackPanel
+        _voiceModeSelect = new HavenSelect
+        {
+            ItemsSource = _viewModel.VoiceProfiles.Select(profile => profile.Name).ToArray(),
+            SelectedIndex = Math.Max(0, _viewModel.VoiceProfiles
+                .Select((profile, index) => (profile, index))
+                .FirstOrDefault(pair => pair.profile.Id == _viewModel.SelectedVoiceProfile?.Id).index),
+            MinWidth = 190
+        };
+
+        AutomationProperties.SetAutomationId(_voiceModeSelect, "VoiceModeSelect");
+        AutomationProperties.SetName(_voiceModeSelect, "Voice mode");
+        ToolTip.SetTip(_voiceModeSelect, "Choose how Voice reacts during this session");
+        _voiceModeSelect.SelectionChanged += (_, _) =>
+        {
+            var index = _voiceModeSelect.SelectedIndex;
+            if (index >= 0 && index < _viewModel.VoiceProfiles.Count)
+                _viewModel.SelectedVoiceProfile = _viewModel.VoiceProfiles[index];
+        };
+
+        _reactionText = Muted(_viewModel.LiveReaction);
+        AutomationProperties.SetAutomationId(_reactionText, "VoiceReactionStatus");
+        AutomationProperties.SetName(_reactionText, "Live Voice reaction");
+        _reactionText.VerticalAlignment = VerticalAlignment.Center;
+        _reactionText.MaxWidth = 290;
+
+        var liveVoiceRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 10,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        liveVoiceRow.Children.Add(_voiceModeSelect);
+        Grid.SetColumn(_reactionText, 1);
+        liveVoiceRow.Children.Add(_reactionText);
+
+        var toolbarItems = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Center,
             Spacing = 7
         };
+        _toolbar = new HavenToolbar
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = toolbarItems
+        };
         _callActionButton = ActionButton("Start", true);
+        AutomationProperties.SetAutomationId(_callActionButton, "VoiceCallActionButton");
+        AutomationProperties.SetName(_callActionButton, "Start Voice call");
         _callActionButton.Width = 124;
         _callActionButton.Click += (_, _) => Execute(
             _viewModel.IsActive ? _viewModel.EndCallCommand : _viewModel.StartCallCommand);
 
-        var muteButton = IconButton("mic", "Mute or unmute");
-        muteButton.Width = 102;
-        muteButton.Content = new StackPanel
+        var muteButton = new HavenSecondaryButton
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            Children = { _muteIcon, _muteLabel }
+            MinWidth = 102,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children = { _muteIcon, _muteLabel }
+            }
         };
+        ToolTip.SetTip(muteButton, "Mute or unmute");
         muteButton.Click += (_, _) => Execute(_viewModel.ToggleMuteCommand);
 
         var transcriptButton = IconButton("chat", "Show transcript");
@@ -144,51 +189,38 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var settingsButton = IconButton("settings", "Voice session settings");
         settingsButton.Click += (_, _) => TogglePanel("settings");
 
-        _toolbar.Children.Add(_callActionButton);
-        _toolbar.Children.Add(muteButton);
-        _toolbar.Children.Add(transcriptButton);
-        _toolbar.Children.Add(participantsButton);
-        _toolbar.Children.Add(shareButton);
-        _toolbar.Children.Add(settingsButton);
+        toolbarItems.Children.Add(_callActionButton);
+        toolbarItems.Children.Add(muteButton);
+        toolbarItems.Children.Add(transcriptButton);
+        toolbarItems.Children.Add(participantsButton);
+        toolbarItems.Children.Add(shareButton);
+        toolbarItems.Children.Add(settingsButton);
 
-        _detailPanel = new HavenAdaptiveSurface
+        _detailPanel = new HavenPanel
         {
             IsVisible = false,
-            Padding = new Thickness(14),
-            CornerRadius = new CornerRadius(18),
-            Background = Brush("HavenPanel2Brush"),
-            BorderBrush = Brush("HavenLineBrush"),
-            BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Right
         };
 
         var compactContent = new StackPanel { Spacing = 10 };
         compactContent.Children.Add(header);
+        compactContent.Children.Add(liveVoiceRow);
         compactContent.Children.Add(_summaryText);
         compactContent.Children.Add(_toolbar);
 
-        var compactBar = new HavenAdaptiveSurface
-        {
-            Width = 570,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Padding = new Thickness(14),
-            CornerRadius = new CornerRadius(34),
-            Background = new SolidColorBrush(Color.Parse("#F1F1EF")),
-            Child = compactContent
-        };
-
-        var root = new StackPanel { Spacing = 8 };
+        var root = new StackPanel { Spacing = 10 };
         root.Children.Add(_detailPanel);
-        root.Children.Add(compactBar);
+        root.Children.Add(compactContent);
 
-        _surface = new HavenAdaptiveSurface
+        _surface = new HavenFloatingSurface
         {
-            Width = 820,
-            MaxWidth = 840,
-            Background = Brushes.Transparent,
+            Width = 620,
             Child = root,
             IsVisible = false
         };
+        _surface.Classes.Add("voice");
+        AutomationProperties.SetAutomationId(_surface, "VoiceFloatingSurface");
+        AutomationProperties.SetName(_surface, "Voice floating surface");
 
         CodeBehindHost.Children.Clear();
         CodeBehindHost.Children.Add(_surface);
@@ -276,33 +308,36 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         AddMenuButton(panel, "App", () => ShowUnavailable(
             "Apps can be opened from the app launcher while the session remains active."));
 
-        new HavenAdaptivePopup
+        new HavenDropdown
         {
             Placement = PlacementMode.TopEdgeAlignedRight,
-            Content = panel
+            Content = new HavenDropdownCard
+            {
+                MinWidth = 250,
+                Padding = new Thickness(8),
+                Child = panel
+            }
         }.ShowAt(placementTarget);
     }
 
     private static void AddMenuButton(StackPanel panel, string label, Action action)
     {
-        var button = new HavenButton
+        var button = new HavenDropdownItemButton
         {
             Content = label,
             HorizontalContentAlignment = HorizontalAlignment.Left
         };
-        button.Classes.Add("sidebar");
         button.Click += (_, _) => action();
         panel.Children.Add(button);
     }
 
     private static void AddMenuButton(StackPanel panel, string label, Func<System.Threading.Tasks.Task> action)
     {
-        var button = new HavenButton
+        var button = new HavenDropdownItemButton
         {
             Content = label,
             HorizontalContentAlignment = HorizontalAlignment.Left
         };
-        button.Classes.Add("sidebar");
         button.Click += async (_, _) => await action();
         panel.Children.Add(button);
     }
@@ -523,9 +558,9 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
                 MaxWidth = isUser ? 560 : 680,
                 HorizontalAlignment = isUser ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                 Background = isUser
-                    ? Brush("HavenAccentSoftBrush") ?? new SolidColorBrush(Color.Parse("#E0F7FA"))
-                    : new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(35, 0, 0, 0)),
+                    ? Brush("HavenAccentTertiaryBrush")
+                    : Brush("HavenCardSurfaceBrush"),
+                BorderBrush = Brush("HavenBorderSubtleBrush"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(18),
                 Padding = new Thickness(16, 12)
@@ -552,16 +587,16 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         stack.Children.Add(Text("Share", 13, FontWeight.SemiBold));
         stack.Children.Add(Muted(_viewModel.ScreenShareStatus));
 
-        var share = new HavenButton
-        {
-            Content = _viewModel.IsScreenSharing ? "Stop sharing" : "Share Screen or App",
-            IsEnabled = _viewModel.IsActive && _viewModel.CanShareScreen,
-            HorizontalContentAlignment = HorizontalAlignment.Left
-        };
+        HavenButtonBase share = _viewModel.IsScreenSharing
+            ? new HavenNegativeButton()
+            : new HavenPrimaryButton();
+        share.Content = _viewModel.IsScreenSharing ? "Stop sharing" : "Share Screen or App";
+        share.IsEnabled = _viewModel.IsActive && _viewModel.CanShareScreen;
+        share.HorizontalContentAlignment = HorizontalAlignment.Left;
         share.Click += (_, _) => Execute(_viewModel.ToggleScreenShareCommand);
         stack.Children.Add(share);
 
-        var camera = new HavenButton
+        var camera = new HavenSecondaryButton
         {
             Content = "Connect Camera",
             IsEnabled = false,
@@ -577,7 +612,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         var stack = new StackPanel { Spacing = 10 };
         stack.Children.Add(Text("Settings", 16, FontWeight.Bold));
 
-        var microphone = new HavenComboBox
+        var microphone = new HavenSelect
         {
             ItemsSource = _viewModel.InputDevices.Count == 0
                 ? new[] { "System default" }
@@ -599,7 +634,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
         var speedValue = Text($"{_viewModel.SpeechSpeedPercent}%", 12, FontWeight.Bold);
         stack.Children.Add(SettingRow("Speech Speed", speedValue));
-        var speed = SessionSlider(50, 200, _viewModel.SpeechSpeedPercent, "#56E0EE", "#FFE864");
+        var speed = SessionSlider(50, 200, _viewModel.SpeechSpeedPercent);
         speed.PropertyChanged += (_, args) =>
         {
             if (args.Property == RangeBase.ValueProperty)
@@ -615,75 +650,12 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         SetDetailContent(stack, 410);
     }
 
-    private void ShowLegacySettingsPanel()
-    {
-        var stack = new StackPanel { Spacing = 9 };
-        stack.Children.Add(Text("Voice session settings", 13, FontWeight.SemiBold));
-
-        stack.Children.Add(Muted("Microphone"));
-        var microphone = new HavenComboBox
-        {
-            ItemsSource = _viewModel.InputDevices.Count == 0
-                ? new[] { "System default" }
-                : _viewModel.InputDevices.Select(item => item.Name).ToArray(),
-            SelectedIndex = Math.Max(0, _viewModel.SelectedInputDevice is null
-                ? 0
-                : _viewModel.InputDevices.ToList().IndexOf(_viewModel.SelectedInputDevice)),
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        microphone.SelectionChanged += (_, _) =>
-        {
-            if (microphone.SelectedIndex >= 0 && microphone.SelectedIndex < _viewModel.InputDevices.Count)
-            {
-                _viewModel.SelectedInputDevice = _viewModel.InputDevices[microphone.SelectedIndex];
-            }
-        };
-        stack.Children.Add(microphone);
-
-        stack.Children.Add(Muted("Voice"));
-        var voice = new HavenComboBox
-        {
-            ItemsSource = _viewModel.Voices.Count == 0
-                ? new[] { "System voice" }
-                : _viewModel.Voices.Select(item => item.Name).ToArray(),
-            SelectedIndex = Math.Max(0, _viewModel.SelectedVoice is null
-                ? 0
-                : _viewModel.Voices.ToList().IndexOf(_viewModel.SelectedVoice)),
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        voice.SelectionChanged += (_, _) =>
-        {
-            if (voice.SelectedIndex >= 0 && voice.SelectedIndex < _viewModel.Voices.Count)
-            {
-                _viewModel.SelectedVoice = _viewModel.Voices[voice.SelectedIndex];
-            }
-        };
-        stack.Children.Add(voice);
-
-        stack.Children.Add(Muted("Reasoning"));
-        var reasoning = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        foreach (var percent in new[] { 25, 50, 75, 100 })
-        {
-            var button = new HavenButton { Content = $"{percent}%" };
-            button.Click += (_, _) =>
-            {
-                _viewModel.Effort = EffortFromPercent(percent);
-                ShowSettingsPanel();
-            };
-            reasoning.Children.Add(button);
-        }
-
-        stack.Children.Add(reasoning);
-        stack.Children.Add(Muted($"Speech speed: System default · Reasoning: {_viewModel.ReasoningPercent}%"));
-        SetDetailContent(stack, 440);
-    }
-
     private void ShowModelPanel()
     {
         var stack = new StackPanel { Spacing = 10 };
         stack.Children.Add(SettingRow("Model", Text(_viewModel.SelectedModelName, 14, FontWeight.Bold)));
 
-        var voice = new HavenComboBox
+        var voice = new HavenSelect
         {
             ItemsSource = _viewModel.Voices.Count == 0
                 ? new[] { "System voice" }
@@ -691,11 +663,8 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
             SelectedIndex = Math.Max(0, _viewModel.SelectedVoice is null
                 ? 0
                 : _viewModel.Voices.ToList().IndexOf(_viewModel.SelectedVoice)),
-            MinWidth = 180,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            FontWeight = FontWeight.Bold
+            MinWidth = 220,
+            HorizontalAlignment = HorizontalAlignment.Right
         };
         voice.SelectionChanged += (_, _) =>
         {
@@ -708,7 +677,7 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
         var reasoningValue = Text($"{_viewModel.ReasoningPercent}%", 14, FontWeight.Bold);
         stack.Children.Add(SettingRow("Reasoning", reasoningValue));
-        var reasoning = SessionSlider(25, 100, _viewModel.ReasoningPercent, "#FFF86A", "#FFB928");
+        var reasoning = SessionSlider(25, 100, _viewModel.ReasoningPercent);
         reasoning.PropertyChanged += (_, args) =>
         {
             if (args.Property == RangeBase.ValueProperty)
@@ -721,35 +690,6 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         stack.Children.Add(Muted(_viewModel.ReasoningPercent >= 75
             ? "Slower, more accurate responses."
             : "Faster responses."));
-        SetDetailContent(stack, 410);
-    }
-
-    private void ShowLegacyModelPanel()
-    {
-        var stack = new StackPanel { Spacing = 8 };
-        stack.Children.Add(Text("Voice model", 13, FontWeight.SemiBold));
-        stack.Children.Add(Text(_viewModel.SelectedModelName, 14, FontWeight.Bold));
-        stack.Children.Add(Muted(
-            $"Voice: {_viewModel.SelectedVoice?.Name ?? "System voice"} · " +
-            $"Reasoning: {_viewModel.ReasoningPercent}%"));
-
-        var reasoning = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        foreach (var percent in new[] { 25, 50, 75, 100 })
-        {
-            var button = new HavenButton
-            {
-                Content = $"{percent}%",
-                IsEnabled = _viewModel.ReasoningPercent != percent
-            };
-            button.Click += (_, _) =>
-            {
-                _viewModel.Effort = EffortFromPercent(percent);
-                ShowModelPanel();
-            };
-            reasoning.Children.Add(button);
-        }
-
-        stack.Children.Add(reasoning);
         SetDetailContent(stack, 410);
     }
 
@@ -766,23 +706,12 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         return row;
     }
 
-    private static Slider SessionSlider(double minimum, double maximum, double value, string start, string end) => new()
+    private static HavenSlider SessionSlider(double minimum, double maximum, double value) => new()
     {
         Minimum = minimum,
         Maximum = maximum,
         Value = value,
-        Height = 34,
-        TickFrequency = maximum == 100 ? 25 : 10,
-        Background = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(start), 0),
-                new GradientStop(Color.Parse(end), 1)
-            }
-        }
+        TickFrequency = maximum == 100 ? 25 : 10
     };
 
     private static EffortLevel EffortFromPercent(int percent) => percent switch
@@ -877,6 +806,8 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
             _muteLabel is null ||
             _muteIcon is null ||
             _callActionButton is null ||
+            _voiceModeSelect is null ||
+            _reactionText is null ||
             _toolbar is null)
         {
             return;
@@ -884,16 +815,21 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
 
         _surface.IsVisible = _viewModel.IsVisible;
         _statusText.Text = _viewModel.Status;
+        var selectedVoiceModeIndex = _viewModel.VoiceProfiles
+            .Select((profile, index) => (profile, index))
+            .FirstOrDefault(pair => pair.profile.Id == _viewModel.SelectedVoiceProfile?.Id).index;
+        if (selectedVoiceModeIndex >= 0 && _voiceModeSelect.SelectedIndex != selectedVoiceModeIndex)
+            _voiceModeSelect.SelectedIndex = selectedVoiceModeIndex;
+        _voiceModeSelect.IsEnabled = !_viewModel.IsActive;
+        _reactionText.Text = _viewModel.IsActive ? _viewModel.LiveReaction : "Choose a live Voice mode";
         _summaryText.Text = _viewModel.CallSummary ?? string.Empty;
         _summaryText.IsVisible = !string.IsNullOrWhiteSpace(_summaryText.Text);
         _muteLabel.Text = _viewModel.IsMuted ? "OFF" : "ON";
         _muteIcon.Data = HavenIcon.GeometryFor(_viewModel.IsMuted ? "mute" : "mic");
         _callActionButton.Content = _viewModel.IsActive ? "End" : "Start";
         _callActionButton.IsEnabled = _viewModel.IsActive || _viewModel.StartCallCommand.CanExecute(null);
-        _callActionButton.Background = _viewModel.IsActive
-            ? new SolidColorBrush(Color.Parse("#FF6B61"))
-            : Brush("HavenCyanBrush") ?? new SolidColorBrush(Color.Parse("#55D9E8"));
-        _callActionButton.Foreground = _viewModel.IsActive ? Brushes.White : Brushes.Black;
+        _callActionButton.Classes.Set("negative", _viewModel.IsActive);
+        AutomationProperties.SetName(_callActionButton, _viewModel.IsActive ? "End Voice call" : "Start Voice call");
 
         if (_viewModel.IsActive && _startedAt is null)
         {
@@ -952,45 +888,33 @@ public sealed partial class GlobalCallWidget : UserControl, IDisposable
         }
     }
 
-    private static Button IconButton(string iconKey, string toolTip)
+    private static HavenHeaderIconButton IconButton(string iconKey, string toolTip)
     {
-        var button = new HavenButton
+        var button = new HavenHeaderIconButton
         {
             Content = new PathIcon
             {
                 Data = HavenIcon.GeometryFor(iconKey),
                 Width = 20,
                 Height = 20,
-                Foreground = Brushes.Black
+                Foreground = Brush("HavenTextPrimaryBrush")
             },
-            Width = 54,
-            Height = 54,
-            Padding = new Thickness(10),
-            CornerRadius = new CornerRadius(27),
-            Background = new SolidColorBrush(Color.Parse("#F7EFF8")),
-            Foreground = Brushes.Black,
-            BorderThickness = new Thickness(0),
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center
         };
-        button.Classes.Add("chrome");
         ToolTip.SetTip(button, toolTip);
         return button;
     }
 
-    private static Button ActionButton(string text, bool positive)
+    private static HavenHeaderPillButton ActionButton(string text, bool positive)
     {
-        var button = new HavenButton
+        var button = new HavenHeaderPillButton
         {
             Content = text,
-            MinWidth = 92,
-            MinHeight = 44,
-            Padding = new Thickness(18, 8),
-            CornerRadius = new CornerRadius(22),
+            MinWidth = 112,
             HorizontalContentAlignment = HorizontalAlignment.Center
         };
-
-        button.Classes.Add(positive ? "accent" : "primary");
+        if (!positive) button.Classes.Add("negative");
         return button;
     }
 
