@@ -43,6 +43,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     private readonly IWorkspaceStateRepository _workspaceState;
     private readonly IProjectIntelligenceService _projectIntelligence;
     private readonly IContainerResourceRepository? _containerResources;
+    private readonly CapabilityRegistryService? _capabilityRegistry;
+    private IReadOnlyList<ActiveCapability> _registeredCapabilities = [];
     private readonly IConversationProductionRepository? _production;
     private readonly IMessageAttachmentService? _attachmentService;
     private readonly IAppPaths? _paths;
@@ -127,6 +129,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
             _production = services.GetService<IConversationProductionRepository>();
             _attachmentService = services.GetService<IMessageAttachmentService>();
             _paths = services.GetService<IAppPaths>();
+            _capabilityRegistry = services.GetService<CapabilityRegistryService>();
         }
 
         Mode = mode;
@@ -137,8 +140,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
         StopCommand = new RelayCommand(Stop, () => IsSending);
         NewChatCommand = new RelayCommand(NewChat);
         ToggleTemporaryCommand = new RelayCommand(ToggleTemporary);
-        TogglePluginCommand = new RelayCommand<PluginItemViewModel>(TogglePlugin);
-        SelectPluginCommand = new RelayCommand<PluginItemViewModel>(SelectPlugin);
+        TogglePluginCommand = new RelayCommand<CapabilityItemViewModel>(TogglePlugin);
+        SelectPluginCommand = new RelayCommand<CapabilityItemViewModel>(SelectPlugin);
         OpenPluginPickerCommand = new RelayCommand(OpenPluginPicker);
         TogglePromptCommand = new RelayCommand<PromptItemViewModel>(TogglePrompt);
         SelectPromptCommand = new RelayCommand<PromptItemViewModel>(SelectPrompt);
@@ -288,8 +291,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     public ObservableCollection<MessageBubbleViewModel> Messages { get; } = [];
     public ObservableCollection<ModelDescriptor> Models { get; } = [];
     public ObservableCollection<AgentItemViewModel> Agents { get; } = [];
-    public ObservableCollection<PluginItemViewModel> Plugins { get; } = [];
-    public ObservableCollection<PluginItemViewModel> PluginSuggestions { get; } = [];
+    public ObservableCollection<CapabilityItemViewModel> Plugins { get; } = [];
+    public ObservableCollection<CapabilityItemViewModel> PluginSuggestions { get; } = [];
     public ObservableCollection<PromptItemViewModel> Prompts { get; } = [];
     public ObservableCollection<PromptItemViewModel> PromptSuggestions { get; } = [];
     public ObservableCollection<ContainerItemViewModel> Containers { get; } = [];
@@ -453,8 +456,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     public RelayCommand StopCommand { get; }
     public RelayCommand NewChatCommand { get; }
     public RelayCommand ToggleTemporaryCommand { get; }
-    public RelayCommand<PluginItemViewModel> TogglePluginCommand { get; }
-    public RelayCommand<PluginItemViewModel> SelectPluginCommand { get; }
+    public RelayCommand<CapabilityItemViewModel> TogglePluginCommand { get; }
+    public RelayCommand<CapabilityItemViewModel> SelectPluginCommand { get; }
     public RelayCommand OpenPluginPickerCommand { get; }
     public RelayCommand<PromptItemViewModel> TogglePromptCommand { get; }
     public RelayCommand<PromptItemViewModel> SelectPromptCommand { get; }
@@ -830,16 +833,21 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
     public async Task RefreshCatalogAsync(CancellationToken cancellationToken)
     {
         var selectedAgentName = SelectedAgent?.Name;
-        var activePlugins = Plugins.Where(item => item.IsActive).Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var platform = OperatingSystem.IsAndroid() ? CapabilityPlatform.Android : CapabilityPlatform.Windows;
         var activePrompts = Prompts.Where(item => item.IsActive).Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         Agents.Clear();
         Plugins.Clear();
         Prompts.Clear();
         foreach (var agent in await _catalog.GetAgentsAsync(cancellationToken)) Agents.Add(new AgentItemViewModel(agent));
         SelectedAgent = Agents.FirstOrDefault(item => item.Name.Equals(selectedAgentName, StringComparison.OrdinalIgnoreCase)) ?? Agents.FirstOrDefault();
-        foreach (var plugin in await _catalog.GetPluginsAsync(cancellationToken))
+        _registeredCapabilities = _capabilityRegistry is null
+            ? []
+            : (await _capabilityRegistry.DiscoverAsync(platform, cancellationToken))
+                .Select(ActiveCapability.FromDefinition)
+                .ToArray();
+        foreach (var plugin in (_capabilityRegistry is null ? Array.Empty<CapabilityDefinition>() : await _capabilityRegistry.DiscoverAsync(platform, cancellationToken)))
         {
-            var item = new PluginItemViewModel(plugin, Mode, _preferences.ShowAgenticInChat) { IsActive = activePlugins.Contains(plugin.Name) };
+            var item = new CapabilityItemViewModel(CapabilityPickerDefinition.FromDefinition(plugin), Mode, _preferences.ShowAgenticInChat) { IsActive = false };
             Plugins.Add(item);
         }
         RefreshPluginAvailability();
@@ -1024,9 +1032,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
             prepared = await AddGroupResourceImagesAsync(prepared, _sendCancellation.Token);
             if (Messages.Count == 0)
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
-            var active = Plugins.Where(x => x.IsActive)
-                .Select(x => ActiveCapability.FromLegacyPlugin(x.Name, x.IconKey, x.Instructions))
-                .ToArray();
+            var active = Array.Empty<ActiveCapability>();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var check = _preflight.Evaluate(SelectedModel, active, prepared.Images is { Count: > 0 }, Models);
             if (!check.IsCompatible && _preferences.AutoSwitchCompatibleModels && check.SuggestedModel is not null)
@@ -1038,8 +1044,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
             }
             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
             var selectedAgent = ResolveAgent(prompt);
-            var agent = IsAgentPluginActive ? selectedAgent?.Name ?? "Default" : "Default";
-            var agentInstructions = IsAgentPluginActive ? selectedAgent?.Instructions ?? string.Empty : string.Empty;
+            var agent = selectedAgent?.Name ?? "Default";
+            var agentInstructions = selectedAgent?.Instructions ?? string.Empty;
             var registeredContext = await BuildRegisteredContextAsync(prompt, _sendCancellation.Token);
             var containerContext = await BuildContainerContextAsync(_sendCancellation.Token);
             var containerInstructions = BuildContainerInstructions();
@@ -1052,7 +1058,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
                                prepared.Images, _sendCancellation.Token, activePrompts, registeredContext, _preferences.GenerationOptions,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.FilePermission,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.CommandPermission,
-                               permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission))
+                               permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission,
+                               availableCapabilities: _registeredCapabilities))
             {
                 switch (item.Kind)
                 {
@@ -1329,7 +1336,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
         ConversationChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void TogglePlugin(PluginItemViewModel? plugin)
+    private void TogglePlugin(CapabilityItemViewModel? plugin)
     {
         if (plugin is null) return;
         if (!plugin.IsAvailableInMode)
@@ -1392,7 +1399,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
         _retryAfterComputerPermission = false;
     }
 
-    private void SelectPlugin(PluginItemViewModel? plugin)
+    private void SelectPlugin(CapabilityItemViewModel? plugin)
     {
         if (plugin is null) return;
         if (!plugin.IsActive) TogglePlugin(plugin);
@@ -1484,8 +1491,8 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
                 plugin.SetRuntimeAvailability(true, string.Empty);
                 continue;
             }
-            var available = _sessions.CanActivatePlugin(plugin.Name, Mode, SelectedContainer?.RootPath,
-                _preferences.FilePermission, _preferences.CommandPermission, _preferences.BrowserPermission);
+            var available = _registeredCapabilities.Any(capability => capability.Name.Equals(plugin.Name, StringComparison.OrdinalIgnoreCase));
+
             plugin.SetRuntimeAvailability(available, available ? string.Empty : RuntimePluginReason(plugin.Name));
             if (!available) plugin.IsActive = false;
         }
@@ -1510,7 +1517,7 @@ public sealed partial class ChatPage : UserControl, INotifyPropertyChanged
 
     private AgentItemViewModel? ResolveAgent(string prompt)
     {
-        if (!IsAgentPluginActive) return null;
+        if (SelectedAgent is null) return Agents.FirstOrDefault(agent => agent.Name == "Default");
         if (!string.Equals(SelectedAgent?.Name, "Auto", StringComparison.OrdinalIgnoreCase)) return SelectedAgent;
         var matched = Agents
             .Where(agent => agent.Name is not "Auto" and not "Default")

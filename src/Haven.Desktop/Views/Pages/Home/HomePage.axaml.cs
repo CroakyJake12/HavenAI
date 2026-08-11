@@ -451,7 +451,7 @@ public sealed partial class HomePage : UserControl
         var result = new List<IDashboardTileProvider>();
         try
         {
-            var plugins = await _catalog.GetPluginsAsync(ct);
+            (string DashboardTilesJson, bool Unused)[] plugins = [];
             foreach (var plugin in plugins)
             {
                 if (string.IsNullOrWhiteSpace(plugin.DashboardTilesJson)) continue;

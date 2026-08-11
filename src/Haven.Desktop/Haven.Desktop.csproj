@@ -26,7 +26,7 @@
     <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
-    <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <!-- Legacy Haven.Automations project retired; scheduled Tasks live in Haven.Application. -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />

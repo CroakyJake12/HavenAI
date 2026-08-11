@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Haven.Application;
-using Haven.Automations;
+using Haven.Application.Tasks;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Events;
@@ -32,6 +32,9 @@ public sealed partial class App : Avalonia.Application
             // Avalonia's developer-tools service is process-wide. Headless tests create
             // multiple isolated App instances in one process, so attaching per instance
             // causes cleanup failures after otherwise successful tests.
+
+
+
             if (Interlocked.Exchange(ref _developerToolsAttached, 1) == 0)
                 this.AttachDeveloperTools();
         #endif
@@ -43,7 +46,8 @@ public sealed partial class App : Avalonia.Application
         collection.AddHavenInfrastructure();
         collection.AddHavenPlannerInfrastructure();
         collection.AddHavenDesktopCallServices();
-        collection.AddHavenAutomations();
+        collection.AddSingleton<ScheduledTaskScheduleCalculator>();
+        collection.AddSingleton<ScheduledTaskRunner>();
         collection.AddSingleton<BrowserSessionService>();
         collection.AddSingleton<BrowserDataService>();
         collection.AddSingleton<BrowserNavigationPolicy>();
@@ -82,11 +86,15 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
         collection.AddSingleton<ComputerUseOverlayCoordinator>();
-        collection.AddSingleton<AutomationDeliveryController>();
-        collection.AddSingleton<GenerativeUiThemeRuntime>();
+        // Legacy automation delivery polling retired; Tasks owns execution state.
+        
         collection.AddSingleton<FloatingActivityStateStore>();
+#if ANDROID
+        collection.AddSingleton<IFloatingActivityHost, global::Haven.Android.Compatibility.AndroidFloatingActivityHost>();
+#else
         collection.AddSingleton<IFloatingActivityHost, DesktopFloatingActivityHost>();
-        collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
+#endif
+        
         collection.AddSingleton<HavenEventBus>();
         collection.AddSingleton<MainView>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
@@ -139,7 +147,7 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
-            await services.GetRequiredService<AutomationDeliveryController>().StartAsync(CancellationToken.None);
+            // Scheduled Tasks have no parallel automation delivery loop.
 
             if (recoveryState.IsSafeMode)
             {

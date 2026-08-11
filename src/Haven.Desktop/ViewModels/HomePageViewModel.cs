@@ -287,19 +287,19 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     private async Task<IReadOnlyList<IDashboardTileProvider>> GetManifestProvidersAsync(CancellationToken cancellationToken)
     {
         var result = new List<IDashboardTileProvider>();
-        foreach (var plugin in await _catalog.GetPluginsAsync(cancellationToken))
+        foreach (var capability in Array.Empty<CapabilityDefinition>())
         {
             IReadOnlyList<DashboardPluginTileManifest> manifests;
             try
             {
-                manifests = System.Text.Json.JsonSerializer.Deserialize<DashboardPluginTileManifest[]>(plugin.DashboardTilesJson,
+                manifests = System.Text.Json.JsonSerializer.Deserialize<DashboardPluginTileManifest[]>("[]",
                     new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true }) ?? [];
             }
             catch (System.Text.Json.JsonException) { continue; }
             var order = 1000;
             foreach (var manifest in manifests)
             {
-                if (!TryCreateManifestProvider(plugin, manifest, order++, out var provider)) continue;
+                if (!TryCreateManifestProvider(capability, manifest, order++, out var provider)) continue;
                 result.Add(provider);
             }
         }
@@ -309,15 +309,15 @@ public sealed class HomePageViewModel : ObservableObject, IActivatablePage, IDis
     /// <summary>
     /// Attempts to create manifest provider and reports the result without using failure for normal control flow.
     /// </summary>
-    private static bool TryCreateManifestProvider(PluginDefinition plugin, DashboardPluginTileManifest manifest, int order,
+    private static bool TryCreateManifestProvider(CapabilityDefinition capability, DashboardPluginTileManifest manifest, int order,
         out IDashboardTileProvider provider)
     {
         provider = null!;
         if (!DashboardTileManifestPolicy.IsApproved(manifest) ||
             !Enum.TryParse<DashboardTileSize>(manifest.Size, true, out var size)) return false;
         var definition = new DashboardTileDefinition(
-            $"plugin:{plugin.Id:N}:{manifest.Key.Trim()}", manifest.Title.Trim(), manifest.Description.Trim(),
-            string.IsNullOrWhiteSpace(manifest.IconKey) ? plugin.IconKey : manifest.IconKey.Trim(),
+            $"capability:{capability.Id:N}:{manifest.Key.Trim()}", manifest.Title.Trim(), manifest.Description.Trim(),
+            string.IsNullOrWhiteSpace(manifest.IconKey) ? capability.IconKey : manifest.IconKey.Trim(),
             manifest.ProviderKey, manifest.ActionKey, size, order, false);
         provider = new ManifestDashboardTileProvider(definition);
         return true;

@@ -263,15 +263,15 @@ public sealed partial class NotesWorkspaceView
         RebuildPreview();
 
         var ready = false;
-        void SavePreferences()
+        async void SavePreferences()
         {
             if (!ready) return;
-            _ = BeginEditingAsync(block);
+            await BeginEditingAsync(block);
             block.Metadata[CodeLanguageKey] = language.SelectedItem as string ?? "Plain text";
             block.Metadata[CodeWrapKey] = (wrap.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
             block.Metadata[CodeLineNumbersKey] = (lineNumbers.IsChecked == true).ToString(System.Globalization.CultureInfo.InvariantCulture);
             block.Metadata[CodeTabSizeKey] = Decimal.ToInt32(tabSize.Value ?? 4).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            _ = EndEditingAsync(block, "Changed code block settings");
+            await EndEditingAsync(block, "Changed code block settings");
             RebuildPreview();
         }
         language.SelectionChanged += (_, _) => SavePreferences();
@@ -281,10 +281,10 @@ public sealed partial class NotesWorkspaceView
         ready = true;
 
         var actions = new WrapPanel();
-        actions.Children.Add(ActionButton("Normalize indentation", () =>
+        actions.Children.Add(ActionButton("Normalize indentation", async () =>
         {
             var spaces = new string(' ', Decimal.ToInt32(tabSize.Value ?? 4));
-            _ = BeginEditingAsync(block);
+            await BeginEditingAsync(block);
             block.PlainText = block.PlainText.Replace("\t", spaces, StringComparison.Ordinal);
             if (block.Runs.Count == 0)
             {
@@ -295,9 +295,9 @@ public sealed partial class NotesWorkspaceView
                 foreach (var run in block.Runs)
                     run.Text = run.Text.Replace("\t", spaces, StringComparison.Ordinal);
             }
-            _ = EndEditingAsync(block, "Normalized code indentation");
+            block.PlainText = block.Runs.Count > 0 ? string.Concat(block.Runs.Select(run => run.Text)) : block.PlainText;
+            await EndEditingAsync(block, "Normalized code indentation");
             RebuildPreview();
-            return Task.CompletedTask;
         }, "Replace tab characters with the selected number of spaces as one undoable edit"));
         actions.Children.Add(ActionButton("Copy code", async () =>
         {

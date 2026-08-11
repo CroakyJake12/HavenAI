@@ -87,12 +87,13 @@ internal sealed partial class GenerativeUiStreamingPreview : UserControl, IDispo
     public void Update(string content)
     {
         if (_disposed) return;
-        var match = TemplateRegex().Match(content ?? string.Empty);
+        content ??= string.Empty;
+        var match = TemplateRegex().Match(content);
         var template = match.Success ? match.Groups[1].Value : string.Empty;
         if (template.Equals("custom", StringComparison.OrdinalIgnoreCase)
             && content.Contains("HavenCanvas", StringComparison.OrdinalIgnoreCase))
             template = "whiteboard";
-        var stage = EstimateStage(content ?? string.Empty, template);
+        var stage = EstimateStage(content, template);
         if (template == _templateKey && stage == _stage) return;
         _templateKey = template;
         _stage = stage;

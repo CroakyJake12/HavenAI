@@ -111,7 +111,7 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
 
         ReusableTasks.Clear();
         if (_mode == HavenMode.Tasks)
-            foreach (var task in (await _workspaceState.GetMacrosAsync(null, CancellationToken.None)).Take(12))
+            foreach (var task in (await _workspaceState.GetReusableTasksAsync(null, CancellationToken.None)).Take(12))
                 ReusableTasks.Add(new ReusableTaskSummaryViewModel(task.Name, task.Description));
         RaisePropertyChanged(nameof(HasAutomations));
         RaisePropertyChanged(nameof(HasItems));

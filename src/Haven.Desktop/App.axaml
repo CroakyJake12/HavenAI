@@ -20,7 +20,7 @@
     <DataTemplate DataType="{x:Type vm:CallPageViewModel}"><views:CallView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PlanPageViewModel}"><views:PlanView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:CatalogPageViewModel}"><views:CatalogView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:AutomationsPageViewModel}"><views:AutomationsView /></DataTemplate>
+    
     <DataTemplate DataType="{x:Type vm:TrainingPageViewModel}"><views:TrainingView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:SettingsPageViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:LessonSettingsPageViewModel}"><views:LessonSettingsView /></DataTemplate>

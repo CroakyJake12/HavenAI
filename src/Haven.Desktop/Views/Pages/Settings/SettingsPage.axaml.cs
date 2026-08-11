@@ -45,7 +45,7 @@ public sealed partial class SettingsPage : UserControl
     private readonly HavenTextInput _modelSearchBox = new() { PlaceholderText = "Search installed models" };
 
     private readonly HavenCheckBox _autoSwitchCheck = new() { Content = "Automatically switch to a compatible model" };
-    private readonly HavenCheckBox _agenticInChatCheck = new() { Content = "Show agentic plugins in Haven Chat" };
+    private readonly HavenCheckBox _agenticInChatCheck = new() { Content = "Show agentic capabilities in Haven Chat" };
     private readonly HavenCheckBox _confidenceCheck = new() { Content = "Show confidence indicators" };
     private readonly HavenCheckBox _autoCompactCheck = new() { Content = "Compact context automatically" };
     private readonly HavenNumericInput _compactPercentBox = new() { Minimum = 50, Maximum = 95 };

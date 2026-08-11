@@ -24,7 +24,7 @@ public sealed partial class PlanView : UserControl
     /// <summary>
     /// Stores automation control locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private PlanAutomationControl? _automationControl;
+    private PlanScheduledTaskControl? _automationControl;
 
     public PlanView()
     {
@@ -43,7 +43,7 @@ public sealed partial class PlanView : UserControl
     private void InstallAutomationControl()
     {
         if (_automationControl is not null || Content is not Grid root) return;
-        _automationControl = new PlanAutomationControl
+        _automationControl = new PlanScheduledTaskControl
         {
             Margin = new Thickness(0, 22, 22, 0),
             ZIndex = 20

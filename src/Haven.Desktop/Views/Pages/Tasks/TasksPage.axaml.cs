@@ -76,7 +76,7 @@ public sealed partial class TasksPage : UserControl
         Padding = new Thickness(18),
         CornerRadius = new CornerRadius(16)
     };
-    private MacroDefinition? _editing;
+    private ReusableTaskDefinition? _editing;
     private bool _editMode;
     private bool _busy;
 
@@ -419,7 +419,7 @@ public sealed partial class TasksPage : UserControl
         _status.Text = "Loading Haven Tasks…";
         try
         {
-            var reusableTask = _tasks.GetMacrosAsync(_containerId, CancellationToken.None);
+            var reusableTask = _tasks.GetReusableTasksAsync(_containerId, CancellationToken.None);
             var scheduledTask = _automations.GetAllAsync(CancellationToken.None);
             var historyTask = _conversations.GetRecentAsync(HavenMode.Tasks, 50, CancellationToken.None);
             await Task.WhenAll(reusableTask, scheduledTask, historyTask);
@@ -467,11 +467,11 @@ public sealed partial class TasksPage : UserControl
     {
         var detail = context switch
         {
-            MacroDefinition macro when !string.IsNullOrWhiteSpace(macro.Description) => macro.Description,
+            ReusableTaskDefinition macro when !string.IsNullOrWhiteSpace(macro.Description) => macro.Description,
             string text => text,
             _ => "Ready to run"
         };
-        var actionLabel = _editMode && context is MacroDefinition ? "Edit" : "Run";
+        var actionLabel = _editMode && context is ReusableTaskDefinition ? "Edit" : "Run";
         var button = new HavenNavigationButton
         {
             Tag = name,
@@ -531,7 +531,7 @@ public sealed partial class TasksPage : UserControl
             CornerRadius = new CornerRadius(18),
         };
         button.Click += async (_, _) => await action();
-        if (context is MacroDefinition item)
+        if (context is ReusableTaskDefinition item)
         {
             button.ContextMenu = new HavenContextMenu
             {
@@ -598,7 +598,7 @@ public sealed partial class TasksPage : UserControl
         }
     }
 
-    private void ShowEditor(MacroDefinition? item)
+    private void ShowEditor(ReusableTaskDefinition? item)
     {
         _editing = item;
         _editorTitle.Text = item is null ? "Create Task" : "Edit Task";
@@ -631,7 +631,7 @@ public sealed partial class TasksPage : UserControl
         }
 
         var now = DateTimeOffset.UtcNow;
-        var item = new MacroDefinition(
+        var item = new ReusableTaskDefinition(
             _editing?.Id ?? Guid.NewGuid(),
             name,
             _goal.Text?.Trim() ?? string.Empty,
@@ -640,12 +640,12 @@ public sealed partial class TasksPage : UserControl
             true,
             _editing?.CreatedAt ?? now,
             now);
-        await _tasks.UpsertMacroAsync(item, CancellationToken.None);
+        await _tasks.UpsertReusableTaskAsync(item, CancellationToken.None);
         _status.Text = $"Saved {name}.";
         ShowDashboard();
     }
 
-    private async Task TestAsync() => await TestDefinitionAsync(new MacroDefinition(
+    private async Task TestAsync() => await TestDefinitionAsync(new ReusableTaskDefinition(
         _editing?.Id ?? Guid.Empty,
         _name.Text?.Trim() ?? "Task draft",
         _goal.Text?.Trim() ?? string.Empty,
@@ -655,7 +655,7 @@ public sealed partial class TasksPage : UserControl
         DateTimeOffset.UtcNow,
         DateTimeOffset.UtcNow));
 
-    private async Task TestDefinitionAsync(MacroDefinition item) => await InvokeAsync(
+    private async Task TestDefinitionAsync(ReusableTaskDefinition item) => await InvokeAsync(
         "TEST MODE — do not mutate files, applications, accounts, services, messages, settings, or external state. " +
         "Walk through the task plan, identify missing inputs and risks, and explain exactly how success would be verified.\n\n" +
         item.Instruction);
@@ -697,9 +697,9 @@ public sealed partial class TasksPage : UserControl
         }
     }
 
-    private async Task DeleteAsync(MacroDefinition item)
+    private async Task DeleteAsync(ReusableTaskDefinition item)
     {
-        await _tasks.DeleteMacroAsync(item.Id, CancellationToken.None);
+        await _tasks.DeleteReusableTaskAsync(item.Id, CancellationToken.None);
         await RefreshAsync();
         _status.Text = $"Deleted {item.Name}.";
     }

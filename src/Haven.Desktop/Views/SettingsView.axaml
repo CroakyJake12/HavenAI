@@ -101,7 +101,7 @@
           <StackPanel Spacing="8">
             <TextBlock Text="FEATURES" Classes="eyebrow" />
             <hui:HavenCheckBox Content="Automatically switch to a compatible model" IsChecked="{Binding AutoSwitch}" />
-            <hui:HavenCheckBox Content="Show agentic plugins in Haven Chat" IsChecked="{Binding ShowAgenticInChat}" />
+            <hui:HavenCheckBox Content="Show agentic capabilities in Haven Chat" IsChecked="{Binding ShowAgenticInChat}" />
             <TextBlock Text="Workspace tabs use the horizontal strip below the menu." Classes="muted" FontSize="10" />
             <hui:HavenCheckBox Content="Show confidence indicators" IsChecked="{Binding ConfidenceMeter}" />
             <hui:HavenCheckBox Content="Compact context automatically" IsChecked="{Binding AutoCompact}" />

@@ -10,7 +10,8 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Automations;
+using Haven.Application.Tasks;
+
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Controls;
@@ -65,9 +66,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly CustomTemplateRuntime _customTemplate;
     private readonly BrowserSessionService _browser;
     private readonly BrowserDataService _browserData;
-    private readonly WindowsAutomationRegistrationService _registration;
-    private readonly AutomationRunner _automationRunner;
-    private readonly ScheduleCalculator _scheduleCalculator;
+
+    private readonly ScheduledTaskRunner _automationRunner;
+    private readonly ScheduledTaskScheduleCalculator _scheduleCalculator;
     private readonly UserPreferencesService _preferences;
     private readonly GoSuggestionService _goSuggestions;
     private readonly Dictionary<GoPage, CancellationTokenSource> _goSuggestionRefreshes = [];
@@ -165,9 +166,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         CustomTemplateRuntime customTemplate,
         BrowserSessionService browser,
         BrowserDataService browserData,
-        WindowsAutomationRegistrationService registration,
-        AutomationRunner automationRunner,
-        ScheduleCalculator scheduleCalculator,
+
+        ScheduledTaskRunner automationRunner,
+        ScheduledTaskScheduleCalculator scheduleCalculator,
         UserPreferencesService preferences,
         ProjectCreationService projectCreator,
         NotificationService notifications,
@@ -219,7 +220,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _customTemplate = customTemplate;
         _browser = browser;
         _browserData = browserData;
-        _registration = registration;
+
         _automationRunner = automationRunner;
         _scheduleCalculator = scheduleCalculator;
         _preferences = preferences;
@@ -263,7 +264,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         NavigateAgentsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Agents));
         NavigateCapabilitiesCommand = new RelayCommand(OpenCapabilities);
         NavigatePromptsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Prompts));
-        NavigateAutomationsCommand = new RelayCommand(OpenAutomations);
+        NavigateAutomationsCommand = new RelayCommand(OpenTasksDashboard);
         NavigateArchiveCommand = new RelayCommand(OpenArchive);
         NavigateActivityLogCommand = new RelayCommand(OpenActivityLog);
         DismissNotificationCommand = new RelayCommand<Guid>(id => _notifications.Dismiss(id));
@@ -1188,15 +1189,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenCatalog(CatalogPageKind kind)
     {
+        if (kind == CatalogPageKind.Capabilities)
+        {
+            OpenCapabilities();
+            return;
+        }
         var page = new CatalogPageViewModel(kind, _catalog, _ollama, true);
-        var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Plugins => "Plugins", _ => "Instruction Library" };
+        var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
         AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, page, true);
     }
 
     private void OpenAutomations()
     {
         AddOrSelectTab("scheduled-actions", "Scheduled Actions",
-            new AutomationsPageViewModel(_automations, _registration, _automationRunner, _scheduleCalculator), true);
+            new object(), true);
     }
 
     private void OpenArchive() => AddOrSelectTab("archive-" + CurrentMode, "Archive", new ArchivePageViewModel(CurrentMode, _conversations, _containers), true);

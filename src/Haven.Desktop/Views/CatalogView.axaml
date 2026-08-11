@@ -12,7 +12,7 @@
         <TextBlock x:Name="SubtitleText" Classes="muted" Margin="0,4,0,0" />
       </StackPanel>
       <hui:HavenButton x:Name="RefreshButton" Grid.Column="1" Content="Refresh" Classes="chrome" Margin="0,0,8,0" />
-      <hui:HavenButton x:Name="UploadPluginButton" Grid.Column="2" Content="Upload plugin" Click="OnUploadPluginClicked" Margin="0,0,8,0" />
+
       <hui:HavenButton x:Name="CreateButton" Grid.Column="3" Classes="accent" />
     </Grid>
 

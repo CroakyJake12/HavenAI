@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views.Pages.StudioProject;
 
@@ -28,6 +29,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     private readonly Func<string, Task> _startChat;
     private readonly IModeRegistry? _modeRegistry;
     private readonly ICatalogRepository? _catalog;
+    private readonly ICapabilityRepository? _capabilityRepository;
     private readonly IOllamaClient? _ollama;
     private readonly Func<Task> _backToProjects;
     private readonly Func<Conversation, Task> _openConversation;
@@ -81,6 +83,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         _startChat = startChat;
         _modeRegistry = modeRegistry;
         _catalog = catalog;
+        _capabilityRepository = App.Services?.GetService<ICapabilityRepository>();
         _ollama = ollama;
         _backToProjects = backToProjects ?? (() => Task.CompletedTask);
         _openConversation = openConversation ?? (_ => Task.CompletedTask);
@@ -116,7 +119,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         SwitchToConfigureCommand = new RelayCommand(OpenProjectSettings);
         SwitchToOverviewCommand = new RelayCommand(() => { IsInCreateMode = false; IsInConfigureMode = false; CreationKind = StudioCreationKind.None; });
         StartModeCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Mode; IsInCreateMode = true; });
-        StartPluginCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Plugin; IsInCreateMode = true; });
+        StartCapabilityCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Capability; IsInCreateMode = true; });
         StartAgentCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Agent; IsInCreateMode = true; });
         StartPromptCreationCommand = new RelayCommand(() => { CreationKind = StudioCreationKind.Prompt; IsInCreateMode = true; });
         CreateItemCommand = new AsyncRelayCommand(CreateItemAsync, () => !string.IsNullOrWhiteSpace(CreationName) && !string.IsNullOrWhiteSpace(CreationDescription));
@@ -208,7 +211,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     public RelayCommand SwitchToConfigureCommand { get; }
     public RelayCommand SwitchToOverviewCommand { get; }
     public RelayCommand StartModeCreationCommand { get; }
-    public RelayCommand StartPluginCreationCommand { get; }
+    public RelayCommand StartCapabilityCreationCommand { get; }
     public RelayCommand StartAgentCreationCommand { get; }
     public RelayCommand StartPromptCreationCommand { get; }
     public AsyncRelayCommand CreateItemCommand { get; }
@@ -217,11 +220,11 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     public bool IsInCreateMode { get => _isInCreateMode; set { if (SetProperty(ref _isInCreateMode, value)) { RaisePropertyChanged(nameof(IsInOverview)); RaisePropertyChanged(nameof(CreationTitle)); RaisePropertyChanged(nameof(CreationHint)); } } }
     public bool IsInConfigureMode { get => _isInConfigureMode; set => SetProperty(ref _isInConfigureMode, value); }
     public bool IsInOverview => !IsInCreateMode && !IsInConfigureMode;
-    public StudioCreationKind CreationKind { get => _creationKind; set { if (SetProperty(ref _creationKind, value)) { RaisePropertyChanged(nameof(CreationTitle)); RaisePropertyChanged(nameof(CreationHint)); RaisePropertyChanged(nameof(IsCreatingMode)); RaisePropertyChanged(nameof(IsCreatingPlugin)); RaisePropertyChanged(nameof(IsCreatingAgent)); RaisePropertyChanged(nameof(IsCreatingPrompt)); RaisePropertyChanged(nameof(HasCreationKind)); } } }
-    public string CreationTitle => CreationKind switch { StudioCreationKind.Mode => "Create Mode", StudioCreationKind.Plugin => "Create Plugin", StudioCreationKind.Agent => "Create Agent", StudioCreationKind.Prompt => "Create Prompt", _ => "Create" };
-    public string CreationHint => CreationKind switch { StudioCreationKind.Mode => "Define a new Haven mode with custom surfaces, tools, and system prompt.", StudioCreationKind.Plugin => "Create a functional plugin with capabilities and constraints.", StudioCreationKind.Agent => "Define a specialised assistant with instructions and model preferences.", StudioCreationKind.Prompt => "Create a reusable instruction prompt.", _ => "Choose what to create." };
+    public StudioCreationKind CreationKind { get => _creationKind; set { if (SetProperty(ref _creationKind, value)) { RaisePropertyChanged(nameof(CreationTitle)); RaisePropertyChanged(nameof(CreationHint)); RaisePropertyChanged(nameof(IsCreatingMode)); RaisePropertyChanged(nameof(IsCreatingCapability)); RaisePropertyChanged(nameof(IsCreatingAgent)); RaisePropertyChanged(nameof(IsCreatingPrompt)); RaisePropertyChanged(nameof(HasCreationKind)); } } }
+    public string CreationTitle => CreationKind switch { StudioCreationKind.Mode => "Create Mode", StudioCreationKind.Capability => "Create Capability", StudioCreationKind.Agent => "Create Agent", StudioCreationKind.Prompt => "Create Prompt", _ => "Create" };
+    public string CreationHint => CreationKind switch { StudioCreationKind.Mode => "Define a new Haven mode with custom surfaces, tools, and system prompt.", StudioCreationKind.Capability => "Create a capability draft with instructions, constraints, and an implementation binding requirement.", StudioCreationKind.Agent => "Define a specialised assistant with instructions and model preferences.", StudioCreationKind.Prompt => "Create a reusable instruction prompt.", _ => "Choose what to create." };
     public bool IsCreatingMode => CreationKind == StudioCreationKind.Mode;
-    public bool IsCreatingPlugin => CreationKind == StudioCreationKind.Plugin;
+    public bool IsCreatingCapability => CreationKind == StudioCreationKind.Capability;
     public bool IsCreatingAgent => CreationKind == StudioCreationKind.Agent;
     public bool IsCreatingPrompt => CreationKind == StudioCreationKind.Prompt;
     public bool HasCreationKind => CreationKind != StudioCreationKind.None;
@@ -513,12 +516,12 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
                         Status = $"App '{CreationName}' created. It is available in the App Library.";
                     }
                     break;
-                case StudioCreationKind.Plugin:
-                    if (_catalog is not null)
+                case StudioCreationKind.Capability:
+                    if (_capabilityRepository is not null)
                     {
-                        await _catalog.UpsertPluginAsync(new PluginDefinition(Guid.NewGuid(), CreationName.Trim(), CreationDescription.Trim(),
-                            "plugin-custom", CreationInstructions.Trim(), "[]", "[]", false, false, true, now), CancellationToken.None);
-                        Status = $"Plugin '{CreationName}' created.";
+                        await _capabilityRepository!.UpsertCapabilityAsync(new CapabilityDefinition(Guid.NewGuid(), CreationName.Trim().ToLowerInvariant().Replace(" ", "-"), CreationName.Trim(), CreationDescription.Trim(),
+                            CapabilityRegistryCatalog.GeneralOwner, "capability-custom", CreationInstructions.Trim(), "user-defined", "[]", CapabilityPlatform.All, CapabilityRiskClass.Low, CapabilityAvailability.DependencyRequired, "[\"implementation binding\"]", "studio", false, false, false, true, now), CancellationToken.None);
+                        Status = $"Capability '{CreationName}' draft created. Bind an implementation before it can be attached or used by an agent.";
                     }
                     break;
                 case StudioCreationKind.Agent:
@@ -557,7 +560,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
             var models = await _ollama.GetModelsAsync(CancellationToken.None);
             var model = models.FirstOrDefault(m => m.Supports(ToolCapability.Text)) ?? models.FirstOrDefault();
             if (model is null) { Status = "No local model available."; return; }
-            var kind = CreationKind switch { StudioCreationKind.Mode => "mode", StudioCreationKind.Plugin => "plugin", StudioCreationKind.Agent => "agent", _ => "prompt" };
+            var kind = CreationKind switch { StudioCreationKind.Mode => "mode", StudioCreationKind.Capability => "capability", StudioCreationKind.Agent => "agent", _ => "prompt" };
             var result = await _ollama.CompleteAsync(new OllamaChatRequest(
                 model.Name,
                 [new OllamaMessage("user", $"Write concise, production-ready system instructions for a Haven {kind} with this purpose: {CreationBuilderPrompt.Trim()}\nReturn only the instruction text.")],
@@ -616,4 +619,4 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     private void OnLoaded(object? sender, RoutedEventArgs e) { }
 }
 
-public enum StudioCreationKind { None, Mode, Plugin, Agent, Prompt }
+public enum StudioCreationKind { None, Mode, Capability, Agent, Prompt }

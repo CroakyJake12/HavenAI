@@ -9,7 +9,7 @@
 
 using System.Collections.ObjectModel;
 using Haven.Application;
-using Haven.Automations;
+using Haven.Application.Tasks;
 using Haven.Browser;
 using Haven.Core;
 
@@ -18,7 +18,7 @@ namespace Haven.Desktop.ViewModels;
 /// <summary>
 /// Lists the supported catalog page kind values used to make state explicit and type-safe.
 /// </summary>
-public enum CatalogPageKind { Agents, Plugins, Prompts }
+public enum CatalogPageKind { Agents, Capabilities, Prompts }
 
 /// <summary>
 /// Represents catalog page view model and keeps its related state and behavior together.
@@ -96,28 +96,28 @@ public sealed class CatalogPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates title, the bindable or domain state represented by this property.
     /// </summary>
-    public string Title => Kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Plugins => "Plugins", _ => "Instruction Library" };
+    public string Title => Kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
     /// <summary>
     /// Gets or updates subtitle, the bindable or domain state represented by this property.
     /// </summary>
     public string Subtitle => Kind switch
     {
         CatalogPageKind.Agents => "Choose specialised local assistants and model preferences.",
-        CatalogPageKind.Plugins => "Functional, capability-backed tools invoked with @.",
+        CatalogPageKind.Capabilities => "Functional, capability-backed tools invoked with @.",
         _ => "Reusable built-in and custom instructions invoked with >."
     };
     /// <summary>
     /// Creates label with the invariants required by its callers.
     /// </summary>
-    public string CreateLabel => Kind switch { CatalogPageKind.Agents => "Create agent", CatalogPageKind.Plugins => "Create plugin", _ => "Create instruction" };
+    public string CreateLabel => Kind switch { CatalogPageKind.Agents => "Create agent", CatalogPageKind.Capabilities => "Create capability", _ => "Create instruction" };
     /// <summary>
     /// Builds er title from the currently available inputs.
     /// </summary>
-    public string BuilderTitle => Kind switch { CatalogPageKind.Agents => "AGENT CREATOR", CatalogPageKind.Plugins => "PLUGIN CREATOR", _ => "INSTRUCTION CREATOR" };
+    public string BuilderTitle => Kind switch { CatalogPageKind.Agents => "AGENT CREATOR", CatalogPageKind.Capabilities => "CAPABILITY CREATOR", _ => "INSTRUCTION CREATOR" };
     /// <summary>
     /// Builds er hint from the currently available inputs.
     /// </summary>
-    public string BuilderHint => Kind switch { CatalogPageKind.Agents => "Describe the assistant you want Haven to create", CatalogPageKind.Plugins => "Describe the functional capability and constraints", _ => "Describe the reusable instruction behaviour" };
+    public string BuilderHint => Kind switch { CatalogPageKind.Agents => "Describe the assistant you want Haven to create", CatalogPageKind.Capabilities => "Describe the functional capability and constraints", _ => "Describe the reusable instruction behaviour" };
     /// <summary>
     /// Reports whether agent catalog applies to the current state.
     /// </summary>
@@ -125,7 +125,7 @@ public sealed class CatalogPageViewModel : ObservableObject
     /// <summary>
     /// Reports whether plugin catalog applies to the current state.
     /// </summary>
-    public bool IsPluginCatalog => Kind == CatalogPageKind.Plugins;
+    public bool IsPluginCatalog => Kind == CatalogPageKind.Capabilities;
     /// <summary>
     /// Reports whether prompt catalog applies to the current state.
     /// </summary>
@@ -215,8 +215,7 @@ public sealed class CatalogPageViewModel : ObservableObject
         Items.Clear();
         if (Kind == CatalogPageKind.Agents)
             foreach (var item in await _catalog.GetAgentsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.PreferredModel, item.IsEnabled, item.IsBuiltIn));
-        else if (Kind == CatalogPageKind.Plugins)
-            foreach (var item in await _catalog.GetPluginsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.Persists ? "Persistent" : "One-shot", item.IsEnabled, item.IsBuiltIn));
+        else if (Kind == CatalogPageKind.Capabilities) { }
         else
             foreach (var item in await _catalog.GetPromptsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.Persists ? "Persistent" : "One-shot", item.IsEnabled, item.IsBuiltIn));
         IsLoaded = true;
@@ -244,12 +243,6 @@ public sealed class CatalogPageViewModel : ObservableObject
                     Guid.NewGuid(), NewName.Trim(), NewDescription.Trim(), NewInstructions.Trim(), "agent-custom",
                     string.IsNullOrWhiteSpace(NewModel) ? "default" : NewModel.Trim(), null, BuilderPrompt.Trim(),
                     "{\"mode\":\"ask\"}", false, true, now), CancellationToken.None);
-            }
-            else if (Kind == CatalogPageKind.Plugins)
-            {
-                await _catalog.UpsertPluginAsync(new PluginDefinition(
-                    Guid.NewGuid(), NewName.Trim(), NewDescription.Trim(), "plugin-custom", NewInstructions.Trim(),
-                    "[]", "[]", NewPersists, false, true, now), CancellationToken.None);
             }
             else
             {
@@ -284,7 +277,7 @@ public sealed class CatalogPageViewModel : ObservableObject
             var model = models.FirstOrDefault(item => item.Supports(ToolCapability.Text)) ?? models.FirstOrDefault();
             if (model is null) throw new InvalidOperationException("No local Ollama model is installed.");
             NewModel = string.IsNullOrWhiteSpace(NewModel) ? model.Name : NewModel;
-            var kind = Kind switch { CatalogPageKind.Agents => "agent", CatalogPageKind.Plugins => "functional plugin", _ => "prompt" };
+            var kind = Kind == CatalogPageKind.Agents ? "agent" : "prompt";
             var result = await _ollama.CompleteAsync(new OllamaChatRequest(
                 model.Name,
                 [new OllamaMessage("user", $"Write concise, production-ready system instructions for a Haven {kind} with this purpose: {BuilderPrompt.Trim()}\nReturn only the instruction text.")],
@@ -296,39 +289,6 @@ public sealed class CatalogPageViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = $"AI draft failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Performs import plugin asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public async Task ImportPluginAsync(string path)
-    {
-        if (!CanUploadPlugin) { Status = "Plugin imports are available from Haven Studio."; return; }
-        try
-        {
-            var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-            var manifest = System.Text.Json.JsonSerializer.Deserialize<PluginImportManifest>(await File.ReadAllTextAsync(path), options)
-                           ?? throw new InvalidOperationException("Plugin manifest is empty.");
-            if (string.IsNullOrWhiteSpace(manifest.Name) || string.IsNullOrWhiteSpace(manifest.Description) || string.IsNullOrWhiteSpace(manifest.Instructions))
-                throw new InvalidOperationException("Plugin manifest requires name, description, and instructions.");
-            var validCapabilities = manifest.Capabilities.Where(value => Enum.TryParse<ToolCapability>(value, true, out _)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            if (validCapabilities.Length != manifest.Capabilities.Count) throw new InvalidOperationException("Manifest contains an unknown capability. Haven imports declarative, sandboxed plugins only.");
-            DashboardTileManifestPolicy.ValidateForImport(manifest.DashboardTiles);
-            var existingPlugin = (await _catalog.GetPluginsAsync(CancellationToken.None))
-                .FirstOrDefault(item => item.Name.Equals(manifest.Name.Trim(), StringComparison.OrdinalIgnoreCase));
-            var pluginId = existingPlugin?.Id ?? GuidUtility.FromStableName("haven.imported.plugin." + manifest.Name.Trim().ToLowerInvariant());
-            await _catalog.UpsertPluginAsync(new PluginDefinition(pluginId, manifest.Name.Trim(), manifest.Description.Trim(),
-                string.IsNullOrWhiteSpace(manifest.IconKey) ? "plugin-custom" : manifest.IconKey.Trim(), manifest.Instructions.Trim(),
-                System.Text.Json.JsonSerializer.Serialize(validCapabilities), System.Text.Json.JsonSerializer.Serialize(manifest.Conflicts), manifest.Persists,
-                false, true, DateTimeOffset.UtcNow, manifest.IsAgentic, System.Text.Json.JsonSerializer.Serialize(manifest.AllowedModes),
-                System.Text.Json.JsonSerializer.Serialize(manifest.DashboardTiles)), CancellationToken.None);
-            await RefreshAsync();
-            Status = $"Imported @{manifest.Name} from a declarative Haven plugin manifest. No executable code was loaded.";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
-        {
-            Status = $"Could not import plugin: {ex.Message}";
         }
     }
 
@@ -356,7 +316,6 @@ public sealed class CatalogPageViewModel : ObservableObject
     {
         if (item is null || item.IsBuiltIn) return;
         if (Kind == CatalogPageKind.Agents) await _catalog.DeleteCustomAgentAsync(item.Id, CancellationToken.None);
-        else if (Kind == CatalogPageKind.Plugins) await _catalog.DeleteCustomPluginAsync(item.Id, CancellationToken.None);
         else await _catalog.DeleteCustomPromptAsync(item.Id, CancellationToken.None);
         await RefreshAsync();
         Status = $"Deleted {item.Name}.";
@@ -437,15 +396,15 @@ public sealed class AutomationsPageViewModel : ObservableObject
     /// <summary>
     /// Stores registration locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly WindowsAutomationRegistrationService _registration;
+    private readonly object _registration;
     /// <summary>
     /// Stores runner locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly AutomationRunner _runner;
+    private readonly ScheduledTaskRunner _runner;
     /// <summary>
     /// Stores schedules locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly ScheduleCalculator _schedules;
+    private readonly ScheduledTaskScheduleCalculator _schedules;
     /// <summary>
     /// Stores status locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -473,9 +432,9 @@ public sealed class AutomationsPageViewModel : ObservableObject
 
     public AutomationsPageViewModel(
         IAutomationRepository repository,
-        WindowsAutomationRegistrationService registration,
-        AutomationRunner runner,
-        ScheduleCalculator schedules)
+        object registration,
+        ScheduledTaskRunner runner,
+        ScheduledTaskScheduleCalculator schedules)
     {
         _repository = repository;
         _registration = registration;
@@ -625,9 +584,9 @@ public sealed class AutomationsPageViewModel : ObservableObject
     /// </summary>
     private async Task RegisterWorkerAsync()
     {
-        var worker = Path.Combine(AppContext.BaseDirectory, "Haven.AutomationWorker.exe");
-        var result = await _registration.RegisterAsync(worker, CancellationToken.None);
-        Status = result.Message;
+        
+        await Task.CompletedTask;
+        Status = "Background automation worker retired; scheduled work now belongs to Tasks.";
     }
 }
 
@@ -1083,7 +1042,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates data statement, the bindable or domain state represented by this property.
     /// </summary>
-    public string DataStatement => "Haven stores chats, agents, plugins, preferences, and automation history in local files and SQLite. Ollama requests stay on the configured local endpoint.";
+    public string DataStatement => "Haven stores chats, agents, capabilities, preferences, and task history in local files and SQLite. Ollama requests stay on the configured local endpoint.";
     /// <summary>
     /// Gets or updates browser statement, the bindable or domain state represented by this property.
     /// </summary>

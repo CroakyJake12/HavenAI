@@ -550,7 +550,7 @@ public sealed partial class ChatPage
 
         AddFinalMenuButton(panel, "File", "AttachCommand", "OpenAttachmentPickerCommand");
         AddFinalMenuButton(panel, "Agent", "OpenAgentPickerCommand");
-        AddFinalMenuButton(panel, "Plugin", "OpenPluginPickerCommand");
+        
         AddFinalMenuButton(panel, "Instruction", "OpenPromptPickerCommand");
         AddFinalMenuButton(panel, "App", "OpenAppPickerCommand");
 

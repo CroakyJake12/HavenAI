@@ -25,7 +25,6 @@ namespace Haven.Desktop.Controls;
 public sealed partial class WorkspaceChromeHost
 {
     /// <summary>
-    /// <summary>
     /// Stores maximize geometry locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private static readonly Geometry MaximizeGeometry = StreamGeometry.Parse(
