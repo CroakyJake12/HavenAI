@@ -38,7 +38,7 @@ public sealed class HistoricalSchemaUpgradeTests : IDisposable
             CancellationToken.None);
 
         await using var connection = await database.OpenAsync(CancellationToken.None);
-        Assert.Equal(12L, await ScalarInt64Async(connection, "SELECT MAX(version) FROM schema_migrations;"));
+        Assert.Equal(14L, await ScalarInt64Async(connection, "SELECT MAX(version) FROM schema_migrations;"));
         Assert.Equal("Preserved conversation", await ScalarStringAsync(connection, $"SELECT title FROM conversations WHERE id='{ConversationId}';"));
         Assert.Equal("Preserved message", await ScalarStringAsync(connection, "SELECT content FROM messages WHERE id='44444444-4444-4444-8444-444444444444';"));
         Assert.Equal("Preserved project", await ScalarStringAsync(connection, $"SELECT name FROM containers WHERE id='{ContainerId}';"));
@@ -46,8 +46,8 @@ public sealed class HistoricalSchemaUpgradeTests : IDisposable
         if (sourceVersion >= 2)
         {
             Assert.Equal("Preserved agent", await ScalarStringAsync(connection, "SELECT name FROM agents WHERE id='55555555-5555-4555-8555-555555555555';"));
-            Assert.Equal("Preserved capability source", await ScalarStringAsync(connection, "SELECT name FROM plugins WHERE id='66666666-6666-4666-8666-666666666666';"));
-            Assert.Equal(0L, await ScalarInt64Async(connection, "SELECT COUNT(*) FROM capabilities WHERE id='66666666-6666-4666-8666-666666666666';"));
+            Assert.Equal("Preserved capability source", await ScalarStringAsync(connection, "SELECT name FROM capabilities WHERE id='66666666-6666-4666-8666-666666666666';"));
+            Assert.Equal(0L, await ScalarInt64Async(connection, "SELECT is_enabled FROM capabilities WHERE id='66666666-6666-4666-8666-666666666666';"));
         }
 
         if (sourceVersion >= 3)
@@ -59,7 +59,7 @@ public sealed class HistoricalSchemaUpgradeTests : IDisposable
         if (sourceVersion >= 4)
         {
             Assert.Equal("Preserved instruction", await ScalarStringAsync(connection, "SELECT name FROM prompts WHERE id='99999999-9999-4999-8999-999999999999';"));
-            Assert.Equal("Preserved workflow", await ScalarStringAsync(connection, "SELECT name FROM macros WHERE id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';"));
+            Assert.Equal("Preserved workflow", await ScalarStringAsync(connection, "SELECT name FROM reusable_tasks WHERE id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';"));
         }
 
         if (sourceVersion >= 6)

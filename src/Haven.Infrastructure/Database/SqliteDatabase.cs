@@ -528,6 +528,52 @@ internal static class Migrations
             );
             CREATE INDEX ix_genui_templates_category_name ON genui_templates(category,name);
             CREATE INDEX ix_genui_templates_platform_enabled ON genui_templates(platforms,is_enabled);
+        """),
+        new(13, """
+            CREATE TABLE reusable_tasks(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                instruction TEXT NOT NULL,
+                container_id TEXT NULL REFERENCES containers(id) ON DELETE SET NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO reusable_tasks(id,name,description,instruction,container_id,is_enabled,created_at,updated_at)
+            SELECT id,name,description,instruction,container_id,is_enabled,created_at,updated_at FROM macros;
+            DROP TABLE macros;
+            CREATE INDEX ix_reusable_tasks_container_name ON reusable_tasks(container_id,name);
+        """),
+        new(14, """
+            INSERT OR IGNORE INTO capabilities(
+                id,key,name,description,owner_app_key,icon_key,instructions,implementation_key,
+                semantic_actions_json,platforms,risk_class,availability,dependencies_json,provider_id,
+                is_attachable,is_agent_usable,is_built_in,is_enabled,updated_at)
+            SELECT
+                id,
+                'imported-plugin-' || lower(substr(replace(id,'-',''),1,12)),
+                name,
+                description,
+                'general',
+                icon_key,
+                instructions,
+                'retired-plugin-metadata',
+                '[]',
+                3,
+                0,
+                4,
+                '[]',
+                'legacy-plugin',
+                0,
+                0,
+                0,
+                0,
+                updated_at
+            FROM plugins
+            WHERE is_built_in=0;
+            ALTER TABLE mode_definitions RENAME COLUMN plugins_json TO capabilities_json;
+            DROP TABLE plugins;
         """)
     ];
 }

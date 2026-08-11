@@ -13,7 +13,7 @@ public sealed record ModeDefinition(
     string SurfacesJson,
     string ToolAllowlistJson,
     string ToolDenylistJson,
-    string PluginsJson,
+    string CapabilitiesJson,
     string SystemPromptSuffix,
     ModeSource Source,
     ModeInstallState InstallState,

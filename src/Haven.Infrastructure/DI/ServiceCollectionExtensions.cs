@@ -48,14 +48,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<CleanResetStartupRecoveryCoordinator>());
         services.AddSingleton<IRecoverySafetyProbe, RecoverySafetyProbe>();
         services.AddSingleton<IDiagnosticsBundleService, DiagnosticsBundleService>();
-        services.AddSingleton<IGenerativeThemeValidator, GenerativeThemeValidator>();
-        services.AddSingleton<GenerativeThemeStore>();
-        services.AddSingleton<SafeGenerativeThemeStore>();
-        services.AddSingleton<IGenerativeThemeStore>(provider => provider.GetRequiredService<SafeGenerativeThemeStore>());
-        services.AddSingleton<IGenerativeThemeAiService>(provider => new GenerativeThemeAiService(
-            provider.GetRequiredService<IProviderModelClient>(),
-            provider.GetRequiredService<IGenerativeThemeValidator>(),
-            provider.GetRequiredService<IProductionDiagnostics>()));
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());

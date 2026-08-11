@@ -63,36 +63,6 @@ public sealed record ActiveCapability(
             definition.OwnerAppKey);
     }
 
-    /// <summary>Temporary adapter for Classic-only callers while that surface is deleted.</summary>
-    public static ActiveCapability FromLegacyPlugin(PluginDefinition plugin) => new(
-        LegacyKey(plugin.Name),
-        plugin.Name,
-        plugin.IconKey,
-        plugin.Instructions,
-        "legacy." + plugin.Name.ToLowerInvariant(),
-        CapabilityRegistryCatalog.GeneralOwner);
-
-    public static ActiveCapability FromLegacyPlugin(
-        string name,
-        string iconKey,
-        string instructions = "") => new(
-        LegacyKey(name),
-        name,
-        iconKey,
-        instructions,
-        "legacy." + name.ToLowerInvariant(),
-        CapabilityRegistryCatalog.GeneralOwner);
-
-    private static string LegacyKey(string name) => name switch
-    {
-        "BrowserUse" => "browser-use",
-        "ComputerUse" => "computer-device-use",
-        "WebSearch" => "web-search",
-        "Automate" => "create-automation",
-        "Test" => "run-tests",
-        "DuoMode" => "duo",
-        _ => "legacy-" + name.ToLowerInvariant()
-    };
 }
 /// <summary>
 /// Represents an active prompt.

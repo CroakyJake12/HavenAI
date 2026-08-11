@@ -3,7 +3,7 @@ namespace Haven.Core;
 /// <summary>
 /// Represents a macro definition.
 /// </summary>
-public sealed record MacroDefinition(
+public sealed record ReusableTaskDefinition(
     Guid Id,
     string Name,
     string Description,

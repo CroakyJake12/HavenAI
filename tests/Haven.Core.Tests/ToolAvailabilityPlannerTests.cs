@@ -221,7 +221,21 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     /// <summary>
     /// Creates a temporary Classic capability for compatibility tests.
     /// </summary>
-    private static ActiveCapability Capability(string name) => ActiveCapability.FromLegacyPlugin(name, name);
+    private static ActiveCapability Capability(string name)
+    {
+        var key = name switch
+        {
+            "WebSearch" => "web-search",
+            "BrowserUse" => "browser-use",
+            "ComputerUse" => "computer-device-use",
+            "Automate" => "create-automation",
+            "Test" => "run-tests",
+            "DuoMode" => "duo",
+            _ => name
+        };
+        var definition = Assert.Single(CapabilityRegistryCatalog.BuiltIns, item => item.Key == key);
+        return ActiveCapability.FromDefinition(definition);
+    }
 
     /// <summary>
     /// Stores workspace names locally so this component can preserve the dependency, cache, or state between member calls.
