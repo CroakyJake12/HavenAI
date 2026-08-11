@@ -2,7 +2,6 @@ using Android.Content;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Automations;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop;
@@ -91,8 +90,6 @@ internal static class AndroidHavenBootstrap
                     await lifecycle.StartupAsync(CancellationToken.None);
                     await services.GetRequiredService<ModeSeedService>()
                         .SeedBuiltInModesAsync(CancellationToken.None);
-                    await services.GetRequiredService<AutomationDeliveryController>()
-                        .StartAsync(CancellationToken.None);
 
                     _applicationStarted = true;
                 }

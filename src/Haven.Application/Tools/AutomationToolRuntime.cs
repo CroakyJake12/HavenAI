@@ -98,9 +98,9 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     private async Task<string> CreateReusableTaskAsync(OllamaToolCall call, Guid? containerId, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var item = new MacroDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
+        var item = new ReusableTaskDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
             containerId, true, now, now);
-        await workspaceState.UpsertMacroAsync(item, cancellationToken).ConfigureAwait(false);
+        await workspaceState.UpsertReusableTaskAsync(item, cancellationToken).ConfigureAwait(false);
         return $"Created reusable task '{item.Name}'. It will run only when the user chooses it from Haven Tasks.";
     }
 
@@ -109,7 +109,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// </summary>
     private async Task<string> ListReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken)
     {
-        var items = await workspaceState.GetMacrosAsync(containerId, cancellationToken).ConfigureAwait(false);
+        var items = await workspaceState.GetReusableTasksAsync(containerId, cancellationToken).ConfigureAwait(false);
         return items.Count == 0 ? "No enabled reusable tasks are available." : string.Join('\n', items.Select(item => $"{item.Name}: {item.Description}\nInstruction: {item.Instruction}"));
     }
 

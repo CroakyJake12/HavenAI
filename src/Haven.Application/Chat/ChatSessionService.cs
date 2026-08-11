@@ -62,15 +62,7 @@ public sealed class ChatSessionService(
         .IsCapabilityAvailable(capability.Key);
 
     /// <summary>Classic-only compatibility boundary pending deletion of its picker.</summary>
-    public bool CanActivatePlugin(
-        string pluginName,
-        HavenMode mode,
-        string? workspaceRoot,
-        PermissionMode filePermission,
-        PermissionMode commandPermission,
-        PermissionMode browserPermission) =>
-        CanUseCapability(ActiveCapability.FromLegacyPlugin(pluginName, pluginName), mode, workspaceRoot,
-            filePermission, commandPermission, browserPermission);
+    
 
     /// <summary>
     /// Performs send asynchronously so I/O does not block the caller's thread.

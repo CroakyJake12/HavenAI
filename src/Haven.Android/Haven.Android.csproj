@@ -38,7 +38,7 @@
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
     <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
     <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
-    <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
+    <!-- Legacy Haven.Automations project retired; scheduled Tasks live in Haven.Application. -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Android" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -52,7 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
-             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs"
+             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs;../Haven.Desktop/Services/DesktopFloatingActivityHost.cs"
              LinkBase="SharedDesktop" />
     <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
       <Generator>MSBuild:Compile</Generator>

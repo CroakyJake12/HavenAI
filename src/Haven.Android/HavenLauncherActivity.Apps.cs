@@ -278,12 +278,12 @@ public sealed partial class HavenLauncherActivity
         var search = new EditText(this)
         {
             Hint = "Search installed apps",
-            SingleLine = true,
             TextSize = 15,
             LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent,
                 Dp(48))
         };
+        search.SetSingleLine(true);
         search.SetTextColor(Color.White);
         search.SetHintTextColor(Color.Argb(180, 235, 225, 255));
         search.Background = RoundedBackground(Color.Argb(70, 255, 255, 255), Dp(18));
@@ -307,12 +307,12 @@ public sealed partial class HavenLauncherActivity
             grid.RemoveAllViews();
             var normalized = query?.Trim() ?? string.Empty;
             var matches = string.IsNullOrWhiteSpace(normalized)
-                ? _apps
+                ? _apps.ToArray()
                 : _apps.Where(app => app.Label.Contains(normalized, StringComparison.CurrentCultureIgnoreCase)
                     || app.PackageName.Contains(normalized, StringComparison.OrdinalIgnoreCase)).ToArray();
             foreach (var app in matches)
                 grid.AddView(BuildAppTile(app, width, Dp(96)));
-            if (matches.Count == 0)
+            if (matches.Length == 0)
             {
                 var empty = new TextView(this)
                 {

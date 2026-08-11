@@ -89,20 +89,20 @@ public sealed class ModeManifestValidator
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(mode.PluginsJson))
+        if (!string.IsNullOrWhiteSpace(mode.CapabilitiesJson))
         {
             try
             {
-                var plugins = JsonSerializer.Deserialize<List<string>>(mode.PluginsJson) ?? [];
-                foreach (var plugin in plugins)
+                var capabilities = JsonSerializer.Deserialize<List<string>>(mode.CapabilitiesJson) ?? [];
+                foreach (var capability in capabilities)
                 {
-                    if (string.IsNullOrWhiteSpace(plugin))
-                        errors.Add("Plugin name cannot be empty.");
+                    if (string.IsNullOrWhiteSpace(capability))
+                        errors.Add("Capability key cannot be empty.");
                 }
             }
             catch (JsonException)
             {
-                errors.Add("Plugins JSON is invalid.");
+                errors.Add("Capabilities JSON is invalid.");
             }
         }
 

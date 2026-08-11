@@ -70,16 +70,16 @@ public interface IContainerResourceRepository
 public interface ICatalogRepository
 {
     Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken);
-    Task<IReadOnlyList<PluginDefinition>> GetPluginsAsync(CancellationToken cancellationToken);
+    
     Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken);
     Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken);
-    Task UpsertPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken);
+    
     Task UpsertPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken);
     Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
-    Task SetPluginEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
+    
     Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
     Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken);
-    Task DeleteCustomPluginAsync(Guid id, CancellationToken cancellationToken);
+    
     Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken);
 }
 
@@ -111,9 +111,9 @@ public interface IGenUiTemplateRepository
 /// </summary>
 public interface IWorkspaceStateRepository
 {
-    Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken);
-    Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken);
-    Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReusableTaskDefinition>> GetReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken);
+    Task UpsertReusableTaskAsync(ReusableTaskDefinition macro, CancellationToken cancellationToken);
+    Task DeleteReusableTaskAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkspaceVersion>> GetVersionsAsync(Guid? containerId, string? relativePath, int limit, CancellationToken cancellationToken);
     Task AddVersionAsync(WorkspaceVersion version, CancellationToken cancellationToken);
     Task<IReadOnlyList<DecisionRecord>> GetDecisionsAsync(Guid containerId, CancellationToken cancellationToken);

@@ -8,12 +8,14 @@ namespace Haven.Android;
 
 internal sealed record HavenNativeGradient(Color Start, Color Middle, Color End)
 {
-    public GradientDrawable Create(float radius) => new(
-        GradientDrawable.Orientation.LeftRight,
-        [Start.ToArgb(), Middle.ToArgb(), End.ToArgb()])
+    public GradientDrawable Create(float radius)
     {
-        CornerRadius = radius
-    };
+        var drawable = new GradientDrawable(
+            GradientDrawable.Orientation.LeftRight,
+            [Start.ToArgb(), Middle.ToArgb(), End.ToArgb()]);
+        drawable.SetCornerRadius(radius);
+        return drawable;
+    }
 }
 
 internal sealed record HavenNativeAccentPalette(
