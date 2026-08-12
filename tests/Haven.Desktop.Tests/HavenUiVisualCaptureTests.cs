@@ -262,9 +262,9 @@ public sealed class HavenUiVisualCaptureTests
 
     private sealed class EmptyWorkspaceStateRepository : IWorkspaceStateRepository
     {
-        public Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<MacroDefinition>>([]);
-        public Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyList<ReusableTaskDefinition>> GetReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ReusableTaskDefinition>>([]);
+        public Task UpsertReusableTaskAsync(ReusableTaskDefinition task, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeleteReusableTaskAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<WorkspaceVersion>> GetVersionsAsync(Guid? containerId, string? relativePath, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WorkspaceVersion>>([]);
         public Task AddVersionAsync(WorkspaceVersion version, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<DecisionRecord>> GetDecisionsAsync(Guid containerId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<DecisionRecord>>([]);
