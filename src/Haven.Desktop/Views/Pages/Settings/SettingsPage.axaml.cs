@@ -18,15 +18,58 @@ public sealed partial class SettingsPage : UserControl
     private readonly HavenEventBus _bus;
     private readonly UserPreferencesService _preferences;
     private readonly IOllamaClient _ollama;
+    private readonly MotionPreferencesService _motionPreferences = MotionPreferencesService.Current;
+
+    private sealed record SettingsEntry(
+        string Title,
+        string Section,
+        string Description,
+        string[] Keywords,
+        string? QuickAction = null);
+
+    private sealed record ModelBrowserEntry(string Name, string Summary, string Tags);
+
+    private static readonly ModelBrowserEntry[] ModelBrowserCatalog =
+    [
+        new("qwen3:4b", "Balanced small general model for chat and everyday tasks.", "general • compact"),
+        new("qwen3:8b", "Larger Qwen model for stronger general reasoning when memory allows.", "general • reasoning"),
+        new("gemma3:4b", "Compact general model with a practical memory footprint.", "general • compact"),
+        new("llama3.2:3b", "Small Llama model suited to lower-resource systems.", "general • lightweight"),
+        new("deepseek-r1:1.5b", "Very small reasoning-focused model.", "reasoning • lightweight"),
+        new("qwen2.5-coder:7b", "Coding-focused local model for software tasks.", "code • tools")
+    ];
+
+    private static readonly SettingsEntry[] SettingsIndex =
+    [
+        new("Model browser", "models", "Browse supported local models, inspect installed models, install and remove models.", ["model", "models", "ollama", "browse", "install", "download", "local"]),
+        new("Model residency", "models", "Choose whether local model runtimes stay loaded after Haven closes.", ["model", "residency", "always loaded", "memory", "ram", "vram", "gaming", "performance"]),
+        new("Provider connections", "connections", "Manage configured model providers, API connections and reliability.", ["provider", "connection", "api", "key", "integration"]),
+        new("Privacy", "privacy", "Review Haven's local-data and privacy boundaries.", ["privacy", "data", "local", "risk"]),
+        new("Reduce animations", "appearance", "Reduce decorative and transition animation for comfort or better responsiveness.", ["animation", "animations", "motion", "lag", "performance", "accessibility"], "reduce-motion"),
+        new("Appearance", "appearance", "Change Haven's approved appearance and display settings.", ["appearance", "theme", "dark", "bright", "colour", "color", "display"]),
+        new("Voice profiles", "voice", "Review the voice profiles currently available to Haven Call.", ["voice", "microphone", "speech", "call", "profile"]),
+        new("Notifications", "notifications", "Review notification behavior and delivery surfaces.", ["notification", "notifications", "alert", "toast"]),
+        new("Background learning", "background", "Review Haven's background-learning behavior and current mode.", ["background", "learning", "knowledge", "memory"]),
+        new("App behavior", "apps", "Configure capability behavior, automatic assistance and tool access.", ["app", "apps", "feature", "auto", "assistant", "capability"]),
+        new("Tool permissions", "apps", "Control file, command, browser and device-use permissions.", ["permission", "permissions", "file", "command", "browser", "device", "tool"]),
+        new("Generation limits", "advanced", "Configure temperature, context limit and maximum tool actions.", ["advanced", "temperature", "context", "limit", "generation"])
+    ];
+
     private static readonly string[] RecommendedModels = ["qwen3:4b", "gemma3:4b", "llama3.2:3b", "deepseek-r1:1.5b"];
 
     private IReadOnlyList<ModelDescriptor> _models = [];
     private ModelDescriptor? _selectedModel;
     private EffortLevel _selectedEffort = EffortLevel.Medium;
     private PermissionMode[] _permissionModes = Enum.GetValues<PermissionMode>();
-    private string _activeSection = "models";
+    private string _activeSection = "home";
     private readonly Dictionary<string, Control> _sections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Control> _navButtons = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HavenTextInput _settingsQueryBox = new() { PlaceholderText = "Search settings or ask Haven…" };
+    private readonly StackPanel _settingsResultsPanel = new() { Spacing = 8 };
+    private readonly HavenAdaptiveSurface _settingsResultsSurface = new() { Classes = { "card" }, IsVisible = false };
+    private readonly HavenCheckBox _reduceAnimationsCheck = new() { Content = "Reduce animations" };
+    private readonly HavenTextInput _browserSearchBox = new() { PlaceholderText = "Search model browser" };
+    private readonly StackPanel _modelBrowserPanel = new() { Spacing = 8 };
 
     private readonly HavenComboBox _modelCombo = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly HavenComboBox _effortCombo = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -77,7 +120,7 @@ public sealed partial class SettingsPage : UserControl
         BuildUI();
         LoadPreferences();
         WireEvents();
-        NavigateTo("models");
+        NavigateTo("home");
         _ = LoadModelsAsync();
     }
 
@@ -95,18 +138,18 @@ public sealed partial class SettingsPage : UserControl
             FontWeight = FontWeight.ExtraBold,
             Margin = new Thickness(8, 0, 0, 16)
         });
-        var searchBox = new HavenSearchInput { PlaceholderText = "Search settings\u2026", Margin = new Thickness(0, 0, 0, 12) };
-        searchBox.TextChanged += (_, _) =>
+        var homeButton = new HavenNavigationButton
         {
-            var query = searchBox.Text?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(query)) return;
-            var match = FindSectionByKeyword(query);
-            if (match is not null) NavigateTo(match);
+            Content = "Settings home",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left
         };
-        sidebarContent.Children.Add(searchBox);
+        homeButton.Click += (_, _) => NavigateTo("home");
+        _navButtons["home"] = homeButton;
+        sidebarContent.Children.Add(homeButton);
 
-        var sectionButtons = new StackPanel { Spacing = 2 };
-        foreach (var (key, label) in new[] { ("models", "Models"), ("connections", "Connections"), ("appearance", "Appearance"), ("features", "Features"), ("permissions", "Permissions"), ("privacy", "Privacy"), ("advanced", "Advanced"), ("about", "About") })
+        var sectionButtons = new StackPanel { Spacing = 2, Margin = new Thickness(0, 8, 0, 0) };
+        foreach (var (key, label) in new[] { ("models", "Models"), ("connections", "Connections"), ("privacy", "Privacy"), ("appearance", "Appearance"), ("voice", "Voice"), ("notifications", "Notifications"), ("background", "Background Learning"), ("apps", "Apps"), ("advanced", "Advanced") })
         {
             var button = new HavenNavigationButton
             {
@@ -133,17 +176,17 @@ public sealed partial class SettingsPage : UserControl
         Grid.SetColumn(scroller, 1);
         root.Children.Add(scroller);
 
-        // Build sections
+        _sections["home"] = BuildSettingsLanding();
         _sections["models"] = BuildModelsSection();
         _sections["connections"] = BuildConnectionsSection();
-        _sections["appearance"] = BuildAppearanceSection();
-        _sections["features"] = BuildFeaturesSection();
-        _sections["permissions"] = BuildPermissionsSection();
         _sections["privacy"] = BuildPrivacySection();
+        _sections["appearance"] = BuildAppearanceSection();
+        _sections["voice"] = BuildVoiceSection();
+        _sections["notifications"] = BuildNotificationsSection();
+        _sections["background"] = BuildBackgroundLearningSection();
+        _sections["apps"] = BuildAppsSection();
         _sections["advanced"] = BuildAdvancedSection();
-        _sections["about"] = BuildAboutSection();
 
-        // Store reference for navigation
         _contentPanel = contentPanel;
     }
 
@@ -159,6 +202,54 @@ public sealed partial class SettingsPage : UserControl
 
         foreach (var (key, btn) in _navButtons)
             btn.Classes.Set("selected", key == section);
+    }
+
+    private Control BuildSettingsLanding()
+    {
+        var panel = new StackPanel { Spacing = 16 };
+        panel.Children.Add(SectionHeader("SETTINGS", "Choose a section, search a setting, or describe what you want Haven to change."));
+
+        var categories = new WrapPanel { ItemWidth = 250, ItemHeight = 116 };
+        foreach (var (key, title, description) in new[]
+                 {
+                     ("models", "Models", "Local models, browser and residency"),
+                     ("connections", "Connections", "Providers, API connections and reliability"),
+                     ("privacy", "Privacy", "Local data and privacy boundaries"),
+                     ("appearance", "Appearance", "Theme, display and motion"),
+                     ("voice", "Voice", "Voice profiles and microphone-related settings"),
+                     ("notifications", "Notifications", "Alerts and notification behavior"),
+                     ("background", "Background Learning", "Background learning and knowledge behavior"),
+                     ("apps", "Apps", "Capabilities, app behavior and permissions"),
+                     ("advanced", "Advanced", "Generation limits and diagnostics")
+                 })
+        {
+            var card = new HavenAdaptiveSurface { Classes = { "card" }, Margin = new Thickness(0, 0, 10, 10) };
+            var body = new StackPanel { Spacing = 5 };
+            body.Children.Add(new TextBlock { Text = title, Classes = { "sectionHeading" } });
+            body.Children.Add(new TextBlock { Text = description, Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+            var open = new HavenButton { Content = "Open settings", HorizontalAlignment = HorizontalAlignment.Left };
+            var target = key;
+            open.Click += (_, _) => NavigateTo(target);
+            body.Children.Add(open);
+            card.Child = body;
+            categories.Children.Add(card);
+        }
+        panel.Children.Add(categories);
+
+        var askCard = new HavenAdaptiveSurface { Classes = { "card" } };
+        var ask = new StackPanel { Spacing = 9 };
+        ask.Children.Add(new TextBlock { Text = "ASK SETTINGS", Classes = { "eyebrow" } });
+        ask.Children.Add(new TextBlock { Text = "Describe a problem or search by keyword", Classes = { "sectionHeading" } });
+        ask.Children.Add(new TextBlock { Text = "Haven searches real Settings metadata first, so results always point to settings that actually exist.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        ask.Children.Add(_settingsQueryBox);
+        var searchButton = new HavenButton { Content = "Find settings", HorizontalAlignment = HorizontalAlignment.Left };
+        searchButton.Click += (_, _) => RunSettingsSearch(_settingsQueryBox.Text);
+        ask.Children.Add(searchButton);
+        _settingsResultsSurface.Child = _settingsResultsPanel;
+        ask.Children.Add(_settingsResultsSurface);
+        askCard.Child = ask;
+        panel.Children.Add(askCard);
+        return panel;
     }
 
     private Control BuildModelsSection()
@@ -248,14 +339,16 @@ public sealed partial class SettingsPage : UserControl
         installPanel.Children.Add(installRow);
         installPanel.Children.Add(_installProgress);
 
-        // Recommended
+        // In-app model browser. The catalog is Haven-owned, while installed state/actions come from IOllamaClient.
         var recPanel = new StackPanel { Spacing = 8 };
-        recPanel.Children.Add(new TextBlock { Text = "Recommended for mobile", Classes = { "sectionHeading" } });
-        recPanel.Children.Add(new TextBlock { Text = "These smaller models are practical starting points on phones.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
-        BuildRecommendedModels();
-        recPanel.Children.Add(_recommendedModelsPanel);
+        recPanel.Children.Add(new TextBlock { Text = "MODEL BROWSER", Classes = { "eyebrow" } });
+        recPanel.Children.Add(new TextBlock { Text = "Browse local models", Classes = { "sectionHeading" } });
+        recPanel.Children.Add(new TextBlock { Text = "Search Haven's supported local-model catalog. Installed state is read from your current Ollama runtime.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        recPanel.Children.Add(_browserSearchBox);
+        recPanel.Children.Add(_modelBrowserPanel);
         recPanel.Children.Add(_huggingFaceSearchButton);
         _recommendedModelsBorder.Child = recPanel;
+        BuildModelBrowser();
         installPanel.Children.Add(_recommendedModelsBorder);
         installCard.Child = installPanel;
         panel.Children.Add(installCard);
@@ -276,8 +369,21 @@ public sealed partial class SettingsPage : UserControl
     private Control BuildAppearanceSection()
     {
         var panel = new StackPanel { Spacing = 14 };
-        panel.Children.Add(SectionHeader("APPEARANCE", "Theme, colours and display"));
+        panel.Children.Add(SectionHeader("APPEARANCE", "Theme, colours, display and motion"));
         panel.Children.Add(new HavenAppearanceSettingsView());
+        var motionCard = new HavenAdaptiveSurface { Classes = { "card" } };
+        var motion = new StackPanel { Spacing = 7 };
+        motion.Children.Add(new TextBlock { Text = "MOTION", Classes = { "eyebrow" } });
+        _reduceAnimationsCheck.IsChecked = _motionPreferences.ReduceAnimations;
+        _reduceAnimationsCheck.IsCheckedChanged += (_, _) =>
+        {
+            _motionPreferences.SetReduceAnimations(_reduceAnimationsCheck.IsChecked == true);
+            _statusText.Text = _reduceAnimationsCheck.IsChecked == true ? "Reduced motion is on." : "Reduced motion is off.";
+        };
+        motion.Children.Add(_reduceAnimationsCheck);
+        motion.Children.Add(new TextBlock { Text = "Reduces decorative and transition animation throughout Haven.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        motionCard.Child = motion;
+        panel.Children.Add(motionCard);
         return panel;
     }
 
@@ -350,6 +456,48 @@ public sealed partial class SettingsPage : UserControl
         return panel;
     }
 
+    private Control BuildVoiceSection()
+    {
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(SectionHeader("VOICE", "Voice profiles and microphone-related behavior"));
+        var card = new HavenAdaptiveSurface { Classes = { "card" } };
+        var body = new StackPanel { Spacing = 7 };
+        body.Children.Add(new TextBlock { Text = "VOICE PROFILES", Classes = { "eyebrow" } });
+        body.Children.Add(new TextBlock { Text = "Voice profile management remains available to Haven Call. This Settings section is the stable entry point for voice-related preferences.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        card.Child = body;
+        panel.Children.Add(card);
+        return panel;
+    }
+
+    private Control BuildNotificationsSection()
+    {
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(SectionHeader("NOTIFICATIONS", "Alerts and notification behavior"));
+        var card = new HavenAdaptiveSurface { Classes = { "card" } };
+        card.Child = new TextBlock { Text = "Haven uses notifications for actionable background/runtime state where the platform supports it. No notification preference is exposed here unless Haven can persist and honor it.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap };
+        panel.Children.Add(card);
+        return panel;
+    }
+
+    private Control BuildBackgroundLearningSection()
+    {
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(SectionHeader("BACKGROUND LEARNING", "Background learning and knowledge behavior"));
+        var card = new HavenAdaptiveSurface { Classes = { "card" } };
+        card.Child = new TextBlock { Text = "Background learning is surfaced here as a dedicated Settings area. Haven does not expose a fake toggle until a persisted background-learning preference is available.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap };
+        panel.Children.Add(card);
+        return panel;
+    }
+
+    private Control BuildAppsSection()
+    {
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(SectionHeader("APPS", "App behavior, capabilities and permissions"));
+        panel.Children.Add(BuildFeaturesSection());
+        panel.Children.Add(BuildPermissionsSection());
+        return panel;
+    }
+
     private Control BuildAboutSection()
     {
         var panel = new StackPanel { Spacing = 14 };
@@ -417,20 +565,119 @@ public sealed partial class SettingsPage : UserControl
             _modelCombo.SelectedItem = _selectedModel;
             _effortCombo.ItemsSource = Enum.GetValues<EffortLevel>();
             _effortCombo.SelectedItem = _selectedEffort;
+            BuildModelBrowser();
         }
         catch { _statusText.Text = "Could not load models. Is Ollama running?"; }
     }
 
-    private void BuildRecommendedModels()
+    private void RunSettingsSearch(string? rawQuery)
     {
-        _recommendedModelsPanel.Children.Clear();
-        foreach (var model in RecommendedModels)
+        var query = rawQuery?.Trim() ?? string.Empty;
+        _settingsResultsPanel.Children.Clear();
+        if (string.IsNullOrWhiteSpace(query))
         {
-            var selected = model;
-            var button = new HavenButton { Content = selected, Margin = new Thickness(0, 0, 8, 8), MinHeight = 42 };
-            button.Click += async (_, _) => { _installModelBox.Text = selected; await InstallModelAsync(selected); };
-            _recommendedModelsPanel.Children.Add(button);
+            _settingsResultsSurface.IsVisible = false;
+            return;
         }
+
+        var terms = query.Split([' ', ',', '.', '?', '!'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var matches = SettingsIndex
+            .Select(entry => new
+            {
+                Entry = entry,
+                Score = entry.Keywords.Count(keyword => terms.Any(term => keyword.Contains(term, StringComparison.OrdinalIgnoreCase) || term.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                        + (entry.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ? 3 : 0)
+                        + (entry.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ? 2 : 0)
+            })
+            .Where(item => item.Score > 0)
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Entry.Title)
+            .Take(6)
+            .ToArray();
+
+        if (matches.Length == 0)
+        {
+            _settingsResultsPanel.Children.Add(new TextBlock { Text = "No matching Haven setting was found. Try a setting name such as model, privacy, animations or permissions.", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        }
+        else
+        {
+            foreach (var match in matches)
+            {
+                var entry = match.Entry;
+                var row = new HavenAdaptiveSurface { Classes = { "permission" } };
+                var body = new StackPanel { Spacing = 5 };
+                body.Children.Add(new TextBlock { Text = entry.Title, Classes = { "sectionHeading" } });
+                body.Children.Add(new TextBlock { Text = entry.Description, Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+                var actions = new WrapPanel();
+                var open = new HavenButton { Content = $"Open {SectionDisplayName(entry.Section)}", Margin = new Thickness(0, 0, 8, 0) };
+                open.Click += (_, _) => NavigateTo(entry.Section);
+                actions.Children.Add(open);
+                if (entry.QuickAction == "reduce-motion")
+                {
+                    var reduce = new HavenButton { Content = _motionPreferences.ReduceAnimations ? "Reduced motion is on" : "Turn on reduced motion" };
+                    reduce.Click += (_, _) =>
+                    {
+                        _motionPreferences.SetReduceAnimations(true);
+                        _reduceAnimationsCheck.IsChecked = true;
+                        reduce.Content = "Reduced motion is on";
+                        _statusText.Text = "Reduced motion is on.";
+                    };
+                    actions.Children.Add(reduce);
+                }
+                body.Children.Add(actions);
+                row.Child = body;
+                _settingsResultsPanel.Children.Add(row);
+            }
+        }
+        _settingsResultsSurface.IsVisible = true;
+    }
+
+    private static string SectionDisplayName(string section) => section switch
+    {
+        "background" => "Background Learning",
+        "apps" => "Apps",
+        _ => char.ToUpperInvariant(section[0]) + section[1..]
+    };
+
+    private void BuildModelBrowser()
+    {
+        _modelBrowserPanel.Children.Clear();
+        var query = _browserSearchBox.Text?.Trim() ?? string.Empty;
+        var installed = _models.Select(model => model.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var entries = ModelBrowserCatalog.Where(model => string.IsNullOrWhiteSpace(query)
+            || model.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || model.Summary.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || model.Tags.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var model in entries)
+        {
+            var row = new HavenAdaptiveSurface { Classes = { "permission" } };
+            var body = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10 };
+            var details = new StackPanel { Spacing = 3 };
+            details.Children.Add(new TextBlock { Text = model.Name, Classes = { "sectionHeading" } });
+            details.Children.Add(new TextBlock { Text = model.Summary, Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+            details.Children.Add(new TextBlock { Text = model.Tags, FontSize = 11, Classes = { "muted" } });
+            body.Children.Add(details);
+            var isInstalled = installed.Contains(model.Name);
+            var action = new HavenButton { Content = isInstalled ? "Installed" : "Install", IsEnabled = !isInstalled };
+            if (!isInstalled)
+            {
+                var requested = model.Name;
+                action.Click += async (_, _) =>
+                {
+                    _installModelBox.Text = requested;
+                    await InstallModelAsync(requested);
+                    BuildModelBrowser();
+                };
+            }
+            Grid.SetColumn(action, 1);
+            body.Children.Add(action);
+            row.Child = body;
+            _modelBrowserPanel.Children.Add(row);
+        }
+
+        if (_modelBrowserPanel.Children.Count == 0)
+            _modelBrowserPanel.Children.Add(new TextBlock { Text = "No supported models match this search.", Classes = { "muted" } });
     }
 
     private async Task InstallModelAsync(string? requested = null)
@@ -474,6 +721,7 @@ public sealed partial class SettingsPage : UserControl
         _effortCombo.SelectionChanged += (_, _) => { if (_effortCombo.SelectedItem is EffortLevel e) _selectedEffort = e; };
         _installModelButton.Click += async (_, _) => await InstallModelAsync();
         _browseModelsButton.Click += (_, _) => _recommendedModelsBorder.IsVisible = !_recommendedModelsBorder.IsVisible;
+        _browserSearchBox.TextChanged += (_, _) => BuildModelBrowser();
         _huggingFaceSearchButton.Click += async (_, _) =>
         {
             var query = Uri.EscapeDataString(_installModelBox.Text?.Trim() ?? string.Empty);

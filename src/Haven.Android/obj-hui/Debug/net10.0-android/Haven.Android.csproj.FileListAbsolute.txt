@@ -1,0 +1,4 @@
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Android\obj-hui\Debug\net10.0-android\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Android\obj-hui\Debug\net10.0-android\build.props
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Android\obj-hui\Debug\net10.0-android\adb.props
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Android\obj-hui\Debug\net10.0-android\_CompileBindingJava.FileList.txt

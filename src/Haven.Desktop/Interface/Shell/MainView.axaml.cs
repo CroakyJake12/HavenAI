@@ -24,6 +24,7 @@ using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.ContainerSettings;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
+using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
@@ -1918,8 +1919,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenApplicationSettings()
     {
-        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPageViewModel(_preferences, _ollama,
-            (model, effort) => CurrentChat.ApplyPreferences(model, effort), CurrentMode == HavenMode.Studio), true);
+        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPage(_bus, _preferences, _ollama)
+            , true);
     }
 
     private async Task OpenConversationAsync(RecentConversationViewModel? item)

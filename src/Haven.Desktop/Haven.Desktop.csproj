@@ -26,6 +26,8 @@
     <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
+    <!-- During Phase 2 this desktop project is the Avalonia backend/host for platform-neutral Haven.UI. -->
+    <ProjectReference Include="..\Haven.UI\Haven.UI.csproj" />
     <!-- Legacy Haven.Automations project retired; scheduled Tasks live in Haven.Application. -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />

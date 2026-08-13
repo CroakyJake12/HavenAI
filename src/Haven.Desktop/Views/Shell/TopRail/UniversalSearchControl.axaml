@@ -50,6 +50,8 @@
         </StackPanel>
       </hui:HavenButton>
       <hui:HavenButton x:Name="SearchSettingsButton"
+              AutomationProperties.AutomationId="SearchSettingsButton"
+              AutomationProperties.Name="Search settings"
               Grid.Column="1"
               Classes="sidebar"
               HorizontalAlignment="Stretch"

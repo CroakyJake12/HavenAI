@@ -1,0 +1,32 @@
+# Built-in Haven motion. Component source files explicitly name what they use.
+Animation ButtonHover {
+    Duration = 180ms;
+    Easing = EaseOut;
+    0% { Scale = 1; Opacity = 1; }
+    100% { Scale = 1.018; Opacity = 1; }
+}
+Animation ButtonPressed {
+    Duration = 120ms;
+    Easing = EaseOut;
+    0% { Scale = 1; Opacity = 1; }
+    100% { Scale = 0.94; Opacity = 0.96; }
+}
+Animation ButtonRelease {
+    Duration = 170ms;
+    Easing = Spring;
+    0% { Scale = 0.94; Opacity = 0.96; }
+    45% { Scale = 1.045; Opacity = 1; }
+    100% { Scale = 1; Opacity = 1; }
+}
+Animation ToggleChange {
+    Duration = 180ms;
+    Easing = EaseOut;
+    0% { Scale = 0.98; }
+    100% { Scale = 1; }
+}
+Animation SliderChange {
+    Duration = 120ms;
+    Easing = EaseOut;
+    0% { Opacity = 0.96; }
+    100% { Opacity = 1; }
+}
