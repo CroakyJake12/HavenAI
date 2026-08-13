@@ -78,13 +78,44 @@ public sealed class HavenMarkupParser
         switch (name.ToLowerInvariant())
         {
             case "platform": element.Conditions.Add(new HavenPlatformCondition(value)); return true;
-            case "requiredscreenwidth": var width = HavenLength.Parse(value); element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Width, width, width)); return true;
-            case "requiredscreenheight": var height = HavenLength.Parse(value); element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Height, height, height)); return true;
+            case "requiredscreenwidth": var width = ParseRange(value); element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Width, width.Minimum, width.Maximum)); return true;
+            case "requiredscreenheight": var height = ParseRange(value); element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Height, height.Minimum, height.Maximum)); return true;
+            case "requiredscreensize": ApplyRequiredScreenSize(element, value); return true;
             case "minscreenwidth": element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Width, HavenLength.Parse(value))); return true;
             case "maxscreenwidth": element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Width, maximum: HavenLength.Parse(value))); return true;
             case "minscreenheight": element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Height, HavenLength.Parse(value))); return true;
             case "maxscreenheight": element.Conditions.Add(new HavenScreenRangeCondition(HavenScreenAxis.Height, maximum: HavenLength.Parse(value))); return true;
             default: return false;
         }
+    }
+
+    private static (HavenLength Minimum, HavenLength Maximum) ParseRange(string value)
+    {
+        var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length switch
+        {
+            1 => (HavenLength.Parse(parts[0]), HavenLength.Parse(parts[0])),
+            2 => (HavenLength.Parse(parts[0]), HavenLength.Parse(parts[1])),
+            _ => throw new FormatException("A required screen range uses 'minimum,maximum'.")
+        };
+    }
+
+    private static void ApplyRequiredScreenSize(HavenElement element, string value)
+    {
+        var axes = value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (axes.Length == 2)
+        {
+            var width = ParseRange(axes[0]);
+            var height = ParseRange(axes[1]);
+            element.Conditions.Add(new HavenScreenSizeCondition(width.Minimum, width.Maximum, height.Minimum, height.Maximum));
+            return;
+        }
+
+        var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 4)
+            throw new FormatException("RequiredScreenSize uses 'minWidth,maxWidth,minHeight,maxHeight' or 'minWidth,maxWidth;minHeight,maxHeight'.");
+        element.Conditions.Add(new HavenScreenSizeCondition(
+            HavenLength.Parse(parts[0]), HavenLength.Parse(parts[1]),
+            HavenLength.Parse(parts[2]), HavenLength.Parse(parts[3])));
     }
 }

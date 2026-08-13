@@ -39,6 +39,9 @@ public abstract class HavenElement
     public event EventHandler? Invalidated;
     public event EventHandler? Invoked;
 
+    /// <summary>Requests a new Haven measure/render pass after component-owned state changes.</summary>
+    protected internal void Invalidate() => Invalidated?.Invoke(this, EventArgs.Empty);
+
     public string? Name
     {
         get => GetValue(HavenProperties.Name);
@@ -87,7 +90,7 @@ public abstract class HavenElement
         }
         if (slot.TryGetValue(source, out var existing) && Equals(existing, value)) return;
         slot[source] = value;
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 
     public void ClearValue(HavenProperty property, HavenValueSource source)
@@ -95,7 +98,7 @@ public abstract class HavenElement
         ArgumentNullException.ThrowIfNull(property);
         if (!_values.TryGetValue(property, out var slot) || !slot.Remove(source)) return;
         if (slot.Count == 0) _values.Remove(property);
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 
     public void Add(HavenElement child)
@@ -107,14 +110,14 @@ public abstract class HavenElement
             throw new InvalidOperationException("A Haven element already has a parent. Remove it before reparenting.");
         child.Parent = this;
         _children.Add(child);
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 
     public bool Remove(HavenElement child)
     {
         if (!_children.Remove(child)) return false;
         child.Parent = null;
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
         return true;
     }
 
@@ -124,13 +127,13 @@ public abstract class HavenElement
         if (next == State) return;
         State = next;
         OnStateChanged();
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 
     internal void Invoke()
     {
         Invoked?.Invoke(this, EventArgs.Empty);
-        Invalidated?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 
     protected virtual void OnStateChanged() { }

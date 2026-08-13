@@ -14,7 +14,7 @@ Standard components live under `Components/<Component>/<Component>.cs`. The comp
 | Toggle | `Components/Toggle/Toggle.cs` | `Resources/SystemClasses.hui`, `Resources/SystemAnimations.hui` |
 | Slider | `Components/Slider/Slider.cs` | `Resources/SystemClasses.hui`, `Resources/SystemAnimations.hui` |
 
-`Scene/` owns the scene tree and property precedence. `Layout/` owns normal layout and Haven units. `Conditions/` owns platform/screen render conditions. Reusable classes and animations live only in obvious central `.hui` resources.
+`Scene/` owns the scene tree and property precedence. `Layout/` owns normal layout and Haven units. Its Pass C contract includes vertical/horizontal/wrap/overlay/canvas layout, fixed/Auto/fraction grid tracks, spans, margins, padding, alignment, min/max/aspect constraints, viewport conditions, scroll extents and backend-neutral clipping. `Conditions/` owns platform/screen render conditions. Reusable classes and animations live only in obvious central `.hui` resources.
 
 The existing `Haven.Desktop/HavenUI` controls are pre-migration Avalonia controls, not the canonical Phase 2 implementation. They remain compatibility surfaces only while consumers move to the Haven scene tree/backend.
 

@@ -40,7 +40,7 @@ public static class HavenPropertyCodec
             case "borderwidth": element.SetValue(HavenProperties.BorderWidth, HavenLength.Parse(value), source); return;
             case "bordercolor": element.SetValue(HavenProperties.BorderColor, value, source); return;
             case "radius": element.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Parse(value)), source); return;
-            case "shadow": element.SetValue(HavenProperties.Shadow, value, source); return;
+            case "shadow": HavenEffects.TryResolveShadow(value, out _); element.SetValue(HavenProperties.Shadow, value, source); return;
             case "glow": element.SetValue(HavenProperties.Glow, value, source); return;
             case "backdropblur": element.SetValue(HavenProperties.BackdropBlur, ParseDouble(value), source); return;
             case "scale": element.SetValue(HavenProperties.Scale, ParseDouble(value), source); return;
@@ -52,7 +52,12 @@ public static class HavenPropertyCodec
             case "overflow": element.SetValue(HavenProperties.Overflow, ParseEnum<HavenOverflow>(value), source); return;
             case "zindex": element.SetValue(HavenProperties.ZIndex, ParseInt(value), source); return;
             case "visibility": element.SetValue(HavenProperties.Visibility, ParseEnum<HavenVisibility>(value), source); return;
-            case "enabled": var enabled = ParseBool(value); element.SetValue(HavenProperties.Enabled, enabled, source); element.Accessibility.Enabled = enabled; return;
+            case "enabled":
+                var enabled = ParseBool(value);
+                element.SetValue(HavenProperties.Enabled, enabled, source);
+                element.Accessibility.Enabled = enabled;
+                element.SetState(HavenElementState.Disabled, !enabled);
+                return;
             case "hover": element.SetValue(HavenProperties.Hover, ParseNullableBool(value), source); return;
             case "pointerevents": element.SetValue(HavenProperties.PointerEvents, ParseEnum<HavenPointerEvents>(value), source); return;
             case "cursor": element.SetValue(HavenProperties.Cursor, ParseEnum<HavenCursor>(value), source); return;

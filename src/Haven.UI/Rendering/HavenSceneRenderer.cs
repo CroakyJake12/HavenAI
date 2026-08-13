@@ -25,12 +25,18 @@ public sealed class HavenSceneRenderer
             context.Add(new HavenPushTransformCommand(element.Bounds, new HavenTransform(scale, scale, rotation, translateX, translateY), new HavenPoint(element.Bounds.X + element.Bounds.Width / 2d, element.Bounds.Y + element.Bounds.Height / 2d)));
 
         var radius = ResolvePixels(element.GetValue(HavenProperties.Radius).TopLeft);
+        if (HavenEffects.TryResolveShadow(element.GetValue(HavenProperties.Shadow), out var shadow) && shadow is not null)
+            context.Add(new HavenShadowCommand(element.Bounds, shadow with { Opacity = shadow.Opacity * opacity }, radius));
         var glow = element.GetValue(HavenProperties.Glow);
         if (!glow.Equals("None", StringComparison.OrdinalIgnoreCase)) context.Add(new HavenGlowCommand(element.Bounds, new HavenGlow(new HavenTokenBrush(glow), 18, opacity), radius));
         var background = element.GetValue(HavenProperties.Background);
         if (!background.Equals("Transparent", StringComparison.OrdinalIgnoreCase)) context.Add(new HavenFillRoundedRectCommand(element.Bounds, new HavenTokenBrush(background), radius, opacity));
         var borderWidth = ResolvePixels(element.GetValue(HavenProperties.BorderWidth));
         if (borderWidth > 0) context.Add(new HavenStrokeRoundedRectCommand(element.Bounds, new HavenPen(new HavenTokenBrush(element.GetValue(HavenProperties.BorderColor)), borderWidth), radius, opacity));
+
+        var clipped = element.GetValue(HavenProperties.Clip)
+            || element.GetValue(HavenProperties.Overflow) is HavenOverflow.Clip or HavenOverflow.Scroll;
+        if (clipped) context.Add(new HavenPushClipCommand(element.Bounds));
 
         switch (element)
         {
@@ -42,9 +48,11 @@ public sealed class HavenSceneRenderer
             case Slider slider: DrawSlider(slider, context, opacity); break;
             case Progress progress: DrawProgress(progress, context, opacity); break;
             case Separator separator: DrawSeparator(separator, context, opacity); break;
-            case HavenImageComponent image when !string.IsNullOrWhiteSpace(image.Source): context.Add(new HavenImageCommand(element.Bounds, new HavenImage(image.Source), opacity)); break;
+            case HavenImageComponent image when !string.IsNullOrWhiteSpace(image.Source): context.Add(new HavenImageCommand(element.Bounds, new HavenImage(image.Source), MapImageLayout(image.Fit), opacity)); break;
+            case Icon icon when !string.IsNullOrWhiteSpace(icon.Key): context.Add(new HavenIconCommand(element.Bounds, icon.Key, new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity)); break;
         }
         foreach (var child in element.Children.OrderBy(child => child.GetValue(HavenProperties.ZIndex))) RenderElement(child, context);
+        if (clipped) context.Add(new HavenPopClipCommand(element.Bounds));
         if (transformed) context.Add(new HavenPopTransformCommand(element.Bounds));
     }
 
@@ -90,4 +98,12 @@ public sealed class HavenSceneRenderer
     }
 
     private static double ResolvePixels(HavenLength length) => length.Unit == HavenLengthUnit.Pixel ? Math.Max(0, length.Value) : 0;
+
+    private static HavenImageLayout MapImageLayout(HavenImageFit fit) => fit switch
+    {
+        HavenImageFit.Cover => HavenImageLayout.Cover,
+        HavenImageFit.Fill => HavenImageLayout.Fill,
+        HavenImageFit.None => HavenImageLayout.None,
+        _ => HavenImageLayout.Contain
+    };
 }

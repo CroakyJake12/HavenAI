@@ -39,8 +39,8 @@ Authority and conflict handling:
 | --- | --- | --- | --- | --- |
 | GENUI-00 | Source integrity, requirement indexing, annotations, parity and coverage ledgers | None | Passed | 9,450/9,450 records indexed with workstream/dependency fields; hash verified; all 21 slides/notes indexed; migration/template matrices created |
 | GENUI-01 | Preservation audit, data fixtures, migration safety and old/new parity | GENUI-00 | In progress | `GENUI_FEATURE_MIGRATION_MATRIX.md` |
-| GENUI-02 | HavenUI canonical primitives, four brightness themes, accent scope and accessibility | GENUI-00, GENUI-01 | In progress | Four semantic appearances, bundled Montserrat/thick hierarchy, typed component family, live gradient accents and earlier focused tests exist; user runtime screenshots exposed remaining popup, slider, startup and legacy-screen failures now under repair. Complete breadth plus desktop/Android visual and accessibility proof remain |
-| GENUI-03 | HavenUI motion, morphing layout, responsive desktop/mobile and context actions | GENUI-02 | In progress | Compact/high-DPI Go now has a fluid composer plus centred, compact-safe startup; broader morph/motion/device coverage remains |
+| GENUI-02 | HavenUI canonical primitives, four brightness themes, accent scope and accessibility | GENUI-00, GENUI-01 | In progress | Four semantic appearances, bundled Montserrat/thick hierarchy, typed component family and live gradient accents exist. The platform-neutral Haven.UI scene now has a tested one-surface Avalonia host, but canonical breadth, production-route migration and desktop/Android visual/accessibility proof remain. |
+| GENUI-03 | HavenUI motion, morphing layout, responsive desktop/mobile and context actions | GENUI-02 | In progress | Pass C adds focused-tested responsive constraints, vertical/horizontal/wrap/grid/overlay/canvas layout, fixed/Auto/fraction tracks, spans, margin/padding/gap/alignment, scrolling and clipping. Compact/high-DPI Go remains on the compatibility UI; route migration plus broader motion/device proof remain. |
 | GENUI-04 | Shell/header/navigation, Apps panel and direct Haven launch | GENUI-01, GENUI-02 | In progress | Direct-start routing, Go, unique Apps coverage and header controls exist, but the current fresh Release runtime fails before shell creation because `Haven.Desktop.App` is not found as precompiled XAML; direct-launch runtime proof therefore remains failed while the startup repair is in progress. Selected-tab, Add popup and destination-layout defects also remain under repair; complete route/device/cold-start validation is still required |
 | GENUI-05 | Settings IA/search/AI, model browser, model residency and lifecycle | GENUI-02, GENUI-04 | Not started | Persistence tests; tray/notification/reboot evidence |
 | GENUI-06 | Capability, Instruction and Agent registries/editors; remove stale Actions/Plugins/Macros systems | GENUI-01, GENUI-02 | In progress | SQLite v11 Capability Registry, built-ins, App ownership, editor, safety metadata, route and tests pass; Instruction/Agent consolidation and legacy Plugin/Macro deletion remain |
@@ -69,11 +69,12 @@ Captured before product-code changes on 8 August 2026:
 
 ## Active work package
 
-Current package: **HavenUI/route/registry/GenUI foundation slice across GENUI-01, 02, 03, 04, 06, 07, 08 and 10**.
+Current package: **Haven.UI Phase 2 framework migration, with Pass C layout/scroll/clip and the one-surface Avalonia backend now implemented across GENUI-02, GENUI-03 and GENUI-17**.
 
 Exit criteria:
 
 - retain the tested four-appearance, Montserrat, direct-start, App, Capability and attachment foundations;
+- preserve Pass C framework-neutral layout, scroll and clip semantics while migrating the first production route through the one-surface backend;
 - complete remaining GenUI destination adapters and feature-complete templates without promoting foundation records to Production;
 - migrate Instructions/Agents and useful legacy Plugin/Macro data before deleting old stores or visible paths;
 - execute remaining Windows/Android device, visual, accessibility, voice, floating-host, cold-start and reboot gates;

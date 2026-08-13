@@ -4,15 +4,18 @@ public enum HavenImageFit { Contain, Cover, Fill, None }
 
 public sealed class Image : HavenElement
 {
-    public string Source { get; set; } = string.Empty;
-    public HavenImageFit Fit { get; set; } = HavenImageFit.Contain;
+    private string _source = string.Empty;
+    private HavenImageFit _fit = HavenImageFit.Contain;
+    public string Source { get => _source; set { var next = value ?? string.Empty; if (_source == next) return; _source = next; Invalidate(); } }
+    public HavenImageFit Fit { get => _fit; set { if (_fit == value) return; _fit = value; Invalidate(); } }
     public Image() { Accessibility.Role = HavenAccessibleRole.Image; SetValue(HavenProperties.Hover, false, HavenValueSource.Default); }
     public override HavenComponentMetadata Metadata => new("Image", "Components/Media/Media.cs", ["Image"], [], "Bitmap/vector source is decoded by the rendering backend; semantic layout remains Haven-owned.");
 }
 
 public sealed class Icon : HavenElement
 {
-    public string Key { get; set; } = string.Empty;
+    private string _key = string.Empty;
+    public string Key { get => _key; set { var next = value ?? string.Empty; if (_key == next) return; _key = next; Invalidate(); } }
     public Icon() { Accessibility.Role = HavenAccessibleRole.Image; SetValue(HavenProperties.Hover, false, HavenValueSource.Default); }
     public override HavenComponentMetadata Metadata => new("Icon", "Components/Media/Media.cs", ["Icon"], [], "Semantic icon key is resolved by the backend icon provider.");
 }

@@ -17,6 +17,7 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
     private readonly HavenAnimationEngine _animations = new();
     private readonly HavenResourceSet _resources = HavenResourceSet.LoadEmbedded();
     private readonly Dictionary<HavenElement, (string? Transition, string? Animation)> _motionTokens = [];
+    private readonly HashSet<HavenElement> _subscriptions = [];
     private readonly DispatcherTimer _animationTimer;
     private HavenElement? _root;
     private HavenInputRouter? _input;
@@ -36,14 +37,14 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
         set
         {
             if (ReferenceEquals(_root, value)) return;
-            if (_root is not null) Unsubscribe(_root);
+            ClearSubscriptions();
             _root = value;
             _input = value is null ? null : new HavenInputRouter(value);
             _motionTokens.Clear();
             if (_root is not null)
             {
                 _resources.ApplyClasses(_root);
-                Subscribe(_root);
+                RefreshSubscriptions();
                 CaptureMotionTokens(_root, false);
             }
             InvalidateMeasure();
@@ -85,7 +86,7 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
     {
         base.Render(context);
         if (_root is null) return;
-        var transformScopes = new Stack<IDisposable>();
+        var drawingScopes = new Stack<IDisposable>();
         try
         {
             foreach (var command in _renderer.Render(_root))
@@ -96,12 +97,17 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
                                     * Matrix.CreateScale(push.Transform.ScaleX, push.Transform.ScaleY)
                                     * Matrix.CreateRotation(push.Transform.RotationDegrees * Math.PI / 180d)
                                     * Matrix.CreateTranslation(push.Origin.X + push.Transform.TranslateX, push.Origin.Y + push.Transform.TranslateY);
-                    transformScopes.Push(context.PushTransform(transform));
+                    drawingScopes.Push(context.PushTransform(transform));
                     continue;
                 }
-                if (command is HavenPopTransformCommand)
+                if (command is HavenPushClipCommand clip)
                 {
-                    if (transformScopes.Count > 0) transformScopes.Pop().Dispose();
+                    drawingScopes.Push(context.PushClip(Rect(clip.Rect)));
+                    continue;
+                }
+                if (command is HavenPopTransformCommand or HavenPopClipCommand)
+                {
+                    if (drawingScopes.Count > 0) drawingScopes.Pop().Dispose();
                     continue;
                 }
                 Draw(context, command);
@@ -109,17 +115,29 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
         }
         finally
         {
-            while (transformScopes.Count > 0) transformScopes.Pop().Dispose();
+            while (drawingScopes.Count > 0) drawingScopes.Pop().Dispose();
         }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e) { base.OnPointerMoved(e); var p = e.GetPosition(this); _input?.PointerMoved(new HavenPoint(p.X, p.Y)); InvalidateVisual(); }
     protected override void OnPointerPressed(PointerPressedEventArgs e) { base.OnPointerPressed(e); var p = e.GetPosition(this); _input?.PointerPressed(new HavenPoint(p.X, p.Y), e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse); Focus(); e.Pointer.Capture(this); e.Handled = true; InvalidateVisual(); }
     protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); var p = e.GetPosition(this); _input?.PointerReleased(new HavenPoint(p.X, p.Y)); e.Pointer.Capture(null); e.Handled = true; InvalidateVisual(); }
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e) { base.OnPointerWheelChanged(e); var p = e.GetPosition(this); if (_input?.Scroll(new HavenPoint(p.X, p.Y), -e.Delta.X * 48d, -e.Delta.Y * 48d) == true) { e.Handled = true; InvalidateMeasure(); InvalidateVisual(); } }
     protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (_input?.KeyDown(MapKey(e.Key)) == true) { e.Handled = true; InvalidateVisual(); } }
     protected override void OnKeyUp(KeyEventArgs e) { base.OnKeyUp(e); if (_input?.KeyUp(MapKey(e.Key)) == true) { e.Handled = true; InvalidateVisual(); } }
 
     private void Draw(DrawingContext context, HavenDrawCommand command)
+    {
+        if (command.Opacity < .9999d)
+        {
+            using var opacity = context.PushOpacity(Math.Clamp(command.Opacity, 0d, 1d));
+            DrawCore(context, command);
+            return;
+        }
+        DrawCore(context, command);
+    }
+
+    private void DrawCore(DrawingContext context, HavenDrawCommand command)
     {
         switch (command)
         {
@@ -152,12 +170,36 @@ public sealed class HavenSceneControl : Control, IHavenMeasureContext
     }
     private static FontWeight Weight(int weight) => weight switch { >= 800 => FontWeight.ExtraBold, >= 700 => FontWeight.Bold, >= 600 => FontWeight.SemiBold, >= 500 => FontWeight.Medium, _ => FontWeight.Normal };
     private static HavenKey MapKey(Key key) => key switch { Key.Enter => HavenKey.Enter, Key.Space => HavenKey.Space, Key.Escape => HavenKey.Escape, Key.Tab => HavenKey.Tab, Key.Left => HavenKey.Left, Key.Right => HavenKey.Right, Key.Up => HavenKey.Up, Key.Down => HavenKey.Down, Key.Home => HavenKey.Home, Key.End => HavenKey.End, _ => HavenKey.Unknown };
-    private void Subscribe(HavenElement element) { element.Invalidated += OnSceneInvalidated; foreach (var child in element.Children) Subscribe(child); }
-    private void Unsubscribe(HavenElement element) { element.Invalidated -= OnSceneInvalidated; foreach (var child in element.Children) Unsubscribe(child); }
+    private void RefreshSubscriptions()
+    {
+        if (_root is null) { ClearSubscriptions(); return; }
+        var current = _root.DescendantsAndSelf().ToHashSet();
+        foreach (var removed in _subscriptions.Where(element => !current.Contains(element)).ToArray())
+        {
+            removed.Invalidated -= OnSceneInvalidated;
+            _subscriptions.Remove(removed);
+        }
+        foreach (var added in current.Where(element => !_subscriptions.Contains(element)))
+        {
+            added.Invalidated += OnSceneInvalidated;
+            _subscriptions.Add(added);
+        }
+    }
+
+    private void ClearSubscriptions()
+    {
+        foreach (var element in _subscriptions) element.Invalidated -= OnSceneInvalidated;
+        _subscriptions.Clear();
+    }
 
     private void OnSceneInvalidated(object? sender, EventArgs e)
     {
-        if (_root is not null) CaptureMotionTokens(_root, true);
+        if (_root is not null)
+        {
+            _resources.ApplyClasses(_root);
+            RefreshSubscriptions();
+            CaptureMotionTokens(_root, true);
+        }
         InvalidateMeasure();
         InvalidateVisual();
     }

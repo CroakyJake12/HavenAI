@@ -50,6 +50,16 @@ public sealed class HavenInputRouter(HavenElement root)
         return true;
     }
 
+    public bool Scroll(HavenPoint point, double deltaX, double deltaY)
+    {
+        for (var element = HitTest(point); element is not null; element = element.Parent)
+        {
+            if (element is not Container container || container.GetValue(HavenProperties.Overflow) != HavenOverflow.Scroll) continue;
+            if (container.ScrollBy(deltaX, deltaY)) return true;
+        }
+        return false;
+    }
+
     public bool KeyDown(HavenKey key)
     {
         if (_focused is Slider slider)
@@ -101,7 +111,13 @@ public sealed class HavenInputRouter(HavenElement root)
 
     private static HavenElement? HitTestCore(HavenElement element, HavenPoint point)
     {
-        if (!element.IsIncluded || !element.GetValue(HavenProperties.Enabled) || element.GetValue(HavenProperties.PointerEvents) == HavenPointerEvents.None) return null;
+        if (!element.IsIncluded
+            || element.GetValue(HavenProperties.Visibility) != HavenVisibility.Visible
+            || !element.GetValue(HavenProperties.Enabled)
+            || element.GetValue(HavenProperties.PointerEvents) == HavenPointerEvents.None) return null;
+        var clipsChildren = element.GetValue(HavenProperties.Clip)
+            || element.GetValue(HavenProperties.Overflow) is HavenOverflow.Clip or HavenOverflow.Scroll;
+        if (clipsChildren && !element.Bounds.Contains(point)) return null;
         foreach (var child in element.Children.Select((value, index) => (value, index)).OrderByDescending(item => item.value.GetValue(HavenProperties.ZIndex)).ThenByDescending(item => item.index).Select(item => item.value))
         {
             if (!child.IsIncluded) continue;

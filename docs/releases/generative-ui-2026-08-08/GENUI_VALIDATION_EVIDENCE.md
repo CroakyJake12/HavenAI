@@ -34,6 +34,21 @@ Overall status: **INCOMPLETE**
 | Calculator semantic loop | Passed for observed Windows behavior | Windows UI Automation set `calculator.expression` to `sqrt(81) + 2^3`, invoked `calculator.calculate`, and read accessible result `17`. The visible trace recorded the semantic event, Completed result and four incremental patches without a model. Screenshot: `artifacts/validation/generative-ui-2026-08-09/desktop-template-preview-calculated.png`. |
 | Windows automation skill | Environment-limited fallback | The bundled Computer Use runtime could not initialise because its Node host was denied access to the Codex app-data directory. Validation used Windows UI Automation and DPI-correct DWM target-window captures instead. |
 
+## Haven.UI Phase 2 Pass C - 13 August 2026
+
+This package advances the framework-neutral layout, scrolling and clipping layer. It does not claim a migrated product route, Android device result or release completion.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Current mockup intake | Passed for source inspection | The user-provided `Haven_AI_Generative_UI_Update_REPAIRED_LIGHTWEIGHT.pptx` was rendered and inspected slide-by-slide: 24/24 slides, SHA-256 `38C59F3A757EB2430E47706AF0DE664638F0278BFA479AA954C86BFAAD94AEFA`. This is a newer source snapshot than the historical 21-slide baseline recorded above; its source-index reconciliation remains outstanding. |
+| Haven.UI layout contract | Implemented and focused-tested | Framework-neutral vertical, horizontal, wrap, grid, canvas and overlay layout now covers margin, padding, gap, alignment, responsive minimum/maximum/aspect rules, fixed/Auto/fraction tracks, row/column spans, viewport extents, clamped scrolling and clip-aware hit testing. `dotnet test tests/Haven.UI.Tests/Haven.UI.Tests.csproj -c Release` passed 41/41. |
+| Avalonia backend host | Passed headless runtime exercise | A real headless Avalonia `Window` hosted one `HavenSceneControl`; the test asserted an empty Avalonia child-control tree, exercised fractional layout, clipping and dynamic scene-node invalidation, and passed 2/2 backend tests. The opt-in frame test separately passed 1/1. |
+| Rendered frame | Passed for this bounded scene | `artifacts/validation/haven-ui-phase-2-2026-08-13/haven-scene-pass-c.png` was inspected at 320x200. The 1fr/2fr buttons render without wrapping, clipping or overlap. This is backend-scene evidence, not a production-route comparison. |
+| Release clean/restore/build | Passed | `dotnet clean Haven.sln -c Release`; `dotnet restore Haven.sln`; `dotnet build Haven.sln -c Release --no-restore`. Final build: 0 warnings, 0 errors. `Haven.UI` and `Haven.UI.Tests` are now included in the solution. |
+| Release automated suites | Passed | `dotnet test Haven.sln -c Release --no-build`: UI 41, Core 208, Infrastructure 190, Desktop 187; 626 passed, 0 failed, 0 skipped. |
+| Repository rules/index | Passed | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/release/Test-HavenRules.ps1`; mandatory rule paths, Montserrat contracts and release-index integrity valid. |
+| Android shared-source integration | Repaired in source; package unvalidated | Because Android explicitly links the Desktop backend source, it now references `Haven.UI` and excludes custom `bin-*`/`obj-*` trees. The normal Debug build advanced through managed compilation, then failed in Xamarin cleanup with `XARDF7024` because the existing OneDrive-generated `onnxruntime` directory inherits `Everyone: Deny DeleteSubdirectoriesAndFiles`. A disposable-intermediate retry avoided that ACL but failed native linking with `XA3007` missing generated object files. No APK or device success is claimed. |
+
 ## Mandatory release matrix
 
 All rows below remain unresolved until evidence is added. Build success alone cannot pass route, behaviour, visual, device, accessibility, persistence or performance requirements.
