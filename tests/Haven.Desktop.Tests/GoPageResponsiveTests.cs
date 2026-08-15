@@ -140,8 +140,13 @@ public sealed class GoPageResponsiveTests
             Assert.Contains(addCommands, command => command is HavenIconCommand { Key: "file" });
 
             ClickAt(router, new HavenPoint(
-                page.Route.DismissAddButton.Bounds.X + 8,
-                page.Route.DismissAddButton.Bounds.Y + 8));
+                page.Route.MainMenu.Bounds.Right + 20,
+                page.Route.MainMenu.Bounds.Y + 10));
+            Assert.Equal(HavenVisibility.Collapsed, page.Route.AddOverlay.GetValue(HavenProperties.Visibility));
+
+            page.Route.ShowAddMenu();
+            Assert.Equal(HavenVisibility.Visible, page.Route.AddOverlay.GetValue(HavenProperties.Visibility));
+            page.SceneHost.NotifyPointerPressedOutside();
             Assert.Equal(HavenVisibility.Collapsed, page.Route.AddOverlay.GetValue(HavenProperties.Visibility));
         }
         finally
@@ -185,7 +190,7 @@ public sealed class GoPageResponsiveTests
     }
 
     [AvaloniaFact]
-    public void Suggestion_icon_pill_tracks_button_hover_scale()
+    public void Suggestion_hover_scales_the_entire_visual_host()
     {
         using var page = new GoPage(new HavenEventBus());
         var window = new Window { Width = 1000, Height = 760, Content = page };
@@ -197,13 +202,16 @@ public sealed class GoPageResponsiveTests
             var pill = Assert.Single(
                 page.Route.Root.DescendantsAndSelf().OfType<Container>(),
                 item => item.Name == "Go.Suggestions.Item0.IconPill.Wide");
+            var host = Assert.IsType<Container>(button.Parent);
             var router = new HavenInputRouter(page.SceneRoot);
             var point = new HavenPoint(button.Bounds.X + button.Bounds.Width / 2, button.Bounds.Y + button.Bounds.Height / 2);
 
             router.PointerMoved(point);
 
             Assert.True(button.State.HasFlag(HavenElementState.Hover));
-            Assert.Equal(1.018d, pill.GetValue(HavenProperties.Scale), 3);
+            Assert.Equal(1.018d, host.GetValue(HavenProperties.Scale), 3);
+            Assert.Equal(1d, button.GetValue(HavenProperties.Scale), 3);
+            Assert.Equal(1d, pill.GetValue(HavenProperties.Scale), 3);
         }
         finally
         {

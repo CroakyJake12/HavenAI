@@ -77,7 +77,7 @@ internal static class SurfacePaletteCatalog
             [HavenSurface.Play] = Hue("#FFCFEACB", "#FF3E9A55", "#FF72BC81", "#FF236A35", "#FFE1F2DE"),
             [HavenSurface.Translate] = Hue("#FFCDDEF5", "#FF3D70BE", "#FF7198D3", "#FF274F8A", "#FFE2EAF8"),
             [HavenSurface.Launcher] = Hue("#FFDCCEF0", "#FF8055B4", "#FFA17AC8", "#FF56377F", "#FFEDE5F6"),
-            [HavenSurface.Go] = Hue("#FF171D4A", "#FF3527FF", "#FF5868FF", "#FF2115C7", "#FF202750"),
+            [HavenSurface.Go] = Hue("#FF171D4A", "#FF3527FF", "#FF4658FF", "#FF2115C7", "#FF202750"),
             [HavenSurface.Dashboard] = Hue("#FF171D4A", "#FF3527FF", "#FF5868FF", "#FF2115C7", "#FF202750")
         };
 

@@ -126,6 +126,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         _route.SendButton.Invoked += (_, _) => Submit();
         _route.Instruction.Invoked += (_, _) => Submit();
         Scene.InputSubmitted += OnInputSubmitted;
+        Scene.PointerPressedOutside += OnPointerPressedOutside;
 
         _route.AddActionSelected += (_, action) => AddRequested?.Invoke(this, action);
         _route.CatalogItemSelected += (_, selection) =>
@@ -140,6 +141,8 @@ public sealed partial class GoPage : UserControl, IDisposable
     {
         if (ReferenceEquals(input, _route.Instruction)) Submit();
     }
+
+    private void OnPointerPressedOutside() => _route.HideAddMenu();
 
     private void Register(string name, IEnumerable<HavenElement> elements)
     {
@@ -197,6 +200,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         Scene.InputSubmitted -= OnInputSubmitted;
+        Scene.PointerPressedOutside -= OnPointerPressedOutside;
         foreach (var (element, handler) in _stateSubscriptions) element.Invalidated -= handler;
         _stateSubscriptions.Clear();
         _route.Dispose();

@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -30,6 +31,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private HavenElement? _root;
     private HavenInputRouter? _input;
     private bool _processingMotion;
+    private TopLevel? _topLevel;
 
     public HavenSceneControl() : this(new HavenAvaloniaImageResolver(), new HavenAvaloniaNativeControlResolver()) { }
 
@@ -51,13 +53,19 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         ClipToBounds = true;
         _animationTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => AdvanceAnimationFrame());
         _animationTimer.Stop();
-        DetachedFromVisualTree += (_, _) => _animationTimer.Stop();
+        AttachedToVisualTree += (_, _) => AttachTopLevelPointerObserver();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            DetachTopLevelPointerObserver();
+            _animationTimer.Stop();
+        };
     }
 
     public HavenPlatform Platform { get; set; } = OperatingSystem.IsAndroid() ? HavenPlatform.Android : HavenPlatform.Windows;
     public HavenRenderSurfaceMetrics SurfaceMetrics { get; private set; } = new(HavenSize.Zero, 1d, HavenPlatform.Unknown);
     public bool HasActiveAnimations => _animations.HasActiveAnimations;
     public event Action<Input>? InputSubmitted;
+    public event Action? PointerPressedOutside;
 
     public bool FocusElement(HavenElement element)
     {
@@ -168,6 +176,28 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             while (drawingScopes.Count > 0) drawingScopes.Pop().Dispose();
         }
     }
+
+    private void AttachTopLevelPointerObserver()
+    {
+        DetachTopLevelPointerObserver();
+        _topLevel = TopLevel.GetTopLevel(this);
+        _topLevel?.AddHandler(PointerPressedEvent, OnTopLevelPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    private void DetachTopLevelPointerObserver()
+    {
+        if (_topLevel is null) return;
+        _topLevel.RemoveHandler(PointerPressedEvent, OnTopLevelPointerPressed);
+        _topLevel = null;
+    }
+
+    private void OnTopLevelPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Visual visual && (ReferenceEquals(visual, this) || visual.GetVisualAncestors().Contains(this))) return;
+        NotifyPointerPressedOutside();
+    }
+
+    internal void NotifyPointerPressedOutside() => PointerPressedOutside?.Invoke();
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {

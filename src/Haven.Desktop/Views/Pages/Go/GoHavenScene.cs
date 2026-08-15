@@ -279,8 +279,9 @@ internal sealed class GoHavenScene : IDisposable
             var targetScale = button.State.HasFlag(HavenElementState.Pressed)
                 ? .94d
                 : button.State.HasFlag(HavenElementState.Hover) ? 1.018d : 1d;
-            pill.SetValue(HavenProperties.Scale, targetScale, HavenValueSource.State);
-            pill.SetValue(
+            button.SetValue(HavenProperties.Scale, 1d, HavenValueSource.State);
+            host.SetValue(HavenProperties.Scale, targetScale, HavenValueSource.State);
+            host.SetValue(
                 HavenProperties.Transition,
                 button.State.HasFlag(HavenElementState.Pressed) ? ButtonDefaults.PressedTransition : ButtonDefaults.HoverTransition,
                 HavenValueSource.State);
@@ -314,6 +315,7 @@ internal sealed class GoHavenScene : IDisposable
         panels.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         panels.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
         panels.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
+        panels.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
         panels.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.End);
         panels.SetValue(HavenProperties.Gap, HavenLength.Px(12));
         panels.SetValue(HavenProperties.Margin, HavenThickness.Parse("0px 0px 70px 0px"));

@@ -74,6 +74,16 @@ public sealed class HavenUiDrawingTests
     }
 
     [Fact]
+    public void Primary_button_text_uses_fixed_bright_content_token()
+    {
+        var button = new Button { Content = "Primary action", Variant = ButtonVariant.Primary };
+        var command = Assert.Single(new HavenSceneRenderer().Render(button).OfType<HavenTextCommand>());
+
+        Assert.True(command.Layout.CenterVertically);
+        Assert.Equal("ButtonTextPrimary", Assert.IsType<HavenTokenBrush>(command.Brush).Token);
+    }
+
+    [Fact]
     public void Tertiary_button_text_is_bright_and_requests_vertical_centering()
     {
         var button = new Button { Content = "Readable action", Variant = ButtonVariant.Tertiary };

@@ -4,7 +4,7 @@ public enum HavenHorizontalAlignment { Stretch, Start, Center, End }
 public enum HavenVerticalAlignment { Stretch, Start, Center, End }
 public enum HavenOverflow { Visible, Clip, Scroll }
 public enum HavenVisibility { Visible, Hidden, Collapsed }
-public enum HavenPointerEvents { Auto, None }
+public enum HavenPointerEvents { Auto, ChildrenOnly, None }
 public enum HavenCursor { Default, Pointer, Text, Grab, Grabbing, Crosshair }
 
 /// <summary>Common properties shared by Haven components when semantics match.</summary>

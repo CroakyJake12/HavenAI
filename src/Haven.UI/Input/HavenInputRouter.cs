@@ -147,6 +147,7 @@ public sealed class HavenInputRouter(HavenElement root)
             var hit = HitTestCore(child, point);
             if (hit is not null) return hit;
         }
+        if (element.GetValue(HavenProperties.PointerEvents) == HavenPointerEvents.ChildrenOnly) return null;
         return element.Bounds.Contains(point) ? element : null;
     }
 }

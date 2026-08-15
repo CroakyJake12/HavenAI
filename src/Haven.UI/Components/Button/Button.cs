@@ -31,7 +31,7 @@ public static class ButtonDefaults
 
     public static ButtonVisualDefaults For(ButtonVariant variant) => variant switch
     {
-        ButtonVariant.Primary => Filled("Accent", "AccentHover", "TextOnAccent", "AccentGlow"),
+        ButtonVariant.Primary => Filled("Accent", "AccentHover", "ButtonTextPrimary", "AccentGlow"),
         ButtonVariant.Secondary => Filled("AccentSecondary", "AccentSecondaryHover", "TextOnAccent", "AccentSecondaryGlow"),
         ButtonVariant.Tertiary => Filled("AccentMuted", "AccentTertiaryHover", "ButtonTextSecondary", "AccentTertiaryGlow"),
         ButtonVariant.Danger => Filled("Danger", "DangerHover", "TextOnDanger", "DangerGlow"),
