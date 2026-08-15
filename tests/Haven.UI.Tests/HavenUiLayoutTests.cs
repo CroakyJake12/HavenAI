@@ -257,6 +257,29 @@ public sealed class HavenUiLayoutTests
         Assert.False(child.IsIncluded);
     }
 
+    [Fact]
+    public void Excluded_parent_marks_the_entire_subtree_not_included()
+    {
+        var root = new Page();
+        var parent = new Container();
+        parent.Conditions.Add(new HavenScreenRangeCondition(
+            HavenScreenAxis.Width,
+            maximum: HavenLength.Px(600)));
+        var input = new Input { Placeholder = "Nested input" };
+        parent.Add(input);
+        root.Add(parent);
+        var engine = new HavenLayoutEngine();
+        var measure = new NamedMeasure();
+
+        engine.Layout(root, new HavenSize(500, 500), HavenPlatform.Windows, measure);
+        Assert.True(parent.IsIncluded);
+        Assert.True(input.IsIncluded);
+
+        engine.Layout(root, new HavenSize(700, 500), HavenPlatform.Windows, measure);
+        Assert.False(parent.IsIncluded);
+        Assert.False(input.IsIncluded);
+    }
+
     private static Container SizedContainer(double width, double height)
     {
         var container = new Container();

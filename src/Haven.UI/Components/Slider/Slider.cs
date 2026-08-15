@@ -23,6 +23,7 @@ public sealed class Slider : HavenElement
         SetValue(HavenProperties.Foreground, "Accent", HavenValueSource.Default);
         SetValue(HavenProperties.Background, "SurfaceRaised", HavenValueSource.Default);
         SetValue(HavenProperties.Hover, true, HavenValueSource.Default);
+        SetValue(HavenProperties.Transition, SliderDefaults.Transition, HavenValueSource.Default);
     }
 
     public event EventHandler? ValueChanged;

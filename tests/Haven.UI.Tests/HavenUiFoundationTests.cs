@@ -102,9 +102,9 @@ public sealed class HavenUiFoundationTests
     public void Central_resources_are_embedded()
     {
         Assert.Contains("Class Button", HavenResourceCatalog.SystemClasses, StringComparison.Ordinal);
-        Assert.Contains("Animation ButtonHover", HavenResourceCatalog.SystemAnimations, StringComparison.Ordinal);
+        Assert.Contains("Transition ButtonHover", HavenResourceCatalog.SystemAnimations, StringComparison.Ordinal);
         Assert.Contains("User-defined Haven.UI classes", HavenResourceCatalog.UserClasses, StringComparison.Ordinal);
-        Assert.Contains("User-defined Haven.UI keyframe", HavenResourceCatalog.UserAnimations, StringComparison.Ordinal);
+        Assert.Contains("User-defined Haven.UI transitions", HavenResourceCatalog.UserAnimations, StringComparison.Ordinal);
     }
 
     private sealed class FixedMeasure : IHavenMeasureContext

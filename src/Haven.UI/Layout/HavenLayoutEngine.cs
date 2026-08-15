@@ -37,6 +37,7 @@ public sealed class HavenLayoutEngine
         if (!element.IsIncluded)
         {
             element.DesiredSize = HavenSize.Zero;
+            ExcludeDescendants(element);
             return HavenSize.Zero;
         }
 
@@ -111,9 +112,21 @@ public sealed class HavenLayoutEngine
             if (!child.IsIncluded)
             {
                 child.DesiredSize = HavenSize.Zero;
+                ExcludeDescendants(child);
                 continue;
             }
             yield return child;
+        }
+    }
+
+    private static void ExcludeDescendants(HavenElement element)
+    {
+        if (element is not Container container) return;
+        foreach (var child in container.Children)
+        {
+            child.IsIncluded = false;
+            child.DesiredSize = HavenSize.Zero;
+            ExcludeDescendants(child);
         }
     }
 

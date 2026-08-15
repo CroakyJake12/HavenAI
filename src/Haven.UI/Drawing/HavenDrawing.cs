@@ -40,7 +40,7 @@ public sealed record HavenGeometry(HavenPath Path, HavenRect? ViewBox = null);
 public sealed record HavenTransform(double ScaleX = 1, double ScaleY = 1, double RotationDegrees = 0, double TranslateX = 0, double TranslateY = 0);
 public sealed record HavenImage(string Source);
 public enum HavenImageLayout { Contain, Cover, Fill, None }
-public sealed record HavenTextLayout(string Text, string FontFamily, double FontSize, int FontWeight, double MaxWidth = double.PositiveInfinity);
+public sealed record HavenTextLayout(string Text, string FontFamily, double FontSize, int FontWeight, double MaxWidth = double.PositiveInfinity, bool CenterVertically = false);
 public sealed record HavenShadow(HavenBrush Brush, double Blur, double OffsetX, double OffsetY, double Spread = 0, double Opacity = 1d);
 public sealed record HavenGlow(HavenBrush Brush, double Blur, double Opacity);
 
@@ -60,6 +60,7 @@ public sealed record HavenPopClipCommand(HavenRect Rect) : HavenDrawCommand(Rect
 public sealed record HavenFillRoundedRectCommand(HavenRect Rect, HavenBrush Brush, double Radius, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);
 public sealed record HavenStrokeRoundedRectCommand(HavenRect Rect, HavenPen Pen, double Radius, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);
 public sealed record HavenTextCommand(HavenRect Rect, HavenTextLayout Layout, HavenBrush Brush, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);
+public sealed record HavenCaretCommand(HavenRect Rect, HavenTextLayout PrefixLayout, HavenBrush Brush, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);
 public sealed record HavenLineCommand(HavenPoint Start, HavenPoint End, HavenPen Pen, double Alpha = 1d) : HavenDrawCommand(new HavenRect(Math.Min(Start.X, End.X), Math.Min(Start.Y, End.Y), Math.Abs(End.X - Start.X), Math.Abs(End.Y - Start.Y)), Alpha);
 public sealed record HavenEllipseCommand(HavenRect Rect, HavenBrush Brush, HavenPen? Pen = null, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);
 public sealed record HavenGeometryCommand(HavenRect Rect, HavenGeometry Geometry, HavenBrush? Fill = null, HavenPen? Stroke = null, double Alpha = 1d) : HavenDrawCommand(Rect, Alpha);

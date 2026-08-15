@@ -1361,7 +1361,9 @@ public sealed partial class NewChatPage : UserControl, IDisposable
         }
 
         SendButton.IsEnabled = !_isSending && _selectedModel is not null;
-        InstructionBox.IsEnabled = !_isSending;
+        // Keep the editor usable while Haven is responding so the next turn can be drafted.
+        // Submission remains single-flight because SubmitCurrentInstructionAsync returns while _isSending.
+        InstructionBox.IsEnabled = true;
         RefreshMessages();
     }
 

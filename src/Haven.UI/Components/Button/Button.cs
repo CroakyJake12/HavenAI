@@ -33,7 +33,7 @@ public static class ButtonDefaults
     {
         ButtonVariant.Primary => Filled("Accent", "AccentHover", "TextOnAccent", "AccentGlow"),
         ButtonVariant.Secondary => Filled("AccentSecondary", "AccentSecondaryHover", "TextOnAccent", "AccentSecondaryGlow"),
-        ButtonVariant.Tertiary => Filled("AccentMuted", "AccentTertiaryHover", "AccentSecondary", "AccentTertiaryGlow"),
+        ButtonVariant.Tertiary => Filled("AccentMuted", "AccentTertiaryHover", "ButtonTextSecondary", "AccentTertiaryGlow"),
         ButtonVariant.Danger => Filled("Danger", "DangerHover", "TextOnDanger", "DangerGlow"),
         ButtonVariant.Text => new("Transparent", "Transparent", "AccentSecondary", HavenThickness.Parse("4px 10px"), HavenCornerRadius.Uniform(HavenLength.Px(0)), "None", true),
         ButtonVariant.Ghost => new("Transparent", "AccentMuted", "TextPrimary", HavenThickness.Parse("8px 12px"), HavenCornerRadius.Uniform(HavenLength.Px(16)), "None", true),
@@ -51,12 +51,19 @@ public sealed class Button : HavenElement
 {
     public static readonly HavenProperty<ButtonVariant> VariantProperty = HavenPropertyRegistry.Register(new HavenProperty<ButtonVariant>("Button.Variant", ButtonVariant.Primary));
     public static readonly HavenProperty<string> ContentProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Button.Content", string.Empty));
+    public static readonly HavenProperty<string> IconKeyProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Button.IconKey", string.Empty));
     private bool _wasPressed;
 
     public string Content
     {
         get => GetValue(ContentProperty);
         set { SetValue(ContentProperty, value ?? string.Empty); Accessibility.AccessibleName = value; }
+    }
+
+    public string IconKey
+    {
+        get => GetValue(IconKeyProperty);
+        set => SetValue(IconKeyProperty, value ?? string.Empty);
     }
 
     public Button()
@@ -87,6 +94,7 @@ public sealed class Button : HavenElement
         SetValue(HavenProperties.FontFamily, "Montserrat", HavenValueSource.Default);
         SetValue(HavenProperties.FontWeight, 800, HavenValueSource.Default);
         SetValue(HavenProperties.MinHeight, HavenLength.Px(48), HavenValueSource.Default);
+        SetValue(HavenProperties.Transition, ButtonDefaults.HoverTransition, HavenValueSource.Default);
     }
 
     private void ApplyState()

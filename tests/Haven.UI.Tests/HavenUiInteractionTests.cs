@@ -62,6 +62,35 @@ public sealed class HavenUiInteractionTests
     }
 
     [Fact]
+    public void Input_text_editing_caret_and_submit_are_haven_owned()
+    {
+        var input = new Input { Text = "Hi" };
+        input.SetValue(HavenProperties.Width, HavenLength.Px(300));
+        input.SetValue(HavenProperties.Height, HavenLength.Px(48));
+        new HavenLayoutEngine().Layout(input, new HavenSize(300, 48), HavenPlatform.Windows, new FixedMeasure());
+        var router = new HavenInputRouter(input);
+        Input? submitted = null;
+        router.InputSubmitted += value => submitted = value;
+
+        router.Focus(input);
+        Assert.Equal(2, input.CaretIndex);
+        Assert.True(router.TextInput("!"));
+        Assert.Equal("Hi!", input.Text);
+        Assert.Equal(3, input.CaretIndex);
+        Assert.True(router.KeyDown(HavenKey.Left));
+        Assert.Equal(2, input.CaretIndex);
+        Assert.True(router.KeyDown(HavenKey.Backspace));
+        Assert.Equal("H!", input.Text);
+        Assert.Equal(1, input.CaretIndex);
+        Assert.True(router.KeyDown(HavenKey.Home));
+        Assert.True(router.TextInput("A"));
+        Assert.Equal("AH!", input.Text);
+        Assert.True(router.KeyDown(HavenKey.Enter));
+        Assert.Same(input, submitted);
+        Assert.Contains(new HavenSceneRenderer().Render(input), command => command is HavenCaretCommand);
+    }
+
+    [Fact]
     public void Markup_supports_slider_step_and_select_items_without_platform_controls()
     {
         var root = new HavenMarkupParser().Parse("<Page><Slider Minimum='0' Maximum='3' Step='1' Value='2'/><Select Items='Bright, Dark, Super Dark' SelectedIndex='1'/></Page>");

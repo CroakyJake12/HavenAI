@@ -24,7 +24,10 @@ public sealed record HavenComponentMetadata(
 public abstract class HavenElement
 {
     private readonly Dictionary<HavenProperty, Dictionary<HavenValueSource, object?>> _values = [];
+    private readonly Dictionary<HavenProperty, HavenAnimationSample> _animationSamples = [];
     private readonly List<HavenElement> _children = [];
+    private int _updateDepth;
+    private bool _invalidationPending;
 
     public HavenElement? Parent { get; private set; }
     public IReadOnlyList<HavenElement> Children => _children;
@@ -40,7 +43,15 @@ public abstract class HavenElement
     public event EventHandler? Invoked;
 
     /// <summary>Requests a new Haven measure/render pass after component-owned state changes.</summary>
-    protected internal void Invalidate() => Invalidated?.Invoke(this, EventArgs.Empty);
+    protected internal void Invalidate()
+    {
+        if (_updateDepth > 0)
+        {
+            _invalidationPending = true;
+            return;
+        }
+        Invalidated?.Invoke(this, EventArgs.Empty);
+    }
 
     public string? Name
     {
@@ -74,15 +85,40 @@ public abstract class HavenElement
 
     public T GetValue<T>(HavenProperty<T> property)
     {
+        var value = GetValue((HavenProperty)property);
+        return value is T typed ? typed : property.DefaultValueTyped;
+    }
+
+    public object? GetValue(HavenProperty property) => GetValue(property, HavenValueSource.Animation);
+
+    /// <summary>Returns the highest-precedence value no higher than the requested source.</summary>
+    public object? GetValue(HavenProperty property, HavenValueSource maximumSource)
+    {
         ArgumentNullException.ThrowIfNull(property);
-        if (!_values.TryGetValue(property, out var slot) || slot.Count == 0) return property.DefaultValueTyped;
-        var source = slot.Keys.Max();
-        return slot[source] is T typed ? typed : property.DefaultValueTyped;
+        if (!_values.TryGetValue(property, out var slot) || slot.Count == 0) return property.DefaultValue;
+        var sources = slot.Keys.Where(source => source <= maximumSource).ToArray();
+        if (sources.Length == 0) return property.DefaultValue;
+        return slot[sources.Max()];
     }
 
     public void SetValue<T>(HavenProperty<T> property, T value, HavenValueSource source = HavenValueSource.Explicit)
     {
         ArgumentNullException.ThrowIfNull(property);
+        if (!_values.TryGetValue(property, out var slot))
+        {
+            slot = [];
+            _values[property] = slot;
+        }
+        if (slot.TryGetValue(source, out var existing) && Equals(existing, value)) return;
+        slot[source] = value;
+        Invalidate();
+    }
+
+    internal void SetValue(HavenProperty property, object? value, HavenValueSource source)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        if (value is not null && !property.ValueType.IsInstanceOfType(value))
+            throw new ArgumentException($"Value for Haven property '{property.Name}' must be {property.ValueType.Name}, not {value.GetType().Name}.", nameof(value));
         if (!_values.TryGetValue(property, out var slot))
         {
             slot = [];
@@ -125,9 +161,12 @@ public abstract class HavenElement
     {
         var next = active ? State | state : State & ~state;
         if (next == State) return;
-        State = next;
-        OnStateChanged();
-        Invalidate();
+        Update(() =>
+        {
+            State = next;
+            OnStateChanged();
+            Invalidate();
+        });
     }
 
     internal void Invoke()
@@ -137,6 +176,36 @@ public abstract class HavenElement
     }
 
     protected virtual void OnStateChanged() { }
+
+    internal bool TryGetAnimationSample(HavenProperty property, out HavenAnimationSample sample) =>
+        _animationSamples.TryGetValue(property, out sample!);
+
+    internal void SetAnimationSample(HavenProperty property, object? from, object? to, double progress)
+    {
+        _animationSamples[property] = new HavenAnimationSample(from, to, Math.Clamp(progress, 0d, 1d));
+        Invalidate();
+    }
+
+    internal void ClearAnimationSample(HavenProperty property)
+    {
+        if (_animationSamples.Remove(property)) Invalidate();
+    }
+
+    internal void Update(Action update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        _updateDepth++;
+        try { update(); }
+        finally
+        {
+            _updateDepth--;
+            if (_updateDepth == 0 && _invalidationPending)
+            {
+                _invalidationPending = false;
+                Invalidated?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
 
     public bool MatchesConditions(HavenRenderContext context) => Conditions.All(condition => condition.Matches(context));
 
@@ -165,3 +234,5 @@ public abstract class HavenElement
         .Distinct(StringComparer.Ordinal)
         .ToArray();
 }
+
+internal sealed record HavenAnimationSample(object? From, object? To, double Progress);

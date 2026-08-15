@@ -24,6 +24,7 @@ public sealed class Toggle : HavenElement
         SetValue(HavenProperties.Radius, ToggleDefaults.Radius, HavenValueSource.Default);
         SetValue(HavenProperties.Background, "AccentSecondary", HavenValueSource.Default);
         SetValue(HavenProperties.Hover, true, HavenValueSource.Default);
+        SetValue(HavenProperties.Transition, ToggleDefaults.Transition, HavenValueSource.Default);
     }
 
     public bool IsChecked
@@ -32,10 +33,13 @@ public sealed class Toggle : HavenElement
         set
         {
             if (value == GetValue(CheckedProperty)) return;
-            SetValue(CheckedProperty, value);
-            Accessibility.Checked = value;
-            SetState(HavenElementState.Checked, value);
-            CheckedChanged?.Invoke(this, EventArgs.Empty);
+            Update(() =>
+            {
+                SetValue(CheckedProperty, value);
+                Accessibility.Checked = value;
+                SetState(HavenElementState.Checked, value);
+                CheckedChanged?.Invoke(this, EventArgs.Empty);
+            });
         }
     }
 
@@ -52,10 +56,8 @@ public sealed class Toggle : HavenElement
     {
         ClearValue(HavenProperties.Background, HavenValueSource.State);
         ClearValue(HavenProperties.Glow, HavenValueSource.State);
-        ClearValue(HavenProperties.Transition, HavenValueSource.State);
         if (!State.HasFlag(HavenElementState.Checked)) return;
         SetValue(HavenProperties.Background, "Accent", HavenValueSource.State);
         SetValue(HavenProperties.Glow, "AccentGlow", HavenValueSource.State);
-        SetValue(HavenProperties.Transition, ToggleDefaults.Transition, HavenValueSource.State);
     }
 }

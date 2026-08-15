@@ -3,7 +3,7 @@ using Haven.UI.Components;
 namespace Haven.UI;
 
 public enum HavenPointerKind { Mouse, Touch, Pen }
-public enum HavenKey { Unknown, Enter, Space, Escape, Tab, Left, Right, Up, Down, Home, End }
+public enum HavenKey { Unknown, Enter, Space, Escape, Tab, Left, Right, Up, Down, Home, End, Backspace, Delete }
 
 public sealed class HavenInputRouter(HavenElement root)
 {
@@ -15,6 +15,7 @@ public sealed class HavenInputRouter(HavenElement root)
     public HavenElement? Hovered => _hovered;
     public HavenElement? Pressed => _pressed;
     public HavenElement? Focused => _focused;
+    public event Action<Input>? InputSubmitted;
     public HavenElement? HitTest(HavenPoint point) => HitTestCore(root, point);
 
     public void PointerMoved(HavenPoint point)
@@ -60,8 +61,28 @@ public sealed class HavenInputRouter(HavenElement root)
         return false;
     }
 
+    public bool TextInput(string? text)
+    {
+        return _focused is Input input && input.InsertText(text);
+    }
+
     public bool KeyDown(HavenKey key)
     {
+        if (_focused is Input input)
+        {
+            switch (key)
+            {
+                case HavenKey.Left: return input.MoveCaret(-1);
+                case HavenKey.Right: return input.MoveCaret(1);
+                case HavenKey.Home: input.PlaceCaretAtStart(); return true;
+                case HavenKey.End: input.PlaceCaretAtEnd(); return true;
+                case HavenKey.Backspace: return input.Backspace();
+                case HavenKey.Delete: return input.Delete();
+                case HavenKey.Enter when input.Multiline: return input.InsertText("\n");
+                case HavenKey.Enter: InputSubmitted?.Invoke(input); return true;
+                case HavenKey.Space: return false;
+            }
+        }
         if (_focused is Slider slider)
         {
             if (key == HavenKey.Left || key == HavenKey.Down) { slider.Nudge(-1); return true; }
@@ -82,6 +103,7 @@ public sealed class HavenInputRouter(HavenElement root)
 
     public bool KeyUp(HavenKey key)
     {
+        if (_focused is Input && key is HavenKey.Enter or HavenKey.Space or HavenKey.Left or HavenKey.Right or HavenKey.Home or HavenKey.End or HavenKey.Backspace or HavenKey.Delete) return true;
         if (_focused is Slider && key is HavenKey.Left or HavenKey.Right or HavenKey.Up or HavenKey.Down) return true;
         if (_focused is Select && key is HavenKey.Left or HavenKey.Right or HavenKey.Up or HavenKey.Down or HavenKey.Home or HavenKey.End or HavenKey.Escape) return true;
         if (_focused is null || key is not (HavenKey.Enter or HavenKey.Space)) return false;
@@ -95,6 +117,7 @@ public sealed class HavenInputRouter(HavenElement root)
         if (ReferenceEquals(_focused, element)) return;
         _focused?.SetState(HavenElementState.Focused, false);
         _focused = element is { Accessibility.Focusable: true } ? element : null;
+        if (_focused is Input input) input.PlaceCaretAtEnd();
         _focused?.SetState(HavenElementState.Focused, true);
     }
 

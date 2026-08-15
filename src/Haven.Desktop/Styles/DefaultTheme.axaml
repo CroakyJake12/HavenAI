@@ -137,6 +137,7 @@
     <SolidColorBrush x:Key="HavenLinkBrush" Color="#00ACC1" />
     <SolidColorBrush x:Key="HavenShadowBrush" Color="#52000000" />
     <SolidColorBrush x:Key="HavenAccentForegroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="HavenButtonTextSecondaryBrush" Color="#FFF4EE" />
 
     <!-- Central geometry tokens are colour-mode invariant. -->
     <x:Double x:Key="HavenSpace1">4</x:Double>

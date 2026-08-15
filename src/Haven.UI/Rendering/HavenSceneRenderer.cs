@@ -5,14 +5,14 @@ namespace Haven.UI;
 
 public sealed class HavenSceneRenderer
 {
-    public IReadOnlyList<HavenDrawCommand> Render(HavenElement root)
+    public IReadOnlyList<HavenDrawCommand> Render(HavenElement root, Func<HavenElement, bool>? suppressContent = null)
     {
         var context = new HavenDrawingContext();
-        RenderElement(root, context);
+        RenderElement(root, context, suppressContent);
         return context.Commands;
     }
 
-    private static void RenderElement(HavenElement element, HavenDrawingContext context)
+    private static void RenderElement(HavenElement element, HavenDrawingContext context, Func<HavenElement, bool>? suppressContent)
     {
         if (!element.IsIncluded || element.GetValue(HavenProperties.Visibility) != HavenVisibility.Visible) return;
         var opacity = Math.Clamp(element.GetValue(HavenProperties.Opacity), 0d, 1d);
@@ -25,50 +25,84 @@ public sealed class HavenSceneRenderer
             context.Add(new HavenPushTransformCommand(element.Bounds, new HavenTransform(scale, scale, rotation, translateX, translateY), new HavenPoint(element.Bounds.X + element.Bounds.Width / 2d, element.Bounds.Y + element.Bounds.Height / 2d)));
 
         var radius = ResolvePixels(element.GetValue(HavenProperties.Radius).TopLeft);
-        if (HavenEffects.TryResolveShadow(element.GetValue(HavenProperties.Shadow), out var shadow) && shadow is not null)
-            context.Add(new HavenShadowCommand(element.Bounds, shadow with { Opacity = shadow.Opacity * opacity }, radius));
-        var glow = element.GetValue(HavenProperties.Glow);
-        if (!glow.Equals("None", StringComparison.OrdinalIgnoreCase)) context.Add(new HavenGlowCommand(element.Bounds, new HavenGlow(new HavenTokenBrush(glow), 18, opacity), radius));
-        var background = element.GetValue(HavenProperties.Background);
-        if (!background.Equals("Transparent", StringComparison.OrdinalIgnoreCase)) context.Add(new HavenFillRoundedRectCommand(element.Bounds, new HavenTokenBrush(background), radius, opacity));
+        DrawAnimatedShadow(element, context, opacity, radius);
+        DrawAnimatedGlow(element, context, opacity, radius);
+        DrawAnimatedFill(element, HavenProperties.Background, context, element.Bounds, radius, opacity);
         var borderWidth = ResolvePixels(element.GetValue(HavenProperties.BorderWidth));
-        if (borderWidth > 0) context.Add(new HavenStrokeRoundedRectCommand(element.Bounds, new HavenPen(new HavenTokenBrush(element.GetValue(HavenProperties.BorderColor)), borderWidth), radius, opacity));
+        if (borderWidth > 0) DrawAnimatedStroke(element, context, element.Bounds, borderWidth, radius, opacity);
 
         var clipped = element.GetValue(HavenProperties.Clip)
             || element.GetValue(HavenProperties.Overflow) is HavenOverflow.Clip or HavenOverflow.Scroll;
         if (clipped) context.Add(new HavenPushClipCommand(element.Bounds));
 
-        switch (element)
+        if (suppressContent?.Invoke(element) != true)
         {
+            switch (element)
+            {
             case Text text: DrawText(text.Content, element, context, opacity); break;
-            case Button button when !string.IsNullOrWhiteSpace(button.Content): DrawText(button.Content, element, context, opacity); break;
-            case Input input: DrawText(string.IsNullOrEmpty(input.Text) ? input.Placeholder : input.Text, element, context, string.IsNullOrEmpty(input.Text) ? opacity * .64 : opacity); break;
+            case Button button when !string.IsNullOrWhiteSpace(button.Content): DrawText(button.Content, element, context, opacity, centerVertically: true, leadingIconKey: button.IconKey); break;
+            case Input input: DrawInput(input, context, opacity); break;
             case Select select: DrawText(select.SelectedItem ?? "Select", element, context, opacity); break;
             case Toggle toggle: DrawToggle(toggle, context, opacity); break;
             case Slider slider: DrawSlider(slider, context, opacity); break;
             case Progress progress: DrawProgress(progress, context, opacity); break;
             case Separator separator: DrawSeparator(separator, context, opacity); break;
             case HavenImageComponent image when !string.IsNullOrWhiteSpace(image.Source): context.Add(new HavenImageCommand(element.Bounds, new HavenImage(image.Source), MapImageLayout(image.Fit), opacity)); break;
-            case Icon icon when !string.IsNullOrWhiteSpace(icon.Key): context.Add(new HavenIconCommand(element.Bounds, icon.Key, new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity)); break;
+            case Icon icon when !string.IsNullOrWhiteSpace(icon.Key): DrawAnimatedIcon(icon, context, opacity); break;
+            }
         }
-        foreach (var child in element.Children.OrderBy(child => child.GetValue(HavenProperties.ZIndex))) RenderElement(child, context);
+        foreach (var child in element.Children.OrderBy(child => child.GetValue(HavenProperties.ZIndex))) RenderElement(child, context, suppressContent);
         if (clipped) context.Add(new HavenPopClipCommand(element.Bounds));
         if (transformed) context.Add(new HavenPopTransformCommand(element.Bounds));
     }
 
-    private static void DrawText(string value, HavenElement element, HavenDrawingContext context, double opacity)
+    private static void DrawInput(Input input, HavenDrawingContext context, double opacity)
+    {
+        var hasText = !string.IsNullOrEmpty(input.Text);
+        DrawText(hasText ? input.Text : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: true);
+        if (!input.State.HasFlag(HavenElementState.Focused)) return;
+
+        var padding = input.GetValue(HavenProperties.Padding);
+        var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
+        var rect = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));
+        var caretIndex = Math.Clamp(input.CaretIndex, 0, input.Text.Length);
+        var prefix = input.Text[..caretIndex];
+        var layout = new HavenTextLayout(prefix, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, true);
+        context.Add(new HavenCaretCommand(rect, layout, new HavenTokenBrush(input.GetValue(HavenProperties.Foreground)), opacity));
+    }
+
+    private static void DrawText(string value, HavenElement element, HavenDrawingContext context, double opacity, bool centerVertically = false, string? leadingIconKey = null)
     {
         if (string.IsNullOrEmpty(value)) return;
         var padding = element.GetValue(HavenProperties.Padding);
         var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
         var rect = new HavenRect(element.Bounds.X + left, element.Bounds.Y + top, Math.Max(0, element.Bounds.Width - left - right), Math.Max(0, element.Bounds.Height - top - bottom));
-        context.Add(new HavenTextCommand(rect, new HavenTextLayout(value, element.GetValue(HavenProperties.FontFamily), element.GetValue(HavenProperties.FontSize), element.GetValue(HavenProperties.FontWeight), rect.Width), new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity));
+        if (!string.IsNullOrWhiteSpace(leadingIconKey) && rect.Width > 0 && rect.Height > 0)
+        {
+            var iconSize = Math.Min(18d, rect.Height);
+            var iconRect = new HavenRect(rect.X, rect.Y + Math.Max(0, (rect.Height - iconSize) / 2d), iconSize, iconSize);
+            context.Add(new HavenIconCommand(iconRect, leadingIconKey, new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity));
+            var advance = iconSize + 10d;
+            rect = new HavenRect(rect.X + advance, rect.Y, Math.Max(0, rect.Width - advance), rect.Height);
+        }
+        var layout = new HavenTextLayout(value, element.GetValue(HavenProperties.FontFamily), element.GetValue(HavenProperties.FontSize), element.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+        if (TryStringSample(element, HavenProperties.Foreground, out var from, out var to, out var progress))
+        {
+            AddText(context, rect, layout, from, opacity * (1d - progress));
+            AddText(context, rect, layout, to, opacity * progress);
+            return;
+        }
+        AddText(context, rect, layout, element.GetValue(HavenProperties.Foreground), opacity);
     }
 
     private static void DrawToggle(Toggle toggle, HavenDrawingContext context, double opacity)
     {
         var diameter = Math.Max(0, toggle.Bounds.Height - 6);
-        var x = toggle.IsChecked ? toggle.Bounds.Right - diameter - 3 : toggle.Bounds.X + 3;
+        var checkedProgress = toggle.IsChecked ? 1d : 0d;
+        if (toggle.TryGetAnimationSample(Toggle.CheckedProperty, out var sample)
+            && sample.From is bool from && sample.To is bool to)
+            checkedProgress = (from ? 1d : 0d) + ((to ? 1d : 0d) - (from ? 1d : 0d)) * sample.Progress;
+        var x = toggle.Bounds.X + 3 + Math.Max(0, toggle.Bounds.Width - diameter - 6) * checkedProgress;
         context.Add(new HavenEllipseCommand(new HavenRect(x, toggle.Bounds.Y + 3, diameter, diameter), new HavenTokenBrush("TextOnAccent"), null, opacity));
     }
 
@@ -98,6 +132,110 @@ public sealed class HavenSceneRenderer
     }
 
     private static double ResolvePixels(HavenLength length) => length.Unit == HavenLengthUnit.Pixel ? Math.Max(0, length.Value) : 0;
+
+    private static void DrawAnimatedFill(HavenElement element, HavenProperty<string> property, HavenDrawingContext context, HavenRect rect, double radius, double opacity)
+    {
+        if (TryStringSample(element, property, out var from, out var to, out var progress))
+        {
+            AddFill(context, rect, from, radius, opacity * (1d - progress));
+            AddFill(context, rect, to, radius, opacity * progress);
+            return;
+        }
+        AddFill(context, rect, element.GetValue(property), radius, opacity);
+    }
+
+    private static void DrawAnimatedStroke(HavenElement element, HavenDrawingContext context, HavenRect rect, double width, double radius, double opacity)
+    {
+        if (TryStringSample(element, HavenProperties.BorderColor, out var from, out var to, out var progress))
+        {
+            AddStroke(context, rect, from, width, radius, opacity * (1d - progress));
+            AddStroke(context, rect, to, width, radius, opacity * progress);
+            return;
+        }
+        AddStroke(context, rect, element.GetValue(HavenProperties.BorderColor), width, radius, opacity);
+    }
+
+    private static void DrawAnimatedGlow(HavenElement element, HavenDrawingContext context, double opacity, double radius)
+    {
+        if (TryStringSample(element, HavenProperties.Glow, out var from, out var to, out var progress))
+        {
+            AddGlow(context, element.Bounds, from, radius, opacity * (1d - progress), 18d * Presence(from));
+            AddGlow(context, element.Bounds, to, radius, opacity * progress, 18d * Presence(to));
+            return;
+        }
+        AddGlow(context, element.Bounds, element.GetValue(HavenProperties.Glow), radius, opacity, 18);
+    }
+
+    private static void DrawAnimatedShadow(HavenElement element, HavenDrawingContext context, double opacity, double radius)
+    {
+        if (TryStringSample(element, HavenProperties.Shadow, out var from, out var to, out var progress))
+        {
+            AddShadow(context, element.Bounds, from, radius, opacity * (1d - progress));
+            AddShadow(context, element.Bounds, to, radius, opacity * progress);
+            return;
+        }
+        AddShadow(context, element.Bounds, element.GetValue(HavenProperties.Shadow), radius, opacity);
+    }
+
+    private static void DrawAnimatedIcon(Icon icon, HavenDrawingContext context, double opacity)
+    {
+        if (TryStringSample(icon, HavenProperties.Foreground, out var from, out var to, out var progress))
+        {
+            AddIcon(context, icon, from, opacity * (1d - progress));
+            AddIcon(context, icon, to, opacity * progress);
+            return;
+        }
+        AddIcon(context, icon, icon.GetValue(HavenProperties.Foreground), opacity);
+    }
+
+    private static bool TryStringSample(HavenElement element, HavenProperty<string> property, out string from, out string to, out double progress)
+    {
+        from = to = string.Empty;
+        progress = 0;
+        if (!element.TryGetAnimationSample(property, out var sample) || sample.From is not string fromValue || sample.To is not string toValue || fromValue.Equals(toValue, StringComparison.OrdinalIgnoreCase)) return false;
+        from = fromValue;
+        to = toValue;
+        progress = sample.Progress;
+        return true;
+    }
+
+    private static void AddFill(HavenDrawingContext context, HavenRect rect, string token, double radius, double opacity)
+    {
+        if (opacity <= .0001d || token.Equals("Transparent", StringComparison.OrdinalIgnoreCase) || token.Equals("None", StringComparison.OrdinalIgnoreCase)) return;
+        context.Add(new HavenFillRoundedRectCommand(rect, new HavenTokenBrush(token), radius, opacity));
+    }
+
+    private static void AddStroke(HavenDrawingContext context, HavenRect rect, string token, double width, double radius, double opacity)
+    {
+        if (opacity <= .0001d || width <= 0 || token.Equals("Transparent", StringComparison.OrdinalIgnoreCase) || token.Equals("None", StringComparison.OrdinalIgnoreCase)) return;
+        context.Add(new HavenStrokeRoundedRectCommand(rect, new HavenPen(new HavenTokenBrush(token), width), radius, opacity));
+    }
+
+    private static void AddText(HavenDrawingContext context, HavenRect rect, HavenTextLayout layout, string token, double opacity)
+    {
+        if (opacity <= .0001d) return;
+        context.Add(new HavenTextCommand(rect, layout, new HavenTokenBrush(token), opacity));
+    }
+
+    private static void AddIcon(HavenDrawingContext context, Icon icon, string token, double opacity)
+    {
+        if (opacity <= .0001d) return;
+        context.Add(new HavenIconCommand(icon.Bounds, icon.Key, new HavenTokenBrush(token), opacity));
+    }
+
+    private static void AddGlow(HavenDrawingContext context, HavenRect rect, string token, double radius, double opacity, double blur)
+    {
+        if (opacity <= .0001d || blur <= .0001d || Presence(token) == 0) return;
+        context.Add(new HavenGlowCommand(rect, new HavenGlow(new HavenTokenBrush(token), blur, opacity), radius));
+    }
+
+    private static void AddShadow(HavenDrawingContext context, HavenRect rect, string value, double radius, double opacity)
+    {
+        if (opacity <= .0001d || !HavenEffects.TryResolveShadow(value, out var shadow) || shadow is null) return;
+        context.Add(new HavenShadowCommand(rect, shadow with { Opacity = shadow.Opacity * opacity }, radius));
+    }
+
+    private static double Presence(string token) => token.Equals("None", StringComparison.OrdinalIgnoreCase) || token.Equals("Transparent", StringComparison.OrdinalIgnoreCase) ? 0d : 1d;
 
     private static HavenImageLayout MapImageLayout(HavenImageFit fit) => fit switch
     {

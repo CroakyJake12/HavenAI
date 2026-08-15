@@ -6,6 +6,7 @@ namespace Haven.UI;
 public sealed record HavenClassDefinition(string Name, IReadOnlyDictionary<string, string> Properties, int Line);
 public sealed record HavenAnimationKeyframe(double Percent, IReadOnlyDictionary<string, string> Properties);
 public sealed record HavenAnimationDefinition(string Name, TimeSpan Duration, string Easing, IReadOnlyList<HavenAnimationKeyframe> Keyframes, int Line);
+public sealed record HavenTransitionDefinition(string Name, TimeSpan Duration, string Easing, IReadOnlyList<string> Properties, int Line);
 
 public static partial class HavenResourceParser
 {
@@ -27,11 +28,33 @@ public static partial class HavenResourceParser
         {
             var keyframes = KeyframeRegex().Matches(block.Body).Select(match => new HavenAnimationKeyframe(double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), ParseAssignments(match.Groups[2].Value, sourceName, block.Line))).OrderBy(frame => frame.Percent).ToArray();
             if (keyframes.Length == 0) throw Error(sourceName, block.Line, $"Animation '{block.Name}' has no keyframes.");
+            if (keyframes.Any(frame => frame.Percent is < 0 or > 100)) throw Error(sourceName, block.Line, $"Animation '{block.Name}' keyframes must be between 0% and 100%.");
+            if (keyframes.GroupBy(frame => frame.Percent).Any(group => group.Count() > 1)) throw Error(sourceName, block.Line, $"Animation '{block.Name}' contains a duplicate keyframe percentage.");
             var header = KeyframeRegex().Replace(block.Body, string.Empty);
             var assignments = ParseAssignments(header, sourceName, block.Line);
             if (!assignments.TryGetValue("Duration", out var durationText)) throw Error(sourceName, block.Line, $"Animation '{block.Name}' requires Duration.");
-            var definition = new HavenAnimationDefinition(block.Name, ParseDuration(durationText, sourceName, block.Line), assignments.GetValueOrDefault("Easing", "Linear"), keyframes, block.Line);
+            var easing = assignments.GetValueOrDefault("Easing", "Linear");
+            ValidateEasing(easing, sourceName, block.Line, $"Animation '{block.Name}'");
+            var definition = new HavenAnimationDefinition(block.Name, ParseDuration(durationText, sourceName, block.Line), easing, keyframes, block.Line);
             if (!result.TryAdd(block.Name, definition)) throw Error(sourceName, block.Line, $"Duplicate Animation '{block.Name}'.");
+        }
+        return result;
+    }
+
+    public static IReadOnlyDictionary<string, HavenTransitionDefinition> ParseTransitions(string source, string sourceName)
+    {
+        var result = new Dictionary<string, HavenTransitionDefinition>(StringComparer.Ordinal);
+        foreach (var block in ExtractBlocks(source, "Transition", sourceName))
+        {
+            var assignments = ParseAssignments(block.Body, sourceName, block.Line);
+            if (!assignments.TryGetValue("Duration", out var durationText)) throw Error(sourceName, block.Line, $"Transition '{block.Name}' requires Duration.");
+            if (!assignments.TryGetValue("Properties", out var propertyText)) throw Error(sourceName, block.Line, $"Transition '{block.Name}' requires Properties.");
+            var properties = propertyText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (properties.Length == 0) throw Error(sourceName, block.Line, $"Transition '{block.Name}' requires at least one property.");
+            var easing = assignments.GetValueOrDefault("Easing", "Linear");
+            ValidateEasing(easing, sourceName, block.Line, $"Transition '{block.Name}'");
+            var definition = new HavenTransitionDefinition(block.Name, ParseDuration(durationText, sourceName, block.Line), easing, properties, block.Line);
+            if (!result.TryAdd(block.Name, definition)) throw Error(sourceName, block.Line, $"Duplicate Transition '{block.Name}'.");
         }
         return result;
     }
@@ -71,6 +94,12 @@ public static partial class HavenResourceParser
         throw Error(sourceName, line, $"Invalid animation duration '{value}'. Use ms or s.");
     }
 
+    private static void ValidateEasing(string value, string sourceName, int line, string owner)
+    {
+        try { HavenEasing.Validate(value); }
+        catch (FormatException exception) { throw Error(sourceName, line, $"{owner}: {exception.Message}"); }
+    }
+
     private static FormatException Error(string sourceName, int line, string message) => new($"{sourceName}:{line}: {message}");
     [GeneratedRegex(@"(\d+(?:\.\d+)?)%\s*\{([^{}]*)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline)] private static partial Regex KeyframeRegex();
 }
@@ -81,6 +110,8 @@ public sealed class HavenResourceSet
     private readonly IReadOnlyDictionary<string, HavenClassDefinition> _userClasses;
     private readonly IReadOnlyDictionary<string, HavenAnimationDefinition> _systemAnimations;
     private readonly IReadOnlyDictionary<string, HavenAnimationDefinition> _userAnimations;
+    private readonly IReadOnlyDictionary<string, HavenTransitionDefinition> _systemTransitions;
+    private readonly IReadOnlyDictionary<string, HavenTransitionDefinition> _userTransitions;
 
     public HavenResourceSet(string systemClasses, string userClasses, string systemAnimations, string userAnimations)
     {
@@ -88,6 +119,8 @@ public sealed class HavenResourceSet
         _userClasses = HavenResourceParser.ParseClasses(userClasses, "UserClasses.hui");
         _systemAnimations = HavenResourceParser.ParseAnimations(systemAnimations, "SystemAnimations.hui");
         _userAnimations = HavenResourceParser.ParseAnimations(userAnimations, "UserAnimations.hui");
+        _systemTransitions = HavenResourceParser.ParseTransitions(systemAnimations, "SystemAnimations.hui");
+        _userTransitions = HavenResourceParser.ParseTransitions(userAnimations, "UserAnimations.hui");
     }
 
     public static HavenResourceSet LoadEmbedded() => new(HavenResourceCatalog.SystemClasses, HavenResourceCatalog.UserClasses, HavenResourceCatalog.SystemAnimations, HavenResourceCatalog.UserAnimations);
@@ -115,6 +148,22 @@ public sealed class HavenResourceSet
         if (string.IsNullOrWhiteSpace(name)) return false;
         if (_userAnimations.TryGetValue(name, out var user)) { definition = user; return true; }
         if (_systemAnimations.TryGetValue(name, out var system)) { definition = system; return true; }
+        return false;
+    }
+
+    public HavenTransitionDefinition ResolveTransition(string name)
+    {
+        if (_userTransitions.TryGetValue(name, out var user)) return user;
+        if (_systemTransitions.TryGetValue(name, out var system)) return system;
+        throw new KeyNotFoundException($"Transition '{name}' was not found in UserAnimations.hui or SystemAnimations.hui.");
+    }
+
+    public bool TryResolveTransition(string? name, out HavenTransitionDefinition? definition)
+    {
+        definition = null;
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        if (_userTransitions.TryGetValue(name, out var user)) { definition = user; return true; }
+        if (_systemTransitions.TryGetValue(name, out var system)) { definition = system; return true; }
         return false;
     }
 

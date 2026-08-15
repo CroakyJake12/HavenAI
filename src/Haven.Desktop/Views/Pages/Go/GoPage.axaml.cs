@@ -1,25 +1,23 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Media;
-using Haven.Desktop.Controls;
+using Haven.Core;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell.TopRail;
-using Haven.Core;
+using Haven.UI;
 
 namespace Haven.Desktop.Views.Pages.Go;
 
 /// <summary>
-/// New Haven's mockup-defined Go workspace. It owns no legacy chat, plugin,
-/// instruction, agent, or voice controls.
+/// Product adapter for the Haven.UI Go scene. Existing services, navigation,
+/// pending-task state and event contracts remain outside the UI framework.
 /// </summary>
 public sealed partial class GoPage : UserControl, IDisposable
 {
     private readonly HavenEventBus _bus;
-    private readonly Button[] _suggestionButtons;
-    private readonly HavenIcon[] _suggestionIcons;
-    private readonly TextBlock[] _suggestionTexts;
+    private readonly GoHavenScene _route;
     private readonly TaskAttachmentContext _attachments = new();
+    private readonly List<(HavenElement Element, EventHandler Handler)> _stateSubscriptions = [];
     private IReadOnlyList<ModeDefinition> _availableApps = [];
     private IReadOnlyList<GoSuggestion> _suggestions = GoSuggestionService.ImmediateDefaults;
     private bool _disposed;
@@ -28,12 +26,10 @@ public sealed partial class GoPage : UserControl, IDisposable
     {
         _bus = bus;
         InitializeComponent();
-        _suggestionButtons = [RecentChatsButton, StudyButton, StudioButton, RecapButton];
-        _suggestionIcons = [SuggestionIcon0, SuggestionIcon1, SuggestionIcon2, SuggestionIcon3];
-        _suggestionTexts = [SuggestionText0, SuggestionText1, SuggestionText2, SuggestionText3];
+        _route = new GoHavenScene();
+        Scene.Root = _route.Root;
         WireEvents();
         SetSuggestions(_suggestions);
-        SizeChanged += (_, args) => ApplyResponsiveLayout(args.NewSize.Width);
     }
 
     public event EventHandler<string>? SubmitRequested;
@@ -41,6 +37,10 @@ public sealed partial class GoPage : UserControl, IDisposable
     public event EventHandler<AddMenu.AddMenuAction>? AddRequested;
     public event EventHandler<AddMenuSelection>? AddCatalogItemSelected;
     public event EventHandler? Disposed;
+
+    internal HavenSceneControl SceneHost => Scene;
+    internal GoHavenScene Route => _route;
+    internal HavenElement SceneRoot => _route.Root;
 
     public void AttachFiles(IEnumerable<string> paths)
     {
@@ -58,17 +58,14 @@ public sealed partial class GoPage : UserControl, IDisposable
 
     public void ToggleCapability(CapabilityDefinition capability)
     {
-        if (_attachments.IsCapabilityAttached(capability.Id))
-            _attachments.RemoveCapability(capability.Id);
-        else
-            AttachCapability(capability);
+        if (_attachments.IsCapabilityAttached(capability.Id)) _attachments.RemoveCapability(capability.Id);
+        else AttachCapability(capability);
         RefreshAttachmentStatus();
     }
 
     private void AttachCapability(CapabilityDefinition capability)
     {
-        var owner = _availableApps.FirstOrDefault(app =>
-            app.Key.Equals(capability.OwnerAppKey, StringComparison.OrdinalIgnoreCase));
+        var owner = _availableApps.FirstOrDefault(app => app.Key.Equals(capability.OwnerAppKey, StringComparison.OrdinalIgnoreCase));
         _attachments.AttachCapability(capability, owner);
     }
 
@@ -79,47 +76,13 @@ public sealed partial class GoPage : UserControl, IDisposable
         return snapshot;
     }
 
-    public void FocusComposer() => InstructionBox.Focus();
+    public void FocusComposer() => Scene.FocusElement(_route.Instruction);
 
     public void SetSuggestions(IReadOnlyList<GoSuggestion> suggestions)
     {
-        if (_disposed || suggestions.Count != _suggestionButtons.Length) return;
+        if (_disposed || suggestions.Count != 4) return;
         _suggestions = suggestions.ToArray();
-        for (var index = 0; index < _suggestions.Count; index++)
-        {
-            var suggestion = _suggestions[index];
-            _suggestionIcons[index].IconKey = suggestion.IconKey;
-            _suggestionTexts[index].Text = suggestion.Label;
-            ToolTip.SetTip(_suggestionButtons[index], suggestion.Instruction);
-        }
-    }
-
-    private void ApplyResponsiveLayout(double width)
-    {
-        if (width <= 0) return;
-        var compact = width < 680;
-
-        RootGrid.Margin = compact ? new Avalonia.Thickness(18, 10, 18, 18) : new Avalonia.Thickness(42, 12, 42, 22);
-        HeroStack.Spacing = compact ? 22 : 34;
-        HeroStack.Margin = compact ? new Avalonia.Thickness(0, 0, 0, 14) : new Avalonia.Thickness(0, 0, 0, 32);
-        HeroTitle.FontSize = compact ? 34 : 40;
-        SuggestionsGrid.MaxWidth = compact ? double.PositiveInfinity : 800;
-        SuggestionsGrid.Width = compact ? double.NaN : 780;
-        SuggestionsGrid.ColumnDefinitions = new ColumnDefinitions(compact ? "*" : "*,*");
-        SuggestionsGrid.RowDefinitions = new RowDefinitions(compact ? "Auto,Auto,Auto,Auto" : "Auto,Auto");
-        SuggestionsGrid.ColumnSpacing = compact ? 0 : 18;
-        SuggestionsGrid.RowSpacing = compact ? 10 : 14;
-
-        PlaceSuggestion(RecentChatsButton, 0, 0);
-        PlaceSuggestion(StudySuggestionScope, compact ? 1 : 0, compact ? 0 : 1);
-        PlaceSuggestion(StudioSuggestionScope, compact ? 2 : 1, 0);
-        PlaceSuggestion(RecapButton, compact ? 3 : 1, compact ? 0 : 1);
-    }
-
-    private static void PlaceSuggestion(Control control, int row, int column)
-    {
-        Grid.SetRow(control, row);
-        Grid.SetColumn(control, column);
+        _route.SetSuggestions(_suggestions);
     }
 
     public void SetAddCatalogue(
@@ -129,52 +92,73 @@ public sealed partial class GoPage : UserControl, IDisposable
         IReadOnlyList<ModeDefinition> apps)
     {
         _availableApps = apps;
-        AddButton.SetCatalogue(agents, capabilities, instructions, apps);
+        _route.SetCatalogue(agents, capabilities, instructions, apps);
     }
 
     public void SetRefreshInProgress(bool inProgress)
     {
-        if (_disposed) return;
-        LoadMoreButton.IsEnabled = !inProgress;
-        LoadMoreButton.Content = new TextBlock
-        {
-            Text = inProgress ? "Finding more…" : "Load more",
-            Foreground = Avalonia.Application.Current?.Resources["HavenTextSoftBrush"] as IBrush
-                         ?? new SolidColorBrush(Color.Parse("#FFD5D7E4")),
-            FontSize = 12,
-            FontWeight = FontWeight.SemiBold
-        };
+        if (!_disposed) _route.SetRefreshInProgress(inProgress);
     }
 
     private void WireEvents()
     {
-        Register("Go.Suggestions.RecentChats", RecentChatsButton);
-        Register("Go.Suggestions.Study", StudyButton);
-        Register("Go.Suggestions.Studio", StudioButton);
-        Register("Go.Suggestions.Recap", RecapButton);
-        Register("Go.Suggestions.LoadMore", LoadMoreButton);
-        Register("Go.Composer.Instruction", InstructionBox);
-        Register("Go.Composer.Send", SendButton);
-        Register("Go.Composer.Add", AddButton);
+        Register("Go.Suggestions.RecentChats", _route.SuggestionButtons(0));
+        Register("Go.Suggestions.Study", _route.SuggestionButtons(1));
+        Register("Go.Suggestions.Studio", _route.SuggestionButtons(2));
+        Register("Go.Suggestions.Recap", _route.SuggestionButtons(3));
+        Register("Go.Suggestions.LoadMore", [_route.LoadMoreButton]);
+        Register("Go.Composer.Instruction", [_route.Instruction]);
+        Register("Go.Composer.Send", [_route.SendButton]);
+        Register("Go.Composer.Add", [_route.AddButton]);
 
-        RecentChatsButton.Click += (_, _) => SubmitSuggestion(0);
-        StudyButton.Click += (_, _) => SubmitSuggestion(1);
-        StudioButton.Click += (_, _) => SubmitSuggestion(2);
-        RecapButton.Click += (_, _) => SubmitSuggestion(3);
-        LoadMoreButton.Click += (_, _) =>
+        for (var index = 0; index < 4; index++)
+        {
+            var suggestionIndex = index;
+            foreach (var button in _route.SuggestionButtons(index))
+                button.Invoked += (_, _) => SubmitSuggestion(suggestionIndex);
+        }
+
+        _route.LoadMoreButton.Invoked += (_, _) =>
         {
             _bus.Fire("Go.Suggestions.LoadMore.Click");
             RefreshSuggestionsRequested?.Invoke(this, EventArgs.Empty);
         };
-        SendButton.Click += (_, _) => Submit();
-        InstructionBox.KeyDown += OnInstructionKeyDown;
-        AddButton.ActionSelected += (_, action) => AddRequested?.Invoke(this, action);
-        AddButton.CatalogItemSelected += (_, selection) =>
+        _route.SendButton.Invoked += (_, _) => Submit();
+        _route.Instruction.Invoked += (_, _) => Submit();
+        Scene.InputSubmitted += OnInputSubmitted;
+
+        _route.AddActionSelected += (_, action) => AddRequested?.Invoke(this, action);
+        _route.CatalogItemSelected += (_, selection) =>
         {
             if (selection.Item is ModeDefinition app) AttachApp(app);
             if (selection.Item is CapabilityDefinition capability) ToggleCapability(capability);
             AddCatalogItemSelected?.Invoke(this, selection);
         };
+    }
+
+    private void OnInputSubmitted(Haven.UI.Components.Input input)
+    {
+        if (ReferenceEquals(input, _route.Instruction)) Submit();
+    }
+
+    private void Register(string name, IEnumerable<HavenElement> elements)
+    {
+        _bus.RegisterElement(name, Scene);
+        foreach (var element in elements)
+        {
+            var previous = element.State;
+            EventHandler handler = (_, _) =>
+            {
+                var next = element.State;
+                if (previous.HasFlag(HavenElementState.Hover) != next.HasFlag(HavenElementState.Hover))
+                    _bus.Fire(name + (next.HasFlag(HavenElementState.Hover) ? ".Hover" : ".Leave"));
+                if (previous.HasFlag(HavenElementState.Pressed) != next.HasFlag(HavenElementState.Pressed))
+                    _bus.Fire(name + (next.HasFlag(HavenElementState.Pressed) ? ".Press" : ".Release"));
+                previous = next;
+            };
+            element.Invalidated += handler;
+            _stateSubscriptions.Add((element, handler));
+        }
     }
 
     private void SubmitSuggestion(int index)
@@ -184,53 +168,38 @@ public sealed partial class GoPage : UserControl, IDisposable
         SubmitRequested?.Invoke(this, _suggestions[index].Instruction);
     }
 
-    private void OnInstructionKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter || e.KeyModifiers.HasFlag(KeyModifiers.Shift)) return;
-        e.Handled = true;
-        Submit();
-    }
-
     private void Submit()
     {
-        var instruction = InstructionBox.Text?.Trim();
+        var instruction = _route.Instruction.Text.Trim();
         if (string.IsNullOrWhiteSpace(instruction)) return;
-        InstructionBox.Text = string.Empty;
+        _route.Instruction.Text = string.Empty;
         _bus.Fire("Go.Composer.Send.Click");
         SubmitRequested?.Invoke(this, instruction);
-    }
-
-    private void Register(string name, Control control)
-    {
-        _bus.RegisterElement(name, control);
-        _bus.WirePointerEvents(name, control);
     }
 
     private void RefreshAttachmentStatus()
     {
         if (_attachments.IsEmpty)
         {
-            AttachmentStatusHost.IsVisible = false;
-            AttachmentStatusText.Text = string.Empty;
+            _route.SetAttachmentStatus(null);
             return;
         }
 
         var parts = new List<string>();
-        if (_attachments.Apps.Count > 0)
-            parts.Add("Apps: " + string.Join(", ", _attachments.Apps.Select(item => item.Name)));
-        if (_attachments.Capabilities.Count > 0)
-            parts.Add("Capabilities: " + string.Join(", ", _attachments.Capabilities.Select(item => item.Name)));
-        if (_attachments.Files.Count > 0)
-            parts.Add("Files: " + string.Join(", ", _attachments.Files.Select(Path.GetFileName)));
-        AttachmentStatusText.Text = string.Join("  •  ", parts);
-        AttachmentStatusHost.IsVisible = true;
+        if (_attachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _attachments.Apps.Select(item => item.Name)));
+        if (_attachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _attachments.Capabilities.Select(item => item.Name)));
+        if (_attachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _attachments.Files.Select(Path.GetFileName)));
+        _route.SetAttachmentStatus(string.Join("  •  ", parts));
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        AddButton.Dispose();
+        Scene.InputSubmitted -= OnInputSubmitted;
+        foreach (var (element, handler) in _stateSubscriptions) element.Invalidated -= handler;
+        _stateSubscriptions.Clear();
+        _route.Dispose();
         Disposed?.Invoke(this, EventArgs.Empty);
     }
 }
