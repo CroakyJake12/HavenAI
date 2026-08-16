@@ -1,4 +1,5 @@
 using Haven.Core;
+using Haven.Desktop.Prefabs;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.UI;
@@ -12,18 +13,14 @@ internal sealed class GoHavenScene : IDisposable
 {
     private readonly List<HavenButton>[] _suggestionButtons = [[], [], [], []];
     private readonly List<Icon>[] _suggestionIcons = [[], [], [], []];
-    private readonly List<(HavenButton Button, AddMenu.AddMenuAction Action, object Item)> _catalogRows = [];
     private readonly List<(HavenElement Element, EventHandler Handler)> _visualSubscriptions = [];
-    private IReadOnlyList<AgentDefinition> _agents = [];
-    private IReadOnlyList<CapabilityDefinition> _capabilities = [];
-    private IReadOnlyList<PromptDefinition> _instructions = [];
-    private IReadOnlyList<ModeDefinition> _apps = [];
-    private AddMenu.AddMenuAction? _catalogAction;
-    private string _lastSearch = string.Empty;
+    private readonly HavenPrefabCatalog _prefabs;
+    private readonly ChatAddMenuSurface _addMenu;
     private bool _disposed;
 
     public GoHavenScene()
     {
+        _prefabs = HavenPrefabCatalog.FromAssembly(typeof(GoHavenScene).Assembly);
         Root = new Page { Name = "Go.Root", Layout = HavenLayout.Grid, Columns = "1fr", Rows = "1fr Auto Auto Auto" };
         Root.SetValue(HavenProperties.Padding, HavenThickness.Parse("12px 42px 22px 42px"));
         Root.SetValue(HavenProperties.Background, "Transparent");
@@ -57,49 +54,30 @@ internal sealed class GoHavenScene : IDisposable
         AttachmentHost.Add(AttachmentText);
         Root.Add(AttachmentHost);
 
-        Composer = new Container { Name = "Go.Composer", Layout = HavenLayout.Grid, Columns = "44px 1fr 44px", Rows = "44px" };
-        Composer.SetValue(HavenProperties.Row, 3);
-        Composer.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        Composer.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
-        Composer.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
-        Composer.SetValue(HavenProperties.Gap, HavenLength.Px(8));
-        Composer.SetValue(HavenProperties.Padding, HavenThickness.Parse("7px"));
-        Composer.SetValue(HavenProperties.Background, "SurfaceRaised");
-        Composer.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(28)));
-        Composer.SetValue(HavenProperties.Shadow, "Card");
+        Chatbox = _prefabs.Create("Chatbox", "Go-Chatbox");
+        Chatbox.SetValue(HavenProperties.Row, 3);
+        Chatbox.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        Chatbox.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
+        Chatbox.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
+        Composer = Chatbox.GetComponent<Container>("ChatboxRoot");
+        Instruction = Chatbox.GetComponent<Input>("Instruction");
+        AddButton = Chatbox.GetComponent<HavenButton>("AddMenu");
+        SendButton = Chatbox.GetComponent<HavenButton>("Send");
+        Root.Add(Chatbox);
 
-        AddButton = CreateIconButton("Go.Composer.Add", "plus", 0, "Add", out var addIcon);
-        Composer.Add(AddButton);
-        Composer.Add(addIcon);
-
-        Instruction = new Input { Name = "Go.Composer.Instruction", Placeholder = "Ask Haven anything" };
-        Instruction.Accessibility.AccessibleName = "Ask Haven anything";
-        Instruction.SetValue(HavenProperties.Column, 1);
-        Instruction.SetValue(HavenProperties.MinHeight, HavenLength.Px(44));
-        Instruction.SetValue(HavenProperties.Height, HavenLength.Px(44));
-        Instruction.SetValue(HavenProperties.Background, "Transparent");
-        Instruction.SetValue(HavenProperties.Padding, HavenThickness.Parse("0px 12px"));
-        Instruction.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(22)));
-        Composer.Add(Instruction);
-
-        SendButton = CreateIconButton("Go.Composer.Send", "arrow-up", 2, "Send", out var sendIcon);
-        Composer.Add(SendButton);
-        Composer.Add(sendIcon);
-        Root.Add(Composer);
-
-        AddOverlay = BuildAddOverlay();
-        Root.Add(AddOverlay);
+        AddMenuPrefab = _prefabs.Create("ChatAddMenu", "Go-AddMenu");
+        AddMenuPrefab.SetValue(HavenProperties.Row, 0);
+        AddMenuPrefab.SetValue(HavenProperties.RowSpan, 4);
+        AddMenuPrefab.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        AddMenuPrefab.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+        AddMenuPrefab.SetValue(HavenProperties.ZIndex, 100);
+        AddMenuPrefab.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
+        Root.Add(AddMenuPrefab);
+        _addMenu = new ChatAddMenuSurface(AddMenuPrefab);
 
         AddButton.Invoked += OnAddInvoked;
-        DismissAddButton.Invoked += OnDismissInvoked;
-        AttachFilesButton.Invoked += OnAttachFilesInvoked;
-        AgentsButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.Agent);
-        InstructionsButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.Instruction);
-        CapabilitiesButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.Capability);
-        AppsButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.App);
-        AllowActionsButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.AllowActions);
-        VisualResponsesButton.Invoked += (_, _) => OpenCatalogue(AddMenu.AddMenuAction.VisualResponses);
-        CatalogSearch.Invalidated += OnCatalogSearchInvalidated;
+        _addMenu.AddActionSelected += OnSharedAddActionSelected;
+        _addMenu.CatalogItemSelected += OnSharedCatalogItemSelected;
     }
 
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
@@ -115,23 +93,25 @@ internal sealed class GoHavenScene : IDisposable
     public Container AttachmentHost { get; }
     public HavenButton LoadMoreButton { get; }
     public HavenText AttachmentText { get; }
+    public Prefab Chatbox { get; }
+    public Prefab AddMenuPrefab { get; }
     public Container Composer { get; }
     public Input Instruction { get; }
     public HavenButton AddButton { get; }
     public HavenButton SendButton { get; }
-    public Container AddOverlay { get; }
-    public HavenButton DismissAddButton { get; private set; } = null!;
-    public Container MainMenu { get; private set; } = null!;
-    public Container CatalogPanel { get; private set; } = null!;
-    public Input CatalogSearch { get; private set; } = null!;
-    public Container CatalogResults { get; private set; } = null!;
-    public HavenButton AttachFilesButton { get; private set; } = null!;
-    public HavenButton AgentsButton { get; private set; } = null!;
-    public HavenButton InstructionsButton { get; private set; } = null!;
-    public HavenButton CapabilitiesButton { get; private set; } = null!;
-    public HavenButton AppsButton { get; private set; } = null!;
-    public HavenButton AllowActionsButton { get; private set; } = null!;
-    public HavenButton VisualResponsesButton { get; private set; } = null!;
+    public Container AddOverlay => _addMenu.Overlay;
+    public HavenButton DismissAddButton => _addMenu.DismissButton;
+    public Container MainMenu => _addMenu.MainMenu;
+    public Container CatalogPanel => _addMenu.CatalogPanel;
+    public Input CatalogSearch => _addMenu.CatalogSearch;
+    public Container CatalogResults => _addMenu.CatalogResults;
+    public HavenButton AttachFilesButton => _addMenu.AttachFilesButton;
+    public HavenButton AgentsButton => _addMenu.AgentsButton;
+    public HavenButton InstructionsButton => _addMenu.InstructionsButton;
+    public HavenButton CapabilitiesButton => _addMenu.CapabilitiesButton;
+    public HavenButton AppsButton => _addMenu.AppsButton;
+    public HavenButton AllowActionsButton => _addMenu.AllowActionsButton;
+    public HavenButton VisualResponsesButton => _addMenu.VisualResponsesButton;
 
     public IReadOnlyList<HavenButton> SuggestionButtons(int index) => _suggestionButtons[index];
 
@@ -155,14 +135,8 @@ internal sealed class GoHavenScene : IDisposable
         IReadOnlyList<AgentDefinition> agents,
         IReadOnlyList<CapabilityDefinition> capabilities,
         IReadOnlyList<PromptDefinition> instructions,
-        IReadOnlyList<ModeDefinition> apps)
-    {
-        _agents = agents.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
-        _capabilities = capabilities.Where(item => item.IsEnabled && item.IsAttachable).OrderBy(item => item.Name).ToArray();
-        _instructions = instructions.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
-        _apps = apps.Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
-        if (_catalogAction is not null) RebuildCatalogue();
-    }
+        IReadOnlyList<ModeDefinition> apps) =>
+        _addMenu.SetCatalogue(agents, capabilities, instructions, apps);
 
     public void SetRefreshInProgress(bool inProgress)
     {
@@ -177,20 +151,9 @@ internal sealed class GoHavenScene : IDisposable
         AttachmentHost.SetValue(HavenProperties.Visibility, empty ? HavenVisibility.Collapsed : HavenVisibility.Visible);
     }
 
-    public void ShowAddMenu()
-    {
-        _catalogAction = null;
-        CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-        AddOverlay.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
-    }
+    public void ShowAddMenu() => _addMenu.Show();
 
-    public void HideAddMenu()
-    {
-        _catalogAction = null;
-        CatalogSearch.Text = string.Empty;
-        CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-        AddOverlay.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-    }
+    public void HideAddMenu() => _addMenu.Hide();
 
     private Container BuildHero(bool compact)
     {
@@ -294,258 +257,22 @@ internal sealed class GoHavenScene : IDisposable
         return host;
     }
 
-    private Container BuildAddOverlay()
-    {
-        var overlay = new Container { Name = "Go.Add.Overlay", Layout = HavenLayout.Overlay };
-        overlay.SetValue(HavenProperties.Row, 0);
-        overlay.SetValue(HavenProperties.RowSpan, 4);
-        overlay.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        overlay.SetValue(HavenProperties.Height, HavenLength.Percent(100));
-        overlay.SetValue(HavenProperties.ZIndex, 100);
-        overlay.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-
-        DismissAddButton = new HavenButton { Name = "Go.Add.Dismiss", Variant = ButtonVariant.Text, Content = string.Empty };
-        DismissAddButton.Accessibility.AccessibleName = "Close Add menu";
-        DismissAddButton.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        DismissAddButton.SetValue(HavenProperties.Height, HavenLength.Percent(100));
-        DismissAddButton.SetValue(HavenProperties.Background, "Transparent");
-        overlay.Add(DismissAddButton);
-
-        var panels = new Container { Name = "Go.Add.Panels", Layout = HavenLayout.Horizontal };
-        panels.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        panels.SetValue(HavenProperties.MaxWidth, HavenLength.Px(900));
-        panels.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
-        panels.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
-        panels.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.End);
-        panels.SetValue(HavenProperties.Gap, HavenLength.Px(12));
-        panels.SetValue(HavenProperties.Margin, HavenThickness.Parse("0px 0px 70px 0px"));
-        panels.SetValue(HavenProperties.ZIndex, 101);
-
-        MainMenu = BuildMainMenu();
-        panels.Add(MainMenu);
-        CatalogPanel = BuildCatalogPanel();
-        panels.Add(CatalogPanel);
-        overlay.Add(panels);
-        return overlay;
-    }
-
-    private Container BuildMainMenu()
-    {
-        var menu = Card("Go.Add.Main", 324, HavenLayout.Vertical, 8);
-        menu.SetValue(HavenProperties.Padding, HavenThickness.Parse("14px"));
-        menu.Add(Heading("Manage Responses", 22));
-        menu.Add(Heading("Available Tools", 13));
-
-        var tools = new Container { Name = "Go.Add.Tools", Layout = HavenLayout.Grid, Columns = "1fr 1fr", Rows = "44px 44px" };
-        tools.SetValue(HavenProperties.Width, HavenLength.Px(296));
-        tools.SetValue(HavenProperties.Gap, HavenLength.Px(8));
-        AgentsButton = MenuButton("Go.Add.Agents", "Agents", 144, iconKey: "agents");
-        InstructionsButton = MenuButton("Go.Add.Instructions", "Instructions", 144, iconKey: "prompt");
-        InstructionsButton.SetValue(HavenProperties.Column, 1);
-        CapabilitiesButton = MenuButton("Go.Add.Capabilities", "Capabilities", 144, iconKey: "bolt");
-        CapabilitiesButton.SetValue(HavenProperties.Row, 1);
-        AppsButton = MenuButton("Go.Add.Apps", "Apps", 144, iconKey: "rocket");
-        AppsButton.SetValue(HavenProperties.Row, 1);
-        AppsButton.SetValue(HavenProperties.Column, 1);
-        tools.Add(AgentsButton); tools.Add(InstructionsButton); tools.Add(CapabilitiesButton); tools.Add(AppsButton);
-        menu.Add(tools);
-        menu.Add(Heading("Options", 13));
-        AllowActionsButton = MenuButton("Go.Add.AllowActions", "Allow Actions  ›", 296, iconKey: "bolt");
-        VisualResponsesButton = MenuButton("Go.Add.VisualResponses", "Prefer Visual Responses  ›", 296, iconKey: "browse");
-        menu.Add(AllowActionsButton);
-        menu.Add(VisualResponsesButton);
-        AttachFilesButton = MenuButton("Go.Add.AttachFiles", "Attach File(s)", 296, ButtonVariant.Primary, "file");
-        menu.Add(AttachFilesButton);
-        return menu;
-    }
-
-    private Container BuildCatalogPanel()
-    {
-        var panel = Card("Go.Add.Catalog", 320, HavenLayout.Vertical, 8);
-        panel.SetValue(HavenProperties.Padding, HavenThickness.Parse("12px"));
-        panel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-        CatalogSearch = new Input { Name = "Go.Add.Search", Placeholder = "Search" };
-        CatalogSearch.Accessibility.AccessibleName = "Search Add catalogue";
-        CatalogSearch.SetValue(HavenProperties.Height, HavenLength.Px(42));
-        panel.Add(CatalogSearch);
-        CatalogResults = new Container { Name = "Go.Add.Results", Layout = HavenLayout.Vertical };
-        CatalogResults.SetValue(HavenProperties.MaxHeight, HavenLength.Px(300));
-        CatalogResults.SetValue(HavenProperties.Gap, HavenLength.Px(4));
-        CatalogResults.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
-        panel.Add(CatalogResults);
-        return panel;
-    }
-
-    private void OpenCatalogue(AddMenu.AddMenuAction action)
-    {
-        _catalogAction = action;
-        _lastSearch = string.Empty;
-        CatalogSearch.Text = string.Empty;
-        CatalogSearch.Placeholder = action == AddMenu.AddMenuAction.Agent ? "Search Agents" : "Search";
-        CatalogSearch.SetValue(HavenProperties.Visibility,
-            action is AddMenu.AddMenuAction.AllowActions or AddMenu.AddMenuAction.VisualResponses ? HavenVisibility.Collapsed : HavenVisibility.Visible);
-        CatalogPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
-        AddActionSelected?.Invoke(this, action);
-        RebuildCatalogue();
-    }
-
-    private void RebuildCatalogue()
-    {
-        foreach (var child in CatalogResults.Children.ToArray()) CatalogResults.Remove(child);
-        _catalogRows.Clear();
-        if (_catalogAction is null) return;
-        var query = CatalogSearch.Text.Trim();
-        switch (_catalogAction.Value)
-        {
-            case AddMenu.AddMenuAction.Agent:
-                AddCatalogHeading("Current: No Agent (Default)");
-                AddCatalogRows(AddMenu.AddMenuAction.Agent, _agents.Where(item => Matches(item.Name, item.Description, query)), item => item.Name, item => item.Description);
-                break;
-            case AddMenu.AddMenuAction.Capability:
-                AddCatalogRows(AddMenu.AddMenuAction.Capability, _capabilities.Where(item => Matches(item.Name, item.Description, query)), item => item.Name, item => item.Description);
-                break;
-            case AddMenu.AddMenuAction.Instruction:
-                AddCatalogRows(AddMenu.AddMenuAction.Instruction, _instructions.Where(item => Matches(item.Name, item.Description, query)), item => item.Name, item => item.Description);
-                break;
-            case AddMenu.AddMenuAction.App:
-                AddCatalogRows(AddMenu.AddMenuAction.App, _apps.Where(item => Matches(item.Name, item.Description, query)), item => item.Name, item => item.Description);
-                break;
-            case AddMenu.AddMenuAction.AllowActions:
-                AddModeRow("Allow All Actions", AddMenu.AddMenuAction.AllowActions, ChatActionMode.AllowAllActions);
-                AddModeRow("Allow Basic Actions (Default)", AddMenu.AddMenuAction.AllowActions, ChatActionMode.AllowBasicActions);
-                AddModeRow("Just Chat", AddMenu.AddMenuAction.AllowActions, ChatActionMode.JustChat);
-                break;
-            case AddMenu.AddMenuAction.VisualResponses:
-                AddModeRow("Always Visual", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.AlwaysVisual);
-                AddModeRow("Prefer Visual", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.PreferVisual);
-                AddModeRow("Auto (Default)", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.Auto);
-                AddModeRow("Prefer Text", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.PreferText);
-                AddModeRow("Always Text", AddMenu.AddMenuAction.VisualResponses, GenerativeUiResponseMode.AlwaysText);
-                break;
-        }
-    }
-
-    private void AddCatalogRows<T>(AddMenu.AddMenuAction action, IEnumerable<T> items, Func<T, string> label, Func<T, string> description)
-        where T : notnull
-    {
-        foreach (var item in items)
-        {
-            var button = MenuButton("Go.Add.Result", label(item), 284);
-            button.Accessibility.Description = description(item);
-            var boxed = (object)item;
-            button.Invoked += (_, _) => SelectCatalogue(new AddMenuSelection(action, boxed));
-            _catalogRows.Add((button, action, boxed));
-            CatalogResults.Add(button);
-        }
-    }
-
-    private void AddModeRow(string label, AddMenu.AddMenuAction action, object item)
-    {
-        var button = MenuButton("Go.Add.Result", label, 284);
-        button.Invoked += (_, _) => SelectCatalogue(new AddMenuSelection(action, item));
-        _catalogRows.Add((button, action, item));
-        CatalogResults.Add(button);
-    }
-
-    private void AddCatalogHeading(string text)
-    {
-        var heading = new HavenText(text) { Level = TextLevel.Caption };
-        heading.SetValue(HavenProperties.FontWeight, 700);
-        heading.SetValue(HavenProperties.Foreground, "TextSecondary");
-        CatalogResults.Add(heading);
-    }
-
-    private void SelectCatalogue(AddMenuSelection selection)
-    {
-        HideAddMenu();
-        CatalogItemSelected?.Invoke(this, selection);
-    }
-
-    private void OnCatalogSearchInvalidated(object? sender, EventArgs e)
-    {
-        var next = CatalogSearch.Text;
-        if (next == _lastSearch) return;
-        _lastSearch = next;
-        if (_catalogAction is not null) RebuildCatalogue();
-    }
-
     private void OnAddInvoked(object? sender, EventArgs e) => ShowAddMenu();
-    private void OnDismissInvoked(object? sender, EventArgs e) => HideAddMenu();
-    private void OnAttachFilesInvoked(object? sender, EventArgs e)
-    {
-        HideAddMenu();
-        AddActionSelected?.Invoke(this, AddMenu.AddMenuAction.File);
-    }
 
-    private static Container Card(string name, double width, HavenLayout layout, double gap)
-    {
-        var card = new Container { Name = name, Layout = layout };
-        card.SetValue(HavenProperties.Width, HavenLength.Px(width));
-        card.SetValue(HavenProperties.Background, "SurfaceRaised");
-        card.SetValue(HavenProperties.BorderColor, "Border");
-        card.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
-        card.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(18)));
-        card.SetValue(HavenProperties.Shadow, "Card");
-        card.SetValue(HavenProperties.Gap, HavenLength.Px(gap));
-        return card;
-    }
+    private void OnSharedAddActionSelected(object? sender, AddMenu.AddMenuAction action) =>
+        AddActionSelected?.Invoke(this, action);
 
-    private static HavenText Heading(string value, double size)
-    {
-        var text = new HavenText(value) { Level = TextLevel.Paragraph };
-        text.SetValue(HavenProperties.FontSize, size);
-        text.SetValue(HavenProperties.FontWeight, 800);
-        return text;
-    }
-
-    private static HavenButton MenuButton(string name, string label, double width, ButtonVariant variant = ButtonVariant.Tertiary, string? iconKey = null)
-    {
-        var button = new HavenButton { Name = name, Content = label, Variant = variant, IconKey = iconKey ?? string.Empty };
-        button.Accessibility.AccessibleName = label.Replace("  ›", string.Empty, StringComparison.Ordinal);
-        button.SetValue(HavenProperties.Width, HavenLength.Px(width));
-        button.SetValue(HavenProperties.MinHeight, HavenLength.Px(44));
-        button.SetValue(HavenProperties.Padding, HavenThickness.Parse("10px 12px"));
-        button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
-        button.SetValue(HavenProperties.FontSize, 12d);
-        button.SetValue(HavenProperties.FontWeight, 700);
-        return button;
-    }
-
-    private static HavenButton CreateIconButton(string name, string iconKey, int column, string accessibleName, out Icon icon)
-    {
-        var button = new HavenButton { Name = name, Variant = ButtonVariant.Icon };
-        button.Accessibility.AccessibleName = accessibleName;
-        button.SetValue(HavenProperties.Column, column);
-        button.SetValue(HavenProperties.Width, HavenLength.Px(44));
-        button.SetValue(HavenProperties.Height, HavenLength.Px(44));
-        button.SetValue(HavenProperties.MinHeight, HavenLength.Px(44));
-        button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(22)));
-
-        icon = new Icon { Name = name + ".Icon", Key = iconKey };
-        icon.SetValue(HavenProperties.Column, column);
-        icon.SetValue(HavenProperties.Width, HavenLength.Px(20));
-        icon.SetValue(HavenProperties.Height, HavenLength.Px(20));
-        icon.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
-        icon.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
-        icon.SetValue(HavenProperties.Foreground, "TextPrimary");
-        icon.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None);
-        icon.SetValue(HavenProperties.ZIndex, 1);
-        return button;
-    }
-
-    private static bool Matches(string name, string description, string query) =>
-        string.IsNullOrWhiteSpace(query)
-        || name.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || description.Contains(query, StringComparison.OrdinalIgnoreCase);
+    private void OnSharedCatalogItemSelected(object? sender, AddMenuSelection selection) =>
+        CatalogItemSelected?.Invoke(this, selection);
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         AddButton.Invoked -= OnAddInvoked;
-        DismissAddButton.Invoked -= OnDismissInvoked;
-        AttachFilesButton.Invoked -= OnAttachFilesInvoked;
-        CatalogSearch.Invalidated -= OnCatalogSearchInvalidated;
+        _addMenu.AddActionSelected -= OnSharedAddActionSelected;
+        _addMenu.CatalogItemSelected -= OnSharedCatalogItemSelected;
+        _addMenu.Dispose();
         foreach (var (element, handler) in _visualSubscriptions) element.Invalidated -= handler;
         _visualSubscriptions.Clear();
     }
