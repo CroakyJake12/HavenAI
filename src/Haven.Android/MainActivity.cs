@@ -34,6 +34,7 @@ public sealed class MainActivity : AvaloniaMainActivity
             AndroidHavenBootstrap.SetLaunchRequest(Intent);
             base.OnCreate(savedInstanceState);
             Window?.SetSoftInputMode(SoftInput.AdjustResize);
+            AndroidRuntimePermissions.Attach(this, isForeground: true);
             AndroidRuntimeDiagnostics.Attach(this);
         }
         catch (Exception exception)
@@ -52,17 +53,26 @@ public sealed class MainActivity : AvaloniaMainActivity
     {
         base.OnResume();
         Window?.SetSoftInputMode(SoftInput.AdjustResize);
+        AndroidRuntimePermissions.SetForeground(this, isForeground: true);
         AndroidRuntimeDiagnostics.Attach(this);
     }
 
     protected override void OnPause()
     {
+        AndroidRuntimePermissions.SetForeground(this, isForeground: false);
         AndroidRuntimeDiagnostics.Detach(this);
         base.OnPause();
     }
 
+    public override void OnRequestPermissionsResult(int requestCode, string[] permissions, global::Android.Content.PM.Permission[] grantResults)
+    {
+        base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+        _ = AndroidRuntimePermissions.HandlePermissionResult(requestCode, grantResults);
+    }
+
     private void RedirectToNativeRecovery(Exception exception)
     {
+        AndroidRuntimePermissions.SetForeground(this, isForeground: false);
         AndroidRuntimeDiagnostics.Record(
             exception,
             "Android Avalonia activity startup",

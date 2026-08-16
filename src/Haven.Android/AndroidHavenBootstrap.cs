@@ -82,6 +82,7 @@ internal static class AndroidHavenBootstrap
 
             var preferences = services.GetRequiredService<UserPreferencesService>();
             preferences.ApplyAppearance(preferences.Appearance, save: false);
+            _ = services.GetRequiredService<AndroidNotificationBridge>();
 
             // Android can recreate an Activity. Create a fresh Avalonia control graph while
             // reusing Haven's application and infrastructure services.
