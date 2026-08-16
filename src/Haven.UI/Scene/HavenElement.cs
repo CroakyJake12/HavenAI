@@ -31,6 +31,7 @@ public abstract class HavenElement
 
     public HavenElement? Parent { get; private set; }
     public IReadOnlyList<HavenElement> Children => _children;
+    public virtual bool CreatesNameScope => false;
     public IList<IHavenRenderCondition> Conditions { get; } = new List<IHavenRenderCondition>();
     public IList<HavenAction> ClickActions { get; } = new List<HavenAction>();
     public HavenAccessibility Accessibility { get; } = new();
@@ -219,14 +220,34 @@ public abstract class HavenElement
 
     public void ValidateUniqueNames()
     {
-        var duplicates = DescendantsAndSelf()
+        ValidateNameScope(this);
+    }
+
+    private static void ValidateNameScope(HavenElement scope)
+    {
+        var scoped = EnumerateNameScope(scope).ToArray();
+        var duplicates = scoped
             .Where(element => !string.IsNullOrWhiteSpace(element.Name))
             .GroupBy(element => element.Name!, StringComparer.Ordinal)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)
             .ToArray();
         if (duplicates.Length > 0)
-            throw new InvalidOperationException($"Duplicate Haven element Name values: {string.Join(", ", duplicates)}.");
+            throw new InvalidOperationException($"Duplicate Haven element Name values in scope '{scope.Name ?? scope.GetType().Name}': {string.Join(", ", duplicates)}.");
+
+        foreach (var childScope in scoped.Where(element => !ReferenceEquals(element, scope) && element.CreatesNameScope))
+            ValidateNameScope(childScope);
+    }
+
+    private static IEnumerable<HavenElement> EnumerateNameScope(HavenElement element)
+    {
+        yield return element;
+        foreach (var child in element.Children)
+        {
+            yield return child;
+            if (child.CreatesNameScope) continue;
+            foreach (var descendant in EnumerateNameScope(child).Skip(1)) yield return descendant;
+        }
     }
 
     private static IReadOnlyList<string> SplitTokens(string value) => value
