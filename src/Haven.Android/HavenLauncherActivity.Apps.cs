@@ -9,13 +9,19 @@ namespace Haven.Android;
 
 public sealed partial class HavenLauncherActivity
 {
-    private async void LoadAppsAsync()
+    private int _appLoadGeneration;
+
+    private async void LoadAppsAsync(bool showLoading = false)
     {
-        if (_launcherStatus is not null)
+        var generation = Interlocked.Increment(ref _appLoadGeneration);
+        if (showLoading && _launcherStatus is not null)
             _launcherStatus.Text = "Loading apps…";
         try
         {
             var apps = await Task.Run(QueryApps);
+            if (generation != Volatile.Read(ref _appLoadGeneration))
+                return;
+
             _apps.Clear();
             _apps.AddRange(ApplySavedOrder(apps));
             _page = Math.Clamp(_page, 0, Math.Max(0, PageCount - 1));
@@ -30,6 +36,9 @@ public sealed partial class HavenLauncherActivity
         }
         catch (Exception ex)
         {
+            if (generation != Volatile.Read(ref _appLoadGeneration))
+                return;
+
             if (_launcherStatus is not null)
                 _launcherStatus.Text = "Could not load apps: " + ex.Message;
             Toast.MakeText(this, "Could not load apps", ToastLength.Long)?.Show();
