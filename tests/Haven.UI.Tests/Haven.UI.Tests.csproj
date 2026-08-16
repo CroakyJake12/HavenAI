@@ -10,4 +10,9 @@
     <PackageReference Include="xunit.runner.visualstudio"><PrivateAssets>all</PrivateAssets></PackageReference>
     <PackageReference Include="coverlet.collector"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Prefabs\**\*.hui" />
+    <EmbeddedResource Include="DynamicUI\**\*.hui" />
+    <Compile Update="Prefabs\**\*.hui.cs"><DependentUpon>%(Filename)</DependentUpon></Compile>
+  </ItemGroup>
 </Project>

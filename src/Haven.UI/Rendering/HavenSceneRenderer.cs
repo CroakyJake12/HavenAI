@@ -37,10 +37,12 @@ public sealed class HavenSceneRenderer
 
         if (suppressContent?.Invoke(element) != true)
         {
+            if (element is IHavenDrawCommandSource customDraw) customDraw.Draw(context, opacity);
             switch (element)
             {
             case Text text: DrawText(text.Content, element, context, opacity); break;
             case Button button when !string.IsNullOrWhiteSpace(button.Content): DrawText(button.Content, element, context, opacity, centerVertically: true, leadingIconKey: button.IconKey); break;
+            case Button button when !string.IsNullOrWhiteSpace(button.IconKey): DrawButtonIcon(button, context, opacity); break;
             case Input input: DrawInput(input, context, opacity); break;
             case Select select: DrawText(select.SelectedItem ?? "Select", element, context, opacity); break;
             case Toggle toggle: DrawToggle(toggle, context, opacity); break;
@@ -54,6 +56,28 @@ public sealed class HavenSceneRenderer
         foreach (var child in element.Children.OrderBy(child => child.GetValue(HavenProperties.ZIndex))) RenderElement(child, context, suppressContent);
         if (clipped) context.Add(new HavenPopClipCommand(element.Bounds));
         if (transformed) context.Add(new HavenPopTransformCommand(element.Bounds));
+    }
+
+    private static void DrawButtonIcon(Button button, HavenDrawingContext context, double opacity)
+    {
+        var padding = button.GetValue(HavenProperties.Padding);
+        var left = ResolvePixels(padding.Left);
+        var top = ResolvePixels(padding.Top);
+        var right = ResolvePixels(padding.Right);
+        var bottom = ResolvePixels(padding.Bottom);
+        var content = new HavenRect(
+            button.Bounds.X + left,
+            button.Bounds.Y + top,
+            Math.Max(0, button.Bounds.Width - left - right),
+            Math.Max(0, button.Bounds.Height - top - bottom));
+        var size = Math.Min(18d, Math.Min(content.Width, content.Height));
+        if (size <= 0) return;
+        var rect = new HavenRect(
+            content.X + (content.Width - size) / 2d,
+            content.Y + (content.Height - size) / 2d,
+            size,
+            size);
+        context.Add(new HavenIconCommand(rect, button.IconKey, new HavenTokenBrush(button.GetValue(HavenProperties.Foreground)), opacity));
     }
 
     private static void DrawInput(Input input, HavenDrawingContext context, double opacity)

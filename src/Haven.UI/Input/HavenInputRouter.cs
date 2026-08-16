@@ -11,6 +11,10 @@ public sealed class HavenInputRouter(HavenElement root)
     private HavenElement? _hovered;
     private HavenElement? _pressed;
     private HavenElement? _focused;
+    private IHavenPointerInputTarget? _pointerTarget;
+    private HavenElement? _pointerTargetElement;
+    private HavenPointerKind _activePointerKind = HavenPointerKind.Mouse;
+    private bool _pointerConsumed;
 
     public HavenElement? Hovered => _hovered;
     public HavenElement? Pressed => _pressed;
@@ -18,8 +22,10 @@ public sealed class HavenInputRouter(HavenElement root)
     public event Action<Input>? InputSubmitted;
     public HavenElement? HitTest(HavenPoint point) => HitTestCore(root, point);
 
-    public void PointerMoved(HavenPoint point)
+    public void PointerMoved(HavenPoint point, HavenPointerKind pointerKind = HavenPointerKind.Mouse)
     {
+        if (_pointerTarget is not null && _pointerTargetElement is not null)
+            _pointerConsumed |= _pointerTarget.PointerMoved(PointerInput(_pointerTargetElement, point, _activePointerKind));
         if (_pressed is Slider activeSlider) activeSlider.SetFromPointer(point.X);
         var next = HitTest(point);
         if (ReferenceEquals(next, _hovered)) return;
@@ -30,12 +36,22 @@ public sealed class HavenInputRouter(HavenElement root)
 
     public void PointerPressed(HavenPoint point, HavenPointerKind pointerKind = HavenPointerKind.Mouse)
     {
-        PointerMoved(point);
+        PointerMoved(point, pointerKind);
         _pressed?.SetState(HavenElementState.Pressed, false);
+        _pointerTarget = null;
+        _pointerTargetElement = null;
+        _pointerConsumed = false;
+        _activePointerKind = pointerKind;
         _pressed = HitTest(point);
         if (_pressed is null) return;
         _pressed.SetState(HavenElementState.Pressed, true);
         if (_pressed is Slider slider) slider.SetFromPointer(point.X);
+        if (_pressed is IHavenPointerInputTarget pointerTarget)
+        {
+            _pointerTarget = pointerTarget;
+            _pointerTargetElement = _pressed;
+            _pointerConsumed = pointerTarget.PointerPressed(PointerInput(_pressed, point, pointerKind));
+        }
         if (_pressed.Accessibility.Focusable) Focus(_pressed);
     }
 
@@ -44,8 +60,15 @@ public sealed class HavenInputRouter(HavenElement root)
         var released = _pressed;
         if (released is null) return false;
         if (released is Slider slider) slider.SetFromPointer(point.X);
+        var consumed = _pointerConsumed;
+        if (_pointerTarget is not null && _pointerTargetElement is not null)
+            consumed |= _pointerTarget.PointerReleased(PointerInput(_pointerTargetElement, point, _activePointerKind));
         released.SetState(HavenElementState.Pressed, false);
         _pressed = null;
+        _pointerTarget = null;
+        _pointerTargetElement = null;
+        _pointerConsumed = false;
+        if (consumed) return true;
         if (!ReferenceEquals(HitTest(point), released)) return false;
         Activate(released);
         return true;
@@ -55,6 +78,9 @@ public sealed class HavenInputRouter(HavenElement root)
     {
         for (var element = HitTest(point); element is not null; element = element.Parent)
         {
+            if (element is IHavenScrollInputTarget scrollTarget
+                && scrollTarget.PointerWheel(new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), deltaX, deltaY))
+                return true;
             if (element is not Container container || container.GetValue(HavenProperties.Overflow) != HavenOverflow.Scroll) continue;
             if (container.ScrollBy(deltaX, deltaY)) return true;
         }
@@ -66,7 +92,7 @@ public sealed class HavenInputRouter(HavenElement root)
         return _focused is Input input && input.InsertText(text);
     }
 
-    public bool KeyDown(HavenKey key)
+    public bool KeyDown(HavenKey key, bool shift = false)
     {
         if (_focused is Input input)
         {
@@ -78,7 +104,7 @@ public sealed class HavenInputRouter(HavenElement root)
                 case HavenKey.End: input.PlaceCaretAtEnd(); return true;
                 case HavenKey.Backspace: return input.Backspace();
                 case HavenKey.Delete: return input.Delete();
-                case HavenKey.Enter when input.Multiline: return input.InsertText("\n");
+                case HavenKey.Enter when input.Multiline && (!input.SubmitOnEnter || shift): return input.InsertText("\n");
                 case HavenKey.Enter: InputSubmitted?.Invoke(input); return true;
                 case HavenKey.Space: return false;
             }
@@ -120,6 +146,9 @@ public sealed class HavenInputRouter(HavenElement root)
         if (_focused is Input input) input.PlaceCaretAtEnd();
         _focused?.SetState(HavenElementState.Focused, true);
     }
+
+    private static HavenPointerInput PointerInput(HavenElement element, HavenPoint point, HavenPointerKind pointerKind) =>
+        new(point, new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), pointerKind);
 
     private void Activate(HavenElement element)
     {
