@@ -382,6 +382,44 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Performs the persisted availability service integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityServiceFindsFreeWindowsFromPersistedPlanState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var lesson = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Maths lesson", string.Empty, string.Empty,
+            dayStart.AddHours(10), dayStart.AddHours(11), false, null, null, false, null, null, created, created);
+        var revision = NewTask(PlannerDefaults.CollegeCollectionId, "Revision", created) with
+        {
+            StartsAt = dayStart.AddHours(13),
+            DueAt = dayStart.AddHours(14),
+            EstimatedMinutes = 60
+        };
+        await repository.UpsertEventAsync(lesson, CancellationToken.None);
+        await repository.UpsertTaskAsync(revision, CancellationToken.None);
+
+        var service = new PlannerAvailabilityService(new PlannerDayService(repository));
+        var free = await service.GetFreeWindowsAsync(
+            dayStart,
+            dayStart.AddHours(8),
+            "UTC",
+            dayStart.AddHours(9),
+            dayStart.AddHours(17),
+            TimeSpan.FromMinutes(45),
+            CancellationToken.None);
+
+        Assert.Equal(3, free.Count);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(9), dayStart.AddHours(10)), free[0]);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(11), dayStart.AddHours(13)), free[1]);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(14), dayStart.AddHours(17)), free[2]);
+    }
+
+    /// <summary>
     /// Performs the proposal application is atomic step owned by this component.
     /// </summary>
     [Fact]
