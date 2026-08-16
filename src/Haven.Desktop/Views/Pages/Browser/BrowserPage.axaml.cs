@@ -170,7 +170,6 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             Address = value.Address;
             RaisePropertyChanged(nameof(IsPrivate));
             RaisePropertyChanged(nameof(PrivacyLabel));
-            _ = NavigateSafelyAsync();
         }
     }
 
@@ -282,6 +281,25 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     private async Task AddTabAsync(bool isPrivate)
     {
         var tab = new BrowserTabViewModel(Guid.NewGuid(), isPrivate ? "Private tab" : "New tab", HomePage, isPrivate, string.Empty);
+        Tabs.Add(tab);
+        SelectedTab = tab;
+        await SaveTabsAsync();
+    }
+
+    internal async Task OpenPopupInNewTabAsync(Uri address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(address);
+        if (!assessment.IsAllowed || address.Scheme is not ("http" or "https"))
+            throw new InvalidOperationException("Popup target was rejected: " + assessment.Reason);
+
+        var current = SelectedTab;
+        var tab = new BrowserTabViewModel(
+            Guid.NewGuid(),
+            address.Host,
+            address.ToString(),
+            current?.IsPrivate == true,
+            current?.Group ?? string.Empty);
         Tabs.Add(tab);
         SelectedTab = tab;
         await SaveTabsAsync();
@@ -532,6 +550,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         if (SelectedTab is null) return;
         SelectedTab.Address = Address;
         SelectedTab.Title = string.IsNullOrWhiteSpace(state.Title) ? state.Address?.Host ?? "New tab" : state.Title;
+        SelectedTab.Favicon = state.Favicon;
         if (state.IsLoading || state.Address is null) return;
         await _data.RecordVisitAsync(SelectedTab.Title, Address, SelectedTab.IsPrivate, CancellationToken.None);
         await SaveTabsAsync();
@@ -558,6 +577,7 @@ public sealed class BrowserTabViewModel : ObservableObject
     private string _title;
     private string _address;
     private string _group;
+    private string? _favicon;
     private bool _isSelected;
 
     public BrowserTabViewModel(Guid id, string title, string address, bool isPrivate, string group)
@@ -572,6 +592,7 @@ public sealed class BrowserTabViewModel : ObservableObject
     public Guid Id { get; }
     public string Title { get => _title; set { if (SetProperty(ref _title, value)) RaisePropertyChanged(nameof(DisplayTitle)); } }
     public string Address { get => _address; set => SetProperty(ref _address, value); }
+    public string? Favicon { get => _favicon; set => SetProperty(ref _favicon, value); }
     public bool IsPrivate { get; }
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
     public string Group { get => _group; set => SetProperty(ref _group, value); }
