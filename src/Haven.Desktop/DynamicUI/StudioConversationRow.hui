@@ -1,0 +1,6 @@
+<DynamicUI Name="StudioConversationRow">
+  <Container Name="RowRoot" Layout="Grid" Columns="1fr Auto" Rows="Auto" Width="100%" Gap="8px" Padding="6px 8px" Background="SurfaceRaised" Radius="14px">
+    <Button Name="Open" Column="0" Variant="Navigation" IconKey="chat" Content="{{TITLE}}" Width="100%" MinHeight="40px" />
+    <Text Name="Detail" Column="1" Content="{{DETAIL}}" FontSize="11" FontWeight="700" Foreground="TextSecondary" VerticalAlignment="Center" Visibility="{{DETAILVISIBILITY}}" />
+  </Container>
+</DynamicUI>

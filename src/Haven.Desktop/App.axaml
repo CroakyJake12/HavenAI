@@ -26,7 +26,7 @@
     <DataTemplate DataType="{x:Type vm:LessonSettingsPageViewModel}"><views:LessonSettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:WorkspaceHomePageViewModel}"><views:WorkspaceHomeView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ProjectCreatorPageViewModel}"><views:ProjectCreatorView /></DataTemplate>
-    <DataTemplate DataType="{x:Type studio:StudioProjectPage}"><views:StudioProjectView /></DataTemplate>
+    <DataTemplate DataType="{x:Type studio:StudioProjectPage}"><views:StudioProjectHavenView /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:WorkspaceEditorPage}"><views:WorkspaceEditorView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ArchivePageViewModel}"><views:ArchiveView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ActivityLogPageViewModel}"><views:ActivityLogView /></DataTemplate>
