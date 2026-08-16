@@ -422,7 +422,7 @@ public sealed class GraphTemplateRuntime
                     Props(("value", string.Join(", ", expressions)), ("placeholder", "Enter expressions…"),
                         ("automationName", "Graph expression")), [Action(UpdateAction)], []),
                 new GenUiComponent("graph.canvas", "HavenGraph",
-                    Props(("emptyText", $"Plotting: {string.Join(", ", expressions)}"),
+                    Props(("expressions", expressions), ("xMin", -10), ("xMax", 10), ("yMin", -2), ("yMax", 2),
                         ("automationName", "Graph canvas")), [], []),
                 new GenUiComponent("graph.status", "HavenStatus",
                     Props(("text", $"{expressions.Length} expression(s)"), ("automationName", "Graph status")), [], [])
@@ -438,11 +438,22 @@ public sealed class GraphTemplateRuntime
     {
         cancellationToken.ThrowIfCancellationRequested();
         var now = DateTimeOffset.UtcNow;
+        var expressionText = semanticEvent.Value is { ValueKind: JsonValueKind.String } value
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+        var expressions = expressionText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (expressions.Length == 0) expressions = ["sin(x)"];
         return Task.FromResult(GenerativeUiEventRouter.Result(
             semanticEvent, GenUiActionStatus.Completed, "Graph updated.",
-            JsonSerializer.SerializeToElement(new { updated = true }),
-            [new GenUiStatePatch(Guid.NewGuid(), semanticEvent.Origin.InstanceId, GenUiPatchOperation.Replace,
-                "graph.status", "text", JsonSerializer.SerializeToElement("Expressions updated"), now)]));
+            JsonSerializer.SerializeToElement(new { expressions }),
+            [
+                new GenUiStatePatch(Guid.NewGuid(), semanticEvent.Origin.InstanceId, GenUiPatchOperation.Replace,
+                    "graph.canvas", "expressions", JsonSerializer.SerializeToElement(expressions), now),
+                new GenUiStatePatch(Guid.NewGuid(), semanticEvent.Origin.InstanceId, GenUiPatchOperation.Replace,
+                    "graph.status", "text", JsonSerializer.SerializeToElement($"{expressions.Length} expression(s)"), now),
+                new GenUiStatePatch(Guid.NewGuid(), semanticEvent.Origin.InstanceId, GenUiPatchOperation.Replace,
+                    "state", "expressions", JsonSerializer.SerializeToElement(expressions), now)
+            ]));
     }
 
     private static GenUiActionBinding Action(string id) => new(id, GenUiRouteKind.Local, id, CapabilityRiskClass.Low, false);

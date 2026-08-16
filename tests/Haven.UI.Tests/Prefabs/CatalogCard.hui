@@ -1,0 +1,4 @@
+<Container Name="CatalogCardRoot" Layout="Vertical" Gap="8px">
+  <Text Name="Title" Content="Reusable card" />
+  <Button Name="AddMenu" Content="Add" />
+</Container>

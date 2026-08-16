@@ -204,7 +204,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         base.OnPointerMoved(e);
         if (IsNativeControlSource(e.Source)) return;
         var p = e.GetPosition(this);
-        _input?.PointerMoved(new HavenPoint(p.X, p.Y));
+        _input?.PointerMoved(new HavenPoint(p.X, p.Y), e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse);
         InvalidateScene();
     }
 
@@ -245,7 +245,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             InvalidateScene();
         }
     }
-    protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (_input?.KeyDown(MapKey(e.Key)) == true) { e.Handled = true; InvalidateScene(); } }
+    protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (_input?.KeyDown(MapKey(e.Key), e.KeyModifiers.HasFlag(KeyModifiers.Shift)) == true) { e.Handled = true; InvalidateScene(); } }
     protected override void OnKeyUp(KeyEventArgs e) { base.OnKeyUp(e); if (_input?.KeyUp(MapKey(e.Key)) == true) { e.Handled = true; InvalidateScene(); } }
 
     protected override void OnTextInput(TextInputEventArgs e)
