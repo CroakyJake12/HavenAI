@@ -420,6 +420,79 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Performs the persisted Study-to-Plan assignment integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerServiceUsesCanonicalPersistedPlanTaskState()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var subject = new ContainerDefinition(
+            Guid.NewGuid(), HavenMode.Study, "Maths", null, "A-Level Maths", string.Empty, now, now);
+        var lesson = await containers.CreateSubjectAsync(subject, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var created = await service.CreateAsync(new StudyPlanAssignmentDraft(
+            subject.Id,
+            lesson.Id,
+            PlannerDefaults.CollegeCollectionId,
+            "Complete integration exercise",
+            "Chapter 3 questions",
+            now.AddDays(2),
+            now.AddDays(2).AddHours(-3),
+            45,
+            PlannerPriority.High,
+            now.AddDays(1),
+            "UTC"), now, CancellationToken.None);
+
+        var persisted = await repository.GetTaskAsync(created.PlanTaskId, CancellationToken.None);
+        Assert.NotNull(persisted);
+        Assert.Equal(created.PlanTaskId, persisted.Id);
+        Assert.Equal(now.AddDays(2), persisted.DueAt);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(persisted.TagsJson, out var link));
+        Assert.Equal(subject.Id, link.SubjectId);
+        Assert.Equal(lesson.Id, link.LessonId);
+
+        var listed = await service.GetAssignmentsAsync(subject.Id, includeCompleted: false, CancellationToken.None);
+        var assignment = Assert.Single(listed);
+        Assert.Equal(persisted.Id, assignment.PlanTaskId);
+        Assert.Equal(persisted, assignment.Task);
+
+        var completed = await service.CompleteAsync(persisted.Id, now.AddHours(1), CancellationToken.None);
+        Assert.Equal(PlannerTaskStatus.Completed, completed.Task.Status);
+        Assert.Equal(PlannerTaskStatus.Completed, (await repository.GetTaskAsync(persisted.Id, CancellationToken.None))?.Status);
+        Assert.Empty(await service.GetAssignmentsAsync(subject.Id, includeCompleted: false, CancellationToken.None));
+        Assert.Single(await service.GetAssignmentsAsync(subject.Id, includeCompleted: true, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Performs Study lesson ownership validation before linking a Plan task.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerServiceRejectsLessonFromAnotherSubject()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var maths = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, string.Empty, string.Empty, now, now);
+        var law = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Law", null, string.Empty, string.Empty, now, now);
+        await containers.CreateSubjectAsync(maths, CancellationToken.None);
+        var lawLesson = await containers.CreateSubjectAsync(law, CancellationToken.None);
+        var task = NewTask(PlannerDefaults.CollegeCollectionId, "Existing deadline", now) with { DueAt = now.AddDays(1) };
+        await repository.UpsertTaskAsync(task, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkExistingAsync(task.Id, maths.Id, lawLesson.Id, now.AddMinutes(1), CancellationToken.None));
+
+        Assert.Contains("does not belong", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(PlannerStudyAssignmentTags.TryRead((await repository.GetTaskAsync(task.Id, CancellationToken.None))!.TagsJson, out _));
+    }
+
+    /// <summary>
     /// Performs the proposal application is atomic step owned by this component.
     /// </summary>
     [Fact]

@@ -1225,7 +1225,7 @@ public sealed partial class PlanPage : UserControl
                 ParentTaskId = parentOption?.Id,
                 Title = title,
                 Notes = TaskEditorNotesBox.Text?.Trim() ?? "",
-                TagsJson = JsonSerializer.Serialize(tags),
+                TagsJson = PlannerStudyAssignmentTags.ReplaceUserTags(def.TagsJson, tags),
                 EstimatedMinutes = estimate,
                 Priority = priority,
                 Status = completing ? def.Status : status,
@@ -1617,8 +1617,8 @@ public sealed partial class PlanPage : UserControl
 
     private static string ReadTags(string json)
     {
-        try { return string.Join(", ", JsonSerializer.Deserialize<string[]>(json) ?? []); }
-        catch (JsonException) { return string.Empty; }
+        return string.Join(", ", PlannerStudyAssignmentTags.GetUserTags(json));
+
     }
 
     private static DateTimeOffset LocalDay(DateTimeOffset value)
