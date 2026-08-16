@@ -36,6 +36,26 @@ public sealed class PlannerAvailabilityTests
     }
 
     [Fact]
+    public void FindFreeWindowsBlocksCrossMidnightTaskAtStartOfFollowingDay()
+    {
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var dayEnd = dayStart.AddDays(1);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask("Late revision", dayStart.AddMinutes(-30), 90, created) with { DueAt = null };
+
+        var snapshot = PlannerDayTimeline.Build(dayStart, dayEnd, dayStart.AddMinutes(15), [spanning], []);
+        var free = PlannerAvailability.FindFreeWindows(
+            snapshot,
+            dayStart,
+            dayStart.AddHours(3),
+            TimeSpan.FromMinutes(30));
+
+        var only = Assert.Single(free);
+        Assert.Equal(dayStart.AddHours(1), only.StartsAt);
+        Assert.Equal(dayStart.AddHours(3), only.EndsAt);
+    }
+
+    [Fact]
     public void FindFreeWindowsIgnoresAllDayCompletedCancelledAndUntimedItems()
     {
         var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);

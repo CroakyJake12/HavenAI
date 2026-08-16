@@ -469,6 +469,96 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Ensures a persisted task spanning midnight blocks availability at the beginning of the following day.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityServiceBlocksPersistedCrossMidnightTaskOnFollowingDay()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask(PlannerDefaults.CollegeCollectionId, "Late revision", created) with
+        {
+            StartsAt = dayStart.AddMinutes(-30),
+            DueAt = null,
+            EstimatedMinutes = 90
+        };
+        await repository.UpsertTaskAsync(spanning, CancellationToken.None);
+
+        var service = new PlannerAvailabilityService(new PlannerDayService(repository));
+        var free = await service.GetFreeWindowsAsync(
+            dayStart,
+            dayStart.AddMinutes(15),
+            "UTC",
+            dayStart,
+            dayStart.AddHours(3),
+            TimeSpan.FromMinutes(30),
+            CancellationToken.None);
+
+        var only = Assert.Single(free);
+        Assert.Equal(dayStart.AddHours(1), only.StartsAt);
+        Assert.Equal(dayStart.AddHours(3), only.EndsAt);
+    }
+
+    /// <summary>
+    /// Ensures Study relinking, completion and unlinking mutate one canonical Plan task without dropping unrelated tags.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerLifecyclePreservesCanonicalTaskAndUnrelatedTags()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var maths = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, string.Empty, string.Empty, now, now);
+        var law = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Law", null, string.Empty, string.Empty, now, now);
+        var mathsLesson = await containers.CreateSubjectAsync(maths, CancellationToken.None);
+        var lawLesson = await containers.CreateSubjectAsync(law, CancellationToken.None);
+        var original = NewTask(PlannerDefaults.CollegeCollectionId, "Past paper", now) with
+        {
+            DueAt = now.AddHours(2),
+            TagsJson = JsonSerializer.Serialize(new[] { "revision", "haven:other:metadata" })
+        };
+        await repository.UpsertTaskAsync(original, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var linked = await service.LinkExistingAsync(original.Id, maths.Id, mathsLesson.Id, now.AddMinutes(1), CancellationToken.None);
+        Assert.Equal(original.Id, linked.PlanTaskId);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(linked.Task.TagsJson, out var mathsLink));
+        Assert.Equal(maths.Id, mathsLink.SubjectId);
+
+        var relinked = await service.LinkExistingAsync(original.Id, law.Id, lawLesson.Id, now.AddMinutes(2), CancellationToken.None);
+        Assert.Equal(original.Id, relinked.PlanTaskId);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(relinked.Task.TagsJson, out var lawLink));
+        Assert.Equal(law.Id, lawLink.SubjectId);
+        Assert.Equal(lawLesson.Id, lawLink.LessonId);
+        Assert.Empty(await service.GetAssignmentsAsync(maths.Id, includeCompleted: true, CancellationToken.None));
+        Assert.Equal(original.Id, Assert.Single(await service.GetAssignmentsAsync(law.Id, includeCompleted: true, CancellationToken.None)).PlanTaskId);
+
+        var completed = await service.CompleteAsync(original.Id, now.AddHours(3), CancellationToken.None);
+        Assert.Equal(original.Id, completed.PlanTaskId);
+        Assert.Equal(PlannerTaskStatus.Completed, completed.Task.Status);
+        var completedTags = JsonSerializer.Deserialize<string[]>(completed.Task.TagsJson)!;
+        Assert.Contains("revision", completedTags);
+        Assert.Contains("haven:other:metadata", completedTags);
+
+        await service.UnlinkAsync(original.Id, now.AddHours(4), CancellationToken.None);
+        var final = await repository.GetTaskAsync(original.Id, CancellationToken.None);
+        Assert.NotNull(final);
+        Assert.Equal(original.Id, final.Id);
+        Assert.Equal(PlannerTaskStatus.Completed, final.Status);
+        Assert.False(PlannerStudyAssignmentTags.TryRead(final.TagsJson, out _));
+        var finalTags = JsonSerializer.Deserialize<string[]>(final.TagsJson)!;
+        Assert.Contains("revision", finalTags);
+        Assert.Contains("haven:other:metadata", finalTags);
+        Assert.Empty(await service.GetAssignmentsAsync(law.Id, includeCompleted: true, CancellationToken.None));
+        Assert.Single(
+            await repository.GetTasksAsync(new PlannerTaskQuery(IncludeCompleted: true), CancellationToken.None),
+            task => task.Id == original.Id);
+    }
+
+    /// <summary>
     /// Performs the persisted Study-to-Plan assignment integration step owned by this component.
     /// </summary>
     [Fact]

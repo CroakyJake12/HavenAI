@@ -45,6 +45,30 @@ public sealed class PlannerStudyAssignmentTests
     }
 
     [Fact]
+    public void AttachReplacesPreviousStudyLinkWithoutDroppingOtherMetadata()
+    {
+        var firstSubjectId = Guid.NewGuid();
+        var secondSubjectId = Guid.NewGuid();
+        var secondLessonId = Guid.NewGuid();
+        var first = PlannerStudyAssignmentTags.Attach(
+            JsonSerializer.Serialize(new[] { "revision", "haven:other:metadata" }),
+            firstSubjectId,
+            null);
+
+        var relinked = PlannerStudyAssignmentTags.Attach(first, secondSubjectId, secondLessonId);
+
+        Assert.True(PlannerStudyAssignmentTags.TryRead(relinked, out var link));
+        Assert.Equal(secondSubjectId, link.SubjectId);
+        Assert.Equal(secondLessonId, link.LessonId);
+        var tags = JsonSerializer.Deserialize<string[]>(relinked)!;
+        Assert.Contains("revision", tags);
+        Assert.Contains("haven:other:metadata", tags);
+        Assert.Single(tags, tag => tag.StartsWith(PlannerStudyAssignmentTags.SubjectPrefix, StringComparison.OrdinalIgnoreCase));
+        Assert.Single(tags, tag => tag.StartsWith(PlannerStudyAssignmentTags.LessonPrefix, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(PlannerStudyAssignmentTags.SubjectPrefix + firstSubjectId.ToString("N"), tags);
+    }
+
+    [Fact]
     public void DetachRemovesOnlyStudyMetadata()
     {
         var subjectId = Guid.NewGuid();

@@ -80,6 +80,26 @@ public sealed class PlannerDayTimelineTests
         Assert.Equal(0d, snapshot.Progress);
     }
 
+    [Theory]
+    [InlineData(3, 29, 0, 1, 23)]
+    [InlineData(10, 25, 1, 0, 25)]
+    public void GetDayBoundsPreservesLocalMidnightsAcrossBritishDstTransitions(
+        int month,
+        int day,
+        int startOffsetHours,
+        int endOffsetHours,
+        int absoluteHours)
+    {
+        var instant = new DateTimeOffset(2026, month, day, 12, 0, 0, TimeSpan.Zero);
+
+        var (start, end) = PlannerDayTimeline.GetDayBounds(instant, "Europe/London");
+
+        Assert.Equal(new DateTimeOffset(2026, month, day, 0, 0, 0, TimeSpan.FromHours(startOffsetHours)), start);
+        var nextDate = new DateTime(2026, month, day).AddDays(1);
+        Assert.Equal(new DateTimeOffset(nextDate.Year, nextDate.Month, nextDate.Day, 0, 0, 0, TimeSpan.FromHours(endOffsetHours)), end);
+        Assert.Equal(TimeSpan.FromHours(absoluteHours), end - start);
+    }
+
     [Fact]
     public void GetDayBoundsUsesRequestedTimeZoneInsteadOfUtcDate()
     {
