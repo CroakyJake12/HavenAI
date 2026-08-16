@@ -11,6 +11,9 @@ public static class AndroidServiceRegistration
         services.AddSingleton<ISpeechInputService, AndroidSpeechInputService>();
         services.AddSingleton<AndroidNotificationBridge>();
         services.AddSingleton<AndroidAssistantOverlayCoordinator>();
+        services.AddSingleton<IProjectorDisplayRegistry, ProjectorDisplayRegistry>();
+        services.AddSingleton<IProjectorSessionCoordinator, ProjectorSessionCoordinator>();
+        services.AddSingleton<AndroidProjectorDisplayService>();
         return services;
     }
 }
