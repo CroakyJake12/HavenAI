@@ -82,6 +82,7 @@ public sealed partial class BrowserView : UserControl
     {
         InitializeComponent();
         _nativeBrowser = NativeBrowser;
+        WireBrowserShortcuts();
         WireSidePanels();
         ConfigureEnvironmentForCurrentTab(_nativeBrowser);
         DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPage);

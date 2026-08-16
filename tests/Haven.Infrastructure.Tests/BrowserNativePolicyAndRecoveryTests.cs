@@ -110,4 +110,17 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new BrowserRecoveryLimiter(0, TimeSpan.FromMinutes(1)));
         Assert.Throws<ArgumentOutOfRangeException>(() => new BrowserRecoveryLimiter(1, TimeSpan.Zero));
     }
+    [Fact]
+    public void ShortcutPolicyMapsStandardBrowserAccelerators()
+    {
+        Assert.Equal(BrowserShortcutAction.FocusAddress, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.L, true, false, false));
+        Assert.Equal(BrowserShortcutAction.NewTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.T, true, false, false));
+        Assert.Equal(BrowserShortcutAction.NewPrivateTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.N, true, true, false));
+        Assert.Equal(BrowserShortcutAction.CloseTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.W, true, false, false));
+        Assert.Equal(BrowserShortcutAction.Reload, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.F5, false, false, false));
+        Assert.Equal(BrowserShortcutAction.Back, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.Left, false, false, true));
+        Assert.Equal(BrowserShortcutAction.ToggleBookmark, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.D, true, false, false));
+        Assert.Equal(BrowserShortcutAction.None, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.T, true, true, false));
+    }
+
 }

@@ -109,6 +109,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         CloseTabCommand = new AsyncRelayCommand<BrowserTabViewModel>(CloseTabAsync);
         SelectTabCommand = new AsyncRelayCommand<BrowserTabViewModel>(SelectTabAsync);
         AddBookmarkCommand = new AsyncRelayCommand(AddBookmarkAsync);
+        ToggleBookmarkCommand = new AsyncRelayCommand(ToggleBookmarkAsync);
         RemoveBookmarkCommand = new AsyncRelayCommand<BrowserBookmark>(RemoveBookmarkAsync);
         OpenBookmarkCommand = new AsyncRelayCommand<BrowserBookmark>(OpenBookmarkAsync);
         OpenHistoryCommand = new AsyncRelayCommand<BrowserHistoryEntry>(OpenHistoryAsync);
@@ -226,6 +227,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public AsyncRelayCommand<BrowserTabViewModel> CloseTabCommand { get; }
     public AsyncRelayCommand<BrowserTabViewModel> SelectTabCommand { get; }
     public AsyncRelayCommand AddBookmarkCommand { get; }
+    public AsyncRelayCommand ToggleBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserBookmark> RemoveBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserBookmark> OpenBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserHistoryEntry> OpenHistoryCommand { get; }
@@ -326,6 +328,15 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         await _data.AddBookmarkAsync(SelectedTab?.Title ?? Address, Address, BookmarkGroup, CancellationToken.None);
         RefreshCollections();
         Status = $"Bookmark saved locally in {NormalizedBookmarkGroup}.";
+    });
+
+    private Task ToggleBookmarkAsync() => RunSafelyAsync(async () =>
+    {
+        var added = await _data.ToggleBookmarkAsync(SelectedTab?.Title ?? Address, Address, BookmarkGroup, CancellationToken.None);
+        RefreshCollections();
+        Status = added
+            ? $"Bookmark saved locally in {NormalizedBookmarkGroup}."
+            : "Bookmark removed locally.";
     });
 
     private Task RemoveBookmarkAsync(BrowserBookmark? bookmark)
