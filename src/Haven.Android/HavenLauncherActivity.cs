@@ -223,6 +223,18 @@ public sealed partial class HavenLauncherActivity : Activity
             "Open Haven Go",
             OpenHavenDashboard));
 
+        var assistantButton = IconButton(
+            Resource.Drawable.ic_haven_go,
+            "Open Haven Assistant. Long press to pin or unpin.",
+            OpenHavenAssistant);
+        assistantButton.LongClick += (_, args) =>
+        {
+            ToggleHavenAssistantWidgetPin();
+            if (args is not null)
+                args.Handled = true;
+        };
+        row.AddView(assistantButton);
+
         row.AddView(IconButton(
             SystemDrawable("ic_menu_preferences"),
             "Launcher settings",

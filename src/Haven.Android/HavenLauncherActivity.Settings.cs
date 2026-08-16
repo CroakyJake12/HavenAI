@@ -184,7 +184,7 @@ public sealed partial class HavenLauncherActivity
         RenderWidgets();
     }
 
-    private void RenderWidgets()
+    private void RenderBaseWidgets()
     {
         var widgetStrip = _widgetStrip;
         if (widgetStrip is null)
