@@ -303,6 +303,85 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Performs the canonical day service persisted-state integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task DayServiceBuildsNowNextAndProgressFromPersistedPlanState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var now = dayStart.AddHours(10.5);
+        var created = dayStart.AddDays(-1);
+
+        var revision = NewTask(PlannerDefaults.CollegeCollectionId, "Revision", created) with
+        {
+            StartsAt = dayStart.AddHours(10.25),
+            DueAt = dayStart.AddHours(11.25),
+            EstimatedMinutes = 60
+        };
+        await repository.UpsertTaskAsync(revision, CancellationToken.None);
+
+        var maths = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Maths lesson", string.Empty, string.Empty,
+            dayStart.AddHours(10), dayStart.AddHours(11), false, null, null, false, null, null, created, created);
+        var law = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Law lesson", string.Empty, string.Empty,
+            dayStart.AddHours(12), dayStart.AddHours(13), false, null, null, false, null, null, created, created);
+        await repository.UpsertEventAsync(maths, CancellationToken.None);
+        await repository.UpsertEventAsync(law, CancellationToken.None);
+
+        var service = new PlannerDayService(repository);
+        var snapshot = await service.GetDayAsync(dayStart, now, "UTC", CancellationToken.None);
+
+        Assert.Equal(3, snapshot.Items.Count);
+        Assert.Equal(2, snapshot.ActiveItems.Count);
+        Assert.Equal(maths.Id, snapshot.CurrentItem?.EntityId);
+        Assert.Equal(law.Id, snapshot.NextItem?.EntityId);
+        Assert.Equal(dayStart.AddHours(10), snapshot.ScheduleStart);
+        Assert.Equal(dayStart.AddHours(13), snapshot.ScheduleEnd);
+        Assert.Equal(1d / 6d, snapshot.Progress, 6);
+    }
+
+    /// <summary>
+    /// Performs the persisted countdown projection integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task CountdownServiceTracksPersistedDeadlineChangesWithoutDuplicateState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var created = now.AddDays(-1);
+        var deadline = NewTask(PlannerDefaults.CollegeCollectionId, "Coursework deadline", created) with
+        {
+            DueAt = now.AddDays(3),
+            ReminderAt = now.AddDays(3).AddHours(-4)
+        };
+        var resultsDay = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Results Day", string.Empty, string.Empty,
+            now.AddDays(5), now.AddDays(5).AddHours(1), false, null, now.AddDays(4), false, null, null, created, created);
+        await repository.UpsertTaskAsync(deadline, CancellationToken.None);
+        await repository.UpsertEventAsync(resultsDay, CancellationToken.None);
+
+        var service = new PlannerCountdownService(repository);
+        var initial = await service.GetCountdownsAsync(now.AddDays(-1), now.AddDays(10), now, CancellationToken.None);
+
+        Assert.Equal([deadline.Id, resultsDay.Id], initial.Select(item => item.SourceId));
+        Assert.Equal(now.AddDays(3), initial[0].TargetAt);
+        Assert.Equal(deadline.ReminderAt, initial[0].ReminderAt);
+        Assert.Equal(PlannerCountdownState.Upcoming, initial[0].State);
+
+        var movedDeadline = deadline with { DueAt = now.AddDays(7), UpdatedAt = now.AddMinutes(1) };
+        await repository.UpsertTaskAsync(movedDeadline, CancellationToken.None);
+        var refreshed = await service.GetCountdownsAsync(now.AddDays(-1), now.AddDays(10), now, CancellationToken.None);
+        var movedCountdown = Assert.Single(refreshed, item => item.SourceId == deadline.Id);
+
+        Assert.Equal(now.AddDays(7), movedCountdown.TargetAt);
+        Assert.Equal(movedDeadline.Id, movedCountdown.SourceId);
+    }
+
+    /// <summary>
     /// Performs the proposal application is atomic step owned by this component.
     /// </summary>
     [Fact]

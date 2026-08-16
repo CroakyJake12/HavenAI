@@ -109,6 +109,8 @@ public static class PlannerServiceCollectionExtensions
         services.TryAddSingleton<IPlannerRepository>(provider => provider.GetRequiredService<PlannerRepository>());
         services.TryAddSingleton<ICalendarSyncStore>(provider => provider.GetRequiredService<PlannerRepository>());
         services.TryAddSingleton<IPlannerProposalService, PlannerProposalService>();
+        services.TryAddSingleton<IPlannerDayService, PlannerDayService>();
+        services.TryAddSingleton<IPlannerCountdownService, PlannerCountdownService>();
         services.TryAddSingleton<ICalendarTokenStore, WindowsCalendarTokenStore>();
         services.AddHttpClient("HavenCalendarSync", client => client.Timeout = TimeSpan.FromSeconds(45));
         services.TryAddSingleton<GoogleCalendarProviderTransport>(provider => new GoogleCalendarProviderTransport(
