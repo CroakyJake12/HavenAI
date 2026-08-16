@@ -128,7 +128,11 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
             command.Parameters.AddWithValue("$completed", (int)PlannerTaskStatus.Completed);
             command.Parameters.AddWithValue("$cancelled", (int)PlannerTaskStatus.Cancelled);
         }
-        if (query.RangeStart is not null) { clauses.Add("COALESCE(due_at,starts_at) >= $rangeStart"); command.Parameters.AddWithValue("$rangeStart", Timestamp(query.RangeStart.Value)); }
+        if (query.RangeStart is not null)
+        {
+            clauses.Add("(COALESCE(due_at,starts_at) >= $rangeStart OR (starts_at IS NOT NULL AND estimated_minutes > 0 AND julianday(starts_at) + (estimated_minutes / 1440.0) > julianday($rangeStart)))");
+            command.Parameters.AddWithValue("$rangeStart", Timestamp(query.RangeStart.Value));
+        }
         if (query.RangeEnd is not null) { clauses.Add("COALESCE(starts_at,due_at) < $rangeEnd"); command.Parameters.AddWithValue("$rangeEnd", Timestamp(query.RangeEnd.Value)); }
         if (!string.IsNullOrWhiteSpace(query.Search))
         {

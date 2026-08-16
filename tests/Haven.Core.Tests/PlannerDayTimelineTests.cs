@@ -37,6 +37,25 @@ public sealed class PlannerDayTimelineTests
     }
 
     [Fact]
+    public void BuildIncludesTimedTaskWhoseEstimateOverlapsDayStart()
+    {
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var dayEnd = dayStart.AddDays(1);
+        var now = dayStart.AddMinutes(15);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask("Late revision", dayStart.AddMinutes(-30), 90, created) with { DueAt = null };
+        var endedBeforeDay = NewTask("Earlier revision", dayStart.AddHours(-2), 60, created) with { DueAt = null };
+        var untimedFromPreviousDay = NewTask("Previous note", dayStart.AddMinutes(-30), null, created) with { DueAt = null };
+
+        var snapshot = PlannerDayTimeline.Build(dayStart, dayEnd, now, [spanning, endedBeforeDay, untimedFromPreviousDay], []);
+
+        var item = Assert.Single(snapshot.Items);
+        Assert.Equal(spanning.Id, item.EntityId);
+        Assert.Equal(dayStart.AddHours(1), item.EndsAt);
+        Assert.Equal(spanning.Id, snapshot.CurrentItem?.EntityId);
+    }
+
+    [Fact]
     public void AllDayAndCompletedItemsDoNotBecomeCurrentOrNextScheduleBlocks()
     {
         var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
@@ -59,6 +78,26 @@ public sealed class PlannerDayTimelineTests
         Assert.Equal(completed.StartsAt, snapshot.ScheduleStart);
         Assert.Equal(future.StartsAt, snapshot.ScheduleEnd);
         Assert.Equal(0d, snapshot.Progress);
+    }
+
+    [Theory]
+    [InlineData(3, 29, 0, 1, 23)]
+    [InlineData(10, 25, 1, 0, 25)]
+    public void GetDayBoundsPreservesLocalMidnightsAcrossBritishDstTransitions(
+        int month,
+        int day,
+        int startOffsetHours,
+        int endOffsetHours,
+        int absoluteHours)
+    {
+        var instant = new DateTimeOffset(2026, month, day, 12, 0, 0, TimeSpan.Zero);
+
+        var (start, end) = PlannerDayTimeline.GetDayBounds(instant, "Europe/London");
+
+        Assert.Equal(new DateTimeOffset(2026, month, day, 0, 0, 0, TimeSpan.FromHours(startOffsetHours)), start);
+        var nextDate = new DateTime(2026, month, day).AddDays(1);
+        Assert.Equal(new DateTimeOffset(nextDate.Year, nextDate.Month, nextDate.Day, 0, 0, 0, TimeSpan.FromHours(endOffsetHours)), end);
+        Assert.Equal(TimeSpan.FromHours(absoluteHours), end - start);
     }
 
     [Fact]
