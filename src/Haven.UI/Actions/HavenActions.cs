@@ -42,8 +42,16 @@ public sealed class HavenActionExecutor
 
     public int ExecuteClick(HavenElement root, HavenElement source)
     {
+        var scope = FindActionScope(source) ?? root;
         var count = 0;
-        foreach (var action in source.ClickActions) count += Execute(root, action);
+        foreach (var action in source.ClickActions) count += Execute(scope, action);
         return count;
+    }
+
+    private static HavenElement? FindActionScope(HavenElement source)
+    {
+        for (var current = source; current is not null; current = current.Parent)
+            if (current.CreatesNameScope) return current;
+        return null;
     }
 }

@@ -91,6 +91,47 @@ public sealed class HavenUiInteractionTests
     }
 
     [Fact]
+    public void Raw_pointer_target_keeps_capture_outside_bounds_and_consumes_click()
+    {
+        var root = new Container();
+        var target = new PointerTarget();
+        target.SetValue(HavenProperties.Width, HavenLength.Px(100));
+        target.SetValue(HavenProperties.Height, HavenLength.Px(60));
+        root.Add(target);
+        new HavenLayoutEngine().Layout(root, new HavenSize(120, 80), HavenPlatform.Windows, new FixedMeasure());
+        var router = new HavenInputRouter(root);
+        var invoked = 0;
+        target.Invoked += (_, _) => invoked++;
+
+        router.PointerPressed(new HavenPoint(20, 20), HavenPointerKind.Pen);
+        router.PointerMoved(new HavenPoint(180, 140), HavenPointerKind.Pen);
+        Assert.True(router.PointerReleased(new HavenPoint(190, 150)));
+
+        Assert.Equal(1, target.PressedCount);
+        Assert.Equal(1, target.MovedCount);
+        Assert.Equal(1, target.ReleasedCount);
+        Assert.Equal(HavenPointerKind.Pen, target.LastPointerKind);
+        Assert.True(target.LastLocalPosition.X > target.Bounds.Width);
+        Assert.Equal(0, invoked);
+    }
+
+    [Fact]
+    public void Raw_scroll_target_consumes_wheel_before_container_scroll()
+    {
+        var root = new Container();
+        var target = new PointerTarget();
+        target.SetValue(HavenProperties.Width, HavenLength.Px(100));
+        target.SetValue(HavenProperties.Height, HavenLength.Px(60));
+        root.Add(target);
+        new HavenLayoutEngine().Layout(root, new HavenSize(120, 80), HavenPlatform.Windows, new FixedMeasure());
+        var router = new HavenInputRouter(root);
+
+        Assert.True(router.Scroll(new HavenPoint(20, 20), 0, -48));
+        Assert.Equal(1, target.WheelCount);
+        Assert.Equal(-48, target.LastWheelDeltaY);
+    }
+
+    [Fact]
     public void Markup_supports_slider_step_and_select_items_without_platform_controls()
     {
         var root = new HavenMarkupParser().Parse("<Page><Slider Minimum='0' Maximum='3' Step='1' Value='2'/><Select Items='Bright, Dark, Super Dark' SelectedIndex='1'/></Page>");
@@ -125,6 +166,50 @@ public sealed class HavenUiInteractionTests
         Assert.Equal(TimeSpan.FromMilliseconds(170), resources.ResolveAnimation(ButtonDefaults.ReleaseAnimation).Duration);
         Assert.False(resources.TryResolveAnimation("DoesNotExist", out var definition));
         Assert.Null(definition);
+    }
+
+
+    private sealed class PointerTarget : HavenElement, IHavenPointerInputTarget, IHavenScrollInputTarget
+    {
+        public int PressedCount { get; private set; }
+        public int MovedCount { get; private set; }
+        public int ReleasedCount { get; private set; }
+        public int WheelCount { get; private set; }
+        public HavenPointerKind LastPointerKind { get; private set; }
+        public HavenPoint LastLocalPosition { get; private set; }
+        public double LastWheelDeltaY { get; private set; }
+
+        public bool PointerPressed(HavenPointerInput input)
+        {
+            PressedCount++;
+            LastPointerKind = input.PointerKind;
+            LastLocalPosition = input.LocalPosition;
+            return true;
+        }
+
+        public bool PointerMoved(HavenPointerInput input)
+        {
+            MovedCount++;
+            LastPointerKind = input.PointerKind;
+            LastLocalPosition = input.LocalPosition;
+            return true;
+        }
+
+        public bool PointerReleased(HavenPointerInput input)
+        {
+            ReleasedCount++;
+            LastPointerKind = input.PointerKind;
+            LastLocalPosition = input.LocalPosition;
+            return true;
+        }
+
+        public bool PointerWheel(HavenPoint localPosition, double deltaX, double deltaY)
+        {
+            WheelCount++;
+            LastLocalPosition = localPosition;
+            LastWheelDeltaY = deltaY;
+            return true;
+        }
     }
 
     private sealed class FixedMeasure : IHavenMeasureContext

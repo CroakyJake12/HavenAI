@@ -71,9 +71,11 @@ public static class HavenPropertyCodec
 
         switch (element)
         {
-            case Button button when propertyName.Equals("Variant", StringComparison.OrdinalIgnoreCase): button.Variant = ParseEnum<ButtonVariant>(value); return;
+            case Button button when propertyName.Equals("Variant", StringComparison.OrdinalIgnoreCase) || propertyName.Equals("Type", StringComparison.OrdinalIgnoreCase): button.Variant = ParseEnum<ButtonVariant>(value); return;
             case Button button when propertyName.Equals("Content", StringComparison.OrdinalIgnoreCase): button.Content = value; return;
+            case Button button when propertyName.Equals("IconKey", StringComparison.OrdinalIgnoreCase): button.IconKey = value; return;
             case Text text when propertyName.Equals("Content", StringComparison.OrdinalIgnoreCase) || propertyName.Equals("Text", StringComparison.OrdinalIgnoreCase): text.Content = value; return;
+            case Markdown markdown when propertyName.Equals("Content", StringComparison.OrdinalIgnoreCase) || propertyName.Equals("Text", StringComparison.OrdinalIgnoreCase): markdown.Content = value; return;
             case Text text when propertyName.Equals("Level", StringComparison.OrdinalIgnoreCase): text.Level = ParseEnum<TextLevel>(value); return;
             case Container container when propertyName.Equals("Layout", StringComparison.OrdinalIgnoreCase): container.Layout = ParseEnum<HavenLayout>(value); return;
             case Container container when propertyName.Equals("Columns", StringComparison.OrdinalIgnoreCase): container.Columns = value; return;
@@ -81,6 +83,7 @@ public static class HavenPropertyCodec
             case Input input when propertyName.Equals("Text", StringComparison.OrdinalIgnoreCase): input.Text = value; return;
             case Input input when propertyName.Equals("Placeholder", StringComparison.OrdinalIgnoreCase): input.Placeholder = value; return;
             case Input input when propertyName.Equals("Multiline", StringComparison.OrdinalIgnoreCase): input.Multiline = ParseBool(value); return;
+            case Input input when propertyName.Equals("SubmitOnEnter", StringComparison.OrdinalIgnoreCase): input.SubmitOnEnter = ParseBool(value); return;
             case Toggle toggle when propertyName.Equals("Checked", StringComparison.OrdinalIgnoreCase): toggle.IsChecked = ParseBool(value); return;
             case Slider slider when propertyName.Equals("Minimum", StringComparison.OrdinalIgnoreCase): slider.Minimum = ParseDouble(value); return;
             case Slider slider when propertyName.Equals("Maximum", StringComparison.OrdinalIgnoreCase): slider.Maximum = ParseDouble(value); return;

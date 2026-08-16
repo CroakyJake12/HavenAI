@@ -53,6 +53,11 @@ public static class NativePresentationRoutePolicy
             return NativePresentationDestination.Projects;
         }
 
+        if (surfaceName.Equals("NewChatPage", StringComparison.OrdinalIgnoreCase))
+        {
+            return NativePresentationDestination.None;
+        }
+
         if (surfaceName.Equals("ChatView", StringComparison.OrdinalIgnoreCase) ||
             surfaceName.Contains("ChatPage", StringComparison.OrdinalIgnoreCase) ||
             dataContextName.Contains("ChatPage", StringComparison.OrdinalIgnoreCase) ||

@@ -1,0 +1,19 @@
+[stderr] The command could not be loaded, possibly because:
+[stderr]   * You intended to execute a .NET application:
+[stderr]       The application 'build' does not exist or is not a managed .dll or .exe.
+[stderr]   * You intended to execute a .NET SDK command:
+[stderr]       A compatible .NET SDK was not found.
+[stderr] 
+[stderr] Requested SDK version: 10.0.301
+[stderr] global.json file: C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\global.json
+[stderr] 
+[stderr] Installed SDKs:
+[stderr] No .NET SDKs were found.
+[stderr] 
+[stderr] Install the [10.0.301] .NET SDK or update [C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\global.json] to match an installed SDK.
+[stderr] 
+[stderr] Download a .NET SDK:
+[stderr] https://aka.ms/dotnet/download
+[stderr] 
+[stderr] Learn about SDK resolution:
+[stderr] https://aka.ms/dotnet/sdk-not-found

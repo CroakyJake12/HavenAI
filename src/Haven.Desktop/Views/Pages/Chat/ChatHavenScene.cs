@@ -1,0 +1,474 @@
+using Haven.Core;
+using Haven.Desktop.Prefabs;
+using Haven.Desktop.Views.Shell.TopRail;
+using Haven.UI;
+using Haven.UI.Components;
+using HavenButton = Haven.UI.Components.Button;
+using HavenText = Haven.UI.Components.Text;
+
+namespace Haven.Desktop.Views.Pages.Chat;
+
+internal enum ChatMessageAction
+{
+    Edit,
+    Copy,
+    Branch,
+    Delete,
+    Regenerate,
+    Forget
+}
+
+internal sealed record ChatMessageActionRequest(Guid MessageId, ChatMessageAction Action);
+internal sealed record ChatMarkdownCodeActionRequest(Guid MessageId, Haven.UI.Components.MarkdownCodeActionRequest Request);
+
+internal sealed record ChatSceneMessage(
+    Guid Id,
+    MessageRole Role,
+    string Content,
+    string AgentName,
+    bool IsStreaming,
+    string Thinking);
+
+/// <summary>
+/// Canonical Haven-native Chat presentation. App/domain state remains owned by NewChatPage and application services;
+/// this class only projects that state into Prefab/DynamicUI scene elements and emits semantic UI intent.
+/// </summary>
+internal sealed class ChatHavenScene : IDisposable
+{
+    private readonly HavenPrefabCatalog _prefabs;
+    private readonly HavenDynamicUITemplateCatalog _templates;
+    private readonly DynamicUI _dynamicUi;
+    private readonly Dictionary<Guid, DynamicUIItem> _messageItems = [];
+    private readonly Dictionary<Guid, IReadOnlyList<HavenElement>> _generatedContent = [];
+    private readonly ChatAddMenuSurface _addMenu;
+    private PopupMenu? _activeMessagePopup;
+    private bool _disposed;
+
+    public ChatHavenScene()
+    {
+        _prefabs = HavenPrefabCatalog.FromAssembly(typeof(ChatHavenScene).Assembly);
+        _templates = HavenDynamicUITemplateCatalog.FromAssembly(typeof(ChatHavenScene).Assembly);
+        Root = BuildRoot();
+        _dynamicUi = new DynamicUI(Root, _templates, _prefabs);
+        Chatbox = Root.DescendantsAndSelf().OfType<Prefab>().Single(prefab => prefab.PrefabID == "Chatbox");
+        Instruction = Chatbox.GetComponent<Input>("Instruction");
+        AddButton = Chatbox.GetComponent<HavenButton>("AddMenu");
+        SendButton = Chatbox.GetComponent<HavenButton>("Send");
+        Messages = (DynamicUIRuntime)Root.DescendantsAndSelf().Single(element => element.Name == "Messages");
+        EmptyState = Root.DescendantsAndSelf().Single(element => element.Name == "EmptyState");
+        Status = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "Status");
+        AttachmentStatus = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "AttachmentStatus");
+        ManageAttachments = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ManageAttachments");
+        TaskActions = (Container)Root.DescendantsAndSelf().Single(element => element.Name == "TaskActions");
+        NewTask = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "NewTask");
+        TaskHistory = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "TaskHistory");
+        ResolveProblems = (HavenButton)Root.DescendantsAndSelf().Single(element => element.Name == "ResolveProblems");
+
+        AddMenuPrefab = _prefabs.Create("ChatAddMenu", "Chat-AddMenu");
+        AddMenuPrefab.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        AddMenuPrefab.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+        AddMenuPrefab.SetValue(HavenProperties.ZIndex, 100);
+        AddMenuPrefab.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
+        Root.Add(AddMenuPrefab);
+        _addMenu = new ChatAddMenuSurface(AddMenuPrefab);
+
+        AddButton.Invoked += OnAddInvoked;
+        SendButton.Invoked += OnSendInvoked;
+        ResolveProblems.Invoked += OnResolveInvoked;
+        ManageAttachments.Invoked += (_, _) => ManageAttachmentsRequested?.Invoke(this, EventArgs.Empty);
+        NewTask.Invoked += (_, _) => NewTaskRequested?.Invoke(this, EventArgs.Empty);
+        TaskHistory.Invoked += (_, _) => TaskHistoryRequested?.Invoke(this, EventArgs.Empty);
+        _addMenu.AddActionSelected += OnSharedAddActionSelected;
+        _addMenu.CatalogItemSelected += OnSharedCatalogItemSelected;
+        SetHasMessages(false);
+        HideAddMenu();
+    }
+
+    public Page Root { get; }
+    public Prefab Chatbox { get; }
+    public Input Instruction { get; }
+    public HavenButton AddButton { get; }
+    public HavenButton SendButton { get; }
+    public DynamicUIRuntime Messages { get; }
+    public HavenElement EmptyState { get; }
+    public HavenText Status { get; }
+    public HavenText AttachmentStatus { get; }
+    public HavenButton ManageAttachments { get; }
+    public Container TaskActions { get; }
+    public HavenButton NewTask { get; }
+    public HavenButton TaskHistory { get; }
+    public HavenButton ResolveProblems { get; }
+    public Prefab AddMenuPrefab { get; }
+    public Container AddOverlay => _addMenu.Overlay;
+    public HavenButton DismissAddButton => _addMenu.DismissButton;
+    public Container CatalogPanel => _addMenu.CatalogPanel;
+    public Container CatalogRows => _addMenu.CatalogResults;
+    public Input CatalogSearch => _addMenu.CatalogSearch;
+
+    public event EventHandler? SendRequested;
+    public event EventHandler? ResolveProblemsRequested;
+    public event EventHandler? ManageAttachmentsRequested;
+    public event EventHandler? NewTaskRequested;
+    public event EventHandler? TaskHistoryRequested;
+    public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
+    public event EventHandler<AddMenuSelection>? CatalogItemSelected;
+    public event EventHandler<ChatMessageActionRequest>? MessageActionRequested;
+    public event EventHandler<ChatMarkdownCodeActionRequest>? MarkdownCodeActionRequested;
+
+    public void SetComposerPlaceholder(string value) => Instruction.Placeholder = value;
+
+    public void SetSending(bool sending, bool modelAvailable)
+    {
+        Instruction.SetValue(HavenProperties.Enabled, !sending);
+        SendButton.SetValue(HavenProperties.Enabled, !sending && modelAvailable);
+    }
+
+    public void SetStatus(string? value)
+    {
+        Status.Content = value ?? string.Empty;
+        Status.SetValue(HavenProperties.Visibility, string.IsNullOrWhiteSpace(value) ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+    }
+
+    public void SetAttachmentStatus(string? value)
+    {
+        var hasAttachments = !string.IsNullOrWhiteSpace(value);
+        AttachmentStatus.Content = value ?? string.Empty;
+        AttachmentStatus.SetValue(HavenProperties.Visibility, hasAttachments ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        ManageAttachments.SetValue(HavenProperties.Visibility, hasAttachments ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+    }
+
+    public void SetTaskMode(bool enabled) =>
+        TaskActions.SetValue(HavenProperties.Visibility, enabled ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+
+    public void SetHasMessages(bool hasMessages)
+    {
+        EmptyState.SetValue(HavenProperties.Visibility, hasMessages ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        Messages.SetValue(HavenProperties.Visibility, hasMessages ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        ResolveProblems.SetValue(HavenProperties.Visibility, hasMessages ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+    }
+
+    public void SetAddEnabled(bool enabled) => Chatbox.SetComponentEnabled("AddMenu", enabled);
+
+    public void SetCatalogue(
+        IReadOnlyList<AgentDefinition> agents,
+        IReadOnlyList<CapabilityDefinition> capabilities,
+        IReadOnlyList<PromptDefinition> instructions,
+        IReadOnlyList<ModeDefinition> apps) =>
+        _addMenu.SetCatalogue(agents, capabilities, instructions, apps);
+
+    public void SyncMessages(IReadOnlyList<ChatSceneMessage> messages)
+    {
+        var expected = messages.Select(message => message.Id).ToHashSet();
+        foreach (var stale in _messageItems.Keys.Where(id => !expected.Contains(id)).ToArray())
+        {
+            _dynamicUi.DeleteItem("Messages", stale.ToString("N"));
+            _messageItems.Remove(stale);
+            _generatedContent.Remove(stale);
+        }
+
+        for (var index = 0; index < messages.Count; index++)
+        {
+            var message = messages[index];
+            if (!_messageItems.TryGetValue(message.Id, out var item))
+            {
+                item = CreateMessage(message, index);
+                _messageItems[message.Id] = item;
+            }
+            else
+            {
+                UpdateMessage(item, message);
+                var currentIndex = Messages.Items.ToList().IndexOf(item);
+                if (currentIndex != index) _dynamicUi.MoveItem("Messages", item.InstanceID, index);
+            }
+            RestoreGeneratedContent(message.Id, item);
+        }
+        SetHasMessages(messages.Count > 0);
+    }
+
+    public void UpdateMessage(ChatSceneMessage message)
+    {
+        if (!_messageItems.TryGetValue(message.Id, out var item))
+        {
+            item = CreateMessage(message, Messages.Items.Count);
+            _messageItems[message.Id] = item;
+        }
+        else UpdateMessage(item, message);
+        RestoreGeneratedContent(message.Id, item);
+        SetHasMessages(true);
+    }
+
+    public void SetGeneratedContent(Guid messageId, IReadOnlyList<HavenElement> elements)
+    {
+        _generatedContent[messageId] = elements;
+        if (_messageItems.TryGetValue(messageId, out var item)) RestoreGeneratedContent(messageId, item);
+    }
+
+    public void ClearGeneratedContent(Guid messageId)
+    {
+        _generatedContent.Remove(messageId);
+        if (!_messageItems.TryGetValue(messageId, out var item)) return;
+        if (TryGeneratedHost(item, out var host))
+            foreach (var child in host.Children.ToArray()) host.Remove(child);
+    }
+
+    public void ScrollToEnd() => Messages.ScrollY = Messages.MaxScrollY;
+
+    public void ShowChoicePrompt(string title, string description, IReadOnlyList<(string Label, Action Action)> choices)
+    {
+        var overlay = CreateModalOverlay(title, description, out var card);
+        foreach (var (label, action) in choices)
+        {
+            var button = RowButton(label);
+            button.Invoked += (_, _) =>
+            {
+                CloseModal(overlay);
+                action();
+            };
+            card.Add(button);
+        }
+        card.Add(CancelButton(overlay));
+        Root.Add(overlay);
+    }
+
+    public void ShowTextPrompt(string title, string description, string initialValue, string confirmLabel, Func<string, Task> confirm)
+    {
+        var overlay = CreateModalOverlay(title, description, out var card);
+        var editor = new Input
+        {
+            Text = initialValue ?? string.Empty,
+            Multiline = true,
+            SubmitOnEnter = false,
+            Placeholder = title
+        };
+        editor.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        editor.SetValue(HavenProperties.MinHeight, HavenLength.Px(96));
+        card.Add(editor);
+        var confirmButton = new HavenButton { Content = confirmLabel, Variant = ButtonVariant.Primary };
+        confirmButton.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        confirmButton.Invoked += async (_, _) =>
+        {
+            var value = editor.Text.Trim();
+            if (string.IsNullOrWhiteSpace(value)) return;
+            try
+            {
+                await confirm(value);
+                CloseModal(overlay);
+            }
+            catch (Exception exception)
+            {
+                SetStatus(exception.Message);
+            }
+        };
+        card.Add(confirmButton);
+        card.Add(CancelButton(overlay));
+        Root.Add(overlay);
+    }
+
+    private HavenButton CancelButton(Container overlay)
+    {
+        var cancel = new HavenButton { Content = "Cancel", Variant = ButtonVariant.Ghost };
+        cancel.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        cancel.SetValue(HavenProperties.MinHeight, HavenLength.Px(34));
+        cancel.Invoked += (_, _) => CloseModal(overlay);
+        return cancel;
+    }
+
+    private Container CreateModalOverlay(string title, string description, out Container card)
+    {
+        var overlay = new Container { Layout = HavenLayout.Overlay, Name = "ChatModalOverlay" };
+        overlay.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        overlay.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+        overlay.SetValue(HavenProperties.Background, "Overlay");
+        overlay.SetValue(HavenProperties.Opacity, .82d);
+        overlay.SetValue(HavenProperties.ZIndex, 200);
+        card = new Container { Layout = HavenLayout.Vertical, Name = "ChatModalCard" };
+        card.SetValue(HavenProperties.Width, HavenLength.Px(420));
+        card.SetValue(HavenProperties.MaxWidth, HavenLength.Percent(90));
+        card.SetValue(HavenProperties.MaxHeight, HavenLength.Percent(84));
+        card.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
+        card.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
+        card.SetValue(HavenProperties.Background, "SurfaceRaised");
+        card.SetValue(HavenProperties.BorderColor, "Border");
+        card.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        card.SetValue(HavenProperties.Padding, HavenThickness.Uniform(HavenLength.Px(20)));
+        card.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(20)));
+        card.SetValue(HavenProperties.Shadow, "Card");
+        card.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        card.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        var heading = new HavenText { Content = title, Level = TextLevel.H2 };
+        card.Add(heading);
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            var copy = new HavenText { Content = description };
+            copy.SetValue(HavenProperties.Foreground, "TextSecondary");
+            card.Add(copy);
+        }
+        overlay.Add(card);
+        return overlay;
+    }
+
+    private void CloseModal(Container overlay)
+    {
+        if (ReferenceEquals(overlay.Parent, Root)) Root.Remove(overlay);
+    }
+
+    private DynamicUIItem CreateMessage(ChatSceneMessage message, int index)
+    {
+        var values = ValuesFor(message);
+        var template = message.Role == MessageRole.Assistant ? "ChatAssistantMessage" : "ChatUserMessage";
+        var item = _dynamicUi.CreateItem(template, "Messages", message.Id.ToString("N"), values, index);
+        WireMessageActions(item, message.Id, message.Role);
+        return item;
+    }
+
+    private static void UpdateMessage(DynamicUIItem item, ChatSceneMessage message) => item.SetVariables(ValuesFor(message));
+
+    private static Dictionary<string, object?> ValuesFor(ChatSceneMessage message)
+    {
+        if (message.Role != MessageRole.Assistant)
+            return new Dictionary<string, object?> { ["CONTENT"] = message.Content };
+        return new Dictionary<string, object?>
+        {
+            ["CONTENT"] = message.Content,
+            ["AGENT"] = string.IsNullOrWhiteSpace(message.AgentName) ? "Haven" : message.AgentName,
+            ["THINKING"] = message.Thinking,
+            ["THINKINGVISIBILITY"] = string.IsNullOrWhiteSpace(message.Thinking) ? "Collapsed" : "Visible",
+            ["STREAMINGVISIBILITY"] = message.IsStreaming ? "Visible" : "Collapsed"
+        };
+    }
+
+    private void WireMessageActions(DynamicUIItem item, Guid messageId, MessageRole role)
+    {
+        var menu = item.GetComponent<HavenButton>("MessageMenu");
+        menu.Accessibility.AccessibleName = role == MessageRole.Assistant ? "Response actions" : "Message actions";
+        menu.Invoked += (_, _) => ShowMessageMenu(menu, messageId, role);
+        var markdown = item.GetComponent<Markdown>("Body");
+        markdown.CodeActionRequested += (_, request) => MarkdownCodeActionRequested?.Invoke(this, new ChatMarkdownCodeActionRequest(messageId, request));
+    }
+
+    private void ShowMessageMenu(HavenElement anchor, Guid messageId, MessageRole role)
+    {
+        _activeMessagePopup?.Dismiss();
+        IReadOnlyList<PopupMenuItem> actions = role == MessageRole.Assistant
+            ?
+            [
+                new PopupMenuItem("Re-generate", () => RequestMessageAction(messageId, ChatMessageAction.Regenerate)),
+                new PopupMenuItem("Copy", () => RequestMessageAction(messageId, ChatMessageAction.Copy)),
+                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch)),
+                new PopupMenuItem("Delete from memory", () => RequestMessageAction(messageId, ChatMessageAction.Forget), true)
+            ]
+            :
+            [
+                new PopupMenuItem("Edit", () => RequestMessageAction(messageId, ChatMessageAction.Edit)),
+                new PopupMenuItem("Copy", () => RequestMessageAction(messageId, ChatMessageAction.Copy)),
+                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch)),
+                new PopupMenuItem("Delete", () => RequestMessageAction(messageId, ChatMessageAction.Delete), true)
+            ];
+        var popup = new PopupMenu(anchor, Root, actions, 190d, role == MessageRole.Assistant ? "Response actions" : "Message actions");
+        popup.Dismissed += (_, _) =>
+        {
+            if (ReferenceEquals(_activeMessagePopup, popup)) _activeMessagePopup = null;
+        };
+        _activeMessagePopup = popup;
+        Root.Add(popup);
+    }
+
+    private void RequestMessageAction(Guid messageId, ChatMessageAction action) =>
+        MessageActionRequested?.Invoke(this, new ChatMessageActionRequest(messageId, action));
+
+    private void RestoreGeneratedContent(Guid messageId, DynamicUIItem item)
+    {
+        if (!TryGeneratedHost(item, out var host)) return;
+        var expected = _generatedContent.TryGetValue(messageId, out var content) ? content : [];
+        if (host.Children.SequenceEqual(expected)) return;
+        foreach (var child in host.Children.ToArray()) host.Remove(child);
+        foreach (var child in expected) host.Add(child);
+    }
+
+    private static bool TryGeneratedHost(DynamicUIItem item, out Container host)
+    {
+        try
+        {
+            host = item.GetComponent<Container>("GeneratedContent");
+            return true;
+        }
+        catch (KeyNotFoundException)
+        {
+            host = null!;
+            return false;
+        }
+    }
+
+    private static HavenButton RowButton(string label)
+    {
+        var button = new HavenButton { Content = label, Variant = ButtonVariant.Navigation };
+        button.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        button.SetValue(HavenProperties.MinHeight, HavenLength.Px(38));
+        button.SetValue(HavenProperties.Padding, HavenThickness.Parse("8px 10px"));
+        button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(11)));
+        button.SetValue(HavenProperties.FontSize, 13d);
+        button.Accessibility.AccessibleName = label;
+        return button;
+    }
+
+    private void OnAddInvoked(object? sender, EventArgs e) => ShowAddMenu();
+    private void OnSendInvoked(object? sender, EventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
+    private void OnResolveInvoked(object? sender, EventArgs e) => ResolveProblemsRequested?.Invoke(this, EventArgs.Empty);
+
+    public void ShowAddMenu() => _addMenu.Show();
+
+    public void HideAddMenu() => _addMenu.Hide();
+
+    public void FilterCatalogue(string query) => _addMenu.FilterCatalogue(query);
+
+    private void OnSharedAddActionSelected(object? sender, AddMenu.AddMenuAction action) =>
+        AddActionSelected?.Invoke(this, action);
+
+    private void OnSharedCatalogItemSelected(object? sender, AddMenuSelection selection) =>
+        CatalogItemSelected?.Invoke(this, selection);
+
+    private Page BuildRoot()
+    {
+        const string markup = """
+            <Page Name="ChatRoot" Layout="Overlay" Background="Transparent">
+              <Container Name="Workspace" Layout="Grid" Width="100%" Height="100%" Rows="1fr Auto" Padding="32px 10px 32px 4px" Gap="12px">
+                <Container Name="ConversationViewport" Row="0" Layout="Overlay" Width="100%" Overflow="Scroll" Clip="true">
+                  <Container Name="EmptyState" Layout="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Gap="10px">
+                    <Text Content="How can I help?" Level="H1" HorizontalAlignment="Center" />
+                    <Text Content="Start a conversation or attach context below." FontSize="13" Foreground="TextSecondary" HorizontalAlignment="Center" />
+                  </Container>
+                  <DynamicUIRuntime Name="Messages" Width="100%" MaxWidth="980px" HorizontalAlignment="Center" />
+                </Container>
+                <Container Name="Footer" Row="1" Layout="Vertical" Width="100%" MaxWidth="900px" HorizontalAlignment="Center" Gap="7px">
+                  <Container Name="TaskActions" Layout="Horizontal" HorizontalAlignment="Center" Gap="6px" Visibility="Collapsed">
+                    <Button Name="NewTask" Variant="Ghost" Content="New task" MinHeight="34px" />
+                    <Button Name="TaskHistory" Variant="Ghost" Content="Task history" MinHeight="34px" />
+                  </Container>
+                  <Button Name="ResolveProblems" Variant="Ghost" Content="Resolve problems" MinHeight="34px" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Text Name="Status" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Text Name="AttachmentStatus" Content="" FontSize="11" Foreground="TextSecondary" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Button Name="ManageAttachments" Variant="Ghost" Content="Manage attachments" MinHeight="32px" HorizontalAlignment="Center" Visibility="Collapsed" />
+                  <Prefab InstID="Main-Chatbox" ID="Chatbox" />
+                </Container>
+              </Container>
+            </Page>
+            """;
+        return (Page)new HavenMarkupParser(_prefabs).Parse(markup, "ChatPage.hui");
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _activeMessagePopup?.Dismiss();
+        _activeMessagePopup = null;
+        _messageItems.Clear();
+        _generatedContent.Clear();
+        AddButton.Invoked -= OnAddInvoked;
+        SendButton.Invoked -= OnSendInvoked;
+        ResolveProblems.Invoked -= OnResolveInvoked;
+        _addMenu.AddActionSelected -= OnSharedAddActionSelected;
+        _addMenu.CatalogItemSelected -= OnSharedCatalogItemSelected;
+        _addMenu.Dispose();
+    }
+}

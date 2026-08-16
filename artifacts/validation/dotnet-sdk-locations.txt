@@ -1,0 +1,8 @@
+ProgramFiles dotnet sdk:
+C:\Program Files\dotnet\sdk\10.0.302
+C:\Program Files\dotnet\sdk\10.0.303
+x86 dotnet sdk:
+<missing>
+VS dotnet candidates:
+C:\Program Files\Microsoft Visual Studio\18\Community\dotnet\net10.0\runtime\dotnet.exe
+C:\Program Files\Microsoft Visual Studio\18\Community\dotnet\net8.0\runtime\dotnet.exe
