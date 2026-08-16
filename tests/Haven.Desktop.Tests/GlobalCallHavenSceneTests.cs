@@ -55,6 +55,34 @@ public sealed class GlobalCallHavenSceneTests
         Assert.False(scene.SendButton.GetValue(HavenProperties.Enabled));
     }
 
+    [Fact]
+    public void Scene_drag_header_consumes_pointer_sequence_and_reports_incremental_delta()
+    {
+        var coordinator = new FakeCallCoordinator();
+        using var viewModel = new InChatCallWidgetViewModel(coordinator, new StubConversationRepository());
+        HavenPoint? observed = null;
+        using var scene = new GlobalCallHavenScene(viewModel, delta => observed = delta);
+        var handle = Assert.Single(scene.Root.DescendantsAndSelf().OfType<VoiceDragHandle>());
+        var target = Assert.IsAssignableFrom<IHavenPointerInputTarget>(handle);
+
+        Assert.All(handle.Children, child =>
+            Assert.Equal(HavenPointerEvents.None, child.GetValue(HavenProperties.PointerEvents)));
+        Assert.True(target.PointerPressed(new HavenPointerInput(
+            new HavenPoint(10, 10), new HavenPoint(4, 4), HavenPointerKind.Mouse)));
+        Assert.True(target.PointerMoved(new HavenPointerInput(
+            new HavenPoint(16, 7), new HavenPoint(10, 1), HavenPointerKind.Mouse)));
+        Assert.Equal(new HavenPoint(6, -3), observed);
+
+        observed = null;
+        Assert.True(target.PointerMoved(new HavenPointerInput(
+            new HavenPoint(18, 11), new HavenPoint(12, 5), HavenPointerKind.Mouse)));
+        Assert.Equal(new HavenPoint(2, 4), observed);
+        Assert.True(target.PointerReleased(new HavenPointerInput(
+            new HavenPoint(18, 11), new HavenPoint(12, 5), HavenPointerKind.Mouse)));
+        Assert.False(target.PointerMoved(new HavenPointerInput(
+            new HavenPoint(20, 12), new HavenPoint(14, 6), HavenPointerKind.Mouse)));
+    }
+
     private static ModelDescriptor TestModel() => new(
         "voice-test",
         1_000_000,

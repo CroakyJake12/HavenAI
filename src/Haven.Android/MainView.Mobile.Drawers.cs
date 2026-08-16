@@ -166,6 +166,9 @@ public sealed partial class MainView
         if (_mobileDrawerContent is null)
             return;
 
+        _ = global::Haven.Android.AndroidRuntimePermissions
+            .EnsureNotificationsPermissionAsync(CancellationToken.None);
+
         _mobileDrawerContent.Children.Clear();
         AddDrawerHeading(_mobileDrawerContent, "Notifications");
 

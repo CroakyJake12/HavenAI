@@ -15,6 +15,7 @@ namespace Haven.Android;
     Icon = "@drawable/haven_icon",
     Exported = true,
     LaunchMode = LaunchMode.SingleTask,
+    TaskAffinity = "com.cakemods.haven.launcher",
     ExcludeFromRecents = true,
     ConfigurationChanges =
         ConfigChanges.Orientation
@@ -68,7 +69,6 @@ public sealed partial class HavenLauncherActivity : Activity
         _widgetManager = AppWidgetManager.GetInstance(this);
 
         BuildSurface();
-        LoadAppsAsync();
     }
 
     protected override void OnStart()
@@ -101,6 +101,17 @@ public sealed partial class HavenLauncherActivity : Activity
         base.OnResume();
         ApplyWallpaper();
         RenderWidgets();
+        LoadAppsAsync(showLoading: _apps.Count == 0);
+    }
+
+    public override void OnConfigurationChanged(global::Android.Content.Res.Configuration newConfig)
+    {
+        base.OnConfigurationChanged(newConfig);
+
+        // This activity handles orientation/screen/density changes itself, so rebuild the
+        // native surface to recalculate all dp-derived dimensions against current metrics.
+        BuildSurface();
+        _grid?.Post(RenderPage);
     }
 
     public override void OnBackPressed()
@@ -127,6 +138,7 @@ public sealed partial class HavenLauncherActivity : Activity
         };
         _root.SetPadding(Dp(12), Dp(10), Dp(12), Dp(10));
         _root.SetOnTouchListener(new SwipeTouchListener(
+            swipeThresholdPixels: Dp(80),
             onSwipeUp: ShowAppDrawer,
             onSwipeLeft: () => ChangePage(1),
             onSwipeRight: () => ChangePage(-1)));

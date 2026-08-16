@@ -46,6 +46,9 @@ public sealed partial class App : Avalonia.Application
         collection.AddHavenInfrastructure();
         collection.AddHavenPlannerInfrastructure();
         collection.AddHavenDesktopCallServices();
+#if ANDROID
+        global::Haven.Android.AndroidServiceRegistration.AddHavenAndroidPlatformServices(collection);
+#endif
         collection.AddSingleton<ScheduledTaskScheduleCalculator>();
         collection.AddSingleton<ScheduledTaskRunner>();
         collection.AddSingleton<BrowserSessionService>();

@@ -24,6 +24,12 @@ public sealed partial class MainView
             return;
         }
 
+        if (string.Equals(surface, "notifications", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowMobileNotifications();
+            return;
+        }
+
         if (string.Equals(surface, "dashboard", StringComparison.OrdinalIgnoreCase))
         {
             await OpenDashboardAsync();
