@@ -260,28 +260,70 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
 
     private async Task RefreshAsync()
     {
-        if (!HasRoot) { Status = "This project has no accessible folder. Open Project settings to connect one."; return; }
-        _state = await _intelligence.GetStateAsync(RootPath, CancellationToken.None);
-        RaiseStateProperties();
-        var recent = (await _conversations.GetRecentAsync(HavenMode.Studio, 300, CancellationToken.None))
-            .Where(item => item.ContainerId == ProjectId)
-            .OrderByDescending(item => item.UpdatedAt)
-            .ToArray();
-        ProjectConversations.Clear();
-        foreach (var conversation in recent)
-            ProjectConversations.Add(conversation);
-        LastMeaningfulTask = recent.FirstOrDefault()?.Title ?? "No project conversation yet";
-        RelevantConversation = recent.FirstOrDefault()?.Title ?? "Start a project chat";
-        RaisePropertyChanged(nameof(LastMeaningfulTask));
-        RaisePropertyChanged(nameof(RelevantConversation));
+        if (!HasRoot)
+        {
+            Status = "This project has no accessible folder. Open Project settings to connect one.";
+            return;
+        }
 
-        Files.Clear();
-        foreach (var file in EnumerateSupportedFiles(RootPath, 2500, CancellationToken.None)) Files.Add(file);
-        await RefreshDecisionsAsync();
-        ActiveAutomations.Clear();
-        foreach (var item in (await _automations.GetAllAsync(CancellationToken.None)).Where(item => item.IsEnabled && item.ContainerId == ProjectId))
-            ActiveAutomations.Add(new(item.Name, item.Instruction, item.NextRunAt?.LocalDateTime.ToString("g") ?? "Waiting for trigger"));
-        Status = $"Project state captured at {_state.CapturedAt.LocalDateTime:t}.";
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var token = timeout.Token;
+        Status = "Loading project state…";
+
+        try
+        {
+            var state = await _intelligence.GetStateAsync(RootPath, token);
+            var recent = (await _conversations.GetRecentAsync(HavenMode.Studio, 300, token))
+                .Where(item => item.ContainerId == ProjectId)
+                .OrderByDescending(item => item.UpdatedAt)
+                .ToArray();
+            var files = EnumerateSupportedFiles(RootPath, 2500, token).ToArray();
+            var decisions = (await _workspaceState.GetDecisionsAsync(ProjectId, token))
+                .Select(item => new DecisionItemViewModel(item))
+                .ToArray();
+            var automations = (await _automations.GetAllAsync(token))
+                .Where(item => item.IsEnabled && item.ContainerId == ProjectId)
+                .Select(item => new AutomationSummaryViewModel(
+                    item.Name,
+                    item.Instruction,
+                    item.NextRunAt?.LocalDateTime.ToString("g") ?? "Waiting for trigger"))
+                .ToArray();
+
+            token.ThrowIfCancellationRequested();
+
+            _state = state;
+            RaiseStateProperties();
+
+            ProjectConversations.Clear();
+            foreach (var conversation in recent)
+                ProjectConversations.Add(conversation);
+            LastMeaningfulTask = recent.FirstOrDefault()?.Title ?? "No project conversation yet";
+            RelevantConversation = recent.FirstOrDefault()?.Title ?? "Start a project chat";
+            RaisePropertyChanged(nameof(LastMeaningfulTask));
+            RaisePropertyChanged(nameof(RelevantConversation));
+
+            Files.Clear();
+            foreach (var file in files)
+                Files.Add(file);
+
+            Decisions.Clear();
+            foreach (var decision in decisions)
+                Decisions.Add(decision);
+
+            ActiveAutomations.Clear();
+            foreach (var automation in automations)
+                ActiveAutomations.Add(automation);
+
+            Status = $"Project state captured at {state.CapturedAt.LocalDateTime:t}.";
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            Status = "Project refresh timed out. Try Refresh again or check the project folder.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Project refresh failed: " + ex.Message;
+        }
     }
 
     private void OpenProjectSettings()
