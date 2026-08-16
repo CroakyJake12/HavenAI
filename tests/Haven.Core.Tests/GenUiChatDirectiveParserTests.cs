@@ -95,10 +95,17 @@ public sealed class GenUiChatDirectiveParserTests
         Assert.Contains("checklist", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("haven-ui", instruction, StringComparison.Ordinal);
         Assert.Contains("HavenCanvas", instruction, StringComparison.Ordinal);
+        Assert.Contains("interactive whiteboard foundation", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("selection/editing, undo/redo, zoom and persisted state", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("HavenGraph", instruction, StringComparison.Ordinal);
+        Assert.Contains("native Haven drawing commands", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Do not emit `HavenCanvas`", instruction, StringComparison.Ordinal);
+        Assert.DoesNotContain("not available on the migrated Haven-native Chat renderer", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("responsive", instruction, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("fullscreen", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("patches", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("declarative", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("never echo the declaration", instruction, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("never dump raw JSON", instruction, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("you do not need to define the logic", instruction, StringComparison.OrdinalIgnoreCase);
     }
 
