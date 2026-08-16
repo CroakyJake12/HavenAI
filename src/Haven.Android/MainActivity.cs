@@ -11,6 +11,7 @@ namespace Haven.Android;
     Theme = "@style/Theme.AppCompat.Light.NoActionBar",
     Icon = "@drawable/haven_icon",
     MainLauncher = false,
+    LaunchMode = global::Android.Content.PM.LaunchMode.SingleTop,
     Exported = false,
     WindowSoftInputMode = SoftInput.AdjustResize,
     ConfigurationChanges =
@@ -39,6 +40,12 @@ public sealed class MainActivity : AvaloniaMainActivity
         {
             RedirectToNativeRecovery(exception);
         }
+    }
+
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+        AndroidHavenBootstrap.ApplyLaunchRequest(intent);
     }
 
     protected override void OnResume()

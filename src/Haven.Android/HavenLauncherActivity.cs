@@ -15,6 +15,7 @@ namespace Haven.Android;
     Icon = "@drawable/haven_icon",
     Exported = true,
     LaunchMode = LaunchMode.SingleTask,
+    TaskAffinity = "com.cakemods.haven.launcher",
     ExcludeFromRecents = true,
     ConfigurationChanges =
         ConfigChanges.Orientation

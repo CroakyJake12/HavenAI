@@ -286,6 +286,7 @@ public sealed partial class HavenLauncherActivity
     private void OpenHavenDashboard()
     {
         var intent = new Intent(this, typeof(MainActivity));
+        intent.AddFlags(ActivityFlags.NewTask | ActivityFlags.ClearTop);
         intent.PutExtra("haven_surface", "dashboard");
         StartActivity(intent);
     }
@@ -293,6 +294,7 @@ public sealed partial class HavenLauncherActivity
     private void OpenHavenChat(string prompt)
     {
         var intent = new Intent(this, typeof(MainActivity));
+        intent.AddFlags(ActivityFlags.NewTask | ActivityFlags.ClearTop);
         intent.PutExtra("haven_prompt", prompt);
         StartActivity(intent);
     }

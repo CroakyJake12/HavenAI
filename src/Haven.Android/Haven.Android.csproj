@@ -16,6 +16,7 @@
     <AndroidManifest>AndroidManifest.xml</AndroidManifest>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
     <AssemblyName>Haven</AssemblyName>
     <RootNamespace>Haven.Android</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
