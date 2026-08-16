@@ -40,14 +40,11 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-
-
-
+    <EmbeddedResource Include="Prefabs\**\*.hui" />
+    <EmbeddedResource Include="DynamicUI\**\*.hui" />
+    <Compile Update="Prefabs\**\*.hui.cs"><DependentUpon>%(Filename)</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Update="Views\Pages\Chat\NewChatPage.axaml.cs">
-      <DependentUpon>NewChatPage.axaml</DependentUpon>
-    </Compile>
     <Compile Update="Views\Pages\Go\GoPage.axaml.cs">
       <DependentUpon>GoPage.axaml</DependentUpon>
     </Compile>

@@ -32,6 +32,25 @@ public sealed class NativePresentationRoutePolicyTests
     }
 
     [Theory]
+    [InlineData("ChatView", null)]
+    [InlineData("ContentControl", "ChatPageViewModel")]
+    [InlineData("ContentControl", "ConversationViewModel")]
+    public void LegacyChatSurfacesRouteToNativeChat(string surfaceName, string? dataContextName)
+    {
+        var destination = NativePresentationRoutePolicy.Classify(surfaceName, dataContextName);
+
+        Assert.Equal(NativePresentationDestination.Chat, destination);
+    }
+
+    [Fact]
+    public void HavenNativeNewChatPageIsNotRedirectedAgain()
+    {
+        var destination = NativePresentationRoutePolicy.Classify("NewChatPage", "ConversationViewModel");
+
+        Assert.Equal(NativePresentationDestination.None, destination);
+    }
+
+    [Theory]
     [InlineData("StudioProjectPage", null)]
     [InlineData("ProjectHomeView", "ProjectHomeViewModel")]
     [InlineData("ProjectFilesView", "ProjectFilesViewModel")]

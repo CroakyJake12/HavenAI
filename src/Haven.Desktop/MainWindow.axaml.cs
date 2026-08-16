@@ -26,8 +26,8 @@ public sealed partial class MainWindow : Window
             if (DataContext is MainView shell)
             {
                 _shell = shell;
-                MainContent.Content = shell;
                 SetupBackground();
+                MainContent.Content = shell;
             }
         };
     }

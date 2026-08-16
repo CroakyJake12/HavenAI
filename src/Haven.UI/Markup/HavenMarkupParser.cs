@@ -13,7 +13,7 @@ public sealed class HavenMarkupException(string sourceName, int line, int column
     public int Column { get; } = column;
 }
 
-public sealed class HavenMarkupParser
+public sealed class HavenMarkupParser(HavenPrefabCatalog? prefabs = null)
 {
     public HavenElement Parse(string source, string sourceName = "markup.hui")
     {
@@ -29,25 +29,31 @@ public sealed class HavenMarkupParser
         catch (XmlException exception) { throw new HavenMarkupException(sourceName, exception.LineNumber, exception.LinePosition, exception.Message, exception); }
     }
 
+    internal HavenElement ParsePreparedElement(XElement node, string sourceName) => ParseElement(node, sourceName);
+
     private HavenElement ParseElement(XElement node, string sourceName)
     {
         var lineInfo = (IXmlLineInfo)node;
-        if (node.Name.LocalName is "Class" or "Animation") throw new HavenMarkupException(sourceName, lineInfo.LineNumber, lineInfo.LinePosition, "Reusable Class/Animation declarations belong in the central resource files, not page markup.");
-        var element = Create(node.Name.LocalName, sourceName, lineInfo.LineNumber, lineInfo.LinePosition);
-        foreach (var attribute in node.Attributes())
+        if (node.Name.LocalName is "Class" or "Animation")
+            throw new HavenMarkupException(sourceName, lineInfo.LineNumber, lineInfo.LinePosition, "Reusable Class/Animation declarations belong in the central resource files, not page markup.");
+
+        if (node.Name.LocalName.Equals("DynamicUI", StringComparison.OrdinalIgnoreCase))
+            throw new HavenMarkupException(sourceName, lineInfo.LineNumber, lineInfo.LinePosition, "DynamicUI is a template declaration. Register it with HavenDynamicUITemplateCatalog instead of placing it in a page scene tree.");
+
+        if (node.Name.LocalName.Equals("Prefab", StringComparison.OrdinalIgnoreCase))
+            return ParsePrefab(node, sourceName, lineInfo.LineNumber, lineInfo.LinePosition);
+
+        if (node.Name.LocalName == "DynamicUIRuntime")
         {
-            var info = (IXmlLineInfo)attribute;
-            try
-            {
-                if (ApplyCondition(element, attribute.Name.LocalName, attribute.Value)) continue;
-                if (attribute.Name.LocalName.Equals("OnClick", StringComparison.OrdinalIgnoreCase)) { element.ClickActions.Add(HavenAction.Parse(attribute.Value)); continue; }
-                HavenPropertyCodec.Set(element, attribute.Name.LocalName, attribute.Value);
-            }
-            catch (Exception exception) when (exception is FormatException or KeyNotFoundException or ArgumentException)
-            {
-                throw new HavenMarkupException(sourceName, info.LineNumber, info.LinePosition, exception.Message, exception);
-            }
+            if (node.HasElements || !string.IsNullOrWhiteSpace(node.Value))
+                throw new HavenMarkupException(sourceName, lineInfo.LineNumber, lineInfo.LinePosition, "DynamicUIRuntime content is runtime-owned and cannot contain authored child content.");
+            var runtime = new DynamicUIRuntime();
+            ApplyAttributes(runtime, node, sourceName, skipPrefabIds: false);
+            return runtime;
         }
+
+        var element = Create(node.Name.LocalName, sourceName, lineInfo.LineNumber, lineInfo.LinePosition);
+        ApplyAttributes(element, node, sourceName, skipPrefabIds: false);
 
         if (!node.HasElements && !string.IsNullOrWhiteSpace(node.Value))
         {
@@ -67,9 +73,58 @@ public sealed class HavenMarkupParser
         return element;
     }
 
+    private HavenElement ParsePrefab(XElement node, string sourceName, int line, int column)
+    {
+        if (prefabs is null) throw new HavenMarkupException(sourceName, line, column, "Prefab markup requires a HavenPrefabCatalog.");
+        if (node.HasElements || !string.IsNullOrWhiteSpace(node.Value)) throw new HavenMarkupException(sourceName, line, column, "Prefab usage is a reference and cannot contain inline child content.");
+
+        var prefabId = ReadAlias(node, ["PrefabID", "pID", "ID"], "PrefabID/ID", sourceName, line, column);
+        var instanceId = ReadAlias(node, ["InstanceID", "InstID", "iID"], "InstanceID", sourceName, line, column);
+        Prefab prefab;
+        try { prefab = prefabs.Create(prefabId, instanceId); }
+        catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or ArgumentException)
+        {
+            throw new HavenMarkupException(sourceName, line, column, exception.Message, exception);
+        }
+        ApplyAttributes(prefab, node, sourceName, skipPrefabIds: true);
+        return prefab;
+    }
+
+    private static string ReadAlias(XElement node, IReadOnlyList<string> aliases, string displayName, string sourceName, int line, int column)
+    {
+        var matches = node.Attributes().Where(attribute => aliases.Any(alias => attribute.Name.LocalName.Equals(alias, StringComparison.OrdinalIgnoreCase))).ToArray();
+        if (matches.Length == 0) throw new HavenMarkupException(sourceName, line, column, $"Prefab requires {displayName}.");
+        var values = matches.Select(attribute => attribute.Value.Trim()).Distinct(StringComparer.Ordinal).ToArray();
+        if (values.Length != 1 || string.IsNullOrWhiteSpace(values[0])) throw new HavenMarkupException(sourceName, line, column, $"Conflicting or empty {displayName} aliases were supplied.");
+        return values[0];
+    }
+
+    private static bool IsPrefabIdAttribute(string name) =>
+        name.Equals("PrefabID", StringComparison.OrdinalIgnoreCase) || name.Equals("pID", StringComparison.OrdinalIgnoreCase) || name.Equals("ID", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("InstanceID", StringComparison.OrdinalIgnoreCase) || name.Equals("InstID", StringComparison.OrdinalIgnoreCase) || name.Equals("iID", StringComparison.OrdinalIgnoreCase);
+
+    private static void ApplyAttributes(HavenElement element, XElement node, string sourceName, bool skipPrefabIds)
+    {
+        foreach (var attribute in node.Attributes())
+        {
+            if (skipPrefabIds && IsPrefabIdAttribute(attribute.Name.LocalName)) continue;
+            var info = (IXmlLineInfo)attribute;
+            try
+            {
+                if (ApplyCondition(element, attribute.Name.LocalName, attribute.Value)) continue;
+                if (attribute.Name.LocalName.Equals("OnClick", StringComparison.OrdinalIgnoreCase)) { element.ClickActions.Add(HavenAction.Parse(attribute.Value)); continue; }
+                HavenPropertyCodec.Set(element, attribute.Name.LocalName, attribute.Value);
+            }
+            catch (Exception exception) when (exception is FormatException or KeyNotFoundException or ArgumentException)
+            {
+                throw new HavenMarkupException(sourceName, info.LineNumber, info.LinePosition, exception.Message, exception);
+            }
+        }
+    }
+
     private static HavenElement Create(string name, string sourceName, int line, int column) => name switch
     {
-        "Page" => new Page(), "Container" => new Container(), "Text" => new Text(), "Button" => new Button(), "Input" => new Input(), "Toggle" => new Toggle(), "Slider" => new Slider(), "Select" => new Select(), "Image" => new HavenImageComponent(), "Icon" => new Icon(), "Video" => new Video(), "Canvas" => new Canvas(), "Web" => new Web(), "Progress" => new Progress(), "Separator" => new Separator(),
+        "Page" => new Page(), "Container" => new Container(), "Text" => new Text(), "Markdown" => new Markdown(), "Button" => new Button(), "Input" => new Input(), "Toggle" => new Toggle(), "Slider" => new Slider(), "Select" => new Select(), "Image" => new HavenImageComponent(), "Icon" => new Icon(), "Video" => new Video(), "Canvas" => new Canvas(), "Web" => new Web(), "Progress" => new Progress(), "Separator" => new Separator(),
         _ => throw new HavenMarkupException(sourceName, line, column, $"Unknown Haven component '{name}'.")
     };
 

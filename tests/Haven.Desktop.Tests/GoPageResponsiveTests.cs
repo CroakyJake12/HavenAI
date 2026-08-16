@@ -71,7 +71,7 @@ public sealed class GoPageResponsiveTests
             AssertCentered(page.SceneHost.SurfaceMetrics.Viewport, page.Route.Instruction.Bounds, 55.0);
             Assert.Equal("1fr Auto Auto Auto", page.Route.Root.Rows);
             Assert.Equal(2, page.Route.AttachmentHost.GetValue(HavenProperties.Row));
-            Assert.Equal(3, page.Route.Composer.GetValue(HavenProperties.Row));
+            Assert.Equal(3, page.Route.Chatbox.GetValue(HavenProperties.Row));
             Assert.InRange(page.Route.WideSuggestions.Bounds.Width, 799.5, 800.5);
             Assert.InRange(page.Route.Composer.Bounds.Width, 899.5, 900.5);
             Assert.InRange(page.Route.Instruction.Bounds.Width, 781.5, 782.5);
