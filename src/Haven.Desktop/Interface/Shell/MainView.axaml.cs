@@ -1482,6 +1482,21 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             return;
         }
 
+        if (_edition == HavenShellEdition.New)
+        {
+            if (CurrentMode == HavenMode.Studio && IsProjectOpen)
+            {
+                _ = StartProjectChatAsync(string.Empty);
+                return;
+            }
+
+            var mode = CurrentMode is HavenMode.Chat or HavenMode.Study or HavenMode.Tasks
+                ? CurrentMode
+                : HavenMode.Chat;
+            _ = StartNativeConversationAsync(mode, null);
+            return;
+        }
+
         if (CurrentMode == HavenMode.Studio && IsProjectOpen)
         {
             _ = StartProjectChatAsync(string.Empty);

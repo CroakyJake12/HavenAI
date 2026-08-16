@@ -214,6 +214,12 @@ public sealed partial class MainView
                 ReplaceLegacyProjectsPage(content);
                 return;
 
+            case NativePresentationDestination.Chat:
+                // OpenNewChatAsync replaces the visible content before its first await.
+                // NewChatPage is exempt from legacy classification, so this cannot recurse.
+                _ = OpenNewChatAsync();
+                return;
+
             default:
                 if (!ReferenceEquals(content, _nativeProjectsPage))
                 {
