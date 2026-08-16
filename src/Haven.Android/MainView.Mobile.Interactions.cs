@@ -24,6 +24,12 @@ public sealed partial class MainView
             return;
         }
 
+        if (string.Equals(surface, "assistant", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenVoiceSessionFromActionAsync();
+            return;
+        }
+
         if (string.Equals(surface, "notifications", StringComparison.OrdinalIgnoreCase))
         {
             ShowMobileNotifications();

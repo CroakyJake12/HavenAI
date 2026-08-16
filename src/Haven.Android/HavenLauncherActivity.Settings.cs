@@ -139,43 +139,74 @@ public sealed partial class HavenLauncherActivity
     {
         base.OnActivityResult(requestCode, resultCode, data);
 
+        if (requestCode is not PickWidgetRequest and not ConfigureWidgetRequest)
+            return;
+
         var widgetId = data?.GetIntExtra(
             AppWidgetManager.ExtraAppwidgetId,
             _pendingWidgetId) ?? _pendingWidgetId;
 
+        if (widgetId == AppWidgetManager.InvalidAppwidgetId)
+        {
+            _pendingWidgetId = AppWidgetManager.InvalidAppwidgetId;
+            return;
+        }
+
         if (requestCode == PickWidgetRequest)
         {
-            if (resultCode != Result.Ok || widgetId == AppWidgetManager.InvalidAppwidgetId)
+            if (resultCode != Result.Ok)
             {
-                DeleteWidgetId(widgetId);
+                CompletePendingWidget(widgetId, keep: false);
                 return;
             }
 
-            var info = _widgetManager?.GetAppWidgetInfo(widgetId);
-            if (info?.Configure is not null)
+            try
             {
-                var configure = new Intent(AppWidgetManager.ActionAppwidgetConfigure);
-                configure.SetComponent(info.Configure);
-                configure.PutExtra(AppWidgetManager.ExtraAppwidgetId, widgetId);
-                StartActivityForResult(configure, ConfigureWidgetRequest);
-                return;
-            }
+                var info = _widgetManager?.GetAppWidgetInfo(widgetId)
+                    ?? throw new InvalidOperationException("The selected widget provider is unavailable.");
+                if (info.Configure is not null)
+                {
+                    _pendingWidgetId = widgetId;
+                    var configure = new Intent(AppWidgetManager.ActionAppwidgetConfigure);
+                    configure.SetComponent(info.Configure);
+                    configure.PutExtra(AppWidgetManager.ExtraAppwidgetId, widgetId);
+                    StartActivityForResult(configure, ConfigureWidgetRequest);
+                    return;
+                }
 
+                CompletePendingWidget(widgetId, keep: true);
+            }
+            catch (Exception exception)
+            {
+                FailPendingWidget(widgetId, "Could not configure the selected Android widget.", exception);
+            }
+            return;
+        }
+
+        CompletePendingWidget(widgetId, keep: resultCode == Result.Ok);
+    }
+
+    private void CompletePendingWidget(int widgetId, bool keep)
+    {
+        _pendingWidgetId = AppWidgetManager.InvalidAppwidgetId;
+        if (keep)
+        {
             SaveWidgetId(widgetId);
             RenderWidgets();
+            return;
         }
-        else if (requestCode == ConfigureWidgetRequest)
-        {
-            if (resultCode == Result.Ok)
-            {
-                SaveWidgetId(widgetId);
-                RenderWidgets();
-            }
-            else
-            {
-                DeleteWidgetId(widgetId);
-            }
-        }
+
+        DeleteWidgetId(widgetId);
+    }
+
+    private void FailPendingWidget(int widgetId, string message, Exception exception)
+    {
+        _pendingWidgetId = AppWidgetManager.InvalidAppwidgetId;
+        DeleteWidgetId(widgetId);
+        global::Android.Util.Log.Warn(
+            "HavenLauncher",
+            message + " " + exception.Message);
+        Toast.MakeText(this, message, ToastLength.Long)?.Show();
     }
 
     private void AddHavenWidget()
@@ -184,7 +215,7 @@ public sealed partial class HavenLauncherActivity
         RenderWidgets();
     }
 
-    private void RenderWidgets()
+    private void RenderBaseWidgets()
     {
         var widgetStrip = _widgetStrip;
         if (widgetStrip is null)
@@ -212,7 +243,6 @@ public sealed partial class HavenLauncherActivity
                 Preferences.Edit()?.PutBoolean(HavenWidgetKey, false)?.Apply();
                 RenderWidgets();
                 if (args is not null)
-                    if (args is not null)
                     args.Handled = true;
             };
             widgetStrip.AddView(clock);
@@ -225,40 +255,49 @@ public sealed partial class HavenLauncherActivity
 
         foreach (var widgetId in ReadWidgetIds().ToArray())
         {
-            var info = widgetManager.GetAppWidgetInfo(widgetId);
-            if (info is null)
+            try
             {
-                DeleteWidgetId(widgetId);
-                continue;
-            }
-
-            var hostView = widgetHost.CreateView(this, widgetId, info);
-            if (hostView is null)
-            {
-                DeleteWidgetId(widgetId);
-                continue;
-            }
-            hostView.SetAppWidget(widgetId, info);
-            hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
-            {
-                RightMargin = Dp(8)
-            };
-            hostView.LongClick += (_, args) =>
-            {
-                var dialog = new AlertDialog.Builder(this);
-                dialog.SetMessage("Remove this widget?");
-                dialog.SetPositiveButton("Remove", (_, _) =>
+                var info = widgetManager.GetAppWidgetInfo(widgetId);
+                if (info is null)
                 {
                     DeleteWidgetId(widgetId);
-                    RenderWidgets();
-                });
-                dialog.SetNegativeButton("Cancel", (_, _) => { });
-                dialog.Show();
-                if (args is not null)
+                    continue;
+                }
+
+                var hostView = widgetHost.CreateView(this, widgetId, info);
+                if (hostView is null)
+                {
+                    DeleteWidgetId(widgetId);
+                    continue;
+                }
+                hostView.SetAppWidget(widgetId, info);
+                hostView.LayoutParameters = new LinearLayout.LayoutParams(Dp(300), Dp(160))
+                {
+                    RightMargin = Dp(8)
+                };
+                hostView.LongClick += (_, args) =>
+                {
+                    var dialog = new AlertDialog.Builder(this);
+                    dialog.SetMessage("Remove this widget?");
+                    dialog.SetPositiveButton("Remove", (_, _) =>
+                    {
+                        DeleteWidgetId(widgetId);
+                        RenderWidgets();
+                    });
+                    dialog.SetNegativeButton("Cancel", (_, _) => { });
+                    dialog.Show();
                     if (args is not null)
-                    args.Handled = true;
-            };
-            widgetStrip.AddView(hostView);
+                        args.Handled = true;
+                };
+                widgetStrip.AddView(hostView);
+            }
+            catch (Exception exception)
+            {
+                global::Android.Util.Log.Warn(
+                    "HavenLauncher",
+                    $"Widget {widgetId} could not be hosted: {exception.Message}");
+                DeleteWidgetId(widgetId);
+            }
         }
     }
 

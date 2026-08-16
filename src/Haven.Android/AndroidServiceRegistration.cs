@@ -10,6 +10,7 @@ public static class AndroidServiceRegistration
         ArgumentNullException.ThrowIfNull(services);
         services.AddSingleton<ISpeechInputService, AndroidSpeechInputService>();
         services.AddSingleton<AndroidNotificationBridge>();
+        services.AddSingleton<AndroidAssistantOverlayCoordinator>();
         return services;
     }
 }
