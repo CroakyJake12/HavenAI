@@ -10,6 +10,7 @@ using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Pages.Browser;
@@ -40,7 +41,9 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     private readonly IOllamaClient _ollama;
     private readonly UserPreferencesService _preferences;
     private readonly BrowserToolRuntime _browserTools;
-    private readonly BrowserView _browserView;
+    private readonly BrowserHavenScene _havenScene;
+    private readonly BrowserNativeWebResolver _nativeWebResolver;
+    private readonly HavenSceneControl _sceneControl;
     private BrowserTabViewModel? _selectedTab;
     private string _address;
     private string _status;
@@ -138,17 +141,25 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         RestoreSavedTabs();
         _browser.StateChanged += OnStateChanged;
 
-        _browserView = new BrowserView { DataContext = this };
+        _havenScene = new BrowserHavenScene(this);
+        _nativeWebResolver = new BrowserNativeWebResolver(this, _havenScene.WebSurface);
+        _sceneControl = new HavenSceneControl(new HavenAvaloniaImageResolver(), _nativeWebResolver)
+        {
+            Root = _havenScene.Root
+        };
         DataContext = this;
-        Content = _browserView;
+        Content = _sceneControl;
         InitializeComponent();
         WireEvents();
     }
 
     private void WireEvents()
     {
-        _bus.RegisterElement("Browser.View", _browserView);
-        _bus.WirePointerEvents("Browser.View", _browserView);
+        _bus.RegisterElement("Browser.View", _sceneControl);
+        _bus.WirePointerEvents("Browser.View", _sceneControl);
+        _sceneControl.InputSubmitted += _havenScene.HandleInputSubmitted;
+        WireBrowserShortcuts();
+        ImportExtensionRequested += OnImportExtensionRequested;
     }
 
     public BrowserSessionService Browser => _browser;
@@ -573,6 +584,10 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _sceneControl.InputSubmitted -= _havenScene.HandleInputSubmitted;
+        ImportExtensionRequested -= OnImportExtensionRequested;
+        _nativeWebResolver.Dispose();
+        _havenScene.Dispose();
         _browser.StateChanged -= OnStateChanged;
         _bus.UnregisterElement("Browser.View");
         _ = SaveTabsAsync();
