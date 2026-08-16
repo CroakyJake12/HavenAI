@@ -109,13 +109,30 @@ public sealed partial class HavenLauncherActivity
 
     private void PickAndroidWidget()
     {
-        if (_widgetHost is null)
+        var widgetHost = _widgetHost;
+        if (widgetHost is null)
+        {
+            Toast.MakeText(this, "Android widgets are unavailable right now.", ToastLength.Long)?.Show();
             return;
+        }
 
-        _pendingWidgetId = _widgetHost.AllocateAppWidgetId();
-        var intent = new Intent(AppWidgetManager.ActionAppwidgetPick);
-        intent.PutExtra(AppWidgetManager.ExtraAppwidgetId, _pendingWidgetId);
-        StartActivityForResult(intent, PickWidgetRequest);
+        try
+        {
+            _pendingWidgetId = widgetHost.AllocateAppWidgetId();
+            var intent = new Intent(AppWidgetManager.ActionAppwidgetPick);
+            intent.PutExtra(AppWidgetManager.ExtraAppwidgetId, _pendingWidgetId);
+            StartActivityForResult(intent, PickWidgetRequest);
+        }
+        catch (Exception exception)
+        {
+            var failedWidgetId = _pendingWidgetId;
+            _pendingWidgetId = AppWidgetManager.InvalidAppwidgetId;
+            DeleteWidgetId(failedWidgetId);
+            global::Android.Util.Log.Warn(
+                "HavenLauncher",
+                "Could not open the Android widget picker: " + exception.Message);
+            Toast.MakeText(this, "Could not open the Android widget picker.", ToastLength.Long)?.Show();
+        }
     }
 
     protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
