@@ -26,6 +26,26 @@ public sealed partial class MainView
 
         if (string.Equals(surface, "assistant", StringComparison.OrdinalIgnoreCase))
         {
+            var sharedContext = global::Haven.Android.AndroidSharedContextStore.Take();
+            if (sharedContext is not null)
+            {
+                await OpenNewChatAsync();
+                if (_newChatPage is not null)
+                {
+                    if (sharedContext.Files.Count > 0)
+                    {
+                        _newChatPage.AttachSnapshot(new global::Haven.Desktop.Views.Shell.TopRail.TaskAttachmentSnapshot(
+                            sharedContext.Files,
+                            [],
+                            [],
+                            new HashSet<Guid>()));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(sharedContext.Text))
+                        _newChatPage.SetDraft(sharedContext.Text.Trim());
+                }
+            }
+
             await OpenVoiceSessionFromActionAsync();
             return;
         }
