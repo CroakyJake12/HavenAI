@@ -23,7 +23,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
     private DateTimeOffset? _startedAt;
     private bool _disposed;
 
-    public GlobalCallHavenScene(InChatCallWidgetViewModel viewModel)
+    public GlobalCallHavenScene(
+        InChatCallWidgetViewModel viewModel,
+        Action<HavenPoint>? dragDelta = null)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
 
@@ -38,8 +40,10 @@ internal sealed class GlobalCallHavenScene : IDisposable
         Set(Root, HavenProperties.Gap, HavenLength.Px(12));
         Set(Root, HavenProperties.Shadow, "Card");
 
-        var header = new Container { Name = "Voice.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto", Rows = "auto" };
+        var header = new VoiceDragHandle { Name = "Voice.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto", Rows = "auto" };
+        if (dragDelta is not null) header.DragDelta += dragDelta;
         var title = new Container { Layout = HavenLayout.Vertical };
+        Set(title, HavenProperties.PointerEvents, HavenPointerEvents.None);
         title.Add(new HavenText("Voice") { Name = "Voice.Title", Level = TextLevel.H4 });
         StatusText = Secondary("Ready", "Voice.Status");
         title.Add(StatusText);
@@ -47,6 +51,7 @@ internal sealed class GlobalCallHavenScene : IDisposable
         DurationText = new HavenText("Ready") { Name = "Voice.Duration", Level = TextLevel.Paragraph };
         Set(DurationText, HavenProperties.Column, 1);
         Set(DurationText, HavenProperties.FontWeight, 800);
+        Set(DurationText, HavenProperties.PointerEvents, HavenPointerEvents.None);
         header.Add(DurationText);
         Root.Add(header);
 
