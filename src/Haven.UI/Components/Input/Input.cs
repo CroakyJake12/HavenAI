@@ -13,6 +13,7 @@ public sealed class Input : HavenElement
     public static readonly HavenProperty<string> TextProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Input.Text", string.Empty));
     public static readonly HavenProperty<string> PlaceholderProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Input.Placeholder", string.Empty));
     public static readonly HavenProperty<bool> MultilineProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.Multiline", false));
+    public static readonly HavenProperty<bool> SubmitOnEnterProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.SubmitOnEnter", false));
     public static readonly HavenProperty<int> CaretIndexProperty = HavenPropertyRegistry.Register(new HavenProperty<int>("Input.CaretIndex", 0));
 
     public Input()
@@ -27,14 +28,18 @@ public sealed class Input : HavenElement
         SetValue(HavenProperties.Transition, InputDefaults.FocusTransition, HavenValueSource.Default);
     }
 
+    public event EventHandler? TextChanged;
+
     public string Text
     {
         get => GetValue(TextProperty);
         set
         {
             var next = value ?? string.Empty;
+            if (string.Equals(Text, next, StringComparison.Ordinal)) return;
             SetValue(TextProperty, next);
             SetValue(CaretIndexProperty, NormalizeCaret(next, GetValue(CaretIndexProperty)));
+            TextChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -50,6 +55,7 @@ public sealed class Input : HavenElement
     }
 
     public bool Multiline { get => GetValue(MultilineProperty); set => SetValue(MultilineProperty, value); }
+    public bool SubmitOnEnter { get => GetValue(SubmitOnEnterProperty); set => SetValue(SubmitOnEnterProperty, value); }
     public int CaretIndex => GetValue(CaretIndexProperty);
 
     public void PlaceCaretAtEnd() => SetCaret(Text.Length);
@@ -70,8 +76,7 @@ public sealed class Input : HavenElement
         var insertion = Multiline ? value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n') : value.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
         if (insertion.Length == 0) return false;
         var index = NormalizeCaret(Text, CaretIndex);
-        var next = Text.Insert(index, insertion);
-        SetValue(TextProperty, next);
+        Text = Text.Insert(index, insertion);
         SetCaret(index + insertion.Length);
         return true;
     }
@@ -81,7 +86,7 @@ public sealed class Input : HavenElement
         var index = NormalizeCaret(Text, CaretIndex);
         if (index <= 0) return false;
         var start = PreviousBoundary(Text, index);
-        SetValue(TextProperty, Text.Remove(start, index - start));
+        Text = Text.Remove(start, index - start);
         SetCaret(start);
         return true;
     }
@@ -91,7 +96,7 @@ public sealed class Input : HavenElement
         var index = NormalizeCaret(Text, CaretIndex);
         if (index >= Text.Length) return false;
         var end = NextBoundary(Text, index);
-        SetValue(TextProperty, Text.Remove(index, end - index));
+        Text = Text.Remove(index, end - index);
         SetCaret(index);
         return true;
     }

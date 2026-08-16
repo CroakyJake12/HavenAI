@@ -7,6 +7,7 @@ public enum HavenValueSource
     UserClass = 20,
     Explicit = 30,
     State = 40,
+    Prefab = 45,
     Animation = 50
 }
 
