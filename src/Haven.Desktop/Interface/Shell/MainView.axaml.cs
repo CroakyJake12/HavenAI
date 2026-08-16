@@ -1919,7 +1919,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenApplicationSettings()
     {
-        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPage(_bus, _preferences, _ollama)
+        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsHavenPage(_bus, _preferences, _ollama)
             , true);
     }
 
