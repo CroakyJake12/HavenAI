@@ -12,6 +12,7 @@ $required = @(
     "Haven.sln",
     "src/Haven.Desktop/App.axaml",
     "src/Haven.Desktop/MainWindow.axaml",
+    "src/Haven.Desktop/Views/Pages/Chat/NewChatPage.cs",
     "src/Haven.Infrastructure/Database/SqliteDatabase.cs",
     "src/Haven.Infrastructure/Providers/OllamaClient.cs",
     "src/Haven.Desktop/Program.cs"
@@ -19,6 +20,35 @@ $required = @(
 
 foreach ($relative in $required) {
     if (-not (Test-Path (Join-Path $root $relative))) { throw "Missing required file: $relative" }
+}
+
+$retiredChatSurface = @(
+    "src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml",
+    "src/Haven.Desktop/Views/Pages/Chat/NewChatPage.axaml.cs"
+)
+foreach ($relative in $retiredChatSurface) {
+    if (Test-Path (Join-Path $root $relative)) { throw "Retired Chat surface returned to active source: $relative" }
+}
+
+$chatRollback = @(
+    "migration-rollback/2026-08-16-chat-current-base/desktop/NewChatPage.axaml",
+    "migration-rollback/2026-08-16-chat-current-base/desktop/NewChatPage.axaml.cs",
+    "migration-rollback/2026-08-16-chat-current-base/desktop/NativeChatSidebar.cs"
+)
+foreach ($relative in $chatRollback) {
+    if (-not (Test-Path (Join-Path $root $relative))) { throw "Missing Chat migration rollback file: $relative" }
+}
+
+$activeChatSidebar = Join-Path $root "src/Haven.Desktop/Interface/Shell/NativePresentation/NativeChatSidebar.cs"
+$activeChatSidebarSource = Get-Content $activeChatSidebar -Raw
+$forbiddenChatSidebarVisuals = @(
+    "new TextBox", "new TextBlock", "new StackPanel", "new Grid", "new ScrollViewer",
+    "new ContextMenu", "new HavenContextMenu", "new Flyout", "new HavenAdaptivePopup", "new MenuItem", "new HavenMenuItem"
+)
+foreach ($token in $forbiddenChatSidebarVisuals) {
+    if ($activeChatSidebarSource.IndexOf($token, [StringComparison]::Ordinal) -ge 0) {
+        throw "Migrated Chat sidebar returned to ordinary Avalonia visual construction: $token"
+    }
 }
 
 $forbidden = Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in @(".go", ".html", ".js", ".ts") }
