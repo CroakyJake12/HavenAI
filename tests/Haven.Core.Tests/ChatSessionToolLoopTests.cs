@@ -33,11 +33,12 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     {
         var model = new ModelDescriptor("tools-model", 1, "test", "test", "test", new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Tools }, DateTimeOffset.UtcNow);
         var ollama = new FakeOllama(model);
+        var conversations = new FakeConversations(recordMessages: true);
         var service = new ChatSessionService(
-            new FakeConversations(), ollama, new CapabilityPreflightService(),
+            conversations, ollama, new CapabilityPreflightService(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()));
         var now = DateTimeOffset.UtcNow;
-        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Studio, ConversationKind.StudioChat, "Test", null, null, false, true, now, now);
+        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Studio, ConversationKind.StudioChat, "Test", null, null, false, false, now, now);
 
         var events = new List<ChatStreamEvent>();
         await foreach (var item in service.SendAsync(
@@ -46,8 +47,16 @@ public sealed class ChatSessionToolLoopTests : IDisposable
             events.Add(item);
 
         Assert.Equal("created", await File.ReadAllTextAsync(Path.Combine(_root, "tool-loop.txt")));
-        Assert.Contains(events, item => item.Kind == ChatStreamEventKind.ToolActivity && item.ToolActivity?.Succeeded == true);
-        Assert.Contains(events, item => item.Kind == ChatStreamEventKind.AssistantCompleted && item.Message?.Content == "Created and verified the file.");
+        var toolEvent = Assert.Single(events, item => item.Kind == ChatStreamEventKind.ToolActivity && item.ToolActivity?.Succeeded == true);
+        var assistant = Assert.Single(events, item => item.Kind == ChatStreamEventKind.AssistantCompleted && item.Message?.Content == "Created and verified the file.").Message!;
+        Assert.Equal(assistant.Id, toolEvent.MessageId);
+        Assert.True(assistant.Metadata.TryGetValue("toolActivities", out var toolActivities));
+        Assert.Equal(JsonValueKind.Array, toolActivities.ValueKind);
+        Assert.Contains(toolActivities.EnumerateArray(), item => item.GetProperty("Id").GetGuid() == toolEvent.ToolActivity!.Id);
+        var persistedMessages = await conversations.GetMessagesAsync(conversation.Id, CancellationToken.None);
+        var persistedAssistant = Assert.Single(persistedMessages, message => message.Id == assistant.Id);
+        Assert.Equal(assistant.MetadataJson, persistedAssistant.MetadataJson);
+        Assert.True(persistedAssistant.Metadata.ContainsKey("toolActivities"));
         Assert.Equal(2, ollama.ToolRequests);
     }
 
@@ -59,8 +68,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     {
         var model = new ModelDescriptor("tools-model", 1, "test", "test", "test", new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Tools }, DateTimeOffset.UtcNow);
         var ollama = new FakeOllama(model);
+        var conversations = new FakeConversations();
         var service = new ChatSessionService(
-            new FakeConversations(), ollama, new CapabilityPreflightService(),
+            conversations, ollama, new CapabilityPreflightService(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()));
         var now = DateTimeOffset.UtcNow;
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Test", null, null, false, true, now, now);
@@ -215,6 +225,9 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     /// </summary>
     private sealed class FakeConversations : IConversationRepository
     {
+        private readonly bool _recordMessages;
+        public FakeConversations(bool recordMessages = false) => _recordMessages = recordMessages;
+        public List<ChatMessage> Messages { get; } = [];
         /// <summary>
         /// Retrieves recent async for the current operation.
         /// </summary>
@@ -226,7 +239,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// <summary>
         /// Retrieves messages async for the current operation.
         /// </summary>
-        public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ChatMessage>>([]);
+        public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ChatMessage>>(_recordMessages ? Messages.Where(message => message.ConversationId == conversationId).ToArray() : []);
         /// <summary>
         /// Performs upsert conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
@@ -234,7 +247,11 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         /// <summary>
         /// Performs add message asynchronously so I/O does not block the caller's thread.
         /// </summary>
-        public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task AddMessageAsync(ChatMessage message, CancellationToken cancellationToken)
+        {
+            if (_recordMessages) Messages.Add(message);
+            return Task.CompletedTask;
+        }
         /// <summary>
         /// Performs delete conversation asynchronously so I/O does not block the caller's thread.
         /// </summary>
