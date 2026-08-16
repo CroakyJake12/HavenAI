@@ -103,9 +103,7 @@ public static class PlannerDayTimeline
 
     private static PlannerDayItem ToDayItem(PlannerTask item)
     {
-        DateTimeOffset? endsAt = null;
-        if (item.StartsAt is not null && item.EstimatedMinutes is > 0)
-            endsAt = item.StartsAt.Value.AddMinutes(item.EstimatedMinutes.Value);
+        var endsAt = GetEstimatedEnd(item);
 
         return new(
             item.Id,
@@ -124,9 +122,21 @@ public static class PlannerDayTimeline
 
     private static bool OccursInDay(PlannerTask item, DateTimeOffset dayStart, DateTimeOffset dayEnd)
     {
-        if (item.StartsAt is not null && item.StartsAt >= dayStart && item.StartsAt < dayEnd) return true;
+        if (item.StartsAt is not null)
+        {
+            if (item.StartsAt >= dayStart && item.StartsAt < dayEnd) return true;
+
+            var estimatedEnd = GetEstimatedEnd(item);
+            if (estimatedEnd is not null && item.StartsAt < dayEnd && estimatedEnd > dayStart) return true;
+        }
+
         return item.DueAt is not null && item.DueAt >= dayStart && item.DueAt < dayEnd;
     }
+
+    private static DateTimeOffset? GetEstimatedEnd(PlannerTask item) =>
+        item.StartsAt is not null && item.EstimatedMinutes is > 0
+            ? item.StartsAt.Value.AddMinutes(item.EstimatedMinutes.Value)
+            : null;
 
     private static double CalculateProgress(DateTimeOffset now, DateTimeOffset? start, DateTimeOffset? end)
     {

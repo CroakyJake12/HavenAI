@@ -37,6 +37,25 @@ public sealed class PlannerDayTimelineTests
     }
 
     [Fact]
+    public void BuildIncludesTimedTaskWhoseEstimateOverlapsDayStart()
+    {
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var dayEnd = dayStart.AddDays(1);
+        var now = dayStart.AddMinutes(15);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask("Late revision", dayStart.AddMinutes(-30), 90, created) with { DueAt = null };
+        var endedBeforeDay = NewTask("Earlier revision", dayStart.AddHours(-2), 60, created) with { DueAt = null };
+        var untimedFromPreviousDay = NewTask("Previous note", dayStart.AddMinutes(-30), null, created) with { DueAt = null };
+
+        var snapshot = PlannerDayTimeline.Build(dayStart, dayEnd, now, [spanning, endedBeforeDay, untimedFromPreviousDay], []);
+
+        var item = Assert.Single(snapshot.Items);
+        Assert.Equal(spanning.Id, item.EntityId);
+        Assert.Equal(dayStart.AddHours(1), item.EndsAt);
+        Assert.Equal(spanning.Id, snapshot.CurrentItem?.EntityId);
+    }
+
+    [Fact]
     public void AllDayAndCompletedItemsDoNotBecomeCurrentOrNextScheduleBlocks()
     {
         var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);

@@ -344,6 +344,55 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Ensures persisted timed tasks that begin before midnight remain visible when their estimated interval overlaps the requested day.
+    /// </summary>
+    [Fact]
+    public async Task DayServiceIncludesPersistedTaskWhoseEstimateCrossesMidnight()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask(PlannerDefaults.CollegeCollectionId, "Late revision", created) with
+        {
+            StartsAt = dayStart.AddMinutes(-30),
+            DueAt = null,
+            EstimatedMinutes = 90
+        };
+        var endedBeforeDay = NewTask(PlannerDefaults.CollegeCollectionId, "Earlier revision", created) with
+        {
+            StartsAt = dayStart.AddHours(-2),
+            DueAt = null,
+            EstimatedMinutes = 60
+        };
+        var dueOnly = NewTask(PlannerDefaults.CollegeCollectionId, "Submit form", created) with
+        {
+            DueAt = dayStart.AddHours(9)
+        };
+        await repository.UpsertTaskAsync(spanning, CancellationToken.None);
+        await repository.UpsertTaskAsync(endedBeforeDay, CancellationToken.None);
+        await repository.UpsertTaskAsync(dueOnly, CancellationToken.None);
+
+        var ranged = await repository.GetTasksAsync(
+            new PlannerTaskQuery(RangeStart: dayStart, RangeEnd: dayStart.AddDays(1), IncludeCompleted: true),
+            CancellationToken.None);
+
+        Assert.Contains(ranged, item => item.Id == spanning.Id);
+        Assert.DoesNotContain(ranged, item => item.Id == endedBeforeDay.Id);
+        Assert.Contains(ranged, item => item.Id == dueOnly.Id);
+
+        var snapshot = await new PlannerDayService(repository).GetDayAsync(
+            dayStart,
+            dayStart.AddMinutes(15),
+            "UTC",
+            CancellationToken.None);
+
+        Assert.Contains(snapshot.Items, item => item.EntityId == spanning.Id);
+        Assert.Contains(snapshot.Items, item => item.EntityId == dueOnly.Id);
+        Assert.Equal(spanning.Id, snapshot.CurrentItem?.EntityId);
+    }
+
+    /// <summary>
     /// Performs the persisted countdown projection integration step owned by this component.
     /// </summary>
     [Fact]
