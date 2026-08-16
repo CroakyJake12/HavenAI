@@ -47,6 +47,21 @@ public interface IPlannerCountdownService
 }
 
 /// <summary>
+/// Finds usable free-time windows from the same canonical day state consumed by Plan.
+/// </summary>
+public interface IPlannerAvailabilityService
+{
+    Task<IReadOnlyList<PlannerFreeWindow>> GetFreeWindowsAsync(
+        DateTimeOffset day,
+        DateTimeOffset now,
+        string? timeZoneId,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        TimeSpan minimumDuration,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Defines the planner repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPlannerRepository
