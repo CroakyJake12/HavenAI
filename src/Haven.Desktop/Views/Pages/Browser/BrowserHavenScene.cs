@@ -108,6 +108,7 @@ internal sealed partial class BrowserHavenScene : IDisposable
         tools.Add(BookmarksButton);
         tools.Add(HistoryButton);
         tools.Add(AssistantButton);
+        BuildResearchTool(tools);
         tools.Add(SettingsButton);
         tools.Add(PrivateTabButton);
         tools.Add(ExtensionsButton);
