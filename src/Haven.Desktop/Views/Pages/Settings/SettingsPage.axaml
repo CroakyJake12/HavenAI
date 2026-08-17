@@ -1,8 +1,0 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
-             x:Class="Haven.Desktop.Views.Pages.Settings.SettingsPage">
-
-  <Grid x:Name="SettingsRoot" ColumnDefinitions="220,*" ColumnSpacing="0" />
-
-</UserControl>
