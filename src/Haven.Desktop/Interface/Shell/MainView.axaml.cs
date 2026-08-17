@@ -24,6 +24,7 @@ using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.ContainerSettings;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
+using Haven.Desktop.Views.Pages.Plan;
 using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
@@ -103,6 +104,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private GoPage? _goPage;
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
+    private NativePlanPage? _nativePlanPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
     private object? _currentPage;
@@ -901,8 +903,57 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenPlan()
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            _nativePlanPage ??= CreateNativePlanPage();
+            AddOrSelectTab("plan", "Plan", _nativePlanPage, false, HavenSurface.Plan);
+            return;
+        }
+
+        OpenLegacyPlan();
+
+    }
+
+    private NativePlanPage CreateNativePlanPage()
+    {
+        var page = new NativePlanPage(_planner, _containers);
+        page.FullPlannerRequested += (_, _) => OpenLegacyPlan();
+        page.StudyRequested += OnNativePlanStudyRequested;
+        return page;
+    }
+
+    private void OpenLegacyPlan()
+    {
         _planPage ??= new PlanPageViewModel(_planner, _plannerProposals, _calendarProviders, _ollama);
-        AddOrSelectTab("plan", "Plan", _planPage, false, HavenSurface.Plan);
+        var title = _edition == HavenShellEdition.New ? "Full planner" : "Plan";
+        AddOrSelectTab(_edition == HavenShellEdition.New ? "plan-full" : "plan", title, _planPage, false, HavenSurface.Plan);
+    }
+
+    private async void OnNativePlanStudyRequested(object? sender, PlannerStudyLink link)
+    {
+        try
+        {
+            await OpenStudyAssignmentAsync(link);
+        }
+        catch (Exception exception)
+        {
+            _notifications.Show("Study unavailable", $"Haven could not open this Study assignment: {exception.Message}", ToastKind.Warning, TimeSpan.FromSeconds(6));
+        }
+    }
+
+    private async Task OpenStudyAssignmentAsync(PlannerStudyLink link)
+    {
+        var subjects = await _containers.GetByModeAsync(HavenMode.Study, CancellationToken.None);
+        var title = subjects.FirstOrDefault(subject => subject.Id == link.SubjectId)?.Name ?? "Study";
+        var page = CreateNewChatPage();
+        await ConfigureAddMenuAsync(page);
+        await page.StartFreshConversationAsync(HavenMode.Study, link.SubjectId, link.LessonId);
+        var lessonKey = link.LessonId?.ToString("N") ?? "subject";
+        AddOrSelectTab($"study-plan-{link.SubjectId:N}-{lessonKey}", title, page, true, HavenSurface.Study);
+        _nativeChatSidebar?.SetMode(HavenMode.Study);
+        _nativeChatSidebar?.SetActiveConversation(page.ConversationId, link.SubjectId);
+        ApplyShellVisualState();
+        page.FocusComposer();
     }
 
     private async Task NavigateModeAsync(HavenMode mode, bool showHome)
@@ -3135,6 +3186,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _newDashboardPage?.Dispose();
         _newChatPage?.Dispose();
         _nativeChatSidebar?.Dispose();
+        _nativePlanPage?.Dispose();
         _planPage?.Dispose();
         _companionDockVm.Dispose();
         TopRail.Dispose();

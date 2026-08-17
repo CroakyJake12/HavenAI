@@ -1,0 +1,13 @@
+<DynamicUI Name="PlanDayItem">
+  <Container Name="RowRoot" Layout="Grid" Columns="78px 1fr Auto" Rows="Auto" Width="100%" Gap="12px" Padding="12px 14px" Background="SurfaceRaised" BorderColor="Border" BorderWidth="1px" Radius="15px">
+    <Text Name="Time" Content="{{TIME}}" Column="0" FontSize="12" FontWeight="700" Foreground="{{STATECOLOR}}" VerticalAlignment="Center" />
+    <Container Name="Details" Column="1" Layout="Vertical" Gap="3px" VerticalAlignment="Center">
+      <Text Name="Title" Content="{{TITLE}}" FontSize="14" FontWeight="700" />
+      <Text Name="Meta" Content="{{META}}" FontSize="11" FontWeight="500" Foreground="TextSecondary" />
+    </Container>
+    <Container Name="Actions" Column="2" Layout="Horizontal" Gap="6px" VerticalAlignment="Center">
+      <Button Name="Study" Variant="Ghost" IconKey="book" Content="{{STUDYLABEL}}" MinHeight="32px" Visibility="{{STUDYVISIBILITY}}" />
+      <Button Name="Complete" Variant="Icon" IconKey="check" Content="" Width="32px" Height="32px" MinHeight="32px" Visibility="{{COMPLETEVISIBILITY}}" />
+    </Container>
+  </Container>
+</DynamicUI>
