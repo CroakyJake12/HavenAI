@@ -100,7 +100,7 @@ public sealed partial class TasksPage : UserControl
         InitializeComponent();
         var host = this.FindControl<Grid>("CodeBehindHost")
             ?? throw new InvalidOperationException("Tasks host was not initialized.");
-        host.Children.Add(BuildLayout());
+        InitializeHavenScene(host);
     }
 
     private Control BuildLayout()
