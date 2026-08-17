@@ -24,6 +24,7 @@ using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.ContainerSettings;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
+using Haven.Desktop.Views.Pages.Plan;
 using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
@@ -103,6 +104,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private GoPage? _goPage;
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
+    private NativePlanPage? _nativePlanPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
     private object? _currentPage;
@@ -907,8 +909,57 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenPlan()
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            _nativePlanPage ??= CreateNativePlanPage();
+            AddOrSelectTab("plan", "Plan", _nativePlanPage, false, HavenSurface.Plan);
+            return;
+        }
+
+        OpenLegacyPlan();
+
+    }
+
+    private NativePlanPage CreateNativePlanPage()
+    {
+        var page = new NativePlanPage(_planner, _containers);
+        page.FullPlannerRequested += (_, _) => OpenLegacyPlan();
+        page.StudyRequested += OnNativePlanStudyRequested;
+        return page;
+    }
+
+    private void OpenLegacyPlan()
+    {
         _planPage ??= new PlanPageViewModel(_planner, _plannerProposals, _calendarProviders, _ollama);
-        AddOrSelectTab("plan", "Plan", _planPage, false, HavenSurface.Plan);
+        var title = _edition == HavenShellEdition.New ? "Full planner" : "Plan";
+        AddOrSelectTab(_edition == HavenShellEdition.New ? "plan-full" : "plan", title, _planPage, false, HavenSurface.Plan);
+    }
+
+    private async void OnNativePlanStudyRequested(object? sender, PlannerStudyLink link)
+    {
+        try
+        {
+            await OpenStudyAssignmentAsync(link);
+        }
+        catch (Exception exception)
+        {
+            _notifications.Show("Study unavailable", $"Haven could not open this Study assignment: {exception.Message}", ToastKind.Warning, TimeSpan.FromSeconds(6));
+        }
+    }
+
+    private async Task OpenStudyAssignmentAsync(PlannerStudyLink link)
+    {
+        var subjects = await _containers.GetByModeAsync(HavenMode.Study, CancellationToken.None);
+        var title = subjects.FirstOrDefault(subject => subject.Id == link.SubjectId)?.Name ?? "Study";
+        var page = CreateNewChatPage();
+        await ConfigureAddMenuAsync(page);
+        await page.StartFreshConversationAsync(HavenMode.Study, link.SubjectId, link.LessonId);
+        var lessonKey = link.LessonId?.ToString("N") ?? "subject";
+        AddOrSelectTab($"study-plan-{link.SubjectId:N}-{lessonKey}", title, page, true, HavenSurface.Study);
+        _nativeChatSidebar?.SetMode(HavenMode.Study);
+        _nativeChatSidebar?.SetActiveConversation(page.ConversationId, link.SubjectId);
+        ApplyShellVisualState();
+        page.FocusComposer();
     }
 
     private async Task NavigateModeAsync(HavenMode mode, bool showHome)
@@ -1201,9 +1252,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             OpenCapabilities();
             return;
         }
-        var page = new CatalogPageViewModel(kind, _catalog, _ollama, true);
+        var pageModel = new CatalogPageViewModel(kind, _catalog, _ollama, true);
         var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
-        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, page, true);
+        if (kind == CatalogPageKind.Agents)
+        {
+            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel), true);
+            return;
+        }
+
+        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, pageModel, true);
     }
 
     private void OpenAutomations()
@@ -1940,7 +1997,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenApplicationSettings()
     {
-        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPage(_bus, _preferences, _ollama)
+        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsHavenPage(_bus, _preferences, _ollama)
             , true);
     }
 
@@ -2252,6 +2309,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Redo", "Redo the latest editable workspace change.", "Ctrl+Y", RedoCurrentCommand),
             Command("Save", "Save the current editable workspace.", "Ctrl+S", SaveCurrentCommand),
             Command("Configure model", "Search models and open advanced generation and safety options.", string.Empty, ConfigureModelCommand),
+            Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
@@ -3141,6 +3199,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _newDashboardPage?.Dispose();
         _newChatPage?.Dispose();
         _nativeChatSidebar?.Dispose();
+        _nativePlanPage?.Dispose();
         _planPage?.Dispose();
         _companionDockVm.Dispose();
         TopRail.Dispose();

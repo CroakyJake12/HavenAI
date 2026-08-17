@@ -1,0 +1,7 @@
+<DynamicUI Name="PlanFreeWindow">
+  <Container Name="RowRoot" Layout="Horizontal" Width="100%" Gap="10px" Padding="9px 12px" Background="SurfaceRaised" Radius="13px">
+    <Icon Name="Icon" Key="clock" Width="16px" Height="16px" Foreground="Accent" />
+    <Text Name="Time" Content="{{TIME}}" FontSize="12" FontWeight="700" />
+    <Text Name="Duration" Content="{{DURATION}}" FontSize="11" Foreground="TextSecondary" />
+  </Container>
+</DynamicUI>
