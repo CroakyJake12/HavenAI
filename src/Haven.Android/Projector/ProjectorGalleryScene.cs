@@ -58,6 +58,38 @@ internal sealed class ProjectorGalleryScene
         };
         subtitle.SetValue(HavenProperties.Foreground, "TextSecondary");
         header.Add(subtitle);
+
+        var route = new Container
+        {
+            Name = "Projector.Gallery.Route",
+            Layout = HavenLayout.Grid,
+            Columns = "1fr Auto",
+            Rows = "Auto"
+        };
+        route.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        route.SetValue(HavenProperties.Margin, HavenThickness.Parse("10px 0px 0px 0px"));
+
+        RouteInput = new Input
+        {
+            Name = "Projector.Gallery.Route.Input",
+            Placeholder = "What should this screen become?",
+            Multiline = false,
+            SubmitOnEnter = true
+        };
+        RouteInput.SetValue(HavenProperties.Column, 0);
+        route.Add(RouteInput);
+
+        var routeButton = new HavenButton
+        {
+            Name = "Projector.Gallery.Route.Go",
+            Content = "Go",
+            IconKey = "arrow-up",
+            Variant = ButtonVariant.Primary
+        };
+        routeButton.SetValue(HavenProperties.Column, 1);
+        routeButton.Invoked += (_, _) => SubmitRoute();
+        route.Add(routeButton);
+        header.Add(route);
         Root.Add(header);
 
         _wideGrid = new Container
@@ -116,7 +148,28 @@ internal sealed class ProjectorGalleryScene
     }
 
     public Page Root { get; }
+    public Input RouteInput { get; }
     public event Action<ProjectorExperience>? ExperienceInvoked;
+    public event Action<string>? RouteRequested;
+
+    public void SubmitRoute()
+    {
+        var request = RouteInput.Text.Trim();
+        if (request.Length == 0)
+        {
+            SetRouteStatus("Describe this screen", "Type an experience or app, then press Enter or Go.");
+            return;
+        }
+
+        SetRouteStatus("Planning route", request);
+        RouteRequested?.Invoke(request);
+    }
+
+    public void SetRouteStatus(string title, string description)
+    {
+        _selectionTitle.Content = title;
+        _selectionDescription.Content = description;
+    }
 
     public void SetExperiences(IReadOnlyList<ProjectorExperience> experiences)
     {

@@ -5,6 +5,7 @@ public enum ProjectorExperienceSource { BuiltIn, Application, Plugin, Workspace,
 public enum ProjectorTransportKind { NativeDisplay, HavenReceiver }
 public enum ProjectorConnectionKind { Unknown, Wired, NativeWireless, Virtual, Receiver }
 public enum ProjectorDisplayTrust { Private, Trusted, Shared, Public }
+public enum ProjectorContentSensitivity { Public, SharedSafe, Private }
 public enum ProjectorCapabilityState { Unknown, Unavailable, Available }
 public enum ProjectorCapability { RenderHavenSurface, LaunchAndroidActivity, LaunchBounds, PointerInput, KeyboardInput, TouchInput, ControllerInput, TransferAudio, TransferVideo, SyncClipboard, Reconnect, PresentationDisplay, NativeWirelessDisplay }
 public enum ProjectorInteractionProfile { Desktop, LeanBack, Presentation, Touch, Controller, Mixed }
@@ -53,8 +54,22 @@ public sealed record ProjectorDisplay(
 public sealed record ProjectorExperience(
     string Id, string Name, string Description, string IconKey, string? ArtworkKey, ProjectorExperienceSource Source,
     ProjectorLaunchStrategy LaunchStrategy, ProjectorInteractionProfile InteractionProfile,
-    ProjectorExperiencePersistence Persistence, IReadOnlyList<ProjectorCapability> RequiredCapabilities)
+    ProjectorExperiencePersistence Persistence, IReadOnlyList<ProjectorCapability> RequiredCapabilities,
+    ProjectorContentSensitivity Sensitivity = ProjectorContentSensitivity.Private)
 {
+    public bool HasRequiredCapabilities(ProjectorCapabilities capabilities) => RequiredCapabilities.All(capability =>
+        capabilities.Get(capability) == ProjectorCapabilityState.Available);
+
+    public bool IsAllowedOn(ProjectorDisplayTrust trust) => Sensitivity switch
+    {
+        ProjectorContentSensitivity.Public => true,
+        ProjectorContentSensitivity.SharedSafe => trust is ProjectorDisplayTrust.Private or ProjectorDisplayTrust.Trusted or ProjectorDisplayTrust.Shared,
+        ProjectorContentSensitivity.Private => trust is ProjectorDisplayTrust.Private or ProjectorDisplayTrust.Trusted,
+        _ => false
+    };
+
+    public bool IsAvailable(ProjectorDisplay display) => HasRequiredCapabilities(display.Capabilities) && IsAllowedOn(display.Trust);
+
     public bool IsAvailable(ProjectorCapabilities capabilities) => RequiredCapabilities.All(capability =>
         capabilities.Get(capability) == ProjectorCapabilityState.Available);
 }
@@ -148,6 +163,7 @@ public interface IProjectorSessionCoordinator
     event Action<ProjectorSessionSnapshot?>? StateChanged;
     ProjectorSessionSnapshot Start(ProjectorDisplay targetDisplay);
     ProjectorSessionSnapshot Activate(ProjectorExperience experience, ProjectorControllerDefinition? controller = null);
+    ProjectorSessionSnapshot SetTargetTrust(ProjectorDisplayTrust trust);
     bool TryReconnect(ProjectorDisplay display, out ProjectorSessionSnapshot? snapshot);
     ProjectorSessionSnapshot? Stop();
 }
@@ -186,11 +202,29 @@ public sealed class ProjectorSessionCoordinator : IProjectorSessionCoordinator, 
         lock (_gate) current = _current ?? throw new InvalidOperationException("Start Projector before launching an experience.");
         if (current.State is ProjectorSessionState.Disconnected or ProjectorSessionState.Stopping or ProjectorSessionState.Failed)
             throw new InvalidOperationException($"Projector cannot launch an experience while {current.State}.");
-        if (!experience.IsAvailable(current.TargetDisplay.Capabilities))
+        if (!experience.IsAvailable(current.TargetDisplay))
             throw new InvalidOperationException($"{experience.Name} is not available on the selected Projector target.");
         var active = current with { State = ProjectorSessionState.Active, PreviousExperienceId = current.CurrentExperienceId, CurrentExperienceId = experience.Id, Controller = controller, UpdatedAt = DateTimeOffset.UtcNow, Error = null };
         SetCurrent(active);
         return active;
+    }
+
+    public ProjectorSessionSnapshot SetTargetTrust(ProjectorDisplayTrust trust)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ProjectorSessionSnapshot current;
+        lock (_gate) current = _current ?? throw new InvalidOperationException("Start Projector before changing display trust.");
+
+        if (current.TargetDisplay.Trust == trust)
+            return current;
+
+        var updatedDisplay = current.TargetDisplay with
+        {
+            Trust = trust,
+            ObservedAt = DateTimeOffset.UtcNow
+        };
+        _displays.Upsert(updatedDisplay);
+        lock (_gate) return _current ?? current with { TargetDisplay = updatedDisplay, UpdatedAt = DateTimeOffset.UtcNow };
     }
 
     public bool TryReconnect(ProjectorDisplay display, out ProjectorSessionSnapshot? snapshot)

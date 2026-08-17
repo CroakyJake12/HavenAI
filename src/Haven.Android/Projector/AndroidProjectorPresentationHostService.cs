@@ -17,21 +17,25 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
     private readonly IProjectorDisplayRegistry _registry;
     private readonly IProjectorSessionCoordinator _sessions;
     private readonly IProjectorExperienceCatalog _catalog;
+    private readonly IProjectorActionPlanner _planner;
     private readonly AndroidProjectorApplicationService _applications;
     private readonly DisplayManager? _displayManager;
     private readonly Handler? _mainHandler;
     private PresentationEntry? _active;
+    private CancellationTokenSource? _routeCancellation;
     private bool _disposed;
 
     public AndroidProjectorPresentationHostService(
         IProjectorDisplayRegistry registry,
         IProjectorSessionCoordinator sessions,
         IProjectorExperienceCatalog catalog,
+        IProjectorActionPlanner planner,
         AndroidProjectorApplicationService applications)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _planner = planner ?? throw new ArgumentNullException(nameof(planner));
         _applications = applications ?? throw new ArgumentNullException(nameof(applications));
 
         var context = global::Android.App.Application.Context;
@@ -81,7 +85,17 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             }
 
             if (change.Display.Capabilities.RenderHavenSurface != ProjectorCapabilityState.Available)
+            {
                 PromoteRenderCapability(change.Display);
+                return;
+            }
+
+            var session = _sessions.Current;
+            if (session is not null
+                && string.Equals(session.TargetDisplay.RuntimeId, change.Display.RuntimeId, StringComparison.Ordinal))
+            {
+                _ = PopulateGalleryAsync(_active, session);
+            }
             return;
         }
 
@@ -142,6 +156,12 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
 
         var entry = new PresentationEntry(display.RuntimeId, presentation, view, scene);
         scene.ExperienceInvoked += experience => OnExperienceInvoked(entry, experience);
+        scene.RouteRequested += request => OnRouteRequested(entry, request);
+        surface.InputSubmitted += input =>
+        {
+            if (ReferenceEquals(input, scene.RouteInput))
+                scene.SubmitRoute();
+        };
         _active = entry;
         var promoted = PromoteRenderCapability(display);
 
@@ -161,17 +181,123 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
         _ = PopulateGalleryAsync(entry, session);
     }
 
+    private void OnRouteRequested(PresentationEntry entry, string request)
+    {
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+
+        var cancellation = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _routeCancellation, cancellation);
+        previous?.Cancel();
+        _ = PlanAndExecuteRouteAsync(entry, request, cancellation);
+    }
+
+    private async Task PlanAndExecuteRouteAsync(
+        PresentationEntry entry,
+        string request,
+        CancellationTokenSource cancellation)
+    {
+        try
+        {
+            var session = _sessions.Current;
+            if (session is null
+                || session.State == ProjectorSessionState.Disconnected
+                || !string.Equals(session.TargetDisplay.RuntimeId, entry.RuntimeId, StringComparison.Ordinal))
+            {
+                PostRouteStatus(entry, "Projector unavailable", "The target display is no longer the active Projector session.");
+                return;
+            }
+
+            var plan = await _planner.PlanAsync(request, session, cancellation.Token).ConfigureAwait(false);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!ReferenceEquals(Volatile.Read(ref _routeCancellation), cancellation))
+                return;
+
+            if (!plan.CanExecute)
+            {
+                var title = plan.Status switch
+                {
+                    ProjectorActionPlanStatus.BlockedByTrust => "Private on this display",
+                    ProjectorActionPlanStatus.BlockedByCapability => "Not supported by this display",
+                    ProjectorActionPlanStatus.Ambiguous => "Choose a more specific target",
+                    ProjectorActionPlanStatus.EmptyRequest => "Describe this screen",
+                    _ => "No supported route"
+                };
+                PostRouteStatus(entry, title, plan.Summary);
+                return;
+            }
+
+            var available = await _catalog.GetExperiencesAsync(session, cancellation.Token).ConfigureAwait(false);
+            cancellation.Token.ThrowIfCancellationRequested();
+            var target = available.FirstOrDefault(experience =>
+                string.Equals(experience.Id, plan.TargetExperienceId, StringComparison.OrdinalIgnoreCase));
+            if (target is null)
+            {
+                PostRouteStatus(entry, "Route changed", "That experience is no longer available for this display.");
+                return;
+            }
+
+            RunOnMainThread(() =>
+            {
+                if (_disposed || !ReferenceEquals(_active, entry) || cancellation.IsCancellationRequested)
+                    return;
+                ExecuteExperience(entry, target, plan.Summary);
+            });
+        }
+        catch (System.OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            global::Android.Util.Log.Warn("HavenProjector", "Could not plan Projector route: " + exception.Message);
+            PostRouteStatus(entry, "Projector route failed", exception.Message);
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _routeCancellation, null, cancellation);
+            cancellation.Dispose();
+        }
+    }
+
+    private void PostRouteStatus(PresentationEntry entry, string title, string description)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed || !ReferenceEquals(_active, entry))
+                return;
+            entry.Scene.SetRouteStatus(title, description);
+        });
+    }
+
     private void OnExperienceInvoked(PresentationEntry entry, ProjectorExperience experience)
     {
         if (_disposed || !ReferenceEquals(_active, entry))
             return;
-        if (experience.Source != ProjectorExperienceSource.Application
-            || experience.LaunchStrategy != ProjectorLaunchStrategy.AndroidApplication)
+        RunOnMainThread(() => ExecuteExperience(entry, experience, experience.Description));
+    }
+
+    private void ExecuteExperience(PresentationEntry entry, ProjectorExperience experience, string status)
+    {
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+
+        if (experience.Source == ProjectorExperienceSource.Application
+            && experience.LaunchStrategy == ProjectorLaunchStrategy.AndroidApplication)
         {
+            LaunchApplication(entry, experience);
             return;
         }
 
-        RunOnMainThread(() => LaunchApplication(entry, experience));
+        try
+        {
+            _sessions.Activate(experience);
+            PostExperienceStatus(entry, experience, status);
+        }
+        catch (Exception exception)
+        {
+            global::Android.Util.Log.Warn("HavenProjector", "Could not activate Projector experience: " + exception.Message);
+            PostExperienceStatus(entry, experience, exception.Message);
+        }
     }
 
     private void LaunchApplication(PresentationEntry entry, ProjectorExperience experience)
@@ -253,6 +379,7 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
 
     private void DismissActive(bool stopSession)
     {
+        Interlocked.Exchange(ref _routeCancellation, null)?.Cancel();
         var active = _active;
         _active = null;
         if (active is null) return;

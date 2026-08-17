@@ -125,16 +125,41 @@ public sealed partial class MainView
         }
 
         _projectorControllerActions.Children.Clear();
-        if (session is null || session.State != ProjectorSessionState.Active)
+        if (session is null || session.State is ProjectorSessionState.Disconnected or ProjectorSessionState.Stopping or ProjectorSessionState.Failed)
         {
             _projectorControllerSheet.IsVisible = false;
             return;
         }
 
         _projectorControllerTitle.Text = "Projector · " + session.TargetDisplay.Name;
-        _projectorControllerSubtitle.Text = string.IsNullOrWhiteSpace(session.CurrentExperienceId)
-            ? "Active Projector experience"
+        var experienceLabel = string.IsNullOrWhiteSpace(session.CurrentExperienceId)
+            ? session.State.ToString()
             : session.CurrentExperienceId;
+        _projectorControllerSubtitle.Text = $"{experienceLabel} · {session.TargetDisplay.Trust} display";
+
+        foreach (var trust in new[]
+        {
+            ProjectorDisplayTrust.Private,
+            ProjectorDisplayTrust.Trusted,
+            ProjectorDisplayTrust.Shared,
+            ProjectorDisplayTrust.Public
+        })
+        {
+            var capturedTrust = trust;
+            var label = trust == session.TargetDisplay.Trust ? $"{trust} ✓" : trust.ToString();
+            _projectorControllerActions.Children.Add(MobileButton(
+                label,
+                "bolt",
+                () => SetProjectorTrust(session.Id, capturedTrust),
+                10));
+        }
+
+        if (session.State != ProjectorSessionState.Active)
+        {
+            _projectorControllerStatus.Text = "Display trust controls which experiences Projector may reveal.";
+            _projectorControllerSheet.IsVisible = true;
+            return;
+        }
 
         var controller = session.Controller;
         if (controller is null || controller.Actions.Count == 0)
@@ -156,6 +181,26 @@ public sealed partial class MainView
         }
 
         _projectorControllerSheet.IsVisible = true;
+    }
+
+    private void SetProjectorTrust(Guid sessionId, ProjectorDisplayTrust trust)
+    {
+        var sessions = _projectorSessions;
+        var current = sessions?.Current;
+        if (sessions is null || current is null || current.Id != sessionId)
+            return;
+
+        try
+        {
+            var updated = sessions.SetTargetTrust(trust);
+            if (_projectorControllerStatus is not null)
+                _projectorControllerStatus.Text = $"{updated.TargetDisplay.Name} is now classified as {trust}.";
+        }
+        catch (Exception exception)
+        {
+            if (_projectorControllerStatus is not null)
+                _projectorControllerStatus.Text = "Display trust could not be changed: " + exception.Message;
+        }
     }
 
     private async Task InvokeProjectorControllerActionAsync(Guid sessionId, ProjectorControllerAction action)

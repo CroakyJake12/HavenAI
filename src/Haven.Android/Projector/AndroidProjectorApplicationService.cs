@@ -49,6 +49,11 @@ public sealed class AndroidProjectorApplicationService : IProjectorExperiencePro
             return new(false, "This Projector experience is not an Android application.");
         }
 
+        if (!experience.IsAllowedOn(display.Trust))
+        {
+            return new(false, $"{experience.Name} is not allowed on a {display.Trust.ToString().ToLowerInvariant()} Projector display. Change display trust on the phone first.");
+        }
+
         if (display.Capabilities.LaunchAndroidActivity != ProjectorCapabilityState.Available)
             return new(false, "Android has not proven secondary-display app launching for this Projector target.");
 

@@ -32,7 +32,7 @@ public sealed class ProjectorExperienceCatalog : IProjectorExperienceCatalog
             {
                 if (string.IsNullOrWhiteSpace(experience.Id) || !seen.Add(experience.Id))
                     continue;
-                if (session is not null && !experience.IsAvailable(session.TargetDisplay.Capabilities))
+                if (session is not null && !experience.IsAvailable(session.TargetDisplay))
                     continue;
                 results.Add(experience);
             }
@@ -56,7 +56,11 @@ public sealed class BuiltInProjectorExperienceProvider : IProjectorExperiencePro
         BuiltIn("music", "Music", "A focused playback surface for supported music providers and media sessions.", "bolt", ProjectorInteractionProfile.LeanBack),
         BuiltIn("tv", "TV", "A television-style surface for supported live and on-demand provider experiences.", "browse", ProjectorInteractionProfile.LeanBack),
         BuiltIn("haven", "Haven", "A large-screen Haven experience for conversations, tasks and contextual work.", "chat", ProjectorInteractionProfile.Mixed),
-        BuiltIn("presentation", "Presentation", "A privacy-aware presentation surface that keeps private controls on the phone.", "file", ProjectorInteractionProfile.Presentation)
+        BuiltIn("photos", "Photos", "A large-screen photo experience that keeps private library selection under user control.", "file", ProjectorInteractionProfile.Mixed),
+        BuiltIn("browser", "Browser", "A large-screen Haven browser surface for deliberate web viewing and navigation.", "browse", ProjectorInteractionProfile.Mixed),
+        BuiltIn("study", "Study", "A focused study surface for lessons, revision material and Haven-guided work.", "file", ProjectorInteractionProfile.Mixed),
+        BuiltIn("development", "Development", "A development surface for code, documentation and project context.", "studio", ProjectorInteractionProfile.Desktop),
+        BuiltIn("presentation", "Presentation", "A privacy-aware presentation surface that keeps private controls on the phone.", "file", ProjectorInteractionProfile.Presentation) with { Sensitivity = ProjectorContentSensitivity.Public }
     ];
 
     public ValueTask<IReadOnlyList<ProjectorExperience>> GetExperiencesAsync(

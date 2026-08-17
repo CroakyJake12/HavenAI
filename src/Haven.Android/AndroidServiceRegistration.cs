@@ -1,4 +1,4 @@
-﻿using Haven.Application;
+using Haven.Application;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Android;
@@ -16,6 +16,7 @@ public static class AndroidServiceRegistration
         services.AddSingleton<IProjectorExperienceProvider>(provider =>
             provider.GetRequiredService<AndroidProjectorApplicationService>());
         services.AddSingleton<IProjectorExperienceCatalog, ProjectorExperienceCatalog>();
+        services.AddSingleton<IProjectorActionPlanner, ProjectorActionPlanner>();
         services.AddSingleton<IProjectorDisplayRegistry, ProjectorDisplayRegistry>();
         services.AddSingleton<IProjectorSessionCoordinator, ProjectorSessionCoordinator>();
         services.AddSingleton<AndroidProjectorControllerActionDispatcher>();

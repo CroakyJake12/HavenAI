@@ -64,7 +64,7 @@ public sealed class ProjectorFoundationTests
         var experiences = await provider.GetExperiencesAsync(null, CancellationToken.None);
 
         Assert.Equal(
-            new[] { "desktop", "games", "haven", "music", "presentation", "tv", "videos" },
+            new[] { "browser", "desktop", "development", "games", "haven", "music", "photos", "presentation", "study", "tv", "videos" },
             experiences.Select(experience => experience.Id).OrderBy(id => id, StringComparer.Ordinal));
         Assert.All(experiences, experience => Assert.Contains(ProjectorCapability.RenderHavenSurface, experience.RequiredCapabilities));
     }
@@ -92,13 +92,13 @@ public sealed class ProjectorFoundationTests
         };
         var available = await catalog.GetExperiencesAsync(Session(availableDisplay), CancellationToken.None);
 
-        Assert.Equal(7, available.Count);
+        Assert.Equal(11, available.Count);
         Assert.Equal("Desktop", Assert.Single(available, experience => experience.Id == "desktop").Name);
     }
 
     private static ProjectorDisplay Display(string runtimeId, string? stableIdentity) => new(
         runtimeId, stableIdentity, "External display", 1920, 1080, null, 60, 0, false,
-        ProjectorTransportKind.NativeDisplay, ProjectorConnectionKind.Unknown, ProjectorDisplayTrust.Public,
+        ProjectorTransportKind.NativeDisplay, ProjectorConnectionKind.Unknown, ProjectorDisplayTrust.Private,
         ProjectorCapabilities.Unknown with { PresentationDisplay = ProjectorCapabilityState.Available }, DateTimeOffset.UtcNow);
 
     private static ProjectorSessionSnapshot Session(ProjectorDisplay display) => new(
