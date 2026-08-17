@@ -116,6 +116,12 @@ public sealed class BuiltInModeSeed
             "dashboard", "Dashboard", "Build and switch between personal dashboard pages", "dashboard",
             HavenMode.Chat, "[\"Dashboard\"]", "[]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000017"),
+            "write", "Write", "Create, edit, import and export rich local documents", "file",
+            HavenMode.Chat, "[]", "[]", "[]", "[]", "Act as Haven Write when AI document assistance is requested. Operate on the user's real document or selection, preserve structure and formatting, and make proposed edits explicit before applying them.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"documents\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }
