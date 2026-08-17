@@ -59,10 +59,29 @@ public sealed class BrowserNativePolicyAndRecoveryTests
 
         Assert.Equal(BrowserPopupDisposition.BlockAsk, ask.Disposition);
         Assert.Equal(BrowserPopupDisposition.BlockDenied, deny.Disposition);
-        Assert.Equal(BrowserPopupDisposition.OpenInCurrentTab, allow.Disposition);
+        Assert.Equal(BrowserPopupDisposition.OpenInNewTab, allow.Disposition);
         Assert.True(allow.IsAllowed);
         Assert.Equal(BrowserPopupDisposition.BlockUnsafe, unsafeTarget.Disposition);
         Assert.Equal(BrowserPopupDisposition.BlockUnsafe, unsafeRequester.Disposition);
+    }
+
+    /// <summary>
+    /// Ensures untrusted document metadata is bounded before Haven-owned browser chrome consumes it.
+    /// </summary>
+    [Fact]
+    public void PageMetadataNormalizationBoundsTitleAndRejectsUnsafeFavicons()
+    {
+        var address = new Uri("https://example.com/page");
+        var longTitle = new string('x', 700);
+        var safe = BrowserNativeRequestPolicy.NormalizePageMetadata(address, "  Example title  ", "https://cdn.example.net/favicon.ico");
+        var unsafeIcon = BrowserNativeRequestPolicy.NormalizePageMetadata(address, longTitle, "data:image/svg+xml,<svg/>");
+        var credentialIcon = BrowserNativeRequestPolicy.NormalizePageMetadata(address, null, "https://user:secret@example.com/icon.png");
+        Assert.Equal("Example title", safe.Title);
+        Assert.Equal("https://cdn.example.net/favicon.ico", safe.Favicon);
+        Assert.Equal(512, unsafeIcon.Title.Length);
+        Assert.Null(unsafeIcon.Favicon);
+        Assert.Equal("example.com", credentialIcon.Title);
+        Assert.Null(credentialIcon.Favicon);
     }
 
     /// <summary>
@@ -91,4 +110,17 @@ public sealed class BrowserNativePolicyAndRecoveryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new BrowserRecoveryLimiter(0, TimeSpan.FromMinutes(1)));
         Assert.Throws<ArgumentOutOfRangeException>(() => new BrowserRecoveryLimiter(1, TimeSpan.Zero));
     }
+    [Fact]
+    public void ShortcutPolicyMapsStandardBrowserAccelerators()
+    {
+        Assert.Equal(BrowserShortcutAction.FocusAddress, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.L, true, false, false));
+        Assert.Equal(BrowserShortcutAction.NewTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.T, true, false, false));
+        Assert.Equal(BrowserShortcutAction.NewPrivateTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.N, true, true, false));
+        Assert.Equal(BrowserShortcutAction.CloseTab, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.W, true, false, false));
+        Assert.Equal(BrowserShortcutAction.Reload, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.F5, false, false, false));
+        Assert.Equal(BrowserShortcutAction.Back, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.Left, false, false, true));
+        Assert.Equal(BrowserShortcutAction.ToggleBookmark, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.D, true, false, false));
+        Assert.Equal(BrowserShortcutAction.None, BrowserShortcutPolicy.Resolve(BrowserShortcutKey.T, true, true, false));
+    }
+
 }
