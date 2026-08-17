@@ -16,7 +16,9 @@ public enum HavenAppRouteKind
     Plan = 4,
     Training = 5,
     ModeWorkspace = 6,
-    Write = 7
+    Write = 7,
+    Imagine = 8,
+    Vision = 9
 }
 
 /// <summary>Describes the concrete route and visible surface for an App.</summary>
@@ -38,10 +40,10 @@ public static class HavenAppRoutePolicy
             "plan" => new(HavenAppRouteKind.Plan, HavenSurface.Plan),
             "training" => new(HavenAppRouteKind.Training, HavenSurface.Training),
             "write" => new(HavenAppRouteKind.Write, HavenSurface.Home),
-            "imagine" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Imagine),
+            "imagine" => new(HavenAppRouteKind.Imagine, HavenSurface.Imagine),
             "present" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Present),
             "data" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Data),
-            "vision" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Vision),
+            "vision" => new(HavenAppRouteKind.Vision, HavenSurface.Vision),
             "play" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Play),
             "translate" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Translate),
             "launcher" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher),

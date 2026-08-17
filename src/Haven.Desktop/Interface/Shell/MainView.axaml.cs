@@ -1338,7 +1338,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 var captured = conversation;
                 items.Add(new UniversalSearchItem(
                     "Chats", captured.Title,
-                    $"{captured.UpdatedAt.LocalDateTime:g} · {DisplayMode(captured.Mode)}",
+                    $"{captured.UpdatedAt.LocalDateTime:g} Â· {DisplayMode(captured.Mode)}",
                     "chat", "Chat", () => _ = OpenConversationDefinitionAsync(captured)));
             }
 
@@ -1429,6 +1429,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         else if (route.Kind == HavenAppRouteKind.Write)
         {
             await NotesExperienceNavigation.OpenAsync(this, NotesExperienceKind.Notes, openInNewTab);
+        }
+        else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
+        {
+            await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
+        }
+        else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
+        {
+            await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
         }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
@@ -2500,7 +2508,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"✓ {captured.Name}" : captured.Name,
+                attached ? $"âœ“ {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2521,7 +2529,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"✓ {captured.Name}" : captured.Name,
+                attached ? $"âœ“ {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2543,7 +2551,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     };
 
     private static string CapabilityDescription(CapabilityDefinition capability, bool attached) =>
-        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} · {capability.RiskClass} risk · {capability.Availability}. Attachment does not grant permission.";
+        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} Â· {capability.RiskClass} risk Â· {capability.Availability}. Attachment does not grant permission.";
 
     private void AddModeWorkspaceActions(List<DynamicActionToolbar.ToolbarAction> actions, NewChatPage page)
     {

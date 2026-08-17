@@ -1,0 +1,6 @@
+<DynamicUI Name="ImagineComponentRow">
+  <Container Name="RowRoot" Layout="Grid" Columns="1fr Auto" Rows="Auto" Width="100%" Gap="6px" Padding="5px 6px" Background="SurfaceRaised" Radius="12px">
+    <Button Name="Open" Column="0" Variant="Navigation" IconKey="sparkles" Content="{{TITLE}}" Width="100%" MinHeight="38px" />
+    <Text Name="Detail" Column="1" Content="{{DETAIL}}" FontSize="10" Foreground="TextSecondary" VerticalAlignment="Center" />
+  </Container>
+</DynamicUI>
