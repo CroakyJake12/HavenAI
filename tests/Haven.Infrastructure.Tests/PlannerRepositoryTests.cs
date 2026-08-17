@@ -303,6 +303,335 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Performs the canonical day service persisted-state integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task DayServiceBuildsNowNextAndProgressFromPersistedPlanState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var now = dayStart.AddHours(10.5);
+        var created = dayStart.AddDays(-1);
+
+        var revision = NewTask(PlannerDefaults.CollegeCollectionId, "Revision", created) with
+        {
+            StartsAt = dayStart.AddHours(10.25),
+            DueAt = dayStart.AddHours(11.25),
+            EstimatedMinutes = 60
+        };
+        await repository.UpsertTaskAsync(revision, CancellationToken.None);
+
+        var maths = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Maths lesson", string.Empty, string.Empty,
+            dayStart.AddHours(10), dayStart.AddHours(11), false, null, null, false, null, null, created, created);
+        var law = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Law lesson", string.Empty, string.Empty,
+            dayStart.AddHours(12), dayStart.AddHours(13), false, null, null, false, null, null, created, created);
+        await repository.UpsertEventAsync(maths, CancellationToken.None);
+        await repository.UpsertEventAsync(law, CancellationToken.None);
+
+        var service = new PlannerDayService(repository);
+        var snapshot = await service.GetDayAsync(dayStart, now, "UTC", CancellationToken.None);
+
+        Assert.Equal(3, snapshot.Items.Count);
+        Assert.Equal(2, snapshot.ActiveItems.Count);
+        Assert.Equal(maths.Id, snapshot.CurrentItem?.EntityId);
+        Assert.Equal(law.Id, snapshot.NextItem?.EntityId);
+        Assert.Equal(dayStart.AddHours(10), snapshot.ScheduleStart);
+        Assert.Equal(dayStart.AddHours(13), snapshot.ScheduleEnd);
+        Assert.Equal(1d / 6d, snapshot.Progress, 6);
+    }
+
+    /// <summary>
+    /// Ensures persisted timed tasks that begin before midnight remain visible when their estimated interval overlaps the requested day.
+    /// </summary>
+    [Fact]
+    public async Task DayServiceIncludesPersistedTaskWhoseEstimateCrossesMidnight()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask(PlannerDefaults.CollegeCollectionId, "Late revision", created) with
+        {
+            StartsAt = dayStart.AddMinutes(-30),
+            DueAt = null,
+            EstimatedMinutes = 90
+        };
+        var endedBeforeDay = NewTask(PlannerDefaults.CollegeCollectionId, "Earlier revision", created) with
+        {
+            StartsAt = dayStart.AddHours(-2),
+            DueAt = null,
+            EstimatedMinutes = 60
+        };
+        var dueOnly = NewTask(PlannerDefaults.CollegeCollectionId, "Submit form", created) with
+        {
+            DueAt = dayStart.AddHours(9)
+        };
+        await repository.UpsertTaskAsync(spanning, CancellationToken.None);
+        await repository.UpsertTaskAsync(endedBeforeDay, CancellationToken.None);
+        await repository.UpsertTaskAsync(dueOnly, CancellationToken.None);
+
+        var ranged = await repository.GetTasksAsync(
+            new PlannerTaskQuery(RangeStart: dayStart, RangeEnd: dayStart.AddDays(1), IncludeCompleted: true),
+            CancellationToken.None);
+
+        Assert.Contains(ranged, item => item.Id == spanning.Id);
+        Assert.DoesNotContain(ranged, item => item.Id == endedBeforeDay.Id);
+        Assert.Contains(ranged, item => item.Id == dueOnly.Id);
+
+        var snapshot = await new PlannerDayService(repository).GetDayAsync(
+            dayStart,
+            dayStart.AddMinutes(15),
+            "UTC",
+            CancellationToken.None);
+
+        Assert.Contains(snapshot.Items, item => item.EntityId == spanning.Id);
+        Assert.Contains(snapshot.Items, item => item.EntityId == dueOnly.Id);
+        Assert.Equal(spanning.Id, snapshot.CurrentItem?.EntityId);
+    }
+
+    /// <summary>
+    /// Performs the persisted countdown projection integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task CountdownServiceTracksPersistedDeadlineChangesWithoutDuplicateState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var created = now.AddDays(-1);
+        var deadline = NewTask(PlannerDefaults.CollegeCollectionId, "Coursework deadline", created) with
+        {
+            DueAt = now.AddDays(3),
+            ReminderAt = now.AddDays(3).AddHours(-4)
+        };
+        var resultsDay = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Results Day", string.Empty, string.Empty,
+            now.AddDays(5), now.AddDays(5).AddHours(1), false, null, now.AddDays(4), false, null, null, created, created);
+        await repository.UpsertTaskAsync(deadline, CancellationToken.None);
+        await repository.UpsertEventAsync(resultsDay, CancellationToken.None);
+
+        var service = new PlannerCountdownService(repository);
+        var initial = await service.GetCountdownsAsync(now.AddDays(-1), now.AddDays(10), now, CancellationToken.None);
+
+        Assert.Equal([deadline.Id, resultsDay.Id], initial.Select(item => item.SourceId));
+        Assert.Equal(now.AddDays(3), initial[0].TargetAt);
+        Assert.Equal(deadline.ReminderAt, initial[0].ReminderAt);
+        Assert.Equal(PlannerCountdownState.Upcoming, initial[0].State);
+
+        var movedDeadline = deadline with { DueAt = now.AddDays(7), UpdatedAt = now.AddMinutes(1) };
+        await repository.UpsertTaskAsync(movedDeadline, CancellationToken.None);
+        var refreshed = await service.GetCountdownsAsync(now.AddDays(-1), now.AddDays(10), now, CancellationToken.None);
+        var movedCountdown = Assert.Single(refreshed, item => item.SourceId == deadline.Id);
+
+        Assert.Equal(now.AddDays(7), movedCountdown.TargetAt);
+        Assert.Equal(movedDeadline.Id, movedCountdown.SourceId);
+    }
+
+    /// <summary>
+    /// Performs the persisted availability service integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityServiceFindsFreeWindowsFromPersistedPlanState()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var lesson = new PlannerEvent(
+            Guid.NewGuid(), PlannerDefaults.LocalCalendarId, "Maths lesson", string.Empty, string.Empty,
+            dayStart.AddHours(10), dayStart.AddHours(11), false, null, null, false, null, null, created, created);
+        var revision = NewTask(PlannerDefaults.CollegeCollectionId, "Revision", created) with
+        {
+            StartsAt = dayStart.AddHours(13),
+            DueAt = dayStart.AddHours(14),
+            EstimatedMinutes = 60
+        };
+        await repository.UpsertEventAsync(lesson, CancellationToken.None);
+        await repository.UpsertTaskAsync(revision, CancellationToken.None);
+
+        var service = new PlannerAvailabilityService(new PlannerDayService(repository));
+        var free = await service.GetFreeWindowsAsync(
+            dayStart,
+            dayStart.AddHours(8),
+            "UTC",
+            dayStart.AddHours(9),
+            dayStart.AddHours(17),
+            TimeSpan.FromMinutes(45),
+            CancellationToken.None);
+
+        Assert.Equal(3, free.Count);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(9), dayStart.AddHours(10)), free[0]);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(11), dayStart.AddHours(13)), free[1]);
+        Assert.Equal(new PlannerFreeWindow(dayStart.AddHours(14), dayStart.AddHours(17)), free[2]);
+    }
+
+    /// <summary>
+    /// Ensures a persisted task spanning midnight blocks availability at the beginning of the following day.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityServiceBlocksPersistedCrossMidnightTaskOnFollowingDay()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var dayStart = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
+        var created = dayStart.AddDays(-1);
+        var spanning = NewTask(PlannerDefaults.CollegeCollectionId, "Late revision", created) with
+        {
+            StartsAt = dayStart.AddMinutes(-30),
+            DueAt = null,
+            EstimatedMinutes = 90
+        };
+        await repository.UpsertTaskAsync(spanning, CancellationToken.None);
+
+        var service = new PlannerAvailabilityService(new PlannerDayService(repository));
+        var free = await service.GetFreeWindowsAsync(
+            dayStart,
+            dayStart.AddMinutes(15),
+            "UTC",
+            dayStart,
+            dayStart.AddHours(3),
+            TimeSpan.FromMinutes(30),
+            CancellationToken.None);
+
+        var only = Assert.Single(free);
+        Assert.Equal(dayStart.AddHours(1), only.StartsAt);
+        Assert.Equal(dayStart.AddHours(3), only.EndsAt);
+    }
+
+    /// <summary>
+    /// Ensures Study relinking, completion and unlinking mutate one canonical Plan task without dropping unrelated tags.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerLifecyclePreservesCanonicalTaskAndUnrelatedTags()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var maths = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, string.Empty, string.Empty, now, now);
+        var law = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Law", null, string.Empty, string.Empty, now, now);
+        var mathsLesson = await containers.CreateSubjectAsync(maths, CancellationToken.None);
+        var lawLesson = await containers.CreateSubjectAsync(law, CancellationToken.None);
+        var original = NewTask(PlannerDefaults.CollegeCollectionId, "Past paper", now) with
+        {
+            DueAt = now.AddHours(2),
+            TagsJson = JsonSerializer.Serialize(new[] { "revision", "haven:other:metadata" })
+        };
+        await repository.UpsertTaskAsync(original, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var linked = await service.LinkExistingAsync(original.Id, maths.Id, mathsLesson.Id, now.AddMinutes(1), CancellationToken.None);
+        Assert.Equal(original.Id, linked.PlanTaskId);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(linked.Task.TagsJson, out var mathsLink));
+        Assert.Equal(maths.Id, mathsLink.SubjectId);
+
+        var relinked = await service.LinkExistingAsync(original.Id, law.Id, lawLesson.Id, now.AddMinutes(2), CancellationToken.None);
+        Assert.Equal(original.Id, relinked.PlanTaskId);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(relinked.Task.TagsJson, out var lawLink));
+        Assert.Equal(law.Id, lawLink.SubjectId);
+        Assert.Equal(lawLesson.Id, lawLink.LessonId);
+        Assert.Empty(await service.GetAssignmentsAsync(maths.Id, includeCompleted: true, CancellationToken.None));
+        Assert.Equal(original.Id, Assert.Single(await service.GetAssignmentsAsync(law.Id, includeCompleted: true, CancellationToken.None)).PlanTaskId);
+
+        var completed = await service.CompleteAsync(original.Id, now.AddHours(3), CancellationToken.None);
+        Assert.Equal(original.Id, completed.PlanTaskId);
+        Assert.Equal(PlannerTaskStatus.Completed, completed.Task.Status);
+        var completedTags = JsonSerializer.Deserialize<string[]>(completed.Task.TagsJson)!;
+        Assert.Contains("revision", completedTags);
+        Assert.Contains("haven:other:metadata", completedTags);
+
+        await service.UnlinkAsync(original.Id, now.AddHours(4), CancellationToken.None);
+        var final = await repository.GetTaskAsync(original.Id, CancellationToken.None);
+        Assert.NotNull(final);
+        Assert.Equal(original.Id, final.Id);
+        Assert.Equal(PlannerTaskStatus.Completed, final.Status);
+        Assert.False(PlannerStudyAssignmentTags.TryRead(final.TagsJson, out _));
+        var finalTags = JsonSerializer.Deserialize<string[]>(final.TagsJson)!;
+        Assert.Contains("revision", finalTags);
+        Assert.Contains("haven:other:metadata", finalTags);
+        Assert.Empty(await service.GetAssignmentsAsync(law.Id, includeCompleted: true, CancellationToken.None));
+        Assert.Single(
+            await repository.GetTasksAsync(new PlannerTaskQuery(IncludeCompleted: true), CancellationToken.None),
+            task => task.Id == original.Id);
+    }
+
+    /// <summary>
+    /// Performs the persisted Study-to-Plan assignment integration step owned by this component.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerServiceUsesCanonicalPersistedPlanTaskState()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var subject = new ContainerDefinition(
+            Guid.NewGuid(), HavenMode.Study, "Maths", null, "A-Level Maths", string.Empty, now, now);
+        var lesson = await containers.CreateSubjectAsync(subject, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var created = await service.CreateAsync(new StudyPlanAssignmentDraft(
+            subject.Id,
+            lesson.Id,
+            PlannerDefaults.CollegeCollectionId,
+            "Complete integration exercise",
+            "Chapter 3 questions",
+            now.AddDays(2),
+            now.AddDays(2).AddHours(-3),
+            45,
+            PlannerPriority.High,
+            now.AddDays(1),
+            "UTC"), now, CancellationToken.None);
+
+        var persisted = await repository.GetTaskAsync(created.PlanTaskId, CancellationToken.None);
+        Assert.NotNull(persisted);
+        Assert.Equal(created.PlanTaskId, persisted.Id);
+        Assert.Equal(now.AddDays(2), persisted.DueAt);
+        Assert.True(PlannerStudyAssignmentTags.TryRead(persisted.TagsJson, out var link));
+        Assert.Equal(subject.Id, link.SubjectId);
+        Assert.Equal(lesson.Id, link.LessonId);
+
+        var listed = await service.GetAssignmentsAsync(subject.Id, includeCompleted: false, CancellationToken.None);
+        var assignment = Assert.Single(listed);
+        Assert.Equal(persisted.Id, assignment.PlanTaskId);
+        Assert.Equal(persisted, assignment.Task);
+
+        var completed = await service.CompleteAsync(persisted.Id, now.AddHours(1), CancellationToken.None);
+        Assert.Equal(PlannerTaskStatus.Completed, completed.Task.Status);
+        Assert.Equal(PlannerTaskStatus.Completed, (await repository.GetTaskAsync(persisted.Id, CancellationToken.None))?.Status);
+        Assert.Empty(await service.GetAssignmentsAsync(subject.Id, includeCompleted: false, CancellationToken.None));
+        Assert.Single(await service.GetAssignmentsAsync(subject.Id, includeCompleted: true, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Performs Study lesson ownership validation before linking a Plan task.
+    /// </summary>
+    [Fact]
+    public async Task StudyPlannerServiceRejectsLessonFromAnotherSubject()
+    {
+        var (database, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var containers = new ContainerRepository(database, _paths);
+        var now = new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero);
+        var maths = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Maths", null, string.Empty, string.Empty, now, now);
+        var law = new ContainerDefinition(Guid.NewGuid(), HavenMode.Study, "Law", null, string.Empty, string.Empty, now, now);
+        await containers.CreateSubjectAsync(maths, CancellationToken.None);
+        var lawLesson = await containers.CreateSubjectAsync(law, CancellationToken.None);
+        var task = NewTask(PlannerDefaults.CollegeCollectionId, "Existing deadline", now) with { DueAt = now.AddDays(1) };
+        await repository.UpsertTaskAsync(task, CancellationToken.None);
+        var service = new StudyPlannerService(repository, containers);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.LinkExistingAsync(task.Id, maths.Id, lawLesson.Id, now.AddMinutes(1), CancellationToken.None));
+
+        Assert.Contains("does not belong", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(PlannerStudyAssignmentTags.TryRead((await repository.GetTaskAsync(task.Id, CancellationToken.None))!.TagsJson, out _));
+    }
+
+    /// <summary>
     /// Performs the proposal application is atomic step owned by this component.
     /// </summary>
     [Fact]

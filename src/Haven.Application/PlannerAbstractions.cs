@@ -23,6 +23,45 @@ public sealed record PlannerTaskQuery(
     string? Search = null);
 
 /// <summary>
+/// Builds the canonical Today/day-organiser state from persisted Plan items.
+/// </summary>
+public interface IPlannerDayService
+{
+    Task<PlannerDaySnapshot> GetDayAsync(
+        DateTimeOffset day,
+        DateTimeOffset now,
+        string? timeZoneId,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Reads countdowns directly from canonical persisted Plan sources.
+/// </summary>
+public interface IPlannerCountdownService
+{
+    Task<IReadOnlyList<PlannerCountdown>> GetCountdownsAsync(
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Finds usable free-time windows from the same canonical day state consumed by Plan.
+/// </summary>
+public interface IPlannerAvailabilityService
+{
+    Task<IReadOnlyList<PlannerFreeWindow>> GetFreeWindowsAsync(
+        DateTimeOffset day,
+        DateTimeOffset now,
+        string? timeZoneId,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        TimeSpan minimumDuration,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Defines the planner repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IPlannerRepository

@@ -1431,7 +1431,7 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
                 ParentTaskId = SelectedParent?.Id,
                 Title = Title.Trim(),
                 Notes = Notes.Trim(),
-                TagsJson = JsonSerializer.Serialize(tags),
+                TagsJson = PlannerStudyAssignmentTags.ReplaceUserTags(Definition.TagsJson, tags),
                 EstimatedMinutes = estimate,
                 Priority = Priority,
                 Status = completing ? Definition.Status : Status,
@@ -1456,8 +1456,8 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
     /// </summary>
     private static string ReadTags(string json)
     {
-        try { return string.Join(", ", JsonSerializer.Deserialize<string[]>(json) ?? []); }
-        catch (JsonException) { return string.Empty; }
+        return string.Join(", ", PlannerStudyAssignmentTags.GetUserTags(json));
+
     }
 }
 
