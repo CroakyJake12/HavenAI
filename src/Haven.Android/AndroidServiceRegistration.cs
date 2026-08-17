@@ -11,9 +11,16 @@ public static class AndroidServiceRegistration
         services.AddSingleton<ISpeechInputService, AndroidSpeechInputService>();
         services.AddSingleton<AndroidNotificationBridge>();
         services.AddSingleton<AndroidAssistantOverlayCoordinator>();
+        services.AddSingleton<IProjectorExperienceProvider, BuiltInProjectorExperienceProvider>();
+        services.AddSingleton<IProjectorExperienceCatalog, ProjectorExperienceCatalog>();
         services.AddSingleton<IProjectorDisplayRegistry, ProjectorDisplayRegistry>();
         services.AddSingleton<IProjectorSessionCoordinator, ProjectorSessionCoordinator>();
-        services.AddSingleton<AndroidProjectorDisplayService>();
+        services.AddSingleton<AndroidProjectorPresentationHostService>();
+        services.AddSingleton<AndroidProjectorDisplayService>(provider =>
+        {
+            _ = provider.GetRequiredService<AndroidProjectorPresentationHostService>();
+            return new AndroidProjectorDisplayService(provider.GetRequiredService<IProjectorDisplayRegistry>());
+        });
         return services;
     }
 }

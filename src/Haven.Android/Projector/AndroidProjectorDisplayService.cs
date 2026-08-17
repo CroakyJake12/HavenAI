@@ -121,7 +121,6 @@ public sealed class AndroidProjectorDisplayService : Java.Lang.Object, DisplayMa
             : ProjectorCapabilityState.Unavailable;
         var capabilities = ProjectorCapabilities.Unknown with
         {
-            RenderHavenSurface = presentation,
             PresentationDisplay = presentation
         };
 
