@@ -1246,9 +1246,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             OpenCapabilities();
             return;
         }
-        var page = new CatalogPageViewModel(kind, _catalog, _ollama, true);
+        var pageModel = new CatalogPageViewModel(kind, _catalog, _ollama, true);
         var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
-        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, page, true);
+        if (kind == CatalogPageKind.Agents)
+        {
+            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel), true);
+            return;
+        }
+
+        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, pageModel, true);
     }
 
     private void OpenAutomations()
@@ -2297,6 +2303,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Redo", "Redo the latest editable workspace change.", "Ctrl+Y", RedoCurrentCommand),
             Command("Save", "Save the current editable workspace.", "Ctrl+S", SaveCurrentCommand),
             Command("Configure model", "Search models and open advanced generation and safety options.", string.Empty, ConfigureModelCommand),
+            Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
