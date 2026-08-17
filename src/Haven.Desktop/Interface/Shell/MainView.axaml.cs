@@ -865,6 +865,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task OpenModeWorkspaceAsync(ModeDefinition mode, HavenSurface surface, bool forceNewTab)
     {
+        if (IsDocumentWorkspace(mode.Key))
+        {
+            OpenDocumentWorkspace(mode, surface, forceNewTab);
+            return;
+        }
+
         NewChatPage page;
         string key;
         if (forceNewTab)

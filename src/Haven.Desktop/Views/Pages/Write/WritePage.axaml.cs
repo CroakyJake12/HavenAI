@@ -18,7 +18,7 @@ public sealed partial class WritePage : UserControl, IDisposable
     private readonly HavenEventBus _bus;
     private readonly INotesRepository _repository;
     private readonly INotesImportExportService _formats;
-    private readonly WriteHavenScene _route;
+    private readonly WordWriteHavenScene _route;
     private readonly DispatcherTimer _autosaveTimer;
     private IReadOnlyList<NotesDocumentSummary> _documents = [];
     private int _documentIndex;
@@ -31,14 +31,16 @@ public sealed partial class WritePage : UserControl, IDisposable
     public WritePage(
         HavenEventBus bus,
         INotesRepository repository,
-        INotesImportExportService formats)
+        INotesImportExportService formats,
+        INotesAttachmentStore? attachments = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _formats = formats ?? throw new ArgumentNullException(nameof(formats));
+        _wordAttachments = attachments;
 
         InitializeComponent();
-        _route = new WriteHavenScene();
+        _route = new WordWriteHavenScene();
         Scene.Root = _route.Root;
         _route.NewRequested += OnNewRequested;
         _route.ImportRequested += OnImportRequested;
@@ -46,8 +48,8 @@ public sealed partial class WritePage : UserControl, IDisposable
         _route.SaveRequested += OnSaveRequested;
         _route.PreviousRequested += OnPreviousRequested;
         _route.NextRequested += OnNextRequested;
-        _route.TitleChanged += OnTitleChanged;
-        _route.BlockTextChanged += OnBlockTextChanged;
+        _route.DocumentChanged += OnWordDocumentChanged;
+        _route.ImageRequested += OnWordImageRequested;
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _autosaveTimer.Tick += OnAutosaveTick;
@@ -58,7 +60,7 @@ public sealed partial class WritePage : UserControl, IDisposable
     public NotesDocument? Document { get; private set; }
     public bool IsDirty => _dirty;
 
-    internal WriteHavenScene Route => _route;
+    internal WordWriteHavenScene Route => _route;
     internal HavenSceneControl SceneHost => Scene;
     internal Haven.UI.Components.Page SceneRoot => _route.Root;
 

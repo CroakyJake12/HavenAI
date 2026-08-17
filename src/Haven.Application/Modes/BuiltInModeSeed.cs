@@ -70,6 +70,12 @@ public sealed class BuiltInModeSeed
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\",\"creative\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000017"),
+            "write", "Write", "Create, edit and export rich local documents", "file",
+            HavenMode.Chat, "[\"Write\"]", "[]", "[]", "[]", "Act as Haven Write. Draft, revise and format documents in the Write editor, preserve existing user content, and never claim a file was exported unless the editor or a file tool confirms it.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000009"),
             "present", "Present", "Plan, draft and review presentations", "present",
             HavenMode.Chat, "[\"Present\"]", "[]", "[]", "[]", "Act as Haven Present. Develop an audience-aware narrative, slide outline, concise on-slide copy, speaker notes and an evidence checklist. Never claim a deck file was exported unless a file tool confirms it.",
