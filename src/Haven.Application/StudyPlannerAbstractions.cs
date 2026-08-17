@@ -24,11 +24,27 @@ public sealed record StudyPlanAssignmentDraft(
     DateTimeOffset? StartsAt = null,
     string TimeZoneId = "UTC");
 
+public sealed record StudyRevisionScheduleRequest(
+    Guid SubjectId,
+    Guid? LessonId,
+    Guid CollectionId,
+    string Title,
+    string Notes,
+    DateTimeOffset WindowStart,
+    DateTimeOffset WindowEnd,
+    int DurationMinutes,
+    DateTimeOffset? DueAt = null,
+    DateTimeOffset? ReminderAt = null,
+    PlannerPriority Priority = PlannerPriority.None,
+    string TimeZoneId = "UTC");
+
 public interface IStudyPlannerService
 {
     Task<PlannerStudyAssignment> CreateAsync(StudyPlanAssignmentDraft draft, DateTimeOffset now, CancellationToken cancellationToken);
+    Task<PlannerStudyAssignment> ScheduleRevisionAsync(StudyRevisionScheduleRequest request, DateTimeOffset now, CancellationToken cancellationToken);
     Task<PlannerStudyAssignment> LinkExistingAsync(Guid planTaskId, Guid subjectId, Guid? lessonId, DateTimeOffset updatedAt, CancellationToken cancellationToken);
     Task<IReadOnlyList<PlannerStudyAssignment>> GetAssignmentsAsync(Guid subjectId, bool includeCompleted, CancellationToken cancellationToken);
+    Task<PlannerStudyAssignment> UpdateDeadlineAsync(Guid planTaskId, DateTimeOffset? dueAt, DateTimeOffset updatedAt, CancellationToken cancellationToken);
     Task<PlannerStudyAssignment> CompleteAsync(Guid planTaskId, DateTimeOffset completedAt, CancellationToken cancellationToken);
     Task UnlinkAsync(Guid planTaskId, DateTimeOffset updatedAt, CancellationToken cancellationToken);
 }
