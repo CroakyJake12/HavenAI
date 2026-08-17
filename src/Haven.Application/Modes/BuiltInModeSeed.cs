@@ -75,6 +75,12 @@ public sealed class BuiltInModeSeed
             HavenMode.Chat, "[\"Write\"]", "[]", "[]", "[]", "Act as Haven Write. Draft, revise and format documents in the Write editor, preserve existing user content, and never claim a file was exported unless the editor or a file tool confirms it.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+          new ModeDefinition(
+              Guid.Parse("a0000000-0000-0000-0000-000000000018"),
+              "canvas", "Canvas", "Create and edit infinite whiteboards and study boards", "file",
+              HavenMode.Chat, "[\"Canvas\"]", "[]", "[]", "[]", "Act as Haven Canvas. Help create and edit visual boards while preserving the user's existing canvas content and study-layer intent.",
+              ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\",\"study\"]",
+              DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000009"),
             "present", "Present", "Plan, draft and review presentations", "present",

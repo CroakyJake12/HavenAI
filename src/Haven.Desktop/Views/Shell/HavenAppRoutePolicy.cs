@@ -38,6 +38,7 @@ public static class HavenAppRoutePolicy
             "training" => new(HavenAppRouteKind.Training, HavenSurface.Training),
             "imagine" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Imagine),
             "write" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Write),
+            "canvas" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas),
             "present" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Present),
             "data" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Data),
             "vision" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Vision),

@@ -8,7 +8,7 @@ public sealed class HavenAppRoutePolicyTests
 {
     private static readonly string[] ExpectedBuiltInKeys =
     [
-        "chat", "study", "tasks", "studio", "browse", "plan", "training", "imagine", "write",
+        "chat", "study", "tasks", "studio", "browse", "plan", "training", "imagine", "write", "canvas",
         "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard"
     ];
 
@@ -23,6 +23,7 @@ public sealed class HavenAppRoutePolicyTests
         { "training", HavenAppRouteKind.Training, HavenSurface.Training },
         { "imagine", HavenAppRouteKind.ModeWorkspace, HavenSurface.Imagine },
         { "write", HavenAppRouteKind.ModeWorkspace, HavenSurface.Write },
+        { "canvas", HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas },
         { "present", HavenAppRouteKind.ModeWorkspace, HavenSurface.Present },
         { "data", HavenAppRouteKind.ModeWorkspace, HavenSurface.Data },
         { "vision", HavenAppRouteKind.ModeWorkspace, HavenSurface.Vision },

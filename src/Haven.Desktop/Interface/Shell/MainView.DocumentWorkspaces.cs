@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Views.Pages.Canvas;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Present;
 using Haven.Desktop.Views.Pages.Write;
@@ -14,6 +15,7 @@ public sealed partial class MainView
 
     private static bool IsDocumentWorkspace(string key) =>
         key.Equals("write", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("canvas", StringComparison.OrdinalIgnoreCase)
         || key.Equals("present", StringComparison.OrdinalIgnoreCase)
         || key.Equals("data", StringComparison.OrdinalIgnoreCase);
 
@@ -25,6 +27,8 @@ public sealed partial class MainView
         {
             "write" => new WritePage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>()),
+            "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
+                services.GetRequiredService<INotesImportExportService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
                 services.GetRequiredService<IPresentExportService>()),
             "data" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
