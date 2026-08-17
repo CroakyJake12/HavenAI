@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Components.Buttons;
@@ -131,7 +131,7 @@ public sealed class PlanScheduledTaskControl : UserControl, IDisposable
                             new TextBlock { Text = "Schedule work and condition watches", FontSize = 20, FontWeight = Avalonia.Media.FontWeight.SemiBold },
                             new TextBlock
                             {
-                                Text = "Schedules and run history stay in Haven Tasks. This surface has no separate worker or OS scheduler controls.",
+                                Text = "Schedules and run history stay in Automations. This surface has no separate worker or OS scheduler controls.",
                                 Classes = { "muted" },
                                 TextWrapping = Avalonia.Media.TextWrapping.Wrap
                             }

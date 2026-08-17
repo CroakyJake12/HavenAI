@@ -669,7 +669,7 @@ public sealed class ExperienceShellHost : Grid, IDisposable
                 "ExperienceHomeButton" => _shell.CurrentSurface == HavenSurface.Home,
                 "ExperienceChatButton" => _shell.CurrentSurface is HavenSurface.Chat or HavenSurface.Study or HavenSurface.Tasks,
                 "ExperienceStudioButton" => _shell.CurrentSurface == HavenSurface.Studio,
-                "ExperiencePlanButton" => _shell.CurrentSurface == HavenSurface.Plan,
+                "ExperiencePlanButton" => _shell.CurrentSurface is HavenSurface.Plan or HavenSurface.Automations,
                 "ExperienceBrowseButton" => _shell.CurrentSurface == HavenSurface.Browse,
                 _ when button.Name?.StartsWith("PinnedMode_", StringComparison.Ordinal) == true => IsPinnedModeActive(button.Name[11..]),
                 _ => false

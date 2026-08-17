@@ -11,7 +11,7 @@ using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Views.Pages.Go;
-using Haven.Desktop.Views.Pages.Tasks;
+using Haven.Desktop.Views.Pages.Automations;
 using Haven.Desktop.Views.Shell.TopRail;
 
 namespace Haven.Desktop.Tests;
@@ -50,7 +50,7 @@ public sealed class HavenUiVisualCaptureTests
             900,
             HavenSurface.Tasks);
 
-        var tasks = new TasksPage(
+        var tasks = new AutomationsPage(
             new EmptyWorkspaceStateRepository(),
             new EmptyAutomationRepository(),
             new EmptyConversationRepository(),

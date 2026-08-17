@@ -613,7 +613,7 @@ internal static class BuiltInDashboardTiles
             s => new(s.StudySubjects.ToString(), "Subjects")),
         Tile("groups", "Chat Groups", "Open a context workspace", "folder", "groups", "chat", 6,
             s => new(s.ChatGroups.ToString(), "Context workspaces")),
-        Tile("automations", "Scheduled Actions", "Review enabled local jobs", "automation", "automations", "automations", 7,
+        Tile("automations", "Automations", "Review reusable and scheduled workflows", "automation", "automations", "automations", 7,
             s => new(s.EnabledAutomations.ToString(), "Enabled automations"))
     ];
 

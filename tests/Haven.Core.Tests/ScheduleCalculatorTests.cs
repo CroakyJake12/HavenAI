@@ -7,7 +7,7 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Core;
 
 namespace Haven.Core.Tests;

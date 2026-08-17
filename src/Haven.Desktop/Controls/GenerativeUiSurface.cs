@@ -239,6 +239,7 @@ public sealed class GenerativeUiSurface : UserControl, IDisposable
             "teal" or "data" or "cyan" => HavenSurface.Data,
             "pink" or "rose" => HavenSurface.Imagine,
             "yellow" or "plan" or "gold" => HavenSurface.Plan,
+            "automations" or "automation" => HavenSurface.Automations,
             "red" or "danger" => HavenSurface.Tasks,
             "indigo" or "study" => HavenSurface.Study,
             "browse" or "sky" => HavenSurface.Browse,

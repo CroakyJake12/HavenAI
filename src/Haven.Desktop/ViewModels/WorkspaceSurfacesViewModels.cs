@@ -50,8 +50,8 @@ public sealed class WorkspaceHomePageViewModel : ObservableObject
 
     public string Title => _mode == HavenMode.Studio ? "Studio Home" : "Tasks";
     public string Subtitle => _mode == HavenMode.Studio
-        ? "Projects, live state, active Scheduled Actions, and the next useful step."
-        : "Task Groups, reusable tasks, Scheduled Actions, and recent work.";
+        ? "Projects, live state, active Automations, and the next useful step."
+        : "Task Groups, reusable workflows, Automations, and recent work.";
     public string CollectionHeading => _mode == HavenMode.Studio ? "Projects" : "Task Groups";
     public string CreateLabel => _mode == HavenMode.Studio ? "New project" : "New Task Group";
     public bool IsStudio => _mode == HavenMode.Studio;

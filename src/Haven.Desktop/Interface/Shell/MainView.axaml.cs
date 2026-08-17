@@ -10,7 +10,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 
 using Haven.Browser;
 using Haven.Core;
@@ -28,6 +28,7 @@ using Haven.Desktop.Views.Pages.Plan;
 using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
+using Haven.Desktop.Views.Pages.Automations;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.Infrastructure;
@@ -267,7 +268,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         NavigateAgentsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Agents));
         NavigateCapabilitiesCommand = new RelayCommand(OpenCapabilities);
         NavigatePromptsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Prompts));
-        NavigateAutomationsCommand = new RelayCommand(OpenTasksDashboard);
+        NavigateAutomationsCommand = new RelayCommand(OpenAutomationsDashboard);
         NavigateArchiveCommand = new RelayCommand(OpenArchive);
         NavigateActivityLogCommand = new RelayCommand(OpenActivityLog);
         DismissNotificationCommand = new RelayCommand<Guid>(id => _notifications.Dismiss(id));
@@ -1255,11 +1256,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, pageModel, true);
     }
 
-    private void OpenAutomations()
-    {
-        AddOrSelectTab("scheduled-actions", "Scheduled Actions",
-            new object(), true);
-    }
+    private void OpenAutomations() => OpenAutomationsDashboard();
 
     private void OpenArchive() => AddOrSelectTab("archive-" + CurrentMode, "Archive", new ArchivePageViewModel(CurrentMode, _conversations, _containers), true);
 
@@ -1432,6 +1429,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
         }
+        else if (route.Kind == HavenAppRouteKind.Automations)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenAutomationsDashboard();
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
@@ -1503,6 +1505,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Plan:
                     OpenPlan();
+                    break;
+                case HavenSurface.Automations:
+                    OpenAutomationsDashboard();
                     break;
                 case HavenSurface.Training:
                     OpenTraining();
@@ -2313,8 +2318,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
-            Command("Scheduled Actions", "Create and manage scheduled local jobs.", string.Empty, NavigateAutomationsCommand),
-            Command("Reusable Tasks", "Create, test, and run persistent reusable Tasks.", string.Empty, new RelayCommand(OpenTasksDashboard)),
+            Command("Automations", "Create and manage reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
+            Command("Automations", "Create, test, and run reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Archive", "Restore archived chats, groups, and projects.", string.Empty, NavigateArchiveCommand),
             Command("Activity Log", "View recent conversations and tool activity across sessions.", string.Empty, NavigateActivityLogCommand),
             Command("Haven Browse", "Open the isolated tabbed browser and side assistant.", string.Empty, NavigateBrowserCommand),
@@ -2437,8 +2442,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             [
                 new("New task", "plus", StartNewConversation, Category: "Recommended", Description: "Start a new task conversation."),
                 new("New task group", "tasks", OpenNewContainer, Category: "Tasks", Description: "Create a group for related tasks and references."),
-                new("Scheduled actions", "automation", OpenAutomations, Category: "Tasks", Description: "Create or manage scheduled local actions."),
-                new("Reusable tasks", "tasks", OpenTasksDashboard, Category: "Tasks", Description: "Create, test, run, or edit reusable Tasks."),
+                new("Automations", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create or manage reusable, scheduled, recurring, and triggered workflows."),
+                new("Reusable workflows", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create, test, run, or edit reusable workflows."),
                 new("Activity log", "clock", OpenActivityLog, Category: "Tasks", Description: "Review recent task and tool activity.")
             ]);
         }
@@ -2579,8 +2584,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             actions.AddRange(
             [
                 new("New task group", "tasks", OpenNewContainer, Category: "Tasks", Description: "Create a group for related tasks and references."),
-                new("Scheduled actions", "automation", OpenAutomations, Category: "Tasks", Description: "Create or manage scheduled local actions."),
-                new("Reusable tasks", "tasks", OpenTasksDashboard, Category: "Tasks", Description: "Create, test, run, or edit reusable Tasks."),
+                new("Automations", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create or manage reusable, scheduled, recurring, and triggered workflows."),
+                new("Reusable workflows", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create, test, run, or edit reusable workflows."),
                 new("Activity log", "clock", OpenActivityLog, Category: "Tasks", Description: "Review recent task and tool activity.")
             ]);
         }

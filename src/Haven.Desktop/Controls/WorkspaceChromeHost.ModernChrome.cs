@@ -1077,6 +1077,7 @@ public sealed partial class WorkspaceChromeHost
             HavenSurface.Chat => "chat",
             HavenSurface.Study => "study",
             HavenSurface.Tasks => "tasks",
+            HavenSurface.Automations => "automation",
             HavenSurface.Studio => "studio",
             HavenSurface.Browse => "browse",
             HavenSurface.Plan => "plan",

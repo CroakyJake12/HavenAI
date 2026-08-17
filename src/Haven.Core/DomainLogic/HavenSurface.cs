@@ -35,6 +35,7 @@ public enum HavenSurface
     Dashboard = 16,
     Write = 17,
     Canvas = 18,
+    Automations = 19,
 
     // UI aliases retained for saved layout JSON written before the rename.
     Teach = Study,

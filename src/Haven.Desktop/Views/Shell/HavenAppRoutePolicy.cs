@@ -18,7 +18,8 @@ public enum HavenAppRouteKind
     ModeWorkspace = 6,
     Write = 7,
     Imagine = 8,
-    Vision = 9
+    Vision = 9,
+    Automations = 10
 }
 
 /// <summary>Describes the concrete route and visible surface for an App.</summary>
@@ -39,6 +40,7 @@ public static class HavenAppRoutePolicy
             "browse" or "browser" => new(HavenAppRouteKind.Browse, HavenSurface.Browse),
             "plan" => new(HavenAppRouteKind.Plan, HavenSurface.Plan),
             "training" => new(HavenAppRouteKind.Training, HavenSurface.Training),
+            "automations" => new(HavenAppRouteKind.Automations, HavenSurface.Automations),
             "imagine" => new(HavenAppRouteKind.Imagine, HavenSurface.Imagine),
             "write" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Write),
             "canvas" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas),

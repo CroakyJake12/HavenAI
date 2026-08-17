@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Events;

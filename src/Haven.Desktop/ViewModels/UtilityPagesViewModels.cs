@@ -9,7 +9,7 @@
 
 using System.Collections.ObjectModel;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Browser;
 using Haven.Core;
 

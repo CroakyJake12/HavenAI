@@ -86,15 +86,15 @@
       </StackPanel>
 
       <!-- ============================================================
-           ROW 2: TWO-COLUMN — Scheduled Actions | Reusable Tasks
+           ROW 2: TWO-COLUMN — Automations | Reusable Workflows
            Left: active automations for this workspace
            Right: reusable tasks available to run
            ============================================================ -->
       <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-        <!-- Scheduled Actions card -->
+        <!-- Automations card -->
         <hui:HavenAdaptiveSurface Classes="card">
           <StackPanel Spacing="9">
-            <TextBlock Text="Active Scheduled Actions" Classes="sectionHeading" />
+            <TextBlock Text="Active Automations" Classes="sectionHeading" />
             <TextBlock Text="Nothing scheduled for this workspace." Classes="muted" IsVisible="{Binding !HasAutomations}" />
             <ItemsControl ItemsSource="{Binding ActiveAutomations}">
               <ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" Margin="0,4"><TextBlock Text="{Binding Name}" /><TextBlock Grid.Column="1" Text="{Binding NextRun}" Classes="muted" /></Grid></DataTemplate></ItemsControl.ItemTemplate>
