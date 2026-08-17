@@ -18,11 +18,8 @@ public sealed partial class MainView
             return;
         }
 
-        var page = new TasksPage(
-            _workspaceState,
-            _automations,
+        var page = new NativeTasksSpacePage(
             _conversations,
-            containerId,
             StartOneTimeTaskAsync,
             InvokeTaskAsync,
             OpenNativeConversationAsync);
