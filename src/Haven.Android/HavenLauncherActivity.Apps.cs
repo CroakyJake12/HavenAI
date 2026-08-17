@@ -50,30 +50,12 @@ public sealed partial class HavenLauncherActivity
         if (manager is null)
             return [];
 
-        var intent = new Intent(Intent.ActionMain);
-        intent.AddCategory(Intent.CategoryLauncher);
-
-#pragma warning disable CA1422
-        var results = manager.QueryIntentActivities(intent, PackageInfoFlags.MatchAll);
-#pragma warning restore CA1422
-
-        var apps = results
-            .Where(result => result.ActivityInfo?.PackageName is { Length: > 0 }
-                && result.ActivityInfo?.Name is { Length: > 0 })
-            .Select(result =>
-            {
-                var info = result.ActivityInfo!;
-                var packageName = info.PackageName!;
-                var activityName = info.Name!;
-                var label = result.LoadLabel(manager)?.ToString();
-                return new LauncherApp(
-                    string.IsNullOrWhiteSpace(label) ? packageName : label,
-                    packageName,
-                    activityName,
-                    result.LoadIcon(manager));
-            })
-            .DistinctBy(app => app.Key)
-            .OrderBy(app => app.Label, StringComparer.CurrentCultureIgnoreCase)
+        var apps = AndroidInstalledAppCatalog.Query(manager, loadIcons: true)
+            .Select(app => new LauncherApp(
+                app.Label,
+                app.PackageName,
+                app.ActivityName,
+                app.Icon))
             .ToList();
 
         if (!apps.Any(app => string.Equals(app.PackageName, PackageName, StringComparison.OrdinalIgnoreCase)))

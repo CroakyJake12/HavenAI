@@ -1,4 +1,4 @@
-using Android.Content;
+﻿using Android.Content;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Haven.Application;
@@ -83,6 +83,7 @@ internal static class AndroidHavenBootstrap
             var preferences = services.GetRequiredService<UserPreferencesService>();
             preferences.ApplyAppearance(preferences.Appearance, save: false);
             _ = services.GetRequiredService<AndroidNotificationBridge>();
+            _ = services.GetRequiredService<AndroidProjectorDisplayService>();
 
             // Android can recreate an Activity. Create a fresh Avalonia control graph while
             // reusing Haven's application and infrastructure services.
@@ -140,6 +141,9 @@ internal static class AndroidHavenBootstrap
                 // SQLite schema. Activity recreation still receives a fresh MainView instance.
                 mainView.ApplyEdition(HavenShellEdition.New);
                 mainView.ApplyMobileLayout();
+                mainView.AttachProjectorControllerSession(
+                    services.GetRequiredService<IProjectorSessionCoordinator>(),
+                    services.GetRequiredService<AndroidProjectorControllerActionDispatcher>());
 
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);
