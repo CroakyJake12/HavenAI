@@ -17,6 +17,7 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
     private readonly IProjectorDisplayRegistry _registry;
     private readonly IProjectorSessionCoordinator _sessions;
     private readonly IProjectorExperienceCatalog _catalog;
+    private readonly AndroidProjectorApplicationService _applications;
     private readonly DisplayManager? _displayManager;
     private readonly Handler? _mainHandler;
     private PresentationEntry? _active;
@@ -25,11 +26,13 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
     public AndroidProjectorPresentationHostService(
         IProjectorDisplayRegistry registry,
         IProjectorSessionCoordinator sessions,
-        IProjectorExperienceCatalog catalog)
+        IProjectorExperienceCatalog catalog,
+        AndroidProjectorApplicationService applications)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _applications = applications ?? throw new ArgumentNullException(nameof(applications));
 
         var context = global::Android.App.Application.Context;
         _displayManager = context.GetSystemService(Context.DisplayService) as DisplayManager;
@@ -137,7 +140,9 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             return;
         }
 
-        _active = new PresentationEntry(display.RuntimeId, presentation, view, scene);
+        var entry = new PresentationEntry(display.RuntimeId, presentation, view, scene);
+        scene.ExperienceInvoked += experience => OnExperienceInvoked(entry, experience);
+        _active = entry;
         var promoted = PromoteRenderCapability(display);
 
         var current = _sessions.Current;
@@ -153,7 +158,62 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             session = _sessions.Current ?? current;
         }
 
-        _ = PopulateGalleryAsync(_active, session);
+        _ = PopulateGalleryAsync(entry, session);
+    }
+
+    private void OnExperienceInvoked(PresentationEntry entry, ProjectorExperience experience)
+    {
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+        if (experience.Source != ProjectorExperienceSource.Application
+            || experience.LaunchStrategy != ProjectorLaunchStrategy.AndroidApplication)
+        {
+            return;
+        }
+
+        RunOnMainThread(() => LaunchApplication(entry, experience));
+    }
+
+    private void LaunchApplication(PresentationEntry entry, ProjectorExperience experience)
+    {
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+
+        var display = _registry.Snapshot().FirstOrDefault(item =>
+            string.Equals(item.RuntimeId, entry.RuntimeId, StringComparison.Ordinal));
+        if (display is null)
+        {
+            PostExperienceStatus(entry, experience, "This Projector display is no longer available.");
+            return;
+        }
+
+        var result = _applications.TryLaunch(experience, display);
+        if (!result.Started)
+        {
+            PostExperienceStatus(entry, experience, result.Error ?? "Android did not start this application on the Projector display.");
+            return;
+        }
+
+        try
+        {
+            _sessions.Activate(experience);
+            PostExperienceStatus(entry, experience, $"Opened on {display.Name}.");
+        }
+        catch (Exception exception)
+        {
+            global::Android.Util.Log.Warn("HavenProjector", "Application opened but Projector session state could not be updated: " + exception.Message);
+            PostExperienceStatus(entry, experience, "Opened, but Haven could not update the Projector session state.");
+        }
+    }
+
+    private void PostExperienceStatus(PresentationEntry entry, ProjectorExperience experience, string description)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed || !ReferenceEquals(_active, entry))
+                return;
+            entry.Scene.SetExperienceStatus(experience, description);
+        });
     }
 
     private ProjectorDisplay PromoteRenderCapability(ProjectorDisplay display)

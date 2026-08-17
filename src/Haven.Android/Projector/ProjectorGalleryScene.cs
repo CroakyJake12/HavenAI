@@ -116,6 +116,7 @@ internal sealed class ProjectorGalleryScene
     }
 
     public Page Root { get; }
+    public event Action<ProjectorExperience>? ExperienceInvoked;
 
     public void SetExperiences(IReadOnlyList<ProjectorExperience> experiences)
     {
@@ -148,14 +149,19 @@ internal sealed class ProjectorGalleryScene
         };
         tile.SetValue(HavenProperties.MinHeight, HavenLength.Px(compact ? 64 : 150));
         tile.SetValue(HavenProperties.Padding, HavenThickness.Parse(compact ? "10px 16px" : "18px 20px"));
-        tile.Invoked += (_, _) => Select(experience);
+        tile.Invoked += (_, _) =>
+        {
+            SetExperienceStatus(experience, experience.Description);
+            ExperienceInvoked?.Invoke(experience);
+        };
         return tile;
     }
 
-    private void Select(ProjectorExperience experience)
+    public void SetExperienceStatus(ProjectorExperience experience, string description)
     {
+        ArgumentNullException.ThrowIfNull(experience);
         _selectionTitle.Content = experience.Name;
-        _selectionDescription.Content = experience.Description;
+        _selectionDescription.Content = description;
     }
 
     private static void AddEmptyState(Container target)
