@@ -29,7 +29,7 @@ public sealed record BrowserTopLevelAssessment(bool IsAllowed, string Reason)
 /// </summary>
 public enum BrowserPopupDisposition
 {
-    OpenInCurrentTab,
+    OpenInNewTab,
     BlockAsk,
     BlockDenied,
     BlockUnsafe
@@ -43,8 +43,13 @@ public sealed record BrowserPopupAssessment(BrowserPopupDisposition Disposition,
     /// <summary>
     /// Reports whether allowed applies to the current state.
     /// </summary>
-    public bool IsAllowed => Disposition == BrowserPopupDisposition.OpenInCurrentTab;
+    public bool IsAllowed => Disposition == BrowserPopupDisposition.OpenInNewTab;
 }
+
+/// <summary>
+/// Sanitized metadata captured from an untrusted web document for Haven-owned browser chrome.
+/// </summary>
+public sealed record BrowserPageMetadata(string Title, string? Favicon);
 
 /// <summary>
 /// Represents browser native request policy and keeps its related state and behavior together.
@@ -69,6 +74,27 @@ public static class BrowserNativeRequestPolicy
     }
 
     /// <summary>
+    /// Bounds untrusted page metadata before it reaches Haven-owned browser chrome.
+    /// </summary>
+    public static BrowserPageMetadata NormalizePageMetadata(Uri address, string? title, string? favicon)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        var safeTitle = string.IsNullOrWhiteSpace(title) ? address.Host : title.Trim();
+        if (safeTitle.Length > 512) safeTitle = safeTitle[..512];
+
+        string? safeFavicon = null;
+        var candidate = favicon?.Trim();
+        if (!string.IsNullOrEmpty(candidate)
+            && candidate.Length <= 4096
+            && Uri.TryCreate(candidate, UriKind.Absolute, out var icon)
+            && icon.Scheme is "http" or "https"
+            && string.IsNullOrEmpty(icon.UserInfo))
+            safeFavicon = icon.ToString();
+
+        return new BrowserPageMetadata(safeTitle, safeFavicon);
+    }
+
+    /// <summary>
     /// Performs the assess popup step owned by this component.
     /// </summary>
     public static BrowserPopupAssessment AssessPopup(
@@ -87,14 +113,14 @@ public static class BrowserNativeRequestPolicy
         return windowManagementDecision switch
         {
             BrowserSitePermissionDecision.Allow => new BrowserPopupAssessment(
-                BrowserPopupDisposition.OpenInCurrentTab,
-                "The requesting origin is allowed to open the target inside Haven's managed browser tab."),
+                BrowserPopupDisposition.OpenInNewTab,
+                "The requesting origin is allowed to open the target in a new Haven browser tab."),
             BrowserSitePermissionDecision.Deny => new BrowserPopupAssessment(
                 BrowserPopupDisposition.BlockDenied,
                 "Popup blocked by the saved WindowManagement decision for this origin."),
             _ => new BrowserPopupAssessment(
                 BrowserPopupDisposition.BlockAsk,
-                "Popup blocked. Set WindowManagement to Allow in Browser Safety to open it in the current tab.")
+                "Popup blocked. Set WindowManagement to Allow in Browser Safety to open it in a new tab.")
         };
     }
 }

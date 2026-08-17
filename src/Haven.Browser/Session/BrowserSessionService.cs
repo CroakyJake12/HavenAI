@@ -19,7 +19,7 @@ namespace Haven.Browser;
 /// <summary>
 /// Represents browser snapshot and keeps its related state and behavior together.
 /// </summary>
-public sealed record BrowserSnapshot(Uri? Address, string Title, bool CanGoBack, bool CanGoForward, bool IsLoading, string Status);
+public sealed record BrowserSnapshot(Uri? Address, string Title, bool CanGoBack, bool CanGoForward, bool IsLoading, string Status, string? Favicon = null);
 
 /// <summary>
 /// Defines the embedded browser host contract so callers depend on a capability rather than one implementation.
