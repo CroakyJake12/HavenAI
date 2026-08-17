@@ -86,6 +86,14 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
         collection.AddSingleton<ComputerUseOverlayCoordinator>();
+#if !ANDROID
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceRegistry>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayContextActionCandidateService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayChatSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGoSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGlobalHotkey>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceController>();
+#endif
         // Legacy automation delivery polling retired; Tasks owns execution state.
         
         collection.AddSingleton<FloatingActivityStateStore>();
@@ -147,6 +155,9 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
+#if !ANDROID
+            await services.GetRequiredService<Haven.Desktop.Overlay.OverlayWorkspaceController>().InitializeAsync(CancellationToken.None);
+#endif
             // Scheduled Tasks have no parallel automation delivery loop.
 
             if (recoveryState.IsSafeMode)
