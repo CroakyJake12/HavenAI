@@ -865,6 +865,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task OpenModeWorkspaceAsync(ModeDefinition mode, HavenSurface surface, bool forceNewTab)
     {
+        if (surface is HavenSurface.Imagine or HavenSurface.Vision)
+        {
+            await OpenCreativeModeWorkspaceAsync(mode, surface, forceNewTab);
+            return;
+        }
+
         NewChatPage page;
         string key;
         if (forceNewTab)
@@ -1369,6 +1375,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (openInNewTab) AddNewTab();
             OpenTraining();
         }
+        else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
+        {
+            await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
@@ -1458,7 +1468,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     if (registered is not null)
                     {
                         var route = HavenAppRoutePolicy.Resolve(registered);
-                        if (route.Kind == HavenAppRouteKind.ModeWorkspace)
+                        if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
+                            await OpenCreativeModeWorkspaceAsync(registered, route.Surface, false);
+                        else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
                             await OpenModeWorkspaceAsync(registered, route.Surface, false);
                     }
                     break;
