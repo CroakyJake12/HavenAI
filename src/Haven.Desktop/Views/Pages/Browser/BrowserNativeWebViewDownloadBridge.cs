@@ -5,10 +5,29 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Browser;
 using Haven.Core;
+#if !ANDROID
 using Microsoft.Web.WebView2.Core;
+#endif
 
 namespace Haven.Desktop.Views.Pages.Browser;
 
+#if ANDROID
+internal sealed class BrowserNativeWebViewDownloadBridge
+{
+    public static void Attach(
+        NativeWebView webView,
+        BrowserDownloadTransport transport,
+        IBrowserNativeDownloadService nativeDownloads,
+        bool isPrivate,
+        Action<Exception> reportError)
+    {
+        ArgumentNullException.ThrowIfNull(webView);
+        ArgumentNullException.ThrowIfNull(transport);
+        ArgumentNullException.ThrowIfNull(nativeDownloads);
+        ArgumentNullException.ThrowIfNull(reportError);
+    }
+}
+#else
 /// <summary>
 /// Bridges Avalonia's supported Windows WebView2 platform handle into Haven's approval-gated
 /// page-download pipeline without creating a second browser or replaying the page request.
@@ -304,3 +323,4 @@ internal sealed class BrowserNativeWebViewDownloadBridge
         }
     }
 }
+#endif
