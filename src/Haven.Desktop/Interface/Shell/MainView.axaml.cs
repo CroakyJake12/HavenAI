@@ -1023,15 +1023,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             AddOrSelectTab("studio-home", "Projects", projects, false, HavenSurface.Studio);
             return;
         }
-        var tasks = new TasksPage(
-            _workspaceState,
-            _automations,
-            _conversations,
-            CurrentChat.SelectedContainer?.Id,
-            StartOneTimeTaskAsync,
-            InvokeTaskAsync,
-            OpenNativeConversationAsync);
-        AddOrSelectTab("tasks-home", "Haven Tasks", tasks, false, HavenSurface.Tasks);
+        OpenTasksDashboard();
     }
 
     private void OpenNewContainer()
