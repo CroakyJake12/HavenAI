@@ -118,6 +118,13 @@ internal sealed class BrowserNativeWebResolver : IHavenAvaloniaNativeControlReso
             replacement = new NativeWebView();
             replacement.EnvironmentRequested += (_, args) =>
                 ConfigureEnvironment(args, profileDirectory, isPrivate, tabId);
+            var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
+            BrowserNativeWebViewDownloadBridge.Attach(
+                replacement,
+                services.GetRequiredService<BrowserDownloadTransport>(),
+                services.GetRequiredService<IBrowserNativeDownloadService>(),
+                isPrivate,
+                _page.ReportBrowserError);
             replacement.IsVisible = false;
             _surface.Children.Add(replacement);
             _webViews[tabId] = replacement;
