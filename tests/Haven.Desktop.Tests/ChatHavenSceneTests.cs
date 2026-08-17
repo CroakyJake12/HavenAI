@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
@@ -22,6 +22,74 @@ public sealed class ChatHavenSceneTests
         Assert.Equal("Add to chat", scene.AddButton.Accessibility.AccessibleName);
         Assert.Equal("Send message", scene.SendButton.Accessibility.AccessibleName);
         Assert.Equal("Messages", scene.Messages.Name);
+    }
+
+    [AvaloniaFact]
+    public void Sending_state_turns_primary_action_into_stop_and_restores_send()
+    {
+        using var scene = new ChatHavenScene();
+        var host = new HavenSceneControl { Root = scene.Root };
+        var window = new Window { Width = 1000, Height = 760, Content = host };
+        window.Show();
+        window.UpdateLayout();
+        var router = new HavenInputRouter(scene.Root);
+        try
+        {
+        var sends = 0;
+        var stops = 0;
+        scene.SendRequested += (_, _) => sends++;
+        scene.StopRequested += (_, _) => stops++;
+
+        scene.SetSending(true, modelAvailable: true);
+
+        Assert.False(scene.Instruction.GetValue(HavenProperties.Enabled));
+        Assert.True(scene.SendButton.GetValue(HavenProperties.Enabled));
+        Assert.Equal("Stop response", scene.SendButton.Accessibility.AccessibleName);
+        Assert.Equal("close", scene.SendIcon.Key);
+        Click(router, scene.SendButton);
+        Assert.Equal(0, sends);
+        Assert.Equal(1, stops);
+
+        scene.SetSending(false, modelAvailable: true);
+
+        Assert.True(scene.Instruction.GetValue(HavenProperties.Enabled));
+        Assert.True(scene.SendButton.GetValue(HavenProperties.Enabled));
+        Assert.Equal("Send message", scene.SendButton.Accessibility.AccessibleName);
+        Assert.Equal("arrow-up", scene.SendIcon.Key);
+        Click(router, scene.SendButton);
+        Assert.Equal(1, sends);
+        Assert.Equal(1, stops);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [Fact]
+    public void Tool_activity_rows_share_message_runtime_and_restore_in_order()
+    {
+        using var scene = new ChatHavenScene();
+        var assistantId = Guid.NewGuid();
+        var toolId = Guid.NewGuid();
+        var activity = new ToolActivity(toolId, "Browser search", "Found 3 sources", true, TimeSpan.FromMilliseconds(850), DateTimeOffset.UtcNow, 3, 1);
+        var assistant = new ChatSceneMessage(assistantId, MessageRole.Assistant, "Answer", "Haven", false, string.Empty, [activity]);
+        var user = new ChatSceneMessage(Guid.NewGuid(), MessageRole.User, "Thanks", string.Empty, false, string.Empty);
+
+        scene.SyncMessages([assistant, user]);
+
+        Assert.Equal(3, scene.Messages.Items.Count);
+        var tool = scene.Messages.Items[1];
+        Assert.Equal("Completed", tool.GetComponent<Haven.UI.Components.Text>("Status").Content);
+        Assert.Equal("Browser search", tool.GetComponent<Haven.UI.Components.Text>("Title").Content);
+        Assert.Equal("Found 3 sources", tool.GetComponent<Haven.UI.Components.Text>("Detail").Content);
+        Assert.Contains("0.9s", tool.GetComponent<Haven.UI.Components.Text>("Meta").Content);
+        Assert.Contains("+3 -1", tool.GetComponent<Haven.UI.Components.Text>("Meta").Content);
+
+        scene.SyncMessages([assistant with { ToolActivities = [] }, user]);
+
+        Assert.Equal(2, scene.Messages.Items.Count);
     }
 
     [Fact]

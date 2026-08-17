@@ -1,4 +1,4 @@
-using Haven.Core;
+﻿using Haven.Core;
 using Haven.Desktop.Prefabs;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.UI;
@@ -27,7 +27,8 @@ internal sealed record ChatSceneMessage(
     string Content,
     string AgentName,
     bool IsStreaming,
-    string Thinking);
+    string Thinking,
+    IReadOnlyList<ToolActivity>? ToolActivities = null);
 
 /// <summary>
 /// Canonical Haven-native Chat presentation. App/domain state remains owned by NewChatPage and application services;
@@ -39,9 +40,12 @@ internal sealed class ChatHavenScene : IDisposable
     private readonly HavenDynamicUITemplateCatalog _templates;
     private readonly DynamicUI _dynamicUi;
     private readonly Dictionary<Guid, DynamicUIItem> _messageItems = [];
+    private readonly Dictionary<Guid, DynamicUIItem> _toolItems = [];
+    private readonly Dictionary<Guid, Guid> _toolOwners = [];
     private readonly Dictionary<Guid, IReadOnlyList<HavenElement>> _generatedContent = [];
     private readonly ChatAddMenuSurface _addMenu;
     private PopupMenu? _activeMessagePopup;
+    private bool _isSending;
     private bool _disposed;
 
     public ChatHavenScene()
@@ -54,6 +58,7 @@ internal sealed class ChatHavenScene : IDisposable
         Instruction = Chatbox.GetComponent<Input>("Instruction");
         AddButton = Chatbox.GetComponent<HavenButton>("AddMenu");
         SendButton = Chatbox.GetComponent<HavenButton>("Send");
+        SendIcon = Chatbox.GetComponent<Icon>("SendIcon");
         Messages = (DynamicUIRuntime)Root.DescendantsAndSelf().Single(element => element.Name == "Messages");
         EmptyState = Root.DescendantsAndSelf().Single(element => element.Name == "EmptyState");
         Status = (HavenText)Root.DescendantsAndSelf().Single(element => element.Name == "Status");
@@ -89,6 +94,7 @@ internal sealed class ChatHavenScene : IDisposable
     public Input Instruction { get; }
     public HavenButton AddButton { get; }
     public HavenButton SendButton { get; }
+    public Icon SendIcon { get; }
     public DynamicUIRuntime Messages { get; }
     public HavenElement EmptyState { get; }
     public HavenText Status { get; }
@@ -106,6 +112,7 @@ internal sealed class ChatHavenScene : IDisposable
     public Input CatalogSearch => _addMenu.CatalogSearch;
 
     public event EventHandler? SendRequested;
+    public event EventHandler? StopRequested;
     public event EventHandler? ResolveProblemsRequested;
     public event EventHandler? ManageAttachmentsRequested;
     public event EventHandler? NewTaskRequested;
@@ -119,8 +126,11 @@ internal sealed class ChatHavenScene : IDisposable
 
     public void SetSending(bool sending, bool modelAvailable)
     {
+        _isSending = sending;
         Instruction.SetValue(HavenProperties.Enabled, !sending);
-        SendButton.SetValue(HavenProperties.Enabled, !sending && modelAvailable);
+        SendButton.SetValue(HavenProperties.Enabled, sending || modelAvailable);
+        SendButton.Accessibility.AccessibleName = sending ? "Stop response" : "Send message";
+        SendIcon.Key = sending ? "close" : "arrow-up";
     }
 
     public void SetStatus(string? value)
@@ -158,28 +168,33 @@ internal sealed class ChatHavenScene : IDisposable
 
     public void SyncMessages(IReadOnlyList<ChatSceneMessage> messages)
     {
-        var expected = messages.Select(message => message.Id).ToHashSet();
-        foreach (var stale in _messageItems.Keys.Where(id => !expected.Contains(id)).ToArray())
+        var expectedMessages = messages.Select(message => message.Id).ToHashSet();
+        foreach (var stale in _messageItems.Keys.Where(id => !expectedMessages.Contains(id)).ToArray())
         {
             _dynamicUi.DeleteItem("Messages", stale.ToString("N"));
             _messageItems.Remove(stale);
             _generatedContent.Remove(stale);
         }
 
-        for (var index = 0; index < messages.Count; index++)
+        var expectedTools = messages.SelectMany(message => message.ToolActivities ?? []).Select(activity => activity.Id).ToHashSet();
+        foreach (var stale in _toolItems.Keys.Where(id => !expectedTools.Contains(id)).ToArray()) DeleteToolActivity(stale);
+
+        var transcriptIndex = 0;
+        foreach (var message in messages)
         {
-            var message = messages[index];
             if (!_messageItems.TryGetValue(message.Id, out var item))
             {
-                item = CreateMessage(message, index);
+                item = CreateMessage(message, transcriptIndex);
                 _messageItems[message.Id] = item;
             }
             else
             {
                 UpdateMessage(item, message);
                 var currentIndex = Messages.Items.ToList().IndexOf(item);
-                if (currentIndex != index) _dynamicUi.MoveItem("Messages", item.InstanceID, index);
+                if (currentIndex != transcriptIndex) _dynamicUi.MoveItem("Messages", item.InstanceID, transcriptIndex);
             }
+            transcriptIndex++;
+            transcriptIndex = SyncToolActivities(message, transcriptIndex);
             RestoreGeneratedContent(message.Id, item);
         }
         SetHasMessages(messages.Count > 0);
@@ -193,6 +208,8 @@ internal sealed class ChatHavenScene : IDisposable
             _messageItems[message.Id] = item;
         }
         else UpdateMessage(item, message);
+        var messageIndex = Messages.Items.ToList().IndexOf(item);
+        SyncToolActivities(message, Math.Max(0, messageIndex + 1));
         RestoreGeneratedContent(message.Id, item);
         SetHasMessages(true);
     }
@@ -312,6 +329,57 @@ internal sealed class ChatHavenScene : IDisposable
         if (ReferenceEquals(overlay.Parent, Root)) Root.Remove(overlay);
     }
 
+    private int SyncToolActivities(ChatSceneMessage message, int startIndex)
+    {
+        var activities = message.ToolActivities ?? [];
+        var expected = activities.Select(activity => activity.Id).ToHashSet();
+        foreach (var stale in _toolOwners.Where(pair => pair.Value == message.Id && !expected.Contains(pair.Key)).Select(pair => pair.Key).ToArray())
+            DeleteToolActivity(stale);
+
+        var index = startIndex;
+        foreach (var activity in activities)
+        {
+            if (!_toolItems.TryGetValue(activity.Id, out var item))
+            {
+                item = _dynamicUi.CreateItem("ChatToolActivity", "Messages", "tool-" + activity.Id.ToString("N"), ValuesFor(activity), index);
+                _toolItems[activity.Id] = item;
+                _toolOwners[activity.Id] = message.Id;
+            }
+            else
+            {
+                item.SetVariables(ValuesFor(activity));
+                _toolOwners[activity.Id] = message.Id;
+                var currentIndex = Messages.Items.ToList().IndexOf(item);
+                if (currentIndex != index) _dynamicUi.MoveItem("Messages", item.InstanceID, index);
+            }
+            index++;
+        }
+        return index;
+    }
+
+    private void DeleteToolActivity(Guid activityId)
+    {
+        if (_toolItems.Remove(activityId, out var item))
+            _dynamicUi.DeleteItem("Messages", item.InstanceID);
+        _toolOwners.Remove(activityId);
+    }
+
+    private static Dictionary<string, object?> ValuesFor(ToolActivity activity) => new()
+    {
+        ["STATUS"] = activity.Succeeded ? "Completed" : "Failed",
+        ["TITLE"] = activity.Title,
+        ["DETAIL"] = activity.Detail,
+        ["META"] = ToolActivityMeta(activity)
+    };
+
+    private static string ToolActivityMeta(ToolActivity activity)
+    {
+        var parts = new List<string>();
+        if (activity.Duration > TimeSpan.Zero) parts.Add($"{activity.Duration.TotalSeconds:0.#}s");
+        if (activity.LinesAdded != 0 || activity.LinesRemoved != 0) parts.Add($"+{activity.LinesAdded} -{activity.LinesRemoved}");
+        return string.Join(" Â· ", parts);
+    }
+
     private DynamicUIItem CreateMessage(ChatSceneMessage message, int index)
     {
         var values = ValuesFor(message);
@@ -412,7 +480,16 @@ internal sealed class ChatHavenScene : IDisposable
     }
 
     private void OnAddInvoked(object? sender, EventArgs e) => ShowAddMenu();
-    private void OnSendInvoked(object? sender, EventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
+    private void OnSendInvoked(object? sender, EventArgs e)
+    {
+        if (_isSending)
+        {
+            StopRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        SendRequested?.Invoke(this, EventArgs.Empty);
+    }
     private void OnResolveInvoked(object? sender, EventArgs e) => ResolveProblemsRequested?.Invoke(this, EventArgs.Empty);
 
     public void ShowAddMenu() => _addMenu.Show();

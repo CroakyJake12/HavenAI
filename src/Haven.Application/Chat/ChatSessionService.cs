@@ -299,6 +299,7 @@ public sealed class ChatSessionService(
             projectContext, projectInstructions, registeredContext, computerPass is not null);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
+        var toolActivities = new List<ToolActivity>();
         execution.Update(ChatExecutionStage.Thinking, "Thinking");
         yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
 
@@ -340,7 +341,8 @@ public sealed class ChatSessionService(
                 callsUsed++;
                 lastToolCall = bootstrapCall;
                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
-                yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                toolActivities.Add(lastToolResult.Activity);
+                yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                 var directResult = lastToolResult.Activity.Succeeded
                     ? CompletedActionMessage(bootstrapCall)
                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
@@ -374,7 +376,8 @@ public sealed class ChatSessionService(
                         callsUsed++;
                         lastToolCall = bridged;
                         lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
-                        yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                        toolActivities.Add(lastToolResult.Activity);
+                        yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                         var bridgedResult = lastToolResult.Activity.Succeeded
                             ? CompletedActionMessage(bridged)
                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
@@ -403,7 +406,8 @@ public sealed class ChatSessionService(
                             callsUsed++;
                             lastToolCall = bridged;
                             lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
-                            yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                            toolActivities.Add(lastToolResult.Activity);
+                            yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                             turns.Add(new OllamaToolTurn("assistant", string.Empty, [bridged]));
                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
                             continue;
@@ -432,7 +436,8 @@ public sealed class ChatSessionService(
                     lastToolCall = call;
                     var result = await ExecuteToolAsync(call).ConfigureAwait(false);
                     lastToolResult = result;
-                    yield return ChatStreamEvent.Activity(result.Activity);
+                    toolActivities.Add(result.Activity);
+                    yield return ChatStreamEvent.Activity(assistantId, result.Activity);
                     turns.Add(new OllamaToolTurn("tool", result.Output, ToolName: call.Name));
                 }
             }
@@ -471,7 +476,8 @@ public sealed class ChatSessionService(
             }
         }
 
-        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, null, DateTimeOffset.UtcNow);
+        var assistantMetadata = toolActivities.Count == 0 ? null : JsonSerializer.Serialize(new { toolActivities });
+        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, assistantMetadata, DateTimeOffset.UtcNow);
         if (!conversation.IsTemporary)
             await conversations.AddMessageAsync(assistant, cancellationToken).ConfigureAwait(false);
         execution.Complete();
@@ -879,7 +885,7 @@ public sealed record ChatStreamEvent(
     /// <summary>
     /// Performs the activity step owned by this component.
     /// </summary>
-    public static ChatStreamEvent Activity(ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, ToolActivity: activity);
+    public static ChatStreamEvent Activity(Guid messageId, ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, MessageId: messageId, ToolActivity: activity);
 }
 
 /// <summary>

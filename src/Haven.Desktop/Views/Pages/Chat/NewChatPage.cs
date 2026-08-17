@@ -1,4 +1,5 @@
-using System.Text;
+﻿using System.Text;
+using System.Text.Json;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -131,11 +132,11 @@ public sealed class NewChatPage : UserControl, IDisposable
             var elapsed = TimeSpan.FromMilliseconds(Environment.TickCount64 - _sendStartTick);
             _scene.SetStatus(elapsed.TotalSeconds switch
             {
-                < 15 => "Thinking…",
-                < 30 => "Taking a moment…",
-                < 60 => "Still working…",
-                < 120 => "This is a complex request…",
-                _ => $"Working for {(int)elapsed.TotalMinutes}m {(int)elapsed.Seconds}s…"
+                < 15 => "Thinkingâ€¦",
+                < 30 => "Taking a momentâ€¦",
+                < 60 => "Still workingâ€¦",
+                < 120 => "This is a complex requestâ€¦",
+                _ => $"Working for {(int)elapsed.TotalMinutes}m {(int)elapsed.Seconds}sâ€¦"
             });
         };
 
@@ -472,6 +473,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _bus.RegisterElement("Chat.Problems.Resolve", Scene);
 
         _scene.SendRequested += async (_, _) => await SubmitCurrentInstructionAsync();
+        _scene.StopRequested += OnStopRequested;
         _scene.ResolveProblemsRequested += (_, _) =>
         {
             _bus.Fire("Chat.Problems.Resolve.Click");
@@ -491,8 +493,17 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task InitialiseAsync()
     {
-        await SetStatusAsync("Connecting to local models…");
+        await SetStatusAsync("Connecting to local modelsâ€¦");
         await RefreshModelsAsync();
+    }
+
+    private void OnStopRequested(object? sender, EventArgs e)
+    {
+        var cancellation = _sendCancellation;
+        if (cancellation is null || cancellation.IsCancellationRequested) return;
+
+        _scene.SetStatus("Stopping response...");
+        cancellation.Cancel();
     }
 
     private void OnInputSubmitted(Input input)
@@ -536,7 +547,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (_selectedModel is null)
         {
             _pendingInstruction = instruction;
-            _scene.SetStatus("Connecting to the selected local model…");
+            _scene.SetStatus("Connecting to the selected local modelâ€¦");
             return;
         }
 
@@ -552,7 +563,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         var now = DateTimeOffset.UtcNow;
         if (_messages.Count == 0)
         {
-            var title = instruction.Length > 56 ? instruction[..53] + "…" : instruction;
+            var title = instruction.Length > 56 ? instruction[..53] + "â€¦" : instruction;
             _conversation = _conversation with { Title = title, UpdatedAt = now };
         }
 
@@ -675,8 +686,15 @@ public sealed class NewChatPage : UserControl, IDisposable
                 UpsertMessage(streamEvent.Message);
                 RefreshMessage(streamEvent.Message);
                 break;
-            case ChatStreamEventKind.ToolActivity when streamEvent.ToolActivity is not null:
-                _scene.SetStatus(streamEvent.ToolActivity.Detail);
+            case ChatStreamEventKind.ToolActivity when streamEvent.ToolActivity is { } activity && streamEvent.MessageId is { } toolMessageId:
+                _scene.SetStatus(activity.Detail);
+                var toolMessageIndex = _messages.FindIndex(message => message.Id == toolMessageId);
+                if (toolMessageIndex >= 0)
+                {
+                    _messages[toolMessageIndex] = AppendToolActivity(_messages[toolMessageIndex], activity);
+                    RefreshMessage(_messages[toolMessageIndex]);
+                    Dispatcher.UIThread.Post(_scene.ScrollToEnd, DispatcherPriority.Background);
+                }
                 break;
             case ChatStreamEventKind.PreflightFailed:
                 _scene.SetStatus(streamEvent.PreflightResult is { Missing.Count: > 0 } preflight
@@ -711,6 +729,27 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (message.Role == MessageRole.Assistant) RefreshGeneratedContent(message);
     }
 
+    private static IReadOnlyList<ToolActivity> ReadToolActivities(ChatMessage message)
+    {
+        if (!message.Metadata.TryGetValue("toolActivities", out var value) || value.ValueKind != JsonValueKind.Array) return [];
+        try
+        {
+            return value.Deserialize<ToolActivity[]>() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static ChatMessage AppendToolActivity(ChatMessage message, ToolActivity activity)
+    {
+        var activities = ReadToolActivities(message).Where(item => item.Id != activity.Id).Append(activity).ToArray();
+        var metadata = message.Metadata.Where(pair => !string.Equals(pair.Key, "toolActivities", StringComparison.Ordinal)).ToDictionary(pair => pair.Key, pair => (object?)pair.Value);
+        metadata["toolActivities"] = activities;
+        return message with { MetadataJson = JsonSerializer.Serialize(metadata) };
+    }
+
     private ChatSceneMessage BuildSceneMessage(ChatMessage message)
     {
         var directive = message.Role == MessageRole.Assistant
@@ -718,7 +757,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             : new GenUiChatDirectiveParseResult(message.Content, [], null, false);
         var display = directive.DisplayContent;
         if (message.Role == MessageRole.Assistant && string.IsNullOrWhiteSpace(display) && directive.HasDirective && directive.Requests.Count == 0)
-            display = "Generating interactive content…";
+            display = "Generating interactive contentâ€¦";
         var thinking = string.Empty;
         if (_thinkingContent.TryGetValue(message.Id, out var content) && !string.IsNullOrWhiteSpace(content))
         {
@@ -728,7 +767,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                 var end = _thinkingEndTick.TryGetValue(message.Id, out var completed) ? completed : Environment.TickCount64;
                 elapsed = Math.Max(0, (end - start) / 1000);
             }
-            thinking = (elapsed > 0 ? $"Thought for {elapsed} seconds\n" : "Thinking…\n") + content;
+            thinking = (elapsed > 0 ? $"Thought for {elapsed} seconds\n" : "Thinkingâ€¦\n") + content;
         }
         return new ChatSceneMessage(
             message.Id,
@@ -736,7 +775,8 @@ public sealed class NewChatPage : UserControl, IDisposable
             display ?? string.Empty,
             message.AgentName ?? "Haven",
             _streamingMessages.Contains(message.Id),
-            thinking);
+            thinking,
+            ReadToolActivities(message));
     }
 
     private void RefreshGeneratedContent(ChatMessage message)
@@ -745,7 +785,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         var generated = new List<HavenElement>();
         if (_streamingMessages.Contains(message.Id) && directive.Requests.Count == 0 && (directive.HasDirective || ShouldExpectGeneratedSurface(message)))
         {
-            var preview = new Text { Content = "Preparing interactive content…" };
+            var preview = new Text { Content = "Preparing interactive contentâ€¦" };
             preview.SetValue(HavenProperties.Foreground, "TextSoft");
             generated.Add(preview);
         }
@@ -1149,7 +1189,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (_taskAttachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _taskAttachments.Apps.Select(item => item.Name)));
         if (_taskAttachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _taskAttachments.Capabilities.Select(item => item.Name)));
         if (_taskAttachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _taskAttachments.Files.Select(Path.GetFileName)));
-        _scene.SetAttachmentStatus(string.Join("  •  ", parts));
+        _scene.SetAttachmentStatus(string.Join("  â€¢  ", parts));
     }
 
     private IReadOnlyList<ActiveCapability> ActiveCapabilitiesForCurrentChat()
@@ -1250,6 +1290,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _sendCancellation?.Cancel();
         _sendCancellation?.Dispose();
         _sendProgressTimer.Stop();
+        _scene.StopRequested -= OnStopRequested;
         Scene.InputSubmitted -= OnInputSubmitted;
         Scene.PointerPressedOutside -= _scene.HideAddMenu;
         ClearGeneratedSurfaces();
