@@ -57,12 +57,74 @@ public sealed class ProjectorFoundationTests
         Assert.True(experience.IsAvailable(ProjectorCapabilities.Unknown with { LaunchAndroidActivity = ProjectorCapabilityState.Available }));
     }
 
+    [Fact]
+    public async Task BuiltInProviderPublishesRequiredProjectorExperienceFamily()
+    {
+        var provider = new BuiltInProjectorExperienceProvider();
+        var experiences = await provider.GetExperiencesAsync(null, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { "desktop", "games", "haven", "music", "presentation", "tv", "videos" },
+            experiences.Select(experience => experience.Id).OrderBy(id => id, StringComparer.Ordinal));
+        Assert.All(experiences, experience => Assert.Contains(ProjectorCapability.RenderHavenSurface, experience.RequiredCapabilities));
+    }
+
+    [Fact]
+    public async Task ExperienceCatalogFiltersUnavailableItemsAndKeepsProviderOrderForDuplicateIds()
+    {
+        var duplicateDesktop = Experience("desktop");
+        var catalog = new ProjectorExperienceCatalog(
+        [
+            new BuiltInProjectorExperienceProvider(),
+            new FixedExperienceProvider([duplicateDesktop])
+        ]);
+
+        var unavailableDisplay = Display("android-display:8", null);
+        var unavailableSession = Session(unavailableDisplay);
+        Assert.Empty(await catalog.GetExperiencesAsync(unavailableSession, CancellationToken.None));
+
+        var availableDisplay = unavailableDisplay with
+        {
+            Capabilities = unavailableDisplay.Capabilities with
+            {
+                RenderHavenSurface = ProjectorCapabilityState.Available
+            }
+        };
+        var available = await catalog.GetExperiencesAsync(Session(availableDisplay), CancellationToken.None);
+
+        Assert.Equal(7, available.Count);
+        Assert.Equal("Desktop", Assert.Single(available, experience => experience.Id == "desktop").Name);
+    }
+
     private static ProjectorDisplay Display(string runtimeId, string? stableIdentity) => new(
         runtimeId, stableIdentity, "External display", 1920, 1080, null, 60, 0, false,
         ProjectorTransportKind.NativeDisplay, ProjectorConnectionKind.Unknown, ProjectorDisplayTrust.Public,
         ProjectorCapabilities.Unknown with { PresentationDisplay = ProjectorCapabilityState.Available }, DateTimeOffset.UtcNow);
 
+    private static ProjectorSessionSnapshot Session(ProjectorDisplay display) => new(
+        Guid.NewGuid(),
+        ProjectorSessionState.Gallery,
+        display,
+        CurrentExperienceId: null,
+        PreviousExperienceId: null,
+        Controller: null,
+        WorkspaceId: null,
+        InputDeviceKinds: [],
+        StartedAt: DateTimeOffset.UtcNow,
+        UpdatedAt: DateTimeOffset.UtcNow);
+
     private static ProjectorExperience Experience(string id, params ProjectorCapability[] required) => new(
         id, id, "Test experience", "projector", null, ProjectorExperienceSource.BuiltIn, ProjectorLaunchStrategy.HavenSurface,
         ProjectorInteractionProfile.Mixed, ProjectorExperiencePersistence.Session, required);
+
+    private sealed class FixedExperienceProvider(IReadOnlyList<ProjectorExperience> experiences) : IProjectorExperienceProvider
+    {
+        public ValueTask<IReadOnlyList<ProjectorExperience>> GetExperiencesAsync(
+            ProjectorSessionSnapshot? session,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<IReadOnlyList<ProjectorExperience>>(experiences);
+        }
+    }
 }
