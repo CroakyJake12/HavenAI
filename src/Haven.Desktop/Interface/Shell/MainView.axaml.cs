@@ -1426,6 +1426,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (openInNewTab) AddNewTab();
             OpenTraining();
         }
+        else if (route.Kind == HavenAppRouteKind.Write)
+        {
+            await NotesExperienceNavigation.OpenAsync(this, NotesExperienceKind.Notes, openInNewTab);
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);

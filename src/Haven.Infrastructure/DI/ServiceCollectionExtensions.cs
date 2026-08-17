@@ -34,6 +34,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NotesImportExportService>();
         services.AddSingleton<MigratingNotesImportExportService>();
         services.AddSingleton<INotesImportExportService>(provider => provider.GetRequiredService<MigratingNotesImportExportService>());
+        services.AddSingleton<IPresentRepository, PresentRepository>();
+        services.AddSingleton<IPresentExportService, PresentPptxExportService>();
+        services.AddSingleton<IDataWorkbookRepository, DataWorkbookRepository>();
+        services.AddSingleton<IDataWorkbookFormatService, DataXlsxFormatService>();
+        services.AddSingleton<IDataWorkbookQueryService, DataWorkbookQueryService>();
         services.AddSingleton<NotesAttachmentStore>();
         services.AddSingleton<SecureNotesAttachmentStore>();
         services.AddSingleton<INotesAttachmentStore>(provider => provider.GetRequiredService<SecureNotesAttachmentStore>());

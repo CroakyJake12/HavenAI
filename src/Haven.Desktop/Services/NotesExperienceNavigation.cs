@@ -17,12 +17,10 @@ using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views;
 using Haven.Desktop.Views.Shell;
-using Haven.Desktop.Views.Pages.Notes;
+using Haven.Desktop.Views.Pages.Write;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Services;
-
-using NotesPageView = Views.Pages.Notes.NotesPage;
 
 /// <summary>
 /// Represents notes experience navigation and keeps its related state and behavior together.
@@ -32,11 +30,18 @@ public static class NotesExperienceNavigation
     /// <summary>
     /// Performs open asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    public static Task OpenAsync(MainView shell, NotesExperienceKind kind)
+    public static Task OpenAsync(MainView shell, NotesExperienceKind kind, bool forceNewTab = false)
     {
         ArgumentNullException.ThrowIfNull(shell);
-        var key = "notes-experience-" + kind.ToString().ToLowerInvariant();
-        var existing = shell.OpenTabs.FirstOrDefault(tab => tab.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var baseKey = kind == NotesExperienceKind.Notes
+            ? "write"
+            : "notes-experience-" + kind.ToString().ToLowerInvariant();
+        var key = forceNewTab
+            ? baseKey + "-" + Guid.NewGuid().ToString("N")[..8]
+            : baseKey;
+        var existing = forceNewTab
+            ? null
+            : shell.OpenTabs.FirstOrDefault(tab => tab.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
             shell.SelectedTab = existing;
@@ -48,9 +53,7 @@ public static class NotesExperienceNavigation
         if (kind == NotesExperienceKind.Notes)
         {
             var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
-            page = ActivatorUtilities.CreateInstance<NotesPageView>(
-                services,
-                services.GetRequiredService<IProviderModelClient>());
+            page = ActivatorUtilities.CreateInstance<WritePage>(services);
         }
         else
         {
@@ -68,7 +71,7 @@ public static class NotesExperienceNavigation
     /// </summary>
     public static string DisplayName(NotesExperienceKind kind) => kind switch
     {
-        NotesExperienceKind.Notes => "Haven Notes",
+        NotesExperienceKind.Notes => "Write",
         NotesExperienceKind.Present => "Haven Present",
         NotesExperienceKind.Data => "Haven Data",
         NotesExperienceKind.Tasks => "Haven Tasks",
@@ -81,7 +84,7 @@ public static class NotesExperienceNavigation
     /// </summary>
     public static string Description(NotesExperienceKind kind) => kind switch
     {
-        NotesExperienceKind.Notes => "Documents, ink, equations, interactive widgets, flashcards and reviewed AI.",
+        NotesExperienceKind.Notes => "Create, edit, import and export rich local documents.",
         NotesExperienceKind.Present => "Slides",
         NotesExperienceKind.Data => "Spreadsheets",
         NotesExperienceKind.Tasks => "Tasks",

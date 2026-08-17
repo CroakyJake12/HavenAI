@@ -62,7 +62,7 @@ public sealed partial class NotesImportExportService(
             ".html" or ".htm" => NotesFromHtml(await File.ReadAllTextAsync(sourcePath, cancellationToken).ConfigureAwait(false), Path.GetFileNameWithoutExtension(sourcePath)),
             ".csv" => NotesFromCsv(await File.ReadAllTextAsync(sourcePath, cancellationToken).ConfigureAwait(false), Path.GetFileNameWithoutExtension(sourcePath)),
             ".rtf" => NotesFromText(DecodeRtf(await File.ReadAllTextAsync(sourcePath, cancellationToken).ConfigureAwait(false)), Path.GetFileNameWithoutExtension(sourcePath), NotesBlockKind.Paragraph),
-            ".docx" => await ImportDocxAsync(sourcePath, cancellationToken).ConfigureAwait(false),
+            ".docx" => await NotesDocxFormatService.ImportAsync(sourcePath, cancellationToken).ConfigureAwait(false),
             ".odt" => await ImportOdtAsync(sourcePath, cancellationToken).ConfigureAwait(false),
             _ => throw new NotSupportedException($"Notes cannot import '{extension}'. Supported formats: {string.Join(", ", ImportExtensions)}")
         };
@@ -132,7 +132,7 @@ public sealed partial class NotesImportExportService(
                     await WriteTextDurablyAsync(temporary, RenderRtf(document), cancellationToken).ConfigureAwait(false);
                     break;
                 case ".docx":
-                    await ExportDocxAsync(document, temporary, cancellationToken).ConfigureAwait(false);
+                    await NotesDocxFormatService.ExportAsync(document, temporary, cancellationToken).ConfigureAwait(false);
                     break;
                 case ".odt":
                     await ExportOdtAsync(document, temporary, cancellationToken).ConfigureAwait(false);
