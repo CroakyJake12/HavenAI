@@ -85,6 +85,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         _ollama = ollama;
         _preferences = preferences;
         _browserTools = new BrowserToolRuntime(browser);
+        InitializeResearch();
         var settings = data.Settings;
         _homePage = settings.HomePage;
         _searchTemplate = settings.SearchTemplate;
@@ -203,7 +204,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
-    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen;
+    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen || IsResearchOpen;
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
     public string PrivacyLabel => IsPrivate ? "Private tab - history and tab state are not saved" : "Standard tab";
     public string HomePage { get => _homePage; set => SetProperty(ref _homePage, value); }
@@ -544,6 +545,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             nameof(IsSettingsOpen) => !IsSettingsOpen,
             nameof(IsExtensionsOpen) => !IsExtensionsOpen,
             nameof(IsLoginsOpen) => !IsLoginsOpen,
+            nameof(IsResearchOpen) => !IsResearchOpen,
             _ => !IsAssistantOpen
         };
         IsBookmarksOpen = opening && panel == nameof(IsBookmarksOpen);
@@ -551,6 +553,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         IsSettingsOpen = opening && panel == nameof(IsSettingsOpen);
         IsExtensionsOpen = opening && panel == nameof(IsExtensionsOpen);
         IsLoginsOpen = opening && panel == nameof(IsLoginsOpen);
+        IsResearchOpen = opening && panel == nameof(IsResearchOpen);
         IsAssistantOpen = opening && panel == nameof(IsAssistantOpen);
         RaisePropertyChanged(nameof(IsAnyPanelOpen));
     }

@@ -64,6 +64,7 @@ internal sealed partial class BrowserHavenScene
         {
             if (_syncing) return;
             if (_page.IsAssistantOpen) _page.AssistantInput = _utilityInput1.Text;
+            else if (_page.IsResearchOpen) _page.ResearchInput = _utilityInput1.Text;
             else if (_page.IsSettingsOpen) _page.HomePage = _utilityInput1.Text;
         };
         _utilityInput2.TextChanged += (_, _) =>
@@ -76,6 +77,7 @@ internal sealed partial class BrowserHavenScene
 
     private void RunUtilityAction(bool primary)
     {
+        if (RunResearchUtilityAction(primary)) return;
         if (_page.IsBookmarksOpen)
         {
             if (primary) _page.ToggleBookmarkCommand.Execute(null);
@@ -110,6 +112,7 @@ internal sealed partial class BrowserHavenScene
         _utilityPanel.SetValue(HavenProperties.Visibility, open ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         _utilityRows.ClearItems();
         if (!open) return;
+        if (RefreshResearchUtilityPanel()) return;
 
         if (_page.IsBookmarksOpen)
         {
