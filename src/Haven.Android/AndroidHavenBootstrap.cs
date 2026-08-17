@@ -141,6 +141,9 @@ internal static class AndroidHavenBootstrap
                 // SQLite schema. Activity recreation still receives a fresh MainView instance.
                 mainView.ApplyEdition(HavenShellEdition.New);
                 mainView.ApplyMobileLayout();
+                mainView.AttachProjectorControllerSession(
+                    services.GetRequiredService<IProjectorSessionCoordinator>(),
+                    services.GetRequiredService<AndroidProjectorControllerActionDispatcher>());
 
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);
