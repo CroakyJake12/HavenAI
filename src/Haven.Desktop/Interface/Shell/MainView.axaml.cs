@@ -867,6 +867,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task OpenModeWorkspaceAsync(ModeDefinition mode, HavenSurface surface, bool forceNewTab)
     {
+        if (IsDocumentWorkspace(mode.Key))
+        {
+            OpenDocumentWorkspace(mode, surface, forceNewTab);
+            return;
+        }
+
         NewChatPage page;
         string key;
         if (forceNewTab)
@@ -1429,10 +1435,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         else if (route.Kind == HavenAppRouteKind.Write)
         {
             await NotesExperienceNavigation.OpenAsync(this, NotesExperienceKind.Notes, openInNewTab);
-        }
-        else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
-        {
-            await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
         }
         else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
         {

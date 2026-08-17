@@ -69,6 +69,12 @@ public sealed class BuiltInModeSeed
             HavenMode.Chat, "[\"Imagine\"]", "[]", "[]", "[]", "Help the user turn an idea into a production-ready visual brief. Ask only for missing essentials, preserve a clear prompt history, and be explicit when an image provider is not installed instead of claiming an image was generated.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\",\"creative\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+          new ModeDefinition(
+              Guid.Parse("a0000000-0000-0000-0000-000000000018"),
+              "canvas", "Canvas", "Create and edit infinite whiteboards and study boards", "file",
+              HavenMode.Chat, "[\"Canvas\"]", "[]", "[]", "[]", "Act as Haven Canvas. Help create and edit visual boards while preserving the user's existing canvas content and study-layer intent.",
+              ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\",\"study\"]",
+              DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000009"),
             "present", "Present", "Plan, draft and review presentations", "present",
