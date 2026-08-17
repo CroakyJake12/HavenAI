@@ -496,7 +496,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         var currentElements = root.DescendantsAndSelf().ToHashSet();
         foreach (var removed in _motionTokens.Keys.Where(element => !currentElements.Contains(element)).ToArray())
         {
-            _animations.Stop(removed);
+            ProcessMotion(() => _animations.Stop(removed));
             _motionTokens.Remove(removed);
             _motionSnapshots.Remove(removed);
         }
