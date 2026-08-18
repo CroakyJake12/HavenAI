@@ -3,6 +3,7 @@ using Haven.UI.Components;
 namespace Haven.UI;
 
 public enum HavenPointerKind { Mouse, Touch, Pen }
+public enum HavenPointerButton { Primary, Secondary, Middle }
 public enum HavenKey { Unknown, Enter, Space, Escape, Tab, Left, Right, Up, Down, Home, End, Backspace, Delete }
 
 public sealed class HavenInputRouter(HavenElement root)
@@ -14,6 +15,7 @@ public sealed class HavenInputRouter(HavenElement root)
     private IHavenPointerInputTarget? _pointerTarget;
     private HavenElement? _pointerTargetElement;
     private HavenPointerKind _activePointerKind = HavenPointerKind.Mouse;
+    private HavenPointerButton _activePointerButton = HavenPointerButton.Primary;
     private bool _pointerConsumed;
 
     public HavenElement? Hovered => _hovered;
@@ -26,7 +28,8 @@ public sealed class HavenInputRouter(HavenElement root)
     {
         if (_pointerTarget is not null && _pointerTargetElement is not null)
             _pointerConsumed |= _pointerTarget.PointerMoved(PointerInput(_pointerTargetElement, point, _activePointerKind));
-        if (_pressed is Slider activeSlider) activeSlider.SetFromPointer(point.X);
+        if (_pressed is Slider activeSlider && _activePointerButton == HavenPointerButton.Primary)
+            activeSlider.SetFromPointer(point.X);
         var next = HitTest(point);
         if (ReferenceEquals(next, _hovered)) return;
         _hovered?.SetState(HavenElementState.Hover, false);
@@ -34,7 +37,10 @@ public sealed class HavenInputRouter(HavenElement root)
         if (_hovered?.GetValue(HavenProperties.Hover) == true) _hovered.SetState(HavenElementState.Hover, true);
     }
 
-    public void PointerPressed(HavenPoint point, HavenPointerKind pointerKind = HavenPointerKind.Mouse)
+    public void PointerPressed(
+        HavenPoint point,
+        HavenPointerKind pointerKind = HavenPointerKind.Mouse,
+        HavenPointerButton pointerButton = HavenPointerButton.Primary)
     {
         PointerMoved(point, pointerKind);
         _pressed?.SetState(HavenElementState.Pressed, false);
@@ -42,10 +48,11 @@ public sealed class HavenInputRouter(HavenElement root)
         _pointerTargetElement = null;
         _pointerConsumed = false;
         _activePointerKind = pointerKind;
+        _activePointerButton = pointerButton;
         _pressed = HitTest(point);
         if (_pressed is null) return;
         _pressed.SetState(HavenElementState.Pressed, true);
-        if (_pressed is Slider slider) slider.SetFromPointer(point.X);
+        if (_pressed is Slider slider && pointerButton == HavenPointerButton.Primary) slider.SetFromPointer(point.X);
         if (_pressed is IHavenPointerInputTarget pointerTarget)
         {
             _pointerTarget = pointerTarget;
@@ -59,7 +66,8 @@ public sealed class HavenInputRouter(HavenElement root)
     {
         var released = _pressed;
         if (released is null) return false;
-        if (released is Slider slider) slider.SetFromPointer(point.X);
+        if (released is Slider slider && _activePointerButton == HavenPointerButton.Primary) slider.SetFromPointer(point.X);
+        var pointerButton = _activePointerButton;
         var consumed = _pointerConsumed;
         if (_pointerTarget is not null && _pointerTargetElement is not null)
             consumed |= _pointerTarget.PointerReleased(PointerInput(_pointerTargetElement, point, _activePointerKind));
@@ -68,9 +76,13 @@ public sealed class HavenInputRouter(HavenElement root)
         _pointerTarget = null;
         _pointerTargetElement = null;
         _pointerConsumed = false;
+        _activePointerButton = HavenPointerButton.Primary;
         if (consumed) return true;
         if (!ReferenceEquals(HitTest(point), released)) return false;
-        Activate(released);
+        if (pointerButton == HavenPointerButton.Secondary)
+            released.InvokeSecondary();
+        else if (pointerButton == HavenPointerButton.Primary)
+            Activate(released);
         return true;
     }
 

@@ -7,6 +7,34 @@ namespace Haven.UI.Tests;
 public sealed class HavenUiInteractionTests
 {
     [Fact]
+    public void Secondary_pointer_invocation_is_distinct_from_primary_activation()
+    {
+        var root = new Container();
+        var button = new Button { Content = "Tab" };
+        button.SetValue(HavenProperties.Width, HavenLength.Px(120));
+        button.SetValue(HavenProperties.Height, HavenLength.Px(48));
+        root.Add(button);
+        new HavenLayoutEngine().Layout(root, new HavenSize(140, 70), HavenPlatform.Windows, new FixedMeasure());
+
+        var primaryInvoked = 0;
+        var secondaryInvoked = 0;
+        button.Invoked += (_, _) => primaryInvoked++;
+        button.SecondaryInvoked += (_, _) => secondaryInvoked++;
+        var router = new HavenInputRouter(root);
+        var point = new HavenPoint(button.Bounds.X + 20, button.Bounds.Y + 20);
+
+        router.PointerPressed(point, HavenPointerKind.Mouse, HavenPointerButton.Secondary);
+        Assert.True(router.PointerReleased(point));
+        Assert.Equal(0, primaryInvoked);
+        Assert.Equal(1, secondaryInvoked);
+
+        router.PointerPressed(point);
+        Assert.True(router.PointerReleased(point));
+        Assert.Equal(1, primaryInvoked);
+        Assert.Equal(1, secondaryInvoked);
+    }
+
+    [Fact]
     public void Slider_pointer_and_keyboard_input_stays_in_haven_runtime()
     {
         var root = new Container();

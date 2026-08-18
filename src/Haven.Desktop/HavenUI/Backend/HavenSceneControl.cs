@@ -213,9 +213,17 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         base.OnPointerPressed(e);
         if (IsNativeControlSource(e.Source)) return;
         var p = e.GetPosition(this);
+        var updateKind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+        var pointerButton = updateKind switch
+        {
+            PointerUpdateKind.RightButtonPressed => HavenPointerButton.Secondary,
+            PointerUpdateKind.MiddleButtonPressed => HavenPointerButton.Middle,
+            _ => HavenPointerButton.Primary
+        };
         _input?.PointerPressed(
             new HavenPoint(p.X, p.Y),
-            e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse);
+            e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse,
+            pointerButton);
         Focus();
         e.Pointer.Capture(this);
         e.Handled = true;

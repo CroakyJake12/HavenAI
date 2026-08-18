@@ -76,6 +76,7 @@ public sealed partial class TopRail : UserControl, IDisposable
         TabStrip.Children.Clear();
         foreach (var tab in tabs)
             TabStrip.Children.Add(BuildTab(tab));
+        SyncHavenTabs(tabs);
         Dispatcher.UIThread.Post(UpdateTabScrollButtons);
     }
 
