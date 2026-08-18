@@ -25,7 +25,7 @@ public sealed partial class PresentPage : UserControl, IDisposable
     private bool _dirty;
     private bool _disposed;
 
-    public PresentPage(HavenEventBus bus, IPresentRepository repository, IPresentExportService exporter)
+    public PresentPage(HavenEventBus bus, IPresentRepository repository, IPresentExportService exporter, IPresentImportService? importer = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -37,6 +37,7 @@ public sealed partial class PresentPage : UserControl, IDisposable
         _route.SaveRequested += OnSaveRequested; _route.ExportRequested += OnExportRequested;
         _route.PreviousSlideRequested += OnPreviousSlideRequested; _route.NextSlideRequested += OnNextSlideRequested; _route.AddSlideRequested += OnAddSlideRequested; _route.DeleteSlideRequested += OnDeleteSlideRequested;
         _route.DeckTitleChanged += OnDeckTitleChanged; _route.SlideTitleChanged += OnSlideTitleChanged; _route.BodyChanged += OnBodyChanged; _route.NotesChanged += OnNotesChanged;
+        InitializePhase2(importer);
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _autosaveTimer.Tick += OnAutosaveTick;
         Loaded += OnLoaded; DetachedFromVisualTree += OnDetachedFromVisualTree;
@@ -95,10 +96,10 @@ public sealed partial class PresentPage : UserControl, IDisposable
     private void OnDeleteSlideRequested(object? sender, EventArgs e) => DeleteSlide();
 
     private PresentSlide? CurrentSlide => Document is null || Document.Slides.Count == 0 ? null : Document.Slides[Math.Clamp(_slideIndex, 0, Document.Slides.Count - 1)];
-    private void OnDeckTitleChanged(string value) { if (Document is null || Document.Title == value) return; Document.Title = value; MarkDirty(); }
-    private void OnSlideTitleChanged(string value) { var slide = CurrentSlide; if (slide is null || slide.Title == value) return; slide.Title = value; MarkDirty(); }
-    private void OnBodyChanged(string value) { var slide = CurrentSlide; if (slide is null) return; var body = slide.GetOrCreateBodyText(); if (body.Text == value) return; body.Text = value; MarkDirty(); }
-    private void OnNotesChanged(string value) { var slide = CurrentSlide; if (slide is null || slide.SpeakerNotes == value) return; slide.SpeakerNotes = value; MarkDirty(); }
+    private void OnDeckTitleChanged(string value) => EditDeckTitle(value);
+    private void OnSlideTitleChanged(string value) => EditSlideTitle(value);
+    private void OnBodyChanged(string value) => EditBody(value);
+    private void OnNotesChanged(string value) => EditNotes(value);
 
     private void MarkDirty()
     {
@@ -107,25 +108,17 @@ public sealed partial class PresentPage : UserControl, IDisposable
 
     private void MoveSlide(int offset)
     {
-        if (Document is null || Document.Slides.Count <= 1) return;
-        _slideIndex = (_slideIndex + offset + Document.Slides.Count) % Document.Slides.Count; RenderCurrent();
+        MoveSlideSelection(offset);
     }
 
     private void AddSlide()
     {
-        if (Document is null) return;
-        var slide = PresentSlide.Create(Document.Slides.Count);
-        slide.Title = $"Slide {Document.Slides.Count + 1}"; Document.Slides.Add(slide); _slideIndex = Document.Slides.Count - 1;
-        MarkDirty(); RenderCurrent(); _bus.Fire("Present.Slide.Added");
+        AddSlideWithEditor();
     }
 
     private void DeleteSlide()
     {
-        if (Document is null || Document.Slides.Count == 0) return;
-        if (Document.Slides.Count == 1) Document.Slides[0] = PresentSlide.Create(0);
-        else Document.Slides.RemoveAt(Math.Clamp(_slideIndex, 0, Document.Slides.Count - 1));
-        for (var index = 0; index < Document.Slides.Count; index++) Document.Slides[index].Order = index;
-        _slideIndex = Math.Clamp(_slideIndex, 0, Document.Slides.Count - 1); MarkDirty(); RenderCurrent(); _bus.Fire("Present.Slide.Deleted");
+        DeleteSlideWithEditor();
     }
 
     private async Task MoveDeckAsync(int offset)
@@ -190,7 +183,9 @@ public sealed partial class PresentPage : UserControl, IDisposable
 
     private void RenderCurrent()
     {
-        if (Document is null) return; Document.Normalize(); _slideIndex = Math.Clamp(_slideIndex, 0, Document.Slides.Count - 1); _route.SetDocument(Document, _deckIndex, _documents.Count, _slideIndex);
+        if (Document is null) return; Document.Normalize(); _slideIndex = Math.Clamp(_slideIndex, 0, Document.Slides.Count - 1);
+        if (_editor is null || !ReferenceEquals(_editor.Document, Document)) AttachEditor(Document);
+        _route.SetDocument(Document, _deckIndex, _documents.Count, _slideIndex); RenderPhase2();
     }
     private async Task RefreshDocumentsAsync(CancellationToken cancellationToken) => _documents = await _repository.ListAsync(cancellationToken);
     private int IndexOfDocument(Guid id) { for (var index = 0; index < _documents.Count; index++) if (_documents[index].Id == id) return index; return 0; }
@@ -199,7 +194,7 @@ public sealed partial class PresentPage : UserControl, IDisposable
         if (_busy || _disposed) return; SetBusy(true);
         try { await action(); } catch (Exception ex) { _route.SetStatus($"Couldn’t {description}: {ex.Message}"); } finally { SetBusy(false); }
     }
-    private void SetBusy(bool busy) { _busy = busy; _route.SetBusy(busy); }
+    private void SetBusy(bool busy) { _busy = busy; _route.SetBusy(busy); _route.SetPhase2Busy(busy); }
     private static string SanitizeFileName(string title)
     {
         var value = string.IsNullOrWhiteSpace(title) ? "Untitled presentation" : title.Trim(); foreach (var invalid in Path.GetInvalidFileNameChars()) value = value.Replace(invalid, '_'); return value;
@@ -215,6 +210,6 @@ public sealed partial class PresentPage : UserControl, IDisposable
         if (_disposed) return; _disposed = true; _autosaveTimer.Stop(); _autosaveTimer.Tick -= OnAutosaveTick; Loaded -= OnLoaded; DetachedFromVisualTree -= OnDetachedFromVisualTree;
         _route.PreviousDeckRequested -= OnPreviousDeckRequested; _route.NextDeckRequested -= OnNextDeckRequested; _route.NewDeckRequested -= OnNewDeckRequested; _route.SaveRequested -= OnSaveRequested; _route.ExportRequested -= OnExportRequested;
         _route.PreviousSlideRequested -= OnPreviousSlideRequested; _route.NextSlideRequested -= OnNextSlideRequested; _route.AddSlideRequested -= OnAddSlideRequested; _route.DeleteSlideRequested -= OnDeleteSlideRequested;
-        _route.DeckTitleChanged -= OnDeckTitleChanged; _route.SlideTitleChanged -= OnSlideTitleChanged; _route.BodyChanged -= OnBodyChanged; _route.NotesChanged -= OnNotesChanged; _route.Dispose();
+        _route.DeckTitleChanged -= OnDeckTitleChanged; _route.SlideTitleChanged -= OnSlideTitleChanged; _route.BodyChanged -= OnBodyChanged; _route.NotesChanged -= OnNotesChanged; DisposePhase2(); _route.Dispose();
     }
 }

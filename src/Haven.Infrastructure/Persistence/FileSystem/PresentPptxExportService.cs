@@ -9,8 +9,7 @@ namespace Haven.Infrastructure;
 
 public sealed class PresentPptxExportService : IPresentExportService
 {
-    private const long SlideWidth = 12_192_000;
-    private const long SlideHeight = 6_858_000;
+    private const double EmuPerInch = 914_400d;
 
     public IReadOnlyList<string> ExportExtensions { get; } = [".pptx"];
 
@@ -54,10 +53,12 @@ public sealed class PresentPptxExportService : IPresentExportService
             path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 64 * 1024,
             FileOptions.Asynchronous | FileOptions.WriteThrough);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true);
+        var slideWidth = Math.Max(1, (long)Math.Round(document.SlideSize.WidthInches * EmuPerInch));
+        var slideHeight = Math.Max(1, (long)Math.Round(document.SlideSize.HeightInches * EmuPerInch));
 
         await WriteEntryAsync(archive, "[Content_Types].xml", BuildContentTypes(document.Slides.Count), cancellationToken);
         await WriteEntryAsync(archive, "_rels/.rels", RootRelationships(), cancellationToken);
-        await WriteEntryAsync(archive, "ppt/presentation.xml", BuildPresentation(document.Slides.Count), cancellationToken);
+        await WriteEntryAsync(archive, "ppt/presentation.xml", BuildPresentation(document.Slides.Count, slideWidth, slideHeight), cancellationToken);
         await WriteEntryAsync(archive, "ppt/_rels/presentation.xml.rels", BuildPresentationRelationships(document.Slides.Count), cancellationToken);
         await WriteEntryAsync(archive, "ppt/slideMasters/slideMaster1.xml", SlideMaster(), cancellationToken);
         await WriteEntryAsync(archive, "ppt/slideMasters/_rels/slideMaster1.xml.rels", SlideMasterRelationships(), cancellationToken);
@@ -69,7 +70,7 @@ public sealed class PresentPptxExportService : IPresentExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var number = index + 1;
-            await WriteEntryAsync(archive, $"ppt/slides/slide{number}.xml", BuildSlide(document.Slides[index]), cancellationToken);
+            await WriteEntryAsync(archive, $"ppt/slides/slide{number}.xml", BuildSlide(document.Slides[index], slideWidth, slideHeight), cancellationToken);
             await WriteEntryAsync(archive, $"ppt/slides/_rels/slide{number}.xml.rels", SlideRelationships(), cancellationToken);
         }
 
@@ -100,7 +101,7 @@ public sealed class PresentPptxExportService : IPresentExportService
         "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"ppt/presentation.xml\"/>" +
         "</Relationships>";
 
-    private static string BuildPresentation(int slideCount)
+    private static string BuildPresentation(int slideCount, long slideWidth, long slideHeight)
     {
         var builder = new StringBuilder();
         builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
@@ -109,7 +110,7 @@ public sealed class PresentPptxExportService : IPresentExportService
         for (var index = 0; index < slideCount; index++)
             builder.Append($"<p:sldId id=\"{256 + index}\" r:id=\"rId{index + 2}\"/>");
         builder.Append("</p:sldIdLst>");
-        builder.Append($"<p:sldSz cx=\"{SlideWidth}\" cy=\"{SlideHeight}\" type=\"screen16x9\"/>");
+        builder.Append($"<p:sldSz cx=\"{slideWidth}\" cy=\"{slideHeight}\" type=\"custom\"/>");
         builder.Append("<p:notesSz cx=\"6858000\" cy=\"9144000\"/><p:defaultTextStyle><a:defPPr/></p:defaultTextStyle></p:presentation>");
         return builder.ToString();
     }
@@ -150,21 +151,23 @@ public sealed class PresentPptxExportService : IPresentExportService
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Haven"><a:themeElements><a:clrScheme name="Haven"><a:dk1><a:srgbClr val="1F1F1F"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="343434"/></a:dk2><a:lt2><a:srgbClr val="F4F4F4"/></a:lt2><a:accent1><a:srgbClr val="E65F42"/></a:accent1><a:accent2><a:srgbClr val="4F7CAC"/></a:accent2><a:accent3><a:srgbClr val="6A9A6B"/></a:accent3><a:accent4><a:srgbClr val="8C6FB3"/></a:accent4><a:accent5><a:srgbClr val="C28A3D"/></a:accent5><a:accent6><a:srgbClr val="4F9A96"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Haven"><a:majorFont><a:latin typeface="Aptos Display"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Haven"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>
 """;
 
-    private static string BuildSlide(PresentSlide slide)
+    private static string BuildSlide(PresentSlide slide, long slideWidth, long slideHeight)
     {
         var builder = new StringBuilder();
         builder.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
         builder.Append("<p:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:cSld><p:spTree>");
         builder.Append(GroupShapeProperties());
-        builder.Append(TextShape(2, "Title", slide.Title, 0.06, 0.055, 0.88, 0.16, 3200, true, false));
+        builder.Append(TextShape(2, "Title", slide.Title, 0.06, 0.055, 0.88, 0.16, 3200, true, false, slideWidth, slideHeight));
         var shapeId = 3;
-        foreach (var element in slide.Elements.OrderBy(item => item.Order))
+        foreach (var element in slide.Elements.Where(item => item.Visible).OrderBy(item => item.Order))
         {
             var text = ExportText(element);
-            if (string.IsNullOrWhiteSpace(text) && element.Kind == PresentElementKind.Text)
-                continue;
+            if (string.IsNullOrWhiteSpace(text) && element.Kind == PresentElementKind.Text) continue;
             var fallback = element.Kind != PresentElementKind.Text;
-            builder.Append(TextShape(shapeId++, $"Element {element.Id:N}", text, element.X, element.Y, element.Width, element.Height, 2200, false, fallback));
+            var fontSize = element.Kind == PresentElementKind.Text
+                ? Math.Clamp((int)Math.Round(element.TextStyle.FontSizePoints * 100), 100, 40000)
+                : 2200;
+            builder.Append(TextShape(shapeId++, $"Element {element.Id:N}", text, element.X, element.Y, element.Width, element.Height, fontSize, element.TextStyle.Bold, fallback, slideWidth, slideHeight));
         }
         builder.Append("</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>");
         return builder.ToString();
@@ -175,12 +178,12 @@ public sealed class PresentPptxExportService : IPresentExportService
 
     private static string TextShape(
         int id, string name, string text, double x, double y, double width, double height,
-        int fontSize, bool bold, bool fallback)
+        int fontSize, bool bold, bool fallback, long slideWidth, long slideHeight)
     {
-        var xEmu = ToEmu(x, SlideWidth);
-        var yEmu = ToEmu(y, SlideHeight);
-        var widthEmu = Math.Max(1, ToEmu(width, SlideWidth));
-        var heightEmu = Math.Max(1, ToEmu(height, SlideHeight));
+        var xEmu = ToEmu(x, slideWidth);
+        var yEmu = ToEmu(y, slideHeight);
+        var widthEmu = Math.Max(1, ToEmu(width, slideWidth));
+        var heightEmu = Math.Max(1, ToEmu(height, slideHeight));
         var paragraphs = BuildParagraphs(text, fontSize, bold);
         var fill = fallback
             ? "<a:solidFill><a:srgbClr val=\"FFF4F1\"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val=\"E65F42\"/></a:solidFill></a:ln>"
@@ -208,6 +211,8 @@ public sealed class PresentPptxExportService : IPresentExportService
         PresentElementKind.Image => "[Image preserved in Haven] " + FirstNonEmpty(element.AlternativeText, element.Text, element.AssetId),
         PresentElementKind.Shape => "[Shape preserved in Haven] " + FirstNonEmpty(element.Text, element.ShapeType),
         PresentElementKind.GenUi => "[Interactive Haven content — open in Haven to use] " + FirstNonEmpty(element.AlternativeText, element.Text),
+        PresentElementKind.Media => "[Media preserved in Haven] " + FirstNonEmpty(element.AlternativeText, element.Text, element.AssetId),
+        PresentElementKind.Group => "[Haven object group]",
         _ => "[Haven content preserved in native presentation]"
     };
 

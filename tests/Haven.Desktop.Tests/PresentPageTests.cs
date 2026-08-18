@@ -84,6 +84,75 @@ public sealed class PresentPageTests
     }
 
     [AvaloniaFact]
+    public async Task Present_canvas_renders_native_cubic_shape_and_drag_is_undoable()
+    {
+        var document = PresentDocument.Create("Canvas deck");
+        var repository = new FakePresentRepository(document);
+        using var page = new PresentPage(new HavenEventBus(), repository, new FakePresentExporter());
+        await page.InitializeAsync();
+        var window = new Window { Width = 1200, Height = 900, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var router = new HavenInputRouter(page.SceneRoot);
+            var addShape = page.SceneRoot.DescendantsAndSelf().First(element => element.Name == "Present.Object.AddShape");
+            page.Route.EditorHost.ScrollY = page.Route.EditorHost.MaxScrollY;
+            window.UpdateLayout();
+            Click(router, addShape);
+            page.Route.EditorHost.ScrollY = 0;
+            window.UpdateLayout();
+
+            var shape = Assert.Single(page.Editor!.SelectedElements);
+            Assert.Equal(PresentElementKind.Shape, shape.Kind);
+            Assert.Equal("custom-vector", shape.ShapeType);
+            Assert.NotNull(shape.VectorShape);
+
+            var commands = new HavenSceneRenderer().Render(page.SceneRoot);
+            var geometry = Assert.Single(commands.OfType<HavenGeometryCommand>(), command =>
+                command.Geometry.Path.Figures.SelectMany(figure => figure.Segments).Any(segment => segment is HavenCubicBezierSegment));
+            var beforeX = shape.X;
+            var shapeId = shape.Id;
+            var start = new HavenPoint(geometry.Rect.X + geometry.Rect.Width / 2, geometry.Rect.Y + geometry.Rect.Height / 2);
+            var end = new HavenPoint(start.X + 32, start.Y + 18);
+
+            router.PointerPressed(start);
+            router.PointerMoved(end);
+            Assert.True(router.PointerReleased(end));
+            var moved = page.Editor.Document.Slides[0].Elements.Single(element => element.Id == shapeId);
+            Assert.True(moved.X > beforeX);
+
+            Assert.True(page.Editor.Undo());
+            var restored = page.Editor.Document.Slides[0].Elements.Single(element => element.Id == shapeId);
+            Assert.Equal(beforeX, restored.X, 8);
+
+            window.UpdateLayout();
+            var restoredVector = restored.VectorShape!;
+            var nodeBefore = restoredVector.Paths[0].Subpaths[0].Nodes[0];
+            var handleCommands = new HavenSceneRenderer().Render(page.SceneRoot)
+                .OfType<HavenEllipseCommand>()
+                .Where(command => Math.Abs(command.Rect.Width - 8) < .001 && Math.Abs(command.Rect.Height - 8) < .001)
+                .ToArray();
+            Assert.NotEmpty(handleCommands);
+            var nodeHandle = handleCommands[0];
+            var nodeStart = new HavenPoint(nodeHandle.Rect.X + 4, nodeHandle.Rect.Y + 4);
+            var nodeEnd = new HavenPoint(nodeStart.X + 18, nodeStart.Y + 12);
+            router.PointerPressed(nodeStart);
+            router.PointerMoved(nodeEnd);
+            Assert.True(router.PointerReleased(nodeEnd));
+
+            var nodeMoved = page.Editor.Document.Slides[0].Elements.Single(element => element.Id == shapeId)
+                .VectorShape!.Paths[0].Subpaths[0].Nodes[0];
+            Assert.NotEqual(nodeBefore.X, nodeMoved.X);
+            Assert.True(page.Editor.Undo());
+            var nodeRestored = page.Editor.Document.Slides[0].Elements.Single(element => element.Id == shapeId)
+                .VectorShape!.Paths[0].Subpaths[0].Nodes[0];
+            Assert.Equal(nodeBefore.X, nodeRestored.X, 8);
+            Assert.Equal(nodeBefore.Y, nodeRestored.Y, 8);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Present_page_creates_first_deck_and_saves_dirty_state_on_detach()
     {
         var repository = new FakePresentRepository();
@@ -128,6 +197,8 @@ public sealed class PresentPageTests
         var point = new HavenPoint(
             element.Bounds.X + element.Bounds.Width / 2,
             element.Bounds.Y + element.Bounds.Height / 2);
+        var hit = router.HitTest(point);
+        Assert.True(ReferenceEquals(element, hit), $"Expected pointer hit {element.Name}, but hit {hit?.Name ?? "<none>"}. Target bounds: {element.Bounds}. Parent {element.Parent?.Name} bounds: {element.Parent?.Bounds}. Hit bounds: {hit?.Bounds}.");
         router.PointerPressed(point);
         Assert.True(router.PointerReleased(point));
     }

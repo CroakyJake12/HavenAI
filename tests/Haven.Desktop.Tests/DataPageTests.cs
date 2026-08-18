@@ -6,6 +6,7 @@ using Haven.Desktop.Events;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.UI;
 using Haven.UI.Components;
+using HavenButton = Haven.UI.Components.Button;
 
 namespace Haven.Desktop.Tests;
 
@@ -99,6 +100,64 @@ public sealed class DataPageTests
     }
 
     [AvaloniaFact]
+    public async Task Data_page_recalculates_formulas_renders_results_and_updates_dependents_from_cell_edits()
+    {
+        var workbook = DataWorkbook.Create("Formula page");
+        workbook.Sheets[0].SetCell(0, 0, "10", kind: DataCellKind.Number);
+        workbook.Sheets[0].SetCell(0, 1, "0", "=A1*2", DataCellKind.Formula);
+        var repository = new FakeDataRepository(workbook);
+        using var page = new DataPage(new HavenEventBus(), repository, new FakeDataFormats(), new FakeDataQueries());
+        await page.InitializeAsync();
+        var window = new Window { Width = 1800, Height = 2400, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var router = new HavenInputRouter(page.SceneRoot);
+            Assert.Equal("20", page.Workbook!.Sheets[0].GetCell(0, 1)!.Value);
+            Assert.Equal(1, page.FormulaReport.FormulaCells);
+            var b1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.B1"));
+            Assert.Equal("20", b1.Content);
+
+            Click(router, b1); window.UpdateLayout();
+            Assert.Equal("=A1*2", page.Route.CellFormulaInput.Text);
+            Assert.Equal("20", page.Route.CellValueInput.Text);
+            Assert.False(page.Route.CellValueInput.GetValue(HavenProperties.Enabled));
+            Assert.Contains("Calculated locally", page.Route.FormulaStatusText.Content, StringComparison.Ordinal);
+
+            var a1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.A1"));
+            Click(router, a1); window.UpdateLayout();
+            page.Route.CellValueInput.Text = "7";
+
+            Assert.Equal("14", page.Workbook.Sheets[0].GetCell(0, 1)!.Value);
+            b1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.B1"));
+            Assert.Equal("14", b1.Content);
+            Assert.True(page.IsDirty);
+            Assert.True(await page.SaveAsync("Formula interaction test"));
+            Assert.Equal("14", repository.LastSaved!.Sheets[0].GetCell(0, 1)!.Value);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Data_page_preserves_formula_references_on_sheet_rename_and_surfaces_ref_after_delete()
+    {
+        var workbook = DataWorkbook.Create("Structural formulas"); workbook.Sheets[0].Name = "Rates 2026"; workbook.Sheets[0].SetCell(0, 0, "2", kind: DataCellKind.Number);
+        var summary = DataSheet.Create(1, "Summary"); summary.SetCell(0, 0, "0", "='Rates 2026'!A1*3", DataCellKind.Formula); workbook.Sheets.Add(summary);
+        workbook.NamedRanges.Add(new DataNamedRange { Name = "Rate", RefersTo = "='Rates 2026'!$A$1" }); workbook.Queries[0].Visual.Source = "Rates 2026"; workbook.Queries[0].Sql = workbook.Queries[0].Visual.BuildSql();
+        using var page = new DataPage(new HavenEventBus(), new FakeDataRepository(workbook), new FakeDataFormats(), new FakeDataQueries()); await page.InitializeAsync();
+        var window = new Window { Width = 1800, Height = 2400, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout(); var router = new HavenInputRouter(page.SceneRoot);
+            Assert.Equal("6", summary.GetCell(0, 0)!.Value); page.Route.SheetNameInput.Text = "Tax Rates";
+            Assert.Equal("='Tax Rates'!A1*3", summary.GetCell(0, 0)!.Formula); Assert.Equal("'Tax Rates'!$A$1", workbook.NamedRanges[0].RefersTo); Assert.Equal("6", summary.GetCell(0, 0)!.Value); Assert.Equal("Tax Rates", workbook.Queries[0].Visual.Source); Assert.Contains("Tax Rates", workbook.Queries[0].Sql, StringComparison.Ordinal);
+            window.UpdateLayout(); Click(router, page.Route.DeleteSheetButton);
+            Assert.Single(workbook.Sheets); Assert.Equal("Summary", workbook.Sheets[0].Name); Assert.Equal("#REF!", workbook.Sheets[0].GetCell(0, 0)!.Value); Assert.Contains(page.FormulaReport.Issues, issue => issue.Code == DataFormulaErrorCode.Reference);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Data_page_creates_first_workbook_and_saves_dirty_state_on_detach()
     {
         var repository = new FakeDataRepository();
@@ -146,6 +205,8 @@ public sealed class DataPageTests
     private static void Click(HavenInputRouter router, HavenElement element)
     {
         var point = new HavenPoint(element.Bounds.X + element.Bounds.Width / 2, element.Bounds.Y + element.Bounds.Height / 2);
+        var hit = router.HitTest(point);
+        Assert.True(ReferenceEquals(element, hit), $"Expected pointer hit {element.Name}, but hit {hit?.Name ?? "<none>"}. Target bounds: {element.Bounds}. Parent {element.Parent?.Name} bounds: {element.Parent?.Bounds}. Hit bounds: {hit?.Bounds}.");
         router.PointerPressed(point);
         Assert.True(router.PointerReleased(point));
     }

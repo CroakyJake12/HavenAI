@@ -37,3 +37,19 @@ public interface IPresentExportService
         string destinationPath,
         CancellationToken cancellationToken);
 }
+
+public sealed record PresentImportSupport(
+    string Format,
+    string Description,
+    IReadOnlyList<string> PreservedFeatures,
+    IReadOnlyList<string> UnsupportedFeatures);
+
+public interface IPresentImportService
+{
+    IReadOnlyList<string> ImportExtensions { get; }
+    PresentImportSupport Support { get; }
+
+    Task<PresentDocument> ImportAsync(
+        string sourcePath,
+        CancellationToken cancellationToken);
+}

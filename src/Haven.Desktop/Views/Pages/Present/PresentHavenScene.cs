@@ -6,7 +6,7 @@ using HavenText = Haven.UI.Components.Text;
 
 namespace Haven.Desktop.Views.Pages.Present;
 
-internal sealed class PresentHavenScene : IDisposable
+internal sealed partial class PresentHavenScene : IDisposable
 {
     private bool _suppressChanges;
     private string _deckTitle = string.Empty;
@@ -60,13 +60,17 @@ internal sealed class PresentHavenScene : IDisposable
         EditorHost.SetValue(HavenProperties.Row, 3);
         EditorHost.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         EditorHost.SetValue(HavenProperties.MaxWidth, HavenLength.Px(1120));
+        EditorHost.SetValue(HavenProperties.MaxHeight, HavenLength.Percent(65));
+        EditorHost.SetValue(HavenProperties.Responsive, true);
         EditorHost.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
         EditorHost.SetValue(HavenProperties.Background, "SurfaceRaised");
         EditorHost.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(18)));
         EditorHost.SetValue(HavenProperties.Padding, HavenThickness.Parse("20px"));
         EditorHost.SetValue(HavenProperties.Gap, HavenLength.Px(10));
         EditorHost.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        EditorHost.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
 
+        SlideCanvas = new PresentSlideCanvas(); EditorHost.Add(SlideCanvas);
         SlideLabel = Caption("Slide"); EditorHost.Add(SlideLabel);
         SlideTitleInput = new Input { Name = "Present.Slide.Title", Placeholder = "Slide title" };
         SlideTitleInput.Accessibility.AccessibleName = "Slide title";
@@ -111,6 +115,7 @@ internal sealed class PresentHavenScene : IDisposable
         NextSlideButton.Invoked += (_, _) => NextSlideRequested?.Invoke(this, EventArgs.Empty);
         AddSlideButton.Invoked += (_, _) => AddSlideRequested?.Invoke(this, EventArgs.Empty);
         DeleteSlideButton.Invoked += (_, _) => DeleteSlideRequested?.Invoke(this, EventArgs.Empty);
+        BuildPhase2Controls();
     }
 
     public event EventHandler? PreviousDeckRequested; public event EventHandler? NextDeckRequested; public event EventHandler? NewDeckRequested;
@@ -120,6 +125,7 @@ internal sealed class PresentHavenScene : IDisposable
 
     public Page Root { get; } public Container Header { get; } public Input DeckTitleInput { get; } public HavenText PositionText { get; }
     public Container DeckToolbar { get; } public Container SlideToolbar { get; } public Container EditorHost { get; }
+    internal PresentSlideCanvas SlideCanvas { get; }
     public HavenButton PreviousDeckButton { get; } public HavenButton NextDeckButton { get; } public HavenButton NewDeckButton { get; } public HavenButton SaveButton { get; } public HavenButton ExportButton { get; }
     public HavenButton PreviousSlideButton { get; } public HavenButton NextSlideButton { get; } public HavenButton AddSlideButton { get; } public HavenButton DeleteSlideButton { get; }
     public HavenText SlideLabel { get; } public Input SlideTitleInput { get; } public HavenText BodyLabel { get; } public Input BodyInput { get; } public HavenText NotesLabel { get; } public Input NotesInput { get; } public HavenText RichContentText { get; } public HavenText StatusText { get; }
