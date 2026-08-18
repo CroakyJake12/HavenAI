@@ -16,7 +16,7 @@ namespace Haven.Desktop.ViewModels;
 /// <summary>
 /// Represents provider connections view model and keeps its related state and behavior together.
 /// </summary>
-public sealed class ProviderConnectionsViewModel : ObservableObject
+public sealed partial class ProviderConnectionsViewModel : ObservableObject
 {
     /// <summary>
     /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
@@ -38,11 +38,14 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     public ProviderConnectionsViewModel(
         IModelProviderRegistry providers,
         IProviderConfigurationStore configurations,
-        IProviderSecretStore secrets)
+        IProviderSecretStore secrets,
+        ICalendarSyncProviderRegistry calendarProviders,
+        IPlannerRepository planner)
     {
         _providers = providers;
         _configurations = configurations;
         _secrets = secrets;
+        InitializeServiceConnections(calendarProviders, planner);
 
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         ConnectCommand = new AsyncRelayCommand<ProviderConnectionItemViewModel>(ConnectAsync);
@@ -121,7 +124,8 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
             foreach (var item in refreshed.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                 Items.Add(item);
 
-            Status = Items.Count == 0 ? "No cloud providers are registered." : $"{Items.Count} cloud providers available.";
+            await RefreshServicesAsync();
+            Status = Items.Count == 0 ? "No cloud model providers are registered." : $"{Items.Count} cloud model providers available.";
         }
         catch (Exception ex)
         {

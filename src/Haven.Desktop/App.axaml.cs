@@ -112,6 +112,7 @@ public sealed partial class App : Avalonia.Application
 #endif
         
         collection.AddSingleton<HavenEventBus>();
+        collection.AddSingleton<Haven.Desktop.ViewModels.ProviderConnectionsViewModel>();
         collection.AddSingleton<MainView>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
         {
