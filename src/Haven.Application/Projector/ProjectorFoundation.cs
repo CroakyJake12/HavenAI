@@ -234,16 +234,34 @@ public sealed class ProjectorSessionCoordinator : IProjectorSessionCoordinator, 
         ProjectorSessionSnapshot current;
         lock (_gate)
         {
-            if (_current is null || _current.State != ProjectorSessionState.Disconnected) { snapshot = _current; return false; }
+            if (_current is null || _current.State != ProjectorSessionState.Disconnected)
+            {
+                snapshot = _current;
+                return false;
+            }
             current = _current;
         }
-        if (string.IsNullOrWhiteSpace(current.TargetDisplay.StableIdentity) || string.IsNullOrWhiteSpace(display.StableIdentity)
+
+        if (string.IsNullOrWhiteSpace(current.TargetDisplay.StableIdentity)
+            || string.IsNullOrWhiteSpace(display.StableIdentity)
             || !string.Equals(current.TargetDisplay.StableIdentity, display.StableIdentity, StringComparison.Ordinal))
         {
             snapshot = current;
             return false;
         }
-        snapshot = current with { State = current.CurrentExperienceId is null ? ProjectorSessionState.Gallery : ProjectorSessionState.Active, TargetDisplay = display, UpdatedAt = DateTimeOffset.UtcNow, DisconnectedAt = null, Error = null };
+
+        var previousExperienceId = current.CurrentExperienceId;
+        snapshot = current with
+        {
+            State = ProjectorSessionState.Gallery,
+            TargetDisplay = display,
+            CurrentExperienceId = null,
+            PreviousExperienceId = previousExperienceId ?? current.PreviousExperienceId,
+            Controller = null,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            DisconnectedAt = null,
+            Error = null
+        };
         SetCurrent(snapshot);
         return true;
     }

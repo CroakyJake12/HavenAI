@@ -19,6 +19,7 @@ public static class AndroidServiceRegistration
         services.AddSingleton<IProjectorActionPlanner, ProjectorActionPlanner>();
         services.AddSingleton<IProjectorDisplayRegistry, ProjectorDisplayRegistry>();
         services.AddSingleton<IProjectorSessionCoordinator, ProjectorSessionCoordinator>();
+        services.AddSingleton<IProjectorSessionRecoveryService, ProjectorSessionRecoveryService>();
         services.AddSingleton<AndroidProjectorControllerActionDispatcher>();
         services.AddSingleton<AndroidProjectorPresentationHostService>();
         services.AddSingleton<AndroidProjectorDisplayService>(provider =>

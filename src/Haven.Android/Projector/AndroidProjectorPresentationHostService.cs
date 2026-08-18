@@ -16,6 +16,7 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
 
     private readonly IProjectorDisplayRegistry _registry;
     private readonly IProjectorSessionCoordinator _sessions;
+    private readonly IProjectorSessionRecoveryService _recovery;
     private readonly IProjectorExperienceCatalog _catalog;
     private readonly IProjectorActionPlanner _planner;
     private readonly AndroidProjectorApplicationService _applications;
@@ -28,12 +29,14 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
     public AndroidProjectorPresentationHostService(
         IProjectorDisplayRegistry registry,
         IProjectorSessionCoordinator sessions,
+        IProjectorSessionRecoveryService recovery,
         IProjectorExperienceCatalog catalog,
         IProjectorActionPlanner planner,
         AndroidProjectorApplicationService applications)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
+        _recovery = recovery ?? throw new ArgumentNullException(nameof(recovery));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _planner = planner ?? throw new ArgumentNullException(nameof(planner));
         _applications = applications ?? throw new ArgumentNullException(nameof(applications));
@@ -164,21 +167,44 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
         };
         _active = entry;
         var promoted = PromoteRenderCapability(display);
+        _ = RestoreOrStartSessionAsync(entry, promoted);
+    }
 
-        var current = _sessions.Current;
-        ProjectorSessionSnapshot session;
-        if (current is null
-            || current.State == ProjectorSessionState.Disconnected
-            || !string.Equals(current.TargetDisplay.RuntimeId, promoted.RuntimeId, StringComparison.Ordinal))
+    private async Task RestoreOrStartSessionAsync(PresentationEntry entry, ProjectorDisplay display)
+    {
+        ProjectorSessionSnapshot? session = null;
+        try
         {
-            session = _sessions.Start(promoted);
+            session = await _recovery.RecoverAsync(display, CancellationToken.None).ConfigureAwait(false);
         }
-        else
+        catch (Exception exception)
         {
-            session = _sessions.Current ?? current;
+            global::Android.Util.Log.Warn("HavenProjector", "Could not restore Projector session: " + exception.Message);
         }
 
-        _ = PopulateGalleryAsync(entry, session);
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+
+        var latest = _registry.Get(display.RuntimeId);
+        if (latest is null || !IsEligible(latest))
+            return;
+
+        if (session is null)
+        {
+            var current = _sessions.Current;
+            if (current is not null
+                && current.State != ProjectorSessionState.Disconnected
+                && string.Equals(current.TargetDisplay.RuntimeId, latest.RuntimeId, StringComparison.Ordinal))
+            {
+                session = current;
+            }
+            else
+            {
+                session = _sessions.Start(latest);
+            }
+        }
+
+        await PopulateGalleryAsync(entry, session).ConfigureAwait(false);
     }
 
     private void OnRouteRequested(PresentationEntry entry, string request)

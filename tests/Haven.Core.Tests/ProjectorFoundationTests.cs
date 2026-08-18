@@ -33,7 +33,7 @@ public sealed class ProjectorFoundationTests
     }
 
     [Fact]
-    public void StableIdentityRestoresActiveExperienceAcrossRuntimeIdChange()
+    public void StableIdentityReconnectFallsBackToGalleryUntilExperienceIsRevalidated()
     {
         var registry = new ProjectorDisplayRegistry();
         using var coordinator = new ProjectorSessionCoordinator(registry);
@@ -43,9 +43,12 @@ public sealed class ProjectorFoundationTests
         coordinator.Activate(Experience("desktop"));
         registry.Remove(first.RuntimeId);
         var replacement = Display("android-display:11", "monitor-a");
+
         Assert.True(coordinator.TryReconnect(replacement, out var restored));
-        Assert.Equal(ProjectorSessionState.Active, restored?.State);
-        Assert.Equal("desktop", restored?.CurrentExperienceId);
+
+        Assert.Equal(ProjectorSessionState.Gallery, restored?.State);
+        Assert.Null(restored?.CurrentExperienceId);
+        Assert.Equal("desktop", restored?.PreviousExperienceId);
         Assert.Equal(replacement.RuntimeId, restored?.TargetDisplay.RuntimeId);
     }
 
