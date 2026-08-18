@@ -70,7 +70,7 @@ public sealed class HavenSceneRenderer
             button.Bounds.Y + top,
             Math.Max(0, button.Bounds.Width - left - right),
             Math.Max(0, button.Bounds.Height - top - bottom));
-        var size = Math.Min(18d, Math.Min(content.Width, content.Height));
+        var size = Math.Min(20d, Math.Min(content.Width, content.Height));
         if (size <= 0) return;
         var rect = new HavenRect(
             content.X + (content.Width - size) / 2d,
@@ -103,7 +103,7 @@ public sealed class HavenSceneRenderer
         var rect = new HavenRect(element.Bounds.X + left, element.Bounds.Y + top, Math.Max(0, element.Bounds.Width - left - right), Math.Max(0, element.Bounds.Height - top - bottom));
         if (!string.IsNullOrWhiteSpace(leadingIconKey) && rect.Width > 0 && rect.Height > 0)
         {
-            var iconSize = Math.Min(18d, rect.Height);
+            var iconSize = Math.Min(20d, rect.Height);
             var iconRect = new HavenRect(rect.X, rect.Y + Math.Max(0, (rect.Height - iconSize) / 2d), iconSize, iconSize);
             context.Add(new HavenIconCommand(iconRect, leadingIconKey, new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity));
             var advance = iconSize + 10d;

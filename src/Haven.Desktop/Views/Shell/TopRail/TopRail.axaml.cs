@@ -203,8 +203,9 @@ public sealed partial class TopRail : UserControl, IDisposable
             FlyoutPresenterTheme = FloatingPresenterTheme(),
             Content = _appLauncherControl
         };
-        // Note: If flyout stacking issues arise, consider using Canvas.SetZIndex on the flyout's presenter.
+        // The platform popup still owns placement; the visible launcher body and focus are Haven.UI-owned.
         _appLauncherFlyout.ShowAt(AppsButton);
+        _appLauncherControl.FocusSearch();
     }
 
     private void WireControlEvents()

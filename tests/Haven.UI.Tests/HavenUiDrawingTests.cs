@@ -94,6 +94,10 @@ public sealed class HavenUiDrawingTests
     }
 
     [Theory]
+    [InlineData("chevron-left")]
+    [InlineData("window")]
+    [InlineData("cpu")]
+    [InlineData("bell")]
     [InlineData("file")]
     [InlineData("notes")]
     [InlineData("agents")]

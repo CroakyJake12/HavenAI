@@ -57,7 +57,8 @@ public sealed class TabStrip : Container
             button.SecondaryInvoked += (_, _) => { if (item.HasContextMenu) ItemSecondaryInvoked?.Invoke(this, item.Key); };
             var underline = new Container { Name = $"TabStrip.Item.{i}.Underline", Layout = HavenLayout.Overlay };
             underline.SetValue(HavenProperties.Width, HavenLength.Px(Math.Clamp((item.Label.Length * 7.2) + 12, 30, 170))); underline.SetValue(HavenProperties.Height, HavenLength.Px(3));
-            underline.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center); underline.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.End);
+            underline.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Start); underline.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.End);
+            underline.SetValue(HavenProperties.Margin, HavenThickness.Parse("0px 0px 0px 6px"));
             underline.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(2))); underline.SetValue(HavenProperties.Background, item.IsSelected ? "Accent" : "Transparent");
             underline.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None); underline.SetValue(HavenProperties.ZIndex, 1);
             host.Add(button); host.Add(underline); _scroller.Add(host); _buttons.Add(button); _indicators.Add(underline);

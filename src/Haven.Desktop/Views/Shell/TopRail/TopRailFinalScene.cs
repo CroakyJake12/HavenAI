@@ -85,7 +85,7 @@ internal sealed class TopRailFinalScene
         AppsHost = Dropdown("TopRail.AppsHost", 104, "rocket", "Apps", "TopRail.Actions.Apps", out var apps);
         AppsButton = apps;
         Root.Add(AppsHost);
-        ActionsHost = Dropdown("TopRail.ActionsHost", 154, "bolt", "Capabilities", "TopRail.Actions.Capabilities", out var actions);
+        ActionsHost = Dropdown("TopRail.ActionsHost", 154, "bolt", "Actions", "TopRail.Actions.Capabilities", out var actions);
         ActionsButton = actions;
         Root.Add(ActionsHost);
         ModelHost = Dropdown("TopRail.ModelHost", 236, "cpu", "Local model · 60%", "TopRail.Actions.Model", out var model);
@@ -228,19 +228,19 @@ internal sealed class TopRailFinalScene
     private static Container Dropdown(string name, double width, string leadIcon, string content, string buttonName, out HavenButton button)
     {
         var host = new Container { Name = name, Layout = HavenLayout.Overlay };
-        host.SetValue(HavenProperties.Width, HavenLength.Px(width));
+        host.SetValue(HavenProperties.MinWidth, HavenLength.Px(width));
         host.SetValue(HavenProperties.Height, HavenLength.Px(42));
         host.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
         button = new HavenButton { Name = buttonName, Variant = ButtonVariant.Primary, IconKey = leadIcon, Content = content };
         button.Accessibility.AccessibleName = content;
-        button.SetValue(HavenProperties.Width, HavenLength.Px(width));
+        button.SetValue(HavenProperties.MinWidth, HavenLength.Px(width));
         button.SetValue(HavenProperties.Height, HavenLength.Px(42));
         button.SetValue(HavenProperties.MinHeight, HavenLength.Px(42));
         button.SetValue(HavenProperties.Padding, HavenThickness.Parse("0px 34px 0px 16px"));
         button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(21)));
         var chevron = new HavenIcon { Key = "chevron-down" };
-        chevron.SetValue(HavenProperties.Width, HavenLength.Px(10));
-        chevron.SetValue(HavenProperties.Height, HavenLength.Px(10));
+        chevron.SetValue(HavenProperties.Width, HavenLength.Px(12));
+        chevron.SetValue(HavenProperties.Height, HavenLength.Px(12));
         chevron.SetValue(HavenProperties.Margin, HavenThickness.Parse("0px 12px 0px 0px"));
         chevron.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.End);
         chevron.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
@@ -259,6 +259,7 @@ internal sealed class TopRailFinalScene
         button.SetValue(HavenProperties.Width, HavenLength.Px(42));
         button.SetValue(HavenProperties.Height, HavenLength.Px(42));
         button.SetValue(HavenProperties.MinHeight, HavenLength.Px(42));
+        button.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
         return button;
     }
 

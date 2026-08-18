@@ -138,7 +138,12 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         };
         if (string.IsNullOrEmpty(text)) return new HavenSize(Math.Min(available.Width, 48), Math.Min(available.Height, 48));
         var formatted = CreateText(text, element, available.Width);
-        return new HavenSize(Math.Min(available.Width, formatted.Width + 2), Math.Min(available.Height, formatted.Height + 2));
+        var leadingIconAdvance = element is Haven.UI.Components.Button button && !string.IsNullOrWhiteSpace(button.IconKey)
+            ? 30d
+            : 0d;
+        return new HavenSize(
+            Math.Min(available.Width, formatted.Width + leadingIconAdvance + 2),
+            Math.Min(available.Height, formatted.Height + 2));
     }
 
     private void RenderScene(DrawingContext context)

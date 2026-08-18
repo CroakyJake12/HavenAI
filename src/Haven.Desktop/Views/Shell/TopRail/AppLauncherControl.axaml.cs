@@ -20,15 +20,17 @@ public sealed partial class AppLauncherControl : UserControl
     private Action<ModeDefinition, bool>? _launch;
     private Action? _manage;
     private bool _openInNewTab;
+    private readonly AppLauncherFinalScene _havenScene;
+    private readonly Haven.Desktop.HavenUI.Backend.HavenSceneControl _havenHost;
 
     public AppLauncherControl()
     {
         InitializeComponent();
-        SearchBox.TextChanged += (_, _) => Rebuild();
-        ManageButton.Click += (_, _) =>
-        {
-            _manage?.Invoke();
-        };
+        _havenScene = new AppLauncherFinalScene();
+        _havenHost = new Haven.Desktop.HavenUI.Backend.HavenSceneControl { Root = _havenScene.Root };
+        Content = _havenHost;
+        _havenScene.AppRequested += app => _launch?.Invoke(app, _openInNewTab);
+        _havenScene.ManageRequested += () => _manage?.Invoke();
     }
 
     public void Configure(
@@ -43,8 +45,13 @@ public sealed partial class AppLauncherControl : UserControl
         _openInNewTab = openInNewTab;
         _launch = launch;
         _manage = manage;
-        Rebuild();
+        _havenScene.Configure(apps, pinnedIds);
     }
+
+    public bool FocusSearch() => _havenHost.FocusElement(_havenScene.Search);
+
+    internal AppLauncherFinalScene HavenScene => _havenScene;
+    internal Haven.Desktop.HavenUI.Backend.HavenSceneControl SceneHost => _havenHost;
 
     private void Rebuild()
     {

@@ -61,6 +61,30 @@ public sealed class HavenSceneBackendTests
     }
 
     [AvaloniaFact]
+    public void Icon_and_text_buttons_measure_the_leading_icon_before_arrange()
+    {
+        var root = new HavenPage { Layout = HavenLayout.Horizontal };
+        root.SetValue(HavenProperties.Gap, HavenLength.Px(12));
+        var textOnly = new Haven.UI.Components.Button { Content = "Apps", Variant = ButtonVariant.Primary };
+        var withIcon = new Haven.UI.Components.Button { Content = "Apps", IconKey = "rocket", Variant = ButtonVariant.Primary };
+        root.Add(textOnly);
+        root.Add(withIcon);
+        var scene = new HavenSceneControl { Root = root };
+        var window = new Window { Width = 420, Height = 100, Content = scene };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            Assert.True(withIcon.DesiredSize.Width >= textOnly.DesiredSize.Width + 29.5d);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void Dynamically_added_scene_nodes_join_backend_invalidation_and_layout()
     {
         var root = new HavenPage();
