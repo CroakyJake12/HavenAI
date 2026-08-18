@@ -24,6 +24,7 @@ public sealed partial class DataPage : UserControl, IDisposable
     private int _queryIndex;
     private int _selectedRow;
     private int _selectedColumn;
+    private int _drawingIndex;
     private int _rowOffset;
     private int _columnOffset;
     private int _saveRunning;
@@ -42,6 +43,7 @@ public sealed partial class DataPage : UserControl, IDisposable
         _route = new DataHavenScene(); Scene.Root = _route.Root;
         _route.PreviousWorkbookRequested += OnPreviousWorkbookRequested; _route.NextWorkbookRequested += OnNextWorkbookRequested; _route.NewWorkbookRequested += OnNewWorkbookRequested; _route.SaveRequested += OnSaveRequested; _route.ImportRequested += OnImportRequested; _route.ExportRequested += OnExportRequested;
         _route.AddSheetRequested += OnAddSheetRequested; _route.DeleteSheetRequested += OnDeleteSheetRequested; _route.AddQueryRequested += OnAddQueryRequested; _route.DeleteQueryRequested += OnDeleteQueryRequested; _route.BuildSqlRequested += OnBuildSqlRequested; _route.RunQueryRequested += OnRunQueryRequested;
+        _route.AddShapeRequested += OnAddShapeRequested; _route.PreviousDrawingRequested += OnPreviousDrawingRequested; _route.NextDrawingRequested += OnNextDrawingRequested; _route.RotateDrawingRequested += OnRotateDrawingRequested; _route.DeleteDrawingRequested += OnDeleteDrawingRequested;
         _route.SheetSelected += OnSheetSelected; _route.QuerySelected += OnQuerySelected; _route.CellSelected += OnCellSelected; _route.GridWindowRequested += OnGridWindowRequested;
         _route.WorkbookTitleChanged += OnWorkbookTitleChanged; _route.SheetNameChanged += OnSheetNameChanged; _route.CellValueChanged += OnCellValueChanged; _route.CellFormulaChanged += OnCellFormulaChanged; _route.QueryNameChanged += OnQueryNameChanged; _route.SqlChanged += OnSqlChanged;
         _route.VisualSourceChanged += value => UpdateVisual(visual => visual.Source = value); _route.VisualColumnsChanged += value => UpdateVisual(visual => visual.Columns = value); _route.VisualFilterChanged += value => UpdateVisual(visual => visual.Filter = value); _route.VisualGroupChanged += value => UpdateVisual(visual => visual.GroupBy = value); _route.VisualOrderChanged += value => UpdateVisual(visual => visual.OrderBy = value); _route.VisualLimitChanged += OnVisualLimitChanged;
@@ -69,9 +71,10 @@ public sealed partial class DataPage : UserControl, IDisposable
 
     public async Task<bool> SaveAsync(string reason = "Manual save", CancellationToken cancellationToken = default)
     {
-        if (Workbook is null || !_dirty) return true; if (Interlocked.Exchange(ref _saveRunning, 1) != 0) return false;
+        if (Workbook is null) return true; if (Interlocked.Exchange(ref _saveRunning, 1) != 0) return false;
         try
         {
+            RecalculateWorkbook(); if (_formulaReport.ChangedCells > 0) _dirty = true; if (!_dirty) { RenderFormulaState(); return true; }
             if (string.IsNullOrWhiteSpace(Workbook.Title)) Workbook.Title = "Untitled workbook";
             var result = await _repository.SaveAsync(Workbook, reason, cancellationToken); Workbook.Version = result.Version; _dirty = false;
             await RefreshWorkbooksAsync(cancellationToken); _workbookIndex = IndexOfWorkbook(Workbook.Id); RenderCurrent(); _route.SetStatus($"Saved locally at {result.SavedAt.LocalDateTime:t} · v{result.Version}"); _bus.Fire("Data.Saved"); return true;
@@ -87,8 +90,8 @@ public sealed partial class DataPage : UserControl, IDisposable
         if (Workbook is not null && _dirty && !await SaveAsync("Autosave before import", cancellationToken)) return false;
         try
         {
-            var workbook = await _formats.ImportAsync(sourcePath, cancellationToken); var result = await _repository.SaveAsync(workbook, "Imported XLSX", cancellationToken); workbook.Version = result.Version;
-            await RefreshWorkbooksAsync(cancellationToken); Workbook = workbook; _workbookIndex = IndexOfWorkbook(workbook.Id); ResetViewState(); _dirty = false; RenderCurrent(); _route.SetStatus("Imported " + Path.GetFileName(sourcePath) + " · formatting/charts are reported as unsupported rather than silently simulated."); _bus.Fire("Data.Workbook.Imported"); return true;
+            var workbook = await _formats.ImportAsync(sourcePath, cancellationToken); _formulaReport = _formulaEngine.Recalculate(workbook); var result = await _repository.SaveAsync(workbook, "Imported XLSX", cancellationToken); workbook.Version = result.Version;
+            await RefreshWorkbooksAsync(cancellationToken); Workbook = workbook; _workbookIndex = IndexOfWorkbook(workbook.Id); ResetViewState(); _dirty = false; RenderCurrent(); _route.SetStatus($"Imported {Path.GetFileName(sourcePath)} · {_formulaReport.FormulaCells} formula cell(s), {_formulaReport.Issues.Count} calculation issue(s) · formatting/charts remain explicitly unsupported."); _bus.Fire("Data.Workbook.Imported"); return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) { _route.SetStatus("Couldn’t import this workbook: " + ex.Message); return false; }
@@ -97,7 +100,7 @@ public sealed partial class DataPage : UserControl, IDisposable
     internal async Task<bool> ExportToPathAsync(string destinationPath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath); if (Workbook is null) return false;
-        if (_dirty && !await SaveAsync("Save before XLSX export", cancellationToken)) return false;
+        if (!await SaveAsync("Save before XLSX export", cancellationToken)) return false;
         try { var path = await _formats.ExportAsync(Workbook, destinationPath, cancellationToken); _route.SetStatus("Exported " + Path.GetFileName(path)); _bus.Fire("Data.Workbook.Exported"); return true; }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) { _route.SetStatus("Couldn’t export this workbook: " + ex.Message); return false; }
@@ -126,39 +129,54 @@ public sealed partial class DataPage : UserControl, IDisposable
     {
         var sheet = CurrentSheet; if (Workbook is null || sheet is null || sheet.Name == value) return; var name = string.IsNullOrWhiteSpace(value) ? $"Sheet {_sheetIndex + 1}" : value.Trim();
         if (Workbook.Sheets.Any(other => other.Id != sheet.Id && other.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) { _route.SetStatus("Sheet names must be unique for spreadsheet and SQL compatibility."); RenderCurrent(); return; }
-        var old = sheet.Name; sheet.Name = name; foreach (var query in Workbook.Queries.Where(query => query.Visual.Source.Equals(old, StringComparison.OrdinalIgnoreCase))) query.Visual.Source = name; _lastQueryResult = null; MarkDirty();
+        var old = sheet.Name; sheet.Name = name; RewriteSheetReferences(old, name);
+        foreach (var query in Workbook.Queries.Where(query => query.Visual.Source.Equals(old, StringComparison.OrdinalIgnoreCase))) { var generated = query.Sql.Equals(query.Visual.BuildSql(), StringComparison.Ordinal); query.Visual.Source = name; if (generated) query.Sql = query.Visual.BuildSql(); }
+        RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent();
     }
-    private void OnCellValueChanged(string value) { var sheet = CurrentSheet; if (sheet is null) return; var existing = sheet.GetCell(_selectedRow, _selectedColumn); sheet.SetCell(_selectedRow, _selectedColumn, value, existing?.Formula, existing?.Kind); _lastQueryResult = null; MarkDirty(); }
-    private void OnCellFormulaChanged(string value) { var sheet = CurrentSheet; if (sheet is null) return; var existing = sheet.GetCell(_selectedRow, _selectedColumn); var formula = value.Trim(); sheet.SetCell(_selectedRow, _selectedColumn, string.IsNullOrWhiteSpace(formula) ? existing?.Value : string.Empty, formula, string.IsNullOrWhiteSpace(formula) ? existing?.Kind : DataCellKind.Formula); _lastQueryResult = null; MarkDirty(); }
+    private void OnCellValueChanged(string value)
+    {
+        var sheet = CurrentSheet; if (sheet is null) return; var existing = sheet.GetCell(_selectedRow, _selectedColumn);
+        if (!string.IsNullOrWhiteSpace(existing?.Formula)) { RenderCurrent(); return; }
+        sheet.SetCell(_selectedRow, _selectedColumn, value, null, DataCell.InferKind(value)); RecalculateFrom(sheet, _selectedRow, _selectedColumn); _lastQueryResult = null; MarkDirty(); RenderCurrent();
+    }
+    private void OnCellFormulaChanged(string value)
+    {
+        var sheet = CurrentSheet; if (sheet is null) return; var existing = sheet.GetCell(_selectedRow, _selectedColumn); var formula = value.Trim(); var retainedValue = existing?.Value ?? string.Empty;
+        if (string.Equals(existing?.Formula ?? string.Empty, formula, StringComparison.Ordinal)) return;
+        if (string.IsNullOrWhiteSpace(formula)) sheet.SetCell(_selectedRow, _selectedColumn, retainedValue, null, DataCell.InferKind(retainedValue));
+        else sheet.SetCell(_selectedRow, _selectedColumn, string.Empty, formula, DataCellKind.Formula);
+        var updated = sheet.GetCell(_selectedRow, _selectedColumn); if (updated is not null) { updated.Metadata.Remove("xlsxCachedValue"); updated.Metadata.Remove("formulaCachedFallback"); updated.Metadata.Remove("formulaError"); }
+        RecalculateFrom(sheet, _selectedRow, _selectedColumn); _lastQueryResult = null; MarkDirty(); RenderCurrent();
+    }
     private void OnQueryNameChanged(string value) { var query = CurrentQuery; if (query is null || query.Name == value) return; query.Name = string.IsNullOrWhiteSpace(value) ? $"Query {_queryIndex + 1}" : value.Trim(); MarkDirty(); }
     private void OnSqlChanged(string value) { var query = CurrentQuery; if (query is null || query.Sql == value) return; query.Sql = value; _lastQueryResult = null; MarkDirty(); }
     private void OnVisualLimitChanged(string value) { UpdateVisual(visual => visual.Limit = int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var limit) && limit > 0 ? limit : null); }
     private void UpdateVisual(Action<DataVisualQuery> update) { var query = CurrentQuery; if (query is null) return; update(query.Visual); _lastQueryResult = null; MarkDirty(); }
 
-    private void OnSheetSelected(int index) { if (Workbook is null) return; _sheetIndex = Math.Clamp(index, 0, Workbook.Sheets.Count - 1); _selectedRow = _selectedColumn = _rowOffset = _columnOffset = 0; _lastQueryResult = null; RenderCurrent(); }
+    private void OnSheetSelected(int index) { if (Workbook is null) return; _sheetIndex = Math.Clamp(index, 0, Workbook.Sheets.Count - 1); _selectedRow = _selectedColumn = _drawingIndex = _rowOffset = _columnOffset = 0; _lastQueryResult = null; RenderCurrent(); }
     private void OnQuerySelected(int index) { if (Workbook is null) return; _queryIndex = Math.Clamp(index, 0, Workbook.Queries.Count - 1); _lastQueryResult = null; RenderCurrent(); }
     private void OnCellSelected(int row, int column) { _selectedRow = Math.Max(0, row); _selectedColumn = Math.Max(0, column); RenderCurrent(); }
     private void OnGridWindowRequested(int rowDelta, int columnDelta) { _rowOffset = Math.Max(0, _rowOffset + rowDelta); _columnOffset = Math.Max(0, _columnOffset + columnDelta); _selectedRow = Math.Max(_rowOffset, _selectedRow); _selectedColumn = Math.Max(_columnOffset, _selectedColumn); RenderCurrent(); }
 
     private void AddSheet() { if (Workbook is null) return; var baseName = "Sheet " + (Workbook.Sheets.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture); var name = baseName; var suffix = 2; while (Workbook.Sheets.Any(sheet => sheet.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = baseName + " " + suffix++; Workbook.Sheets.Add(DataSheet.Create(Workbook.Sheets.Count, name)); _sheetIndex = Workbook.Sheets.Count - 1; ResetGridState(); MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Added"); }
-    private void DeleteSheet() { if (Workbook is null) return; if (Workbook.Sheets.Count == 1) { Workbook.Sheets[0] = DataSheet.Create(0, "Sheet 1"); } else Workbook.Sheets.RemoveAt(Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1)); for (var i = 0; i < Workbook.Sheets.Count; i++) Workbook.Sheets[i].Order = i; _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); ResetGridState(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Deleted"); }
+    private void DeleteSheet() { if (Workbook is null) return; if (Workbook.Sheets.Count == 1) { Workbook.Sheets[0] = DataSheet.Create(0, "Sheet 1"); } else Workbook.Sheets.RemoveAt(Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1)); for (var i = 0; i < Workbook.Sheets.Count; i++) Workbook.Sheets[i].Order = i; _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); ResetGridState(); RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Deleted"); }
     private void AddQuery() { if (Workbook is null) return; var query = DataQuery.Create($"Query {Workbook.Queries.Count + 1}"); query.Visual.Source = CurrentSheet?.Name ?? "Sheet 1"; query.Sql = query.Visual.BuildSql(); Workbook.Queries.Add(query); _queryIndex = Workbook.Queries.Count - 1; _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Query.Added"); }
     private void DeleteQuery() { if (Workbook is null) return; if (Workbook.Queries.Count == 1) Workbook.Queries[0] = DataQuery.Create("Query 1"); else Workbook.Queries.RemoveAt(Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1)); for (var i = 0; i < Workbook.Queries.Count; i++) Workbook.Queries[i].Order = i; _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Query.Deleted"); }
 
     private async Task RunCurrentQueryAsync()
     {
-        if (Workbook is null || CurrentQuery is null) return; var safety = DataSqlSafety.Analyze(CurrentQuery.Sql); if (!safety.IsReadOnly) { _route.SetStatus(safety.Message); _route.SetQuerySafety(CurrentQuery.Sql); return; }
+        if (Workbook is null || CurrentQuery is null) return; RecalculateWorkbook(); if (_formulaReport.ChangedCells > 0) MarkDirty(); var safety = DataSqlSafety.Analyze(CurrentQuery.Sql); if (!safety.IsReadOnly) { _route.SetStatus(safety.Message); _route.SetQuerySafety(CurrentQuery.Sql); RenderFormulaState(); return; }
         _lastQueryResult = await _queries.ExecuteReadOnlyAsync(Workbook, CurrentQuery.Sql, 200, CancellationToken.None); _route.SetQueryResult(_lastQueryResult); _route.SetStatus($"Query preview returned {_lastQueryResult.Rows.Count} row{(_lastQueryResult.Rows.Count == 1 ? string.Empty : "s")}{(_lastQueryResult.Truncated ? " (truncated)" : string.Empty)}."); _bus.Fire("Data.Query.Previewed");
     }
 
     private async Task MoveWorkbookAsync(int offset) { if (_workbooks.Count <= 1) return; if (_dirty && !await SaveAsync("Autosave before switching workbook")) return; var next = (_workbookIndex + offset + _workbooks.Count) % _workbooks.Count; await OpenWorkbookAtAsync(next, CancellationToken.None, false); }
     private async Task CreateWorkbookAsync(CancellationToken cancellationToken)
     {
-        if (Workbook is not null && _dirty && !await SaveAsync("Autosave before creating workbook", cancellationToken)) return; var workbook = DataWorkbook.Create("Untitled workbook"); var result = await _repository.SaveAsync(workbook, "Workbook created", cancellationToken); workbook.Version = result.Version; await RefreshWorkbooksAsync(cancellationToken); Workbook = workbook; _workbookIndex = IndexOfWorkbook(workbook.Id); ResetViewState(); _dirty = false; RenderCurrent(); _route.SetStatus("Created a new local workbook."); _bus.Fire("Data.Workbook.Created");
+        if (Workbook is not null && _dirty && !await SaveAsync("Autosave before creating workbook", cancellationToken)) return; var workbook = DataWorkbook.Create("Untitled workbook"); var result = await _repository.SaveAsync(workbook, "Workbook created", cancellationToken); workbook.Version = result.Version; await RefreshWorkbooksAsync(cancellationToken); Workbook = workbook; _workbookIndex = IndexOfWorkbook(workbook.Id); ResetViewState(); RecalculateWorkbook(); _dirty = false; RenderCurrent(); _route.SetStatus("Created a new local workbook."); _bus.Fire("Data.Workbook.Created");
     }
     private async Task OpenWorkbookAtAsync(int index, CancellationToken cancellationToken, bool saveBeforeSwitch)
     {
-        if (_workbooks.Count == 0) return; if (saveBeforeSwitch && Workbook is not null && _dirty && !await SaveAsync("Autosave before switching workbook", cancellationToken)) return; index = Math.Clamp(index, 0, _workbooks.Count - 1); var loaded = await _repository.LoadAsync(_workbooks[index].Id, cancellationToken); if (loaded is null) { await RefreshWorkbooksAsync(cancellationToken); _route.SetStatus("That local workbook no longer exists."); return; } loaded.Normalize(); Workbook = loaded; _workbookIndex = index; ResetViewState(); _dirty = false; RenderCurrent(); _route.SetStatus(loaded.Recovery.RecoveredFromBackup ? loaded.Recovery.Message : "Saved locally · autosave is on"); _bus.Fire("Data.Workbook.Opened");
+        if (_workbooks.Count == 0) return; if (saveBeforeSwitch && Workbook is not null && _dirty && !await SaveAsync("Autosave before switching workbook", cancellationToken)) return; index = Math.Clamp(index, 0, _workbooks.Count - 1); var loaded = await _repository.LoadAsync(_workbooks[index].Id, cancellationToken); if (loaded is null) { await RefreshWorkbooksAsync(cancellationToken); _route.SetStatus("That local workbook no longer exists."); return; } loaded.Normalize(); Workbook = loaded; _workbookIndex = index; ResetViewState(); RecalculateWorkbook(); _dirty = _formulaReport.ChangedCells > 0; RenderCurrent(); _route.SetStatus(loaded.Recovery.RecoveredFromBackup ? loaded.Recovery.Message : _dirty ? $"Recalculated {_formulaReport.ChangedCells} cached formula value(s) · autosave pending" : "Saved locally · autosave is on"); _bus.Fire("Data.Workbook.Opened");
     }
 
     private async Task PickImportAsync()
@@ -176,9 +194,9 @@ public sealed partial class DataPage : UserControl, IDisposable
     }
 
     private void MarkDirty() { if (Workbook is null) return; Workbook.UpdatedAt = DateTimeOffset.UtcNow; _dirty = true; _route.SetStatus("Unsaved changes · autosave is on"); }
-    private void RenderCurrent() { if (Workbook is null) return; Workbook.Normalize(); _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); _route.SetWorkbook(Workbook, _workbookIndex, _workbooks.Count, _sheetIndex, _queryIndex, _selectedRow, _selectedColumn, _rowOffset, _columnOffset, _lastQueryResult); }
-    private void ResetViewState() { _sheetIndex = _queryIndex = _selectedRow = _selectedColumn = _rowOffset = _columnOffset = 0; _lastQueryResult = null; }
-    private void ResetGridState() { _selectedRow = _selectedColumn = _rowOffset = _columnOffset = 0; }
+    private void RenderCurrent() { if (Workbook is null) return; Workbook.Normalize(); _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); var sheet = CurrentSheet; if (sheet is not null) _drawingIndex = Math.Clamp(_drawingIndex, 0, Math.Max(0, sheet.Drawings.Count - 1)); _route.SetWorkbook(Workbook, _workbookIndex, _workbooks.Count, _sheetIndex, _queryIndex, _selectedRow, _selectedColumn, _rowOffset, _columnOffset, _lastQueryResult); if (sheet is not null) _route.SetDrawingState(sheet, _drawingIndex); RenderFormulaState(); }
+    private void ResetViewState() { _sheetIndex = _queryIndex = _selectedRow = _selectedColumn = _drawingIndex = _rowOffset = _columnOffset = 0; _lastQueryResult = null; }
+    private void ResetGridState() { _selectedRow = _selectedColumn = _drawingIndex = _rowOffset = _columnOffset = 0; }
     private async Task RefreshWorkbooksAsync(CancellationToken cancellationToken) => _workbooks = await _repository.ListAsync(cancellationToken);
     private int IndexOfWorkbook(Guid id) { for (var index = 0; index < _workbooks.Count; index++) if (_workbooks[index].Id == id) return index; return 0; }
     private async Task RunBusyAsync(Func<Task> action, string description) { if (_busy || _disposed) return; SetBusy(true); try { await action(); } catch (Exception ex) { _route.SetStatus($"Couldn’t {description}: {ex.Message}"); } finally { SetBusy(false); } }
@@ -191,6 +209,7 @@ public sealed partial class DataPage : UserControl, IDisposable
         if (_disposed) return; _disposed = true; _autosaveTimer.Stop(); _autosaveTimer.Tick -= OnAutosaveTick; Loaded -= OnLoaded; DetachedFromVisualTree -= OnDetachedFromVisualTree;
         _route.PreviousWorkbookRequested -= OnPreviousWorkbookRequested; _route.NextWorkbookRequested -= OnNextWorkbookRequested; _route.NewWorkbookRequested -= OnNewWorkbookRequested; _route.SaveRequested -= OnSaveRequested; _route.ImportRequested -= OnImportRequested; _route.ExportRequested -= OnExportRequested;
         _route.AddSheetRequested -= OnAddSheetRequested; _route.DeleteSheetRequested -= OnDeleteSheetRequested; _route.AddQueryRequested -= OnAddQueryRequested; _route.DeleteQueryRequested -= OnDeleteQueryRequested; _route.BuildSqlRequested -= OnBuildSqlRequested; _route.RunQueryRequested -= OnRunQueryRequested;
+        _route.AddShapeRequested -= OnAddShapeRequested; _route.PreviousDrawingRequested -= OnPreviousDrawingRequested; _route.NextDrawingRequested -= OnNextDrawingRequested; _route.RotateDrawingRequested -= OnRotateDrawingRequested; _route.DeleteDrawingRequested -= OnDeleteDrawingRequested;
         _route.SheetSelected -= OnSheetSelected; _route.QuerySelected -= OnQuerySelected; _route.CellSelected -= OnCellSelected; _route.GridWindowRequested -= OnGridWindowRequested; _route.WorkbookTitleChanged -= OnWorkbookTitleChanged; _route.SheetNameChanged -= OnSheetNameChanged; _route.CellValueChanged -= OnCellValueChanged; _route.CellFormulaChanged -= OnCellFormulaChanged; _route.QueryNameChanged -= OnQueryNameChanged; _route.SqlChanged -= OnSqlChanged; _route.VisualLimitChanged -= OnVisualLimitChanged; _route.Dispose();
     }
 }

@@ -91,7 +91,7 @@ public sealed partial class CanvasPage : UserControl, IDisposable
     private void OnUndoRequested(object? sender, EventArgs e) { if (_controller?.Undo() == true) { SyncBoardReference(); MarkDirty(); RefreshScene(); } }
     private void OnRedoRequested(object? sender, EventArgs e) { if (_controller?.Redo() == true) { SyncBoardReference(); MarkDirty(); RefreshScene(); } }
     private void OnToolRequested(CanvasTool tool) { if (_controller is null) return; _controller.Tool = tool; RefreshScene(); }
-    private void OnAddObjectRequested(NotesCanvasObjectKind kind) { if (_controller is null) return; _controller.AddObject(kind); MarkDirty(); RefreshScene(); }
+    private void OnAddObjectRequested(NotesCanvasObjectKind kind) { if (_controller is null) return; if (kind == NotesCanvasObjectKind.Shape) _controller.AddCustomShape(DocumentVectorShapes.CreateEditableStarter()); else _controller.AddObject(kind); MarkDirty(); RefreshScene(); }
     private void OnObjectSelected(Guid id) { _controller?.SelectObject(id); RefreshScene(); }
     private void OnDeleteRequested(object? sender, EventArgs e) { if (_controller?.DeleteSelected() == true) { MarkDirty(); RefreshScene(); } }
     private void OnBringFrontRequested(object? sender, EventArgs e) { if (_controller?.BringSelectedToFront() == true) { MarkDirty(); RefreshScene(); } }

@@ -110,6 +110,26 @@ public sealed class WriteDocumentEditor
         ArgumentNullException.ThrowIfNull(media); var page = PageForSelection(); var index = SelectedBlock is { } selected ? page.Blocks.IndexOf(selected) + 1 : page.Blocks.Count; var block = new NotesBlock { Kind = NotesBlockKind.Image, Media = media }; Mutate(() => { page.Blocks.Insert(Math.Clamp(index, 0, page.Blocks.Count), block); Renumber(page); SelectedBlockId = block.Id; }, "Inserted image"); return block;
     }
 
+    public NotesBlock InsertCustomShape(DocumentVectorShape shape, Guid? gallerySourceId = null)
+    {
+        ArgumentNullException.ThrowIfNull(shape);
+        var page = PageForSelection();
+        var index = SelectedBlock is { } selected ? page.Blocks.IndexOf(selected) + 1 : page.Blocks.Count;
+        var block = new NotesBlock { Kind = NotesBlockKind.Shape, VectorShape = DocumentVectorShapes.CloneForInsertion(shape, gallerySourceId) };
+        Mutate(() => { page.Blocks.Insert(Math.Clamp(index, 0, page.Blocks.Count), block); Renumber(page); SelectedBlockId = block.Id; ActiveRunIndex = 0; CaretIndex = 0; }, "Inserted custom vector shape");
+        return block;
+    }
+
+    public bool UpdateSelectedCustomShape(Action<DocumentVectorShapeEditor> edit)
+    {
+        ArgumentNullException.ThrowIfNull(edit);
+        if (SelectedBlock?.VectorShape is not { } shape) return false;
+        var vectorEditor = new DocumentVectorShapeEditor(DocumentVectorShapes.Clone(shape));
+        edit(vectorEditor);
+        Mutate(() => SelectedBlock!.VectorShape = DocumentVectorShapes.Clone(vectorEditor.Shape), "Edited custom vector shape");
+        return true;
+    }
+
     public bool DeleteSelected() { if (SelectedBlock is not { } block) return false; var page = PageFor(block); if (page.Blocks.Count <= 1) return false; var index = page.Blocks.IndexOf(block); Mutate(() => { page.Blocks.Remove(block); Renumber(page); SelectedBlockId = page.Blocks[Math.Clamp(index - 1, 0, page.Blocks.Count - 1)].Id; }, "Deleted block"); return true; }
     public bool MoveSelected(int direction) { if (SelectedBlock is not { } block || direction == 0) return false; var page = PageFor(block); var index = page.Blocks.IndexOf(block); var target = Math.Clamp(index + Math.Sign(direction), 0, page.Blocks.Count - 1); if (target == index) return false; Mutate(() => { page.Blocks.RemoveAt(index); page.Blocks.Insert(target, block); Renumber(page); }, direction < 0 ? "Moved block up" : "Moved block down"); return true; }
 

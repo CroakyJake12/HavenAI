@@ -385,6 +385,40 @@ public sealed class CanvasInteractionController
         return value;
     }
 
+    public NotesCanvasObject AddCustomShape(DocumentVectorShape shape, Guid? gallerySourceId = null)
+    {
+        ArgumentNullException.ThrowIfNull(shape);
+        History.Capture(Board);
+        var index = Board.Objects.Count;
+        var inserted = DocumentVectorShapes.CloneForInsertion(shape, gallerySourceId);
+        var value = new NotesCanvasObject
+        {
+            Kind = NotesCanvasObjectKind.Shape,
+            Text = inserted.Name,
+            VectorShape = inserted,
+            X = 80 + (index % 8) * 28,
+            Y = 80 + (index % 6) * 28,
+            Width = 220,
+            Height = 170,
+            ZIndex = Board.Objects.Count == 0 ? 0 : Board.Objects.Max(candidate => candidate.ZIndex) + 1
+        };
+        Board.Objects.Add(value);
+        SelectedObjectId = value.Id;
+        return value;
+    }
+
+    public bool UpdateSelectedCustomShape(Action<DocumentVectorShapeEditor> edit)
+    {
+        ArgumentNullException.ThrowIfNull(edit);
+        if (SelectedObject is not { Locked: false, VectorShape: { } shape } value) return false;
+        var vectorEditor = new DocumentVectorShapeEditor(DocumentVectorShapes.Clone(shape));
+        edit(vectorEditor);
+        History.Capture(Board);
+        value.VectorShape = DocumentVectorShapes.Clone(vectorEditor.Shape);
+        value.Text = value.VectorShape.Name;
+        return true;
+    }
+
     public bool DeleteSelected()
     {
         if (SelectedObject is not { Locked: false } selected) return false;

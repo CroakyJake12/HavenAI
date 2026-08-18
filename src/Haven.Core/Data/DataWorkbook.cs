@@ -3,6 +3,7 @@ using System.Text;
 namespace Haven.Core;
 
 public enum DataCellKind { Text = 0, Number = 1, Boolean = 2, Date = 3, Formula = 4 }
+public enum DataDrawingKind { CustomShape = 0 }
 public enum DataSqlRisk { ReadOnly = 0, Mutating = 1, Destructive = 2, MultipleStatements = 3, Unknown = 4 }
 public sealed record DataSqlSafetyResult(DataSqlRisk Risk, bool IsReadOnly, string Message);
 
@@ -49,7 +50,7 @@ public static class DataSqlSafety
 
 public sealed class DataWorkbook
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "Untitled workbook";
@@ -58,6 +59,7 @@ public sealed class DataWorkbook
     public int Version { get; set; }
     public List<DataSheet> Sheets { get; set; } = [];
     public List<DataQuery> Queries { get; set; } = [];
+    public List<DataNamedRange> NamedRanges { get; set; } = [];
     public DataSchemaSnapshot Schema { get; set; } = new();
     public DataRecoveryState Recovery { get; set; } = new();
     public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
@@ -70,21 +72,23 @@ public sealed class DataWorkbook
 
     public void Normalize()
     {
-        SchemaVersion = CurrentSchemaVersion; Title = string.IsNullOrWhiteSpace(Title) ? "Untitled workbook" : Title.Trim(); Sheets ??= []; Queries ??= []; Schema ??= new(); Recovery ??= new(); Metadata ??= new(StringComparer.Ordinal);
+        SchemaVersion = CurrentSchemaVersion; Title = string.IsNullOrWhiteSpace(Title) ? "Untitled workbook" : Title.Trim(); Sheets ??= []; Queries ??= []; NamedRanges ??= []; Schema ??= new(); Recovery ??= new(); Metadata ??= new(StringComparer.Ordinal);
         if (Sheets.Count == 0) Sheets.Add(DataSheet.Create(0, "Sheet 1")); if (Queries.Count == 0) Queries.Add(DataQuery.Create("Query 1"));
         for (var i = 0; i < Sheets.Count; i++) { Sheets[i] ??= DataSheet.Create(i, $"Sheet {i + 1}"); Sheets[i].Normalize(i); }
-        for (var i = 0; i < Queries.Count; i++) { Queries[i] ??= DataQuery.Create($"Query {i + 1}"); Queries[i].Normalize(i); } Schema.Normalize();
+        for (var i = 0; i < Queries.Count; i++) { Queries[i] ??= DataQuery.Create($"Query {i + 1}"); Queries[i].Normalize(i); }
+        var rangeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase); for (var i = NamedRanges.Count - 1; i >= 0; i--) { var range = NamedRanges[i]; if (range is null) { NamedRanges.RemoveAt(i); continue; } range.Normalize(); if (!rangeNames.Add(range.Name)) NamedRanges.RemoveAt(i); }
+        Schema.Normalize();
     }
 }
 
 public sealed class DataSheet
 {
-    public Guid Id { get; set; } = Guid.NewGuid(); public int Order { get; set; } public string Name { get; set; } = "Sheet"; public List<DataCell> Cells { get; set; } = []; public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
+    public Guid Id { get; set; } = Guid.NewGuid(); public int Order { get; set; } public string Name { get; set; } = "Sheet"; public List<DataCell> Cells { get; set; } = []; public List<DataDrawingObject> Drawings { get; set; } = []; public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
     public static DataSheet Create(int order, string? name = null) => new() { Order = order, Name = string.IsNullOrWhiteSpace(name) ? $"Sheet {order + 1}" : name.Trim() };
     public DataCell? GetCell(int row, int column) => Cells.FirstOrDefault(cell => cell.Row == row && cell.Column == column);
     public DataCell GetOrCreateCell(int row, int column) { if (row < 0 || column < 0) throw new ArgumentOutOfRangeException(row < 0 ? nameof(row) : nameof(column)); var cell = GetCell(row, column); if (cell is not null) return cell; cell = new() { Row = row, Column = column }; Cells.Add(cell); return cell; }
     public void SetCell(int row, int column, string? value, string? formula = null, DataCellKind? kind = null) { var cell = GetOrCreateCell(row, column); cell.Value = value ?? string.Empty; cell.Formula = formula ?? string.Empty; cell.Kind = !string.IsNullOrWhiteSpace(cell.Formula) ? DataCellKind.Formula : kind ?? DataCell.InferKind(cell.Value); if (string.IsNullOrEmpty(cell.Value) && string.IsNullOrEmpty(cell.Formula) && cell.Metadata.Count == 0) Cells.Remove(cell); }
-    public void Normalize(int order) { Order = order; Name = string.IsNullOrWhiteSpace(Name) ? $"Sheet {order + 1}" : Name.Trim(); Cells ??= []; Metadata ??= new(StringComparer.Ordinal); var unique = new Dictionary<(int, int), DataCell>(); foreach (var cell in Cells.Where(cell => cell is not null && cell.Row >= 0 && cell.Column >= 0)) { cell.Normalize(); unique[(cell.Row, cell.Column)] = cell; } Cells = unique.Values.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToList(); }
+    public void Normalize(int order) { Order = order; Name = string.IsNullOrWhiteSpace(Name) ? $"Sheet {order + 1}" : Name.Trim(); Cells ??= []; Drawings ??= []; Metadata ??= new(StringComparer.Ordinal); var unique = new Dictionary<(int, int), DataCell>(); foreach (var cell in Cells.Where(cell => cell is not null && cell.Row >= 0 && cell.Column >= 0)) { cell.Normalize(); unique[(cell.Row, cell.Column)] = cell; } Cells = unique.Values.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToList(); var drawingIds = new HashSet<Guid>(); foreach (var drawing in Drawings.Where(value => value is not null)) { drawing.Normalize(); if (drawing.Id == Guid.Empty || !drawingIds.Add(drawing.Id)) { drawing.Id = Guid.NewGuid(); drawingIds.Add(drawing.Id); } } Drawings = Drawings.Where(value => value is not null).OrderBy(value => value.ZIndex).ToList(); }
 }
 
 public sealed class DataCell

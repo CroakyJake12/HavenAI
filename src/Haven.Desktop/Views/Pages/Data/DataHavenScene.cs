@@ -12,6 +12,7 @@ internal sealed class DataHavenScene : IDisposable
     private const int VisibleRows = 10;
     private const int VisibleColumns = 8;
     private bool _suppressChanges;
+    private bool _selectedCellHasFormula;
     private bool _disposed;
     private string _workbookTitle = string.Empty;
     private string _sheetName = string.Empty;
@@ -112,12 +113,18 @@ internal sealed class DataHavenScene : IDisposable
         DeleteQueryButton.Invoked += (_, _) => DeleteQueryRequested?.Invoke(this, EventArgs.Empty);
         BuildSqlButton.Invoked += (_, _) => BuildSqlRequested?.Invoke(this, EventArgs.Empty);
         RunQueryButton.Invoked += (_, _) => RunQueryRequested?.Invoke(this, EventArgs.Empty);
+        AddShapeButton.Invoked += (_, _) => AddShapeRequested?.Invoke(this, EventArgs.Empty);
+        PreviousDrawingButton.Invoked += (_, _) => PreviousDrawingRequested?.Invoke(this, EventArgs.Empty);
+        NextDrawingButton.Invoked += (_, _) => NextDrawingRequested?.Invoke(this, EventArgs.Empty);
+        RotateDrawingButton.Invoked += (_, _) => RotateDrawingRequested?.Invoke(this, EventArgs.Empty);
+        DeleteDrawingButton.Invoked += (_, _) => DeleteDrawingRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public event EventHandler? PreviousWorkbookRequested; public event EventHandler? NextWorkbookRequested; public event EventHandler? NewWorkbookRequested;
     public event EventHandler? SaveRequested; public event EventHandler? ImportRequested; public event EventHandler? ExportRequested;
     public event EventHandler? AddSheetRequested; public event EventHandler? DeleteSheetRequested; public event EventHandler? AddQueryRequested; public event EventHandler? DeleteQueryRequested;
     public event EventHandler? BuildSqlRequested; public event EventHandler? RunQueryRequested;
+    public event EventHandler? AddShapeRequested; public event EventHandler? PreviousDrawingRequested; public event EventHandler? NextDrawingRequested; public event EventHandler? RotateDrawingRequested; public event EventHandler? DeleteDrawingRequested;
     public event Action<int>? SheetSelected; public event Action<int>? QuerySelected; public event Action<int, int>? CellSelected; public event Action<int, int>? GridWindowRequested;
     public event Action<string>? WorkbookTitleChanged; public event Action<string>? SheetNameChanged; public event Action<string>? CellValueChanged; public event Action<string>? CellFormulaChanged;
     public event Action<string>? QueryNameChanged; public event Action<string>? SqlChanged; public event Action<string>? VisualSourceChanged; public event Action<string>? VisualColumnsChanged; public event Action<string>? VisualFilterChanged; public event Action<string>? VisualGroupChanged; public event Action<string>? VisualOrderChanged; public event Action<string>? VisualLimitChanged;
@@ -126,8 +133,9 @@ internal sealed class DataHavenScene : IDisposable
     public Input WorkbookTitleInput { get; } public HavenText PositionText { get; } public HavenText StatusText { get; }
     public HavenButton PreviousWorkbookButton { get; } public HavenButton NextWorkbookButton { get; } public HavenButton NewWorkbookButton { get; } public HavenButton SaveButton { get; } public HavenButton ImportButton { get; } public HavenButton ExportButton { get; }
     public Input SheetNameInput { get; private set; } = null!; public Container GridHost { get; private set; } = null!; public HavenText GridWindowText { get; private set; } = null!;
+    public HavenText DrawingSummaryText { get; private set; } = null!; public HavenButton AddShapeButton { get; private set; } = null!; public HavenButton PreviousDrawingButton { get; private set; } = null!; public HavenButton NextDrawingButton { get; private set; } = null!; public HavenButton RotateDrawingButton { get; private set; } = null!; public HavenButton DeleteDrawingButton { get; private set; } = null!;
     public HavenButton AddSheetButton { get; private set; } = null!; public HavenButton DeleteSheetButton { get; private set; } = null!; public HavenButton PreviousRowsButton { get; private set; } = null!; public HavenButton NextRowsButton { get; private set; } = null!; public HavenButton PreviousColumnsButton { get; private set; } = null!; public HavenButton NextColumnsButton { get; private set; } = null!;
-    public HavenText SelectedCellText { get; private set; } = null!; public Input CellValueInput { get; private set; } = null!; public Input CellFormulaInput { get; private set; } = null!;
+    public HavenText SelectedCellText { get; private set; } = null!; public HavenText FormulaStatusText { get; private set; } = null!; public Input CellValueInput { get; private set; } = null!; public Input CellFormulaInput { get; private set; } = null!;
     public Container QueryTabs { get; private set; } = null!; public HavenButton AddQueryButton { get; private set; } = null!; public HavenButton DeleteQueryButton { get; private set; } = null!; public Input QueryNameInput { get; private set; } = null!; public Input SqlInput { get; private set; } = null!;
     public Input VisualSourceInput { get; private set; } = null!; public Input VisualColumnsInput { get; private set; } = null!; public Input VisualFilterInput { get; private set; } = null!; public Input VisualGroupInput { get; private set; } = null!; public Input VisualOrderInput { get; private set; } = null!; public Input VisualLimitInput { get; private set; } = null!;
     public HavenButton BuildSqlButton { get; private set; } = null!; public HavenButton RunQueryButton { get; private set; } = null!; public HavenText SqlSafetyText { get; private set; } = null!; public HavenText ResultsText { get; private set; } = null!;
@@ -140,15 +148,49 @@ internal sealed class DataHavenScene : IDisposable
         _suppressChanges = true;
         try
         {
-            _workbookTitle = workbook.Title; _sheetName = sheet.Name; _cellValue = cell?.Value ?? string.Empty; _cellFormula = cell?.Formula ?? string.Empty;
+            _workbookTitle = workbook.Title; _sheetName = sheet.Name; _cellValue = cell?.Value ?? string.Empty; _cellFormula = cell?.Formula ?? string.Empty; _selectedCellHasFormula = !string.IsNullOrWhiteSpace(_cellFormula);
             _queryName = query.Name; _querySql = query.Sql; _visualSource = query.Visual.Source; _visualColumns = query.Visual.Columns; _visualFilter = query.Visual.Filter; _visualGroup = query.Visual.GroupBy; _visualOrder = query.Visual.OrderBy; _visualLimit = query.Visual.Limit?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-            WorkbookTitleInput.Text = _workbookTitle; SheetNameInput.Text = _sheetName; CellValueInput.Text = _cellValue; CellFormulaInput.Text = _cellFormula; QueryNameInput.Text = _queryName; SqlInput.Text = _querySql;
+            WorkbookTitleInput.Text = _workbookTitle; SheetNameInput.Text = _sheetName; CellValueInput.Text = _cellValue; CellFormulaInput.Text = _cellFormula; CellValueInput.SetValue(HavenProperties.Enabled, !_selectedCellHasFormula); QueryNameInput.Text = _queryName; SqlInput.Text = _querySql;
             VisualSourceInput.Text = _visualSource; VisualColumnsInput.Text = _visualColumns; VisualFilterInput.Text = _visualFilter; VisualGroupInput.Text = _visualGroup; VisualOrderInput.Text = _visualOrder; VisualLimitInput.Text = _visualLimit;
             PositionText.Content = $"Workbook {workbookIndex + 1} of {Math.Max(workbookCount, 1)} · {workbook.Sheets.Count} sheet{(workbook.Sheets.Count == 1 ? string.Empty : "s")} · {workbook.Queries.Count} quer{(workbook.Queries.Count == 1 ? "y" : "ies")} · v{workbook.Version}";
             SelectedCellText.Content = $"Selected cell · {ColumnName(selectedColumn)}{selectedRow + 1}";
             RebuildExplorer(workbook, sheetIndex); RebuildGrid(sheet, selectedRow, selectedColumn, rowOffset, columnOffset); RebuildQueryTabs(workbook, queryIndex); SetQuerySafety(query.Sql); SetQueryResult(result);
         }
         finally { _suppressChanges = false; }
+    }
+
+    public void SetDrawingState(DataSheet sheet, int drawingIndex)
+    {
+        ArgumentNullException.ThrowIfNull(sheet);
+        if (sheet.Drawings.Count == 0)
+        {
+            DrawingSummaryText.Content = "No drawing objects on this sheet. Add a custom shape to create native editable vector geometry.";
+            PreviousDrawingButton.SetValue(HavenProperties.Enabled, false); NextDrawingButton.SetValue(HavenProperties.Enabled, false); RotateDrawingButton.SetValue(HavenProperties.Enabled, false); DeleteDrawingButton.SetValue(HavenProperties.Enabled, false);
+            return;
+        }
+        drawingIndex = Math.Clamp(drawingIndex, 0, sheet.Drawings.Count - 1);
+        var drawing = sheet.Drawings[drawingIndex]; var vector = drawing.VectorShape;
+        var paths = vector?.Paths.Count ?? 0; var nodes = vector?.Paths.Sum(path => path.Subpaths.Sum(subpath => subpath.Nodes.Count)) ?? 0;
+        DrawingSummaryText.Content = $"Shape {drawingIndex + 1} of {sheet.Drawings.Count} · {drawing.Name} · {paths} path(s) · {nodes} node(s) · {drawing.Width:0}×{drawing.Height:0} · {drawing.Rotation:0}°{(drawing.Locked ? " · locked" : string.Empty)}";
+        PreviousDrawingButton.SetValue(HavenProperties.Enabled, sheet.Drawings.Count > 1); NextDrawingButton.SetValue(HavenProperties.Enabled, sheet.Drawings.Count > 1); RotateDrawingButton.SetValue(HavenProperties.Enabled, !drawing.Locked); DeleteDrawingButton.SetValue(HavenProperties.Enabled, !drawing.Locked);
+    }
+
+    public void SetFormulaState(DataFormulaRecalculationReport report, DataCell? selectedCell)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        if (selectedCell is null || string.IsNullOrWhiteSpace(selectedCell.Formula))
+        {
+            FormulaStatusText.Content = report.FormulaCells == 0 ? "No formulas in this workbook. Formula cells calculate locally as you edit." : $"Workbook calculation · {report.FormulaCells} formula cell(s) · {report.Issues.Count} issue(s).";
+            return;
+        }
+        if (selectedCell.Metadata.TryGetValue("formulaError", out var error) && !string.IsNullOrWhiteSpace(error))
+        {
+            FormulaStatusText.Content = selectedCell.Metadata.TryGetValue("formulaCachedFallback", out var fallback) && fallback == "xlsx"
+                ? $"Imported cached result · {selectedCell.Value} · Haven cannot calculate this Excel formula yet: {error}"
+                : $"Formula issue · {selectedCell.Value}: {error}";
+        }
+        else
+            FormulaStatusText.Content = $"Calculated locally · result {selectedCell.Value}";
     }
 
     public void SetStatus(string text) => StatusText.Content = text ?? string.Empty;
@@ -173,16 +215,16 @@ internal sealed class DataHavenScene : IDisposable
     public void SetBusy(bool busy)
     {
         var enabled = !busy;
-        foreach (var button in new[] { PreviousWorkbookButton, NextWorkbookButton, NewWorkbookButton, SaveButton, ImportButton, ExportButton, AddSheetButton, DeleteSheetButton, PreviousRowsButton, NextRowsButton, PreviousColumnsButton, NextColumnsButton, AddQueryButton, DeleteQueryButton, BuildSqlButton }) button.SetValue(HavenProperties.Enabled, enabled);
-        foreach (var input in new[] { WorkbookTitleInput, SheetNameInput, CellValueInput, CellFormulaInput, QueryNameInput, SqlInput, VisualSourceInput, VisualColumnsInput, VisualFilterInput, VisualGroupInput, VisualOrderInput, VisualLimitInput }) input.SetValue(HavenProperties.Enabled, enabled);
+        foreach (var button in new[] { PreviousWorkbookButton, NextWorkbookButton, NewWorkbookButton, SaveButton, ImportButton, ExportButton, AddSheetButton, DeleteSheetButton, PreviousRowsButton, NextRowsButton, PreviousColumnsButton, NextColumnsButton, AddShapeButton, PreviousDrawingButton, NextDrawingButton, RotateDrawingButton, DeleteDrawingButton, AddQueryButton, DeleteQueryButton, BuildSqlButton }) button.SetValue(HavenProperties.Enabled, enabled);
+        foreach (var input in new[] { WorkbookTitleInput, SheetNameInput, CellFormulaInput, QueryNameInput, SqlInput, VisualSourceInput, VisualColumnsInput, VisualFilterInput, VisualGroupInput, VisualOrderInput, VisualLimitInput }) input.SetValue(HavenProperties.Enabled, enabled); CellValueInput.SetValue(HavenProperties.Enabled, enabled && !_selectedCellHasFormula);
         if (busy) RunQueryButton.SetValue(HavenProperties.Enabled, false); else SetQuerySafety(SqlInput.Text);
     }
 
     private void BuildEditor()
     {
-        var sheetHeader = new Container { Name = "Data.Sheet.Header", Layout = HavenLayout.Horizontal }; sheetHeader.SetValue(HavenProperties.Gap, HavenLength.Px(8));
-        SheetNameInput = NewInput("Data.Sheet.Name", "Sheet name", "Sheet 1"); SheetNameInput.SetValue(HavenProperties.MinWidth, HavenLength.Px(220));
-        AddSheetButton = NewButton("Data.Sheet.Add", "Add sheet"); DeleteSheetButton = NewButton("Data.Sheet.Delete", "Delete sheet");
+        var sheetHeader = new Container { Name = "Data.Sheet.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto", Rows = "Auto" }; sheetHeader.SetValue(HavenProperties.Gap, HavenLength.Px(8)); sheetHeader.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        SheetNameInput = NewInput("Data.Sheet.Name", "Sheet name", "Sheet 1"); SheetNameInput.SetValue(HavenProperties.MinWidth, HavenLength.Px(220)); SheetNameInput.SetValue(HavenProperties.Column, 0);
+        AddSheetButton = NewButton("Data.Sheet.Add", "Add sheet"); AddSheetButton.SetValue(HavenProperties.Column, 1); DeleteSheetButton = NewButton("Data.Sheet.Delete", "Delete sheet"); DeleteSheetButton.SetValue(HavenProperties.Column, 2);
         sheetHeader.Add(SheetNameInput); sheetHeader.Add(AddSheetButton); sheetHeader.Add(DeleteSheetButton); Editor.Add(sheetHeader);
 
         var gridToolbar = NewToolbar("Data.Grid.Toolbar", 0);
@@ -191,10 +233,13 @@ internal sealed class DataHavenScene : IDisposable
 
         GridHost = new Container { Name = "Data.Grid", Layout = HavenLayout.Grid }; GridHost.SetValue(HavenProperties.Gap, HavenLength.Px(4)); GridHost.SetValue(HavenProperties.MinHeight, HavenLength.Px(390)); GridHost.SetValue(HavenProperties.Overflow, HavenOverflow.Clip); Editor.Add(GridHost);
 
+        var drawings = NewCard("Data.Drawings"); drawings.Add(new HavenText("Sheet drawings") { Level = TextLevel.H2 }); DrawingSummaryText = Caption("No drawing objects on this sheet."); DrawingSummaryText.Name = "Data.Drawings.Summary"; drawings.Add(DrawingSummaryText);
+        var drawingActions = NewToolbar("Data.Drawings.Actions", 0); AddShapeButton = NewButton("Data.Drawings.AddShape", "Add custom shape"); PreviousDrawingButton = NewButton("Data.Drawings.Previous", "Previous shape"); NextDrawingButton = NewButton("Data.Drawings.Next", "Next shape"); RotateDrawingButton = NewButton("Data.Drawings.Rotate", "Rotate +15°"); DeleteDrawingButton = NewButton("Data.Drawings.Delete", "Delete shape"); DeleteDrawingButton.Variant = ButtonVariant.Danger; foreach (var button in new[] { AddShapeButton, PreviousDrawingButton, NextDrawingButton, RotateDrawingButton, DeleteDrawingButton }) drawingActions.Add(button); drawings.Add(drawingActions); Editor.Add(drawings);
+
         var cellEditor = NewCard("Data.Cell.Editor"); SelectedCellText = new HavenText { Name = "Data.Cell.Selected", Level = TextLevel.Caption }; cellEditor.Add(SelectedCellText);
         cellEditor.Add(Caption("Cell value")); CellValueInput = NewInput("Data.Cell.Value", "Selected cell value", "Value"); cellEditor.Add(CellValueInput);
         cellEditor.Add(Caption("Formula")); CellFormulaInput = NewInput("Data.Cell.Formula", "Selected cell formula", "=SUM(A1:A5)"); CellFormulaInput.SetValue(HavenProperties.FontFamily, "Code"); cellEditor.Add(CellFormulaInput);
-        var formulaNote = Caption("Formula text and imported cached values are preserved; this first Data slice does not calculate formulas itself."); cellEditor.Add(formulaNote); Editor.Add(cellEditor);
+        FormulaStatusText = Caption("No formulas in this workbook. Formula cells calculate locally as you edit."); FormulaStatusText.Name = "Data.Cell.FormulaStatus"; FormulaStatusText.Accessibility.Description = "Live calculation status for the selected spreadsheet formula."; cellEditor.Add(FormulaStatusText); Editor.Add(cellEditor);
 
         var separator = new Separator { Name = "Data.Query.Separator" }; Editor.Add(separator);
         Editor.Add(new HavenText("Visual SQL") { Name = "Data.Query.Heading", Level = TextLevel.H2 });
@@ -243,8 +288,8 @@ internal sealed class DataHavenScene : IDisposable
             var actualRow = rowOffset + row; var rowLabel = new HavenText((actualRow + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)) { Level = TextLevel.Caption }; rowLabel.SetValue(HavenProperties.Row, row + 1); rowLabel.SetValue(HavenProperties.Column, 0); GridHost.Add(rowLabel);
             for (var column = 0; column < VisibleColumns; column++)
             {
-                var actualColumn = columnOffset + column; var cell = sheet.GetCell(actualRow, actualColumn); var display = !string.IsNullOrWhiteSpace(cell?.Formula) ? cell!.Formula : cell?.Value ?? string.Empty; var capturedRow = actualRow; var capturedColumn = actualColumn;
-                var button = NewButton($"Data.Cell.{ColumnName(actualColumn)}{actualRow + 1}", Truncate(display, 18)); button.Variant = actualRow == selectedRow && actualColumn == selectedColumn ? ButtonVariant.Primary : ButtonVariant.Tertiary; button.Accessibility.AccessibleName = $"Cell {ColumnName(actualColumn)}{actualRow + 1}, {(string.IsNullOrEmpty(display) ? "empty" : display)}"; button.SetValue(HavenProperties.Row, row + 1); button.SetValue(HavenProperties.Column, column + 1); button.SetValue(HavenProperties.MinHeight, HavenLength.Px(36)); button.Invoked += (_, _) => CellSelected?.Invoke(capturedRow, capturedColumn); GridHost.Add(button);
+                var actualColumn = columnOffset + column; var cell = sheet.GetCell(actualRow, actualColumn); var display = cell?.Value ?? string.Empty; var capturedRow = actualRow; var capturedColumn = actualColumn;
+                var button = NewButton($"Data.Cell.{ColumnName(actualColumn)}{actualRow + 1}", Truncate(display, 18)); button.Variant = actualRow == selectedRow && actualColumn == selectedColumn ? ButtonVariant.Primary : ButtonVariant.Tertiary; button.Accessibility.AccessibleName = $"Cell {ColumnName(actualColumn)}{actualRow + 1}, {(string.IsNullOrEmpty(display) ? "empty" : display)}{(!string.IsNullOrWhiteSpace(cell?.Formula) ? $", formula {cell!.Formula}" : string.Empty)}"; button.SetValue(HavenProperties.Row, row + 1); button.SetValue(HavenProperties.Column, column + 1); button.SetValue(HavenProperties.MinHeight, HavenLength.Px(36)); button.Invoked += (_, _) => CellSelected?.Invoke(capturedRow, capturedColumn); GridHost.Add(button);
             }
         }
     }

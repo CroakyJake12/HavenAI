@@ -206,6 +206,9 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
                 case NotesBlockKind.Flashcard:
                     ValidateFlashcard(block);
                     break;
+                case NotesBlockKind.Shape:
+                    ValidateVectorShape(block.VectorShape, $"blocks[{block.Id}].vectorShape");
+                    break;
             }
         }
 
@@ -307,6 +310,15 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
             if (!Enum.IsDefined(canvasObject.Kind)) Error($"pages[{pageId}].canvasObjects[{canvasObject.Id}].kind", "Unknown canvas object kind.");
             if (canvasObject.Width <= 0 || canvasObject.Height <= 0) Error($"pages[{pageId}].canvasObjects[{canvasObject.Id}].dimensions", "Canvas objects require positive dimensions.");
             if (canvasObject.StyleJson.Length > 100_000) Error($"pages[{pageId}].canvasObjects[{canvasObject.Id}].styleJson", "Canvas object style data is too large.");
+            if (canvasObject.VectorShape is not null) ValidateVectorShape(canvasObject.VectorShape, $"pages[{pageId}].canvasObjects[{canvasObject.Id}].vectorShape");
+        }
+
+        void ValidateVectorShape(DocumentVectorShape? shape, string path)
+        {
+            if (shape is null) { Error(path, "Native shape objects require editable vector geometry."); return; }
+            var result = DocumentVectorShapeValidator.Validate(shape);
+            foreach (var issue in result.Issues.Where(issue => issue.Severity == DocumentValidationSeverity.Error))
+                Error(path + "." + issue.Code, issue.Message);
         }
 
         void ValidateStroke(NotesInkStroke stroke, string path)
