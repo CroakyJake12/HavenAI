@@ -292,14 +292,14 @@ internal sealed class OverlayShellHavenScene : IDisposable
 
     private static string SourceLabel(OverlaySessionState session)
     {
-        if (session.Context?.Provenance is { } provenance)
-        {
-            var source = string.IsNullOrWhiteSpace(provenance.SourceApplication) ? "Screen" : provenance.SourceApplication;
-            return string.IsNullOrWhiteSpace(provenance.SourceWindow)
-                ? source
-                : $"{source} Â· {provenance.SourceWindow}";
-        }
-        return session.AppKey.Equals("chat", StringComparison.OrdinalIgnoreCase) ? "Haven Chat" : "Haven Go";
+        var provenance = session.Context?.Provenance;
+        var parts = new[] { provenance?.SourceApplication, provenance?.SourceWindow }
+            .Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!);
+        var label = string.Join(" · ", parts);
+        return string.IsNullOrWhiteSpace(label)
+            ? session.SourceAssociation
+              ?? (session.AppKey.Equals("chat", StringComparison.OrdinalIgnoreCase) ? "Haven Chat" : "Haven Go")
+            : label;
     }
 
     private static string ContextLabel(OverlayContextEnvelope context) =>
