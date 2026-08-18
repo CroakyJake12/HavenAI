@@ -169,6 +169,164 @@ public sealed class HavenUiLayoutTests
     }
 
     [Fact]
+    public void Flow_is_default_overlay_does_not_reflow_and_genuine_children_still_do()
+    {
+        var root = new Container();
+        var first = new Text("First") { Name = "first" };
+        var floating = new Text("Floating") { Name = "floating" };
+        floating.SetValue(HavenProperties.LayoutParticipation, HavenLayoutParticipation.Overlay);
+        root.Add(first);
+        root.Add(floating);
+        var measure = new NamedMeasure(
+            ("first", new HavenSize(80, 30)),
+            ("second", new HavenSize(60, 20)),
+            ("floating", new HavenSize(250, 180)));
+
+        Layout(root, measure);
+
+        Assert.Equal(HavenLayoutParticipation.Flow, first.GetValue(HavenProperties.LayoutParticipation));
+        Assert.Equal(HavenLayoutParticipation.Overlay, floating.GetValue(HavenProperties.LayoutParticipation));
+        Assert.Equal(new HavenSize(80, 30), root.DesiredSize);
+        Assert.Equal(new HavenSize(250, 180), floating.DesiredSize);
+
+        root.Add(new Text("Second") { Name = "second" });
+        Layout(root, measure);
+
+        Assert.Equal(new HavenSize(80, 50), root.DesiredSize);
+    }
+
+    [Fact]
+    public void Popup_menu_is_detached_anchored_hit_testable_focusable_and_restores_layout_on_close()
+    {
+        var root = new Container { Layout = HavenLayout.Overlay };
+        var anchor = new Button { Content = "Open menu" };
+        anchor.SetValue(HavenProperties.Width, HavenLength.Px(80));
+        anchor.SetValue(HavenProperties.Height, HavenLength.Px(40));
+        anchor.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Start);
+        anchor.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Start);
+        root.Add(anchor);
+        Layout(root, new NamedMeasure());
+        var desiredBeforeOpen = root.DesiredSize;
+
+        var invoked = false;
+        var popup = new PopupMenu(anchor, root, [new PopupMenuItem("Open", () => invoked = true)], 120, "Test menu");
+        root.Add(popup);
+        Layout(root, new NamedMeasure());
+
+        Assert.Equal(HavenLayoutParticipation.Overlay, popup.GetValue(HavenProperties.LayoutParticipation));
+        Assert.Equal(desiredBeforeOpen, root.DesiredSize);
+        Assert.True(popup.Card.Bounds.Y >= anchor.Bounds.Bottom);
+        var menuItem = Assert.IsType<Button>(Assert.Single(popup.Card.Children));
+        var point = new HavenPoint(menuItem.Bounds.X + menuItem.Bounds.Width / 2, menuItem.Bounds.Y + menuItem.Bounds.Height / 2);
+        var router = new HavenInputRouter(root);
+        Assert.Same(menuItem, router.HitTest(point));
+        router.PointerPressed(point);
+        Assert.Same(menuItem, router.Focused);
+        Assert.True(router.PointerReleased(point));
+        Assert.True(invoked);
+        Assert.DoesNotContain(popup, root.Children);
+
+        Layout(root, new NamedMeasure());
+        Assert.Equal(desiredBeforeOpen, root.DesiredSize);
+    }
+
+    [Fact]
+    public void Signed_zindex_controls_render_and_hit_order()
+    {
+        var root = SizedContainer(160, 80);
+        root.Layout = HavenLayout.Overlay;
+        var high = new Button { Content = "High" };
+        var low = new Button { Content = "Low" };
+        var normal = new Button { Content = "Default" };
+        high.SetValue(HavenProperties.ZIndex, 10);
+        low.SetValue(HavenProperties.ZIndex, -10);
+        root.Add(high);
+        root.Add(normal);
+        root.Add(low);
+
+        Layout(root, new NamedMeasure());
+
+        Assert.Equal(0, normal.GetValue(HavenProperties.ZIndex));
+        var labels = new HavenSceneRenderer().Render(root)
+            .OfType<HavenTextCommand>()
+            .Select(command => command.Layout.Text)
+            .Where(text => text is "Low" or "Default" or "High")
+            .ToArray();
+        Assert.Equal(new[] { "Low", "Default", "High" }, labels);
+        var point = new HavenPoint(high.Bounds.X + high.Bounds.Width / 2, high.Bounds.Y + high.Bounds.Height / 2);
+        Assert.Same(high, new HavenInputRouter(root).HitTest(point));
+    }
+
+    [Fact]
+    public void Stacked_and_nested_overlays_do_not_corrupt_flow_layout()
+    {
+        var root = new Container();
+        var flow = new Text("Flow") { Name = "flow" };
+        var lowerLayer = new Container { Layout = HavenLayout.Overlay };
+        lowerLayer.SetValue(HavenProperties.LayoutParticipation, HavenLayoutParticipation.Overlay);
+        lowerLayer.SetValue(HavenProperties.ZIndex, 10);
+        var lowerButton = new Button { Content = "Lower" };
+        lowerLayer.Add(lowerButton);
+        var upperButton = new Button { Content = "Upper" };
+        upperButton.SetValue(HavenProperties.LayoutParticipation, HavenLayoutParticipation.Overlay);
+        upperButton.SetValue(HavenProperties.ZIndex, 20);
+        root.Add(flow);
+        root.Add(lowerLayer);
+        root.Add(upperButton);
+
+        Layout(root, new NamedMeasure(("flow", new HavenSize(100, 30))));
+
+        Assert.Equal(new HavenSize(100, 30), root.DesiredSize);
+        var upperPoint = new HavenPoint(upperButton.Bounds.X + upperButton.Bounds.Width / 2, upperButton.Bounds.Y + upperButton.Bounds.Height / 2);
+        Assert.Same(upperButton, new HavenInputRouter(root).HitTest(upperPoint));
+
+        Assert.True(root.Remove(upperButton));
+        Layout(root, new NamedMeasure(("flow", new HavenSize(100, 30))));
+        Assert.Equal(new HavenSize(100, 30), root.DesiredSize);
+        var lowerPoint = new HavenPoint(lowerButton.Bounds.X + lowerButton.Bounds.Width / 2, lowerButton.Bounds.Y + lowerButton.Bounds.Height / 2);
+        Assert.Same(lowerButton, new HavenInputRouter(root).HitTest(lowerPoint));
+    }
+
+    [Fact]
+    public void Detached_overlay_stays_in_viewport_while_flow_content_scrolls()
+    {
+        var root = SizedContainer(100, 100);
+        root.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        var firstFlowRow = new Text("Flow 0");
+        firstFlowRow.SetValue(HavenProperties.Height, HavenLength.Px(60));
+        root.Add(firstFlowRow);
+        for (var index = 1; index < 3; index++)
+        {
+            var row = new Text($"Flow {index}");
+            row.SetValue(HavenProperties.Height, HavenLength.Px(60));
+            root.Add(row);
+        }
+        var overlay = new Button { Content = "Overlay" };
+        overlay.SetValue(HavenProperties.LayoutParticipation, HavenLayoutParticipation.Overlay);
+        overlay.SetValue(HavenProperties.Height, HavenLength.Px(20));
+        overlay.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Start);
+        root.Add(overlay);
+
+        Layout(root, new NamedMeasure());
+        root.ScrollY = 50;
+        Layout(root, new NamedMeasure());
+
+        Assert.Equal(new HavenSize(100, 180), root.ExtentSize);
+        Assert.Equal(-50, firstFlowRow.Bounds.Y);
+        Assert.Equal(0, overlay.Bounds.Y);
+    }
+
+    [Fact]
+    public void Markup_parses_layout_participation_and_signed_zindex()
+    {
+        var root = new HavenMarkupParser().Parse("<Page><Container LayoutParticipation='Overlay' ZIndex='-3' /></Page>");
+        var child = Assert.IsType<Container>(Assert.Single(root.Children));
+
+        Assert.Equal(HavenLayoutParticipation.Overlay, child.GetValue(HavenProperties.LayoutParticipation));
+        Assert.Equal(-3, child.GetValue(HavenProperties.ZIndex));
+    }
+
+    [Fact]
     public void Aspect_ratio_reflows_the_auto_dimension_after_size_constraints()
     {
         var child = new Text("Ratio");

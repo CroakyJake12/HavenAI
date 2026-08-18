@@ -1,4 +1,4 @@
-<Container Name="AddOverlay" Layout="Overlay" Width="100%" Height="100%" Visibility="Collapsed" ZIndex="100">
+<Container Name="AddOverlay" Layout="Overlay" LayoutParticipation="Overlay" Width="100%" Height="100%" Visibility="Collapsed" ZIndex="100">
   <Button Name="Dismiss" Variant="Text" Content="" Width="100%" Height="100%" Background="Transparent" />
   <Container Name="Panels" Layout="Horizontal" Width="100%" MaxWidth="900px" HorizontalAlignment="Center" VerticalAlignment="End" Gap="12px" Margin="0px 0px 70px 0px" PointerEvents="ChildrenOnly" ZIndex="101">
     <Container Name="MainMenu" Layout="Vertical" Width="324px" Background="SurfaceRaised" BorderColor="Border" BorderWidth="1px" Radius="18px" Shadow="Card" Gap="8px" Padding="14px">

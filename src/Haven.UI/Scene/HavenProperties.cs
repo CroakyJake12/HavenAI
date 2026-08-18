@@ -6,6 +6,7 @@ public enum HavenOverflow { Visible, Clip, Scroll }
 public enum HavenVisibility { Visible, Hidden, Collapsed }
 public enum HavenPointerEvents { Auto, ChildrenOnly, None }
 public enum HavenCursor { Default, Pointer, Text, Grab, Grabbing, Crosshair }
+public enum HavenLayoutParticipation { Flow, Overlay }
 
 /// <summary>Common properties shared by Haven components when semantics match.</summary>
 public static class HavenProperties
@@ -36,6 +37,7 @@ public static class HavenProperties
     public static readonly HavenProperty<int> ColumnSpan = Property(nameof(ColumnSpan), 1);
     public static readonly HavenProperty<HavenLength> Left = Property(nameof(Left), HavenLength.Px(0));
     public static readonly HavenProperty<HavenLength> Top = Property(nameof(Top), HavenLength.Px(0));
+    public static readonly HavenProperty<HavenLayoutParticipation> LayoutParticipation = Property(nameof(LayoutParticipation), HavenLayoutParticipation.Flow);
 
     public static readonly HavenProperty<string> Background = Property(nameof(Background), "Transparent");
     public static readonly HavenProperty<string> Foreground = Property(nameof(Foreground), "TextPrimary");

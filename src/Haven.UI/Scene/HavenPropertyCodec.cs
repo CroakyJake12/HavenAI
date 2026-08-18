@@ -33,6 +33,7 @@ public static class HavenPropertyCodec
             case "columnspan": element.SetValue(HavenProperties.ColumnSpan, Math.Max(1, ParseInt(value)), source); return;
             case "left": element.SetValue(HavenProperties.Left, HavenLength.Parse(value), source); return;
             case "top": element.SetValue(HavenProperties.Top, HavenLength.Parse(value), source); return;
+            case "layoutparticipation": element.SetValue(HavenProperties.LayoutParticipation, ParseEnum<HavenLayoutParticipation>(value), source); return;
             case "background": element.SetValue(HavenProperties.Background, value, source); return;
             case "foreground": element.SetValue(HavenProperties.Foreground, value, source); return;
             case "accent": element.SetValue(HavenProperties.Accent, value, source); return;
