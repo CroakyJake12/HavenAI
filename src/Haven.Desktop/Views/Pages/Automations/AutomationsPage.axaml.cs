@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Application;
+using Haven.Application.Automations;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.HavenUI.Components;
@@ -58,6 +59,17 @@ public sealed partial class AutomationsPage : UserControl
     private readonly HavenTextInput _name = Field("Workflow Name");
     private readonly HavenTextInput _goal = Field("Your Desired Outcome");
     private readonly HavenTextInput _rules = Field("Define rules that must be followed.", multiline: true);
+    private readonly HavenComboBox _workflowType = new() { ItemsSource = new[] { "Instruction", DeviceAutomationNodeCategory.Key }, SelectedItem = "Instruction", MinWidth = 180 };
+    private readonly HavenComboBox _deviceTarget = new() { MinWidth = 260 };
+    private readonly HavenComboBox _deviceAction = new() { MinWidth = 260 };
+    private readonly StackPanel _deviceParameters = new() { Spacing = 8 };
+    private readonly StackPanel _deviceEditor = new() { Spacing = 8, IsVisible = false };
+    private readonly TextBlock _deviceAvailability = Muted("Choose a target and action.");
+    private readonly Dictionary<string, HavenTextInput> _deviceParameterInputs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly DeviceActionRouter? _deviceActions;
+    private DeviceCapabilitySnapshot? _deviceSnapshot;
+    private AutomationGraphDefinition _editingGraph = AutomationGraphDefinition.Empty;
+    private DeviceAutomationNodeDefinition? _editingDeviceNode;
     private readonly TextBlock _assistantMessage = new()
     {
         Text = "Ask me anything about this workflow. I can configure it, test it, and explain how it will run.",
@@ -96,10 +108,11 @@ public sealed partial class AutomationsPage : UserControl
         _startOneTimeTask = startOneTimeTask ?? throw new ArgumentNullException(nameof(startOneTimeTask));
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
         _openTaskHistory = openTaskHistory ?? throw new ArgumentNullException(nameof(openTaskHistory));
+        _deviceActions = Haven.Desktop.App.Services?.GetService(typeof(DeviceActionRouter)) as DeviceActionRouter;
 
         InitializeComponent();
         var host = this.FindControl<Grid>("CodeBehindHost")
-            ?? throw new InvalidOperationException("Tasks host was not initialized.");
+            ?? throw new InvalidOperationException("Automations host was not initialized.");
         host.Children.Add(BuildLayout());
     }
 
@@ -283,6 +296,7 @@ public sealed partial class AutomationsPage : UserControl
         var viewInstructions = SoftButton("View Workflow Instructions");
         viewInstructions.HorizontalAlignment = HorizontalAlignment.Stretch;
         viewInstructions.Click += (_, _) => ShowInstructions();
+        ConfigureDeviceEditor();
 
         var form = new HavenCard
         {
@@ -291,7 +305,7 @@ public sealed partial class AutomationsPage : UserControl
             Padding = new Thickness(18),
             Child = new Grid
             {
-                RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto"),
+                RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
                 RowSpacing = 10,
                 Children =
                 {
@@ -301,9 +315,11 @@ public sealed partial class AutomationsPage : UserControl
                     Row(_goal, 3),
                     Row(Label("Rules"), 4),
                     Row(_rules, 5),
-                    Row(new TextBlock { Text = "Type: Manual", FontSize = 15, FontWeight = FontWeight.Bold, Margin = new Thickness(2, 10, 0, 0) }, 6),
-                    Row(test, 7),
-                    Row(viewInstructions, 8)
+                    Row(Label("Type"), 6),
+                    Row(_workflowType, 7),
+                    Row(_deviceEditor, 8),
+                    Row(test, 9),
+                    Row(viewInstructions, 10)
                 }
             }
         };
@@ -605,6 +621,7 @@ public sealed partial class AutomationsPage : UserControl
         _name.Text = item?.Name ?? string.Empty;
         _goal.Text = item?.Description ?? string.Empty;
         _rules.Text = ExtractRules(item?.Instruction);
+        HydrateDeviceEditor(item);
         _assistant.Text = string.Empty;
         _assistantMessage.Text = "Ask me anything about this workflow. I can configure it, test it, and explain how it will run.";
         _dashboard.IsVisible = false;
@@ -630,6 +647,12 @@ public sealed partial class AutomationsPage : UserControl
             return;
         }
 
+        if (!TryBuildGraphJson(out var graphJson, out var graphError))
+        {
+            _status.Text = graphError ?? "DEVICE configuration is incomplete.";
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var item = new ReusableTaskDefinition(
             _editing?.Id ?? Guid.NewGuid(),
@@ -639,21 +662,38 @@ public sealed partial class AutomationsPage : UserControl
             _containerId,
             true,
             _editing?.CreatedAt ?? now,
-            now);
+            now,
+            graphJson);
         await _tasks.UpsertReusableTaskAsync(item, CancellationToken.None);
         _status.Text = $"Saved {name}.";
         ShowDashboard();
     }
 
-    private async Task TestAsync() => await TestDefinitionAsync(new ReusableTaskDefinition(
-        _editing?.Id ?? Guid.Empty,
-        _name.Text?.Trim() ?? "Task draft",
-        _goal.Text?.Trim() ?? string.Empty,
-        BuildInstructions(),
-        _containerId,
-        true,
-        DateTimeOffset.UtcNow,
-        DateTimeOffset.UtcNow));
+    private async Task TestAsync()
+    {
+        if (!TryBuildGraphJson(out var graphJson, out var graphError))
+        {
+            _status.Text = graphError ?? "DEVICE configuration is incomplete.";
+            return;
+        }
+
+        if (string.Equals(_workflowType.SelectedItem as string, DeviceAutomationNodeCategory.Key, StringComparison.OrdinalIgnoreCase))
+        {
+            _status.Text = "DEVICE node validated against current capabilities. Test Workflow does not execute physical-device actions.";
+            return;
+        }
+
+        await TestDefinitionAsync(new ReusableTaskDefinition(
+            _editing?.Id ?? Guid.Empty,
+            _name.Text?.Trim() ?? "Workflow draft",
+            _goal.Text?.Trim() ?? string.Empty,
+            BuildInstructions(),
+            _containerId,
+            true,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            graphJson));
+    }
 
     private async Task TestDefinitionAsync(ReusableTaskDefinition item) => await InvokeAsync(
         "TEST MODE — do not mutate files, applications, accounts, services, messages, settings, or external state. " +

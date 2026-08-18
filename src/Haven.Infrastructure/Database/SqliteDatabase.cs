@@ -574,6 +574,9 @@ internal static class Migrations
             WHERE is_built_in=0;
             ALTER TABLE mode_definitions RENAME COLUMN plugins_json TO capabilities_json;
             DROP TABLE plugins;
+        """),
+        new(15, """
+            ALTER TABLE reusable_tasks ADD COLUMN graph_json TEXT NULL;
         """)
     ];
 }

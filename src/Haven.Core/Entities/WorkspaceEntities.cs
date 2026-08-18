@@ -11,7 +11,8 @@ public sealed record ReusableTaskDefinition(
     Guid? ContainerId,
     bool IsEnabled,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? GraphJson = null);
 
 /// <summary>
 /// Represents a workspace version.

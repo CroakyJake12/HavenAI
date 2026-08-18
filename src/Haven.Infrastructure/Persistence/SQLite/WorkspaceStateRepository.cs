@@ -32,7 +32,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             result.Add(new ReusableTaskDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("instruction"),
-                reader.NullableGuid("container_id"), reader.Boolean("is_enabled"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at")));
+                reader.NullableGuid("container_id"), reader.Boolean("is_enabled"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.NullableString("graph_json")));
         return result;
     }
 
@@ -44,10 +44,10 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO reusable_tasks(id,name,description,instruction,container_id,is_enabled,created_at,updated_at)
-            VALUES($id,$name,$description,$instruction,$containerId,$isEnabled,$createdAt,$updatedAt)
+            INSERT INTO reusable_tasks(id,name,description,instruction,container_id,is_enabled,created_at,updated_at,graph_json)
+            VALUES($id,$name,$description,$instruction,$containerId,$isEnabled,$createdAt,$updatedAt,$graphJson)
             ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,instruction=excluded.instruction,
-              container_id=excluded.container_id,is_enabled=excluded.is_enabled,updated_at=excluded.updated_at;
+              container_id=excluded.container_id,is_enabled=excluded.is_enabled,updated_at=excluded.updated_at,graph_json=excluded.graph_json;
             """;
         command.Parameters.AddWithValue("$id", macro.Id.ToString());
         command.Parameters.AddWithValue("$name", macro.Name);
@@ -57,6 +57,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         command.Parameters.AddWithValue("$isEnabled", macro.IsEnabled ? 1 : 0);
         command.Parameters.AddWithValue("$createdAt", macro.CreatedAt.ToString("O"));
         command.Parameters.AddWithValue("$updatedAt", macro.UpdatedAt.ToString("O"));
+        command.Parameters.AddWithValue("$graphJson", (object?)macro.GraphJson ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
