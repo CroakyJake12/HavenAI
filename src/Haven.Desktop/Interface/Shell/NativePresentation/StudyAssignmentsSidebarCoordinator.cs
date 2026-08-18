@@ -44,6 +44,7 @@ internal sealed class StudyAssignmentsSidebarCoordinator : IDisposable
         _sidebar.Scene.GroupActionRequested += OnGroupActionRequested;
         _sidebar.Scene.SearchChanged += OnSearchChanged;
         _section.ActionRequested += OnAssignmentActionRequested;
+        StudyAssignmentCreationCoordinator.Attach(_section, _sidebar, _containers, _studyPlanner, RefreshAsync);
         StudyRevisionSchedulingCoordinator.Attach(_section, _sidebar, _containers, _studyPlanner, RefreshAsync);
         _ = RefreshAsync();
     }

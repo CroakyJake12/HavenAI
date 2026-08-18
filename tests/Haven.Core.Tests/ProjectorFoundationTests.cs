@@ -53,6 +53,32 @@ public sealed class ProjectorFoundationTests
     }
 
     [Fact]
+    public void ReturnToGalleryClearsActiveExperienceAndPreservesHistory()
+    {
+        var registry = new ProjectorDisplayRegistry();
+        using var coordinator = new ProjectorSessionCoordinator(registry);
+        var display = Display("android-display:5", "monitor-b") with
+        {
+            Capabilities = ProjectorCapabilities.Unknown with
+            {
+                PresentationDisplay = ProjectorCapabilityState.Available,
+                RenderHavenSurface = ProjectorCapabilityState.Available
+            }
+        };
+        registry.Upsert(display);
+        coordinator.Start(display);
+        coordinator.Activate(Experience("desktop", ProjectorCapability.RenderHavenSurface),
+            new ProjectorControllerDefinition("desktop-controls", [new ProjectorControllerAction("home", "Home", "browse", "desktop.home")]));
+
+        var gallery = coordinator.ReturnToGallery();
+
+        Assert.Equal(ProjectorSessionState.Gallery, gallery.State);
+        Assert.Null(gallery.CurrentExperienceId);
+        Assert.Equal("desktop", gallery.PreviousExperienceId);
+        Assert.Null(gallery.Controller);
+    }
+
+    [Fact]
     public void UnknownRequiredCapabilityKeepsExperienceUnavailable()
     {
         var experience = Experience("app", ProjectorCapability.LaunchAndroidActivity);

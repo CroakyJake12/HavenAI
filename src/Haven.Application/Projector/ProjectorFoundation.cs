@@ -163,6 +163,7 @@ public interface IProjectorSessionCoordinator
     event Action<ProjectorSessionSnapshot?>? StateChanged;
     ProjectorSessionSnapshot Start(ProjectorDisplay targetDisplay);
     ProjectorSessionSnapshot Activate(ProjectorExperience experience, ProjectorControllerDefinition? controller = null);
+    ProjectorSessionSnapshot ReturnToGallery();
     ProjectorSessionSnapshot SetTargetTrust(ProjectorDisplayTrust trust);
     bool TryReconnect(ProjectorDisplay display, out ProjectorSessionSnapshot? snapshot);
     ProjectorSessionSnapshot? Stop();
@@ -207,6 +208,29 @@ public sealed class ProjectorSessionCoordinator : IProjectorSessionCoordinator, 
         var active = current with { State = ProjectorSessionState.Active, PreviousExperienceId = current.CurrentExperienceId, CurrentExperienceId = experience.Id, Controller = controller, UpdatedAt = DateTimeOffset.UtcNow, Error = null };
         SetCurrent(active);
         return active;
+    }
+
+    public ProjectorSessionSnapshot ReturnToGallery()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ProjectorSessionSnapshot current;
+        lock (_gate) current = _current ?? throw new InvalidOperationException("Start Projector before returning to the Gallery.");
+        if (current.State is ProjectorSessionState.Disconnected or ProjectorSessionState.Stopping or ProjectorSessionState.Failed)
+            throw new InvalidOperationException($"Projector cannot return to the Gallery while {current.State}.");
+        if (current.State == ProjectorSessionState.Gallery && current.CurrentExperienceId is null && current.Controller is null)
+            return current;
+
+        var gallery = current with
+        {
+            State = ProjectorSessionState.Gallery,
+            PreviousExperienceId = current.CurrentExperienceId ?? current.PreviousExperienceId,
+            CurrentExperienceId = null,
+            Controller = null,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Error = null
+        };
+        SetCurrent(gallery);
+        return gallery;
     }
 
     public ProjectorSessionSnapshot SetTargetTrust(ProjectorDisplayTrust trust)

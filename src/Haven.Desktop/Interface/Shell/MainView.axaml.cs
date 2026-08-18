@@ -924,7 +924,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private NativePlanPage CreateNativePlanPage()
     {
         var page = new NativePlanPage(_planner, _containers);
-        page.FullPlannerRequested += (_, _) => OpenLegacyPlan();
         page.StudyRequested += OnNativePlanStudyRequested;
         return page;
     }

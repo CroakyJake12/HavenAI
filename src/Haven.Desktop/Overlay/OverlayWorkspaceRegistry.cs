@@ -214,6 +214,31 @@ internal sealed class OverlayWorkspaceRegistry
         return changed;
     }
 
+    public async Task<bool> SetCollapsedAsync(Guid sessionId, bool isCollapsed, CancellationToken cancellationToken)
+    {
+        var changed = false;
+        await _mutations.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await EnsureInitializedCoreAsync(cancellationToken).ConfigureAwait(false);
+            lock (_stateGate)
+            {
+                if (_sessions.TryGetValue(sessionId, out var session) && session.IsCollapsed != isCollapsed)
+                {
+                    _sessions[sessionId] = session with { IsCollapsed = isCollapsed, UpdatedAt = _clock() };
+                    changed = true;
+                }
+            }
+            if (changed) await PersistPinnedCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _mutations.Release();
+        }
+        if (changed) Publish();
+        return changed;
+    }
+
     public async Task<bool> UpdateGeometryAsync(Guid sessionId, OverlaySurfaceGeometry geometry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(geometry);

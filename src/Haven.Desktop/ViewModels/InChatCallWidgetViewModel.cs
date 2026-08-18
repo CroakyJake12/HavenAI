@@ -75,6 +75,26 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         _callCoordinator.AudioLevelChanged += OnAudioLevelChanged;
         if (_callCoordinator is IVoiceReactionSource reactionSource)
             reactionSource.VoiceReactionChanged += OnVoiceReactionChanged;
+
+        // Presentation hosts may be recreated while the singleton call coordinator keeps
+        // the same live session. Hydrate immediately so normal/floating/Overlay Voice
+        // surfaces never flash a second Start action or lose the linked call identity.
+        if (_callCoordinator.IsActive)
+        {
+            _linkedCallConversation = _callCoordinator.CurrentConversation;
+            _isOpen = true;
+            _isActive = true;
+            _isMuted = _callCoordinator.IsMuted;
+            _status = _callCoordinator.State switch
+            {
+                CallState.Listening => "Listening",
+                CallState.Transcribing => "Transcribing",
+                CallState.Thinking => "Thinking",
+                CallState.Speaking => "Speaking",
+                CallState.Paused => "Paused",
+                _ => "Active"
+            };
+        }
     }
 
     public string Status

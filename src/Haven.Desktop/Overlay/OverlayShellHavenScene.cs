@@ -20,7 +20,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
         Set(Root, HavenProperties.Background, "Transparent");
         Set(Root, HavenProperties.Gap, HavenLength.Px(8));
 
-        var header = new OverlayDragHandle { Name = "Overlay.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto Auto" };
+        var header = new OverlayDragHandle { Name = "Overlay.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto Auto Auto" };
         Set(header, HavenProperties.Width, HavenLength.Percent(100));
         Set(header, HavenProperties.Gap, HavenLength.Px(6));
         header.DragDelta += delta => DragDelta?.Invoke(delta);
@@ -34,12 +34,15 @@ internal sealed class OverlayShellHavenScene : IDisposable
 
         NewChatButton = Action("Overlay.NewChat", "New chat", ButtonVariant.Secondary);
         PinButton = Action("Overlay.Pin", "Pin", ButtonVariant.Ghost);
+        CollapseButton = Action("Overlay.Collapse", "Collapse", ButtonVariant.Ghost);
         CloseButton = Action("Overlay.Close", "Close", ButtonVariant.Ghost);
         Set(NewChatButton, HavenProperties.Column, 1);
         Set(PinButton, HavenProperties.Column, 2);
-        Set(CloseButton, HavenProperties.Column, 3);
+        Set(CollapseButton, HavenProperties.Column, 3);
+        Set(CloseButton, HavenProperties.Column, 4);
         header.Add(NewChatButton);
         header.Add(PinButton);
+        header.Add(CollapseButton);
         header.Add(CloseButton);
         Root.Add(header);
 
@@ -71,11 +74,13 @@ internal sealed class OverlayShellHavenScene : IDisposable
         _dynamicUi = new DynamicUI(Root, HavenDynamicUITemplateCatalog.FromAssembly(typeof(OverlayShellHavenScene).Assembly));
         NewChatButton.Invoked += (_, _) => NewChatRequested?.Invoke(this, EventArgs.Empty);
         PinButton.Invoked += (_, _) => PinToggleRequested?.Invoke(this, EventArgs.Empty);
+        CollapseButton.Invoked += (_, _) => CollapseToggleRequested?.Invoke(this, EventArgs.Empty);
         CloseButton.Invoked += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public event EventHandler? NewChatRequested;
     public event EventHandler? PinToggleRequested;
+    public event EventHandler? CollapseToggleRequested;
     public event EventHandler? CloseRequested;
     public event EventHandler<Guid>? SessionActivated;
     public event EventHandler<OverlayContextActionDescriptor>? ActionRequested;
@@ -86,6 +91,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
     public HavenText SourceText { get; }
     public HavenButton NewChatButton { get; }
     public HavenButton PinButton { get; }
+    public HavenButton CollapseButton { get; }
     public HavenButton CloseButton { get; }
     public DynamicUIRuntime SessionTabs { get; }
     public Container ContextPanel { get; }
@@ -102,6 +108,8 @@ internal sealed class OverlayShellHavenScene : IDisposable
         SourceText.Content = SourceLabel(current);
         PinButton.Content = current.IsPinned ? "Unpin" : "Pin";
         PinButton.Variant = current.IsPinned ? ButtonVariant.Primary : ButtonVariant.Ghost;
+        CollapseButton.Content = current.IsCollapsed ? "Expand" : "Collapse";
+        CollapseButton.Variant = current.IsCollapsed ? ButtonVariant.Secondary : ButtonVariant.Ghost;
         ContextSummary.Content = current.Context is null ? "No selected context." : ContextLabel(current.Context);
         PermissionText.Content = current.Context is null ? "Capture inactive" : PermissionLabel(current.Context.Provenance);
         RebuildSessions(snapshot, windowSessionId);
@@ -151,18 +159,8 @@ internal sealed class OverlayShellHavenScene : IDisposable
             : label;
     }
 
-    private static string ContextLabel(OverlayContextEnvelope context)
-    {
-        if (!string.IsNullOrWhiteSpace(context.SelectedText))
-        {
-            var compact = string.Join(" ", context.SelectedText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-            if (compact.Length > 220) compact = compact[..217] + "…";
-            return (context.WasTruncated ? "Bounded selection · " : "Selected text · ") + compact;
-        }
-        if (!string.IsNullOrWhiteSpace(context.MediaReference))
-            return context.Kind == OverlayContextKind.Image ? "Selected image context" : "Selected screen region";
-        return context.Attachments.Count > 0 ? $"{context.Attachments.Count} context attachment(s)" : "Context provenance only.";
-    }
+    private static string ContextLabel(OverlayContextEnvelope context) =>
+        OverlaySelectionPresentation.ContextLabel(context);
 
     private static string PermissionLabel(OverlayContextProvenance provenance)
     {

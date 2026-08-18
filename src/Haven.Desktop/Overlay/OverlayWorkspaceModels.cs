@@ -211,7 +211,8 @@ internal sealed record OverlaySessionState(
     OverlayContextEnvelope? Context,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    string? SourceAssociation);
+    string? SourceAssociation,
+    bool IsCollapsed = false);
 
 internal sealed class OverlayWorkspacePersistedState
 {

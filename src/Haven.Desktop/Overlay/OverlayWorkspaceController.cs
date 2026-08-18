@@ -220,11 +220,39 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
                 ? OpenNewGoAsync(null, null, CancellationToken.None)
                 : OpenNewChatAsync(null, null, CancellationToken.None));
         window.PinToggleRequested += (_, _) => RunOnUi(() => TogglePinAsync(sessionId));
+        window.CollapseToggleRequested += (_, _) => RunOnUi(() => ToggleCollapsedAsync(sessionId));
         window.CloseRequested += (_, _) => RunOnUi(() => CloseSessionAsync(sessionId));
         window.NativeCloseRequested += (_, _) => RunOnUi(() => HandleNativeCloseAsync(sessionId));
         window.SessionActivated += (_, id) => RunOnUi(() => ActivateAsync(id));
-        window.GeometryChanged += (_, geometry) => QueueGeometryUpdate(sessionId, geometry);
+        window.GeometryChanged += (_, geometry) =>
+        {
+            var current = _registry.Snapshot.Sessions.FirstOrDefault(item => item.Id == sessionId);
+            QueueGeometryUpdate(sessionId, GeometryForPersistence(current, geometry));
+        };
     }
+
+    private async Task ToggleCollapsedAsync(Guid sessionId)
+    {
+        var current = _registry.Snapshot.Sessions.FirstOrDefault(item => item.Id == sessionId);
+        if (current is null) return;
+
+        if (_windows.TryGetValue(sessionId, out var window))
+        {
+            CancelGeometryUpdate(sessionId);
+            await _registry.UpdateGeometryAsync(
+                sessionId,
+                GeometryForPersistence(current, window.CaptureGeometry()),
+                CancellationToken.None);
+            current = _registry.Snapshot.Sessions.FirstOrDefault(item => item.Id == sessionId) ?? current;
+        }
+
+        await _registry.SetCollapsedAsync(sessionId, !current.IsCollapsed, CancellationToken.None);
+    }
+
+    internal static OverlaySurfaceGeometry GeometryForPersistence(OverlaySessionState? current, OverlaySurfaceGeometry liveGeometry) =>
+        current?.IsCollapsed == true
+            ? current.Geometry with { X = liveGeometry.X, Y = liveGeometry.Y }
+            : liveGeometry;
 
     private async Task SubmitFromGoAsync(
         Guid sourceSessionId,
@@ -343,14 +371,21 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
 
     private static async Task AttachConcreteFilesAsync(OverlayWorkspaceWindow window, OverlayContextEnvelope context)
     {
-        var files = context.Attachments
+        var files = ConcreteContextFiles(context);
+        if (files.Length > 0) await window.ChatPage.AddFilesAsync(files);
+    }
+
+    internal static string[] ConcreteContextFiles(OverlayContextEnvelope context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return context.Attachments
             .Select(attachment => attachment.Id)
             .Append(context.MediaReference)
+            .Concat(context.SelectedItems.SelectMany(item => new[] { item.MediaReference, item.Attachment?.Id }))
             .Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
             .Select(path => path!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (files.Length > 0) await window.ChatPage.AddFilesAsync(files);
     }
 
     internal static string BuildReviewDraft(
@@ -376,6 +411,11 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             "cut" => "Help me review a cut action for the selected context; do not modify another app without explicit permission.",
             "paste" => "Help me review a paste action for the selected context; do not modify another app without explicit permission.",
             "share" => "Prepare the selected context for sharing, but do not send it until I explicitly approve the destination.",
+            "inspect-control" => "Inspect the selected UI control's role, state, accessibility details, and available interactions without activating it.",
+            "run-automation" => "Identify the automation associated with the selected UI context and prepare the requested run for my review; do not execute it without the normal Haven permission flow.",
+            "open-in-app" => "Identify the app or destination associated with the selected UI context and prepare an open or navigation action for my review; do not execute it without the normal Haven permission flow.",
+            "analyse-frame" => "Analyse the selected video frame at the captured media position using only the provided visible context.",
+            "summarise-media" => "Summarise the selected visible media context without assuming content outside the captured selection.",
             _ when action.IsGenerated => "Use the selected context with the suggested capability action: " + action.Label + ".",
             _ => action.Label + " the selected context."
         };
@@ -414,6 +454,14 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             builder.AppendLine();
             builder.AppendLine("Selected text:");
             builder.Append(context.SelectedText);
+        }
+
+        var selectionDetails = OverlaySelectionPresentation.ReviewDetails(context);
+        if (!string.IsNullOrWhiteSpace(selectionDetails))
+        {
+            builder.AppendLine();
+            builder.AppendLine();
+            builder.Append(selectionDetails);
         }
 
         var provenance = context.Provenance;

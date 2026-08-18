@@ -181,10 +181,24 @@ internal sealed class AgentsHavenScene : IDisposable
     internal async Task CreateAgentAsync()
     {
         SyncDraftToViewModel();
-        await _viewModel.CreateCommand.ExecuteAsync();
+        if (_viewModel.IsEditingAgent)
+            await _viewModel.SaveAgentEditsAsync();
+        else
+            await _viewModel.CreateCommand.ExecuteAsync();
         SyncDraftFromViewModel();
         RefreshChrome();
         RefreshCards();
+    }
+
+    internal async Task<bool> EditAgentAsync(CatalogCardViewModel card)
+    {
+        _pendingDeleteId = null;
+        UpdateDeleteLabels();
+        var opened = await _viewModel.BeginAgentEditAsync(card);
+        if (!opened) return false;
+        SyncDraftFromViewModel();
+        RefreshChrome();
+        return true;
     }
 
     internal async Task DuplicateAgentAsync(CatalogCardViewModel card)
@@ -233,6 +247,8 @@ internal sealed class AgentsHavenScene : IDisposable
                 if (currentIndex != index) _dynamicUi.MoveItem("AgentCards", id, index);
             }
 
+            UpdateCardAccessibility(item, card);
+            Visible(item.GetComponent<HavenButton>("Edit"), !card.IsBuiltIn);
             Visible(item.GetComponent<HavenButton>("Delete"), !card.IsBuiltIn);
         }
         RefreshChrome();
@@ -240,13 +256,21 @@ internal sealed class AgentsHavenScene : IDisposable
 
     private void WireCard(DynamicUIItem item, CatalogCardViewModel card)
     {
+        var edit = item.GetComponent<HavenButton>("Edit");
+        edit.Invoked += async (_, _) => await EditAgentAsync(card);
+
         var duplicate = item.GetComponent<HavenButton>("Duplicate");
-        duplicate.Accessibility.AccessibleName = "Duplicate " + card.Name;
         duplicate.Invoked += async (_, _) => await DuplicateAgentAsync(card);
 
         var delete = item.GetComponent<HavenButton>("Delete");
-        delete.Accessibility.AccessibleName = "Delete " + card.Name;
         delete.Invoked += async (_, _) => await DeleteAgentAsync(card);
+    }
+
+    private static void UpdateCardAccessibility(DynamicUIItem item, CatalogCardViewModel card)
+    {
+        item.GetComponent<HavenButton>("Edit").Accessibility.AccessibleName = "Edit " + card.Name;
+        item.GetComponent<HavenButton>("Duplicate").Accessibility.AccessibleName = "Duplicate " + card.Name;
+        item.GetComponent<HavenButton>("Delete").Accessibility.AccessibleName = "Delete " + card.Name;
     }
 
     private Dictionary<string, object?> ValuesFor(CatalogCardViewModel card) => new(StringComparer.Ordinal)
@@ -269,7 +293,11 @@ internal sealed class AgentsHavenScene : IDisposable
     {
         StatusText.Content = _viewModel.Status;
         Visible(Creator, _viewModel.IsCreating);
-        CreateToggleButton.Content = _viewModel.IsCreating ? "Close creator" : "Create agent";
+        CreateToggleButton.Content = _viewModel.IsCreating
+            ? _viewModel.IsEditingAgent ? "Cancel edit" : "Close creator"
+            : "Create agent";
+        SaveButton.Content = _viewModel.IsEditingAgent ? "Save changes" : "Create agent";
+        SaveButton.Accessibility.AccessibleName = SaveButton.Content;
         Enabled(BuildWithAiButton, _viewModel.BuildWithAiCommand.CanExecute(null));
         Enabled(SaveButton, _viewModel.CreateCommand.CanExecute(null));
         StatusText.SetValue(HavenProperties.Visibility, string.IsNullOrWhiteSpace(_viewModel.Status) ? HavenVisibility.Collapsed : HavenVisibility.Visible);
@@ -286,11 +314,27 @@ internal sealed class AgentsHavenScene : IDisposable
 
     private void SyncDraftFromViewModel()
     {
-        SyncText(BuilderPromptInput, _viewModel.BuilderPrompt);
-        SyncText(NameInput, _viewModel.NewName);
-        SyncText(DescriptionInput, _viewModel.NewDescription);
-        SyncText(InstructionsInput, _viewModel.NewInstructions);
-        SyncText(ModelInput, _viewModel.NewModel);
+        BuilderPromptInput.Invalidated -= OnDraftInvalidated;
+        NameInput.Invalidated -= OnDraftInvalidated;
+        DescriptionInput.Invalidated -= OnDraftInvalidated;
+        InstructionsInput.Invalidated -= OnDraftInvalidated;
+        ModelInput.Invalidated -= OnDraftInvalidated;
+        try
+        {
+            SyncText(BuilderPromptInput, _viewModel.BuilderPrompt);
+            SyncText(NameInput, _viewModel.NewName);
+            SyncText(DescriptionInput, _viewModel.NewDescription);
+            SyncText(InstructionsInput, _viewModel.NewInstructions);
+            SyncText(ModelInput, _viewModel.NewModel);
+        }
+        finally
+        {
+            BuilderPromptInput.Invalidated += OnDraftInvalidated;
+            NameInput.Invalidated += OnDraftInvalidated;
+            DescriptionInput.Invalidated += OnDraftInvalidated;
+            InstructionsInput.Invalidated += OnDraftInvalidated;
+            ModelInput.Invalidated += OnDraftInvalidated;
+        }
     }
 
     private static void SyncText(Input input, string value)
@@ -305,7 +349,18 @@ internal sealed class AgentsHavenScene : IDisposable
     }
 
     private async void OnRefreshInvoked(object? sender, EventArgs e) => await RefreshAsync();
-    private void OnCreateToggleInvoked(object? sender, EventArgs e) => _viewModel.ToggleCreateCommand.Execute(null);
+    private void OnCreateToggleInvoked(object? sender, EventArgs e)
+    {
+        if (_viewModel.IsEditingAgent)
+        {
+            _viewModel.CancelAgentEdit();
+            SyncDraftFromViewModel();
+            RefreshChrome();
+            return;
+        }
+
+        _viewModel.ToggleCreateCommand.Execute(null);
+    }
     private async void OnBuildWithAiInvoked(object? sender, EventArgs e) => await DraftAgentAsync();
     private async void OnSaveInvoked(object? sender, EventArgs e) => await CreateAgentAsync();
     private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshCards();

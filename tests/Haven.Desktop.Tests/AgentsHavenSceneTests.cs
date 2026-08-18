@@ -64,6 +64,66 @@ public sealed class AgentsHavenSceneTests
         Assert.DoesNotContain(repository.Agents, agent => agent.Id == existing.Id);
     }
 
+    [Fact]
+    public async Task Scene_edits_custom_agent_in_place_and_preserves_runtime_metadata()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var builtIn = Agent(Guid.NewGuid(), "General", "General helper", "default", true, now);
+        var custom = new AgentDefinition(
+            Guid.NewGuid(),
+            "Revision coach",
+            "Helps with revision",
+            "Original instructions",
+            "agent-special",
+            "qwen",
+            "fallback-model",
+            "original-detection",
+            "{\"mode\":\"ask\",\"filesystem\":false}",
+            false,
+            true,
+            now);
+        var repository = new FakeCatalogRepository([builtIn, custom]);
+        var viewModel = new CatalogPageViewModel(CatalogPageKind.Agents, repository, new FakeOllamaClient(), true);
+        await viewModel.RefreshCommand.ExecuteAsync();
+        using var scene = new AgentsHavenScene(viewModel);
+
+        var builtInCard = Assert.Single(viewModel.Items, item => item.Id == builtIn.Id);
+        var customCard = Assert.Single(viewModel.Items, item => item.Id == custom.Id);
+        var builtInItem = scene.AgentCards.GetItem(builtIn.Id.ToString("N"));
+        var customItem = scene.AgentCards.GetItem(custom.Id.ToString("N"));
+        Assert.Equal(HavenVisibility.Collapsed, builtInItem.GetComponent<Button>("Edit").GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Visible, customItem.GetComponent<Button>("Edit").GetValue(HavenProperties.Visibility));
+        Assert.False(await scene.EditAgentAsync(builtInCard));
+        Assert.True(await scene.EditAgentAsync(customCard));
+        Assert.True(viewModel.IsEditingAgent);
+        Assert.True(viewModel.IsCreating);
+        Assert.Equal("Revision coach", scene.NameInput.Text);
+        Assert.Equal("Original instructions", scene.InstructionsInput.Text);
+        Assert.Equal("qwen", scene.ModelInput.Text);
+
+        scene.NameInput.Text = "Revision lead";
+        scene.DescriptionInput.Text = "Leads revision sessions";
+        scene.InstructionsInput.Text = "Build structured revision plans.";
+        scene.ModelInput.Text = "mistral";
+        scene.BuilderPromptInput.Text = "updated-detection";
+        await scene.CreateAgentAsync();
+
+        Assert.Equal(2, repository.Agents.Count);
+        var edited = Assert.Single(repository.Agents, agent => agent.Id == custom.Id);
+        Assert.Equal("Revision lead", edited.Name);
+        Assert.Equal("Leads revision sessions", edited.Description);
+        Assert.Equal("Build structured revision plans.", edited.Instructions);
+        Assert.Equal("mistral", edited.PreferredModel);
+        Assert.Equal("fallback-model", edited.FallbackModel);
+        Assert.Equal("agent-special", edited.IconKey);
+        Assert.Equal("updated-detection", edited.DetectionRules);
+        Assert.Equal("{\"mode\":\"ask\",\"filesystem\":false}", edited.PermissionsJson);
+        Assert.False(viewModel.IsEditingAgent);
+        Assert.False(viewModel.IsCreating);
+        Assert.Contains("Updated Revision lead", viewModel.Status, StringComparison.Ordinal);
+        Assert.Equal("Edit Revision lead", scene.AgentCards.GetItem(custom.Id.ToString("N")).GetComponent<Button>("Edit").Accessibility.AccessibleName);
+    }
+
     private static AgentDefinition Agent(Guid id, string name, string description, string model, bool builtIn, DateTimeOffset updatedAt) =>
         new(id, name, description, "Instructions", "agent", model, null, string.Empty, "{}", builtIn, true, updatedAt);
 

@@ -314,19 +314,50 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             return;
         }
 
+        if (experience.LaunchStrategy == ProjectorLaunchStrategy.HavenSurface
+            && string.Equals(experience.Id, "desktop", StringComparison.Ordinal))
+        {
+            try
+            {
+                var active = _sessions.Activate(experience);
+                _ = PopulateGalleryAsync(entry, active, status);
+            }
+            catch (Exception exception)
+            {
+                global::Android.Util.Log.Warn("HavenProjector", "Could not activate Projector Desktop: " + exception.Message);
+                PostExperienceStatus(entry, experience, exception.Message);
+            }
+            return;
+        }
+
+        if (experience.LaunchStrategy == ProjectorLaunchStrategy.HavenSurface)
+        {
+            PostExperienceStatus(entry, experience, experience.Name + " does not have an Android Projector surface host yet.");
+            return;
+        }
+
+        PostExperienceStatus(entry, experience, "No Android Projector executor is registered for this experience.");
+    }
+
+    private void ReturnToGallery(PresentationEntry entry, string status)
+    {
+        if (_disposed || !ReferenceEquals(_active, entry))
+            return;
+
         try
         {
-            _sessions.Activate(experience);
-            PostExperienceStatus(entry, experience, status);
+            var gallery = _sessions.ReturnToGallery();
+            entry.Scene.SetRouteStatus("Projector Gallery", status);
+            _ = PopulateGalleryAsync(entry, gallery);
         }
         catch (Exception exception)
         {
-            global::Android.Util.Log.Warn("HavenProjector", "Could not activate Projector experience: " + exception.Message);
-            PostExperienceStatus(entry, experience, exception.Message);
+            global::Android.Util.Log.Warn("HavenProjector", "Could not return Projector to Gallery: " + exception.Message);
+            PostRouteStatus(entry, "Gallery unavailable", exception.Message);
         }
     }
 
-    private void LaunchApplication(PresentationEntry entry, ProjectorExperience experience)
+    private void LaunchApplication(PresentationEntry entry, ProjectorExperience experience, ProjectorDesktopScene? desktop = null)
     {
         if (_disposed || !ReferenceEquals(_active, entry))
             return;
@@ -335,25 +366,31 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             string.Equals(item.RuntimeId, entry.RuntimeId, StringComparison.Ordinal));
         if (display is null)
         {
-            PostExperienceStatus(entry, experience, "This Projector display is no longer available.");
+            var message = "This Projector display is no longer available.";
+            desktop?.SetStatus(message);
+            PostExperienceStatus(entry, experience, message);
             return;
         }
 
         var result = _applications.TryLaunch(experience, display);
         if (!result.Started)
         {
-            PostExperienceStatus(entry, experience, result.Error ?? "Android did not start this application on the Projector display.");
+            var message = result.Error ?? "Android did not start this application on the Projector display.";
+            desktop?.SetStatus(message);
+            PostExperienceStatus(entry, experience, message);
             return;
         }
 
         try
         {
             _sessions.Activate(experience);
+            desktop?.SetStatus($"Opened {experience.Name} on {display.Name}.");
             PostExperienceStatus(entry, experience, $"Opened on {display.Name}.");
         }
         catch (Exception exception)
         {
             global::Android.Util.Log.Warn("HavenProjector", "Application opened but Projector session state could not be updated: " + exception.Message);
+            desktop?.SetStatus("Opened, but Haven could not update the Projector session state.");
             PostExperienceStatus(entry, experience, "Opened, but Haven could not update the Projector session state.");
         }
     }
@@ -385,21 +422,63 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
         return promoted;
     }
 
-    private async Task PopulateGalleryAsync(PresentationEntry entry, ProjectorSessionSnapshot session)
+    private async Task PopulateGalleryAsync(PresentationEntry entry, ProjectorSessionSnapshot session, string? desktopStatus = null)
     {
         try
         {
             var experiences = await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false);
+            var desktopExperience = session.State == ProjectorSessionState.Active
+                && string.Equals(session.CurrentExperienceId, "desktop", StringComparison.Ordinal)
+                ? experiences.FirstOrDefault(experience =>
+                    string.Equals(experience.Id, "desktop", StringComparison.Ordinal)
+                    && experience.LaunchStrategy == ProjectorLaunchStrategy.HavenSurface)
+                : null;
+
+            if (session.State == ProjectorSessionState.Active
+                && string.Equals(session.CurrentExperienceId, "desktop", StringComparison.Ordinal)
+                && desktopExperience is null)
+            {
+                var current = _sessions.Current;
+                if (current is not null
+                    && current.Id == session.Id
+                    && string.Equals(current.CurrentExperienceId, "desktop", StringComparison.Ordinal))
+                {
+                    session = _sessions.ReturnToGallery();
+                    experiences = await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+
             Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed || !ReferenceEquals(_active, entry))
                     return;
+                if (entry.View.Content is not HavenSceneControl surface)
+                    return;
+
+                var latest = _sessions.Current;
+                if (desktopExperience is not null
+                    && latest is not null
+                    && latest.Id == session.Id
+                    && latest.State == ProjectorSessionState.Active
+                    && string.Equals(latest.CurrentExperienceId, desktopExperience.Id, StringComparison.Ordinal)
+                    && desktopExperience.IsAvailable(latest.TargetDisplay))
+                {
+                    var desktop = new ProjectorDesktopScene(latest.TargetDisplay);
+                    desktop.SetApplications(experiences);
+                    desktop.SetStatus(desktopStatus ?? "Projector Desktop is active.");
+                    desktop.GalleryRequested += () => RunOnMainThread(() => ReturnToGallery(entry, "Choose what this screen should become next."));
+                    desktop.ApplicationInvoked += application => RunOnMainThread(() => LaunchApplication(entry, application, desktop));
+                    surface.Root = desktop.Root;
+                    return;
+                }
+
+                surface.Root = entry.Scene.Root;
                 entry.Scene.SetExperiences(experiences);
             });
         }
         catch (Exception exception)
         {
-            global::Android.Util.Log.Warn("HavenProjector", "Could not populate Projector gallery: " + exception.Message);
+            global::Android.Util.Log.Warn("HavenProjector", "Could not populate Projector surface: " + exception.Message);
         }
     }
 

@@ -55,6 +55,48 @@ public sealed class OverlayShellHavenSceneTests
         Assert.Contains("asks", scene.Actions.GetItem("capability-web-search-search-1").GetComponent<Button>("Invoke").Content);
     }
 
+    [Fact]
+    public void Scene_summarises_universal_selection_items_in_context_panel()
+    {
+        var now = new DateTimeOffset(2026, 8, 18, 8, 0, 0, TimeSpan.Zero);
+        var sessionId = Guid.NewGuid();
+        var context = new OverlayContextEnvelope(
+            OverlayContextKind.UiComponent,
+            null,
+            [],
+            null,
+            new OverlayContextProvenance("Browser", "Checkout", new OverlaySelectionBounds(20, 40, 100, 42), now, now.AddMinutes(5), OverlayContextPermissionState.Granted, "Explicit selection."),
+            false,
+            [new OverlaySelectionItem(
+                "submit",
+                OverlaySelectionKind.UiComponent,
+                new OverlaySelectionBounds(20, 40, 100, 42),
+                null,
+                null,
+                null,
+                new OverlaySelectionSemanticMetadata("button", "Submit", "submit-button", "Button", true, false, null, null),
+                "Submit button")]);
+
+        using var scene = new OverlayShellHavenScene();
+        scene.ApplySnapshot(new OverlayWorkspaceSnapshot(sessionId, [Session(sessionId, "Chat", false, context, now)]), sessionId);
+
+        Assert.Equal("Selected UI component · Submit button · Button", scene.ContextSummary.Content);
+    }
+
+    [Fact]
+    public void Scene_projects_collapsed_state_as_expand_action()
+    {
+        var now = new DateTimeOffset(2026, 8, 17, 16, 0, 0, TimeSpan.Zero);
+        var sessionId = Guid.NewGuid();
+        var collapsed = Session(sessionId, "Chat", false, null, now) with { IsCollapsed = true };
+
+        using var scene = new OverlayShellHavenScene();
+        scene.ApplySnapshot(new OverlayWorkspaceSnapshot(sessionId, [collapsed]), sessionId);
+
+        Assert.Equal("Expand", scene.CollapseButton.Content);
+        Assert.Equal(ButtonVariant.Secondary, scene.CollapseButton.Variant);
+    }
+
     private static OverlaySessionState Session(
         Guid id,
         string title,

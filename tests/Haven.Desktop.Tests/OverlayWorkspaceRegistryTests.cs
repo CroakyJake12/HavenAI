@@ -42,6 +42,29 @@ public sealed class OverlayWorkspaceRegistryTests
     }
 
     [Fact]
+    public async Task Registry_persists_collapsed_state_for_pinned_restore()
+    {
+        var now = new DateTimeOffset(2026, 8, 17, 16, 0, 0, TimeSpan.Zero);
+        var settings = new InMemorySettingsStore();
+        var registry = new OverlayWorkspaceRegistry(settings, () => now);
+        await registry.InitializeAsync(CancellationToken.None);
+        var session = await registry.OpenSessionAsync("chat", "Chat", Guid.NewGuid(), "Browser", CancellationToken.None);
+
+        await registry.SetPinnedAsync(session.Id, true, CancellationToken.None);
+        await registry.SetCollapsedAsync(session.Id, true, CancellationToken.None);
+        await registry.CloseSessionAsync(session.Id, CancellationToken.None);
+
+        var restored = new OverlayWorkspaceRegistry(settings, () => now.AddMinutes(1));
+        await restored.InitializeAsync(CancellationToken.None);
+        var restoredSession = Assert.Single(restored.Snapshot.Sessions);
+
+        Assert.Equal(session.Id, restoredSession.Id);
+        Assert.True(restoredSession.IsPinned);
+        Assert.True(restoredSession.IsCollapsed);
+        Assert.True(restoredSession.IsVisible);
+    }
+
+    [Fact]
     public async Task Registry_bounds_context_and_unpin_preserves_the_live_session()
     {
         var now = new DateTimeOffset(2026, 8, 16, 19, 0, 0, TimeSpan.Zero);
