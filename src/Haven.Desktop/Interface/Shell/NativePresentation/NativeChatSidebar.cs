@@ -114,11 +114,17 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         }
     }
 
+    internal HavenMode CurrentMode => _currentMode;
+    internal Guid? ActiveGroupId => _activeGroupId;
+    internal event EventHandler<NativeChatSidebarContext>? ContextChanged;
+
     public void SetActiveConversation(Guid? conversationId, Guid? groupId)
     {
         _activeConversationId = conversationId;
         _activeGroupId = groupId;
-        if (!_disposed) Render();
+        if (_disposed) return;
+        Render();
+        ContextChanged?.Invoke(this, new NativeChatSidebarContext(_currentMode, _activeGroupId));
     }
 
     public void SetMode(HavenMode mode)
@@ -128,6 +134,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _activeConversationId = null;
         _activeGroupId = null;
         _scene.SetMode(mode);
+        ContextChanged?.Invoke(this, new NativeChatSidebarContext(_currentMode, _activeGroupId));
         _ = RefreshAsync();
     }
 

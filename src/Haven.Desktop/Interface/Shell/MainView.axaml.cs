@@ -3203,6 +3203,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _newDashboardPage?.Deactivate();
         _newDashboardPage?.Dispose();
         _newChatPage?.Dispose();
+        _studyAssignmentsSidebar?.Dispose();
         _nativeChatSidebar?.Dispose();
         _nativePlanPage?.Dispose();
         _planPage?.Dispose();
