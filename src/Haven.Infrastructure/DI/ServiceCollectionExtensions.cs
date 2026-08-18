@@ -134,6 +134,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICodeIntelligenceService, SafeModeCodeIntelligenceService>();
         services.AddSingleton<IComputerUseSessionController, ComputerUseSessionController>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
+        services.AddSingleton<Haven.Application.Automations.IDeviceActionProvider, Haven.Application.Automations.WindowsComputerDeviceActionProvider>();
+        services.AddSingleton<Haven.Application.Automations.DeviceActionRouter>();
+        services.AddSingleton<Haven.Application.Automations.DeviceAutomationNodeExecutor>();
         services.AddHttpClient<OllamaClient>(client =>
         {
             var endpoint = Environment.GetEnvironmentVariable("OLLAMA_HOST")?.Trim();
