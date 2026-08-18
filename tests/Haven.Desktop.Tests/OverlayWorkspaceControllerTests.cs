@@ -255,6 +255,46 @@ public sealed class OverlayWorkspaceControllerTests
     }
 
     [Fact]
+    public void Universal_selection_concrete_files_reach_chat_attachment_handoff()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "haven-overlay-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var topAttachment = Path.Combine(root, "top.txt");
+            var sharedMedia = Path.Combine(root, "shared.png");
+            var selectionAttachment = Path.Combine(root, "selection.json");
+            var missingMedia = Path.Combine(root, "missing.png");
+            File.WriteAllText(topAttachment, "top");
+            File.WriteAllBytes(sharedMedia, [1, 2, 3]);
+            File.WriteAllText(selectionAttachment, "{}");
+
+            var now = new DateTimeOffset(2026, 8, 18, 9, 0, 0, TimeSpan.Zero);
+            var context = new OverlayContextEnvelope(
+                OverlayContextKind.Mixed,
+                null,
+                [new OverlayContextAttachmentReference(topAttachment, "text", "text/plain", "Top", null)],
+                sharedMedia,
+                new OverlayContextProvenance(null, null, null, now, now.AddMinutes(5), OverlayContextPermissionState.Granted, null),
+                false,
+                [
+                    new OverlaySelectionItem("image", OverlaySelectionKind.Image, null, null, sharedMedia,
+                        new OverlayContextAttachmentReference(selectionAttachment, "semantic", "application/json", "Selection", null), null, "Image"),
+                    new OverlaySelectionItem("missing", OverlaySelectionKind.Image, null, null, missingMedia, null, null, "Missing image")
+                ]);
+
+            var files = OverlayWorkspaceController.ConcreteContextFiles(context);
+
+            Assert.Equal([topAttachment, sharedMedia, selectionAttachment], files);
+            Assert.DoesNotContain(missingMedia, files);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Collapsed_geometry_preserves_expanded_size_while_updating_position()
     {
         var now = new DateTimeOffset(2026, 8, 17, 16, 0, 0, TimeSpan.Zero);
