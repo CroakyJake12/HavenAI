@@ -50,16 +50,14 @@ public sealed class HavenUiVisualCaptureTests
             900,
             HavenSurface.Tasks);
 
-        var tasks = new AutomationsPage(
+        var automations = new AutomationsPage(
             new EmptyWorkspaceStateRepository(),
             new EmptyAutomationRepository(),
-            new EmptyConversationRepository(),
             null,
             () => Task.CompletedTask,
-            _ => Task.CompletedTask,
             _ => Task.CompletedTask);
-        Capture(Path.Combine(destination, "tasks-desktop.png"), tasks, 1440, 900, HavenSurface.Tasks);
-        Capture(Path.Combine(destination, "tasks-compact.png"), tasks, 620, 860, HavenSurface.Tasks);
+        Capture(Path.Combine(destination, "automations-desktop.png"), automations, 1440, 900, HavenSurface.Automations);
+        Capture(Path.Combine(destination, "automations-compact.png"), automations, 620, 860, HavenSurface.Automations);
 
         HavenUiResourceApplier.Apply(SurfacePaletteCatalog.For(HavenSurface.Go, HavenUiAppearance.SuperDark));
 

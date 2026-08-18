@@ -32,11 +32,9 @@ public sealed partial class AutomationsPage : UserControl
 
     private readonly IWorkspaceStateRepository _tasks;
     private readonly IAutomationRepository _automations;
-    private readonly IConversationRepository _conversations;
     private readonly Guid? _containerId;
     private readonly Func<Task> _startOneTimeTask;
     private readonly Func<string, Task> _runTask;
-    private readonly Func<Conversation, Task> _openTaskHistory;
     private readonly StackPanel _manualItems = new() { Spacing = 8 };
     private readonly StackPanel _automaticItems = new() { Spacing = 8 };
     private readonly StackPanel _runningItems = new() { Spacing = 8 };
@@ -95,19 +93,15 @@ public sealed partial class AutomationsPage : UserControl
     public AutomationsPage(
         IWorkspaceStateRepository tasks,
         IAutomationRepository automations,
-        IConversationRepository conversations,
         Guid? containerId,
         Func<Task> startOneTimeTask,
-        Func<string, Task> runTask,
-        Func<Conversation, Task> openTaskHistory)
+        Func<string, Task> runTask)
     {
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _automations = automations ?? throw new ArgumentNullException(nameof(automations));
-        _conversations = conversations ?? throw new ArgumentNullException(nameof(conversations));
         _containerId = containerId;
         _startOneTimeTask = startOneTimeTask ?? throw new ArgumentNullException(nameof(startOneTimeTask));
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
-        _openTaskHistory = openTaskHistory ?? throw new ArgumentNullException(nameof(openTaskHistory));
         _deviceActions = Haven.Desktop.App.Services?.GetService(typeof(DeviceActionRouter)) as DeviceActionRouter;
 
         InitializeComponent();
@@ -437,10 +431,7 @@ public sealed partial class AutomationsPage : UserControl
         {
             var reusableTask = _tasks.GetReusableTasksAsync(_containerId, CancellationToken.None);
             var scheduledTask = _automations.GetAllAsync(CancellationToken.None);
-            var historyTask = _conversations.GetRecentAsync(HavenMode.Tasks, 50, CancellationToken.None);
-            await Task.WhenAll(reusableTask, scheduledTask, historyTask);
-
-            _runningItems.Children.Add(Muted("No task is currently reporting an active run."));
+            await Task.WhenAll(reusableTask, scheduledTask);
 
             foreach (var item in reusableTask.Result.Where(item => item.IsEnabled))
                 _manualItems.Children.Add(TaskChip(item.Name, async () =>
@@ -459,11 +450,24 @@ public sealed partial class AutomationsPage : UserControl
                 _automaticItems.Children.Add(TaskChip(item.Name, () => InvokeAsync(item.Instruction), detail));
             }
 
-            foreach (var conversation in historyTask.Result.Where(item => !item.IsArchived))
-                _historyItems.Children.Add(HistoryRow(conversation));
+            var runs = new List<(AutomationDefinition Definition, AutomationRun Run)>();
+            foreach (var definition in scheduledTask.Result.Where(item => item.IsEnabled && item.ContainerId == _containerId))
+            {
+                foreach (var run in await _automations.GetRunsAsync(definition.Id, 50, CancellationToken.None))
+                    runs.Add((definition, run));
+            }
+
+            foreach (var entry in runs.Where(entry => entry.Run.Status is AutomationRunStatus.Pending or AutomationRunStatus.Running).OrderByDescending(entry => entry.Run.StartedAt ?? entry.Run.ScheduledFor))
+                _runningItems.Children.Add(AutomationRunRow(entry.Definition, entry.Run));
+
+            if (_runningItems.Children.Count == 0)
+                _runningItems.Children.Add(Muted("No automation is currently pending or running."));
+
+            foreach (var entry in runs.Where(entry => entry.Run.Status is not (AutomationRunStatus.Pending or AutomationRunStatus.Running)).OrderByDescending(entry => entry.Run.CompletedAt ?? entry.Run.StartedAt ?? entry.Run.ScheduledFor))
+                _historyItems.Children.Add(AutomationRunRow(entry.Definition, entry.Run));
 
             if (_historyItems.Children.Count == 0)
-                _historyItems.Children.Add(Muted("No completed or saved Tasks conversations yet."));
+                _historyItems.Children.Add(Muted("No automation runs have completed yet."));
 
             _emptyText.IsVisible = _manualItems.Children.Count == 0 && _automaticItems.Children.Count == 0;
             _status.Text = $"{_manualItems.Children.Count} reusable and {_automaticItems.Children.Count} automatic task{(_manualItems.Children.Count + _automaticItems.Children.Count == 1 ? string.Empty : "s")} available.";
@@ -567,38 +571,36 @@ public sealed partial class AutomationsPage : UserControl
         return button;
     }
 
-    private Control HistoryRow(Conversation conversation)
+    private Control AutomationRunRow(AutomationDefinition definition, AutomationRun run)
     {
-        var row = new HavenNavigationButton
+        var timestamp = run.CompletedAt ?? run.StartedAt ?? run.ScheduledFor;
+        var status = run.Status == AutomationRunStatus.SkippedDuplicate ? "Skipped duplicate" : run.Status.ToString();
+        var detail = run.Status switch
         {
-            Tag = conversation.Title,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            MinHeight = 62,
+            AutomationRunStatus.Pending => "Scheduled " + run.ScheduledFor.LocalDateTime.ToString("g"),
+            AutomationRunStatus.Running => "Started " + (run.StartedAt ?? run.ScheduledFor).LocalDateTime.ToString("g"),
+            AutomationRunStatus.Succeeded when !string.IsNullOrWhiteSpace(run.Result) => run.Result!,
+            AutomationRunStatus.Failed when !string.IsNullOrWhiteSpace(run.Error) => run.Error!,
+            _ => status + " " + timestamp.LocalDateTime.ToString("g")
+        };
+        var card = new HavenCard
+        {
+            Tag = definition.Name,
             Padding = new Thickness(14, 10),
             CornerRadius = new CornerRadius(18),
-            Content = new Grid
+            Child = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                 ColumnSpacing = 14,
                 Children =
                 {
-                    new HavenIcon { IconKey = "clock", Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center },
-                    Column(new StackPanel
-                    {
-                        Spacing = 2,
-                        Children =
-                        {
-                            new TextBlock { Text = conversation.Title, FontWeight = FontWeight.ExtraBold, FontSize = 14 },
-                            new TextBlock { Text = conversation.UpdatedAt.LocalDateTime.ToString("g"), Foreground = MutedBrush, FontSize = 11 }
-                        }
-                    }, 1),
-                    Column(new TextBlock { Text = "Open", FontWeight = FontWeight.ExtraBold, VerticalAlignment = VerticalAlignment.Center }, 2)
+                    new StackPanel { Spacing = 2, Children = { new TextBlock { Text = definition.Name, FontWeight = FontWeight.ExtraBold, FontSize = 14 }, new TextBlock { Text = detail, Foreground = MutedBrush, FontSize = 11, TextWrapping = TextWrapping.Wrap } } },
+                    Column(new HavenPill { Padding = new Thickness(12, 6), CornerRadius = new CornerRadius(16), Background = AccentBrush, Child = new TextBlock { Text = status, FontSize = 11, FontWeight = FontWeight.ExtraBold, Foreground = AccentInkBrush } }, 1)
                 }
             }
         };
-        row.Click += async (_, _) => await _openTaskHistory(conversation);
-        return row;
+        AutomationProperties.SetName(card, $"{definition.Name} automation run {status}");
+        return card;
     }
 
     private void ApplyTaskSearch()

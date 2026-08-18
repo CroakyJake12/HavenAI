@@ -49,11 +49,9 @@ public sealed partial class MainView
         var page = new AutomationsPage(
             _workspaceState,
             _automations,
-            _conversations,
             containerId,
             StartOneTimeTaskAsync,
-            InvokeTaskAsync,
-            OpenNativeConversationAsync);
+            InvokeTaskAsync);
 
         AddOrSelectTab(
             key,
