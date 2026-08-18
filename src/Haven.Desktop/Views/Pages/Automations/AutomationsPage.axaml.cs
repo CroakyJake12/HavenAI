@@ -103,6 +103,8 @@ public sealed partial class AutomationsPage : UserControl
         _startOneTimeTask = startOneTimeTask ?? throw new ArgumentNullException(nameof(startOneTimeTask));
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
         _deviceActions = Haven.Desktop.App.Services?.GetService(typeof(DeviceActionRouter)) as DeviceActionRouter;
+        var deviceExecutor = Haven.Desktop.App.Services?.GetService(typeof(DeviceAutomationNodeExecutor)) as DeviceAutomationNodeExecutor;
+        _deviceWorkflowRunner = deviceExecutor is null ? null : new ReusableDeviceWorkflowRunner(deviceExecutor);
 
         InitializeComponent();
         var host = this.FindControl<Grid>("CodeBehindHost")
@@ -437,7 +439,7 @@ public sealed partial class AutomationsPage : UserControl
                 _manualItems.Children.Add(TaskChip(item.Name, async () =>
                 {
                     if (_editMode) ShowEditor(item);
-                    else await InvokeAsync(item.Instruction);
+                    else await RunReusableAsync(item);
                 }, item));
 
             foreach (var item in scheduledTask.Result
