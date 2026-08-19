@@ -19,19 +19,21 @@ public sealed class GlobalCallHavenSceneTests
 
         scene.Root.ValidateUniqueNames();
         Assert.True(scene.CallButton.GetValue(HavenProperties.Enabled));
-        Assert.Contains("General Voice", scene.VoiceMode.Items);
-        var lessonIndex = Array.IndexOf(scene.VoiceMode.Items.ToArray(), "Lesson Voice");
-        Assert.True(lessonIndex >= 0);
+        Assert.Contains("Hands-free", scene.VoiceMode.Items);
+        Assert.Contains("Push to talk", scene.VoiceMode.Items);
+        var pushToTalkIndex = Array.IndexOf(scene.VoiceMode.Items.ToArray(), "Push to talk");
+        scene.VoiceMode.SelectedIndex = pushToTalkIndex;
+        Assert.Equal(CallInputMode.PushToTalk, viewModel.InputMode);
 
-        scene.VoiceMode.SelectedIndex = lessonIndex;
+        Assert.Contains("General Voice", scene.VoiceProfile.Items);
+        var lessonIndex = Array.IndexOf(scene.VoiceProfile.Items.ToArray(), "Lesson Voice");
+        Assert.True(lessonIndex >= 0);
+        scene.VoiceProfile.SelectedIndex = lessonIndex;
         Assert.Equal("lesson", viewModel.SelectedVoiceProfile?.Id);
 
         scene.Reasoning.Value = 75;
         Assert.Equal(EffortLevel.High, viewModel.Effort);
         Assert.Equal(75, viewModel.ReasoningPercent);
-
-        scene.SpeechSpeed.Value = 140;
-        Assert.Equal(140, viewModel.SpeechSpeedPercent);
 
         scene.Microphone.SelectedIndex = 1;
         Assert.Equal("mic-two", viewModel.SelectedInputDevice?.Id);

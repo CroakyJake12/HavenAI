@@ -62,10 +62,10 @@ internal sealed class GlobalCallHavenScene : IDisposable
 
         var modeRow = new Container { Name = "Voice.Mode.Row", Layout = HavenLayout.Grid, Columns = "220px 1fr", Rows = "auto" };
         Set(modeRow, HavenProperties.Gap, HavenLength.Px(10));
-        VoiceMode = new Select { Name = "Voice.Mode" };
-        VoiceMode.Accessibility.AccessibleName = "Voice mode";
+        VoiceMode = new Select { Name = "Voice.InputMode" };
+        VoiceMode.Accessibility.AccessibleName = "Voice input mode";
         modeRow.Add(VoiceMode);
-        ReactionText = Secondary("Choose a live Voice mode", "Voice.Reaction");
+        ReactionText = Secondary("Choose Hands-free or Push to talk", "Voice.Reaction");
         Set(ReactionText, HavenProperties.Column, 1);
         modeRow.Add(ReactionText);
         Root.Add(modeRow);
@@ -79,12 +79,18 @@ internal sealed class GlobalCallHavenScene : IDisposable
         Set(toolbar, HavenProperties.Overflow, HavenOverflow.Scroll);
         CallButton = Action("Voice.Call", "Start", ButtonVariant.Primary);
         MuteButton = Action("Voice.Mute", "Mic on", ButtonVariant.Tertiary);
+        PauseButton = Action("Voice.Pause", "Pause", ButtonVariant.Tertiary);
+        InterruptButton = Action("Voice.Interrupt", "Interrupt", ButtonVariant.Ghost);
+        PushToTalkButton = Action("Voice.PushToTalk", "Talk", ButtonVariant.Secondary);
         TranscriptButton = Action("Voice.Transcript.Toggle", "Transcript", ButtonVariant.Ghost);
         ModelButton = Action("Voice.Model.Toggle", "Model", ButtonVariant.Ghost);
         ShareButton = Action("Voice.Share.Toggle", "Share", ButtonVariant.Ghost);
         SettingsButton = Action("Voice.Settings.Toggle", "Settings", ButtonVariant.Ghost);
         toolbar.Add(CallButton);
         toolbar.Add(MuteButton);
+        toolbar.Add(PauseButton);
+        toolbar.Add(InterruptButton);
+        toolbar.Add(PushToTalkButton);
         toolbar.Add(TranscriptButton);
         toolbar.Add(ModelButton);
         toolbar.Add(ShareButton);
@@ -109,6 +115,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
 
         CallButton.Invoked += OnCallInvoked;
         MuteButton.Invoked += OnMuteInvoked;
+        PauseButton.Invoked += OnPauseInvoked;
+        InterruptButton.Invoked += OnInterruptInvoked;
+        PushToTalkButton.Invoked += OnPushToTalkInvoked;
         TranscriptButton.Invoked += (_, _) => TogglePanel("transcript");
         ModelButton.Invoked += (_, _) => TogglePanel("model");
         ShareButton.Invoked += (_, _) => TogglePanel("share");
@@ -117,10 +126,10 @@ internal sealed class GlobalCallHavenScene : IDisposable
         SendButton.Invoked += OnSendInvoked;
         AddFileButton.Invoked += (_, _) => AddFilesRequested?.Invoke(this, EventArgs.Empty);
         VoiceMode.SelectionChanged += OnVoiceModeChanged;
+        VoiceProfile.SelectionChanged += OnVoiceProfileChanged;
         VoiceChoice.SelectionChanged += OnVoiceChanged;
         Microphone.SelectionChanged += OnMicrophoneChanged;
         Reasoning.ValueChanged += OnReasoningChanged;
-        SpeechSpeed.ValueChanged += OnSpeechSpeedChanged;
         TranscriptInput.Invalidated += OnTranscriptInputInvalidated;
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -139,6 +148,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
     public HavenText SummaryText { get; }
     public HavenButton CallButton { get; }
     public HavenButton MuteButton { get; }
+    public HavenButton PauseButton { get; }
+    public HavenButton InterruptButton { get; }
+    public HavenButton PushToTalkButton { get; }
     public HavenButton TranscriptButton { get; }
     public HavenButton ModelButton { get; }
     public HavenButton ShareButton { get; }
@@ -149,14 +161,13 @@ internal sealed class GlobalCallHavenScene : IDisposable
     public HavenButton SendButton { get; private set; } = null!;
     public HavenButton AddFileButton { get; private set; } = null!;
     public HavenText ModelName { get; private set; } = null!;
+    public Select VoiceProfile { get; private set; } = null!;
     public Select VoiceChoice { get; private set; } = null!;
     public HavenSlider Reasoning { get; private set; } = null!;
     public HavenText ReasoningValue { get; private set; } = null!;
     public HavenText ShareStatus { get; private set; } = null!;
     public HavenButton ShareAction { get; private set; } = null!;
     public Select Microphone { get; private set; } = null!;
-    public HavenSlider SpeechSpeed { get; private set; } = null!;
-    public HavenText SpeechSpeedValue { get; private set; } = null!;
     public HavenText ContextItems { get; private set; } = null!;
 
     public void SubmitFocusedInput(Input input)
@@ -198,16 +209,26 @@ internal sealed class GlobalCallHavenScene : IDisposable
         CallButton.Variant = _viewModel.IsActive ? ButtonVariant.Danger : ButtonVariant.Primary;
         Enabled(CallButton, _viewModel.IsActive || _viewModel.StartCallCommand.CanExecute(null));
         MuteButton.Content = _viewModel.IsMuted ? "Mic off" : "Mic on";
-        ReactionText.Content = _viewModel.IsActive ? _viewModel.LiveReaction : "Choose a live Voice mode";
+        ReactionText.Content = _viewModel.IsActive ? _viewModel.LiveReaction : _viewModel.InputMode == CallInputMode.PushToTalk ? "Tap Talk to record; tap Stop & send when finished." : "Hands-free listens continuously while the call is active.";
         Enabled(VoiceMode, !_viewModel.IsActive);
+        PauseButton.Content = _viewModel.IsPaused ? "Resume" : "Pause";
+        Enabled(PauseButton, _viewModel.TogglePauseCommand.CanExecute(null));
+        Visible(PauseButton, _viewModel.IsActive);
+        Enabled(InterruptButton, _viewModel.InterruptCommand.CanExecute(null));
+        Visible(InterruptButton, _viewModel.IsActive);
+        PushToTalkButton.Content = _viewModel.IsPushToTalkRecording ? "Stop & send" : "Talk";
+        Enabled(PushToTalkButton, _viewModel.TogglePushToTalkCommand.CanExecute(null));
+        Visible(PushToTalkButton, _viewModel.IsActive && _viewModel.InputMode == CallInputMode.PushToTalk);
         SummaryText.Content = _viewModel.CallSummary ?? string.Empty;
         Visible(SummaryText, !string.IsNullOrWhiteSpace(_viewModel.CallSummary));
 
         ModelName.Content = _viewModel.SelectedModelName;
         if (Math.Abs(Reasoning.Value - _viewModel.ReasoningPercent) > .001) Reasoning.Value = _viewModel.ReasoningPercent;
         ReasoningValue.Content = $"{_viewModel.ReasoningPercent}%";
-        if (Math.Abs(SpeechSpeed.Value - _viewModel.SpeechSpeedPercent) > .001) SpeechSpeed.Value = _viewModel.SpeechSpeedPercent;
-        SpeechSpeedValue.Content = $"{_viewModel.SpeechSpeedPercent}%";
+        Enabled(VoiceProfile, !_viewModel.IsActive);
+        Enabled(VoiceChoice, !_viewModel.IsActive);
+        Enabled(Microphone, !_viewModel.IsActive);
+        Enabled(Reasoning, !_viewModel.IsActive);
 
         ShareStatus.Content = _viewModel.ScreenShareStatus;
         ShareAction.Content = _viewModel.IsScreenSharing ? "Stop sharing" : "Share screen or app";
@@ -257,7 +278,11 @@ internal sealed class GlobalCallHavenScene : IDisposable
         panel.Add(Heading("Model and voice"));
         ModelName = new HavenText("No model available") { Level = TextLevel.Paragraph };
         Set(ModelName, HavenProperties.FontWeight, 800);
-        panel.Add(Field("Model", ModelName));
+        panel.Add(Field("Current conversation model", ModelName));
+        panel.Add(Secondary("Voice uses the model selected for this conversation. Change it from the main model picker before starting.", "Voice.Model.Help"));
+        VoiceProfile = new Select { Name = "Voice.Model.Style" };
+        VoiceProfile.Accessibility.AccessibleName = "Voice style";
+        panel.Add(Field("Voice style", VoiceProfile));
         VoiceChoice = new Select { Name = "Voice.Model.Voice" };
         VoiceChoice.Accessibility.AccessibleName = "Voice";
         panel.Add(Field("Voice", VoiceChoice));
@@ -288,12 +313,6 @@ internal sealed class GlobalCallHavenScene : IDisposable
         Microphone = new Select { Name = "Voice.Settings.Microphone" };
         Microphone.Accessibility.AccessibleName = "Microphone";
         panel.Add(Field("Microphone", Microphone));
-        SpeechSpeedValue = Secondary("100%", "Voice.Speed.Value");
-        panel.Add(ValueHeader("Speech speed", SpeechSpeedValue));
-        SpeechSpeed = new HavenSlider { Name = "Voice.Speed", Minimum = 50, Maximum = 200, Step = 10, Value = 100 };
-        SpeechSpeed.Accessibility.AccessibleName = "Speech speed";
-        Set(SpeechSpeed, HavenProperties.Width, HavenLength.Percent(100));
-        panel.Add(SpeechSpeed);
         return panel;
     }
 
@@ -340,8 +359,11 @@ internal sealed class GlobalCallHavenScene : IDisposable
 
     private void SyncCollections()
     {
-        VoiceMode.Items = _viewModel.VoiceProfiles.Select(item => item.Name).ToArray();
-        VoiceMode.SelectedIndex = _viewModel.SelectedVoiceProfile is null ? -1 : IndexOf(
+        VoiceMode.Items = _viewModel.InputModes.Select(item => item == CallInputMode.HandsFree ? "Hands-free" : "Push to talk").ToArray();
+        VoiceMode.SelectedIndex = IndexOf(_viewModel.InputModes, _viewModel.InputMode, EqualityComparer<CallInputMode>.Default.Equals);
+
+        VoiceProfile.Items = _viewModel.VoiceProfiles.Select(item => item.Name).ToArray();
+        VoiceProfile.SelectedIndex = _viewModel.SelectedVoiceProfile is null ? -1 : IndexOf(
             _viewModel.VoiceProfiles,
             _viewModel.SelectedVoiceProfile,
             (left, right) => left.Id.Equals(right.Id, StringComparison.OrdinalIgnoreCase));
@@ -361,6 +383,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
 
     private void OnCallInvoked(object? sender, EventArgs e) => Execute(_viewModel.IsActive ? _viewModel.EndCallCommand : _viewModel.StartCallCommand);
     private void OnMuteInvoked(object? sender, EventArgs e) => Execute(_viewModel.ToggleMuteCommand);
+    private void OnPauseInvoked(object? sender, EventArgs e) => Execute(_viewModel.TogglePauseCommand);
+    private void OnInterruptInvoked(object? sender, EventArgs e) => Execute(_viewModel.InterruptCommand);
+    private void OnPushToTalkInvoked(object? sender, EventArgs e) => Execute(_viewModel.TogglePushToTalkCommand);
     private void OnShareInvoked(object? sender, EventArgs e) => Execute(_viewModel.ToggleScreenShareCommand);
     private void OnSendInvoked(object? sender, EventArgs e) => SubmitFocusedInput(TranscriptInput);
 
@@ -368,6 +393,13 @@ internal sealed class GlobalCallHavenScene : IDisposable
     {
         if (_viewModel.IsActive) return;
         var index = VoiceMode.SelectedIndex;
+        if (index >= 0 && index < _viewModel.InputModes.Count) _viewModel.InputMode = _viewModel.InputModes[index];
+    }
+
+    private void OnVoiceProfileChanged(object? sender, EventArgs e)
+    {
+        if (_viewModel.IsActive) return;
+        var index = VoiceProfile.SelectedIndex;
         if (index >= 0 && index < _viewModel.VoiceProfiles.Count) _viewModel.SelectedVoiceProfile = _viewModel.VoiceProfiles[index];
     }
 
@@ -394,12 +426,6 @@ internal sealed class GlobalCallHavenScene : IDisposable
             _ => EffortLevel.Max
         };
         ReasoningValue.Content = $"{_viewModel.ReasoningPercent}%";
-    }
-
-    private void OnSpeechSpeedChanged(object? sender, EventArgs e)
-    {
-        _viewModel.SpeechSpeedPercent = (int)Math.Round(SpeechSpeed.Value);
-        SpeechSpeedValue.Content = $"{_viewModel.SpeechSpeedPercent}%";
     }
 
     private void OnTranscriptInputInvalidated(object? sender, EventArgs e) => SyncTypedTranscript();
@@ -499,13 +525,16 @@ internal sealed class GlobalCallHavenScene : IDisposable
         _viewModel.CallEnded -= OnCallEnded;
         CallButton.Invoked -= OnCallInvoked;
         MuteButton.Invoked -= OnMuteInvoked;
+        PauseButton.Invoked -= OnPauseInvoked;
+        InterruptButton.Invoked -= OnInterruptInvoked;
+        PushToTalkButton.Invoked -= OnPushToTalkInvoked;
         ShareAction.Invoked -= OnShareInvoked;
         SendButton.Invoked -= OnSendInvoked;
         VoiceMode.SelectionChanged -= OnVoiceModeChanged;
+        VoiceProfile.SelectionChanged -= OnVoiceProfileChanged;
         VoiceChoice.SelectionChanged -= OnVoiceChanged;
         Microphone.SelectionChanged -= OnMicrophoneChanged;
         Reasoning.ValueChanged -= OnReasoningChanged;
-        SpeechSpeed.ValueChanged -= OnSpeechSpeedChanged;
         TranscriptInput.Invalidated -= OnTranscriptInputInvalidated;
     }
 }

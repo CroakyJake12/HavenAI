@@ -26,7 +26,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         ?? VoiceProfileCatalog.BuiltIns.FirstOrDefault();
     private string _liveReaction = "Live reactions ready";
     private EffortLevel _effort = EffortLevel.Low;
-    private int _speechSpeedPercent = 100;
+    private CallInputMode _inputMode = CallInputMode.HandsFree;
+    private bool _isPushToTalkRecording;
     private string _typedTranscript = string.Empty;
     private readonly List<VoiceTranscriptTurn> _transcriptTurns = [];
     private Conversation? _linkedCallConversation;
@@ -60,6 +61,9 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         StartCallCommand = new AsyncRelayCommand(StartCallAsync, () => !IsActive && _selectedModel is not null);
         EndCallCommand = new AsyncRelayCommand(EndCallAsync, () => IsActive);
         ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync);
+        TogglePauseCommand = new AsyncRelayCommand(TogglePauseAsync, () => IsActive);
+        InterruptCommand = new AsyncRelayCommand(InterruptAsync, () => IsActive && !IsPaused);
+        TogglePushToTalkCommand = new AsyncRelayCommand(TogglePushToTalkAsync, () => CanPushToTalk || IsPushToTalkRecording);
         ToggleScreenShareCommand = new AsyncRelayCommand(
             ToggleScreenShareAsync,
             () => IsActive && CanShareScreen);
@@ -82,6 +86,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         if (_callCoordinator.IsActive)
         {
             _linkedCallConversation = _callCoordinator.CurrentConversation;
+            _inputMode = _callCoordinator.CurrentSession?.InputMode ?? CallInputMode.HandsFree;
             _isOpen = true;
             _isActive = true;
             _isMuted = _callCoordinator.IsMuted;
@@ -156,6 +161,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             StartCallCommand.RaiseCanExecuteChanged();
             EndCallCommand.RaiseCanExecuteChanged();
             ToggleMuteCommand.RaiseCanExecuteChanged();
+            RaiseVoiceControlCanExecuteChanged();
             ToggleScreenShareCommand.RaiseCanExecuteChanged();
             SubmitTextCommand.RaiseCanExecuteChanged();
             CloseWidgetCommand.RaiseCanExecuteChanged();
@@ -165,7 +171,12 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public bool IsMuted
     {
         get => _isMuted;
-        private set => SetProperty(ref _isMuted, value);
+        private set
+        {
+            if (!SetProperty(ref _isMuted, value)) return;
+            RaisePropertyChanged(nameof(CanPushToTalk));
+            TogglePushToTalkCommand.RaiseCanExecuteChanged();
+        }
     }
 
     public double AudioLevel
@@ -179,6 +190,32 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public IReadOnlyList<CallAudioDevice> InputDevices => _callCoordinator.Capabilities.InputDevices;
     public IReadOnlyList<CallVoice> Voices => _callCoordinator.Capabilities.Voices;
     public IReadOnlyList<VoiceProfile> VoiceProfiles => VoiceProfileCatalog.BuiltIns;
+
+    public IReadOnlyList<CallInputMode> InputModes { get; } = Enum.GetValues<CallInputMode>();
+
+    public CallInputMode InputMode
+    {
+        get => _inputMode;
+        set
+        {
+            if (IsActive) return;
+            if (SetProperty(ref _inputMode, value))
+                RaisePropertyChanged(nameof(CanPushToTalk));
+        }
+    }
+
+    public bool IsPaused => IsActive && _callCoordinator.State == CallState.Paused;
+    public bool IsPushToTalkRecording
+    {
+        get => _isPushToTalkRecording;
+        private set
+        {
+            if (!SetProperty(ref _isPushToTalkRecording, value)) return;
+            RaisePropertyChanged(nameof(CanPushToTalk));
+            TogglePushToTalkCommand.RaiseCanExecuteChanged();
+        }
+    }
+    public bool CanPushToTalk => IsActive && InputMode == CallInputMode.PushToTalk && _callCoordinator.Capabilities.HasSpeechInput && !IsMuted && !IsPaused;
 
     public VoiceProfile? SelectedVoiceProfile
     {
@@ -244,12 +281,6 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         _ => 100
     };
 
-    public int SpeechSpeedPercent
-    {
-        get => _speechSpeedPercent;
-        set => SetProperty(ref _speechSpeedPercent, Math.Clamp(value, 50, 200));
-    }
-
     public string TypedTranscript
     {
         get => _typedTranscript;
@@ -274,6 +305,9 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand StartCallCommand { get; }
     public AsyncRelayCommand EndCallCommand { get; }
     public AsyncRelayCommand ToggleMuteCommand { get; }
+    public AsyncRelayCommand TogglePauseCommand { get; }
+    public AsyncRelayCommand InterruptCommand { get; }
+    public AsyncRelayCommand TogglePushToTalkCommand { get; }
     public AsyncRelayCommand ToggleScreenShareCommand { get; }
     public AsyncRelayCommand SubmitTextCommand { get; }
 
@@ -345,6 +379,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             var result = await _callCoordinator.StartAsync(
                 new CallStartOptions(
                     Model: _selectedModel,
+                    InputMode: InputMode,
                     InputDeviceId: SelectedInputDevice?.Id,
                     VoiceName: SelectedVoice?.Name,
                     Effort: Effort,
@@ -399,6 +434,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         {
             await _callCoordinator.EndAsync(CancellationToken.None);
             IsActive = false;
+            IsPushToTalkRecording = false;
             IsMuted = false;
             AudioLevel = 0;
             RaisePropertyChanged(nameof(IsScreenSharing));
@@ -428,6 +464,63 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         var next = !IsMuted;
         await _callCoordinator.SetMutedAsync(next, CancellationToken.None);
         IsMuted = next;
+    }
+
+    private async Task TogglePauseAsync()
+    {
+        if (!IsActive) return;
+        try
+        {
+            if (IsPaused)
+                await _callCoordinator.ResumeAsync(CancellationToken.None);
+            else
+            {
+                IsPushToTalkRecording = false;
+                await _callCoordinator.PauseAsync(CancellationToken.None);
+            }
+        }
+        catch (Exception exception)
+        {
+            Status = $"Voice control error: {exception.Message}";
+        }
+    }
+
+    private async Task InterruptAsync()
+    {
+        if (!IsActive || IsPaused) return;
+        try { await _callCoordinator.InterruptAsync(CancellationToken.None); }
+        catch (Exception exception) { Status = $"Voice control error: {exception.Message}"; }
+    }
+
+    private async Task TogglePushToTalkAsync()
+    {
+        if (!IsActive) return;
+        try
+        {
+            if (IsPushToTalkRecording)
+            {
+                await _callCoordinator.EndPushToTalkAsync(CancellationToken.None);
+                IsPushToTalkRecording = false;
+                return;
+            }
+            if (!CanPushToTalk) return;
+            await _callCoordinator.BeginPushToTalkAsync(CancellationToken.None);
+            IsPushToTalkRecording = true;
+        }
+        catch (Exception exception)
+        {
+            IsPushToTalkRecording = false;
+            Status = $"Push-to-talk error: {exception.Message}";
+        }
+    }
+
+    private void RaiseVoiceControlCanExecuteChanged()
+    {
+        RaisePropertyChanged(nameof(IsPaused));
+        RaisePropertyChanged(nameof(CanPushToTalk));
+        TogglePauseCommand.RaiseCanExecuteChanged();
+        InterruptCommand.RaiseCanExecuteChanged();
+        TogglePushToTalkCommand.RaiseCanExecuteChanged();
     }
 
     private async Task ToggleScreenShareAsync()
@@ -497,6 +590,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                 case CallState.Idle:
                 case CallState.Error:
                     IsActive = false;
+                    IsPushToTalkRecording = false;
                     IsMuted = false;
                     AudioLevel = 0;
                     RaisePropertyChanged(nameof(IsScreenSharing));
@@ -510,6 +604,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
                     Status = args.Status;
                     IsActive = true;
                     IsMuted = _callCoordinator.IsMuted;
+                    if (args.State == CallState.Paused) IsPushToTalkRecording = false;
+                    RaiseVoiceControlCanExecuteChanged();
                     RaisePropertyChanged(nameof(IsScreenSharing));
                     RaisePropertyChanged(nameof(ScreenShareStatus));
                     ToggleScreenShareCommand.RaiseCanExecuteChanged();
