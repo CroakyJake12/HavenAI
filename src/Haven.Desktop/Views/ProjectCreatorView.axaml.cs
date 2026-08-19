@@ -161,6 +161,7 @@ public sealed partial class ProjectCreatorView : UserControl
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
         Dispatcher.UIThread.Post(AttachCurrentViewModel);
+        ActivateHavenScene();
     }
 
     private Control BuildLayout()

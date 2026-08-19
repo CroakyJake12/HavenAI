@@ -19,7 +19,7 @@ namespace Haven.Desktop.Views;
 /// <summary>Avalonia hosts one Haven scene; all visible Studio product UI is Haven.UI.</summary>
 public sealed class StudioProjectHavenView : UserControl
 {
-    private readonly StudioHavenScene _scene = new();
+    private readonly ProjectHavenScene _scene = new();
     private readonly HavenSceneControl _host;
     private StudioProjectPage? _page;
 
@@ -39,7 +39,6 @@ public sealed class StudioProjectHavenView : UserControl
     private void WireScene()
     {
         _scene.BackRequested += (_, _) => Execute(_page?.BackToProjectsCommand);
-        _scene.HomeRequested += (_, _) => { Execute(_page?.SwitchToOverviewCommand); RefreshAll(); };
         _scene.SettingsRequested += (_, _) => { Execute(_page?.SwitchToConfigureCommand); RefreshAll(); };
         _scene.RefreshRequested += async (_, _) => await ExecuteAsync(_page?.RefreshCommand);
         _scene.BuildRequested += async (_, _) => await ExecuteAsync(_page?.BuildCommand);

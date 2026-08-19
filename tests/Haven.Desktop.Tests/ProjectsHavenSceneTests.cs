@@ -21,7 +21,7 @@ public sealed class ProjectsHavenSceneTests
     }
 
     [Fact]
-    public void Scene_groups_pinned_unread_and_remaining_projects()
+    public void Scene_groups_pinned_unread_and_all_projects()
     {
         using var scene = new ProjectsHavenScene();
         var pinned = Item("Pinned", isPinned: true);
@@ -32,7 +32,7 @@ public sealed class ProjectsHavenSceneTests
 
         Assert.Equal(1, scene.PinnedCount);
         Assert.Equal(1, scene.UnreadCount);
-        Assert.Equal(1, scene.ProjectCount);
+        Assert.Equal(3, scene.ProjectCount);
         Assert.Equal(3, scene.VisibleItemIds.Count);
     }
 
@@ -50,7 +50,7 @@ public sealed class ProjectsHavenSceneTests
     }
 
     [Fact]
-    public void Cards_make_the_tile_primary_and_hide_secondary_actions_in_overflow()
+    public void Cards_keep_identity_primary_and_secondary_actions_out_of_card_layout()
     {
         using var scene = new ProjectsHavenScene();
         var item = Item("Actions");
@@ -62,16 +62,12 @@ public sealed class ProjectsHavenSceneTests
         Assert.True(tile.Accessibility.Focusable);
         Assert.Equal(HavenCursor.Pointer, tile.GetValue(HavenProperties.Cursor));
 
+        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Name");
+        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Path");
         Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.More");
-        var menu = Assert.Single(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu");
-        Assert.Equal(HavenVisibility.Collapsed, menu.GetValue(HavenProperties.Visibility));
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.Branch");
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.State");
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.Build");
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.Pin");
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.Read");
-        Assert.Contains(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu.Archive");
-        Assert.DoesNotContain(elements.OfType<Button>(), button => button.Name?.Contains($"Projects.Card.{item.Id:N}.Open.", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(elements, element => element.Name == $"Projects.Card.{item.Id:N}.Wide.Menu");
+        Assert.DoesNotContain(scene.Root.DescendantsAndSelf().OfType<Text>(), text => string.Equals(text.Content, "RECENT WORK", StringComparison.Ordinal));
+        Assert.DoesNotContain(scene.Root.DescendantsAndSelf().OfType<Text>(), text => string.Equals(text.Content, "Ready to open", StringComparison.Ordinal));
     }
 
     private static ProjectsHavenItem Item(

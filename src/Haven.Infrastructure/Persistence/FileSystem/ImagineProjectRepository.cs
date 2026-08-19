@@ -137,7 +137,7 @@ public sealed class ImagineProjectRepository(IAppPaths paths) : IImagineProjectR
                 info.Length,
                 sourceHash,
                 DateTimeOffset.UtcNow,
-                JsonSerializer.Serialize(new { extension = extension.ToLowerInvariant() }));
+                await ImagineMediaProbe.CreateMetadataJsonAsync(destination, kind, extension, cancellationToken).ConfigureAwait(false));
         }
         finally
         {

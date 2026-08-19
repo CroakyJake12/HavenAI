@@ -56,16 +56,96 @@ public sealed class ImagineProjectSessionTests
     }
 
     [Fact]
-    public void Audio_and_video_imports_enter_shared_track_clip_model_without_fake_editor_controls()
+    public void Audio_and_video_imports_enter_shared_track_clip_model_with_truthful_known_durations()
     {
         var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Multimedia"));
         session.AddImportedAsset(new ImagineMediaAsset(
-            Guid.NewGuid(), ImagineMediaKind.Audio, "voice.wav", "C:/voice.wav", "C:/managed.wav", 1, "a", DateTimeOffset.UtcNow));
+            Guid.NewGuid(), ImagineMediaKind.Audio, "voice.wav", "C:/voice.wav", "C:/managed.wav", 1, "a", DateTimeOffset.UtcNow, "{\"durationSeconds\":12.5}"));
         session.AddImportedAsset(new ImagineMediaAsset(
-            Guid.NewGuid(), ImagineMediaKind.Video, "clip.mp4", "C:/clip.mp4", "C:/managed.mp4", 2, "b", DateTimeOffset.UtcNow));
+            Guid.NewGuid(), ImagineMediaKind.Video, "clip.mp4", "C:/clip.mp4", "C:/managed.mp4", 2, "b", DateTimeOffset.UtcNow, "{\"durationSeconds\":\"8\"}"));
 
-        Assert.Contains(session.Project.Tracks, item => item.Kind == ImagineTrackKind.Audio);
-        Assert.Contains(session.Project.Tracks, item => item.Kind == ImagineTrackKind.Video);
-        Assert.All(session.Project.Tracks, track => Assert.Single(track.Clips));
+        var audio = Assert.Single(session.Project.Tracks, item => item.Kind == ImagineTrackKind.Audio);
+        var video = Assert.Single(session.Project.Tracks, item => item.Kind == ImagineTrackKind.Video);
+        Assert.Equal(12.5, Assert.Single(audio.Clips).DurationSeconds);
+        Assert.Equal(8, Assert.Single(video.Clips).DurationSeconds);
+    }
+
+    [Fact]
+    public void Timeline_clip_split_move_trim_and_delete_are_real_undoable_edits()
+    {
+        var assetId = Guid.NewGuid();
+        var trackId = Guid.NewGuid();
+        var clipId = Guid.NewGuid();
+        var project = ImagineProjectSession.CreateProject("Timeline") with
+        {
+            Assets =
+            [
+                new ImagineMediaAsset(assetId, ImagineMediaKind.Audio, "voice.wav", "C:/voice.wav", "C:/managed.wav", 1, "a", DateTimeOffset.UtcNow, "{\"durationSeconds\":12}")
+            ],
+            Tracks =
+            [
+                new ImagineTrack(trackId, ImagineTrackKind.Audio, "Dialogue", 0, false, 1,
+                    [new ImagineClip(clipId, assetId, "voice.wav", 0, 0, 12)])
+            ]
+        };
+        var session = new ImagineProjectSession(project);
+
+        Assert.True(session.SplitClip(clipId, 5));
+        var clips = Assert.Single(session.Project.Tracks).Clips;
+        Assert.Equal(2, clips.Length);
+        Assert.Equal(5, clips[0].DurationSeconds);
+        Assert.Equal(5, clips[1].SourceStartSeconds);
+        Assert.Equal(7, clips[1].DurationSeconds);
+
+        var second = clips[1];
+        Assert.True(session.MoveClip(second.Id, 8));
+        Assert.True(session.TrimClip(second.Id, 8, 6, 4));
+        second = Assert.Single(session.Project.Tracks).Clips.Single(clip => clip.Id == second.Id);
+        Assert.Equal(8, second.TimelineStartSeconds);
+        Assert.Equal(6, second.SourceStartSeconds);
+        Assert.Equal(4, second.DurationSeconds);
+
+        Assert.True(session.DeleteClip(second.Id));
+        Assert.Single(Assert.Single(session.Project.Tracks).Clips);
+        Assert.True(session.Undo());
+        Assert.Equal(2, Assert.Single(session.Project.Tracks).Clips.Length);
+        Assert.Contains(session.Project.History, item => item.Operation == "undo");
+    }
+
+    [Fact]
+    public void Timeline_supports_multitrack_move_mute_gain_and_reorder()
+    {
+        var assetId = Guid.NewGuid();
+        var firstTrackId = Guid.NewGuid();
+        var secondTrackId = Guid.NewGuid();
+        var clipId = Guid.NewGuid();
+        var project = ImagineProjectSession.CreateProject("Multitrack") with
+        {
+            Assets = [new ImagineMediaAsset(assetId, ImagineMediaKind.Audio, "music.wav", "C:/music.wav", "C:/managed.wav", 1, "m", DateTimeOffset.UtcNow)],
+            Tracks =
+            [
+                new ImagineTrack(firstTrackId, ImagineTrackKind.Audio, "Music 1", 0, false, 1, [new ImagineClip(clipId, assetId, "music.wav", 0, 0, 8)]),
+                new ImagineTrack(secondTrackId, ImagineTrackKind.Audio, "Music 2", 1, false, 1, [])
+            ]
+        };
+        var session = new ImagineProjectSession(project);
+
+        Assert.True(session.MoveClipToTrack(clipId, secondTrackId, 3));
+        Assert.Empty(session.Project.Tracks.Single(track => track.Id == firstTrackId).Clips);
+        Assert.Equal(3, Assert.Single(session.Project.Tracks.Single(track => track.Id == secondTrackId).Clips).TimelineStartSeconds);
+        Assert.True(session.SetTrackMuted(secondTrackId, true));
+        Assert.True(session.SetTrackGain(secondTrackId, 1.5));
+        Assert.True(session.SetClipGain(clipId, .65));
+        Assert.True(session.SetClipMuted(clipId, true));
+        Assert.True(session.ReorderTrack(secondTrackId, 0));
+
+        var first = session.Project.Tracks.Single(track => track.Id == secondTrackId);
+        Assert.True(first.IsMuted);
+        Assert.Equal(1.5, first.Gain);
+        Assert.Equal(0, first.Order);
+        var clip = Assert.Single(first.Clips);
+        Assert.True(clip.IsMuted);
+        Assert.Equal(.65, clip.Gain);
+        Assert.Equal(ImagineSelectionKind.Track, session.Project.Selection.Kind);
     }
 }

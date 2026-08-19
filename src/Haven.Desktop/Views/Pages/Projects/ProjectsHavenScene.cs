@@ -34,6 +34,7 @@ internal sealed class ProjectsHavenScene : IDisposable
 {
     private readonly List<ProjectsHavenItem> _items = [];
     private string _appliedQuery = string.Empty;
+    private PopupMenu? _openPopup;
 
     public ProjectsHavenScene()
     {
@@ -190,20 +191,19 @@ internal sealed class ProjectsHavenScene : IDisposable
         var query = _appliedQuery.Trim();
         var filtered = _items.Where(item => Matches(item, query)).ToArray();
         var pinned = filtered.Where(item => item.IsPinned).ToArray();
-        var unread = filtered.Where(item => !item.IsPinned && item.IsUnread).ToArray();
-        var remaining = filtered.Where(item => !item.IsPinned && !item.IsUnread).ToArray();
+        var unread = filtered.Where(item => item.IsUnread).ToArray();
 
         VisibleItemIds = filtered.Select(item => item.Id).ToArray();
         PinnedCount = pinned.Length;
         UnreadCount = unread.Length;
-        ProjectCount = remaining.Length;
+        ProjectCount = filtered.Length;
 
         RenderGroup(WideGroups, compact: false, "Pinned", pinned);
         RenderGroup(WideGroups, compact: false, "Unread", unread);
-        RenderGroup(WideGroups, compact: false, "All", remaining);
+        RenderGroup(WideGroups, compact: false, "All", filtered);
         RenderGroup(CompactGroups, compact: true, "Pinned", pinned);
         RenderGroup(CompactGroups, compact: true, "Unread", unread);
-        RenderGroup(CompactGroups, compact: true, "All", remaining);
+        RenderGroup(CompactGroups, compact: true, "All", filtered);
         EmptyState.SetValue(HavenProperties.Visibility, filtered.Length == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
 
@@ -222,47 +222,41 @@ internal sealed class ProjectsHavenScene : IDisposable
         var layoutKey = compact ? "Compact" : "Wide";
         var prefix = $"Projects.Card.{item.Id:N}.{layoutKey}";
         var shell = new Container { Name = prefix, Layout = HavenLayout.Overlay };
-        shell.SetValue(HavenProperties.Width, compact ? HavenLength.Percent(100) : HavenLength.Px(340));
-        shell.SetValue(HavenProperties.MinHeight, HavenLength.Px(compact ? 190 : 220));
-
-        var menu = BuildProjectMenu(item, prefix, compact);
+        shell.SetValue(HavenProperties.Width, compact ? HavenLength.Percent(100) : HavenLength.Px(320));
+        shell.SetValue(HavenProperties.MinHeight, HavenLength.Px(108));
 
         var tile = new ProjectTileContainer($"Open project {item.Name}") { Name = prefix + ".Tile", Layout = HavenLayout.Vertical };
         tile.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        tile.SetValue(HavenProperties.MinHeight, HavenLength.Px(compact ? 190 : 220));
-        tile.SetValue(HavenProperties.Background, "AccentMuted");
-        tile.SetValue(HavenProperties.BorderColor, "AccentSecondary");
+        tile.SetValue(HavenProperties.MinHeight, HavenLength.Px(108));
+        tile.SetValue(HavenProperties.Background, "SurfaceRaised");
+        tile.SetValue(HavenProperties.BorderColor, "Border");
         tile.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
-        tile.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(22)));
+        tile.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(18)));
         tile.SetValue(HavenProperties.Shadow, "Card");
-        tile.SetValue(HavenProperties.Padding, HavenThickness.Parse("18px 60px 18px 18px"));
-        tile.SetValue(HavenProperties.Gap, HavenLength.Px(14));
+        tile.SetValue(HavenProperties.Padding, HavenThickness.Parse("16px 58px 16px 16px"));
         tile.Invoked += (_, _) =>
         {
-            menu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+            _openPopup?.Dismiss();
+            _openPopup = null;
             OpenRequested?.Invoke(this, new ProjectActionEventArgs(item.Id));
         };
 
-        var content = new Container { Layout = HavenLayout.Vertical };
-        content.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        content.SetValue(HavenProperties.Gap, HavenLength.Px(14));
-        content.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None);
-
-        var identity = new Container { Layout = HavenLayout.Grid, Columns = "54px 1fr", Rows = "Auto" };
+        var identity = new Container { Layout = HavenLayout.Grid, Columns = "44px 1fr", Rows = "Auto" };
         identity.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         identity.SetValue(HavenProperties.Gap, HavenLength.Px(12));
+        identity.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None);
 
         var iconSurface = new Container { Layout = HavenLayout.Overlay };
-        iconSurface.SetValue(HavenProperties.Width, HavenLength.Px(54));
-        iconSurface.SetValue(HavenProperties.Height, HavenLength.Px(54));
-        iconSurface.SetValue(HavenProperties.Background, "AccentSecondary");
-        iconSurface.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(18)));
+        iconSurface.SetValue(HavenProperties.Width, HavenLength.Px(44));
+        iconSurface.SetValue(HavenProperties.Height, HavenLength.Px(44));
+        iconSurface.SetValue(HavenProperties.Background, "AccentMuted");
+        iconSurface.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
         var icon = new Icon { Key = "studio" };
-        icon.SetValue(HavenProperties.Width, HavenLength.Px(26));
-        icon.SetValue(HavenProperties.Height, HavenLength.Px(26));
+        icon.SetValue(HavenProperties.Width, HavenLength.Px(22));
+        icon.SetValue(HavenProperties.Height, HavenLength.Px(22));
         icon.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
         icon.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
-        icon.SetValue(HavenProperties.Foreground, "TextOnAccent");
+        icon.SetValue(HavenProperties.Foreground, "AccentSecondary");
         iconSurface.Add(icon);
         identity.Add(iconSurface);
 
@@ -272,118 +266,43 @@ internal sealed class ProjectsHavenScene : IDisposable
         copy.Add(Heading(prefix + ".Name", item.Name, TextLevel.H3));
         copy.Add(Muted(prefix + ".Path", item.Path));
         identity.Add(copy);
-        content.Add(identity);
-
-        if (!string.IsNullOrWhiteSpace(item.LastTask))
-        {
-            var recent = new Container { Layout = HavenLayout.Vertical };
-            recent.SetValue(HavenProperties.Background, "SurfaceRaised");
-            recent.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
-            recent.SetValue(HavenProperties.Padding, HavenThickness.Parse("10px 12px"));
-            recent.SetValue(HavenProperties.Gap, HavenLength.Px(3));
-            var recentLabel = new HavenText("RECENT WORK") { Level = TextLevel.Caption };
-            recentLabel.SetValue(HavenProperties.Foreground, "AccentSecondary");
-            recent.Add(recentLabel);
-            recent.Add(new HavenText(item.LastTask) { Level = TextLevel.Paragraph });
-            content.Add(recent);
-        }
-
-        var footer = new Container { Layout = HavenLayout.Grid, Columns = "1fr Auto", Rows = "Auto" };
-        footer.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        footer.SetValue(HavenProperties.Gap, HavenLength.Px(8));
-        var stateHint = new HavenText(item.IsUnread ? "Unread changes" : "Ready to open") { Level = TextLevel.Caption };
-        stateHint.SetValue(HavenProperties.Foreground, item.IsUnread ? "Danger" : "TextSecondary");
-        footer.Add(stateHint);
-        var openHint = new HavenText("Open project ›") { Level = TextLevel.Caption };
-        openHint.SetValue(HavenProperties.Column, 1);
-        openHint.SetValue(HavenProperties.Foreground, "AccentSecondary");
-        footer.Add(openHint);
-        content.Add(footer);
-        tile.Add(content);
+        tile.Add(identity);
         shell.Add(tile);
-
-        shell.Add(menu);
 
         var more = new HavenButton { Name = prefix + ".More", Content = "•••", Variant = ButtonVariant.Icon };
         more.Accessibility.AccessibleName = $"More options for {item.Name}";
-        more.SetValue(HavenProperties.Width, HavenLength.Px(46));
-        more.SetValue(HavenProperties.Height, HavenLength.Px(46));
+        more.SetValue(HavenProperties.Width, HavenLength.Px(40));
+        more.SetValue(HavenProperties.Height, HavenLength.Px(40));
+        more.SetValue(HavenProperties.MinHeight, HavenLength.Px(40));
         more.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.End);
         more.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Start);
         more.SetValue(HavenProperties.Margin, HavenThickness.Parse("10px"));
         more.SetValue(HavenProperties.ZIndex, 7);
         more.Invoked += (_, _) =>
         {
-            var open = menu.GetValue(HavenProperties.Visibility) != HavenVisibility.Visible;
-            menu.SetValue(HavenProperties.Visibility, open ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+            _openPopup?.Dismiss();
+            var popup = new PopupMenu(
+                more,
+                Root,
+                [
+                    new PopupMenuItem(item.IsPinned ? "Unpin project" : "Pin project", () => PinRequested?.Invoke(this, new ProjectToggleActionEventArgs(item.Id, !item.IsPinned)), IconKey: "pin"),
+                    new PopupMenuItem(item.IsUnread ? "Mark as read" : "Mark as unread", () => ReadStateRequested?.Invoke(this, new ProjectToggleActionEventArgs(item.Id, !item.IsUnread))),
+                    new PopupMenuItem("Archive project", () => ArchiveRequested?.Invoke(this, new ProjectActionEventArgs(item.Id)), Destructive: true)
+                ],
+                menuWidth: 210,
+                accessibleName: $"Project actions for {item.Name}")
+            {
+                Name = prefix + ".Menu"
+            };
+            popup.Dismissed += (_, _) =>
+            {
+                if (ReferenceEquals(_openPopup, popup)) _openPopup = null;
+            };
+            _openPopup = popup;
+            Root.Add(popup);
         };
         shell.Add(more);
         return shell;
-    }
-
-    private Container BuildProjectMenu(ProjectsHavenItem item, string cardPrefix, bool compact)
-    {
-        var prefix = cardPrefix + ".Menu";
-        var menu = new Container { Name = prefix, Layout = HavenLayout.Vertical };
-        menu.SetValue(HavenProperties.Width, HavenLength.Px(compact ? 238 : 258));
-        menu.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.End);
-        menu.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Start);
-        menu.SetValue(HavenProperties.Margin, HavenThickness.Parse("58px 10px 0px 10px"));
-        menu.SetValue(HavenProperties.Background, "SurfaceRaised");
-        menu.SetValue(HavenProperties.BorderColor, "AccentSecondary");
-        menu.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
-        menu.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(18)));
-        menu.SetValue(HavenProperties.Shadow, "Card");
-        menu.SetValue(HavenProperties.Padding, HavenThickness.Parse("12px"));
-        menu.SetValue(HavenProperties.Gap, HavenLength.Px(6));
-        menu.SetValue(HavenProperties.ZIndex, 6);
-        menu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-
-        var title = new HavenText("PROJECT DETAILS") { Name = prefix + ".Title", Level = TextLevel.Caption };
-        title.SetValue(HavenProperties.Foreground, "AccentSecondary");
-        menu.Add(title);
-        menu.Add(DetailLine(prefix + ".Branch", "Branch", item.Branch));
-        menu.Add(DetailLine(prefix + ".State", "State", item.WorkState));
-        menu.Add(DetailLine(prefix + ".Build", "Build", item.BuildState));
-        if (!string.IsNullOrWhiteSpace(item.RecommendedAction))
-            menu.Add(Muted(prefix + ".Recommendation", item.RecommendedAction));
-
-        var pin = ActionButton(prefix + ".Pin", item.IsPinned ? "Unpin project" : "Pin project", ButtonVariant.Ghost, (_, _) =>
-        {
-            menu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            PinRequested?.Invoke(this, new ProjectToggleActionEventArgs(item.Id, !item.IsPinned));
-        });
-        pin.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        menu.Add(pin);
-
-        var read = ActionButton(prefix + ".Read", item.IsUnread ? "Mark as read" : "Mark as unread", ButtonVariant.Ghost, (_, _) =>
-        {
-            menu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            ReadStateRequested?.Invoke(this, new ProjectToggleActionEventArgs(item.Id, !item.IsUnread));
-        });
-        read.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        menu.Add(read);
-
-        var archive = ActionButton(prefix + ".Archive", "Archive project", ButtonVariant.Danger, (_, _) =>
-        {
-            menu.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            ArchiveRequested?.Invoke(this, new ProjectActionEventArgs(item.Id));
-        });
-        archive.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        menu.Add(archive);
-        return menu;
-    }
-
-    private static Container DetailLine(string name, string label, string value)
-    {
-        var line = new Container { Name = name, Layout = HavenLayout.Vertical };
-        line.SetValue(HavenProperties.Padding, HavenThickness.Parse("3px 2px"));
-        line.SetValue(HavenProperties.Gap, HavenLength.Px(1));
-        var key = new HavenText(label.ToUpperInvariant()) { Level = TextLevel.Caption };
-        key.SetValue(HavenProperties.Foreground, "TextSecondary");
-        line.Add(key);
-        line.Add(new HavenText(value) { Level = TextLevel.Caption });
-        return line;
     }
 
     private sealed class ProjectTileContainer : Container
@@ -469,6 +388,8 @@ internal sealed class ProjectsHavenScene : IDisposable
 
     public void Dispose()
     {
+        _openPopup?.Dismiss();
+        _openPopup = null;
         SearchInput.Invalidated -= OnSearchInvalidated;
     }
 }

@@ -7,7 +7,7 @@ namespace Haven.Application;
 /// Owns one Imagine editing session. Project state is immutable at the boundary;
 /// pointer previews stay in the UI and each committed operation becomes one undo step.
 /// </summary>
-public sealed class ImagineProjectSession
+public sealed partial class ImagineProjectSession
 {
     private static readonly JsonSerializerOptions SnapshotOptions = new(JsonSerializerDefaults.Web);
     private readonly Stack<ImagineProject> _undo = new();
@@ -88,7 +88,7 @@ public sealed class ImagineProjectSession
                     project.Tracks.Length,
                     false,
                     1,
-                    [new ImagineClip(Guid.NewGuid(), asset.Id, asset.Name, 0, 0, 0)]);
+                    [new ImagineClip(Guid.NewGuid(), asset.Id, asset.Name, 0, 0, AssetDurationSeconds(asset) ?? 0)]);
                 return project with
                 {
                     Assets = assets,
