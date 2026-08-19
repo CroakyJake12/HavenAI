@@ -119,6 +119,41 @@ public sealed class HavenUiInteractionTests
     }
 
     [Fact]
+    public void Input_selection_replace_cut_and_undo_redo_are_shared_state()
+    {
+        var input = new Input { Text = "Alpha Beta" };
+        input.SelectAll();
+        Assert.True(input.HasSelection);
+        Assert.Equal("Alpha Beta", input.SelectedText);
+
+        Assert.True(input.InsertText("Replaced"));
+        Assert.Equal("Replaced", input.Text);
+        Assert.False(input.HasSelection);
+
+        Assert.True(input.Undo());
+        Assert.Equal("Alpha Beta", input.Text);
+        Assert.Equal("Alpha Beta", input.SelectedText);
+        Assert.True(input.Redo());
+        Assert.Equal("Replaced", input.Text);
+
+        input.SetSelection(0, 3);
+        Assert.True(input.CutSelection());
+        Assert.Equal("laced", input.Text);
+        Assert.True(input.Undo());
+        Assert.Equal("Replaced", input.Text);
+        Assert.Equal("Rep", input.SelectedText);
+    }
+
+    [Fact]
+    public void Pointer_modifier_payload_is_backend_neutral()
+    {
+        var modifiers = new HavenInputModifiers(Shift: true, Control: true, Alt: false, Meta: false);
+        var input = new HavenPointerInput(new HavenPoint(12, 14), new HavenPoint(2, 4), HavenPointerKind.Mouse, modifiers);
+        Assert.True(input.Modifiers.Shift);
+        Assert.True(input.Modifiers.Control);
+    }
+
+    [Fact]
     public void Raw_pointer_target_keeps_capture_outside_bounds_and_consumes_click()
     {
         var root = new Container();

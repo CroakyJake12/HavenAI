@@ -1,10 +1,18 @@
 namespace Haven.UI;
 
+/// <summary>Backend-neutral keyboard/pointer modifier state delivered by platform hosts.</summary>
+public readonly record struct HavenInputModifiers(
+    bool Shift = false,
+    bool Control = false,
+    bool Alt = false,
+    bool Meta = false);
+
 /// <summary>Backend-neutral pointer gesture delivered by HavenInputRouter.</summary>
 public readonly record struct HavenPointerInput(
     HavenPoint Position,
     HavenPoint LocalPosition,
-    HavenPointerKind PointerKind);
+    HavenPointerKind PointerKind,
+    HavenInputModifiers Modifiers = default);
 
 /// <summary>Consumes raw pointer press/move/release without exposing a platform input type to Haven.UI.</summary>
 public interface IHavenPointerInputTarget
