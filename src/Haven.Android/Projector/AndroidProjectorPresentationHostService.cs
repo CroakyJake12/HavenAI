@@ -253,7 +253,9 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
                 return;
             }
 
-            var available = await _catalog.GetExperiencesAsync(session, cancellation.Token).ConfigureAwait(false);
+            var available = (await _catalog.GetExperiencesAsync(session, cancellation.Token).ConfigureAwait(false))
+                .Where(CanExecuteExperience)
+                .ToArray();
             cancellation.Token.ThrowIfCancellationRequested();
             var target = available.FirstOrDefault(experience =>
                 string.Equals(experience.Id, plan.TargetExperienceId, StringComparison.OrdinalIgnoreCase));
@@ -283,6 +285,18 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
             Interlocked.CompareExchange(ref _routeCancellation, null, cancellation);
             cancellation.Dispose();
         }
+    }
+
+    private static bool CanExecuteExperience(ProjectorExperience experience)
+    {
+        if (experience.Source == ProjectorExperienceSource.Application
+            && experience.LaunchStrategy == ProjectorLaunchStrategy.AndroidApplication)
+        {
+            return true;
+        }
+
+        return experience.LaunchStrategy == ProjectorLaunchStrategy.HavenSurface
+            && string.Equals(experience.Id, "desktop", StringComparison.Ordinal);
     }
 
     private void PostRouteStatus(PresentationEntry entry, string title, string description)
@@ -426,7 +440,9 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
     {
         try
         {
-            var experiences = await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false);
+            var experiences = (await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false))
+                .Where(CanExecuteExperience)
+                .ToArray();
             var desktopExperience = session.State == ProjectorSessionState.Active
                 && string.Equals(session.CurrentExperienceId, "desktop", StringComparison.Ordinal)
                 ? experiences.FirstOrDefault(experience =>
@@ -444,7 +460,9 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
                     && string.Equals(current.CurrentExperienceId, "desktop", StringComparison.Ordinal))
                 {
                     session = _sessions.ReturnToGallery();
-                    experiences = await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false);
+                    experiences = (await _catalog.GetExperiencesAsync(session, CancellationToken.None).ConfigureAwait(false))
+                        .Where(CanExecuteExperience)
+                        .ToArray();
                 }
             }
 

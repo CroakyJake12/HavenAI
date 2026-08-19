@@ -143,7 +143,8 @@ internal static class AndroidHavenBootstrap
                 mainView.ApplyMobileLayout();
                 mainView.AttachProjectorControllerSession(
                     services.GetRequiredService<IProjectorSessionCoordinator>(),
-                    services.GetRequiredService<AndroidProjectorControllerActionDispatcher>());
+                    services.GetRequiredService<AndroidProjectorControllerActionDispatcher>(),
+                    services.GetRequiredService<IProjectorDisplayRegistry>());
 
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);

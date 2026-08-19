@@ -12,6 +12,7 @@ namespace Haven.Desktop.Views.Shell;
 public sealed partial class MainView
 {
     private IProjectorSessionCoordinator? _projectorSessions;
+    private IProjectorDisplayRegistry? _projectorDisplays;
     private AndroidProjectorControllerActionDispatcher? _projectorControllerDispatcher;
     private HavenMobileSheet? _projectorControllerSheet;
     private TextBlock? _projectorControllerTitle;
@@ -22,10 +23,12 @@ public sealed partial class MainView
 
     public void AttachProjectorControllerSession(
         IProjectorSessionCoordinator sessions,
-        AndroidProjectorControllerActionDispatcher dispatcher)
+        AndroidProjectorControllerActionDispatcher dispatcher,
+        IProjectorDisplayRegistry displays)
     {
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(dispatcher);
+        ArgumentNullException.ThrowIfNull(displays);
         if (!_mobileLayoutApplied)
             throw new InvalidOperationException("Apply Haven's mobile layout before attaching the Projector phone controller.");
         if (Content is not Grid root)
@@ -35,6 +38,7 @@ public sealed partial class MainView
             _projectorSessions.StateChanged -= OnProjectorSessionChanged;
 
         _projectorSessions = sessions;
+        _projectorDisplays = displays;
         _projectorControllerDispatcher = dispatcher;
 
         if (_projectorControllerSheet is null)
@@ -125,7 +129,7 @@ public sealed partial class MainView
         }
 
         _projectorControllerActions.Children.Clear();
-        if (session is null || session.State is ProjectorSessionState.Disconnected or ProjectorSessionState.Stopping or ProjectorSessionState.Failed)
+        if (session is null)
         {
             _projectorControllerSheet.IsVisible = false;
             return;
@@ -136,6 +140,29 @@ public sealed partial class MainView
             ? session.State.ToString()
             : session.CurrentExperienceId;
         _projectorControllerSubtitle.Text = $"{experienceLabel} · {session.TargetDisplay.Trust} display";
+
+        if (session.State is ProjectorSessionState.Disconnected or ProjectorSessionState.Stopping or ProjectorSessionState.Failed)
+        {
+            if (session.State == ProjectorSessionState.Stopping)
+            {
+                _projectorControllerStatus.Text = "Ending the Projector session…";
+            }
+            else
+            {
+                var fallbackStatus = session.State == ProjectorSessionState.Disconnected
+                    ? "The display disconnected. Reconnect when it appears again."
+                    : "Projector hit a problem. You can try this display again.";
+                _projectorControllerStatus.Text = string.IsNullOrWhiteSpace(session.Error) ? fallbackStatus : session.Error;
+                _projectorControllerActions.Children.Add(MobileButton(
+                    session.State == ProjectorSessionState.Disconnected ? "Reconnect" : "Try again",
+                    "bolt",
+                    () => RecoverProjector(session.Id),
+                    10));
+            }
+
+            _projectorControllerSheet.IsVisible = true;
+            return;
+        }
 
         foreach (var trust in new[]
         {
@@ -181,6 +208,64 @@ public sealed partial class MainView
         }
 
         _projectorControllerSheet.IsVisible = true;
+    }
+
+    private void RecoverProjector(Guid sessionId)
+    {
+        var sessions = _projectorSessions;
+        var displays = _projectorDisplays;
+        var current = sessions?.Current;
+        if (sessions is null || displays is null || current is null || current.Id != sessionId)
+            return;
+
+        ProjectorDisplay? liveDisplay = null;
+        foreach (var candidate in displays.Snapshot())
+        {
+            var stableIdentityMatches = !string.IsNullOrWhiteSpace(current.TargetDisplay.StableIdentity)
+                && !string.IsNullOrWhiteSpace(candidate.StableIdentity)
+                && string.Equals(current.TargetDisplay.StableIdentity, candidate.StableIdentity, StringComparison.Ordinal);
+            if (stableIdentityMatches || string.Equals(current.TargetDisplay.RuntimeId, candidate.RuntimeId, StringComparison.Ordinal))
+            {
+                liveDisplay = candidate;
+                break;
+            }
+        }
+
+        if (liveDisplay is null)
+        {
+            if (_projectorControllerStatus is not null)
+                _projectorControllerStatus.Text = "Waiting for the display to become available again.";
+            return;
+        }
+
+        try
+        {
+            if (current.State == ProjectorSessionState.Disconnected)
+            {
+                if (!sessions.TryReconnect(liveDisplay, out var recovered) || recovered is null)
+                {
+                    if (_projectorControllerStatus is not null)
+                        _projectorControllerStatus.Text = "The display is visible, but Projector could not reconnect yet.";
+                    return;
+                }
+
+                if (_projectorControllerStatus is not null)
+                    _projectorControllerStatus.Text = "Projector reconnected.";
+                return;
+            }
+
+            if (current.State == ProjectorSessionState.Failed)
+            {
+                sessions.Start(liveDisplay);
+                if (_projectorControllerStatus is not null)
+                    _projectorControllerStatus.Text = "Projector restarted on this display.";
+            }
+        }
+        catch (Exception exception)
+        {
+            if (_projectorControllerStatus is not null)
+                _projectorControllerStatus.Text = "Projector could not recover: " + exception.Message;
+        }
     }
 
     private void SetProjectorTrust(Guid sessionId, ProjectorDisplayTrust trust)
@@ -238,6 +323,7 @@ public sealed partial class MainView
         if (_projectorSessions is not null)
             _projectorSessions.StateChanged -= OnProjectorSessionChanged;
         _projectorSessions = null;
+        _projectorDisplays = null;
         _projectorControllerDispatcher = null;
         if (_projectorControllerSheet is not null)
             _projectorControllerSheet.IsVisible = false;
