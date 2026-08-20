@@ -50,7 +50,7 @@ internal sealed class ImagineMediaCanvasElement : ImagineCanvasElement, IHavenDr
         if (!image)
         {
             _notice.Content = mode == ImagineMediaKind.Audio
-                ? "Waveforms and playback are hidden because this runtime has no sample or playback service. Clip timing, trim, split, move, gain and mute are real edits."
+                ? "Real sampled waveforms appear for locally decodable audio. Playback remains hidden until a transport service is available. Clip timing, trim, split, move, gain and mute are real edits."
                 : "Video playback and preview are hidden because this runtime has no native video host. Timeline edits are real; known duration comes from local metadata.";
             EnsureTimeline();
         }
@@ -75,4 +75,10 @@ internal sealed class ImagineMediaCanvasElement : ImagineCanvasElement, IHavenDr
     bool IHavenPointerInputTarget.PointerMoved(HavenPointerInput input) => _mode == ImagineMediaKind.Image && base.PointerMoved(input);
     bool IHavenPointerInputTarget.PointerReleased(HavenPointerInput input) => _mode == ImagineMediaKind.Image && base.PointerReleased(input);
     bool IHavenScrollInputTarget.PointerWheel(HavenPoint localPosition, double deltaX, double deltaY) => _mode == ImagineMediaKind.Image && base.PointerWheel(localPosition, deltaX, deltaY);
+
+    public new void Dispose()
+    {
+        _timeline.Dispose();
+        base.Dispose();
+    }
 }

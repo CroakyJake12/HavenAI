@@ -5,7 +5,7 @@ using Haven.UI;
 
 namespace Haven.Desktop.Views.Pages.Imagine;
 
-internal sealed class ImagineTimelineElement : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget, IDisposable
+internal sealed partial class ImagineTimelineElement : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget, IDisposable
 {
     private const double HeaderWidth = 154d;
     private const double RulerHeight = 34d;
@@ -322,6 +322,7 @@ internal sealed class ImagineTimelineElement : HavenElement, IHavenDrawCommandSo
         var selected = _session?.Project.Selection is { Kind: ImagineSelectionKind.Clip, TargetId: Guid selectedId } && selectedId == clip.Id;
         var brush = new HavenTokenBrush(selected ? "Accent" : track.Kind == ImagineTrackKind.Audio ? "AccentSecondary" : "AccentTertiary");
         context.Add(new HavenFillRoundedRectCommand(rect, brush, 8, opacity));
+        if (track.Kind == ImagineTrackKind.Audio) DrawRealWaveform(context, shown, rect, opacity);
         if (selected) context.Add(new HavenStrokeRoundedRectCommand(rect, new HavenPen(new HavenTokenBrush("TextOnAccent"), 2), 8, opacity));
         var duration = shown.DurationSeconds > 0 ? FormatTime(shown.DurationSeconds) : "duration unknown";
         context.Add(new HavenTextCommand(new HavenRect(rect.X + 8, rect.Y + 8, Math.Max(0, rect.Width - 16), 20), new HavenTextLayout(shown.Name, "Segoe UI", 11, 700, Math.Max(20, rect.Width - 16), true), new HavenTokenBrush("TextOnAccent"), opacity));
@@ -376,5 +377,9 @@ internal sealed class ImagineTimelineElement : HavenElement, IHavenDrawCommandSo
     private ImagineClip? FindClip(Guid id) => _session?.Project.Tracks.SelectMany(track => track.Clips).FirstOrDefault(clip => clip.Id == id);
     private static string FormatTime(double seconds) { var value = TimeSpan.FromSeconds(Math.Max(0, seconds)); return value.TotalHours >= 1 ? value.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture) : value.ToString(@"m\:ss", CultureInfo.InvariantCulture); }
     private void OnSessionChanged(object? sender, EventArgs e) => Invalidate();
-    public void Dispose() { if (_session is not null) _session.Changed -= OnSessionChanged; }
+    public void Dispose()
+    {
+        if (_session is not null) _session.Changed -= OnSessionChanged;
+        _waveforms.Dispose();
+    }
 }
