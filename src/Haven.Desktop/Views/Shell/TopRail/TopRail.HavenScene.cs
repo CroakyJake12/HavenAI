@@ -27,17 +27,17 @@ public sealed partial class TopRail
         {
             _havenOwnedScene = new TopRailFinalScene();
             HavenScene.Root = _havenOwnedScene.Root;
-            _havenOwnedScene.HomeRequested += (_, _) => RaiseHiddenClick(LogoButton);
-            _havenOwnedScene.NewTabRequested += (_, _) => RaiseHiddenClick(AddTabButton);
-            _havenOwnedScene.TabOverviewRequested += (_, _) => RaiseHiddenClick(TabViewButton);
-            _havenOwnedScene.BackRequested += (_, _) => RaiseHiddenClick(BackButton);
-            _havenOwnedScene.ForwardRequested += (_, _) => RaiseHiddenClick(ForwardButton);
-            _havenOwnedScene.AppsRequested += (_, _) => RaiseHiddenClick(AppsButton);
-            _havenOwnedScene.ActionsRequested += (_, _) => RaiseHiddenClick(ActionToolbar.Children.OfType<Button>().FirstOrDefault());
-            _havenOwnedScene.ModelRequested += (_, _) => RaiseHiddenClick(UniversalModelButton);
-            _havenOwnedScene.NotificationsRequested += (_, _) => RaiseHiddenClick(NotificationsButton);
-            _havenOwnedScene.SearchRequested += (_, _) => RaiseHiddenClick(SearchButton);
-            _havenOwnedScene.TabSelected += (_, key) => RaiseHiddenClick(FindTabAnchor(key));
+            _havenOwnedScene.HomeRequested += (_, _) => InvokeHomeAction();
+            _havenOwnedScene.NewTabRequested += (_, _) => InvokeNewTabAction();
+            _havenOwnedScene.TabOverviewRequested += (_, _) => InvokeTabOverviewAction();
+            _havenOwnedScene.BackRequested += (_, _) => InvokeBackAction();
+            _havenOwnedScene.ForwardRequested += (_, _) => InvokeForwardAction();
+            _havenOwnedScene.AppsRequested += (_, _) => InvokeAppsAction();
+            _havenOwnedScene.ActionsRequested += (_, _) => InvokeActionsAction();
+            _havenOwnedScene.ModelRequested += (_, _) => InvokeModelAction();
+            _havenOwnedScene.NotificationsRequested += (_, _) => InvokeNotificationsAction();
+            _havenOwnedScene.SearchRequested += (_, _) => InvokeSearchAction();
+            _havenOwnedScene.TabSelected += (_, key) => InvokeTabSelection(key);
             _havenOwnedScene.TabContextRequested += (_, tab) =>
             {
                 var anchor = FindTabAnchor(tab.Key);
@@ -96,9 +96,4 @@ public sealed partial class TopRail
             : 0;
     }
 
-    private static void RaiseHiddenClick(Button? button)
-    {
-        if (button is null) return;
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-    }
 }

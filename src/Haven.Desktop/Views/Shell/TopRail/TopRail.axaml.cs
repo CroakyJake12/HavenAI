@@ -274,11 +274,7 @@ public sealed partial class TopRail : UserControl, IDisposable
             Tag = tab.Key
         };
         ToolTip.SetTip(button, tab.Title);
-        button.Click += (_, _) =>
-        {
-            Fire("TopRail.Tabs.TabClicked");
-            TabSelected?.Invoke(this, tab.Key);
-        };
+        button.Click += (_, _) => InvokeTabSelection(tab.Key);
         button.PointerPressed += (_, args) =>
         {
             if (args.GetCurrentPoint(button).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed)
@@ -392,60 +388,15 @@ public sealed partial class TopRail : UserControl, IDisposable
             ? theme as Avalonia.Styling.ControlTheme
             : null;
 
-    private void OnLogoClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Logo.Click");
-        HomeRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnAddTabClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Tabs.AddTab");
-        NewTabRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnTabOverviewClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Tabs.Overview");
-        TabOverviewRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnBackClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Back.Click");
-        BackRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnForwardClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Forward.Click");
-        ForwardRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnAppsClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Apps.Click");
-        AppsRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnModelClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Model.Click");
-        ModelRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnSearchClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Search.Click");
-        SearchRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnNotificationsClicked(object? sender, RoutedEventArgs e)
-    {
-        Fire("TopRail.Actions.Notifications.Click");
-        ShowNotifications();
-    }
-
+    private void OnLogoClicked(object? sender, RoutedEventArgs e) => InvokeHomeAction();
+    private void OnAddTabClicked(object? sender, RoutedEventArgs e) => InvokeNewTabAction();
+    private void OnTabOverviewClicked(object? sender, RoutedEventArgs e) => InvokeTabOverviewAction();
+    private void OnBackClicked(object? sender, RoutedEventArgs e) => InvokeBackAction();
+    private void OnForwardClicked(object? sender, RoutedEventArgs e) => InvokeForwardAction();
+    private void OnAppsClicked(object? sender, RoutedEventArgs e) => InvokeAppsAction();
+    private void OnModelClicked(object? sender, RoutedEventArgs e) => InvokeModelAction();
+    private void OnSearchClicked(object? sender, RoutedEventArgs e) => InvokeSearchAction();
+    private void OnNotificationsClicked(object? sender, RoutedEventArgs e) => InvokeNotificationsAction();
     private NotificationCentre CreateNotificationCentre()
     {
         var centre = new NotificationCentre { Height = 520 };
@@ -506,12 +457,7 @@ public sealed partial class TopRail : UserControl, IDisposable
         (byte)Math.Round(from.G + ((to.G - from.G) * amount)),
         (byte)Math.Round(from.B + ((to.B - from.B) * amount)));
 
-    private void OnActionsClicked(object? sender, EventArgs e)
-    {
-        Fire("TopRail.Actions.Open");
-        ActionsRequested?.Invoke(this, EventArgs.Empty);
-    }
-
+    private void OnActionsClicked(object? sender, EventArgs e) => InvokeActionsAction();
     private void Register(string name, Control control)
     {
         _eventBus?.RegisterElement(name, control);
