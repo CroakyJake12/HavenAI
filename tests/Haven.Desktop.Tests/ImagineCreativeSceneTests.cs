@@ -82,6 +82,27 @@ public sealed class ImagineCreativeSceneTests
         Assert.Equal(4, handles.Length);
     }
 
+    [Theory]
+    [InlineData("photo.png", true)]
+    [InlineData("photo.JPEG", true)]
+    [InlineData("scan.webp", true)]
+    [InlineData("notes.txt", false)]
+    public void Vision_platform_input_accepts_only_supported_image_paths(string path, bool expected)
+    {
+        Assert.Equal(expected, VisionPage.IsSupportedImagePath(path));
+    }
+
+    [Fact]
+    public void Vision_platform_input_attaches_paste_action_to_haven_header()
+    {
+        var scene = new VisionScene();
+        var paste = VisionPage.AttachPlatformPasteButton(scene, () => Task.CompletedTask);
+
+        Assert.Equal("Vision.Paste", paste.Name);
+        Assert.Equal("Paste image", paste.Content);
+        Assert.Contains(paste, scene.Root.DescendantsAndSelf());
+    }
+
     [Fact]
     public void Vision_scene_is_a_distinct_haven_native_visual_understanding_surface()
     {

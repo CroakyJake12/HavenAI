@@ -14,13 +14,14 @@ using HavenText = Haven.UI.Components.Text;
 namespace Haven.Desktop.Views.Pages.Imagine;
 
 /// <summary>Dedicated Haven-native visual understanding and OCR workspace.</summary>
-public sealed class VisionPage : UserControl, IDisposable
+public sealed partial class VisionPage : UserControl, IDisposable
 {
     private readonly IProviderModelClient _models; private readonly VisionScene _scene = new(); private readonly HavenSceneControl _host; private CancellationTokenSource? _analysisCancellation; private string? _imagePath; private bool _disposed;
     public VisionPage(IProviderModelClient models)
     {
         _models = models; _host = new HavenSceneControl { Root = _scene.Root }; Content = _host; _host.InputSubmitted += input => { if (ReferenceEquals(input, _scene.Question)) _ = AnalyseAsync(_scene.Question.Text); };
         _scene.ImportRequested += async (_, _) => await PickImageAsync(); _scene.AnalyseRequested += prompt => _ = AnalyseAsync(prompt); _scene.OcrRequested += (_, _) => _ = AnalyseAsync("Read and transcribe all visible text in this image. Preserve line breaks and clearly mark uncertain characters."); _scene.StopRequested += (_, _) => _analysisCancellation?.Cancel(); _scene.OpenImagineRequested += (_, _) => { if (!string.IsNullOrWhiteSpace(_imagePath)) OpenInImagineRequested?.Invoke(_imagePath); else _scene.SetStatus("Import an image before opening it in Imagine."); }; SizeChanged += (_, e) => _scene.SetViewportWidth(e.NewSize.Width);
+        WirePlatformImageInput();
     }
     public event Action<string>? OpenInImagineRequested; public string? ImagePath => _imagePath;
     public Task LoadImageAsync(string path) { if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) { _scene.SetStatus("The requested image is unavailable."); return Task.CompletedTask; } _imagePath = Path.GetFullPath(path); _scene.SetImage(_imagePath); _scene.SetStatus("Image ready for visual analysis."); return Task.CompletedTask; }
