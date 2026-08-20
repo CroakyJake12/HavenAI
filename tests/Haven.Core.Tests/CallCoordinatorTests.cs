@@ -725,7 +725,7 @@ public sealed class CallCoordinatorTests
         public Task<ScreenShareSource> StartWithSystemPickerAsync(CancellationToken cancellationToken)
         {
             IsSharing = true;
-            CurrentSource = new("screen-1", "Test screen", false);
+            CurrentSource = new("screen-1", "Test screen", ScreenShareSourceKind.Screen);
             return Task.FromResult(CurrentSource);
         }
         /// <summary>
