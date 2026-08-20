@@ -13,6 +13,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
 {
     private readonly OverlayWorkspaceRegistry _registry;
     private readonly OverlayContextActionCandidateService _actionCandidates;
+    private readonly OverlayForegroundContextCaptureService _contextCapture;
     private readonly OverlayChatSessionFactory _chats;
     private readonly OverlayGoSessionFactory _go;
     private readonly OverlayGlobalHotkey _hotkey;
@@ -25,6 +26,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
     public OverlayWorkspaceController(
         OverlayWorkspaceRegistry registry,
         OverlayContextActionCandidateService actionCandidates,
+        OverlayForegroundContextCaptureService contextCapture,
         OverlayChatSessionFactory chats,
         OverlayGoSessionFactory go,
         OverlayGlobalHotkey hotkey,
@@ -32,6 +34,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
     {
         _registry = registry;
         _actionCandidates = actionCandidates;
+        _contextCapture = contextCapture;
         _chats = chats;
         _go = go;
         _hotkey = hotkey;
@@ -513,7 +516,24 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
         if (_disposed) return;
-        RunOnUi(() => ToggleWorkspaceAsync(CancellationToken.None));
+        RunOnUi(() => HandleHotkeyAsync(CancellationToken.None));
+    }
+    private async Task HandleHotkeyAsync(CancellationToken cancellationToken)
+    {
+        OverlayContextEnvelope? context = null;
+        try { context = await _contextCapture.CaptureAsync(cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            _notifications.Show("Overlay context unavailable", exception.Message, ToastKind.Warning, TimeSpan.FromSeconds(5));
+        }
+        if (context is null)
+        {
+            await ToggleWorkspaceAsync(cancellationToken);
+            return;
+        }
+        await OpenNewGoAsync(context,
+            context.Provenance.SourceApplication ?? context.Provenance.SourceWindow, cancellationToken);
     }
 
     private void QueueGeometryUpdate(Guid sessionId, OverlaySurfaceGeometry geometry)

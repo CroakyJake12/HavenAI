@@ -269,10 +269,21 @@ public interface IWorkspaceToolService
 }
 
 /// <summary>
+/// Represents bounded selection and focused-control context captured from the foreground desktop.
+/// </summary>
+public sealed record ComputerSelectionSnapshot(
+    string? SelectedText, string? SourceApplication, string? SourceWindow,
+    double? X, double? Y, double? Width, double? Height,
+    string? AccessibleName, string? AutomationId, string? ControlType,
+    bool? IsEnabled, bool? IsSelected, DateTimeOffset CapturedAt, bool WasTruncated);
+
+/// <summary>
 /// Defines the computer tool service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IComputerToolService
 {
+    Task<ComputerSelectionSnapshot?> GetSelectionSnapshotAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<ComputerSelectionSnapshot?>(null);
     Task<string> SnapshotAsync(CancellationToken cancellationToken);
     Task<string> ListWindowsAsync(CancellationToken cancellationToken);
     Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken);
