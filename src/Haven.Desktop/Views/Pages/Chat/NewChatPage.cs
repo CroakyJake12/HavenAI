@@ -64,6 +64,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private GenerativeUiResponseMode? _chatGenerativeUiResponseModeOverride;
     private ModelDescriptor? _selectedModel;
     private string? _pendingInstruction;
+    private bool _pendingInstructionPreservesDraft;
     private CancellationTokenSource? _sendCancellation;
     private readonly DispatcherTimer _sendProgressTimer;
     private bool _isSending;
@@ -125,21 +126,20 @@ public sealed class NewChatPage : UserControl, IDisposable
         Content = Scene;
         WireScene();
 
-        _sendProgressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _sendProgressTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _sendProgressTimer.Tick += (_, _) =>
         {
             if (!_isSending) return;
-            var elapsed = TimeSpan.FromMilliseconds(Environment.TickCount64 - _sendStartTick);
-            _scene.SetStatus(elapsed.TotalSeconds switch
+            var followLatest = IsFollowingLatest();
+            foreach (var messageId in _streamingMessages.ToArray())
             {
-                < 15 => "Thinkingâ€¦",
-                < 30 => "Taking a momentâ€¦",
-                < 60 => "Still workingâ€¦",
-                < 120 => "This is a complex requestâ€¦",
-                _ => $"Working for {(int)elapsed.TotalMinutes}m {(int)elapsed.Seconds}sâ€¦"
-            });
+                var message = _messages.FirstOrDefault(item => item.Id == messageId);
+                if (message is not null) RefreshMessage(message);
+            }
+            ScrollToEndIfFollowing(followLatest);
         };
 
+        RefreshResponseControls();
         RefreshVisualState();
         _ = InitialiseAsync();
     }
@@ -235,6 +235,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (string.IsNullOrWhiteSpace(pending)) return;
         _scene.Instruction.Text = pending;
         _pendingInstruction = pending;
+        _pendingInstructionPreservesDraft = false;
         TrySubmitPendingInstruction();
     }
 
@@ -297,8 +298,17 @@ public sealed class NewChatPage : UserControl, IDisposable
     {
         ArgumentNullException.ThrowIfNull(conversation);
         _conversation = conversation;
+        _activeAgent = null;
+        _activeInstructions.Clear();
         _chatActionModeOverride = null;
         _chatGenerativeUiResponseModeOverride = null;
+        _attachedImages.Clear();
+        _attachedContext.Clear();
+        _taskAttachments.Clear();
+        _pendingInstruction = null;
+        _pendingInstructionPreservesDraft = false;
+        RefreshAttachmentStatus();
+        RefreshResponseControls();
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
         RefreshMessages();
@@ -335,6 +345,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                 RefreshAttachmentStatus();
                 break;
         }
+        RefreshResponseControls();
     }
 
     public bool IsCapabilityAttached(Guid capabilityId) => _taskAttachments.IsCapabilityAttached(capabilityId);
@@ -523,9 +534,9 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private void ShowResolveProblems()
     {
-        _scene.ShowChoicePrompt(
+        _scene.ShowResolveProblemsMenu(
             "Resolve Problems",
-            "Choose what is going wrong. Haven will prepare a focused recovery instruction for you to review and send.",
+            "Choose what is going wrong. Haven will apply the selected recovery directly.",
             [
                 ("Hallucinating", () => SetRecoveryDraft("Stop and audit your previous responses in this chat for hallucinations. Re-check every factual claim against the information actually available, clearly separate verified facts from assumptions, correct anything unsupported, and ask for missing information instead of guessing.")),
                 ("Looping", () => SetRecoveryDraft("You are repeating the same approach. Stop the loop, briefly identify what has already been attempted and why it did not work, then choose a materially different approach and continue from there without repeating earlier steps.")),
@@ -536,8 +547,26 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private void SetRecoveryDraft(string text)
     {
+        if (_isSending)
+        {
+            _pendingInstruction = text;
+            _pendingInstructionPreservesDraft = true;
+            _scene.SetStatus("Stopping the current response and applying the recovery…");
+            _sendCancellation?.Cancel();
+            return;
+        }
+
+        var preservedDraft = _scene.Instruction.Text;
+        if (_selectedModel is null)
+        {
+            _pendingInstruction = text;
+            _pendingInstructionPreservesDraft = true;
+            _scene.SetStatus("Connecting to the selected local model…");
+            return;
+        }
         SetDraft(text);
-        _scene.SetStatus("Review the recovery instruction, then send it when ready.");
+        _ = SubmitCurrentInstructionAsync();
+        SetDraft(preservedDraft);
     }
 
     private async Task SubmitCurrentInstructionAsync()
@@ -547,6 +576,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         if (_selectedModel is null)
         {
             _pendingInstruction = instruction;
+            _pendingInstructionPreservesDraft = false;
             _scene.SetStatus("Connecting to the selected local modelâ€¦");
             return;
         }
@@ -633,7 +663,11 @@ public sealed class NewChatPage : UserControl, IDisposable
             _sendCancellation?.Dispose();
             _sendCancellation = null;
             _isSending = false;
-            await Dispatcher.UIThread.InvokeAsync(RefreshVisualState);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                RefreshVisualState();
+                TrySubmitPendingInstruction();
+            });
         }
     }
 
@@ -647,6 +681,9 @@ public sealed class NewChatPage : UserControl, IDisposable
                 break;
             case ChatStreamEventKind.AssistantStarted when streamEvent.MessageId is { } assistantId:
                 _streamingMessages.Add(assistantId);
+                _thinkingStartTick[assistantId] = Environment.TickCount64;
+                _thinkingEndTick.Remove(assistantId);
+                _thinkingContent.Remove(assistantId);
                 UpsertMessage(new ChatMessage(
                     assistantId,
                     _conversation.Id,
@@ -660,42 +697,54 @@ public sealed class NewChatPage : UserControl, IDisposable
                 break;
             case ChatStreamEventKind.AssistantDelta when streamEvent.MessageId is { } deltaId:
             {
+                var followLatest = IsFollowingLatest();
                 var index = _messages.FindIndex(message => message.Id == deltaId);
                 if (index < 0) break;
                 _messages[index] = _messages[index] with { Content = _messages[index].Content + (streamEvent.Delta ?? string.Empty) };
                 RefreshMessage(_messages[index]);
-                Dispatcher.UIThread.Post(_scene.ScrollToEnd, DispatcherPriority.Background);
+                ScrollToEndIfFollowing(followLatest);
                 break;
             }
             case ChatStreamEventKind.ThinkingDelta when streamEvent.MessageId is { } thinkingId:
             {
+                var followLatest = IsFollowingLatest();
                 if (!_thinkingContent.ContainsKey(thinkingId))
-                {
                     _thinkingContent[thinkingId] = string.Empty;
+                if (!_thinkingStartTick.ContainsKey(thinkingId))
                     _thinkingStartTick[thinkingId] = Environment.TickCount64;
-                }
                 _thinkingContent[thinkingId] += streamEvent.Thinking ?? string.Empty;
                 var message = _messages.FirstOrDefault(item => item.Id == thinkingId);
-                if (message is not null) RefreshMessage(message);
+                if (message is not null)
+                {
+                    RefreshMessage(message);
+                    ScrollToEndIfFollowing(followLatest);
+                }
                 break;
             }
             case ChatStreamEventKind.AssistantCompleted when streamEvent.Message is not null:
+            {
+                var followLatest = IsFollowingLatest();
                 _streamingMessages.Remove(streamEvent.Message.Id);
                 if (_thinkingStartTick.ContainsKey(streamEvent.Message.Id) && !_thinkingEndTick.ContainsKey(streamEvent.Message.Id))
                     _thinkingEndTick[streamEvent.Message.Id] = Environment.TickCount64;
                 UpsertMessage(streamEvent.Message);
                 RefreshMessage(streamEvent.Message);
+                ScrollToEndIfFollowing(followLatest);
                 break;
+            }
             case ChatStreamEventKind.ToolActivity when streamEvent.ToolActivity is { } activity && streamEvent.MessageId is { } toolMessageId:
-                _scene.SetStatus(activity.Detail);
+            {
+                var followLatest = IsFollowingLatest();
+                
                 var toolMessageIndex = _messages.FindIndex(message => message.Id == toolMessageId);
                 if (toolMessageIndex >= 0)
                 {
                     _messages[toolMessageIndex] = AppendToolActivity(_messages[toolMessageIndex], activity);
                     RefreshMessage(_messages[toolMessageIndex]);
-                    Dispatcher.UIThread.Post(_scene.ScrollToEnd, DispatcherPriority.Background);
+                    ScrollToEndIfFollowing(followLatest);
                 }
                 break;
+            }
             case ChatStreamEventKind.PreflightFailed:
                 _scene.SetStatus(streamEvent.PreflightResult is { Missing.Count: > 0 } preflight
                     ? string.Join(" ", preflight.Missing.Select(item => item.Reason))
@@ -711,6 +760,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             Dispatcher.UIThread.Post(RefreshMessages);
             return;
         }
+        var followLatest = IsFollowingLatest();
         PruneGeneratedSurfaces();
         var sceneMessages = _messages.Select(BuildSceneMessage).ToArray();
         _scene.SyncMessages(sceneMessages);
@@ -720,13 +770,21 @@ public sealed class NewChatPage : UserControl, IDisposable
             _lastReportedHasStarted = HasStarted;
             ConversationStateChanged?.Invoke(this, EventArgs.Empty);
         }
-        Dispatcher.UIThread.Post(_scene.ScrollToEnd, DispatcherPriority.Background);
+        ScrollToEndIfFollowing(followLatest);
     }
 
     private void RefreshMessage(ChatMessage message)
     {
         _scene.UpdateMessage(BuildSceneMessage(message));
         if (message.Role == MessageRole.Assistant) RefreshGeneratedContent(message);
+    }
+
+    private bool IsFollowingLatest() =>
+        ChatTranscriptScrollPolicy.ShouldFollow(_scene.Messages.MaxScrollY, _scene.Messages.ScrollY);
+
+    private void ScrollToEndIfFollowing(bool wasFollowing)
+    {
+        if (wasFollowing) Dispatcher.UIThread.Post(_scene.ScrollToEnd, DispatcherPriority.Background);
     }
 
     private static IReadOnlyList<ToolActivity> ReadToolActivities(ChatMessage message)
@@ -769,6 +827,14 @@ public sealed class NewChatPage : UserControl, IDisposable
             }
             thinking = (elapsed > 0 ? $"Thought for {elapsed} seconds\n" : "Thinkingâ€¦\n") + content;
         }
+        var isStreaming = _streamingMessages.Contains(message.Id);
+        if (message.Role == MessageRole.Assistant && _thinkingStartTick.TryGetValue(message.Id, out var responseStart))
+        {
+            var responseEnd = _thinkingEndTick.TryGetValue(message.Id, out var completed) ? completed : Environment.TickCount64;
+            var elapsed = Math.Max(0, (responseEnd - responseStart) / 1000);
+            _thinkingContent.TryGetValue(message.Id, out var detail);
+            thinking = ChatProgressText.Format(isStreaming, elapsed, detail);
+        }
         return new ChatSceneMessage(
             message.Id,
             message.Role,
@@ -789,6 +855,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             preview.SetValue(HavenProperties.Foreground, "TextSoft");
             generated.Add(preview);
         }
+        var needsRecovery = false;
         for (var surfaceIndex = 0; surfaceIndex < directive.Requests.Count; surfaceIndex++)
         {
             try
@@ -807,6 +874,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             }
             catch (Exception exception) when (exception is InvalidOperationException or ArgumentException)
             {
+                needsRecovery = true;
                 var warning = new Text { Content = $"Could not render {directive.Requests[surfaceIndex].TemplateKey}: {exception.Message}" };
                 warning.SetValue(HavenProperties.Foreground, "Danger");
                 generated.Add(warning);
@@ -815,9 +883,15 @@ public sealed class NewChatPage : UserControl, IDisposable
         RemoveGeneratedSurfacesAfter(message.Id, directive.Requests.Count);
         if (!string.IsNullOrWhiteSpace(directive.Error))
         {
-            var warning = new Text { Content = "Interactive content unavailable: " + directive.Error };
+            needsRecovery = true;
+            var warning = new Text { Content = "Interactive content could not be rendered: " + directive.Error };
             warning.SetValue(HavenProperties.Foreground, "Danger");
             generated.Add(warning);
+        }
+        if (needsRecovery && !_streamingMessages.Contains(message.Id))
+        {
+            generated.Add(ChatGeneratedContentRecovery.CreateRetryButton(
+                () => _ = RegenerateResponseAsync(message, ResponseRegenerationMode.Here)));
         }
         if (generated.Count == 0) _scene.ClearGeneratedContent(message.Id);
         else _scene.SetGeneratedContent(message.Id, generated);
@@ -956,9 +1030,9 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private void ShowRegenerateChoices(ChatMessage message)
     {
-        _scene.ShowChoicePrompt(
+        _scene.ShowMessageChoiceMenu(
+            message.Id,
             "Re-generate response",
-            $"Current model: {_selectedModel?.Name ?? "No model"}",
             [
                 ("Re-generate in current chat", () => _ = RegenerateResponseAsync(message, ResponseRegenerationMode.Here)),
                 ("Re-generate in branch", () => _ = RegenerateResponseAsync(message, ResponseRegenerationMode.NewBranch))
@@ -967,9 +1041,9 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private void ShowBranchChoices(ChatMessage message)
     {
-        _scene.ShowChoicePrompt(
+        _scene.ShowMessageChoiceMenu(
+            message.Id,
             "Branch message",
-            "Continue from this point without changing the current conversation.",
             [
                 ("Branch in new chat", () => _ = BranchIntoNewChatAsync(message)),
                 ("Branch in existing chat", () => _ = ShowExistingChatPickerAsync(message))
@@ -978,9 +1052,9 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private void ShowEditChoices(ChatMessage message)
     {
-        _scene.ShowChoicePrompt(
+        _scene.ShowMessageChoiceMenu(
+            message.Id,
             "Edit message",
-            "Choose how this edit should affect conversation history.",
             [
                 ("Restart from here", () => ShowMessageEditor(message, MessageEditChoice.RestartHere)),
                 ("Edit in new branch", () => ShowMessageEditor(message, MessageEditChoice.NewBranch)),
@@ -1100,7 +1174,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             _scene.SetStatus("No other saved chats yet.");
             return;
         }
-        _scene.ShowChoicePrompt("Choose an existing chat", "The selected message will be placed in the composer of that chat.", choices);
+        _scene.ShowMessageChoiceMenu(sourceMessage.Id, "Choose an existing chat", choices);
     }
 
     private async Task ContinueInExistingChatAsync(Conversation target, ChatMessage sourceMessage)
@@ -1146,9 +1220,11 @@ public sealed class NewChatPage : UserControl, IDisposable
         _thinkingStartTick.Clear();
         _thinkingEndTick.Clear();
         _pendingInstruction = null;
+        _pendingInstructionPreservesDraft = false;
         ClearGeneratedSurfaces();
         _scene.SetStatus(null);
         RefreshAttachmentStatus();
+        RefreshResponseControls();
         RefreshMessages();
     }
 
@@ -1228,10 +1304,20 @@ public sealed class NewChatPage : UserControl, IDisposable
     private void TrySubmitPendingInstruction()
     {
         if (_selectedModel is null || _isSending || string.IsNullOrWhiteSpace(_pendingInstruction)) return;
-        _scene.Instruction.Text = _pendingInstruction;
+        var pending = _pendingInstruction;
+        var restoreDraft = _pendingInstructionPreservesDraft ? _scene.Instruction.Text : null;
+        _scene.Instruction.Text = pending;
         _pendingInstruction = null;
+        _pendingInstructionPreservesDraft = false;
         _ = SubmitCurrentInstructionAsync();
+        if (restoreDraft is not null) SetDraft(restoreDraft);
     }
+
+    private void RefreshResponseControls() =>
+        _scene.SetResponseState(
+            ActiveAgentName,
+            EffectiveChatActionMode,
+            _chatGenerativeUiResponseModeOverride ?? GenerativeUiResponseMode.Auto);
 
     private void RefreshVisualState()
     {

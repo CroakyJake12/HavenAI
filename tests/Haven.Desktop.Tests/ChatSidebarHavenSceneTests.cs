@@ -114,6 +114,37 @@ public sealed class ChatSidebarHavenSceneTests
         Assert.Equal(ChatSidebarConversationAction.Open, request.Action);
     }
 
+    [Fact]
+    public void Sidebar_sync_handles_150_chats_without_losing_dynamic_row_identity()
+    {
+        using var scene = new ChatSidebarHavenScene();
+        var chats = Enumerable.Range(0, 150)
+            .Select(index => new ChatSidebarEntry(
+                ChatSidebarEntryKind.Conversation,
+                Guid.NewGuid(),
+                $"Chat {index:000}",
+                false,
+                false,
+                false))
+            .ToArray();
+
+        scene.SetRows([], [], [], chats);
+
+        Assert.Equal(150, scene.ChatRows.Items.Count);
+        var trackedId = chats[87].Id;
+        var trackedItem = scene.ChatRows.Items[87];
+        var refreshed = chats
+            .Select(entry => entry.Id == trackedId ? entry with { Title = "Updated at scale" } : entry)
+            .ToArray();
+
+        scene.SetRows([], [], [], refreshed);
+
+        Assert.Equal(150, scene.ChatRows.Items.Count);
+        var refreshedItem = scene.ChatRows.Items[87];
+        Assert.Same(trackedItem, refreshedItem);
+        Assert.Equal("Updated at scale", refreshedItem.GetComponent<HavenButton>("Open").Content);
+    }
+
     private static void Click(HavenInputRouter router, HavenElement element)
     {
         var point = new HavenPoint(element.Bounds.X + element.Bounds.Width / 2, element.Bounds.Y + element.Bounds.Height / 2);

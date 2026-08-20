@@ -36,7 +36,8 @@ internal sealed class GoHavenScene : IDisposable
         LoadMoreButton = new HavenButton { Name = "Go.Suggestions.LoadMore", Variant = ButtonVariant.Text, Content = "More suggestions" };
         LoadMoreButton.SetValue(HavenProperties.Row, 1);
         LoadMoreButton.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center);
-        LoadMoreButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        LoadMoreButton.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
+        LoadMoreButton.Accessibility.AccessibleName = "Load more Go suggestions";
         Root.Add(LoadMoreButton);
 
         AttachmentText = new HavenText { Name = "Go.Attachments.StatusText", Level = TextLevel.Caption };
@@ -128,7 +129,24 @@ internal sealed class GoHavenScene : IDisposable
                 button.Accessibility.Description = suggestion.Instruction;
             }
             foreach (var icon in _suggestionIcons[index]) icon.Key = suggestion.IconKey;
+            foreach (var pill in Root.DescendantsAndSelf().OfType<Container>().Where(element =>
+                         element.Name == $"Go.Suggestions.Item{index}.IconPill.Wide"
+                         || element.Name == $"Go.Suggestions.Item{index}.IconPill.Compact"))
+                pill.SetValue(HavenProperties.Background, AccentTokenForColour(suggestion.Colour));
         }
+    }
+
+    internal static string AccentTokenForColour(string colour)
+    {
+        if (colour is not { Length: 7 } || colour[0] != '#') return "Accent";
+        if (!int.TryParse(colour.AsSpan(1, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var red)
+            || !int.TryParse(colour.AsSpan(3, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var green)
+            || !int.TryParse(colour.AsSpan(5, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var blue))
+            return "Accent";
+
+        if (blue >= red && blue >= green) return "AccentSecondary";
+        if (green >= red && green >= blue) return "AccentMuted";
+        return "Accent";
     }
 
     public void SetCatalogue(

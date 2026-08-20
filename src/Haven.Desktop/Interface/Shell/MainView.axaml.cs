@@ -1595,10 +1595,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         var page = new GoPage(_bus);
         page.SubmitRequested += async (_, instruction) =>
-        {
-            var attachments = page.TakeAttachments();
-            await OpenNewChatAsync(instruction, initialAttachments: attachments);
-        };
+            await RouteGoSubmissionAsync(page, instruction);
         page.RefreshSuggestionsRequested += (_, _) =>
             QueueGoSuggestionRefresh(page, "The user asked Haven for another set of useful next actions.", TimeSpan.Zero, true);
         page.Disposed += OnGoPageDisposed;

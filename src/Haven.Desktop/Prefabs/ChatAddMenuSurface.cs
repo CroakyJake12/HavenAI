@@ -20,6 +20,9 @@ internal sealed class ChatAddMenuSurface : IDisposable
     private IReadOnlyList<ModeDefinition> _apps = [];
     private AddMenu.AddMenuAction? _catalogAction;
     private string _lastSearch = string.Empty;
+    private string _currentAgentName = "No Agent (Default)";
+    private ChatActionMode _currentActionMode = ChatActionMode.AllowBasicActions;
+    private GenerativeUiResponseMode _currentVisualMode = GenerativeUiResponseMode.Auto;
     private bool _disposed;
 
     public ChatAddMenuSurface(Prefab prefab)
@@ -38,6 +41,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         AppsButton = prefab.GetComponent<HavenButton>("Apps");
         AllowActionsButton = prefab.GetComponent<HavenButton>("AllowActions");
         VisualResponsesButton = prefab.GetComponent<HavenButton>("VisualResponses");
+        CurrentResponseState = prefab.GetComponent<HavenText>("CurrentResponseState");
 
         DismissButton.Invoked += OnDismissInvoked;
         AttachFilesButton.Invoked += OnAttachFilesInvoked;
@@ -65,6 +69,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
     public HavenButton AppsButton { get; }
     public HavenButton AllowActionsButton { get; }
     public HavenButton VisualResponsesButton { get; }
+    public HavenText CurrentResponseState { get; }
 
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
@@ -79,6 +84,21 @@ internal sealed class ChatAddMenuSurface : IDisposable
         _capabilities = (capabilities ?? []).Where(item => item.IsEnabled && item.IsAttachable).OrderBy(item => item.Name).ToArray();
         _instructions = (instructions ?? []).Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
         _apps = (apps ?? []).Where(item => item.IsEnabled).OrderBy(item => item.Name).ToArray();
+        if (_catalogAction is not null) RebuildCatalogue();
+    }
+
+    public void SetResponseState(string agentName, ChatActionMode actionMode, GenerativeUiResponseMode visualMode)
+    {
+        _currentAgentName = string.IsNullOrWhiteSpace(agentName) ? "No Agent (Default)" : agentName.Trim();
+        _currentActionMode = actionMode;
+        _currentVisualMode = visualMode;
+        var agent = _currentAgentName.Equals("No Agent (Default)", StringComparison.OrdinalIgnoreCase)
+            ? "Default agent"
+            : _currentAgentName;
+        CurrentResponseState.Content = $"{agent} · {ActionModeSummary(_currentActionMode)} · {VisualModeSummary(_currentVisualMode)}";
+        AgentsButton.Accessibility.Description = "Current agent: " + _currentAgentName;
+        AllowActionsButton.Accessibility.Description = "Current setting: " + ActionModeSummary(_currentActionMode);
+        VisualResponsesButton.Accessibility.Description = "Current setting: " + VisualModeSummary(_currentVisualMode);
         if (_catalogAction is not null) RebuildCatalogue();
     }
 
@@ -128,7 +148,7 @@ internal sealed class ChatAddMenuSurface : IDisposable
         switch (_catalogAction.Value)
         {
             case AddMenu.AddMenuAction.Agent:
-                AddCatalogHeading("Current: No Agent (Default)");
+                AddCatalogHeading("Current: " + _currentAgentName);
                 AddCatalogRows(AddMenu.AddMenuAction.Agent, _agents.Where(item => Matches(item.Name, item.Description, query)), item => item.Name, item => item.Description);
                 break;
             case AddMenu.AddMenuAction.Capability:
@@ -207,6 +227,22 @@ internal sealed class ChatAddMenuSurface : IDisposable
         button.SetValue(HavenProperties.FontWeight, 700);
         return button;
     }
+
+    private static string ActionModeSummary(ChatActionMode mode) => mode switch
+    {
+        ChatActionMode.AllowAllActions => "All actions",
+        ChatActionMode.JustChat => "Just chat",
+        _ => "Basic actions"
+    };
+
+    private static string VisualModeSummary(GenerativeUiResponseMode mode) => mode switch
+    {
+        GenerativeUiResponseMode.AlwaysVisual => "Always visual",
+        GenerativeUiResponseMode.PreferVisual => "Prefer visual",
+        GenerativeUiResponseMode.PreferText => "Prefer text",
+        GenerativeUiResponseMode.AlwaysText => "Always text",
+        _ => "Auto"
+    };
 
     private static bool Matches(string name, string description, string query) =>
         string.IsNullOrWhiteSpace(query)
