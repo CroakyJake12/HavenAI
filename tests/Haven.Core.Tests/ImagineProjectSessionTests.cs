@@ -86,6 +86,32 @@ public sealed class ImagineProjectSessionTests
     }
 
     [Fact]
+    public void Layer_visibility_lock_and_stacking_are_real_undoable_project_edits()
+    {
+        var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Layers", 1000, 800));
+        var backId = session.AddRectangle(50, 50, 200, 120);
+        var frontId = session.AddRectangle(90, 80, 200, 120);
+
+        Assert.True(session.ToggleObjectVisibility(backId));
+        Assert.False(session.Project.Objects.Single(item => item.Id == backId).IsVisible);
+        Assert.True(session.Undo());
+        Assert.True(session.Project.Objects.Single(item => item.Id == backId).IsVisible);
+
+        Assert.True(session.ToggleObjectLock(frontId));
+        Assert.True(session.Project.Objects.Single(item => item.Id == frontId).IsLocked);
+        Assert.False(session.MoveObjectLayer(frontId, -1));
+        Assert.True(session.ToggleObjectLock(frontId));
+        Assert.False(session.Project.Objects.Single(item => item.Id == frontId).IsLocked);
+
+        Assert.True(session.MoveObjectLayer(frontId, -1));
+        var back = session.Project.Objects.Single(item => item.Id == backId);
+        var front = session.Project.Objects.Single(item => item.Id == frontId);
+        Assert.True(front.ZIndex < back.ZIndex);
+        Assert.Equal(ImagineSelectionKind.Object, session.Project.Selection.Kind);
+        Assert.Equal(frontId, session.Project.Selection.TargetId);
+    }
+
+    [Fact]
     public void Semantic_components_keep_hierarchy_and_selected_ai_request_scope()
     {
         var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Semantic"));

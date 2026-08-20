@@ -307,6 +307,66 @@ public sealed partial class ImagineProjectSession
         return true;
     }
 
+    public bool ToggleObjectVisibility(Guid objectId)
+    {
+        var current = Project.Objects.FirstOrDefault(item => item.Id == objectId);
+        if (current is null) return false;
+        Apply(
+            "toggle-object-visibility",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, objectId),
+            "user",
+            null,
+            project => project with
+            {
+                Objects = project.Objects.Select(item => item.Id == objectId ? item with { IsVisible = !current.IsVisible } : item).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, objectId)
+            });
+        return true;
+    }
+
+    public bool ToggleObjectLock(Guid objectId)
+    {
+        var current = Project.Objects.FirstOrDefault(item => item.Id == objectId);
+        if (current is null) return false;
+        Apply(
+            "toggle-object-lock",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, objectId),
+            "user",
+            null,
+            project => project with
+            {
+                Objects = project.Objects.Select(item => item.Id == objectId ? item with { IsLocked = !current.IsLocked } : item).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, objectId)
+            });
+        return true;
+    }
+
+    public bool MoveObjectLayer(Guid objectId, int direction)
+    {
+        if (direction == 0) return false;
+        var current = Project.Objects.FirstOrDefault(item => item.Id == objectId);
+        if (current is null || current.IsLocked || Project.Objects.Length < 2) return false;
+        var ordered = Project.Objects.OrderBy(item => item.ZIndex).ThenBy(item => item.Id).ToList();
+        var index = ordered.FindIndex(item => item.Id == objectId);
+        var target = index + Math.Sign(direction);
+        if (index < 0 || target < 0 || target >= ordered.Count) return false;
+        var moving = ordered[index];
+        ordered.RemoveAt(index);
+        ordered.Insert(target, moving);
+        var zById = ordered.Select((item, z) => (item.Id, z)).ToDictionary(item => item.Id, item => item.z);
+        Apply(
+            direction > 0 ? "raise-object-layer" : "lower-object-layer",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, objectId),
+            "user",
+            null,
+            project => project with
+            {
+                Objects = project.Objects.Select(item => item with { ZIndex = zById[item.Id] }).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, objectId)
+            });
+        return true;
+    }
+
     public bool DuplicateSelected()
     {
         var item = SelectedObject();

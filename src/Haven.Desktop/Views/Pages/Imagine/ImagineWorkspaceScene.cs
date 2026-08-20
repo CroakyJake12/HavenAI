@@ -10,7 +10,7 @@ using HavenText = Haven.UI.Components.Text;
 namespace Haven.Desktop.Views.Pages.Imagine;
 
 /// <summary>Visible release workspace for Imagine. Image, Audio, and Video share project/media state but not editor chrome.</summary>
-internal sealed class ImagineWorkspaceScene : IDisposable
+internal sealed partial class ImagineWorkspaceScene : IDisposable
 {
     private readonly HavenPrefabCatalog _prefabs;
     private readonly DynamicUI _dynamic;
@@ -86,6 +86,9 @@ internal sealed class ImagineWorkspaceScene : IDisposable
         Right = Vertical("Imagine.Right", 8); Right.SetValue(HavenProperties.Column, 2); Right.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
         Body.Add(Right); ProjectTitle = Heading("Untitled Imagine Project"); Right.Add(ProjectTitle);
         Selection = Muted("Imagine.Selection", "Nothing selected."); Right.Add(Selection);
+        LayerPanel = Vertical("Imagine.LayerPanel", 8); LayerPanel.Add(Heading("Layers"));
+        Layers = Runtime("Imagine.Layers"); LayerPanel.Add(Layers);
+        LayersEmpty = Muted("Imagine.LayersEmpty", "No image objects yet."); LayerPanel.Add(LayersEmpty); Right.Add(LayerPanel);
         SemanticPanel = Vertical("Imagine.SemanticPanel", 8); SemanticPanel.Add(Heading("Semantic components"));
         Components = Runtime("Imagine.Components"); SemanticPanel.Add(Components);
         ComponentsEmpty = Muted("Imagine.ComponentsEmpty", "No semantic decomposition yet. Select an image and choose Semantic parts.");
@@ -164,6 +167,7 @@ internal sealed class ImagineWorkspaceScene : IDisposable
         ImageTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         TimelineTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Collapsed : HavenVisibility.Visible);
         Find<HavenButton>("TimelineAddAudioTrack").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        LayerPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         SemanticPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         Assistant.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         ModeHint.Content = mode switch
@@ -184,7 +188,7 @@ internal sealed class ImagineWorkspaceScene : IDisposable
         TrackSummary.Content = project.Tracks.Length == 0 ? "No audio/video tracks." : string.Join(" · ", project.Tracks.GroupBy(track => track.Kind).Select(group => $"{group.Count()} {group.Key.ToString().ToLowerInvariant()} track{(group.Count() == 1 ? string.Empty : "s")}"));
         Canvas.InvalidateCanvas(); Canvas.Timeline.InvalidateTimeline();
         var signature = project.UpdatedAt.UtcDateTime.Ticks + "|" + string.Join('|', recent.Select(item => item.Id + ":" + item.UpdatedAt.UtcDateTime.Ticks));
-        if (signature == _signature) return; _signature = signature; RecentProjects.ClearItems(); Assets.ClearItems(); Components.ClearItems();
+        if (signature == _signature) return; _signature = signature; RecentProjects.ClearItems(); Assets.ClearItems(); Layers.ClearItems(); Components.ClearItems(); SyncLayers(project);
         foreach (var item in recent.Take(20))
         {
             var row = _dynamic.CreateItem("ImagineProjectRow", RecentProjects.Name!, "project-" + item.Id.ToString("N"), new Dictionary<string, object?> { ["TITLE"] = item.Name, ["DETAIL"] = item.UpdatedAt.LocalDateTime.ToString("d MMM HH:mm") });
@@ -205,7 +209,7 @@ internal sealed class ImagineWorkspaceScene : IDisposable
     }
 
     public void SetStatus(string value) => Status.Content = value;
-    public void SetUnavailable(string value) { Status.Content = value; RecentProjects.ClearItems(); Assets.ClearItems(); Components.ClearItems(); }
+    public void SetUnavailable(string value) { Status.Content = value; RecentProjects.ClearItems(); Assets.ClearItems(); Layers.ClearItems(); Components.ClearItems(); }
 
     public void SetViewportWidth(double width)
     {
@@ -255,5 +259,5 @@ internal sealed class ImagineWorkspaceScene : IDisposable
     private static DynamicUIRuntime Runtime(string name) { var value = new DynamicUIRuntime { Name = name }; value.SetValue(HavenProperties.Width, HavenLength.Percent(100)); return value; }
     private static HavenText Heading(string content) { var value = new HavenText { Content = content, Level = TextLevel.H3 }; value.SetValue(HavenProperties.FontWeight, 750); return value; }
     private static HavenText Muted(string name, string content) { var value = new HavenText { Name = name, Content = content }; value.SetValue(HavenProperties.Foreground, "TextSecondary"); value.SetValue(HavenProperties.FontSize, 11d); return value; }
-    public void Dispose() { RecentProjects.ClearItems(); Assets.ClearItems(); Components.ClearItems(); Canvas.Dispose(); }
+    public void Dispose() { RecentProjects.ClearItems(); Assets.ClearItems(); Layers.ClearItems(); Components.ClearItems(); Canvas.Dispose(); }
 }

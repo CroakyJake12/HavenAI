@@ -1,0 +1,9 @@
+<DynamicUI Name="ImagineLayerRow">
+  <Container Name="RowRoot" Layout="Grid" Columns="1fr Auto Auto Auto Auto" Rows="Auto" Width="100%" Gap="4px" Padding="5px 6px" Background="SurfaceRaised" Radius="12px">
+    <Button Name="Select" Column="0" Variant="Navigation" IconKey="image" Content="{{TITLE}}" Width="100%" MinHeight="38px" />
+    <Button Name="Visibility" Column="1" Variant="Ghost" Content="{{VISIBILITY}}" />
+    <Button Name="Lock" Column="2" Variant="Ghost" Content="{{LOCK}}" />
+    <Button Name="Lower" Column="3" Variant="Ghost" Content="Lower" />
+    <Button Name="Raise" Column="4" Variant="Ghost" Content="Raise" />
+  </Container>
+</DynamicUI>

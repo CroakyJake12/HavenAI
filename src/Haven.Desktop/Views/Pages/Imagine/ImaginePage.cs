@@ -69,6 +69,26 @@ public sealed class ImaginePage : UserControl, IDisposable
         _scene.UndoRequested += (_, _) => { if (_session?.Undo() == true) SetStatus("Undo"); }; _scene.RedoRequested += (_, _) => { if (_session?.Redo() == true) SetStatus("Redo"); };
         _scene.AddRectangleRequested += (_, _) => { _session?.AddRectangle(); SetStatus("Rectangle added."); }; _scene.AddTextRequested += (_, _) => AddText(); _scene.DuplicateRequested += (_, _) => { if (_session?.DuplicateSelected() == true) SetStatus("Selection duplicated."); }; _scene.DeleteRequested += (_, _) => { if (_session?.DeleteSelected() == true) SetStatus("Selection deleted."); };
         _scene.DecomposeRequested += async (_, _) => await DecomposeAsync(); _scene.FitRequested += (_, _) => _scene.Canvas.Fit(); _scene.ProjectRequested += project => _ = OpenProjectAsync(project.Id); _scene.AssetRequested += SelectAsset; _scene.ComponentRequested += component => _session?.SelectSemanticComponent(component.Id); _scene.AssistantRequested += prompt => _ = ApplyAssistantAsync(prompt); _scene.InspectVisionRequested += (_, _) => InspectSelectedInVision();
+        _scene.LayerSelectRequested += id => _session?.SelectObject(id);
+        _scene.LayerVisibilityRequested += id =>
+        {
+            if (_session?.ToggleObjectVisibility(id) != true) return;
+            var layer = _session.Project.Objects.First(item => item.Id == id);
+            SetStatus(layer.IsVisible ? $"Shown {layer.Name}." : $"Hidden {layer.Name}.");
+        };
+        _scene.LayerLockRequested += id =>
+        {
+            if (_session?.ToggleObjectLock(id) != true) return;
+            var layer = _session.Project.Objects.First(item => item.Id == id);
+            SetStatus(layer.IsLocked ? $"Locked {layer.Name}." : $"Unlocked {layer.Name}.");
+        };
+        _scene.LayerMoveRequested += (id, direction) =>
+        {
+            var changed = _session?.MoveObjectLayer(id, direction) == true;
+            SetStatus(changed
+                ? (direction > 0 ? "Raised layer." : "Lowered layer.")
+                : "The layer is locked or already at that edge of the stack.");
+        };
     }
     private async Task InitialiseAsync()
     {

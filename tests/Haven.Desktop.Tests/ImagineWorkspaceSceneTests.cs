@@ -78,6 +78,32 @@ public sealed class ImagineWorkspaceSceneTests
     }
 
     [Fact]
+    public void Image_mode_projects_real_layer_stack_and_hides_it_in_timeline_modes()
+    {
+        using var scene = new ImagineWorkspaceScene();
+        var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Layers"));
+        var backId = session.AddRectangle(30, 30, 200, 100);
+        var frontId = session.AddRectangle(70, 60, 200, 100);
+        Assert.True(session.ToggleObjectVisibility(backId));
+        Assert.True(session.ToggleObjectLock(frontId));
+        scene.SetSession(session);
+        scene.Sync(session.Project, [session.Project]);
+
+        Assert.Equal(2, scene.Layers.Items.Count);
+        Assert.Equal(HavenVisibility.Visible, scene.LayerPanel.GetValue(HavenProperties.Visibility));
+        var front = scene.Layers.Items[0];
+        var back = scene.Layers.Items[1];
+        Assert.Equal("Unlock", front.GetComponent<Button>("Lock").Content);
+        Assert.Equal("Hide", front.GetComponent<Button>("Visibility").Content);
+        Assert.Equal("Show", back.GetComponent<Button>("Visibility").Content);
+
+        scene.SetMode(ImagineMediaKind.Audio);
+        Assert.Equal(HavenVisibility.Collapsed, scene.LayerPanel.GetValue(HavenProperties.Visibility));
+        scene.SetMode(ImagineMediaKind.Video);
+        Assert.Equal(HavenVisibility.Collapsed, scene.LayerPanel.GetValue(HavenProperties.Visibility));
+    }
+
+    [Fact]
     public void Unknown_duration_clip_hit_area_matches_its_rendered_placeholder_width()
     {
         using var timeline = new ImagineTimelineElement();
