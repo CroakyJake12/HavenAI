@@ -20,7 +20,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
         Set(Root, HavenProperties.Background, "Transparent");
         Set(Root, HavenProperties.Gap, HavenLength.Px(8));
 
-        var header = new OverlayDragHandle { Name = "Overlay.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto Auto Auto" };
+        var header = new OverlayDragHandle { Name = "Overlay.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto Auto Auto Auto" };
         Set(header, HavenProperties.Width, HavenLength.Percent(100));
         Set(header, HavenProperties.Gap, HavenLength.Px(6));
         header.DragDelta += delta => DragDelta?.Invoke(delta);
@@ -32,14 +32,17 @@ internal sealed class OverlayShellHavenScene : IDisposable
         identity.Add(SourceText);
         header.Add(identity);
 
+        CaptureButton = Action("Overlay.Capture", "Capture", ButtonVariant.Secondary);
         NewChatButton = Action("Overlay.NewChat", "New chat", ButtonVariant.Secondary);
         PinButton = Action("Overlay.Pin", "Pin", ButtonVariant.Ghost);
         CollapseButton = Action("Overlay.Collapse", "Collapse", ButtonVariant.Ghost);
         CloseButton = Action("Overlay.Close", "Close", ButtonVariant.Ghost);
-        Set(NewChatButton, HavenProperties.Column, 1);
-        Set(PinButton, HavenProperties.Column, 2);
-        Set(CollapseButton, HavenProperties.Column, 3);
-        Set(CloseButton, HavenProperties.Column, 4);
+        Set(CaptureButton, HavenProperties.Column, 1);
+        Set(NewChatButton, HavenProperties.Column, 2);
+        Set(PinButton, HavenProperties.Column, 3);
+        Set(CollapseButton, HavenProperties.Column, 4);
+        Set(CloseButton, HavenProperties.Column, 5);
+        header.Add(CaptureButton);
         header.Add(NewChatButton);
         header.Add(PinButton);
         header.Add(CollapseButton);
@@ -72,12 +75,14 @@ internal sealed class OverlayShellHavenScene : IDisposable
         Root.Add(Actions);
 
         _dynamicUi = new DynamicUI(Root, HavenDynamicUITemplateCatalog.FromAssembly(typeof(OverlayShellHavenScene).Assembly));
+        CaptureButton.Invoked += (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty);
         NewChatButton.Invoked += (_, _) => NewChatRequested?.Invoke(this, EventArgs.Empty);
         PinButton.Invoked += (_, _) => PinToggleRequested?.Invoke(this, EventArgs.Empty);
         CollapseButton.Invoked += (_, _) => CollapseToggleRequested?.Invoke(this, EventArgs.Empty);
         CloseButton.Invoked += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    public event EventHandler? CaptureRequested;
     public event EventHandler? NewChatRequested;
     public event EventHandler? PinToggleRequested;
     public event EventHandler? CollapseToggleRequested;
@@ -89,6 +94,7 @@ internal sealed class OverlayShellHavenScene : IDisposable
     public Page Root { get; }
     public HavenText TitleText { get; }
     public HavenText SourceText { get; }
+    public HavenButton CaptureButton { get; }
     public HavenButton NewChatButton { get; }
     public HavenButton PinButton { get; }
     public HavenButton CollapseButton { get; }

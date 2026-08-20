@@ -98,6 +98,7 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceRegistry>();
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayContextActionCandidateService>();
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayForegroundContextCaptureService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayVisualContextCaptureService>();
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayChatSessionFactory>();
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayGoSessionFactory>();
         collection.AddSingleton<Haven.Desktop.Overlay.OverlayGlobalHotkey>();

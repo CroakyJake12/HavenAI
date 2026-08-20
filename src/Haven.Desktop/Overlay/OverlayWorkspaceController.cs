@@ -14,6 +14,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
     private readonly OverlayWorkspaceRegistry _registry;
     private readonly OverlayContextActionCandidateService _actionCandidates;
     private readonly OverlayForegroundContextCaptureService _contextCapture;
+    private readonly OverlayVisualContextCaptureService _visualCapture;
     private readonly OverlayChatSessionFactory _chats;
     private readonly OverlayGoSessionFactory _go;
     private readonly OverlayGlobalHotkey _hotkey;
@@ -27,6 +28,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         OverlayWorkspaceRegistry registry,
         OverlayContextActionCandidateService actionCandidates,
         OverlayForegroundContextCaptureService contextCapture,
+        OverlayVisualContextCaptureService visualCapture,
         OverlayChatSessionFactory chats,
         OverlayGoSessionFactory go,
         OverlayGlobalHotkey hotkey,
@@ -35,6 +37,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         _registry = registry;
         _actionCandidates = actionCandidates;
         _contextCapture = contextCapture;
+        _visualCapture = visualCapture;
         _chats = chats;
         _go = go;
         _hotkey = hotkey;
@@ -191,6 +194,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         var window = new OverlayWorkspaceWindow(session, page);
         _windows[session.Id] = window;
         WireWindow(window, session.Id, openGoOnNewWorkspace: true);
+        window.CaptureRequested += (_, _) => RunOnUi(() => CaptureVisualContextAsync(session.Id));
         window.ActionRequested += (_, action) => RunOnUi(() => HandleActionAsync(session.Id, action));
     }
 
@@ -213,6 +217,7 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             if (action == AddMenu.AddMenuAction.File)
                 RunOnUi(() => AttachFilesToGoAsync(session.Id, page));
         };
+        window.CaptureRequested += (_, _) => RunOnUi(() => CaptureVisualContextAsync(session.Id));
         window.ActionRequested += (_, action) => RunOnUi(() => HandleGoActionAsync(session.Id, action));
     }
 
@@ -278,6 +283,26 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
             sourceWindow.HideWorkspace();
     }
 
+    private async Task CaptureVisualContextAsync(Guid sessionId)
+    {
+        if (!_windows.ContainsKey(sessionId)) return;
+        try
+        {
+            var context = await _visualCapture.CaptureAsync(CancellationToken.None);
+            if (!await _registry.SetContextAsync(sessionId, context, CancellationToken.None)) return;
+            if (_windows.TryGetValue(sessionId, out var window))
+            {
+                window.ShowAndActivate();
+                if (window.GoPage is { } page)
+                    QueueGoSuggestionRefresh(sessionId, page, "The user captured new visual Overlay context.");
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception)
+        {
+            _notifications.Show("Overlay capture unavailable", exception.Message, ToastKind.Warning, TimeSpan.FromSeconds(6));
+        }
+    }
     private async Task HandleGoActionAsync(Guid sourceSessionId, OverlayContextActionDescriptor action)
     {
         var source = _registry.Snapshot.Sessions.FirstOrDefault(item => item.Id == sourceSessionId);

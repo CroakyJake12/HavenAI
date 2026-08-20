@@ -83,6 +83,7 @@ internal sealed class OverlayWorkspaceWindow : Window
         Content = root;
 
         ShellScene.DragDelta += OnDragDelta;
+        ShellScene.CaptureRequested += (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty);
         ShellScene.NewChatRequested += (_, _) => NewChatRequested?.Invoke(this, EventArgs.Empty);
         ShellScene.PinToggleRequested += (_, _) => PinToggleRequested?.Invoke(this, EventArgs.Empty);
         ShellScene.CollapseToggleRequested += (_, _) => CollapseToggleRequested?.Invoke(this, EventArgs.Empty);
@@ -108,6 +109,7 @@ internal sealed class OverlayWorkspaceWindow : Window
     public HavenSceneControl ShellControl { get; }
     public bool WorkspaceVisible => IsVisible;
 
+    public event EventHandler? CaptureRequested;
     public event EventHandler? NewChatRequested;
     public event EventHandler? PinToggleRequested;
     public event EventHandler? CollapseToggleRequested;
