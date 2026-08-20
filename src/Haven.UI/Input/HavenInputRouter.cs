@@ -19,6 +19,12 @@ public sealed class HavenInputRouter(HavenElement root)
     private int _dragSelectionAnchor;
     private HavenPointerKind _activePointerKind = HavenPointerKind.Mouse;
     private HavenPointerButton _activePointerButton = HavenPointerButton.Primary;
+    private HavenPoint _lastPointerPoint;
+    private HavenInputModifiers _lastPointerModifiers;
+    private HavenElement? _touchScrollOrigin;
+    private HavenPoint _touchScrollStart;
+    private HavenPoint _touchScrollLast;
+    private bool _touchScrollStarted;
     private bool _pointerConsumed;
 
     public HavenElement? Hovered => _hovered;
@@ -36,9 +42,33 @@ public sealed class HavenInputRouter(HavenElement root)
         HavenPointerKind pointerKind = HavenPointerKind.Mouse,
         HavenInputModifiers modifiers = default)
     {
+        var previousTouchPoint = _touchScrollLast;
+        _lastPointerPoint = point;
+        _lastPointerModifiers = modifiers;
         if (_pointerTarget is not null && _pointerTargetElement is not null)
-            _pointerConsumed |= _pointerTarget.PointerMoved(PointerInput(_pointerTargetElement, point, _activePointerKind, modifiers));
-        if (_pressed is Slider activeSlider && _activePointerButton == HavenPointerButton.Primary)
+            _pointerConsumed |= _pointerTarget.PointerMoved(PointerInput(_pointerTargetElement, point, _activePointerKind, modifiers, _activePointerButton));
+
+        if (_activePointerKind == HavenPointerKind.Touch
+            && _activePointerButton == HavenPointerButton.Primary
+            && _touchScrollOrigin is not null
+            && _pointerTarget is null
+            && _dragInput is null)
+        {
+            _touchScrollLast = point;
+            var fromStartX = point.X - _touchScrollStart.X;
+            var fromStartY = point.Y - _touchScrollStart.Y;
+            if (!_touchScrollStarted && fromStartX * fromStartX + fromStartY * fromStartY >= 36d)
+            {
+                _touchScrollStarted = true;
+                _pointerConsumed = true;
+                _pressed?.SetState(HavenElementState.Pressed, false);
+            }
+
+            if (_touchScrollStarted)
+                ScrollContainerAncestors(_touchScrollOrigin, previousTouchPoint.X - point.X, previousTouchPoint.Y - point.Y);
+        }
+
+        if (_pressed is Slider activeSlider && _activePointerButton == HavenPointerButton.Primary && !_touchScrollStarted)
             activeSlider.SetFromPointer(point.X);
         if (_dragInput is not null && _activePointerButton == HavenPointerButton.Primary)
             _dragInput.SetSelection(_dragSelectionAnchor, HitInputCaret(_dragInput, point));
@@ -61,6 +91,10 @@ public sealed class HavenInputRouter(HavenElement root)
         _pointerConsumed = false;
         _activePointerKind = pointerKind;
         _activePointerButton = pointerButton;
+        _touchScrollOrigin = null;
+        _touchScrollStart = point;
+        _touchScrollLast = point;
+        _touchScrollStarted = false;
 
         if (pointerButton == HavenPointerButton.Primary)
         {
@@ -81,6 +115,10 @@ public sealed class HavenInputRouter(HavenElement root)
         }
 
         var rawHit = HitTest(point);
+        if (pointerKind == HavenPointerKind.Touch
+            && pointerButton == HavenPointerButton.Primary
+            && FindScrollableAncestor(rawHit) is not null)
+            _touchScrollOrigin = rawHit;
         var hitSelect = FindAncestor<Select>(rawHit);
         foreach (var expanded in root.DescendantsAndSelf().OfType<Select>().Where(select => select.IsExpanded && !ReferenceEquals(select, hitSelect)))
             expanded.IsExpanded = false;
@@ -99,7 +137,7 @@ public sealed class HavenInputRouter(HavenElement root)
         {
             _pointerTarget = pointerTarget;
             _pointerTargetElement = pointerTargetElement;
-            _pointerConsumed = pointerTarget.PointerPressed(PointerInput(pointerTargetElement, point, pointerKind, modifiers));
+            _pointerConsumed = pointerTarget.PointerPressed(PointerInput(pointerTargetElement, point, pointerKind, modifiers, pointerButton));
         }
         if (_pressed.Accessibility.Focusable) Focus(_pressed);
 
@@ -121,6 +159,29 @@ public sealed class HavenInputRouter(HavenElement root)
         }
     }
 
+    public bool CancelPointer()
+    {
+        var released = _pressed;
+        var pointerTarget = _pointerTarget;
+        var pointerTargetElement = _pointerTargetElement;
+        if (released is null && pointerTarget is null && _dragInput is null) return false;
+
+        if (pointerTarget is not null && pointerTargetElement is not null)
+            pointerTarget.PointerCancelled(PointerInput(pointerTargetElement, _lastPointerPoint, _activePointerKind, _lastPointerModifiers, _activePointerButton));
+
+        released?.SetState(HavenElementState.Pressed, false);
+        _pressed = null;
+        _pointerTarget = null;
+        _pointerTargetElement = null;
+        _dragInput = null;
+        _pointerConsumed = false;
+        _touchScrollOrigin = null;
+        _touchScrollStarted = false;
+        _activePointerKind = HavenPointerKind.Mouse;
+        _activePointerButton = HavenPointerButton.Primary;
+        return true;
+    }
+
     public bool PointerReleased(HavenPoint point, HavenInputModifiers modifiers = default)
     {
         var released = _pressed;
@@ -139,6 +200,9 @@ public sealed class HavenInputRouter(HavenElement root)
                 _pointerTargetElement = null;
                 _dragInput = null;
                 _pointerConsumed = false;
+                _touchScrollOrigin = null;
+                _touchScrollStarted = false;
+                _activePointerKind = HavenPointerKind.Mouse;
                 _activePointerButton = HavenPointerButton.Primary;
                 if (item is not null)
                 {
@@ -155,7 +219,7 @@ public sealed class HavenInputRouter(HavenElement root)
 
         var consumed = _pointerConsumed;
         if (_pointerTarget is not null && _pointerTargetElement is not null)
-            consumed |= _pointerTarget.PointerReleased(PointerInput(_pointerTargetElement, point, _activePointerKind, modifiers));
+            consumed |= _pointerTarget.PointerReleased(PointerInput(_pointerTargetElement, point, _activePointerKind, modifiers, pointerButton));
 
         released.SetState(HavenElementState.Pressed, false);
         _pressed = null;
@@ -163,6 +227,9 @@ public sealed class HavenInputRouter(HavenElement root)
         _pointerTargetElement = null;
         _dragInput = null;
         _pointerConsumed = false;
+        _touchScrollOrigin = null;
+        _touchScrollStarted = false;
+        _activePointerKind = HavenPointerKind.Mouse;
         _activePointerButton = HavenPointerButton.Primary;
         if (consumed) return true;
         if (!ReferenceEquals(ResolveInteractionTarget(HitTest(point)), released)) return false;
@@ -185,24 +252,66 @@ public sealed class HavenInputRouter(HavenElement root)
             return true;
         }
 
+        var remainingX = deltaX;
+        var remainingY = deltaY;
+        var changed = false;
         for (var element = HitTest(point); element is not null; element = element.Parent)
         {
+            if (Math.Abs(remainingX) < .0001d && Math.Abs(remainingY) < .0001d) return true;
             if (element is IHavenScrollInputTarget scrollTarget
-                && scrollTarget.PointerWheel(new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), deltaX, deltaY))
+                && scrollTarget.PointerWheel(new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), remainingX, remainingY))
                 return true;
             if (element is not Container container || container.GetValue(HavenProperties.Overflow) != HavenOverflow.Scroll) continue;
-            if (container.ScrollBy(deltaX, deltaY)) return true;
+            changed |= ApplyContainerScroll(container, ref remainingX, ref remainingY);
         }
-        return false;
+        return changed;
     }
 
-    public bool TextInput(string? text) => _focused is Input input && input.InsertText(text);
-    public bool PasteText(string? text) => _focused is Input input && input.InsertText(text);
+    public bool TextInput(string? text)
+    {
+        if (_focused is Input input) return input.InsertText(text);
+        return _focused is IHavenTextInputTarget custom && custom.TextInput(text);
+    }
+
+    public bool PasteText(string? text)
+    {
+        if (_focused is Input input) return input.InsertText(text);
+        return _focused is IHavenClipboardInputTarget custom && custom.Paste(text);
+    }
+
+    public string? Copy() => (_focused as IHavenClipboardInputTarget)?.Copy();
+    public string? Cut() => (_focused as IHavenClipboardInputTarget)?.Cut();
+    public bool Paste(string? text) => _focused is IHavenClipboardInputTarget target && target.Paste(text);
 
     public bool KeyDown(HavenKey key, bool shift) => KeyDown(key, new HavenInputModifiers(Shift: shift));
 
     public bool KeyDown(HavenKey key, HavenInputModifiers modifiers = default)
     {
+        var keyInput = new HavenKeyInput(key, ToKeyModifiers(modifiers));
+        if (_focused is IHavenKeyboardInputTarget custom && custom.KeyDown(keyInput)) return true;
+        if ((modifiers.Control || modifiers.Meta) && _focused is IHavenClipboardInputTarget clipboardTarget)
+        {
+            switch (key)
+            {
+                case HavenKey.C:
+                {
+                    var copied = clipboardTarget.Copy();
+                    if (copied is null) return false;
+                    ClipboardCopyRequested?.Invoke(copied);
+                    return true;
+                }
+                case HavenKey.X:
+                {
+                    var cut = clipboardTarget.Cut();
+                    if (cut is null) return false;
+                    ClipboardCopyRequested?.Invoke(cut);
+                    return true;
+                }
+                case HavenKey.V:
+                    ClipboardPasteRequested?.Invoke();
+                    return true;
+            }
+        }
         if (key == HavenKey.Tab) return MoveFocus(modifiers.Shift ? -1 : 1);
 
         if (_focused is Input input)
@@ -216,10 +325,10 @@ public sealed class HavenInputRouter(HavenElement root)
                         input.SelectAll();
                         return true;
                     case HavenKey.C:
-                        if (input.HasSelection) ClipboardCopyRequested?.Invoke(input.SelectedText);
+                        if (input.HasSelection && input.CanExposeSecretToClipboard) ClipboardCopyRequested?.Invoke(input.SelectedText);
                         return true;
                     case HavenKey.X:
-                        if (input.HasSelection)
+                        if (input.HasSelection && input.CanExposeSecretToClipboard)
                         {
                             ClipboardCopyRequested?.Invoke(input.SelectedText);
                             input.CutSelection();
@@ -263,6 +372,7 @@ public sealed class HavenInputRouter(HavenElement root)
                 case HavenKey.Space: return false;
             }
         }
+        if (_focused is Button tabButton && TryNavigateTab(tabButton, key)) return true;
         if (_focused is Slider slider)
         {
             if (key == HavenKey.Left || key == HavenKey.Down) { slider.Nudge(-1); return true; }
@@ -283,13 +393,74 @@ public sealed class HavenInputRouter(HavenElement root)
 
     public bool KeyUp(HavenKey key)
     {
+        if (_focused is IHavenKeyboardInputTarget custom && custom.KeyUp(new HavenKeyInput(key, HavenKeyModifiers.None))) return true;
         if (key == HavenKey.Tab) return true;
+        if (_focused is Button tabButton && IsTabButton(tabButton) && key is (HavenKey.Left or HavenKey.Right or HavenKey.Home or HavenKey.End)) return true;
         if (_focused is Input && key is HavenKey.Enter or HavenKey.Space or HavenKey.Left or HavenKey.Right or HavenKey.Up or HavenKey.Down or HavenKey.Home or HavenKey.End or HavenKey.Backspace or HavenKey.Delete or HavenKey.A or HavenKey.C or HavenKey.V or HavenKey.X or HavenKey.Y or HavenKey.Z) return true;
         if (_focused is Slider && key is HavenKey.Left or HavenKey.Right or HavenKey.Up or HavenKey.Down) return true;
         if (_focused is Select && key is HavenKey.Left or HavenKey.Right or HavenKey.Up or HavenKey.Down or HavenKey.Home or HavenKey.End or HavenKey.Escape) return true;
         if (_focused is null || key is not (HavenKey.Enter or HavenKey.Space)) return false;
         _focused.SetState(HavenElementState.Pressed, false);
         Activate(_focused);
+        return true;
+    }
+
+    private static HavenKeyModifiers ToKeyModifiers(HavenInputModifiers modifiers)
+    {
+        var result = HavenKeyModifiers.None;
+        if (modifiers.Shift) result |= HavenKeyModifiers.Shift;
+        if (modifiers.Control) result |= HavenKeyModifiers.Control;
+        if (modifiers.Alt) result |= HavenKeyModifiers.Alt;
+        if (modifiers.Meta) result |= HavenKeyModifiers.Meta;
+        return result;
+    }
+
+    private static bool IsTabButton(Button button)
+    {
+        for (var element = button.Parent; element is not null; element = element.Parent)
+        {
+            if (element is not TabStrip strip) continue;
+            for (var i = 0; i < strip.ItemButtons.Count; i++)
+                if (ReferenceEquals(strip.ItemButtons[i], button)) return true;
+            return false;
+        }
+        return false;
+    }
+
+    private bool TryNavigateTab(Button currentButton, HavenKey key)
+    {
+        if (key is not (HavenKey.Left or HavenKey.Right or HavenKey.Home or HavenKey.End)) return false;
+        TabStrip? strip = null;
+        for (var element = currentButton.Parent; element is not null; element = element.Parent)
+        {
+            if (element is not TabStrip candidate) continue;
+            strip = candidate;
+            break;
+        }
+        if (strip is null || strip.ItemButtons.Count == 0) return false;
+
+        var currentIndex = -1;
+        for (var i = 0; i < strip.ItemButtons.Count; i++)
+        {
+            if (!ReferenceEquals(strip.ItemButtons[i], currentButton)) continue;
+            currentIndex = i;
+            break;
+        }
+        if (currentIndex < 0) return false;
+
+        var nextIndex = key switch
+        {
+            HavenKey.Left => (currentIndex - 1 + strip.ItemButtons.Count) % strip.ItemButtons.Count,
+            HavenKey.Right => (currentIndex + 1) % strip.ItemButtons.Count,
+            HavenKey.Home => 0,
+            HavenKey.End => strip.ItemButtons.Count - 1,
+            _ => currentIndex
+        };
+        var target = strip.ItemButtons[nextIndex];
+        if (ReferenceEquals(target, currentButton)) return true;
+        Focus(target);
+        strip.EnsureVisible(target);
+        Activate(target);
         return true;
     }
 
@@ -381,6 +552,42 @@ public sealed class HavenInputRouter(HavenElement root)
         return null;
     }
 
+    private static Container? FindScrollableAncestor(HavenElement? element)
+    {
+        for (var current = element; current is not null; current = current.Parent)
+            if (current is Container container
+                && container.GetValue(HavenProperties.Overflow) == HavenOverflow.Scroll
+                && (container.MaxScrollX > .0001d || container.MaxScrollY > .0001d))
+                return container;
+        return null;
+    }
+
+    private static bool ScrollContainerAncestors(HavenElement origin, double deltaX, double deltaY)
+    {
+        var remainingX = deltaX;
+        var remainingY = deltaY;
+        var changed = false;
+        for (HavenElement? current = origin; current is not null; current = current.Parent)
+        {
+            if (current is not Container container || container.GetValue(HavenProperties.Overflow) != HavenOverflow.Scroll) continue;
+            changed |= ApplyContainerScroll(container, ref remainingX, ref remainingY);
+            if (Math.Abs(remainingX) < .0001d && Math.Abs(remainingY) < .0001d) break;
+        }
+        return changed;
+    }
+
+    private static bool ApplyContainerScroll(Container container, ref double remainingX, ref double remainingY)
+    {
+        var beforeX = container.ScrollX;
+        var beforeY = container.ScrollY;
+        container.ScrollBy(remainingX, remainingY);
+        var consumedX = container.ScrollX - beforeX;
+        var consumedY = container.ScrollY - beforeY;
+        remainingX -= consumedX;
+        remainingY -= consumedY;
+        return Math.Abs(consumedX) >= .0001d || Math.Abs(consumedY) >= .0001d;
+    }
+
     private static T? FindAncestor<T>(HavenElement? element) where T : HavenElement
     {
         for (var current = element; current is not null; current = current.Parent)
@@ -398,8 +605,9 @@ public sealed class HavenInputRouter(HavenElement root)
         HavenElement element,
         HavenPoint point,
         HavenPointerKind pointerKind,
-        HavenInputModifiers modifiers) =>
-        new(point, new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), pointerKind, modifiers);
+        HavenInputModifiers modifiers,
+        HavenPointerButton button) =>
+        new(point, new HavenPoint(point.X - element.Bounds.X, point.Y - element.Bounds.Y), pointerKind, ToKeyModifiers(modifiers), button);
 
     private void Activate(HavenElement element)
     {

@@ -14,6 +14,8 @@ public sealed class TabStrip : Container
 
     public TabStrip()
     {
+        Accessibility.Role = HavenAccessibleRole.Tab;
+        Accessibility.AccessibleName = "Tabs";
         Layout = HavenLayout.Grid; Columns = "Auto 1fr Auto"; Rows = "54px";
         SetValue(HavenProperties.Height, HavenLength.Px(54));
         SetValue(HavenProperties.MinWidth, HavenLength.Px(180));
@@ -47,7 +49,7 @@ public sealed class TabStrip : Container
             var host = new Container { Name = $"TabStrip.Item.{i}", Layout = HavenLayout.Overlay };
             host.SetValue(HavenProperties.Height, HavenLength.Px(48));
             var button = new Button { Name = $"TabStrip.Item.{i}.Button", Variant = ButtonVariant.Text, Content = Label(item.Label) };
-            button.Accessibility.AccessibleName = item.Label; button.Accessibility.Description = item.HasContextMenu ? "Right-click for tab options" : "Tab";
+            button.Accessibility.Role = HavenAccessibleRole.TabItem; button.Accessibility.AccessibleName = item.Label; button.Accessibility.Description = item.HasContextMenu ? "Right-click for tab options" : "Tab"; button.Accessibility.Selected = item.IsSelected;
             button.SetValue(HavenProperties.MinWidth, HavenLength.Px(72)); button.SetValue(HavenProperties.MaxWidth, HavenLength.Px(230));
             button.SetValue(HavenProperties.Height, HavenLength.Px(48)); button.SetValue(HavenProperties.MinHeight, HavenLength.Px(48));
             button.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 12px 3px 12px")); button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(0)));
@@ -63,7 +65,35 @@ public sealed class TabStrip : Container
             underline.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None); underline.SetValue(HavenProperties.ZIndex, 1);
             host.Add(button); host.Add(underline); _scroller.Add(host); _buttons.Add(button); _indicators.Add(underline);
         }
-        _scroller.ScrollX = 0; UpdateScrollButtons();
+        UpdateScrollButtons();
+    }
+
+    public double ScrollOffset => _scroller.ScrollX;
+    public double MaxScrollOffset => _scroller.MaxScrollX;
+
+    public bool EnsureVisible(Button button)
+    {
+        var itemIndex = -1;
+        for (var i = 0; i < _buttons.Count; i++)
+        {
+            if (!ReferenceEquals(_buttons[i], button)) continue;
+            itemIndex = i;
+            break;
+        }
+        if (itemIndex < 0 || itemIndex >= _scroller.Children.Count) return false;
+
+        var host = _scroller.Children[itemIndex];
+        var viewportLeft = _scroller.Bounds.X;
+        var viewportRight = _scroller.Bounds.Right;
+        var delta = host.Bounds.X < viewportLeft
+            ? host.Bounds.X - viewportLeft
+            : host.Bounds.Right > viewportRight
+                ? host.Bounds.Right - viewportRight
+                : 0d;
+        if (Math.Abs(delta) <= .5d) return false;
+        var changed = _scroller.ScrollBy(delta, 0);
+        if (changed) UpdateScrollButtons();
+        return changed;
     }
 
     private static Button ScrollButton(string name, string icon, string accessible)
@@ -75,8 +105,9 @@ public sealed class TabStrip : Container
     private void Scroll(double delta) { _scroller.ScrollBy(delta, 0); UpdateScrollButtons(); }
     private void UpdateScrollButtons()
     {
-        _left.SetValue(HavenProperties.Visibility, _scroller.ScrollX > .5 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        var right = _scroller.MaxScrollX > _scroller.ScrollX + .5 || (_items.Count > 4 && _scroller.MaxScrollX <= .5);
+        var measured = _scroller.ViewportSize.Width > .5d;
+        _left.SetValue(HavenProperties.Visibility, _scroller.ScrollX > .5d ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        var right = measured ? _scroller.MaxScrollX > _scroller.ScrollX + .5d : _items.Count > 4;
         _right.SetValue(HavenProperties.Visibility, right ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
     private static string Label(string value) => value.Length <= 24 ? value : $"{value[..23]}…";

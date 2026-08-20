@@ -67,12 +67,28 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     public event Action<Input>? InputSubmitted;
     public event Action? PointerPressedOutside;
 
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new HavenSceneAutomationPeer(this);
+
     public bool FocusElement(HavenElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
         if (_root is null || !_root.DescendantsAndSelf().Contains(element) || !element.Accessibility.Focusable) return false;
         _input?.Focus(element);
         return Focus();
+    }
+
+    internal bool ActivateElementForAutomation(HavenElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (_root is null || _input is null || !_root.DescendantsAndSelf().Contains(element)) return false;
+        _input.Focus(element);
+        var handled = _input.KeyDown(HavenKey.Enter);
+        handled |= _input.KeyUp(HavenKey.Enter);
+        if (!handled) return false;
+        InvalidateMeasure();
+        InvalidateScene();
+        return true;
     }
 
     public HavenElement? Root
@@ -264,6 +280,13 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         InvalidateScene();
     }
 
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        if (_input?.CancelPointer() != true) return;
+        InvalidateScene();
+    }
+
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
@@ -381,7 +404,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     }
 
     private static HavenTextLayout InputTextLayout(Input input, double contentWidth) => new(
-        input.Text,
+        input.DisplayText,
         input.GetValue(HavenProperties.FontFamily),
         input.GetValue(HavenProperties.FontSize),
         input.GetValue(HavenProperties.FontWeight),

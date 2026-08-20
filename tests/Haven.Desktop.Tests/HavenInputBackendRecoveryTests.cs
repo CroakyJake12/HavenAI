@@ -445,6 +445,97 @@ public sealed class HavenInputBackendRecoveryTests
         Assert.True(select.IsExpanded);
     }
 
+    [AvaloniaFact]
+    public void Custom_keyboard_target_gets_first_refusal_for_tab_then_falls_back_to_focus_traversal()
+    {
+        var root = new Haven.UI.Components.Page();
+        var custom = new KeyboardTarget { ConsumeTab = true };
+        var next = new Haven.UI.Components.Button { Content = "Next" };
+        root.Add(custom);
+        root.Add(next);
+        var router = new HavenInputRouter(root);
+        router.Focus(custom);
+
+        Assert.True(router.KeyDown(HavenKey.Tab, new HavenInputModifiers(Shift: true, Control: true)));
+        Assert.Same(custom, router.Focused);
+        Assert.Equal(HavenKey.Tab, custom.LastKeyDown?.Key);
+        Assert.True(custom.LastKeyDown.HasValue && custom.LastKeyDown.Value.Shift);
+        Assert.True(custom.LastKeyDown.HasValue && custom.LastKeyDown.Value.Control);
+        Assert.True(router.KeyUp(HavenKey.Tab));
+        Assert.Equal(HavenKey.Tab, custom.LastKeyUp?.Key);
+
+        custom.ConsumeTab = false;
+        Assert.True(router.KeyDown(HavenKey.Tab));
+        Assert.Same(next, router.Focused);
+    }
+
+    [AvaloniaFact]
+    public void Custom_clipboard_and_text_targets_use_shared_platform_bridge()
+    {
+        var target = new ClipboardTarget();
+        var router = new HavenInputRouter(target);
+        router.Focus(target);
+        string? copied = null;
+        var pasteRequests = 0;
+        router.ClipboardCopyRequested += text => copied = text;
+        router.ClipboardPasteRequested += () => pasteRequests++;
+
+        Assert.True(router.KeyDown(HavenKey.C, new HavenInputModifiers(Control: true)));
+        Assert.Equal("copy-value", copied);
+
+        copied = null;
+        Assert.True(router.KeyDown(HavenKey.X, new HavenInputModifiers(Meta: true)));
+        Assert.Equal("cut-value", copied);
+
+        Assert.True(router.KeyDown(HavenKey.V, new HavenInputModifiers(Control: true)));
+        Assert.Equal(1, pasteRequests);
+        Assert.True(router.PasteText("pasted-value"));
+        Assert.Equal("pasted-value", target.PastedText);
+
+        Assert.True(router.TextInput("typed-value"));
+        Assert.Equal("typed-value", target.TypedText);
+    }
+
+    private sealed class ClipboardTarget : Container, IHavenClipboardInputTarget, IHavenTextInputTarget
+    {
+        public ClipboardTarget() => Accessibility.Focusable = true;
+        public string? PastedText { get; private set; }
+        public string? TypedText { get; private set; }
+
+        public string? Copy() => "copy-value";
+        public string? Cut() => "cut-value";
+        public bool Paste(string? text)
+        {
+            PastedText = text;
+            return true;
+        }
+        public bool TextInput(string? text)
+        {
+            TypedText = text;
+            return true;
+        }
+    }
+
+    private sealed class KeyboardTarget : Container, IHavenKeyboardInputTarget
+    {
+        public KeyboardTarget() => Accessibility.Focusable = true;
+        public bool ConsumeTab { get; set; }
+        public HavenKeyInput? LastKeyDown { get; private set; }
+        public HavenKeyInput? LastKeyUp { get; private set; }
+
+        public bool KeyDown(HavenKeyInput input)
+        {
+            LastKeyDown = input;
+            return ConsumeTab && input.Key == HavenKey.Tab;
+        }
+
+        public bool KeyUp(HavenKeyInput input)
+        {
+            LastKeyUp = input;
+            return ConsumeTab && input.Key == HavenKey.Tab;
+        }
+    }
+
     private sealed class FixedMeasure : IHavenMeasureContext
     {
         public HavenSize MeasureLeaf(HavenElement element, HavenSize available) => HavenSize.Zero;

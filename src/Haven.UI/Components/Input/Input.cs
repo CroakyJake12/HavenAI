@@ -14,6 +14,9 @@ public sealed class Input : HavenElement
     public static readonly HavenProperty<string> PlaceholderProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Input.Placeholder", string.Empty));
     public static readonly HavenProperty<bool> MultilineProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.Multiline", false));
     public static readonly HavenProperty<bool> SubmitOnEnterProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.SubmitOnEnter", false));
+    public static readonly HavenProperty<bool> IsSecretProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.IsSecret", false));
+    public static readonly HavenProperty<bool> RevealSecretProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.RevealSecret", false));
+    public static readonly HavenProperty<bool> AllowSecretClipboardProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.AllowSecretClipboard", false));
     public static readonly HavenProperty<int> CaretIndexProperty = HavenPropertyRegistry.Register(new HavenProperty<int>("Input.CaretIndex", 0));
 
     public Input()
@@ -56,6 +59,21 @@ public sealed class Input : HavenElement
 
     public bool Multiline { get => GetValue(MultilineProperty); set => SetValue(MultilineProperty, value); }
     public bool SubmitOnEnter { get => GetValue(SubmitOnEnterProperty); set => SetValue(SubmitOnEnterProperty, value); }
+    public bool IsSecret
+    {
+        get => GetValue(IsSecretProperty);
+        set
+        {
+            if (IsSecret == value) return;
+            SetValue(IsSecretProperty, value);
+            Accessibility.IsPassword = value;
+            if (!value && RevealSecret) SetValue(RevealSecretProperty, false);
+        }
+    }
+    public bool RevealSecret { get => GetValue(RevealSecretProperty); set => SetValue(RevealSecretProperty, value); }
+    public bool AllowSecretClipboard { get => GetValue(AllowSecretClipboardProperty); set => SetValue(AllowSecretClipboardProperty, value); }
+    public string DisplayText => IsSecret && !RevealSecret ? new string('•', Text.Length) : Text;
+    public bool CanExposeSecretToClipboard => !IsSecret || AllowSecretClipboard;
     private int _selectionAnchor = -1;
     private readonly Stack<EditState> _undo = new();
     private readonly Stack<EditState> _redo = new();

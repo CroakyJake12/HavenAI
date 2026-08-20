@@ -120,21 +120,22 @@ public sealed class HavenSceneRenderer
     private static void DrawInput(Input input, HavenDrawingContext context, double opacity)
     {
         var hasText = !string.IsNullOrEmpty(input.Text);
+        var displayText = input.DisplayText;
         var focused = input.State.HasFlag(HavenElementState.Focused);
         var centerVertically = !input.Multiline;
         var padding = input.GetValue(HavenProperties.Padding);
         var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
         var rect = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));
-        var fullLayout = new HavenTextLayout(input.Text, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+        var fullLayout = new HavenTextLayout(displayText, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
 
         if (focused && hasText && input.HasSelection)
             context.Add(new HavenTextSelectionCommand(rect, fullLayout, input.SelectionStart, input.SelectionLength, new HavenTokenBrush("Accent"), opacity * .28d));
 
-        DrawText(hasText ? input.Text : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: centerVertically);
+        DrawText(hasText ? displayText : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: centerVertically);
         if (!focused) return;
 
-        var caretIndex = Math.Clamp(input.CaretIndex, 0, input.Text.Length);
-        var prefix = input.Text[..caretIndex];
+        var caretIndex = Math.Clamp(input.CaretIndex, 0, displayText.Length);
+        var prefix = displayText[..caretIndex];
         var prefixLayout = new HavenTextLayout(prefix, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
         context.Add(new HavenCaretCommand(rect, prefixLayout, new HavenTokenBrush(input.GetValue(HavenProperties.Foreground)), opacity)
         {

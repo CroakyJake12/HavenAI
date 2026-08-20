@@ -147,10 +147,16 @@ public sealed class HavenUiInteractionTests
     [Fact]
     public void Pointer_modifier_payload_is_backend_neutral()
     {
-        var modifiers = new HavenInputModifiers(Shift: true, Control: true, Alt: false, Meta: false);
-        var input = new HavenPointerInput(new HavenPoint(12, 14), new HavenPoint(2, 4), HavenPointerKind.Mouse, modifiers);
-        Assert.True(input.Modifiers.Shift);
-        Assert.True(input.Modifiers.Control);
+        var modifiers = HavenKeyModifiers.Shift | HavenKeyModifiers.Control;
+        var input = new HavenPointerInput(
+            new HavenPoint(12, 14),
+            new HavenPoint(2, 4),
+            HavenPointerKind.Mouse,
+            modifiers,
+            HavenPointerButton.Secondary);
+        Assert.True(input.Modifiers.HasFlag(HavenKeyModifiers.Shift));
+        Assert.True(input.Modifiers.HasFlag(HavenKeyModifiers.Control));
+        Assert.Equal(HavenPointerButton.Secondary, input.Button);
     }
 
     [Fact]
@@ -176,6 +182,35 @@ public sealed class HavenUiInteractionTests
         Assert.Equal(HavenPointerKind.Pen, target.LastPointerKind);
         Assert.True(target.LastLocalPosition.X > target.Bounds.Width);
         Assert.Equal(0, invoked);
+    }
+
+    [Fact]
+    public void Raw_pointer_capture_loss_releases_target_without_click_activation()
+    {
+        var root = new Container();
+        var target = new PointerTarget();
+        target.SetValue(HavenProperties.Width, HavenLength.Px(100));
+        target.SetValue(HavenProperties.Height, HavenLength.Px(60));
+        root.Add(target);
+        new HavenLayoutEngine().Layout(root, new HavenSize(120, 80), HavenPlatform.Windows, new FixedMeasure());
+        var router = new HavenInputRouter(root);
+        var invoked = 0;
+        target.Invoked += (_, _) => invoked++;
+
+        router.PointerPressed(new HavenPoint(20, 20), HavenPointerKind.Pen);
+        router.PointerMoved(new HavenPoint(180, 140), HavenPointerKind.Pen, new HavenInputModifiers(Shift: true));
+
+        Assert.True(router.CancelPointer());
+        Assert.Equal(1, target.PressedCount);
+        Assert.Equal(1, target.MovedCount);
+        Assert.Equal(1, target.CancelledCount);
+        Assert.Equal(0, target.ReleasedCount);
+        Assert.Equal(HavenPointerKind.Pen, target.LastPointerKind);
+        Assert.True(target.LastLocalPosition.X > target.Bounds.Width);
+        Assert.Null(router.Pressed);
+        Assert.Equal(0, invoked);
+        Assert.False(router.CancelPointer());
+        Assert.False(router.PointerReleased(new HavenPoint(20, 20)));
     }
 
     [Fact]
@@ -237,6 +272,7 @@ public sealed class HavenUiInteractionTests
         public int PressedCount { get; private set; }
         public int MovedCount { get; private set; }
         public int ReleasedCount { get; private set; }
+        public int CancelledCount { get; private set; }
         public int WheelCount { get; private set; }
         public HavenPointerKind LastPointerKind { get; private set; }
         public HavenPoint LastLocalPosition { get; private set; }
@@ -261,6 +297,14 @@ public sealed class HavenUiInteractionTests
         public bool PointerReleased(HavenPointerInput input)
         {
             ReleasedCount++;
+            LastPointerKind = input.PointerKind;
+            LastLocalPosition = input.LocalPosition;
+            return true;
+        }
+
+        public bool PointerCancelled(HavenPointerInput input)
+        {
+            CancelledCount++;
             LastPointerKind = input.PointerKind;
             LastLocalPosition = input.LocalPosition;
             return true;
