@@ -22,6 +22,8 @@ public sealed class AgentsHavenSceneTests
 
         using var scene = new AgentsHavenScene(viewModel);
 
+        Assert.Contains("does not start, track, or delegate live agent work", scene.ExecutionStatusText.Content, StringComparison.Ordinal);
+        Assert.Equal("Agent execution status", scene.ExecutionStatusText.Accessibility.AccessibleName);
         Assert.Equal(2, scene.AgentCards.Items.Count);
         var builtInItem = scene.AgentCards.GetItem(builtIn.Id.ToString("N"));
         var customItem = scene.AgentCards.GetItem(custom.Id.ToString("N"));

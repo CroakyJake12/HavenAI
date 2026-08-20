@@ -32,7 +32,7 @@ internal sealed class AgentsHavenScene : IDisposable
             Name = "Agents.Root",
             Layout = HavenLayout.Grid,
             Columns = "1fr",
-            Rows = "auto auto auto 1fr"
+            Rows = "auto auto auto auto 1fr"
         };
         Set(Root, HavenProperties.Padding, HavenThickness.Parse("26px 30px"));
         Set(Root, HavenProperties.Gap, HavenLength.Px(14));
@@ -43,7 +43,7 @@ internal sealed class AgentsHavenScene : IDisposable
         var titles = new Container { Layout = HavenLayout.Vertical };
         Set(titles, HavenProperties.Gap, HavenLength.Px(4));
         titles.Add(new HavenText("Agents") { Name = "Agents.Title", Level = TextLevel.H1 });
-        var subtitle = new HavenText("Create and manage specialised assistants that are shared with Chat and Go.") { Name = "Agents.Subtitle", Level = TextLevel.Paragraph };
+        var subtitle = new HavenText("Create and manage saved agent definitions used by Chat and Go.") { Name = "Agents.Subtitle", Level = TextLevel.Paragraph };
         Set(subtitle, HavenProperties.Foreground, "TextSecondary");
         titles.Add(subtitle);
         header.Add(titles);
@@ -58,17 +58,34 @@ internal sealed class AgentsHavenScene : IDisposable
         header.Add(CreateToggleButton);
         Root.Add(header);
 
+        var runtimeNotice = new Container { Name = "Agents.RuntimeNotice", Layout = HavenLayout.Vertical };
+        Set(runtimeNotice, HavenProperties.Row, 1);
+        Set(runtimeNotice, HavenProperties.Width, HavenLength.Percent(100));
+        Set(runtimeNotice, HavenProperties.Background, "SurfaceRaised");
+        Set(runtimeNotice, HavenProperties.BorderColor, "Border");
+        Set(runtimeNotice, HavenProperties.BorderWidth, HavenLength.Px(1));
+        Set(runtimeNotice, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
+        Set(runtimeNotice, HavenProperties.Padding, HavenThickness.Parse("12px 14px"));
+        Set(runtimeNotice, HavenProperties.Gap, HavenLength.Px(3));
+        var runtimeTitle = new HavenText("Saved definitions, not live sessions") { Name = "Agents.RuntimeNotice.Title", Level = TextLevel.H4 };
+        runtimeNotice.Add(runtimeTitle);
+        ExecutionStatusText = new HavenText("This page saves configuration only. It does not start, track, or delegate live agent work. Chat and Go may consume these definitions where supported.") { Name = "Agents.Execution.Status", Level = TextLevel.Paragraph };
+        ExecutionStatusText.Accessibility.AccessibleName = "Agent execution status";
+        Set(ExecutionStatusText, HavenProperties.Foreground, "TextSecondary");
+        runtimeNotice.Add(ExecutionStatusText);
+        Root.Add(runtimeNotice);
+
         Creator = BuildCreator();
-        Set(Creator, HavenProperties.Row, 1);
+        Set(Creator, HavenProperties.Row, 2);
         Root.Add(Creator);
 
         StatusText = new HavenText { Name = "Agents.Status", Level = TextLevel.Caption };
-        Set(StatusText, HavenProperties.Row, 2);
+        Set(StatusText, HavenProperties.Row, 3);
         Set(StatusText, HavenProperties.Foreground, "TextSecondary");
         Root.Add(StatusText);
 
         AgentCards = new DynamicUIRuntime { Name = "AgentCards", Layout = HavenLayout.Vertical };
-        Set(AgentCards, HavenProperties.Row, 3);
+        Set(AgentCards, HavenProperties.Row, 4);
         Set(AgentCards, HavenProperties.Width, HavenLength.Percent(100));
         Set(AgentCards, HavenProperties.Height, HavenLength.Percent(100));
         Set(AgentCards, HavenProperties.Gap, HavenLength.Px(10));
@@ -107,6 +124,7 @@ internal sealed class AgentsHavenScene : IDisposable
     public Input ModelInput { get; private set; } = null!;
     public HavenButton SaveButton { get; private set; } = null!;
     public HavenText StatusText { get; }
+    public HavenText ExecutionStatusText { get; }
     public DynamicUIRuntime AgentCards { get; }
 
     private Container BuildCreator()
