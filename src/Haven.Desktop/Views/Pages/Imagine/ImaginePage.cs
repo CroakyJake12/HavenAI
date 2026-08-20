@@ -35,6 +35,36 @@ public sealed class ImaginePage : UserControl, IDisposable
     }
     private void WireScene()
     {
+        foreach (var action in new[]
+        {
+            (Name: "AlignLeft", Label: "Align left", Horizontal: true, Position: 0d),
+            (Name: "AlignCentre", Label: "Align centre", Horizontal: true, Position: .5d),
+            (Name: "AlignRight", Label: "Align right", Horizontal: true, Position: 1d),
+            (Name: "AlignTop", Label: "Align top", Horizontal: false, Position: 0d),
+            (Name: "AlignMiddle", Label: "Align middle", Horizontal: false, Position: .5d),
+            (Name: "AlignBottom", Label: "Align bottom", Horizontal: false, Position: 1d)
+        })
+        {
+            var button = new HavenButton { Name = action.Name, Content = action.Label, Variant = ButtonVariant.Ghost };
+            button.Invoked += (_, _) =>
+            {
+                var changed = action.Horizontal
+                    ? _session?.AlignSelectedHorizontal(action.Position) == true
+                    : _session?.AlignSelectedVertical(action.Position) == true;
+                SetStatus(changed ? action.Label + "." : "Select an unlocked image object before aligning.");
+            };
+            _scene.ImageTools.Add(button);
+        }
+
+        var crop = new HavenButton { Name = "CropCanvasToSelection", Content = "Crop canvas to selection", Variant = ButtonVariant.Ghost };
+        crop.Invoked += (_, _) =>
+        {
+            var changed = _session?.CropCanvasToSelection() == true;
+            if (changed) _scene.Canvas.Fit();
+            SetStatus(changed ? "Cropped canvas to the selected object." : "Select a visible image object before cropping the canvas.");
+        };
+        _scene.ImageTools.Add(crop);
+
         _scene.ImportRequested += async (_, _) => await PickImportAsync(); _scene.SaveRequested += async (_, _) => await SaveAsync(); _scene.ExportRequested += async (_, _) => await ExportAsync();
         _scene.UndoRequested += (_, _) => { if (_session?.Undo() == true) SetStatus("Undo"); }; _scene.RedoRequested += (_, _) => { if (_session?.Redo() == true) SetStatus("Redo"); };
         _scene.AddRectangleRequested += (_, _) => { _session?.AddRectangle(); SetStatus("Rectangle added."); }; _scene.AddTextRequested += (_, _) => AddText(); _scene.DuplicateRequested += (_, _) => { if (_session?.DuplicateSelected() == true) SetStatus("Selection duplicated."); }; _scene.DeleteRequested += (_, _) => { if (_session?.DeleteSelected() == true) SetStatus("Selection deleted."); };

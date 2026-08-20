@@ -30,6 +30,62 @@ public sealed class ImagineProjectSessionTests
     }
 
     [Fact]
+    public void Canvas_alignment_uses_rotated_visual_bounds_and_is_undoable()
+    {
+        var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Alignment", 1000, 800));
+        session.AddRectangle(100, 100, 200, 100);
+        Assert.True(session.RotateSelected(45));
+
+        Assert.True(session.AlignSelectedHorizontal(0));
+        var alignedLeft = Assert.Single(session.Project.Objects).Transform;
+        var radians = alignedLeft.RotationDegrees * Math.PI / 180d;
+        var visibleWidth = Math.Abs(alignedLeft.Width * Math.Cos(radians)) + Math.Abs(alignedLeft.Height * Math.Sin(radians));
+        Assert.Equal(0, alignedLeft.X + alignedLeft.Width / 2 - visibleWidth / 2, 6);
+
+        Assert.True(session.AlignSelectedVertical(1));
+        var alignedBottom = Assert.Single(session.Project.Objects).Transform;
+        var visibleHeight = Math.Abs(alignedBottom.Width * Math.Sin(radians)) + Math.Abs(alignedBottom.Height * Math.Cos(radians));
+        Assert.Equal(800, alignedBottom.Y + alignedBottom.Height / 2 + visibleHeight / 2, 6);
+
+        Assert.True(session.Undo());
+        Assert.Equal(alignedLeft, Assert.Single(session.Project.Objects).Transform);
+    }
+
+    [Fact]
+    public void Crop_canvas_to_rotated_selection_translates_composition_and_undo_restores_canvas()
+    {
+        var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Crop", 1000, 800));
+        var selectedId = session.AddRectangle(200, 150, 200, 100);
+        var otherId = session.AddRectangle(650, 500, 120, 90);
+        Assert.True(session.SelectObject(selectedId));
+        Assert.True(session.RotateSelected(30));
+        var before = session.Project;
+        var selectedBefore = before.Objects.Single(item => item.Id == selectedId).Transform;
+        var otherBefore = before.Objects.Single(item => item.Id == otherId).Transform;
+        var radians = selectedBefore.RotationDegrees * Math.PI / 180d;
+        var expectedWidth = Math.Abs(selectedBefore.Width * Math.Cos(radians)) + Math.Abs(selectedBefore.Height * Math.Sin(radians));
+        var expectedHeight = Math.Abs(selectedBefore.Width * Math.Sin(radians)) + Math.Abs(selectedBefore.Height * Math.Cos(radians));
+        var expectedLeft = selectedBefore.X + selectedBefore.Width / 2 - expectedWidth / 2;
+        var expectedTop = selectedBefore.Y + selectedBefore.Height / 2 - expectedHeight / 2;
+
+        Assert.True(session.CropCanvasToSelection());
+
+        Assert.Equal(expectedWidth, session.Project.CanvasWidth, 6);
+        Assert.Equal(expectedHeight, session.Project.CanvasHeight, 6);
+        var selectedAfter = session.Project.Objects.Single(item => item.Id == selectedId).Transform;
+        var otherAfter = session.Project.Objects.Single(item => item.Id == otherId).Transform;
+        Assert.Equal(selectedBefore.X - expectedLeft, selectedAfter.X, 6);
+        Assert.Equal(selectedBefore.Y - expectedTop, selectedAfter.Y, 6);
+        Assert.Equal(otherBefore.X - expectedLeft, otherAfter.X, 6);
+        Assert.Equal(otherBefore.Y - expectedTop, otherAfter.Y, 6);
+
+        Assert.True(session.Undo());
+        Assert.Equal(1000, session.Project.CanvasWidth);
+        Assert.Equal(800, session.Project.CanvasHeight);
+        Assert.Equal(otherBefore, session.Project.Objects.Single(item => item.Id == otherId).Transform);
+    }
+
+    [Fact]
     public void Semantic_components_keep_hierarchy_and_selected_ai_request_scope()
     {
         var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Semantic"));

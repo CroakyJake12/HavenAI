@@ -240,6 +240,73 @@ public sealed partial class ImagineProjectSession
             "rotate");
     }
 
+    public bool AlignSelectedHorizontal(double position)
+    {
+        var item = SelectedObject();
+        if (item is null || item.IsLocked || !double.IsFinite(position)) return false;
+        var factor = Math.Clamp(position, 0, 1);
+        var radians = item.Transform.RotationDegrees * Math.PI / 180d;
+        var visibleWidth = Math.Abs(item.Transform.Width * Math.Cos(radians)) + Math.Abs(item.Transform.Height * Math.Sin(radians));
+        var visibleLeft = Math.Max(0, Project.CanvasWidth - visibleWidth) * factor;
+        var targetCenterX = visibleLeft + visibleWidth / 2;
+        return CommitObjectTransform(
+            item.Id,
+            item.Transform with { X = targetCenterX - item.Transform.Width / 2 },
+            "align-horizontal");
+    }
+
+    public bool AlignSelectedVertical(double position)
+    {
+        var item = SelectedObject();
+        if (item is null || item.IsLocked || !double.IsFinite(position)) return false;
+        var factor = Math.Clamp(position, 0, 1);
+        var radians = item.Transform.RotationDegrees * Math.PI / 180d;
+        var visibleHeight = Math.Abs(item.Transform.Width * Math.Sin(radians)) + Math.Abs(item.Transform.Height * Math.Cos(radians));
+        var visibleTop = Math.Max(0, Project.CanvasHeight - visibleHeight) * factor;
+        var targetCenterY = visibleTop + visibleHeight / 2;
+        return CommitObjectTransform(
+            item.Id,
+            item.Transform with { Y = targetCenterY - item.Transform.Height / 2 },
+            "align-vertical");
+    }
+
+    public bool CropCanvasToSelection()
+    {
+        var item = SelectedObject();
+        if (item is null || !item.IsVisible) return false;
+        var radians = item.Transform.RotationDegrees * Math.PI / 180d;
+        var visibleWidth = Math.Abs(item.Transform.Width * Math.Cos(radians)) + Math.Abs(item.Transform.Height * Math.Sin(radians));
+        var visibleHeight = Math.Abs(item.Transform.Width * Math.Sin(radians)) + Math.Abs(item.Transform.Height * Math.Cos(radians));
+        var left = item.Transform.X + item.Transform.Width / 2 - visibleWidth / 2;
+        var top = item.Transform.Y + item.Transform.Height / 2 - visibleHeight / 2;
+        var cropLeft = Math.Clamp(left, 0, Project.CanvasWidth);
+        var cropTop = Math.Clamp(top, 0, Project.CanvasHeight);
+        var cropRight = Math.Clamp(left + visibleWidth, cropLeft, Project.CanvasWidth);
+        var cropBottom = Math.Clamp(top + visibleHeight, cropTop, Project.CanvasHeight);
+        var width = cropRight - cropLeft;
+        var height = cropBottom - cropTop;
+        if (width < 1 || height < 1) return false;
+        if (Math.Abs(cropLeft) < .001 && Math.Abs(cropTop) < .001 &&
+            Math.Abs(width - Project.CanvasWidth) < .001 && Math.Abs(height - Project.CanvasHeight) < .001) return false;
+
+        Apply(
+            "crop-canvas-to-selection",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, item.Id),
+            "user",
+            null,
+            project => project with
+            {
+                CanvasWidth = width,
+                CanvasHeight = height,
+                Objects = project.Objects.Select(value => value with
+                {
+                    Transform = value.Transform with { X = value.Transform.X - cropLeft, Y = value.Transform.Y - cropTop }
+                }).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, item.Id)
+            });
+        return true;
+    }
+
     public bool DuplicateSelected()
     {
         var item = SelectedObject();
