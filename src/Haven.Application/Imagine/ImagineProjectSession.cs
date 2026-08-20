@@ -125,6 +125,52 @@ public sealed partial class ImagineProjectSession
         return id;
     }
 
+    public Guid AddEllipse(double x = 140, double y = 140, double width = 240, double height = 180)
+    {
+        var id = Guid.NewGuid();
+        var item = new ImagineEditableObject(
+            id,
+            ImagineObjectKind.Ellipse,
+            "Ellipse",
+            null,
+            new ImagineTransform(x, y, Math.Max(12, width), Math.Max(12, height)),
+            NextZ(Project),
+            string.Empty,
+            "#7C3AED",
+            true,
+            false);
+        Apply(
+            "add-ellipse",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, id),
+            "user",
+            null,
+            project => project with
+            {
+                Objects = project.Objects.Append(item).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, id)
+            });
+        return id;
+    }
+
+    public bool SetSelectedFill(string fill)
+    {
+        var item = SelectedObject();
+        if (item is null || item.IsLocked || fill is not { Length: 7 } || fill[0] != '#' || !fill.Skip(1).All(Uri.IsHexDigit)) return false;
+        var normalized = fill.ToUpperInvariant();
+        if (string.Equals(item.Fill, normalized, StringComparison.Ordinal)) return false;
+        Apply(
+            "set-fill",
+            new ImagineSelectionScope(ImagineSelectionKind.Object, item.Id),
+            "user",
+            null,
+            project => project with
+            {
+                Objects = project.Objects.Select(value => value.Id == item.Id ? value with { Fill = normalized } : value).ToArray(),
+                Selection = new ImagineSelectionScope(ImagineSelectionKind.Object, item.Id)
+            });
+        return true;
+    }
+
     public Guid AddText(string text, double x = 140, double y = 140)
     {
         var value = string.IsNullOrWhiteSpace(text) ? "Text" : text.Trim();

@@ -65,6 +65,25 @@ public sealed class ImaginePage : UserControl, IDisposable
         };
         _scene.ImageTools.Add(crop);
 
+        var ellipse = new HavenButton { Name = "AddEllipse", Content = "Ellipse", IconKey = "target", Variant = ButtonVariant.Ghost };
+        ellipse.Invoked += (_, _) =>
+        {
+            _session?.AddEllipse();
+            SetStatus("Ellipse added.");
+        };
+        _scene.ImageTools.Add(ellipse);
+
+        var fillInput = new Input { Name = "Imagine.FillInput", Placeholder = "#RRGGBB" };
+        fillInput.SetValue(HavenProperties.MinWidth, HavenLength.Px(100));
+        _scene.ImageTools.Add(fillInput);
+        var applyFill = new HavenButton { Name = "Imagine.ApplyFill", Content = "Apply fill", IconKey = "palette", Variant = ButtonVariant.Ghost };
+        applyFill.Invoked += (_, _) =>
+        {
+            var changed = _session?.SetSelectedFill(fillInput.Text.Trim()) == true;
+            SetStatus(changed ? "Updated selection fill." : "Select an unlocked object and enter a colour as #RRGGBB.");
+        };
+        _scene.ImageTools.Add(applyFill);
+
         _scene.ImportRequested += async (_, _) => await PickImportAsync(); _scene.SaveRequested += async (_, _) => await SaveAsync(); _scene.ExportRequested += async (_, _) => await ExportAsync();
         _scene.UndoRequested += (_, _) => { if (_session?.Undo() == true) SetStatus("Undo"); }; _scene.RedoRequested += (_, _) => { if (_session?.Redo() == true) SetStatus("Redo"); };
         _scene.AddRectangleRequested += (_, _) => { _session?.AddRectangle(); SetStatus("Rectangle added."); }; _scene.AddTextRequested += (_, _) => AddText(); _scene.DuplicateRequested += (_, _) => { if (_session?.DuplicateSelected() == true) SetStatus("Selection duplicated."); }; _scene.DeleteRequested += (_, _) => { if (_session?.DeleteSelected() == true) SetStatus("Selection deleted."); };

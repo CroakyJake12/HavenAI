@@ -86,6 +86,25 @@ public sealed class ImagineProjectSessionTests
     }
 
     [Fact]
+    public void Ellipse_and_fill_edits_are_real_persisted_undoable_object_state()
+    {
+        var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Properties"));
+        var id = session.AddEllipse(20, 30, 160, 90);
+        var ellipse = Assert.Single(session.Project.Objects);
+        Assert.Equal(ImagineObjectKind.Ellipse, ellipse.Kind);
+        Assert.Equal("#7C3AED", ellipse.Fill);
+
+        Assert.True(session.SetSelectedFill("#12abEF"));
+        Assert.Equal("#12ABEF", Assert.Single(session.Project.Objects).Fill);
+        Assert.False(session.SetSelectedFill("blue"));
+        Assert.True(session.Undo());
+        Assert.Equal("#7C3AED", Assert.Single(session.Project.Objects).Fill);
+
+        Assert.True(session.ToggleObjectLock(id));
+        Assert.False(session.SetSelectedFill("#000000"));
+    }
+
+    [Fact]
     public void Layer_visibility_lock_and_stacking_are_real_undoable_project_edits()
     {
         var session = new ImagineProjectSession(ImagineProjectSession.CreateProject("Layers", 1000, 800));
