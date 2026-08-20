@@ -28,10 +28,50 @@ public sealed partial class VisionPage : UserControl, IDisposable
     private async Task PickImageAsync() { var storage = TopLevel.GetTopLevel(this)?.StorageProvider; if (storage is null) { _scene.SetStatus("The platform file picker is unavailable."); return; } var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Open image in Vision", AllowMultiple = false }); var path = files.FirstOrDefault()?.TryGetLocalPath(); if (!string.IsNullOrWhiteSpace(path)) await LoadImageAsync(path); }
     private async Task AnalyseAsync(string prompt)
     {
-        if (string.IsNullOrWhiteSpace(_imagePath) || !File.Exists(_imagePath)) { _scene.SetStatus("Import an image before asking Vision."); return; } if (string.IsNullOrWhiteSpace(prompt)) prompt = "Describe this image carefully, including important objects, visible text, layout and uncertainty."; _analysisCancellation?.Cancel(); _analysisCancellation?.Dispose(); var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60)); _analysisCancellation = cancellation; _scene.SetBusy(true); _scene.SetStatus("Vision is analysing the image…");
-        try { var available = await _models.GetModelsAsync(cancellation.Token); var model = available.FirstOrDefault(item => item.Supports(ToolCapability.Vision)); if (model is null) { _scene.SetStatus("No compatible vision model is available. The image was not sent to a text-only model."); return; } var response = await _models.CompleteAsync(new OllamaChatRequest(model.Name, [new OllamaMessage("user", prompt.Trim(), [_imagePath])], EffortLevel.Medium, "Act as Haven Vision. Analyse only the supplied image, distinguish observation from inference, transcribe visible text accurately, and state uncertainty."), cancellation.Token); _scene.SetResponse(response, model.Name); _scene.Question.Text = string.Empty; _scene.SetStatus("Analysis complete."); } catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { _scene.SetStatus("Vision analysis stopped."); } catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException) { _scene.SetStatus("Vision analysis failed: " + exception.Message); } finally { if (ReferenceEquals(_analysisCancellation, cancellation)) _analysisCancellation = null; cancellation.Dispose(); await Dispatcher.UIThread.InvokeAsync(() => _scene.SetBusy(false)); }
+        var sourcePath = _imagePath;
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath)) { _scene.SetStatus("Import an image before asking Vision."); return; }
+        if (string.IsNullOrWhiteSpace(prompt)) prompt = "Describe this image carefully, including important objects, visible text, layout and uncertainty.";
+        _analysisCancellation?.Cancel();
+        _analysisCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        _analysisCancellation = cancellation;
+        _scene.SetBusy(true);
+        _scene.SetStatus("Vision is analysing the image…");
+        string? regionCropPath = null;
+        try
+        {
+            var analysisPath = sourcePath;
+            var regionAnalysis = false;
+            if (VisionRegionCropper.IsRegionPrompt(prompt) && _scene.Preview.SelectedRegion is HavenRect selectedRegion)
+            {
+                regionAnalysis = true;
+                var viewportWidth = Math.Max(1, _scene.Preview.Bounds.Width - 24);
+                var viewportHeight = Math.Max(1, _scene.Preview.Bounds.Height - 24);
+                regionCropPath = await VisionRegionCropper.CreateCropAsync(sourcePath, selectedRegion, viewportWidth, viewportHeight, cancellation.Token);
+                analysisPath = regionCropPath;
+                prompt = VisionRegionCropper.GetRegionQuestion(prompt);
+                _scene.SetStatus("Vision is analysing the selected image region…");
+            }
+
+            var available = await _models.GetModelsAsync(cancellation.Token);
+            var model = available.FirstOrDefault(item => item.Supports(ToolCapability.Vision));
+            if (model is null) { _scene.SetStatus("No compatible vision model is available. The image was not sent to a text-only model."); return; }
+            var response = await _models.CompleteAsync(new OllamaChatRequest(model.Name, [new OllamaMessage("user", prompt.Trim(), [analysisPath])], EffortLevel.Medium, "Act as Haven Vision. Analyse only the supplied image, distinguish observation from inference, transcribe visible text accurately, and state uncertainty."), cancellation.Token);
+            _scene.SetResponse(response, model.Name);
+            _scene.Question.Text = string.Empty;
+            _scene.SetStatus(regionAnalysis ? "Region analysis complete." : "Analysis complete.");
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { _scene.SetStatus("Vision analysis stopped."); }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidOperationException) { _scene.SetStatus("Vision analysis failed: " + exception.Message); }
+        finally
+        {
+            VisionRegionCropper.DeleteTemporary(regionCropPath);
+            if (ReferenceEquals(_analysisCancellation, cancellation)) _analysisCancellation = null;
+            cancellation.Dispose();
+            await Dispatcher.UIThread.InvokeAsync(() => _scene.SetBusy(false));
+        }
     }
-    public void Dispose() { if (_disposed) return; _disposed = true; _analysisCancellation?.Cancel(); _analysisCancellation?.Dispose(); }
+    public void Dispose() { if (_disposed) return; _disposed = true; _analysisCancellation?.Cancel(); _analysisCancellation?.Dispose(); DeletePreviousClipboardImage(); }
 }
 
 internal enum VisionInteractionMode { Pan, SelectRegion }
