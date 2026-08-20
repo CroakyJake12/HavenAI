@@ -50,7 +50,7 @@ internal sealed class ImagineMediaCanvasElement : ImagineCanvasElement, IHavenDr
         if (!image)
         {
             _notice.Content = mode == ImagineMediaKind.Audio
-                ? "Real sampled waveforms appear for locally decodable audio. Playback remains hidden until a transport service is available. Clip timing, trim, split, move, gain and mute are real edits."
+                ? "Real sampled waveforms appear for locally decodable audio. Selected audio clips can be previewed; full mixed-timeline playback is not yet available. Clip timing, trim, split, move, gain and mute are real edits."
                 : "Video playback and preview are hidden because this runtime has no native video host. Timeline edits are real; known duration comes from local metadata.";
             EnsureTimeline();
         }

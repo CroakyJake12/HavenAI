@@ -22,7 +22,10 @@ public sealed class ImagineWorkspaceSceneTests
         Assert.Equal(ImagineMediaKind.Audio, scene.Canvas.Timeline.Kind);
         Assert.Equal(HavenVisibility.Collapsed, scene.ImageTools.GetValue(HavenProperties.Visibility));
         Assert.Equal(HavenVisibility.Visible, scene.TimelineTools.GetValue(HavenProperties.Visibility));
-        Assert.Contains("playback", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(scene.Root.DescendantsAndSelf().OfType<Button>(), button => button.Name == "TimelinePreviewAudio" && button.Content == "Preview audio clip");
+        Assert.Contains(scene.Root.DescendantsAndSelf().OfType<Button>(), button => button.Name == "TimelinePauseAudio");
+        Assert.Contains(scene.Root.DescendantsAndSelf().OfType<Button>(), button => button.Name == "TimelineStopAudio");
+        Assert.Contains("previewed", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
         scene.SetMode(ImagineMediaKind.Video);
         Assert.Equal(ImagineMediaKind.Video, scene.Canvas.Timeline.Kind);
         Assert.Contains("native video host", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);

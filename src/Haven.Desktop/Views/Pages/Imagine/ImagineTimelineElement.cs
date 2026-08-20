@@ -44,6 +44,7 @@ internal sealed partial class ImagineTimelineElement : HavenElement, IHavenDrawC
     public void SetSession(ImagineProjectSession session)
     {
         if (ReferenceEquals(_session, session)) return;
+        _audioPreview.Stop();
         if (_session is not null) _session.Changed -= OnSessionChanged;
         _session = session;
         _session.Changed += OnSessionChanged;
@@ -56,6 +57,7 @@ internal sealed partial class ImagineTimelineElement : HavenElement, IHavenDrawC
     public void SetKind(ImagineMediaKind kind)
     {
         if (kind == ImagineMediaKind.Image) throw new ArgumentOutOfRangeException(nameof(kind));
+        _audioPreview.Stop();
         _kind = kind;
         Accessibility.AccessibleName = kind == ImagineMediaKind.Audio ? "Imagine audio timeline" : "Imagine video timeline";
         _scrollSeconds = 0;
@@ -380,6 +382,7 @@ internal sealed partial class ImagineTimelineElement : HavenElement, IHavenDrawC
     public void Dispose()
     {
         if (_session is not null) _session.Changed -= OnSessionChanged;
+        _audioPreview.Dispose();
         _waveforms.Dispose();
     }
 }

@@ -59,6 +59,9 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         TimelineTools = Wrap("Imagine.TimelineTools", 6);
         TimelineTools.Add(Action("TimelineAddTrack", "Add track", "plus"));
         var addAudioTrack = Action("TimelineAddAudioTrack", "Add audio track", "music"); addAudioTrack.Invoked += (_, _) => AddTimelineAudioTrack(); TimelineTools.Add(addAudioTrack);
+        TimelineTools.Add(Action("TimelinePreviewAudio", "Preview audio clip", "volume"));
+        TimelineTools.Add(Action("TimelinePauseAudio", "Pause / resume", "pause"));
+        TimelineTools.Add(Action("TimelineStopAudio", "Stop preview", "close"));
         TimelineTools.Add(Action("TimelineSplit", "Split at playhead", "edit"));
         TimelineTools.Add(Action("TimelineDelete", "Delete", "delete"));
         TimelineTools.Add(Action("TimelineMute", "Mute / unmute", "volume"));
@@ -111,7 +114,11 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         Wire("Fit", () => FitRequested?.Invoke(this, EventArgs.Empty)); Wire("InspectVision", () => InspectVisionRequested?.Invoke(this, EventArgs.Empty));
         Wire("Imagine.Mode.Image", () => SetMode(ImagineMediaKind.Image)); Wire("Imagine.Mode.Audio", () => SetMode(ImagineMediaKind.Audio));
         Wire("Imagine.Mode.Video", () => SetMode(ImagineMediaKind.Video));
-        Wire("TimelineAddTrack", AddTimelineTrack); Wire("TimelineSplit", () => TimelineAction(Canvas.Timeline.SplitSelected(), "Split clip at playhead."));
+        Wire("TimelineAddTrack", AddTimelineTrack);
+        Wire("TimelinePreviewAudio", () => { Canvas.Timeline.PreviewSelectedAudio(out var status); SetStatus(status); });
+        Wire("TimelinePauseAudio", () => { Canvas.Timeline.PauseOrResumeAudioPreview(out var status); SetStatus(status); });
+        Wire("TimelineStopAudio", () => { Canvas.Timeline.StopAudioPreview(out var status); SetStatus(status); });
+        Wire("TimelineSplit", () => TimelineAction(Canvas.Timeline.SplitSelected(), "Split clip at playhead."));
         Wire("TimelineDelete", () => TimelineAction(Canvas.Timeline.DeleteSelected(), "Deleted timeline selection."));
         Wire("TimelineMute", () => TimelineAction(Canvas.Timeline.ToggleMuteSelected(), "Updated mute state."));
         Wire("TimelineGainDown", () => TimelineAction(Canvas.Timeline.AdjustGainSelected(-.1), "Reduced gain."));
@@ -172,8 +179,8 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         Assistant.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         ModeHint.Content = mode switch
         {
-            ImagineMediaKind.Audio => "Multitrack audio · real clip timing/edit state; playback appears only when a media host is available.",
-            ImagineMediaKind.Video => "Video + audio timeline · real clip timing/edit state; preview appears only when a native video host is available.",
+            ImagineMediaKind.Audio => "Multitrack audio · real waveforms and clip editing; selected audio clips can be previewed. Full mixed-timeline playback is not yet available.",
+            ImagineMediaKind.Video => "Video + audio timeline · real clip editing and selected-audio preview; native video preview is not yet available.",
             _ => "Direct image canvas · select, move, resize, rotate, snap and inspect."
         };
         ImageMode.Variant = image ? ButtonVariant.Tertiary : ButtonVariant.Ghost;
