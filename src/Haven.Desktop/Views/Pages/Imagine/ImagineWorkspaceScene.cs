@@ -59,6 +59,8 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         TimelineTools = Wrap("Imagine.TimelineTools", 6);
         TimelineTools.Add(Action("TimelineAddTrack", "Add track", "plus"));
         var addAudioTrack = Action("TimelineAddAudioTrack", "Add audio track", "music"); addAudioTrack.Invoked += (_, _) => AddTimelineAudioTrack(); TimelineTools.Add(addAudioTrack);
+        var previewFrame = Action("TimelinePreviewFrame", "Preview frame", "image");
+        TimelineTools.Add(previewFrame);
         TimelineTools.Add(Action("TimelinePreviewAudio", "Preview audio clip", "volume"));
         TimelineTools.Add(Action("TimelinePauseAudio", "Pause / resume", "pause"));
         TimelineTools.Add(Action("TimelineStopAudio", "Stop preview", "close"));
@@ -106,6 +108,11 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         Root.Add(Assistant);
 
         _dynamic = new DynamicUI(Root, HavenDynamicUITemplateCatalog.FromAssembly(typeof(ImagineWorkspaceScene).Assembly), _prefabs);
+        previewFrame.Invoked += async (_, _) =>
+        {
+            SetStatus("Decoding video frame…");
+            SetStatus(await Canvas.PreviewSelectedVideoFrameAsync());
+        };
         Wire("Import", () => ImportRequested?.Invoke(this, EventArgs.Empty)); Wire("Save", () => SaveRequested?.Invoke(this, EventArgs.Empty));
         Wire("Export", () => ExportRequested?.Invoke(this, EventArgs.Empty)); Wire("Undo", () => UndoRequested?.Invoke(this, EventArgs.Empty));
         Wire("Redo", () => RedoRequested?.Invoke(this, EventArgs.Empty)); Wire("AddRectangle", () => AddRectangleRequested?.Invoke(this, EventArgs.Empty));
@@ -174,13 +181,14 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         ImageTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         TimelineTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Collapsed : HavenVisibility.Visible);
         Find<HavenButton>("TimelineAddAudioTrack").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        Find<HavenButton>("TimelinePreviewFrame").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         LayerPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         SemanticPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         Assistant.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         ModeHint.Content = mode switch
         {
             ImagineMediaKind.Audio => "Multitrack audio · real waveforms and clip editing; selected audio clips can be previewed. Full mixed-timeline playback is not yet available.",
-            ImagineMediaKind.Video => "Video + audio timeline · real clip editing and selected-audio preview; native video preview is not yet available.",
+            ImagineMediaKind.Video => "Video + audio timeline · real clip editing, selected-audio preview and on-demand ffmpeg frame monitor. Continuous native video playback is not yet available.",
             _ => "Direct image canvas · select, move, resize, rotate, snap and inspect."
         };
         ImageMode.Variant = image ? ButtonVariant.Tertiary : ButtonVariant.Ghost;

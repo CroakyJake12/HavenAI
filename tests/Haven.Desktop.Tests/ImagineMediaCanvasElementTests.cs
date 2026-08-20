@@ -23,6 +23,8 @@ public sealed class ImagineMediaCanvasElementTests
         Assert.Contains("playback", canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
         canvas.SetMode(ImagineMediaKind.Video);
         Assert.Equal(ImagineMediaKind.Video, canvas.Timeline.Kind);
-        Assert.Contains("no native video host", canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HavenVisibility.Visible, canvas.VideoPreview.GetValue(HavenProperties.Visibility));
+        Assert.Contains("ffmpeg-decoded", canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not yet available", canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
     }
 }

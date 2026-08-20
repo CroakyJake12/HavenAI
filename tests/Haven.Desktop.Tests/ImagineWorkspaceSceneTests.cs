@@ -28,7 +28,15 @@ public sealed class ImagineWorkspaceSceneTests
         Assert.Contains("previewed", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
         scene.SetMode(ImagineMediaKind.Video);
         Assert.Equal(ImagineMediaKind.Video, scene.Canvas.Timeline.Kind);
-        Assert.Contains("native video host", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        var frameButton = scene.Root.DescendantsAndSelf().OfType<Button>().Single(button => button.Name == "TimelinePreviewFrame");
+        Assert.Equal(HavenVisibility.Visible, frameButton.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Visible, scene.Canvas.VideoPreview.GetValue(HavenProperties.Visibility));
+        Assert.Equal("Decoded video frame preview", scene.Canvas.VideoPreview.Accessibility.AccessibleName);
+        Assert.Contains("ffmpeg-decoded", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not yet available", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
+        scene.SetMode(ImagineMediaKind.Audio);
+        Assert.Equal(HavenVisibility.Collapsed, frameButton.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.Canvas.VideoPreview.GetValue(HavenProperties.Visibility));
     }
 
     [Fact]
