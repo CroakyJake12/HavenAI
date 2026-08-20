@@ -23,6 +23,7 @@ public sealed partial class MainView
     private Border? _mobileHomeFooter;
     private Border? _mobileDrawerScrim;
     private Border? _mobileDrawer;
+    private ScrollViewer? _mobileDrawerScroll;
     private StackPanel? _mobileDrawerContent;
     private HavenTextInput? _mobileGoInput;
     private double? _mobileSwipeStartY;
@@ -30,7 +31,10 @@ public sealed partial class MainView
     public void ApplyMobileLayout()
     {
         if (_mobileLayoutApplied)
+        {
+            RefreshMobileLayout();
             return;
+        }
 
         _mobileLayoutApplied = true;
         if (Content is not Grid root)
@@ -89,11 +93,50 @@ public sealed partial class MainView
         Grid.SetRowSpan(_mobileDrawer, 2);
         _mobileDrawer.ZIndex = 100;
         root.Children.Add(_mobileDrawer);
+        SizeChanged += (_, _) => RefreshMobileLayout();
+        RefreshMobileLayout();
 
         OpenTabs.CollectionChanged += OnMobileTabsChanged;
         Notifications.CollectionChanged += OnMobileNotificationsChanged;
         PropertyChanged += OnMobileShellPropertyChanged;
         RefreshMobileChrome();
+    }
+
+    public void RefreshMobileLayout()
+    {
+        if (!_mobileLayoutApplied)
+            return;
+
+        var width = Bounds.Width;
+        var height = Bounds.Height;
+        var compactWidth = width > 0 && width < 420;
+        var landscape = width > 0 && height > 0 && width > height;
+
+        PageContent.Margin = new Thickness(0, 0, 0, landscape ? 76 : compactWidth ? 84 : 92);
+
+        if (_mobileDrawer is not null)
+        {
+            _mobileDrawer.Margin = new Thickness(compactWidth ? 4 : 8);
+            _mobileDrawer.Padding = compactWidth
+                ? new Thickness(12, 8, 12, 14)
+                : new Thickness(16, 10, 16, 18);
+            _mobileDrawer.MaxWidth = width >= 720 ? 640 : double.PositiveInfinity;
+        }
+
+        if (_mobileDrawerScroll is not null)
+        {
+            var availableHeight = height > 0
+                ? height - (landscape ? 72 : 150)
+                : 610;
+            _mobileDrawerScroll.MaxHeight = Math.Clamp(availableHeight, 220, 610);
+        }
+
+        _mobileHeader?.InvalidateMeasure();
+        _mobileTabs?.InvalidateMeasure();
+        _mobileBottomAffordance?.InvalidateMeasure();
+        _mobileHomeFooter?.InvalidateMeasure();
+        _mobileDrawer?.InvalidateMeasure();
+        InvalidateMeasure();
     }
 
     private Border BuildMobileHeader()
@@ -309,6 +352,13 @@ public sealed partial class MainView
         Grid.SetColumn(close, 1);
         header.Children.Add(close);
 
+        _mobileDrawerScroll = new ScrollViewer
+        {
+            MaxHeight = 610,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = content
+        };
         var stack = new StackPanel
         {
             Spacing = 12,
@@ -320,13 +370,7 @@ public sealed partial class MainView
                     HorizontalAlignment = HorizontalAlignment.Center
                 },
                 header,
-                new ScrollViewer
-                {
-                    MaxHeight = 610,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                    Content = content
-                }
+                _mobileDrawerScroll
             }
         };
         var drawer = new HavenMobileSheet

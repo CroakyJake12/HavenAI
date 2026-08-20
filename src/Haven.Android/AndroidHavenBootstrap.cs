@@ -1,4 +1,4 @@
-﻿using Android.Content;
+using Android.Content;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Haven.Application;
@@ -25,6 +25,16 @@ internal static class AndroidHavenBootstrap
     {
         _pendingSurface = intent?.GetStringExtra("haven_surface");
         _pendingPrompt = intent?.GetStringExtra("haven_prompt");
+    }
+
+    public static void NotifyConfigurationChanged()
+    {
+        if (!_activeMainViewReady
+            || _activeMainView is null
+            || !_activeMainView.TryGetTarget(out var mainView))
+            return;
+
+        Dispatcher.UIThread.Post(mainView.RefreshMobileLayout);
     }
 
     public static void ApplyLaunchRequest(Intent? intent)
