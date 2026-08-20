@@ -92,7 +92,7 @@ internal sealed class VisionScene
     private static HavenButton Action(string name, string content, string icon) => new() { Name = name, Content = content, IconKey = icon, Variant = ButtonVariant.Ghost }; private static HavenText Muted(string name, string content) { var value = new HavenText { Name = name, Content = content }; value.SetValue(HavenProperties.Foreground, "TextSecondary"); value.SetValue(HavenProperties.FontSize, 11d); return value; }
 }
 
-internal sealed class VisionPreviewElement : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget
+internal sealed partial class VisionPreviewElement : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget
 {
     private string? _source; private VisionInteractionMode _mode = VisionInteractionMode.Pan; private HavenPoint _pan; private double _zoom = 1; private bool _dragging; private HavenPoint _dragStart; private HavenPoint _dragCurrent; private HavenRect? _selectedRegion;
     public string? Source { get => _source; set { if (_source == value) return; _source = value; Fit(); ClearRegion(); } } public VisionInteractionMode Mode => _mode; public HavenRect? SelectedRegion => _selectedRegion; public double ZoomPercent => _zoom * 100; public event EventHandler? ViewChanged; public event EventHandler? RegionChanged;

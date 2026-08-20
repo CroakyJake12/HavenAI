@@ -20,6 +20,7 @@ public sealed partial class VisionPage
     private void WirePlatformImageInput()
     {
         AttachPlatformPasteButton(_scene, PasteImageAsync);
+        AttachOneToOneButton(_scene, () => Math.Max(.01, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1d));
         AddHandler(DragDrop.DragOverEvent, OnVisionDragOver);
         AddHandler(DragDrop.DropEvent, OnVisionDrop);
     }
@@ -38,6 +39,32 @@ public sealed partial class VisionPage
         paste.Invoked += async (_, _) => await pasteAsync();
         header.Add(paste);
         return paste;
+    }
+
+    internal static HavenButton AttachOneToOneButton(VisionScene scene, Func<double> renderScaling)
+    {
+        var header = scene.Root.DescendantsAndSelf().OfType<HavenContainer>()
+            .Single(item => item.Name == "Vision.Header");
+        var oneToOne = new HavenButton
+        {
+            Name = "Vision.OneToOne",
+            Content = "1:1",
+            IconKey = "search",
+            Variant = ButtonVariant.Ghost
+        };
+        oneToOne.Accessibility.AccessibleName = "Show image at one source pixel per display pixel";
+        oneToOne.Invoked += (_, _) =>
+        {
+            if (scene.Preview.OneToOne(renderScaling()))
+            {
+                scene.Zoom.Content = "1:1";
+                scene.SetStatus("1:1 view · one source pixel per physical display pixel.");
+            }
+            else
+                scene.SetStatus("1:1 view is unavailable until Vision can read this image's intrinsic pixel dimensions and the preview has been laid out.");
+        };
+        header.Add(oneToOne);
+        return oneToOne;
     }
 
     private void OnVisionDragOver(object? sender, DragEventArgs e)
