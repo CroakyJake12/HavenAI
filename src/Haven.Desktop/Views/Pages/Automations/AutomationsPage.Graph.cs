@@ -7,6 +7,7 @@ using Haven.Application.Automations;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.HavenUI.Backend;
+using Haven.Desktop.HavenUI.Components;
 using Haven.UI;
 using Haven.UI.Components;
 using GraphNodeEditor = Haven.UI.Components.NodeEditor;
@@ -18,6 +19,8 @@ public sealed partial class AutomationsPage
     private readonly GraphNodeEditor _graphEditor = new();
     private readonly HavenSearchInput _nodeSearch = new() { PlaceholderText = "Search nodes" };
     private readonly StackPanel _nodeLibraryItems = new() { Spacing = 8 };
+    private HavenDropdown? _nodePicker;
+    private HavenPoint? _pendingNodeInsertWorld;
     private readonly StackPanel _nodeInspectorFields = new() { Spacing = 10 };
     private readonly StackPanel _graphDiagnostics = new() { Spacing = 6 };
     private readonly StackPanel _graphTestTrace = new() { Spacing = 8 };
@@ -48,6 +51,7 @@ public sealed partial class AutomationsPage
         _nodeSearch.MinHeight = 44; _nodeSearch.TextChanged += (_, _) => RebuildNodeLibrary();
         _graphEditor.DocumentChanged += document => { if (_suppressGraphUi) return; _graphLoadFailed = false; _editingGraph = AutomationGraphEditorAdapter.FromEditor(document, _editingGraph); RefreshGraphDiagnostics(); };
         _graphEditor.SelectionChanged += _ => { if (_suppressGraphUi) return; _editingGraph = AutomationGraphEditorAdapter.FromEditor(_graphEditor.Document, _editingGraph); RefreshNodeInspector(); };
+        _graphEditor.EmptySpaceContextRequested += world => { _pendingNodeInsertWorld = world; if (_graphHost is not null) ShowNodePicker(_graphHost); };
         _deviceTarget.SelectionChanged += (_, _) => { if (!_suppressGraphUi && _deviceTarget.SelectedItem is DeviceTargetChoice choice) StoreDeviceTarget(choice.Target); };
         _deviceAction.SelectionChanged += (_, _) => { if (_suppressGraphUi || _deviceAction.SelectedItem is not DeviceActionChoice choice) return; StoreDeviceAction(choice.Action); AttachDeviceParameterBindings(); };
         _editorScroll.PropertyChanged += (_, e) => { if (e.Property.Name == "IsVisible" && _editorScroll.IsVisible) HydrateGraphEditor(_editing); };
@@ -57,26 +61,66 @@ public sealed partial class AutomationsPage
     private Control BuildGraphWorkspace()
     {
         if (_graphHost is null) throw new InvalidOperationException("The Automation graph host has not been configured.");
-        var palette = new HavenCard { Padding = new Thickness(14), CornerRadius = new CornerRadius(18), Child = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*"), RowSpacing = 10, Children = { Heading("Nodes", 18), Row(_nodeSearch, 1), Row(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _nodeLibraryItems }, 2) } } };
-        var undo = SoftButton("Undo"); var redo = SoftButton("Redo"); var duplicate = SoftButton("Duplicate"); var delete = SoftButton("Delete"); var reset = SoftButton("Reset view");
-        undo.Click += (_, _) => { _graphEditor.Undo(); RefreshGraphDiagnostics(); }; redo.Click += (_, _) => { _graphEditor.Redo(); RefreshGraphDiagnostics(); }; duplicate.Click += (_, _) => { _graphEditor.DuplicateSelection(); RefreshGraphDiagnostics(); }; delete.Click += (_, _) => { _graphEditor.DeleteSelection(); RefreshGraphDiagnostics(); }; reset.Click += (_, _) => { _graphEditor.ResetViewport(); RefreshGraphDiagnostics(); };
-        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8, Children = { _graphSummary, Column(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { undo, redo, duplicate, delete, reset } }, 1) } };
+        var addNode = AccentButton("+ Add Node");
+        AutomationProperties.SetName(addNode, "Add automation node");
+        addNode.Click += (_, _) => { _pendingNodeInsertWorld = null; ShowNodePicker(addNode); };
+        var undo = SoftButton("Undo"); var redo = SoftButton("Redo"); var duplicate = SoftButton("Duplicate"); var delete = SoftButton("Delete"); var fit = SoftButton("Fit");
+        undo.Click += (_, _) => { _graphEditor.Undo(); RefreshGraphDiagnostics(); }; redo.Click += (_, _) => { _graphEditor.Redo(); RefreshGraphDiagnostics(); }; duplicate.Click += (_, _) => { _graphEditor.DuplicateSelection(); RefreshGraphDiagnostics(); }; delete.Click += (_, _) => { _graphEditor.DeleteSelection(); RefreshGraphDiagnostics(); }; fit.Click += (_, _) => { _graphEditor.FitToDocument(); RefreshGraphDiagnostics(); };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { addNode, undo, redo, duplicate, delete, fit } };
+        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8, Children = { _graphSummary, Column(actions, 1) } };
         var canvas = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 8, Children = { toolbar, Row(new Border { BorderBrush = BorderStroke, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Background = CardBrush, ClipToBounds = true, Child = _graphHost }, 1) } };
-        var inspectorContent = new StackPanel { Spacing = 10, Children = { Heading("Workflow", 18), Label("Name"), _name, Label("Goal"), _goal, Label("Rules"), _rules, Heading("Selected node", 18), _nodeInspectorFields, Heading("Validation", 18), _graphDiagnostics, Heading("Test trace", 18), _graphTestTrace } };
+        _assistant.PlaceholderText = "Describe a graph edit…";
+        var editWithHaven = AccentButton("Edit with Haven");
+        AutomationProperties.SetName(editWithHaven, "Edit automation graph with Haven");
+        editWithHaven.HorizontalAlignment = HorizontalAlignment.Stretch;
+        editWithHaven.Click += async (_, _) => await ApplyGraphAiEditAsync();
+        var inspectorContent = new StackPanel { Spacing = 10, Children = { Heading("Workflow", 18), Label("Name"), _name, Label("Goal"), _goal, Label("Rules"), _rules, Heading("Edit graph with Haven", 18), _assistant, editWithHaven, Heading("Selected node", 18), _nodeInspectorFields, Heading("Validation", 18), _graphDiagnostics, Heading("Test trace", 18), _graphTestTrace } };
         var inspector = new HavenCard { Padding = new Thickness(14), CornerRadius = new CornerRadius(18), Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = inspectorContent } };
-        return new Grid { ColumnDefinitions = new ColumnDefinitions("230,*,340"), ColumnSpacing = 12, MinHeight = 620, Children = { palette, Column(canvas, 1), Column(inspector, 2) } };
+        return new Grid { ColumnDefinitions = new ColumnDefinitions("*,330"), ColumnSpacing = 12, MinHeight = 620, Children = { canvas, Column(inspector, 1) } };
+    }
+
+    private void ShowNodePicker(Control anchor)
+    {
+        _nodePicker ??= BuildNodePicker();
+        _nodeSearch.Text = string.Empty;
+        RebuildNodeLibrary();
+        _nodePicker.ShowAt(anchor);
+        _nodeSearch.Focus();
+    }
+
+    private HavenDropdown BuildNodePicker()
+    {
+        var content = new Grid
+        {
+            Width = 390, MaxHeight = 520, RowDefinitions = new RowDefinitions("Auto,Auto,*"), RowSpacing = 10, Margin = new Thickness(14),
+            Children = { Heading("Add Node", 20), Row(_nodeSearch, 1), Row(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _nodeLibraryItems }, 2) }
+        };
+        return new HavenDropdown { Content = new HavenDropdownCard { CornerRadius = new CornerRadius(20), Child = content } };
     }
 
     private void RebuildNodeLibrary()
     {
         _nodeLibraryItems.Children.Clear();
-        foreach (var template in _graphEditor.SearchTemplates(AutomationGraphEditorAdapter.Templates, _nodeSearch.Text))
+        var matches = _graphEditor.SearchTemplates(AutomationGraphEditorAdapter.Templates, _nodeSearch.Text);
+        foreach (var group in matches.GroupBy(template => template.Category).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var button = new HavenNavigationButton { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(10, 8), CornerRadius = new CornerRadius(14), Content = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = template.Title, FontWeight = Avalonia.Media.FontWeight.ExtraBold, FontSize = 13 }, new TextBlock { Text = template.Category, Foreground = MutedBrush, FontSize = 10 }, new TextBlock { Text = template.Subtitle, Foreground = MutedBrush, FontSize = 10, TextWrapping = Avalonia.Media.TextWrapping.Wrap } } } };
-            AutomationProperties.SetName(button, $"Add {template.Title} node");
-            button.Click += (_, _) => { var index = _graphEditor.Document.Nodes.Count; _graphEditor.AddNode(template, 80 + (index % 4) * 260, 80 + (index / 4) * 160); RefreshGraphDiagnostics(); };
-            _nodeLibraryItems.Children.Add(button);
+            _nodeLibraryItems.Children.Add(new TextBlock { Text = group.Key, FontWeight = Avalonia.Media.FontWeight.ExtraBold, FontSize = 11, Foreground = MutedBrush, Margin = new Thickness(2, 8, 2, 2) });
+            foreach (var template in group.OrderBy(template => template.Title, StringComparer.OrdinalIgnoreCase))
+            {
+                var button = new HavenNavigationButton { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(10, 8), CornerRadius = new CornerRadius(14), Content = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = template.Title, FontWeight = Avalonia.Media.FontWeight.ExtraBold, FontSize = 13 }, new TextBlock { Text = template.Subtitle, Foreground = MutedBrush, FontSize = 10, TextWrapping = Avalonia.Media.TextWrapping.Wrap } } } };
+                AutomationProperties.SetName(button, $"Add {template.Title} node");
+                button.Click += (_, _) =>
+                {
+                    var point = _pendingNodeInsertWorld ?? _graphEditor.ViewportCenterWorld;
+                    _graphEditor.AddNode(template, point.X - 110, point.Y - 59);
+                    _pendingNodeInsertWorld = null;
+                    _nodePicker?.Hide();
+                    RefreshGraphDiagnostics();
+                };
+                _nodeLibraryItems.Children.Add(button);
+            }
         }
+        if (matches.Count == 0) _nodeLibraryItems.Children.Add(Muted("No nodes match this search."));
     }
 
     private void HydrateGraphEditor(ReusableTaskDefinition? item)
@@ -162,6 +206,37 @@ public sealed partial class AutomationsPage
     private void StoreDeviceAction(DeviceActionDescriptor action) { if (_inspectedNodeId is not { } id) return; _graphEditor.UpdateNode(id, node => node.Category.Equals(DeviceAutomationNodeCategory.Key, StringComparison.OrdinalIgnoreCase) ? node with { Title = action.Name, Metadata = AutomationGraphEditorAdapter.WithDeviceAction(node.Metadata, action.Key) } : node); }
     private void AttachDeviceParameterBindings() { foreach (var pair in _deviceParameterInputs.ToArray()) { var key = pair.Key; var input = pair.Value; input.TextChanged += (_, _) => { if (!_suppressGraphUi && _inspectedNodeId is { } id) _graphEditor.UpdateNode(id, node => node with { Metadata = AutomationGraphEditorAdapter.WithParameter(node.Metadata, key, input.Text) }); }; } }
 
+    private async Task ApplyGraphAiEditAsync()
+    {
+        var instruction = _assistant.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(instruction)) { _status.Text = "Describe the graph change you want Haven to make."; return; }
+        if (_graphAiEditor is null) { _status.Text = "The Automation graph AI editor is unavailable in this host."; return; }
+        _editingGraph = AutomationGraphEditorAdapter.FromEditor(_graphEditor.Document, _editingGraph);
+        var before = _graphEditor.Document;
+        _status.Text = "Asking Haven for a typed graph edit…";
+        var result = await _graphAiEditor.ProposeEditAsync(_editingGraph, instruction, CancellationToken.None);
+        if (!result.Succeeded || result.Graph is null)
+        {
+            if (!ReferenceEquals(before, _graphEditor.Document)) _graphEditor.Document = before;
+            _status.Text = result.Status;
+            return;
+        }
+        _suppressGraphUi = true;
+        try
+        {
+            _editingGraph = result.Graph;
+            _graphEditor.Document = AutomationGraphEditorAdapter.ToEditor(result.Graph);
+            _graphEditor.ClearSelection();
+            _graphLoadFailed = false;
+        }
+        finally { _suppressGraphUi = false; }
+        _assistant.Text = string.Empty;
+        _graphEditor.FitToDocument();
+        RefreshNodeInspector();
+        RefreshGraphDiagnostics();
+        _status.Text = result.Status;
+    }
+
     private void RefreshGraphDiagnostics()
     {
         _editingGraph = AutomationGraphEditorAdapter.FromEditor(_graphEditor.Document, _editingGraph);
@@ -173,6 +248,7 @@ public sealed partial class AutomationsPage
         foreach (var diagnostic in diagnostics.Take(8)) _graphDiagnostics.Children.Add(Muted("â€¢ " + diagnostic.Message));
         if (!_graphLoadFailed && diagnostics.Count == 0) _graphDiagnostics.Children.Add(Muted("Graph structure, scheduling, and configured DEVICE nodes are valid."));
         if (diagnostics.Count > 8) _graphDiagnostics.Children.Add(Muted($"+{diagnostics.Count - 8} more validation issues"));
+        _graphEditor.Diagnostics = diagnostics;
         _graphSummary.Text = $"{_graphEditor.Document.Nodes.Count} nodes Â· {_graphEditor.Document.Edges.Count} connections Â· {Math.Round(_graphEditor.Zoom * 100)}%";
     }
 

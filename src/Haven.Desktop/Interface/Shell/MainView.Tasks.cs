@@ -1,6 +1,7 @@
 using Haven.Core;
 using Haven.Desktop.Views.Pages.Tasks;
 using Haven.Desktop.Views.Pages.Automations;
+using Haven.Desktop.Views.Shell.NativePresentation;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -46,7 +47,7 @@ public sealed partial class MainView
             return;
         }
 
-        var page = new AutomationsPage(
+        var page = new NativeAutomationsPage(
             _workspaceState,
             _automations,
             containerId,
