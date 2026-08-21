@@ -1,5 +1,6 @@
 using Haven.Core;
 using Haven.Desktop.Overlay;
+using Haven.UI;
 using Haven.UI.Components;
 
 namespace Haven.Desktop.Tests;
@@ -7,7 +8,7 @@ namespace Haven.Desktop.Tests;
 public sealed class OverlayShellHavenSceneTests
 {
     [Fact]
-    public void Scene_projects_sessions_permission_and_dynamic_actions()
+    public void Scene_projects_sessions_permission_dynamic_actions_and_compact_composer()
     {
         var now = new DateTimeOffset(2026, 8, 17, 7, 0, 0, TimeSpan.Zero);
         var activeId = Guid.NewGuid();
@@ -35,6 +36,11 @@ public sealed class OverlayShellHavenSceneTests
 
         using var scene = new OverlayShellHavenScene();
         scene.ApplySnapshot(snapshot, activeId);
+        scene.SetSuggestions(
+        [
+            new OverlayCompactSuggestion("Continue recent chat", "Continue my most recent chat."),
+            new OverlayCompactSuggestion("Study next topic", "Continue studying my next topic.")
+        ]);
         scene.SetActions(
         [
             new OverlayContextActionDescriptor("ask-haven", "Ask Haven", "sparkles", true),
@@ -44,13 +50,18 @@ public sealed class OverlayShellHavenSceneTests
                 "haven.browser", "browser.search")
         ]);
 
-        Assert.Equal("Chat", scene.TitleText.Content);
+        Assert.StartsWith("Chat", scene.TitleText.Content);
+        Assert.Equal("How can I help?", scene.PromptText.Content);
+        Assert.Equal("Ask Haven about your screen", scene.ComposerInput.Placeholder);
         Assert.Contains("Browser", scene.SourceText.Content);
         Assert.Contains("Capture allowed", scene.PermissionText.Content);
         Assert.Contains("bounded selection", scene.ContextSummary.Content, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(2, scene.SessionTabs.Items.Count);
+        Assert.Equal(HavenVisibility.Collapsed, scene.SessionTabs.GetValue(HavenProperties.Visibility));
         Assert.Equal(ButtonVariant.Primary, scene.SessionTabs.GetItem(activeId.ToString("N")).GetComponent<Button>("Activate").Variant);
         Assert.Equal(ButtonVariant.Secondary, scene.SessionTabs.GetItem(pinnedId.ToString("N")).GetComponent<Button>("Activate").Variant);
+        Assert.Equal(2, scene.SuggestedActions.Items.Count);
+        Assert.Equal("Continue recent chat", scene.SuggestedActions.GetItem("suggestion-0").GetComponent<Button>("Invoke").Content);
         Assert.Equal(ButtonVariant.Primary, scene.Actions.GetItem("ask-haven-0").GetComponent<Button>("Invoke").Variant);
         Assert.Contains("asks", scene.Actions.GetItem("capability-web-search-search-1").GetComponent<Button>("Invoke").Content);
     }
@@ -84,7 +95,7 @@ public sealed class OverlayShellHavenSceneTests
     }
 
     [Fact]
-    public void Scene_projects_collapsed_state_as_expand_action()
+    public void Scene_projects_collapsed_state_as_compact_ask_haven_surface()
     {
         var now = new DateTimeOffset(2026, 8, 17, 16, 0, 0, TimeSpan.Zero);
         var sessionId = Guid.NewGuid();
@@ -93,8 +104,26 @@ public sealed class OverlayShellHavenSceneTests
         using var scene = new OverlayShellHavenScene();
         scene.ApplySnapshot(new OverlayWorkspaceSnapshot(sessionId, [collapsed]), sessionId);
 
+        Assert.Equal("Ask Haven about your Screen", scene.TitleText.Content);
         Assert.Equal("Expand", scene.CollapseButton.Content);
         Assert.Equal(ButtonVariant.Secondary, scene.CollapseButton.Variant);
+        Assert.Equal(HavenVisibility.Collapsed, scene.PromptText.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.ContextPanel.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.Composer.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.CaptureButton.GetValue(HavenProperties.Visibility));
+    }
+
+    [Fact]
+    public void Composer_emits_trimmed_instruction_without_using_a_full_chat_page()
+    {
+        using var scene = new OverlayShellHavenScene();
+        string? submitted = null;
+        scene.SubmitRequested += (_, instruction) => submitted = instruction;
+        scene.ComposerInput.Text = "  Explain what is on this screen.  ";
+
+        scene.SubmitComposer();
+
+        Assert.Equal("Explain what is on this screen.", submitted);
     }
 
     private static OverlaySessionState Session(
