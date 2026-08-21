@@ -175,6 +175,42 @@ public sealed class CallAudioLevelEventArgs(double level) : EventArgs
 }
 
 /// <summary>
+/// Truthful runtime state for Voice microphone capture. This is separate from the broader
+/// call state because a Voice session can remain active in typed-transcript fallback mode.
+/// </summary>
+public enum VoiceInputState
+{
+    Ready = 0,
+    Starting = 1,
+    Listening = 2,
+    Muted = 3,
+    Paused = 4,
+    PermissionDenied = 5,
+    Unavailable = 6,
+    Error = 7
+}
+
+public sealed record VoiceInputStatus(
+    VoiceInputState State,
+    string Message,
+    bool CanRetry = false);
+
+public sealed class VoiceInputStatusChangedEventArgs(VoiceInputStatus status) : EventArgs
+{
+    public VoiceInputStatus Status { get; } = status;
+}
+
+/// <summary>
+/// Optional runtime Voice-input status exposed by coordinators that can report capture
+/// degradation independently from the active conversation/session state.
+/// </summary>
+public interface IVoiceInputStatusSource
+{
+    VoiceInputStatus InputStatus { get; }
+    event EventHandler<VoiceInputStatusChangedEventArgs>? InputStatusChanged;
+}
+
+/// <summary>
 /// Defines the call repository contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface ICallRepository
