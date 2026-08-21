@@ -111,7 +111,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private GoPage? _goPage;
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
-    private NativePlanPage? _nativePlanPage;
     private TerminalPage? _terminalPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
@@ -957,13 +956,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenPlan()
     {
-        if (_edition == HavenShellEdition.New)
-        {
-            _nativePlanPage ??= CreateNativePlanPage();
-            AddOrSelectTab("plan", "Plan", _nativePlanPage, false, HavenSurface.Plan);
-            return;
-        }
-
+        // The Plan App opens the authoritative planner/calendar workspace in every shell edition.
+        // The native Today/Week projection remains a focused reusable surface, not a replacement for editing.
         OpenLegacyPlan();
 
     }
@@ -978,8 +972,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private void OpenLegacyPlan()
     {
         _planPage ??= new PlanPageViewModel(_planner, _plannerProposals, _calendarProviders, _ollama);
-        var title = _edition == HavenShellEdition.New ? "Full planner" : "Plan";
-        AddOrSelectTab(_edition == HavenShellEdition.New ? "plan-full" : "plan", title, _planPage, false, HavenSurface.Plan);
+        AddOrSelectTab("plan", "Plan", _planPage, false, HavenSurface.Plan);
     }
 
     private async Task OpenPlanTaskAsync(Guid taskId)
@@ -3402,7 +3395,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _newChatPage?.Dispose();
         _studyAssignmentsSidebar?.Dispose();
         _nativeChatSidebar?.Dispose();
-        _nativePlanPage?.Dispose();
         _planPage?.Dispose();
         _companionDockVm.Dispose();
         TopRail.Dispose();

@@ -713,7 +713,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         {
             case PlannerChangeKind.CreateTask:
             {
-                var task = NewTask(payload, now);
+                if (await GetTaskAsync(connection, transaction, change.Id, cancellationToken).ConfigureAwait(false) is not null) break;
+                var task = NewTask(change.Id, payload, now);
                 ValidateTask(task);
                 await ValidateTaskHierarchyAsync(connection, transaction, task, cancellationToken).ConfigureAwait(false);
                 await UpsertTaskAsync(connection, transaction, task, cancellationToken).ConfigureAwait(false);
@@ -742,7 +743,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
                 break;
             case PlannerChangeKind.CreateEvent:
             {
-                var plannerEvent = NewEvent(payload, now);
+                if (await GetEventAsync(connection, transaction, change.Id, cancellationToken).ConfigureAwait(false) is not null) break;
+                var plannerEvent = NewEvent(change.Id, payload, now);
                 ValidateEvent(plannerEvent);
                 await EnsureCalendarWritableAsync(connection, transaction, plannerEvent.CalendarId, cancellationToken).ConfigureAwait(false);
                 await UpsertEventAsync(connection, transaction, plannerEvent, cancellationToken).ConfigureAwait(false);
@@ -779,8 +781,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     /// <summary>
     /// Performs the new task step owned by this component.
     /// </summary>
-    private static PlannerTask NewTask(JsonElement value, DateTimeOffset now) => new(
-        Guid.NewGuid(), RequiredGuid(value, "collectionId"), OptionalGuid(value, "parentTaskId"), RequiredString(value, "title"),
+    private static PlannerTask NewTask(Guid id, JsonElement value, DateTimeOffset now) => new(
+        id, RequiredGuid(value, "collectionId"), OptionalGuid(value, "parentTaskId"), RequiredString(value, "title"),
         OptionalString(value, "notes") ?? string.Empty, OptionalEnum(value, "priority", PlannerPriority.None),
         OptionalEnum(value, "status", PlannerTaskStatus.Inbox), JsonValue(value, "tags", "[]"), OptionalInt(value, "estimatedMinutes"),
         OptionalDate(value, "startsAt"), OptionalDate(value, "dueAt"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"),
@@ -811,8 +813,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     /// <summary>
     /// Performs the new event step owned by this component.
     /// </summary>
-    private static PlannerEvent NewEvent(JsonElement value, DateTimeOffset now) => new(
-        Guid.NewGuid(), RequiredGuid(value, "calendarId"), RequiredString(value, "title"), OptionalString(value, "notes") ?? string.Empty,
+    private static PlannerEvent NewEvent(Guid id, JsonElement value, DateTimeOffset now) => new(
+        id, RequiredGuid(value, "calendarId"), RequiredString(value, "title"), OptionalString(value, "notes") ?? string.Empty,
         OptionalString(value, "location") ?? string.Empty, RequiredDate(value, "startsAt"), RequiredDate(value, "endsAt"),
         OptionalBool(value, "isAllDay"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"), false, null, null,
         now, now, null, OptionalString(value, "timeZoneId") ?? "UTC");

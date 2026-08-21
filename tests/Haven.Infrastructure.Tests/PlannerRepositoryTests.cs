@@ -720,6 +720,28 @@ public sealed class PlannerRepositoryTests : IDisposable
     }
 
     /// <summary>
+    /// Applying the same reviewed create proposal twice must not duplicate its persisted task.
+    /// </summary>
+    [Fact]
+    public async Task ProposalCreateRetryIsIdempotent()
+    {
+        var (_, repository) = await CreateAsync();
+        await repository.EnsureDefaultsAsync(CancellationToken.None);
+        var changeId = Guid.NewGuid();
+        var change = new PlannerProposedChange(changeId, PlannerChangeKind.CreateTask, null,
+            JsonSerializer.Serialize(new { collectionId = PlannerDefaults.PersonalCollectionId, title = "Retry-safe task" }),
+            "Create retry-safe task");
+        var proposal = new PlannerChangeProposal(Guid.NewGuid(), "Create once", [change], DateTimeOffset.UtcNow);
+
+        await repository.ApplyProposalAsync(proposal, CancellationToken.None);
+        await repository.ApplyProposalAsync(proposal, CancellationToken.None);
+
+        var tasks = await repository.GetTasksAsync(new PlannerTaskQuery(PlannerDefaults.PersonalCollectionId, IncludeCompleted: true), CancellationToken.None);
+        var persisted = Assert.Single(tasks, task => task.Title == "Retry-safe task");
+        Assert.Equal(changeId, persisted.Id);
+    }
+
+    /// <summary>
     /// Performs the proposal validation and unconfigured provider fail safely step owned by this component.
     /// </summary>
     [Fact]

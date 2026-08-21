@@ -147,6 +147,38 @@ public sealed class VisualSystemHeadlessTests
     }
 
     /// <summary>
+    /// Planner keeps its view navigation on the canonical Haven tabber and its scheduled-task entry in the header host.
+    /// </summary>
+    [AvaloniaFact]
+    public void PlanViewUsesCanonicalTabberAndScheduledTaskHost()
+    {
+        var view = new PlanView();
+        var window = new Window { Width = 1280, Height = 800, Content = view };
+
+        window.Show();
+        window.UpdateLayout();
+
+        var tabs = Assert.Single(view.GetVisualDescendants().OfType<Haven.Desktop.HavenUI.Components.HavenTabView>());
+        Assert.Equal(9, tabs.Items.Count);
+        Assert.NotNull(view.FindControl<Grid>("ScheduledTaskHost"));
+        var sidebar = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("CollectionSidebar"));
+        var compactPicker = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("CompactCollectionPicker"));
+        var inspector = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("PlannerInspector"));
+        Assert.True(sidebar.IsVisible);
+        Assert.False(compactPicker.IsVisible);
+
+        window.Width = 760;
+        view.Width = 760;
+        window.UpdateLayout();
+
+        Assert.False(sidebar.IsVisible);
+        Assert.True(compactPicker.IsVisible);
+        Assert.True(double.IsNaN(inspector.Width));
+        Assert.Equal(Avalonia.Layout.HorizontalAlignment.Stretch, inspector.HorizontalAlignment);
+        window.Close();
+    }
+
+    /// <summary>
     /// Performs the first class surface views construct under headless avalonia step owned by this component.
     /// </summary>
     [AvaloniaFact]
