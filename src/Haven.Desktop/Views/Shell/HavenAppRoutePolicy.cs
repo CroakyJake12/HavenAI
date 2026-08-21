@@ -22,7 +22,8 @@ public enum HavenAppRouteKind
     Automations = 10,
     Translate = 11,
     Terminal = 12,
-    Play = 13
+    Play = 13,
+    Mesh = 14
 }
 
 /// <summary>Describes the concrete route and visible surface for an App.</summary>
@@ -53,6 +54,7 @@ public static class HavenAppRoutePolicy
             "vision" => new(HavenAppRouteKind.Vision, HavenSurface.Vision),
             "play" => new(HavenAppRouteKind.Play, HavenSurface.Play),
             "translate" => new(HavenAppRouteKind.Translate, HavenSurface.Translate),
+            "mesh" => new(HavenAppRouteKind.Mesh, HavenSurface.Mesh),
             "launcher" => new(HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher),
             _ => new(HavenAppRouteKind.BaseMode, SurfaceFor(app.BaseMode))
         };

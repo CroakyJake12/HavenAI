@@ -613,6 +613,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         HavenSurface.Browse => "Haven Browse",
         HavenSurface.Plan => "Haven Plan",
         HavenSurface.Training => "Haven Training",
+        HavenSurface.Mesh => "Haven Mesh",
         _ => "Haven"
     };
 
@@ -1577,6 +1578,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             OpenTerminal(openInNewTab);
         }
+        else if (route.Kind == HavenAppRouteKind.Mesh)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenMeshDashboard();
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
@@ -1675,6 +1681,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Translate:
                     await OpenTranslateAsync(false);
+                    break;
+                case HavenSurface.Mesh:
+                    OpenMeshDashboard();
                     break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);

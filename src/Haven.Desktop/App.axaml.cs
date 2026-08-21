@@ -49,6 +49,7 @@ public sealed partial class App : Avalonia.Application
 #if ANDROID
         global::Haven.Android.AndroidServiceRegistration.AddHavenAndroidPlatformServices(collection);
 #endif
+        collection.AddHavenMesh();
         collection.AddSingleton<ScheduledTaskScheduleCalculator>();
         collection.AddSingleton<ScheduledTaskRunner>();
         collection.AddSingleton<BrowserSessionService>();
@@ -169,6 +170,30 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
+
+            if (!recoveryState.IsSafeMode)
+            {
+                try
+                {
+                    await services.GetRequiredService<MeshCoordinator>().InitialiseAsync(CancellationToken.None);
+                }
+                catch (Exception meshException)
+                {
+                    try
+                    {
+                        await (_productionDiagnostics ?? services.GetRequiredService<IProductionDiagnostics>()).WriteAsync(
+                            ReliabilitySeverity.Warning,
+                            "mesh",
+                            "startup-unavailable",
+                            meshException.ToString(),
+                            cancellationToken: CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // Mesh is optional at startup; diagnostics must not turn it into an app-start failure.
+                    }
+                }
+            }
 #if !ANDROID
             await services.GetRequiredService<Haven.Desktop.Overlay.OverlayWorkspaceController>().InitializeAsync(CancellationToken.None);
 #endif

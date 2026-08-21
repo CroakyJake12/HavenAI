@@ -156,6 +156,5 @@ public sealed partial class MeshCoordinator
         if (_discovery is null) return;
         _discovery.CandidateObserved -= OnDiscoveryCandidateObserved;
         try { if (_discovery.IsRunning) await _discovery.StopAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-        await _discovery.DisposeAsync().ConfigureAwait(false);
     }
 }

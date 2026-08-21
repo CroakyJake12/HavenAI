@@ -418,7 +418,8 @@ public sealed partial class MeshCoordinator : IAsyncDisposable
         _transport.MessageReceived -= OnMessageReceived;
         await StopDiscoveryAsync().ConfigureAwait(false);
         if (_transport.IsRunning) await _transport.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        await _transport.DisposeAsync().ConfigureAwait(false);
+        // The transport and discovery services are injected dependencies. Their owner (normally DI)
+        // disposes them after the coordinator has stopped and detached from them.
         _gate.Dispose();
     }
 }

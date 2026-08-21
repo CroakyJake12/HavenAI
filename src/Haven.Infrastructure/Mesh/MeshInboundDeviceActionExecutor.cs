@@ -1,22 +1,46 @@
 using Haven.Application;
 using Haven.Application.Automations;
 using Haven.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Infrastructure;
 
-public sealed class MeshInboundDeviceActionExecutor : IMeshInboundDeviceActionExecutor
+/// <summary>
+/// Executes an inbound Mesh DEVICE request through the native provider for this device.
+/// Provider resolution is intentionally lazy so constructing MeshCoordinator does not create a
+/// circular dependency through MeshDeviceActionProvider.
+/// </summary>
+public sealed class MeshInboundDeviceActionExecutor(IServiceProvider services) : IMeshInboundDeviceActionExecutor
 {
-    private readonly WindowsComputerDeviceActionProvider _provider;
-    private readonly DeviceTargetDescriptor _target;
-
-    public MeshInboundDeviceActionExecutor(IComputerToolService computer, CapabilityRegistryService capabilities)
+    public async Task<DeviceCapabilitySnapshot> GetSnapshotAsync(CancellationToken cancellationToken)
     {
-        _provider = new WindowsComputerDeviceActionProvider(computer, capabilities);
-        _target = new DeviceTargetDescriptor("current", Environment.MachineName, CapabilityPlatform.Windows, DeviceTargetKind.CurrentDevice, WindowsComputerDeviceActionProvider.NativeProviderId);
+        var target = CurrentTarget();
+        var provider = ResolveNativeProvider(target);
+        return await provider.GetSnapshotAsync(target, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<DeviceCapabilitySnapshot> GetSnapshotAsync(CancellationToken cancellationToken) => _provider.GetSnapshotAsync(_target, cancellationToken);
+    public async Task<DeviceActionResult> ExecuteAsync(
+        string actionKey,
+        IReadOnlyDictionary<string, string>? parameters,
+        bool permissionGranted,
+        CancellationToken cancellationToken)
+    {
+        var target = CurrentTarget();
+        var provider = ResolveNativeProvider(target);
+        return await provider.ExecuteAsync(
+            new DeviceActionRequest(target, actionKey, parameters, permissionGranted),
+            cancellationToken).ConfigureAwait(false);
+    }
 
-    public Task<DeviceActionResult> ExecuteAsync(string actionKey, IReadOnlyDictionary<string, string>? parameters, bool permissionGranted, CancellationToken cancellationToken) =>
-        _provider.ExecuteAsync(new DeviceActionRequest(_target, actionKey, parameters, permissionGranted), cancellationToken);
+    private IDeviceActionProvider ResolveNativeProvider(DeviceTargetDescriptor target)
+    {
+        var provider = services.GetServices<IDeviceActionProvider>().FirstOrDefault(candidate => candidate.CanHandle(target));
+        return provider ?? throw new InvalidOperationException($"No native DEVICE provider is registered for {target.Platform}.");
+    }
+
+    private static DeviceTargetDescriptor CurrentTarget()
+    {
+        var platform = OperatingSystem.IsAndroid() ? CapabilityPlatform.Android : CapabilityPlatform.Windows;
+        return new DeviceTargetDescriptor("current", Environment.MachineName, platform, DeviceTargetKind.CurrentDevice);
+    }
 }

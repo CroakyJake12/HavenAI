@@ -9,7 +9,7 @@ public sealed class HavenAppRoutePolicyTests
     private static readonly string[] ExpectedBuiltInKeys =
     [
         "chat", "study", "automations", "terminal", "tasks", "studio", "browse", "plan", "training", "imagine", "canvas",
-        "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write"
+        "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write", "mesh"
     ];
 
     public static TheoryData<string, HavenAppRouteKind, HavenSurface> BuiltInRoutes => new()
@@ -33,7 +33,8 @@ public sealed class HavenAppRoutePolicyTests
         { "translate", HavenAppRouteKind.Translate, HavenSurface.Translate },
         { "launcher", HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher },
         { "go", HavenAppRouteKind.Go, HavenSurface.Go },
-        { "dashboard", HavenAppRouteKind.Dashboard, HavenSurface.Dashboard }
+        { "dashboard", HavenAppRouteKind.Dashboard, HavenSurface.Dashboard },
+        { "mesh", HavenAppRouteKind.Mesh, HavenSurface.Mesh }
     };
 
     [Theory]
