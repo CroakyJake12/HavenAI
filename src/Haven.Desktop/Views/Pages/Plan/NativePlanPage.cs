@@ -42,6 +42,7 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
         _scene.CompleteTaskRequested += OnCompleteTaskRequested;
         _scene.StudyRequested += OnStudyRequested;
         _scene.FullPlannerRequested += OnFullPlannerRequested;
+        PlanWeekCoordinator.Attach(_scene, _planner, _containers, RefreshAsync, link => StudyRequested?.Invoke(this, link));
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _refreshTimer.Tick += OnRefreshTimer;
     }

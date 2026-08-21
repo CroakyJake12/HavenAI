@@ -1,112 +1,33 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:backend="using:Haven.Desktop.HavenUI.Backend"
              xmlns:controls="using:Haven.Desktop.Controls"
              xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:topRail="using:Haven.Desktop.Views.Shell.TopRail"
              x:Class="Haven.Desktop.Views.Shell.TopRail.TopRail"
              x:Name="TopRailRoot">
 
-  <!-- Slide 11 desktop contract: one compact edge-to-edge rail. The tab strip
-       expands into available space; controls do not sit inside a second shell. -->
-  <Grid Height="76" Margin="24,0,24,0"
-        ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
-        ColumnSpacing="8">
-
-    <hui:HavenLogoButton x:Name="LogoButton"
-            Grid.Column="0"
-            Width="54" Height="54"
-            Padding="3"
-            VerticalAlignment="Center"
-            ToolTip.Tip="Haven home">
-      <Image Source="/Assets/haven-192.png" Width="48" Height="48" Stretch="Uniform"/>
-    </hui:HavenLogoButton>
-
-    <StackPanel Grid.Column="1"
-                Orientation="Horizontal"
-                Spacing="6"
-                VerticalAlignment="Center">
-      <hui:HavenHeaderIconButton x:Name="BackButton"
-              IsVisible="False" ToolTip.Tip="Back">
-        <controls:HavenIcon IconKey="chevron-left" Width="15" Height="15" />
-      </hui:HavenHeaderIconButton>
-      <hui:HavenHeaderIconButton x:Name="ForwardButton"
-              IsVisible="False" ToolTip.Tip="Forward">
-        <controls:HavenIcon IconKey="chevron-right" Width="15" Height="15" />
-      </hui:HavenHeaderIconButton>
-    </StackPanel>
-
-    <Grid Grid.Column="2" MinWidth="180" Height="54" VerticalAlignment="Center"
-          ColumnDefinitions="Auto,*,Auto">
-      <hui:HavenHeaderIconButton x:Name="TabScrollLeftButton" Grid.Column="0"
-              Width="32" Height="40" IsVisible="False" ToolTip.Tip="Scroll tabs left">
-        <controls:HavenIcon IconKey="chevron-left" Width="12" Height="12" />
-      </hui:HavenHeaderIconButton>
-      <ScrollViewer x:Name="TabScroller" Grid.Column="1"
-                    HorizontalScrollBarVisibility="Hidden"
-                    VerticalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="TabStrip" Orientation="Horizontal" Spacing="5" />
-      </ScrollViewer>
-      <hui:HavenHeaderIconButton x:Name="TabScrollRightButton" Grid.Column="2"
-              Width="32" Height="40" IsVisible="False" ToolTip.Tip="Scroll tabs right">
-        <controls:HavenIcon IconKey="chevron-right" Width="12" Height="12" />
-      </hui:HavenHeaderIconButton>
+  <Grid Height="76">
+    <!-- Transitional native anchor layer. It remains arranged so existing platform
+         flyouts keep their production placement/state contracts, but it is neither
+         rendered nor hit-testable. The visible/interactable rail is HavenScene. -->
+    <Grid x:Name="LegacyAnchorLayer"
+          Margin="24,0,24,0"
+          ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto"
+          ColumnSpacing="8"
+          Opacity="0"
+          IsHitTestVisible="False"
+          Focusable="False">
+      <hui:HavenLogoButton x:Name="LogoButton" Grid.Column="0" Width="54" Height="54" Padding="3" VerticalAlignment="Center"><Image Source="/Assets/haven-192.png" Width="48" Height="48" Stretch="Uniform"/></hui:HavenLogoButton>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><hui:HavenHeaderIconButton x:Name="BackButton" IsVisible="False"><controls:HavenIcon IconKey="chevron-left" Width="15" Height="15" /></hui:HavenHeaderIconButton><hui:HavenHeaderIconButton x:Name="ForwardButton" IsVisible="False"><controls:HavenIcon IconKey="chevron-right" Width="15" Height="15" /></hui:HavenHeaderIconButton></StackPanel>
+      <Grid Grid.Column="2" MinWidth="180" Height="54" VerticalAlignment="Center" ColumnDefinitions="Auto,*,Auto"><hui:HavenHeaderIconButton x:Name="TabScrollLeftButton" Grid.Column="0" Width="32" Height="40" IsVisible="False"><controls:HavenIcon IconKey="chevron-left" Width="12" Height="12" /></hui:HavenHeaderIconButton><ScrollViewer x:Name="TabScroller" Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"><StackPanel x:Name="TabStrip" Orientation="Horizontal" Spacing="5" /></ScrollViewer><hui:HavenHeaderIconButton x:Name="TabScrollRightButton" Grid.Column="2" Width="32" Height="40" IsVisible="False"><controls:HavenIcon IconKey="chevron-right" Width="12" Height="12" /></hui:HavenHeaderIconButton></Grid>
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center"><hui:HavenHeaderIconButton x:Name="AddTabButton" Classes="accent"><controls:HavenIcon IconKey="plus" Width="16" Height="16" /></hui:HavenHeaderIconButton><hui:HavenHeaderIconButton x:Name="TabViewButton" Classes="accent"><controls:HavenIcon IconKey="window" Width="17" Height="17" /></hui:HavenHeaderIconButton></StackPanel>
+      <hui:HavenHeaderPillButton x:Name="AppsButton" Grid.Column="4"><StackPanel Orientation="Horizontal" Spacing="8"><controls:HavenIcon IconKey="rocket" Width="18" Height="18" /><TextBlock Text="Apps" FontWeight="ExtraBold" FontSize="13" /></StackPanel></hui:HavenHeaderPillButton>
+      <topRail:DynamicActionToolbar x:Name="ActionToolbar" Grid.Column="5" VerticalAlignment="Center" />
+      <hui:HavenModelPickerButton x:Name="UniversalModelButton" Grid.Column="6" MinWidth="176" MaxWidth="236"><StackPanel Orientation="Horizontal" Spacing="6"><controls:HavenIcon IconKey="cpu" Width="17" Height="17" /><TextBlock x:Name="UniversalModelName" Text="Local model" FontWeight="ExtraBold" FontSize="12" MaxWidth="116" TextTrimming="CharacterEllipsis" /><TextBlock Text="·" /><TextBlock x:Name="UniversalReasoningValue" Text="60%" FontWeight="ExtraBold" FontSize="12" /><controls:HavenIcon IconKey="chevron-down" Width="10" Height="10" /></StackPanel></hui:HavenModelPickerButton>
+      <hui:HavenHeaderIconButton x:Name="NotificationsButton" Grid.Column="7" Classes="accent"><Grid><controls:HavenIcon IconKey="bell" Width="18" Height="18" /><hui:HavenAdaptiveSurface x:Name="NotificationBadge" MinWidth="17" Height="17" Padding="4,0" CornerRadius="9" IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-6,-6" Background="{DynamicResource HavenDangerBrush}"><TextBlock x:Name="NotificationBadgeText" Text="0" FontSize="9" FontWeight="ExtraBold" Foreground="White" /></hui:HavenAdaptiveSurface></Grid></hui:HavenHeaderIconButton>
+      <hui:HavenHeaderIconButton x:Name="SearchButton" Grid.Column="8" Classes="accent"><controls:HavenIcon IconKey="search" Width="19" Height="19" /></hui:HavenHeaderIconButton>
     </Grid>
-
-    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-      <hui:HavenHeaderIconButton x:Name="AddTabButton" Classes="accent" ToolTip.Tip="New tab">
-        <controls:HavenIcon IconKey="plus" Width="16" Height="16" />
-      </hui:HavenHeaderIconButton>
-      <hui:HavenHeaderIconButton x:Name="TabViewButton" Classes="accent" ToolTip.Tip="All tabs">
-        <controls:HavenIcon IconKey="window" Width="17" Height="17" />
-      </hui:HavenHeaderIconButton>
-    </StackPanel>
-
-    <hui:HavenHeaderPillButton x:Name="AppsButton" Grid.Column="4"
-            ToolTip.Tip="Apps">
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <controls:HavenIcon IconKey="rocket" Width="18" Height="18" />
-        <TextBlock Text="Apps" FontWeight="ExtraBold" FontSize="13" VerticalAlignment="Center" />
-      </StackPanel>
-    </hui:HavenHeaderPillButton>
-
-    <topRail:DynamicActionToolbar x:Name="ActionToolbar"
-                                  Grid.Column="5"
-                                  VerticalAlignment="Center" />
-
-    <hui:HavenModelPickerButton x:Name="UniversalModelButton" Grid.Column="6"
-            MinWidth="176" MaxWidth="236"
-            ToolTip.Tip="Model, voice, actions, and reasoning">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <controls:HavenIcon IconKey="cpu" Width="17" Height="17" />
-        <TextBlock x:Name="UniversalModelName" Text="Local model"
-                   FontWeight="ExtraBold" FontSize="12"
-                   MaxWidth="116" TextTrimming="CharacterEllipsis"
-                   VerticalAlignment="Center" />
-        <TextBlock Text="·" VerticalAlignment="Center" />
-        <TextBlock x:Name="UniversalReasoningValue" Text="60%"
-                   FontWeight="ExtraBold" FontSize="12" VerticalAlignment="Center" />
-        <controls:HavenIcon IconKey="chevron-down" Width="10" Height="10" />
-      </StackPanel>
-    </hui:HavenModelPickerButton>
-
-    <hui:HavenHeaderIconButton x:Name="NotificationsButton" Grid.Column="7" Classes="accent"
-            ToolTip.Tip="Notifications">
-      <Grid>
-        <controls:HavenIcon IconKey="bell" Width="18" Height="18" />
-        <hui:HavenAdaptiveSurface x:Name="NotificationBadge" MinWidth="17" Height="17" Padding="4,0"
-                CornerRadius="9" IsVisible="False"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Margin="0,0,-6,-6" Background="{DynamicResource HavenDangerBrush}">
-          <TextBlock x:Name="NotificationBadgeText" Text="0" FontSize="9"
-                     FontWeight="ExtraBold" Foreground="White"
-                     HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </hui:HavenAdaptiveSurface>
-      </Grid>
-    </hui:HavenHeaderIconButton>
-
-    <hui:HavenHeaderIconButton x:Name="SearchButton" Grid.Column="8" Classes="accent"
-            ToolTip.Tip="Search Haven">
-      <controls:HavenIcon IconKey="search" Width="19" Height="19" />
-    </hui:HavenHeaderIconButton>
+    <backend:HavenSceneControl x:Name="HavenScene" Panel.ZIndex="10" ClipToBounds="True" />
   </Grid>
 </UserControl>

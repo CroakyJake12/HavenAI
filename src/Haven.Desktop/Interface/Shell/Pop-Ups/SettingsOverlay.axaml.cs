@@ -12,7 +12,7 @@ public sealed partial class SettingsOverlay : UserControl
     public SettingsOverlay(HavenEventBus bus, UserPreferencesService preferences, IOllamaClient ollama)
     {
         InitializeComponent();
-        SettingsPageHost.Content = new SettingsPage(bus, preferences, ollama);
+        SettingsPageHost.Content = new SettingsHavenPage(bus, preferences, ollama);
         BackButton.Click += (_, _) =>
         {
             if (this.FindAncestorOfType<MainView>() is { } mainView)

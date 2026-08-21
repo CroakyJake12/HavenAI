@@ -10,6 +10,7 @@ using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.ViewModels;
 
 namespace Haven.Desktop.Views.Pages.Browser;
@@ -40,7 +41,9 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     private readonly IOllamaClient _ollama;
     private readonly UserPreferencesService _preferences;
     private readonly BrowserToolRuntime _browserTools;
-    private readonly BrowserView _browserView;
+    private readonly BrowserHavenScene _havenScene;
+    private readonly BrowserNativeWebResolver _nativeWebResolver;
+    private readonly HavenSceneControl _sceneControl;
     private BrowserTabViewModel? _selectedTab;
     private string _address;
     private string _status;
@@ -82,6 +85,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         _ollama = ollama;
         _preferences = preferences;
         _browserTools = new BrowserToolRuntime(browser);
+        InitializeResearch();
         var settings = data.Settings;
         _homePage = settings.HomePage;
         _searchTemplate = settings.SearchTemplate;
@@ -109,6 +113,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         CloseTabCommand = new AsyncRelayCommand<BrowserTabViewModel>(CloseTabAsync);
         SelectTabCommand = new AsyncRelayCommand<BrowserTabViewModel>(SelectTabAsync);
         AddBookmarkCommand = new AsyncRelayCommand(AddBookmarkAsync);
+        ToggleBookmarkCommand = new AsyncRelayCommand(ToggleBookmarkAsync);
         RemoveBookmarkCommand = new AsyncRelayCommand<BrowserBookmark>(RemoveBookmarkAsync);
         OpenBookmarkCommand = new AsyncRelayCommand<BrowserBookmark>(OpenBookmarkAsync);
         OpenHistoryCommand = new AsyncRelayCommand<BrowserHistoryEntry>(OpenHistoryAsync);
@@ -137,17 +142,25 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         RestoreSavedTabs();
         _browser.StateChanged += OnStateChanged;
 
-        _browserView = new BrowserView { DataContext = this };
+        _havenScene = new BrowserHavenScene(this);
+        _nativeWebResolver = new BrowserNativeWebResolver(this, _havenScene.WebSurface);
+        _sceneControl = new HavenSceneControl(new HavenAvaloniaImageResolver(), _nativeWebResolver)
+        {
+            Root = _havenScene.Root
+        };
         DataContext = this;
-        Content = _browserView;
+        Content = _sceneControl;
         InitializeComponent();
         WireEvents();
     }
 
     private void WireEvents()
     {
-        _bus.RegisterElement("Browser.View", _browserView);
-        _bus.WirePointerEvents("Browser.View", _browserView);
+        _bus.RegisterElement("Browser.View", _sceneControl);
+        _bus.WirePointerEvents("Browser.View", _sceneControl);
+        _sceneControl.InputSubmitted += _havenScene.HandleInputSubmitted;
+        WireBrowserShortcuts();
+        ImportExtensionRequested += OnImportExtensionRequested;
     }
 
     public BrowserSessionService Browser => _browser;
@@ -170,7 +183,6 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             Address = value.Address;
             RaisePropertyChanged(nameof(IsPrivate));
             RaisePropertyChanged(nameof(PrivacyLabel));
-            _ = NavigateSafelyAsync();
         }
     }
 
@@ -192,7 +204,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
-    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen;
+    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen || IsResearchOpen;
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
     public string PrivacyLabel => IsPrivate ? "Private tab - history and tab state are not saved" : "Standard tab";
     public string HomePage { get => _homePage; set => SetProperty(ref _homePage, value); }
@@ -227,6 +239,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public AsyncRelayCommand<BrowserTabViewModel> CloseTabCommand { get; }
     public AsyncRelayCommand<BrowserTabViewModel> SelectTabCommand { get; }
     public AsyncRelayCommand AddBookmarkCommand { get; }
+    public AsyncRelayCommand ToggleBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserBookmark> RemoveBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserBookmark> OpenBookmarkCommand { get; }
     public AsyncRelayCommand<BrowserHistoryEntry> OpenHistoryCommand { get; }
@@ -287,6 +300,25 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         await SaveTabsAsync();
     }
 
+    internal async Task OpenPopupInNewTabAsync(Uri address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(address);
+        if (!assessment.IsAllowed || address.Scheme is not ("http" or "https"))
+            throw new InvalidOperationException("Popup target was rejected: " + assessment.Reason);
+
+        var current = SelectedTab;
+        var tab = new BrowserTabViewModel(
+            Guid.NewGuid(),
+            address.Host,
+            address.ToString(),
+            current?.IsPrivate == true,
+            current?.Group ?? string.Empty);
+        Tabs.Add(tab);
+        SelectedTab = tab;
+        await SaveTabsAsync();
+    }
+
     private async Task CloseTabAsync(BrowserTabViewModel? tab)
     {
         if (tab is null) return;
@@ -308,6 +340,15 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         await _data.AddBookmarkAsync(SelectedTab?.Title ?? Address, Address, BookmarkGroup, CancellationToken.None);
         RefreshCollections();
         Status = $"Bookmark saved locally in {NormalizedBookmarkGroup}.";
+    });
+
+    private Task ToggleBookmarkAsync() => RunSafelyAsync(async () =>
+    {
+        var added = await _data.ToggleBookmarkAsync(SelectedTab?.Title ?? Address, Address, BookmarkGroup, CancellationToken.None);
+        RefreshCollections();
+        Status = added
+            ? $"Bookmark saved locally in {NormalizedBookmarkGroup}."
+            : "Bookmark removed locally.";
     });
 
     private Task RemoveBookmarkAsync(BrowserBookmark? bookmark)
@@ -504,6 +545,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             nameof(IsSettingsOpen) => !IsSettingsOpen,
             nameof(IsExtensionsOpen) => !IsExtensionsOpen,
             nameof(IsLoginsOpen) => !IsLoginsOpen,
+            nameof(IsResearchOpen) => !IsResearchOpen,
             _ => !IsAssistantOpen
         };
         IsBookmarksOpen = opening && panel == nameof(IsBookmarksOpen);
@@ -511,6 +553,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         IsSettingsOpen = opening && panel == nameof(IsSettingsOpen);
         IsExtensionsOpen = opening && panel == nameof(IsExtensionsOpen);
         IsLoginsOpen = opening && panel == nameof(IsLoginsOpen);
+        IsResearchOpen = opening && panel == nameof(IsResearchOpen);
         IsAssistantOpen = opening && panel == nameof(IsAssistantOpen);
         RaisePropertyChanged(nameof(IsAnyPanelOpen));
     }
@@ -532,6 +575,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         if (SelectedTab is null) return;
         SelectedTab.Address = Address;
         SelectedTab.Title = string.IsNullOrWhiteSpace(state.Title) ? state.Address?.Host ?? "New tab" : state.Title;
+        SelectedTab.Favicon = state.Favicon;
         if (state.IsLoading || state.Address is null) return;
         await _data.RecordVisitAsync(SelectedTab.Title, Address, SelectedTab.IsPrivate, CancellationToken.None);
         await SaveTabsAsync();
@@ -543,6 +587,10 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _sceneControl.InputSubmitted -= _havenScene.HandleInputSubmitted;
+        ImportExtensionRequested -= OnImportExtensionRequested;
+        _nativeWebResolver.Dispose();
+        _havenScene.Dispose();
         _browser.StateChanged -= OnStateChanged;
         _bus.UnregisterElement("Browser.View");
         _ = SaveTabsAsync();
@@ -558,6 +606,7 @@ public sealed class BrowserTabViewModel : ObservableObject
     private string _title;
     private string _address;
     private string _group;
+    private string? _favicon;
     private bool _isSelected;
 
     public BrowserTabViewModel(Guid id, string title, string address, bool isPrivate, string group)
@@ -572,6 +621,7 @@ public sealed class BrowserTabViewModel : ObservableObject
     public Guid Id { get; }
     public string Title { get => _title; set { if (SetProperty(ref _title, value)) RaisePropertyChanged(nameof(DisplayTitle)); } }
     public string Address { get => _address; set => SetProperty(ref _address, value); }
+    public string? Favicon { get => _favicon; set => SetProperty(ref _favicon, value); }
     public bool IsPrivate { get; }
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
     public string Group { get => _group; set => SetProperty(ref _group, value); }

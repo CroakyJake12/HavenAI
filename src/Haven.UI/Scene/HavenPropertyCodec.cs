@@ -33,6 +33,7 @@ public static class HavenPropertyCodec
             case "columnspan": element.SetValue(HavenProperties.ColumnSpan, Math.Max(1, ParseInt(value)), source); return;
             case "left": element.SetValue(HavenProperties.Left, HavenLength.Parse(value), source); return;
             case "top": element.SetValue(HavenProperties.Top, HavenLength.Parse(value), source); return;
+            case "layoutparticipation": element.SetValue(HavenProperties.LayoutParticipation, ParseEnum<HavenLayoutParticipation>(value), source); return;
             case "background": element.SetValue(HavenProperties.Background, value, source); return;
             case "foreground": element.SetValue(HavenProperties.Foreground, value, source); return;
             case "accent": element.SetValue(HavenProperties.Accent, value, source); return;
@@ -84,6 +85,9 @@ public static class HavenPropertyCodec
             case Input input when propertyName.Equals("Placeholder", StringComparison.OrdinalIgnoreCase): input.Placeholder = value; return;
             case Input input when propertyName.Equals("Multiline", StringComparison.OrdinalIgnoreCase): input.Multiline = ParseBool(value); return;
             case Input input when propertyName.Equals("SubmitOnEnter", StringComparison.OrdinalIgnoreCase): input.SubmitOnEnter = ParseBool(value); return;
+            case Input input when propertyName.Equals("Secret", StringComparison.OrdinalIgnoreCase) || propertyName.Equals("IsSecret", StringComparison.OrdinalIgnoreCase) || propertyName.Equals("Password", StringComparison.OrdinalIgnoreCase): input.IsSecret = ParseBool(value); return;
+            case Input input when propertyName.Equals("RevealSecret", StringComparison.OrdinalIgnoreCase): input.RevealSecret = ParseBool(value); return;
+            case Input input when propertyName.Equals("AllowSecretClipboard", StringComparison.OrdinalIgnoreCase): input.AllowSecretClipboard = ParseBool(value); return;
             case Toggle toggle when propertyName.Equals("Checked", StringComparison.OrdinalIgnoreCase): toggle.IsChecked = ParseBool(value); return;
             case Slider slider when propertyName.Equals("Minimum", StringComparison.OrdinalIgnoreCase): slider.Minimum = ParseDouble(value); return;
             case Slider slider when propertyName.Equals("Maximum", StringComparison.OrdinalIgnoreCase): slider.Maximum = ParseDouble(value); return;

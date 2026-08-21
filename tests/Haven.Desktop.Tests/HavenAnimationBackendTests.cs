@@ -139,6 +139,37 @@ public sealed class HavenAnimationBackendTests
         }
     }
 
+    [AvaloniaFact]
+    public void Removing_actively_animated_child_does_not_reenter_motion_capture()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 17, 17, 0, 0, TimeSpan.Zero));
+        var root = new HavenPage();
+        var button = new Haven.UI.Components.Button { Content = "Animated removal" };
+        root.Add(button);
+        var scene = new HavenSceneControl(
+            new HavenAvaloniaImageResolver(),
+            new HavenAvaloniaNativeControlResolver(),
+            () => false,
+            clock)
+        { Root = root };
+        var window = new Window { Width = 320, Height = 140, Content = scene };
+        try
+        {
+            window.Show();
+            button.SetState(HavenElementState.Hover, true);
+            Assert.True(scene.HasActiveAnimations);
+
+            Assert.True(root.Remove(button));
+
+            Assert.False(scene.HasActiveAnimations);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
     private sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider
     {
         private DateTimeOffset _now = now;

@@ -40,7 +40,7 @@ public sealed class ModeManifestValidator
     private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
         {
             "chat", "study", "tasks", "studio", "browse", "plan", "training", "call", "home",
-            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard",
+            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write",
             "teach", "do"
         };
 

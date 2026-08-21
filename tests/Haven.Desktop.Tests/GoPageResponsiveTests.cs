@@ -125,10 +125,16 @@ public sealed class GoPageResponsiveTests
             window.Show();
             window.UpdateLayout();
             var router = new HavenInputRouter(page.SceneRoot);
+            var desiredBeforeOpen = page.SceneRoot.DesiredSize;
+            var composerBeforeOpen = page.Route.Composer.Bounds;
 
             Click(router, page.Route.AddButton);
             window.UpdateLayout();
             Assert.Equal(HavenVisibility.Visible, page.Route.AddOverlay.GetValue(HavenProperties.Visibility));
+            Assert.Equal(HavenLayoutParticipation.Overlay, page.Route.AddOverlay.GetValue(HavenProperties.LayoutParticipation));
+            Assert.Equal(desiredBeforeOpen, page.SceneRoot.DesiredSize);
+            Assert.Equal(composerBeforeOpen, page.Route.Composer.Bounds);
+            Assert.True(page.Route.AddOverlay.Bounds.Bottom <= page.SceneHost.SurfaceMetrics.Viewport.Height + 0.5);
             Assert.True(page.Route.MainMenu.IsIncluded);
             Assert.InRange(Math.Abs(page.Route.MainMenu.Bounds.X - page.Route.Composer.Bounds.X), 0, 1.0);
             Assert.True(page.Route.MainMenu.Bounds.Bottom <= page.Route.Composer.Bounds.Y - 4);
@@ -186,6 +192,41 @@ public sealed class GoPageResponsiveTests
         {
             window.Content = null;
             window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Suggestion_colours_map_to_safe_semantic_accents_on_both_icon_pills()
+    {
+        using var page = new GoPage(new HavenEventBus());
+        var suggestions = GoSuggestionService.ImmediateDefaults
+            .Select((suggestion, index) => suggestion with
+            {
+                Colour = index switch
+                {
+                    0 => "#123456",
+                    1 => "#234567",
+                    2 => "#345678",
+                    _ => "#456789"
+                }
+            })
+            .ToArray();
+
+        page.SetSuggestions(suggestions);
+
+        for (var index = 0; index < suggestions.Length; index++)
+        {
+            var pills = page.Route.Root.DescendantsAndSelf().OfType<Container>()
+                .Where(item => item.Name == $"Go.Suggestions.Item{index}.IconPill.Wide"
+                               || item.Name == $"Go.Suggestions.Item{index}.IconPill.Compact")
+                .ToArray();
+            Assert.Equal(2, pills.Length);
+            var expectedToken = GoHavenScene.AccentTokenForColour(suggestions[index].Colour);
+            Assert.All(pills, pill =>
+            {
+                Assert.Equal(expectedToken, pill.GetValue(HavenProperties.Background));
+                Assert.NotEqual(suggestions[index].Colour, pill.GetValue(HavenProperties.Background));
+            });
         }
     }
 

@@ -34,10 +34,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NotesImportExportService>();
         services.AddSingleton<MigratingNotesImportExportService>();
         services.AddSingleton<INotesImportExportService>(provider => provider.GetRequiredService<MigratingNotesImportExportService>());
+        services.AddSingleton<IPresentRepository, PresentRepository>();
+        services.AddSingleton<IPresentExportService, PresentPptxExportService>();
+        services.AddSingleton<IPresentImportService, PresentPptxImportService>();
+        services.AddSingleton<IDocumentShapeGallery, DocumentShapeGalleryRepository>();
+        services.AddSingleton<IDataWorkbookRepository, DataWorkbookRepository>();
+        services.AddSingleton<IDataWorkbookFormatService, DataXlsxFormatService>();
+        services.AddSingleton<IDataWorkbookQueryService, DataWorkbookQueryService>();
         services.AddSingleton<NotesAttachmentStore>();
         services.AddSingleton<SecureNotesAttachmentStore>();
         services.AddSingleton<INotesAttachmentStore>(provider => provider.GetRequiredService<SecureNotesAttachmentStore>());
         services.AddSingleton<INotesMediaAssetService, NotesMediaAssetService>();
+        services.AddSingleton<IImagineProjectRepository, ImagineProjectRepository>();
+        services.AddSingleton<IImagineSemanticService, ImagineSemanticService>();
+        services.AddSingleton<IImagineAssistantService, ImagineAssistantService>();
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
         services.AddSingleton<DatabaseRestoreService>();
@@ -126,6 +136,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICodeIntelligenceService, SafeModeCodeIntelligenceService>();
         services.AddSingleton<IComputerUseSessionController, ComputerUseSessionController>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
+        services.AddSingleton<Haven.Application.Automations.IDeviceActionProvider, Haven.Application.Automations.WindowsComputerDeviceActionProvider>();
+        services.AddSingleton<Haven.Application.Automations.DeviceActionRouter>();
+        services.AddSingleton<Haven.Application.Automations.DeviceAutomationNodeExecutor>();
         services.AddHttpClient<OllamaClient>(client =>
         {
             var endpoint = Environment.GetEnvironmentVariable("OLLAMA_HOST")?.Trim();

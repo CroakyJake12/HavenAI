@@ -560,7 +560,7 @@ public sealed partial class HomePage : UserControl
                 s => Task.FromResult(new DashboardTileData(s.StudySubjects.ToString(), "Subjects"))),
             new DelegateTileProvider(new("groups", "Chat Groups", "Context workspaces", "folder", "groups", "chat", DefaultOrder: 6),
                 s => Task.FromResult(new DashboardTileData(s.ChatGroups.ToString(), "Context workspaces"))),
-            new DelegateTileProvider(new("automations", "Scheduled Actions", "Automated tasks", "zap", "automations", "automations", DefaultOrder: 7),
+            new DelegateTileProvider(new("automations", "Automations", "Reusable and scheduled workflows", "zap", "automations", "automations", DefaultOrder: 7),
                 s => Task.FromResult(new DashboardTileData(s.EnabledAutomations.ToString(), "Enabled automations")))
         };
     }

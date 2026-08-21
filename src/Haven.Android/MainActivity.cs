@@ -1,5 +1,6 @@
 using Android.App;
 using Android.Content;
+using Android.Content.Res;
 using Android.OS;
 using Android.Views;
 using Avalonia.Android;
@@ -47,6 +48,13 @@ public sealed class MainActivity : AvaloniaMainActivity
     {
         base.OnNewIntent(intent);
         AndroidHavenBootstrap.ApplyLaunchRequest(intent);
+    }
+
+    public override void OnConfigurationChanged(Configuration newConfig)
+    {
+        base.OnConfigurationChanged(newConfig);
+        Window?.SetSoftInputMode(SoftInput.AdjustResize);
+        AndroidHavenBootstrap.NotifyConfigurationChanged();
     }
 
     protected override void OnResume()

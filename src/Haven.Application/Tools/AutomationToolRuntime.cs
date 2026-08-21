@@ -44,7 +44,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
                     ["description"] = StringProperty("The task outcome."),
                     ["instruction"] = StringProperty("Complete reusable task instructions.")
                 }, "name", "instruction"));
-            result.Add(Definition("task_list", "List enabled reusable Haven Tasks available to this task group or project.", new()));
+            result.Add(Definition("task_list", "List enabled reusable Haven workflows available to this task group or project.", new()));
         }
         return result;
     }
@@ -89,7 +89,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
         var next = CalculateInitialRun(kind, schedule.RootElement, now);
         var item = new AutomationDefinition(Guid.NewGuid(), name, mode, instruction, kind, scheduleJson, next, containerId, true, now, now);
         await automations.UpsertAsync(item, cancellationToken).ConfigureAwait(false);
-        return $"Created Scheduled Action '{name}'. Next run: {next?.LocalDateTime:g}. It can be reviewed or paused from Scheduled Actions.";
+        return $"Created Automation '{name}'. Next run: {next?.LocalDateTime:g}. It can be reviewed or paused from Automations.";
     }
 
     /// <summary>
@@ -101,7 +101,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
         var item = new ReusableTaskDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
             containerId, true, now, now);
         await workspaceState.UpsertReusableTaskAsync(item, cancellationToken).ConfigureAwait(false);
-        return $"Created reusable task '{item.Name}'. It will run only when the user chooses it from Haven Tasks.";
+        return $"Created reusable workflow '{item.Name}'. It will run only when the user chooses it from Automations.";
     }
 
     /// <summary>
@@ -151,5 +151,5 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Performs the label step owned by this component.
     /// </summary>
-    private static string Label(string name) => name switch { "automation_create" => "Created Scheduled Action", "task_create" => "Created reusable task", "task_list" => "Listed reusable tasks", _ => name };
+    private static string Label(string name) => name switch { "automation_create" => "Created Automation", "task_create" => "Created reusable workflow", "task_list" => "Listed reusable workflows", _ => name };
 }

@@ -9,7 +9,7 @@
 
 using System.Collections.ObjectModel;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Browser;
 using Haven.Core;
 
@@ -23,7 +23,7 @@ public enum CatalogPageKind { Agents, Capabilities, Prompts }
 /// <summary>
 /// Represents catalog page view model and keeps its related state and behavior together.
 /// </summary>
-public sealed class CatalogPageViewModel : ObservableObject
+public sealed partial class CatalogPageViewModel : ObservableObject
 {
     /// <summary>
     /// Stores catalog locally so this component can preserve the dependency, cache, or state between member calls.

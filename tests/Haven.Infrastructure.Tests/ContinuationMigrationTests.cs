@@ -52,7 +52,8 @@ public sealed class ContinuationMigrationTests : IDisposable
         Assert.Contains(12, versions);
         Assert.Contains(13, versions);
         Assert.Contains(14, versions);
-        Assert.Equal(14, versions.Max());
+        Assert.Contains(15, versions);
+        Assert.Equal(15, versions.Max());
     }
 
     /// <summary>

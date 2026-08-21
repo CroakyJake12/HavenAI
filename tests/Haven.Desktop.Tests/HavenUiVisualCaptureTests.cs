@@ -11,7 +11,7 @@ using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Components;
 using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Views.Pages.Go;
-using Haven.Desktop.Views.Pages.Tasks;
+using Haven.Desktop.Views.Pages.Automations;
 using Haven.Desktop.Views.Shell.TopRail;
 
 namespace Haven.Desktop.Tests;
@@ -50,16 +50,14 @@ public sealed class HavenUiVisualCaptureTests
             900,
             HavenSurface.Tasks);
 
-        var tasks = new TasksPage(
+        var automations = new AutomationsPage(
             new EmptyWorkspaceStateRepository(),
             new EmptyAutomationRepository(),
-            new EmptyConversationRepository(),
             null,
             () => Task.CompletedTask,
-            _ => Task.CompletedTask,
             _ => Task.CompletedTask);
-        Capture(Path.Combine(destination, "tasks-desktop.png"), tasks, 1440, 900, HavenSurface.Tasks);
-        Capture(Path.Combine(destination, "tasks-compact.png"), tasks, 620, 860, HavenSurface.Tasks);
+        Capture(Path.Combine(destination, "automations-desktop.png"), automations, 1440, 900, HavenSurface.Automations);
+        Capture(Path.Combine(destination, "automations-compact.png"), automations, 620, 860, HavenSurface.Automations);
 
         HavenUiResourceApplier.Apply(SurfacePaletteCatalog.For(HavenSurface.Go, HavenUiAppearance.SuperDark));
 

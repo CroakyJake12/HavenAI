@@ -10,7 +10,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Services;

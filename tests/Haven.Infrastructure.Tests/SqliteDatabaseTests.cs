@@ -66,14 +66,15 @@ public sealed class SqliteDatabaseTests : IDisposable
         await conversations.AddMessageAsync(new ChatMessage(Guid.NewGuid(), conversation.Id, MessageRole.User, "Old turn", null, null, null, now, true), CancellationToken.None);
         await conversations.AddContextEntryAsync(new ConversationContextEntry(Guid.NewGuid(), conversation.Id, ContextEntryKind.CompactSummary, "Summary", "Preserved context", "test evidence", now), CancellationToken.None);
 
-        await workspace.UpsertReusableTaskAsync(new ReusableTaskDefinition(Guid.NewGuid(), "Timestamp", "Add timestamp", "Insert the current timestamp", container.Id, true, now, now), CancellationToken.None);
+        const string graphJson = "{\"version\":1,\"nodes\":[],\"edges\":[]}";
+        await workspace.UpsertReusableTaskAsync(new ReusableTaskDefinition(Guid.NewGuid(), "Timestamp", "Add timestamp", "Insert the current timestamp", container.Id, true, now, now, graphJson), CancellationToken.None);
         await workspace.AddVersionAsync(new WorkspaceVersion(Guid.NewGuid(), conversation.Id, container.Id, _paths.DataDirectory, "note.txt", WorkspaceVersionKind.Edit, "a", "b", "Changed note", 1, 1, now), CancellationToken.None);
         await workspace.UpsertDecisionAsync(new DecisionRecord(Guid.NewGuid(), container.Id, "Storage", "Use SQLite", "JSON", "Atomic local queries", "Migration test", "Maintain migrations", now, now), CancellationToken.None);
 
         Assert.DoesNotContain((await conversations.GetRecentAsync(HavenMode.Studio, 20, CancellationToken.None)), item => item.Id == conversation.Id);
         Assert.Contains((await conversations.GetArchivedAsync(HavenMode.Studio, 20, CancellationToken.None)), item => item.Id == conversation.Id);
         Assert.Single(await conversations.GetContextEntriesAsync(conversation.Id, CancellationToken.None));
-        Assert.Single(await workspace.GetReusableTasksAsync(container.Id, CancellationToken.None));
+        Assert.Equal(graphJson, Assert.Single(await workspace.GetReusableTasksAsync(container.Id, CancellationToken.None)).GraphJson);
         Assert.Single(await workspace.GetVersionsAsync(container.Id, "note.txt", 10, CancellationToken.None));
         Assert.Single(await workspace.GetDecisionsAsync(container.Id, CancellationToken.None));
 

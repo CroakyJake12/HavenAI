@@ -9,6 +9,7 @@ public sealed class HavenSceneRenderer
     {
         var context = new HavenDrawingContext();
         RenderElement(root, context, suppressContent);
+        RenderOverlays(root, context, suppressContent);
         return context.Commands;
     }
 
@@ -44,7 +45,7 @@ public sealed class HavenSceneRenderer
             case Button button when !string.IsNullOrWhiteSpace(button.Content): DrawText(button.Content, element, context, opacity, centerVertically: true, leadingIconKey: button.IconKey); break;
             case Button button when !string.IsNullOrWhiteSpace(button.IconKey): DrawButtonIcon(button, context, opacity); break;
             case Input input: DrawInput(input, context, opacity); break;
-            case Select select: DrawText(select.SelectedItem ?? "Select", element, context, opacity); break;
+            case Select select: DrawText(select.SelectedItem ?? "Select", element, context, opacity, centerVertically: true); break;
             case Toggle toggle: DrawToggle(toggle, context, opacity); break;
             case Slider slider: DrawSlider(slider, context, opacity); break;
             case Progress progress: DrawProgress(progress, context, opacity); break;
@@ -56,6 +57,42 @@ public sealed class HavenSceneRenderer
         foreach (var child in element.Children.OrderBy(child => child.GetValue(HavenProperties.ZIndex))) RenderElement(child, context, suppressContent);
         if (clipped) context.Add(new HavenPopClipCommand(element.Bounds));
         if (transformed) context.Add(new HavenPopTransformCommand(element.Bounds));
+    }
+
+    private static void RenderOverlays(HavenElement root, HavenDrawingContext context, Func<HavenElement, bool>? suppressContent)
+    {
+        foreach (var select in root.DescendantsAndSelf().OfType<Select>()
+                     .Where(select => select.IsIncluded
+                         && select.IsExpanded
+                         && select.GetValue(HavenProperties.Visibility) == HavenVisibility.Visible
+                         && suppressContent?.Invoke(select) != true)
+                     .OrderBy(select => select.GetValue(HavenProperties.ZIndex)))
+            DrawSelectPopup(select, root.Bounds, context);
+    }
+
+    private static void DrawSelectPopup(Select select, HavenRect viewport, HavenDrawingContext context)
+    {
+        var popup = select.GetPopupLayout(viewport);
+        if (popup is null) return;
+        var opacity = Math.Clamp(select.GetValue(HavenProperties.Opacity), 0d, 1d);
+        AddShadow(context, popup.Bounds, "Card", Select.PopupRadius, opacity);
+        AddFill(context, popup.Bounds, "SurfaceRaised", Select.PopupRadius, opacity);
+        AddStroke(context, popup.Bounds, "Border", 1d, Select.PopupRadius, opacity);
+
+        foreach (var item in popup.Items)
+        {
+            if (item.Index == select.SelectedIndex)
+                AddFill(context, item.Bounds, "AccentMuted", 10d, opacity * .72d);
+            var textRect = new HavenRect(item.Bounds.X + 12d, item.Bounds.Y, Math.Max(0d, item.Bounds.Width - 24d), item.Bounds.Height);
+            var layout = new HavenTextLayout(
+                item.Text,
+                select.GetValue(HavenProperties.FontFamily),
+                select.GetValue(HavenProperties.FontSize),
+                select.GetValue(HavenProperties.FontWeight),
+                textRect.Width,
+                true);
+            AddText(context, textRect, layout, select.GetValue(HavenProperties.Foreground), opacity);
+        }
     }
 
     private static void DrawButtonIcon(Button button, HavenDrawingContext context, double opacity)
@@ -70,7 +107,7 @@ public sealed class HavenSceneRenderer
             button.Bounds.Y + top,
             Math.Max(0, button.Bounds.Width - left - right),
             Math.Max(0, button.Bounds.Height - top - bottom));
-        var size = Math.Min(18d, Math.Min(content.Width, content.Height));
+        var size = Math.Min(20d, Math.Min(content.Width, content.Height));
         if (size <= 0) return;
         var rect = new HavenRect(
             content.X + (content.Width - size) / 2d,
@@ -83,16 +120,28 @@ public sealed class HavenSceneRenderer
     private static void DrawInput(Input input, HavenDrawingContext context, double opacity)
     {
         var hasText = !string.IsNullOrEmpty(input.Text);
-        DrawText(hasText ? input.Text : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: true);
-        if (!input.State.HasFlag(HavenElementState.Focused)) return;
-
+        var displayText = input.DisplayText;
+        var focused = input.State.HasFlag(HavenElementState.Focused);
+        var centerVertically = !input.Multiline;
         var padding = input.GetValue(HavenProperties.Padding);
         var left = ResolvePixels(padding.Left); var top = ResolvePixels(padding.Top); var right = ResolvePixels(padding.Right); var bottom = ResolvePixels(padding.Bottom);
         var rect = new HavenRect(input.Bounds.X + left, input.Bounds.Y + top, Math.Max(0, input.Bounds.Width - left - right), Math.Max(0, input.Bounds.Height - top - bottom));
-        var caretIndex = Math.Clamp(input.CaretIndex, 0, input.Text.Length);
-        var prefix = input.Text[..caretIndex];
-        var layout = new HavenTextLayout(prefix, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, true);
-        context.Add(new HavenCaretCommand(rect, layout, new HavenTokenBrush(input.GetValue(HavenProperties.Foreground)), opacity));
+        var fullLayout = new HavenTextLayout(displayText, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+
+        if (focused && hasText && input.HasSelection)
+            context.Add(new HavenTextSelectionCommand(rect, fullLayout, input.SelectionStart, input.SelectionLength, new HavenTokenBrush("Accent"), opacity * .28d));
+
+        DrawText(hasText ? displayText : input.Placeholder, input, context, hasText ? opacity : opacity * .64, centerVertically: centerVertically);
+        if (!focused) return;
+
+        var caretIndex = Math.Clamp(input.CaretIndex, 0, displayText.Length);
+        var prefix = displayText[..caretIndex];
+        var prefixLayout = new HavenTextLayout(prefix, input.GetValue(HavenProperties.FontFamily), input.GetValue(HavenProperties.FontSize), input.GetValue(HavenProperties.FontWeight), rect.Width, centerVertically);
+        context.Add(new HavenCaretCommand(rect, prefixLayout, new HavenTokenBrush(input.GetValue(HavenProperties.Foreground)), opacity)
+        {
+            FullLayout = fullLayout,
+            CaretIndex = caretIndex
+        });
     }
 
     private static void DrawText(string value, HavenElement element, HavenDrawingContext context, double opacity, bool centerVertically = false, string? leadingIconKey = null)
@@ -103,7 +152,7 @@ public sealed class HavenSceneRenderer
         var rect = new HavenRect(element.Bounds.X + left, element.Bounds.Y + top, Math.Max(0, element.Bounds.Width - left - right), Math.Max(0, element.Bounds.Height - top - bottom));
         if (!string.IsNullOrWhiteSpace(leadingIconKey) && rect.Width > 0 && rect.Height > 0)
         {
-            var iconSize = Math.Min(18d, rect.Height);
+            var iconSize = Math.Min(20d, rect.Height);
             var iconRect = new HavenRect(rect.X, rect.Y + Math.Max(0, (rect.Height - iconSize) / 2d), iconSize, iconSize);
             context.Add(new HavenIconCommand(iconRect, leadingIconKey, new HavenTokenBrush(element.GetValue(HavenProperties.Foreground)), opacity));
             var advance = iconSize + 10d;

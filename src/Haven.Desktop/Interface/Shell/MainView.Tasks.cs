@@ -1,5 +1,6 @@
 using Haven.Core;
 using Haven.Desktop.Views.Pages.Tasks;
+using Haven.Desktop.Views.Pages.Automations;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -30,6 +31,34 @@ public sealed partial class MainView
             page,
             closeable: true,
             surface: HavenSurface.Tasks);
+    }
+
+    public void OpenAutomationsDashboard()
+    {
+        var containerId = CurrentChat.SelectedContainer?.Id;
+        var key = "haven-automations-" + (containerId?.ToString("N") ?? "global");
+        var existing = OpenTabs.FirstOrDefault(item =>
+            item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is not null)
+        {
+            SelectedTab = existing;
+            return;
+        }
+
+        var page = new AutomationsPage(
+            _workspaceState,
+            _automations,
+            containerId,
+            StartOneTimeTaskAsync,
+            InvokeTaskAsync);
+
+        AddOrSelectTab(
+            key,
+            "Automations",
+            page,
+            closeable: true,
+            surface: HavenSurface.Automations);
     }
 
     private async Task InvokeTaskAsync(string instruction)

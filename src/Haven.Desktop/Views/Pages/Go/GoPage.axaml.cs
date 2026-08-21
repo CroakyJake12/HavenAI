@@ -76,6 +76,16 @@ public sealed partial class GoPage : UserControl, IDisposable
         return snapshot;
     }
 
+    public void RestorePendingTask(string instruction, TaskAttachmentSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _attachments.AttachSnapshot(snapshot);
+        _route.Instruction.Text = instruction ?? string.Empty;
+        _route.Instruction.PlaceCaretAtEnd();
+        RefreshAttachmentStatus();
+        FocusComposer();
+    }
+
     public void FocusComposer() => Scene.FocusElement(_route.Instruction);
 
     public void SetSuggestions(IReadOnlyList<GoSuggestion> suggestions)
@@ -124,7 +134,6 @@ public sealed partial class GoPage : UserControl, IDisposable
             RefreshSuggestionsRequested?.Invoke(this, EventArgs.Empty);
         };
         _route.SendButton.Invoked += (_, _) => Submit();
-        _route.Instruction.Invoked += (_, _) => Submit();
         Scene.InputSubmitted += OnInputSubmitted;
         Scene.PointerPressedOutside += OnPointerPressedOutside;
 

@@ -127,7 +127,9 @@ internal sealed class ChatHavenScene : IDisposable
     public void SetSending(bool sending, bool modelAvailable)
     {
         _isSending = sending;
-        Instruction.SetValue(HavenProperties.Enabled, !sending);
+        // Keep the composer editable while a response is streaming so the user can prepare
+        // their next message without interrupting the active response.
+        Instruction.SetValue(HavenProperties.Enabled, true);
         SendButton.SetValue(HavenProperties.Enabled, sending || modelAvailable);
         SendButton.Accessibility.AccessibleName = sending ? "Stop response" : "Send message";
         SendIcon.Key = sending ? "close" : "arrow-up";
@@ -165,6 +167,9 @@ internal sealed class ChatHavenScene : IDisposable
         IReadOnlyList<PromptDefinition> instructions,
         IReadOnlyList<ModeDefinition> apps) =>
         _addMenu.SetCatalogue(agents, capabilities, instructions, apps);
+
+    public void SetResponseState(string agentName, ChatActionMode actionMode, GenerativeUiResponseMode visualMode) =>
+        _addMenu.SetResponseState(agentName, actionMode, visualMode);
 
     public void SyncMessages(IReadOnlyList<ChatSceneMessage> messages)
     {
@@ -229,6 +234,33 @@ internal sealed class ChatHavenScene : IDisposable
     }
 
     public void ScrollToEnd() => Messages.ScrollY = Messages.MaxScrollY;
+
+    public void ShowResolveProblemsMenu(string title, string description, IReadOnlyList<(string Label, Action Action)> choices)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+        ShowAnchoredChoiceMenu(ResolveProblems, title, choices, 270d);
+    }
+
+    public void ShowMessageChoiceMenu(Guid messageId, string title, IReadOnlyList<(string Label, Action Action)> choices)
+    {
+        if (!_messageItems.TryGetValue(messageId, out var item)) return;
+        ShowAnchoredChoiceMenu(item.GetComponent<HavenButton>("MessageMenu"), title, choices, 260d);
+    }
+
+    private void ShowAnchoredChoiceMenu(HavenElement anchor, string title, IReadOnlyList<(string Label, Action Action)> choices, double width)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+        _activeMessagePopup?.Dismiss();
+        foreach (var existing in Root.Children.OfType<PopupMenu>().ToArray()) existing.Dismiss();
+        var actions = choices.Select(choice => new PopupMenuItem(choice.Label, choice.Action)).ToArray();
+        var popup = new PopupMenu(anchor, Root, actions, width, title);
+        popup.Dismissed += (_, _) =>
+        {
+            if (ReferenceEquals(_activeMessagePopup, popup)) _activeMessagePopup = null;
+        };
+        _activeMessagePopup = popup;
+        Root.Add(popup);
+    }
 
     public void ShowChoicePrompt(string title, string description, IReadOnlyList<(string Label, Action Action)> choices)
     {
@@ -400,8 +432,7 @@ internal sealed class ChatHavenScene : IDisposable
             ["CONTENT"] = message.Content,
             ["AGENT"] = string.IsNullOrWhiteSpace(message.AgentName) ? "Haven" : message.AgentName,
             ["THINKING"] = message.Thinking,
-            ["THINKINGVISIBILITY"] = string.IsNullOrWhiteSpace(message.Thinking) ? "Collapsed" : "Visible",
-            ["STREAMINGVISIBILITY"] = message.IsStreaming ? "Visible" : "Collapsed"
+            ["THINKINGVISIBILITY"] = string.IsNullOrWhiteSpace(message.Thinking) ? "Collapsed" : "Visible"
         };
     }
 

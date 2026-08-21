@@ -4,6 +4,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell.TopRail;
+using Haven.UI;
 
 namespace Haven.Desktop.Tests;
 
@@ -36,32 +37,85 @@ public sealed class TopRailVisualPolicyTests
     }
 
     [AvaloniaFact]
-    public async Task Header_badge_tracks_the_real_notification_collection()
+    public async Task Visible_header_is_haven_owned_and_native_anchors_are_noninteractive()
+    {
+        using var rail = new TopRail();
+        var window = new Window { Width = 1440, Height = 120, Content = rail };
+        try
+        {
+            window.Show();
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            Assert.NotNull(rail.HavenOwnedScene);
+            Assert.Same(rail.HavenOwnedScene!.Root, rail.SceneHost.Root);
+            var anchors = rail.FindControl<Grid>("LegacyAnchorLayer");
+            Assert.NotNull(anchors);
+            Assert.Equal(0d, anchors.Opacity);
+            Assert.False(anchors.IsHitTestVisible);
+            var names = rail.HavenOwnedScene.Root.DescendantsAndSelf().Select(element => element.Name).ToHashSet();
+            Assert.Contains("TopRail.Logo", names);
+            Assert.Contains("TopRail.Actions.Apps", names);
+            Assert.Contains("TopRail.Actions.Capabilities", names);
+            Assert.Contains("TopRail.Actions.Model", names);
+            Assert.Contains("TopRail.Actions.Notifications", names);
+            Assert.Contains("TopRail.Actions.Search", names);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Haven_header_keeps_tabs_compact_right_chrome_stable_and_routes_existing_actions()
+    {
+        using var rail = new TopRail();
+        var window = new Window { Width = 1440, Height = 120, Content = rail };
+        try
+        {
+            var appsRequested = 0;
+            rail.AppsRequested += (_, _) => appsRequested++;
+            window.Show();
+            rail.SetTabs([new TopRailTab("go", "Go", "sparkles", true, false), new TopRailTab("research", "Research workspace", "search", false, true)]);
+            rail.SetNavigationAvailability(true, false);
+            rail.SetModelSummary("qwen3.5-coder", 72);
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            window.UpdateLayout();
+            var scene = Assert.IsType<TopRailFinalScene>(rail.HavenOwnedScene);
+            Assert.Equal(2, scene.Tabs.Count);
+            Assert.Equal(HavenVisibility.Visible, scene.BackButton.GetValue(HavenProperties.Visibility));
+            Assert.Equal(HavenVisibility.Visible, scene.ForwardButton.GetValue(HavenProperties.Visibility));
+            Assert.False(scene.ForwardButton.GetValue(HavenProperties.Enabled));
+            Assert.True(scene.TabStrip.Bounds.Width <= 460.01d);
+            Assert.InRange(scene.TabActionsHost.Bounds.X - scene.TabStrip.Bounds.Right, 0d, 8.01d);
+            Assert.True(scene.Spacer.Bounds.Width > 0d);
+            Assert.True(scene.AppsHost.Bounds.X > scene.TabActionsHost.Bounds.Right);
+            Assert.Contains("72%", scene.ModelButton.Content);
+            var point = new HavenPoint(scene.AppsButton.Bounds.X + 10, scene.AppsButton.Bounds.Y + 10);
+            var router = new HavenInputRouter(scene.Root);
+            Assert.Same(scene.AppsButton, router.HitTest(point));
+            router.PointerPressed(point);
+            Assert.True(router.PointerReleased(point));
+            Assert.Equal(1, appsRequested);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Header_badge_tracks_the_real_notification_collection_in_haven_scene()
     {
         using var service = new NotificationService();
         using var rail = new TopRail();
-        var window = new Window { Content = rail };
+        var window = new Window { Width = 1440, Height = 120, Content = rail };
         try
         {
             window.Show();
             rail.AttachNotifications(service);
             service.Show("Build finished", "All checks passed.", ToastKind.Success, TimeSpan.FromMinutes(1));
             await Dispatcher.UIThread.InvokeAsync(() => { });
-
-            var badge = rail.FindControl<Border>("NotificationBadge");
-            var text = rail.FindControl<TextBlock>("NotificationBadgeText");
-            Assert.NotNull(badge);
-            Assert.NotNull(text);
-            Assert.True(badge.IsVisible);
-            Assert.Equal("1", text.Text);
-
+            var scene = Assert.IsType<TopRailFinalScene>(rail.HavenOwnedScene);
+            Assert.Equal(HavenVisibility.Visible, scene.NotificationBadge.GetValue(HavenProperties.Visibility));
+            Assert.Equal("1", scene.NotificationBadgeText.Content);
             service.Dismiss(service.Notifications[0].Id);
             await Dispatcher.UIThread.InvokeAsync(() => { });
-            Assert.False(badge.IsVisible);
+            Assert.Equal(HavenVisibility.Collapsed, scene.NotificationBadge.GetValue(HavenProperties.Visibility));
         }
-        finally
-        {
-            window.Close();
-        }
+        finally { window.Close(); }
     }
 }

@@ -70,6 +70,7 @@ public sealed partial class ProjectCreatorView
     private void RefreshFromViewModel()
     {
         var viewModel = _viewModel;
+        SyncHavenScene(viewModel);
         _syncing = true;
         try
         {

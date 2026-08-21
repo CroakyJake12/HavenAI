@@ -67,12 +67,28 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     public event Action<Input>? InputSubmitted;
     public event Action? PointerPressedOutside;
 
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new HavenSceneAutomationPeer(this);
+
     public bool FocusElement(HavenElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
         if (_root is null || !_root.DescendantsAndSelf().Contains(element) || !element.Accessibility.Focusable) return false;
         _input?.Focus(element);
         return Focus();
+    }
+
+    internal bool ActivateElementForAutomation(HavenElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (_root is null || _input is null || !_root.DescendantsAndSelf().Contains(element)) return false;
+        _input.Focus(element);
+        var handled = _input.KeyDown(HavenKey.Enter);
+        handled |= _input.KeyUp(HavenKey.Enter);
+        if (!handled) return false;
+        InvalidateMeasure();
+        InvalidateScene();
+        return true;
     }
 
     public HavenElement? Root
@@ -138,7 +154,12 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         };
         if (string.IsNullOrEmpty(text)) return new HavenSize(Math.Min(available.Width, 48), Math.Min(available.Height, 48));
         var formatted = CreateText(text, element, available.Width);
-        return new HavenSize(Math.Min(available.Width, formatted.Width + 2), Math.Min(available.Height, formatted.Height + 2));
+        var leadingIconAdvance = element is Haven.UI.Components.Button button && !string.IsNullOrWhiteSpace(button.IconKey)
+            ? 30d
+            : 0d;
+        return new HavenSize(
+            Math.Min(available.Width, formatted.Width + leadingIconAdvance + 2),
+            Math.Min(available.Height, formatted.Height + 2));
     }
 
     private void RenderScene(DrawingContext context)
@@ -197,14 +218,29 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         NotifyPointerPressedOutside();
     }
 
-    internal void NotifyPointerPressedOutside() => PointerPressedOutside?.Invoke();
+    internal void NotifyPointerPressedOutside()
+    {
+        if (_input?.DismissPopups() == true) InvalidateScene();
+        PointerPressedOutside?.Invoke();
+    }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         if (IsNativeControlSource(e.Source)) return;
+        ConfigureInputRouter();
         var p = e.GetPosition(this);
-        _input?.PointerMoved(new HavenPoint(p.X, p.Y), e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse);
+        _input?.PointerMoved(
+            new HavenPoint(p.X, p.Y),
+            e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse,
+            ToHavenModifiers(e.KeyModifiers));
+        InvalidateScene();
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        _input?.PointerExited();
         InvalidateScene();
     }
 
@@ -212,10 +248,20 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     {
         base.OnPointerPressed(e);
         if (IsNativeControlSource(e.Source)) return;
+        ConfigureInputRouter();
         var p = e.GetPosition(this);
+        var updateKind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+        var pointerButton = updateKind switch
+        {
+            PointerUpdateKind.RightButtonPressed => HavenPointerButton.Secondary,
+            PointerUpdateKind.MiddleButtonPressed => HavenPointerButton.Middle,
+            _ => HavenPointerButton.Primary
+        };
         _input?.PointerPressed(
             new HavenPoint(p.X, p.Y),
-            e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse);
+            e.Pointer.Type == PointerType.Touch ? HavenPointerKind.Touch : e.Pointer.Type == PointerType.Pen ? HavenPointerKind.Pen : HavenPointerKind.Mouse,
+            pointerButton,
+            ToHavenModifiers(e.KeyModifiers));
         Focus();
         e.Pointer.Capture(this);
         e.Handled = true;
@@ -226,10 +272,18 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     {
         base.OnPointerReleased(e);
         if (IsNativeControlSource(e.Source)) return;
+        ConfigureInputRouter();
         var p = e.GetPosition(this);
-        _input?.PointerReleased(new HavenPoint(p.X, p.Y));
+        _input?.PointerReleased(new HavenPoint(p.X, p.Y), ToHavenModifiers(e.KeyModifiers));
         e.Pointer.Capture(null);
         e.Handled = true;
+        InvalidateScene();
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        if (_input?.CancelPointer() != true) return;
         InvalidateScene();
     }
 
@@ -245,8 +299,24 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             InvalidateScene();
         }
     }
-    protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (_input?.KeyDown(MapKey(e.Key), e.KeyModifiers.HasFlag(KeyModifiers.Shift)) == true) { e.Handled = true; InvalidateScene(); } }
-    protected override void OnKeyUp(KeyEventArgs e) { base.OnKeyUp(e); if (_input?.KeyUp(MapKey(e.Key)) == true) { e.Handled = true; InvalidateScene(); } }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        ConfigureInputRouter();
+        if (_input?.KeyDown(MapInputKey(e.Key), ToHavenModifiers(e.KeyModifiers)) != true) return;
+        e.Handled = true;
+        InvalidateMeasure();
+        InvalidateScene();
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (_input?.KeyUp(MapInputKey(e.Key)) != true) return;
+        e.Handled = true;
+        InvalidateScene();
+    }
 
     protected override void OnTextInput(TextInputEventArgs e)
     {
@@ -255,6 +325,219 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         e.Handled = true;
         InvalidateMeasure();
         InvalidateScene();
+    }
+
+    private void ConfigureInputRouter()
+    {
+        if (_input is null) return;
+        _input.InputCaretHitTest = HitTestInputCaret;
+        _input.InputCaretNavigation = NavigateInputCaret;
+        _input.ClipboardCopyRequested -= OnClipboardCopyRequested;
+        _input.ClipboardCopyRequested += OnClipboardCopyRequested;
+        _input.ClipboardPasteRequested -= OnClipboardPasteRequested;
+        _input.ClipboardPasteRequested += OnClipboardPasteRequested;
+    }
+
+    internal int HitTestInputCaret(Input input, HavenPoint localPoint)
+    {
+        if (string.IsNullOrEmpty(input.Text)) return 0;
+
+        var padding = input.GetValue(HavenProperties.Padding);
+        var left = ResolveInputPixels(padding.Left);
+        var top = ResolveInputPixels(padding.Top);
+        var right = ResolveInputPixels(padding.Right);
+        var bottom = ResolveInputPixels(padding.Bottom);
+        var contentWidth = Math.Max(1d, input.Bounds.Width - left - right);
+        var contentHeight = Math.Max(1d, input.Bounds.Height - top - bottom);
+        var layoutInfo = InputTextLayout(input, contentWidth);
+        using var layout = CreateEditableTextLayout(layoutInfo);
+
+        var verticalOffset = input.Multiline ? 0d : Math.Max(0d, (contentHeight - layout.Height) / 2d);
+        var point = new Point(
+            Math.Max(0d, localPoint.X - left),
+            Math.Max(0d, localPoint.Y - top - verticalOffset));
+        var hit = layout.HitTestPoint(point).CharacterHit;
+        return Math.Clamp(hit.FirstCharacterIndex + hit.TrailingLength, 0, input.Text.Length);
+    }
+
+    internal int NavigateInputCaret(Input input, HavenKey key)
+    {
+        if (!input.Multiline || string.IsNullOrEmpty(input.Text)) return input.CaretIndex;
+
+        var padding = input.GetValue(HavenProperties.Padding);
+        var left = ResolveInputPixels(padding.Left);
+        var right = ResolveInputPixels(padding.Right);
+        var contentWidth = Math.Max(1d, input.Bounds.Width - left - right);
+        var layoutInfo = InputTextLayout(input, contentWidth);
+        using var layout = CreateEditableTextLayout(layoutInfo);
+        if (layout.TextLines.Count == 0) return input.CaretIndex;
+
+        var caret = Math.Clamp(input.CaretIndex, 0, input.Text.Length);
+        var lineIndex = Math.Clamp(layout.GetLineIndexFromCharacterIndex(caret, trailingEdge: false), 0, layout.TextLines.Count - 1);
+        var line = layout.TextLines[lineIndex];
+
+        if (key == HavenKey.Home)
+            return Math.Clamp(line.FirstTextSourceIndex, 0, input.Text.Length);
+        if (key == HavenKey.End)
+            return Math.Clamp(line.FirstTextSourceIndex + Math.Max(0, line.Length - line.NewLineLength), 0, input.Text.Length);
+
+        var targetLineIndex = key switch
+        {
+            HavenKey.Up => lineIndex - 1,
+            HavenKey.Down => lineIndex + 1,
+            _ => lineIndex
+        };
+        if (targetLineIndex < 0 || targetLineIndex >= layout.TextLines.Count) return caret;
+
+        var targetLine = layout.TextLines[targetLineIndex];
+        var targetStart = Math.Clamp(targetLine.FirstTextSourceIndex, 0, input.Text.Length);
+        var targetEnd = Math.Clamp(
+            targetLine.FirstTextSourceIndex + Math.Max(0, targetLine.Length - targetLine.NewLineLength),
+            targetStart,
+            input.Text.Length);
+        var currentPosition = layout.HitTestTextPosition(caret);
+        var targetPosition = layout.HitTestTextPosition(targetStart);
+        var hit = layout.HitTestPoint(new Point(
+            Math.Max(0d, currentPosition.X),
+            targetPosition.Y + Math.Max(1d, targetLine.Height) / 2d)).CharacterHit;
+        return Math.Clamp(hit.FirstCharacterIndex + hit.TrailingLength, targetStart, targetEnd);
+    }
+
+    private static HavenTextLayout InputTextLayout(Input input, double contentWidth) => new(
+        input.DisplayText,
+        input.GetValue(HavenProperties.FontFamily),
+        input.GetValue(HavenProperties.FontSize),
+        input.GetValue(HavenProperties.FontWeight),
+        contentWidth,
+        CenterVertically: !input.Multiline);
+
+    internal static HavenInputModifiers ToHavenModifiers(KeyModifiers modifiers) => new(
+        Shift: modifiers.HasFlag(KeyModifiers.Shift),
+        Control: modifiers.HasFlag(KeyModifiers.Control),
+        Alt: modifiers.HasFlag(KeyModifiers.Alt),
+        Meta: modifiers.HasFlag(KeyModifiers.Meta));
+
+    internal static HavenKey MapInputKey(Key key) => key switch
+    {
+        Key.Enter => HavenKey.Enter,
+        Key.Space => HavenKey.Space,
+        Key.Escape => HavenKey.Escape,
+        Key.Tab => HavenKey.Tab,
+        Key.Left => HavenKey.Left,
+        Key.Right => HavenKey.Right,
+        Key.Up => HavenKey.Up,
+        Key.Down => HavenKey.Down,
+        Key.Home => HavenKey.Home,
+        Key.End => HavenKey.End,
+        Key.Back => HavenKey.Backspace,
+        Key.Delete => HavenKey.Delete,
+        Key.A => HavenKey.A,
+        Key.C => HavenKey.C,
+        Key.F => HavenKey.F,
+        Key.V => HavenKey.V,
+        Key.X => HavenKey.X,
+        Key.Y => HavenKey.Y,
+        Key.Z => HavenKey.Z,
+        _ => HavenKey.Unknown
+    };
+
+    private static double ResolveInputPixels(HavenLength length) =>
+        length.Unit == HavenLengthUnit.Pixel ? Math.Max(0d, length.Value) : 0d;
+
+    internal static IReadOnlyList<Avalonia.Rect> ResolveSelectionRects(HavenTextSelectionCommand selection)
+    {
+        if (selection.SelectionLength <= 0 || string.IsNullOrEmpty(selection.Layout.Text) || selection.Rect.Width <= 0 || selection.Rect.Height <= 0)
+            return [];
+
+        using var layout = CreateEditableTextLayout(selection.Layout);
+        var start = Math.Clamp(selection.SelectionStart, 0, selection.Layout.Text.Length);
+        var length = Math.Clamp(selection.SelectionLength, 0, selection.Layout.Text.Length - start);
+        if (length == 0) return [];
+        var origin = EditableTextOrigin(selection.Rect, selection.Layout, layout.Height);
+        var result = new List<Avalonia.Rect>();
+        foreach (var range in layout.HitTestTextRange(start, length))
+        {
+            var leftEdge = Math.Max(selection.Rect.X, origin.X + range.X);
+            var topEdge = Math.Max(selection.Rect.Y, origin.Y + range.Y);
+            var rightEdge = Math.Min(selection.Rect.Right, origin.X + range.Right);
+            var bottomEdge = Math.Min(selection.Rect.Bottom, origin.Y + range.Bottom);
+            if (rightEdge > leftEdge && bottomEdge > topEdge)
+                result.Add(new Avalonia.Rect(leftEdge, topEdge, rightEdge - leftEdge, bottomEdge - topEdge));
+        }
+        return result;
+    }
+
+    internal static Avalonia.Rect ResolveCaretRect(HavenCaretCommand caret)
+    {
+        if (caret.Rect.Width <= 0 || caret.Rect.Height <= 0) return default;
+        var layoutInfo = caret.FullLayout ?? caret.PrefixLayout;
+        using var layout = CreateEditableTextLayout(layoutInfo);
+        var caretIndex = caret.CaretIndex >= 0
+            ? Math.Clamp(caret.CaretIndex, 0, layoutInfo.Text.Length)
+            : layoutInfo.Text.Length;
+        var origin = EditableTextOrigin(caret.Rect, layoutInfo, layout.Height);
+        var position = string.IsNullOrEmpty(layoutInfo.Text)
+            ? new Avalonia.Rect(0, 0, 0, Math.Max(layoutInfo.FontSize, layout.Height))
+            : layout.HitTestTextPosition(caretIndex);
+        var maxX = Math.Max(caret.Rect.X, caret.Rect.Right - 1.5d);
+        var x = Math.Clamp(origin.X + position.X, caret.Rect.X, maxX);
+        var y = Math.Clamp(origin.Y + position.Y, caret.Rect.Y, caret.Rect.Bottom);
+        var lineHeight = position.Height > 0 ? position.Height : Math.Max(layoutInfo.FontSize, layout.Height);
+        var height = Math.Max(0d, Math.Min(lineHeight, caret.Rect.Bottom - y));
+        return new Avalonia.Rect(x, y, 1.5d, height);
+    }
+
+    private static Avalonia.Media.TextFormatting.TextLayout CreateEditableTextLayout(HavenTextLayout layout)
+    {
+        var family = layout.FontFamily;
+        var fontFamily = family.Equals("Montserrat", StringComparison.OrdinalIgnoreCase)
+            ? new FontFamily("avares://Haven/Assets/Fonts/MontserratStatic#Montserrat")
+            : new FontFamily(family);
+        var typeface = new Typeface(fontFamily, FontStyle.Normal, Weight(layout.FontWeight), FontStretch.Normal);
+        return new Avalonia.Media.TextFormatting.TextLayout(
+            layout.Text,
+            typeface,
+            layout.FontSize,
+            foreground: null,
+            textAlignment: TextAlignment.Left,
+            textWrapping: layout.CenterVertically ? TextWrapping.NoWrap : TextWrapping.Wrap,
+            maxWidth: Math.Max(1d, layout.MaxWidth),
+            maxHeight: double.PositiveInfinity);
+    }
+
+    private static Point EditableTextOrigin(HavenRect rect, HavenTextLayout layout, double layoutHeight) =>
+        new(rect.X, rect.Y + (layout.CenterVertically ? Math.Max(0d, (rect.Height - layoutHeight) / 2d) : 0d));
+
+    private async void OnClipboardCopyRequested(string text)
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null) return;
+        try
+        {
+            await clipboard.SetTextAsync(text);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("Haven clipboard copy failed: " + ex.Message);
+        }
+    }
+
+    private async void OnClipboardPasteRequested()
+    {
+        var router = _input;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (router is null || clipboard is null) return;
+        try
+        {
+            var text = await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(clipboard);
+            if (!ReferenceEquals(router, _input) || string.IsNullOrEmpty(text) || !router.PasteText(text)) return;
+            InvalidateMeasure();
+            InvalidateScene();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("Haven clipboard paste failed: " + ex.Message);
+        }
     }
 
     private void Draw(DrawingContext context, HavenDrawCommand command)
@@ -283,16 +566,19 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
                 context.DrawText(formatted, new Point(text.Rect.X, y));
                 break;
             }
+            case HavenTextSelectionCommand selection:
+            {
+                var brush = Resolve(selection.Brush);
+                foreach (var range in ResolveSelectionRects(selection))
+                    context.DrawRectangle(brush, null, range, 0, 0, default);
+                break;
+            }
             case HavenCaretCommand caret:
             {
-                if (caret.Rect.Width <= 0 || caret.Rect.Height <= 0) break;
+                var rect = ResolveCaretRect(caret);
+                if (rect.Width <= 0 || rect.Height <= 0) break;
                 var brush = Resolve(caret.Brush);
-                var prefix = CreateText(caret.PrefixLayout.Text, caret.PrefixLayout.FontFamily, caret.PrefixLayout.FontSize, caret.PrefixLayout.FontWeight, caret.Rect.Width, brush);
-                var sample = CreateText("Mg", caret.PrefixLayout.FontFamily, caret.PrefixLayout.FontSize, caret.PrefixLayout.FontWeight, caret.Rect.Width, brush);
-                var x = Math.Min(caret.Rect.Right - 1, caret.Rect.X + prefix.Width);
-                var height = Math.Min(caret.Rect.Height, Math.Max(caret.PrefixLayout.FontSize, sample.Height));
-                var y = caret.Rect.Y + Math.Max(0, (caret.Rect.Height - height) / 2d);
-                context.DrawLine(new Pen(brush, 1.5d), new Point(x, y), new Point(x, y + height));
+                context.DrawLine(new Pen(brush, rect.Width), new Point(rect.X, rect.Y), new Point(rect.X, rect.Bottom));
                 break;
             }
             case HavenLineCommand line: context.DrawLine(new Pen(Resolve(line.Pen.Brush), line.Pen.Thickness), new Point(line.Start.X, line.Start.Y), new Point(line.End.X, line.End.Y)); break;
@@ -496,7 +782,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         var currentElements = root.DescendantsAndSelf().ToHashSet();
         foreach (var removed in _motionTokens.Keys.Where(element => !currentElements.Contains(element)).ToArray())
         {
-            _animations.Stop(removed);
+            ProcessMotion(() => _animations.Stop(removed));
             _motionTokens.Remove(removed);
             _motionSnapshots.Remove(removed);
         }

@@ -35,8 +35,14 @@ public sealed class BuiltInModeSeed
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000003"),
-            "tasks", "Tasks", "Actions, task groups, research and reusable local workflows", "tasks",
-            HavenMode.Tasks, "[\"Tasks\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\"]", "",
+            "automations", "Automations", "Reusable, scheduled, recurring and triggered workflows", "automation",
+            HavenMode.Tasks, "[\"Automations\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[\"Automate\"]", "",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000019"),
+            "tasks", "Tasks", "One-off delegated and agentic work", "tasks",
+            HavenMode.Tasks, "[\"Tasks\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
@@ -69,6 +75,12 @@ public sealed class BuiltInModeSeed
             HavenMode.Chat, "[\"Imagine\"]", "[]", "[]", "[]", "Help the user turn an idea into a production-ready visual brief. Ask only for missing essentials, preserve a clear prompt history, and be explicit when an image provider is not installed instead of claiming an image was generated.",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"media\",\"creative\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+          new ModeDefinition(
+              Guid.Parse("a0000000-0000-0000-0000-000000000018"),
+              "canvas", "Canvas", "Create and edit infinite whiteboards and study boards", "file",
+              HavenMode.Chat, "[\"Canvas\"]", "[]", "[]", "[]", "Act as Haven Canvas. Help create and edit visual boards while preserving the user's existing canvas content and study-layer intent.",
+              ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"creative\",\"study\"]",
+              DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000009"),
             "present", "Present", "Plan, draft and review presentations", "present",
@@ -116,6 +128,12 @@ public sealed class BuiltInModeSeed
             "dashboard", "Dashboard", "Build and switch between personal dashboard pages", "dashboard",
             HavenMode.Chat, "[\"Dashboard\"]", "[]", "[]", "[]", "",
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"general\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000017"),
+            "write", "Write", "Create, edit, import and export rich local documents", "file",
+            HavenMode.Chat, "[]", "[]", "[]", "[]", "Act as Haven Write when AI document assistance is requested. Operate on the user's real document or selection, preserve structure and formatting, and make proposed edits explicit before applying them.",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"productivity\",\"documents\"]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue)
     ];
 }

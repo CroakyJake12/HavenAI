@@ -134,6 +134,28 @@ public sealed class BrowserDataService : IDisposable
     /// <summary>
     /// Performs remove bookmark asynchronously so I/O does not block the caller's thread.
     /// </summary>
+    public async Task<bool> ToggleBookmarkAsync(string title, string address, string group, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            throw new ArgumentException("Bookmark address must be an HTTP or HTTPS URL.", nameof(address));
+        var canonical = uri.ToString();
+        var added = false;
+        await MutateAndSaveAsync(data =>
+        {
+            var existing = data.Bookmarks.FirstOrDefault(item => item.Address.Equals(canonical, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                added = false;
+                return data with { Bookmarks = data.Bookmarks.Where(item => item.Id != existing.Id).ToArray() };
+            }
+            added = true;
+            var bookmark = new BrowserBookmark(Guid.NewGuid(), string.IsNullOrWhiteSpace(title) ? uri.Host : title.Trim(),
+                canonical, string.IsNullOrWhiteSpace(group) ? "Bookmarks" : group.Trim(), DateTimeOffset.UtcNow);
+            return data with { Bookmarks = data.Bookmarks.Append(bookmark).ToArray() };
+        }, cancellationToken).ConfigureAwait(false);
+        return added;
+    }
+
     public Task RemoveBookmarkAsync(Guid id, CancellationToken cancellationToken) =>
         MutateAndSaveAsync(data => data with { Bookmarks = data.Bookmarks.Where(item => item.Id != id).ToArray() }, cancellationToken);
 

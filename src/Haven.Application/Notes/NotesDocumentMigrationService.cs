@@ -352,6 +352,10 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
                     }
                 }
                 break;
+            case NotesBlockKind.Shape:
+                block.VectorShape ??= DocumentVectorShapes.CreateEditableStarter();
+                block.VectorShape.Normalize();
+                break;
             case NotesBlockKind.Flashcard:
                 block.Flashcard ??= new NotesFlashcardData { Front = "Question", Back = "Answer" };
                 block.Flashcard.CardId = block.Flashcard.CardId == Guid.Empty ? Guid.NewGuid() : block.Flashcard.CardId;
@@ -395,6 +399,7 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         value.Y = ClampFinite(value.Y, 0, -1_000_000, 1_000_000);
         value.Rotation = ClampFinite(value.Rotation, 0, -360_000, 360_000);
         value.StyleJson = string.IsNullOrWhiteSpace(value.StyleJson) ? "{}" : value.StyleJson;
+        value.VectorShape?.Normalize();
     }
 
     /// <summary>

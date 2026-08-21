@@ -19,13 +19,61 @@
     <StackPanel Spacing="11">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel>
-          <TextBlock Text="CLOUD PROVIDERS" Classes="eyebrow" />
-          <TextBlock Text="Provider connections" Classes="sectionHeading" Margin="0,4,0,0" />
+          <TextBlock Text="CONNECTED SERVICES" Classes="eyebrow" />
+          <TextBlock Text="Accounts and integrations" Classes="sectionHeading" Margin="0,4,0,0" />
         </StackPanel>
         <hui:HavenButton Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
       </Grid>
+      <TextBlock Text="Haven opens the provider sign-in flow. Enter passwords, MFA or CAPTCHA and approve consent with the provider; Haven never asks you to type those credentials here."
+                 Classes="muted" FontSize="11" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Services}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel ItemWidth="500" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <hui:HavenAdaptiveSurface Width="490" Margin="0,0,10,10" Classes="dashboardTile">
+              <StackPanel Spacing="9">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <StackPanel>
+                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="15" />
+                    <TextBlock Text="{Binding CapabilityLabel}" Classes="muted2" FontSize="9" />
+                  </StackPanel>
+                  <hui:HavenAdaptiveSurface Grid.Column="1" Classes="statusPill">
+                    <TextBlock Text="{Binding ConnectionLabel}" FontSize="10" />
+                  </hui:HavenAdaptiveSurface>
+                </Grid>
+                <TextBlock Text="{Binding AccountLabel}" FontSize="12" />
+                <TextBlock Text="{Binding LastSyncLabel}" Classes="muted2" FontSize="10" />
+                <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="7">
+                  <hui:HavenButton Content="Connect"
+                                  Classes="accent"
+                                  Command="{Binding $parent[UserControl].DataContext.ConnectServiceCommand}"
+                                  CommandParameter="{Binding}"
+                                  IsEnabled="{Binding CanConnect}" />
+                  <hui:HavenButton Grid.Column="1" Content="Disconnect"
+                                  Classes="danger"
+                                  Command="{Binding $parent[UserControl].DataContext.DisconnectServiceCommand}"
+                                  CommandParameter="{Binding}"
+                                  IsEnabled="{Binding CanDisconnect}" />
+                </Grid>
+                <hui:HavenProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+                <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel>
+            </hui:HavenAdaptiveSurface>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding ServicesStatus}" Classes="muted" />
 
-      <TextBlock Text="Connect cloud accounts without replacing Ollama. API keys are stored in Windows Credential Manager and are never written to the provider settings file."
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock Text="CLOUD MODEL PROVIDERS" Classes="eyebrow" />
+          <TextBlock Text="API model providers" Classes="sectionHeading" Margin="0,4,0,0" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="Configure model API providers without replacing local models. API keys are stored in Windows Credential Manager and are never written to the provider settings file."
                  Classes="muted" FontSize="11" />
 
       <ItemsControl ItemsSource="{Binding Items}">
@@ -55,7 +103,7 @@
 
                 <StackPanel Spacing="4">
                   <TextBlock Text="API key" Classes="muted" FontSize="10" />
-                  <hui:HavenTextInput Text="{Binding ApiKey}" PasswordChar="●" PlaceholderText="{Binding ApiKeyHint}" />
+                  <hui:HavenTextInput Text="{Binding ApiKey}" PasswordChar="*" PlaceholderText="{Binding ApiKeyHint}" />
                 </StackPanel>
 
                 <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="7">

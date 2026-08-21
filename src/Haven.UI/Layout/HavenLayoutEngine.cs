@@ -88,17 +88,20 @@ public sealed class HavenLayoutEngine
             Math.Max(0, available.Width - padding.Horizontal),
             Math.Max(0, available.Height - padding.Vertical));
         var children = IncludedChildren(container).ToArray();
+        var flowChildren = children.Where(ParticipatesInFlow).ToArray();
+        var overlayChildren = children.Where(child => !ParticipatesInFlow(child)).ToArray();
         var gap = Resolve(container.GetValue(HavenProperties.Gap), inner.Width, 0);
 
         var content = container.Layout switch
         {
-            HavenLayout.Horizontal => MeasureHorizontal(children, inner, gap),
-            HavenLayout.Wrap => MeasureWrap(children, inner, gap),
-            HavenLayout.Grid => MeasureGrid(container, children, inner, gap),
-            HavenLayout.Canvas => MeasureCanvas(children, inner),
-            HavenLayout.Overlay => MeasureOverlay(children, inner),
-            _ => MeasureVertical(children, inner, gap)
+            HavenLayout.Horizontal => MeasureHorizontal(flowChildren, inner, gap),
+            HavenLayout.Wrap => MeasureWrap(flowChildren, inner, gap),
+            HavenLayout.Grid => MeasureGrid(container, flowChildren, inner, gap),
+            HavenLayout.Canvas => MeasureCanvas(flowChildren, inner),
+            HavenLayout.Overlay => MeasureOverlay(flowChildren, inner),
+            _ => MeasureVertical(flowChildren, inner, gap)
         };
+        foreach (var child in overlayChildren) MeasureOuter(child, inner);
         container.MeasuredContentSize = content;
         return new HavenSize(content.Width + padding.Horizontal, content.Height + padding.Vertical);
     }
@@ -238,6 +241,8 @@ public sealed class HavenLayoutEngine
             Math.Max(0, bounds.Width - padding.Horizontal),
             Math.Max(0, bounds.Height - padding.Vertical));
         var children = container.Children.Where(child => child.IsIncluded).ToArray();
+        var flowChildren = children.Where(ParticipatesInFlow).ToArray();
+        var overlayChildren = children.Where(child => !ParticipatesInFlow(child)).ToArray();
         var gap = Resolve(container.GetValue(HavenProperties.Gap), viewport.Width, 0);
         var content = new HavenSize(
             Math.Max(viewport.Width, container.MeasuredContentSize.Width),
@@ -253,14 +258,19 @@ public sealed class HavenLayoutEngine
 
         switch (container.Layout)
         {
-            case HavenLayout.Horizontal: ArrangeHorizontal(children, contentBounds, gap); break;
-            case HavenLayout.Wrap: ArrangeWrap(children, contentBounds, gap); break;
-            case HavenLayout.Grid: ArrangeGrid(container, children, contentBounds, gap); break;
-            case HavenLayout.Canvas: ArrangeCanvas(children, contentBounds); break;
-            case HavenLayout.Overlay: foreach (var child in children) ArrangeInSlot(child, contentBounds); break;
-            default: ArrangeVertical(children, contentBounds, gap); break;
+            case HavenLayout.Horizontal: ArrangeHorizontal(flowChildren, contentBounds, gap); break;
+            case HavenLayout.Wrap: ArrangeWrap(flowChildren, contentBounds, gap); break;
+            case HavenLayout.Grid: ArrangeGrid(container, flowChildren, contentBounds, gap); break;
+            case HavenLayout.Canvas: ArrangeCanvas(flowChildren, contentBounds); break;
+            case HavenLayout.Overlay: foreach (var child in flowChildren) ArrangeInSlot(child, contentBounds); break;
+            default: ArrangeVertical(flowChildren, contentBounds, gap); break;
         }
+
+        foreach (var child in overlayChildren) ArrangeInSlot(child, viewport);
     }
+
+    private static bool ParticipatesInFlow(HavenElement element) =>
+        element.GetValue(HavenProperties.LayoutParticipation) == HavenLayoutParticipation.Flow;
 
     private void ArrangeVertical(IReadOnlyList<HavenElement> children, HavenRect bounds, double gap)
     {

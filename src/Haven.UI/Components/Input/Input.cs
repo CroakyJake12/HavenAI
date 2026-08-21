@@ -14,6 +14,9 @@ public sealed class Input : HavenElement
     public static readonly HavenProperty<string> PlaceholderProperty = HavenPropertyRegistry.Register(new HavenProperty<string>("Input.Placeholder", string.Empty));
     public static readonly HavenProperty<bool> MultilineProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.Multiline", false));
     public static readonly HavenProperty<bool> SubmitOnEnterProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.SubmitOnEnter", false));
+    public static readonly HavenProperty<bool> IsSecretProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.IsSecret", false));
+    public static readonly HavenProperty<bool> RevealSecretProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.RevealSecret", false));
+    public static readonly HavenProperty<bool> AllowSecretClipboardProperty = HavenPropertyRegistry.Register(new HavenProperty<bool>("Input.AllowSecretClipboard", false));
     public static readonly HavenProperty<int> CaretIndexProperty = HavenPropertyRegistry.Register(new HavenProperty<int>("Input.CaretIndex", 0));
 
     public Input()
@@ -56,17 +59,62 @@ public sealed class Input : HavenElement
 
     public bool Multiline { get => GetValue(MultilineProperty); set => SetValue(MultilineProperty, value); }
     public bool SubmitOnEnter { get => GetValue(SubmitOnEnterProperty); set => SetValue(SubmitOnEnterProperty, value); }
+    public bool IsSecret
+    {
+        get => GetValue(IsSecretProperty);
+        set
+        {
+            if (IsSecret == value) return;
+            SetValue(IsSecretProperty, value);
+            Accessibility.IsPassword = value;
+            if (!value && RevealSecret) SetValue(RevealSecretProperty, false);
+        }
+    }
+    public bool RevealSecret { get => GetValue(RevealSecretProperty); set => SetValue(RevealSecretProperty, value); }
+    public bool AllowSecretClipboard { get => GetValue(AllowSecretClipboardProperty); set => SetValue(AllowSecretClipboardProperty, value); }
+    public string DisplayText => IsSecret && !RevealSecret ? new string('•', Text.Length) : Text;
+    public bool CanExposeSecretToClipboard => !IsSecret || AllowSecretClipboard;
+    private int _selectionAnchor = -1;
+    private readonly Stack<EditState> _undo = new();
+    private readonly Stack<EditState> _redo = new();
+
     public int CaretIndex => GetValue(CaretIndexProperty);
+    public int SelectionAnchor => _selectionAnchor >= 0 ? NormalizeCaret(Text, _selectionAnchor) : CaretIndex;
+    public bool HasSelection => _selectionAnchor >= 0 && SelectionAnchor != CaretIndex;
+    public int SelectionStart => HasSelection ? Math.Min(SelectionAnchor, CaretIndex) : CaretIndex;
+    public int SelectionEnd => HasSelection ? Math.Max(SelectionAnchor, CaretIndex) : CaretIndex;
+    public int SelectionLength => Math.Max(0, SelectionEnd - SelectionStart);
+    public string SelectedText => HasSelection ? Text.Substring(SelectionStart, SelectionLength) : string.Empty;
 
-    public void PlaceCaretAtEnd() => SetCaret(Text.Length);
-    public void PlaceCaretAtStart() => SetCaret(0);
+    public void PlaceCaretAtEnd(bool extendSelection = false) => SetCaretWithSelection(Text.Length, extendSelection);
+    public void PlaceCaretAtStart(bool extendSelection = false) => SetCaretWithSelection(0, extendSelection);
 
-    public bool MoveCaret(int direction)
+    public void SetSelection(int anchor, int caret)
+    {
+        _selectionAnchor = NormalizeCaret(Text, anchor);
+        SetCaret(caret);
+        if (SelectionAnchor == CaretIndex) _selectionAnchor = -1;
+    }
+
+    public void SelectAll()
+    {
+        if (Text.Length == 0) { _selectionAnchor = -1; SetCaret(0); return; }
+        SetSelection(0, Text.Length);
+    }
+
+    public void ClearSelection() => _selectionAnchor = -1;
+
+    public bool MoveCaret(int direction, bool extendSelection = false)
     {
         if (direction == 0) return false;
+        if (!extendSelection && HasSelection)
+        {
+            CollapseSelectionAt(direction < 0 ? SelectionStart : SelectionEnd);
+            return true;
+        }
         var next = direction < 0 ? PreviousBoundary(Text, CaretIndex) : NextBoundary(Text, CaretIndex);
         if (next == CaretIndex) return false;
-        SetCaret(next);
+        SetCaretWithSelection(next, extendSelection);
         return true;
     }
 
@@ -75,31 +123,123 @@ public sealed class Input : HavenElement
         if (string.IsNullOrEmpty(value)) return false;
         var insertion = Multiline ? value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n') : value.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
         if (insertion.Length == 0) return false;
-        var index = NormalizeCaret(Text, CaretIndex);
-        Text = Text.Insert(index, insertion);
-        SetCaret(index + insertion.Length);
+        PushUndoState();
+        var start = SelectionStart;
+        var end = SelectionEnd;
+        Text = HasSelection
+            ? Text.Remove(start, end - start).Insert(start, insertion)
+            : Text.Insert(CaretIndex, insertion);
+        CollapseSelectionAt(start + insertion.Length);
         return true;
     }
 
     public bool Backspace()
     {
+        if (HasSelection)
+        {
+            PushUndoState();
+            DeleteSelectionCore();
+            return true;
+        }
         var index = NormalizeCaret(Text, CaretIndex);
         if (index <= 0) return false;
+        PushUndoState();
         var start = PreviousBoundary(Text, index);
         Text = Text.Remove(start, index - start);
-        SetCaret(start);
+        CollapseSelectionAt(start);
         return true;
     }
 
     public bool Delete()
     {
+        if (HasSelection)
+        {
+            PushUndoState();
+            DeleteSelectionCore();
+            return true;
+        }
         var index = NormalizeCaret(Text, CaretIndex);
         if (index >= Text.Length) return false;
+        PushUndoState();
         var end = NextBoundary(Text, index);
         Text = Text.Remove(index, end - index);
-        SetCaret(index);
+        CollapseSelectionAt(index);
         return true;
     }
+
+    public bool CutSelection()
+    {
+        if (!HasSelection) return false;
+        PushUndoState();
+        DeleteSelectionCore();
+        return true;
+    }
+
+    public bool Undo()
+    {
+        if (_undo.Count == 0) return false;
+        var current = CaptureState();
+        var previous = _undo.Pop();
+        _redo.Push(current);
+        RestoreState(previous);
+        return true;
+    }
+
+    public bool Redo()
+    {
+        if (_redo.Count == 0) return false;
+        var current = CaptureState();
+        var next = _redo.Pop();
+        _undo.Push(current);
+        RestoreState(next);
+        return true;
+    }
+
+    private void SetCaretWithSelection(int index, bool extendSelection)
+    {
+        if (extendSelection)
+        {
+            if (_selectionAnchor < 0) _selectionAnchor = CaretIndex;
+        }
+        else
+        {
+            _selectionAnchor = -1;
+        }
+        SetCaret(index);
+        if (_selectionAnchor >= 0 && SelectionAnchor == CaretIndex) _selectionAnchor = -1;
+    }
+
+    private void CollapseSelectionAt(int index)
+    {
+        _selectionAnchor = -1;
+        SetCaret(index);
+    }
+
+    private void DeleteSelectionCore()
+    {
+        var start = SelectionStart;
+        var length = SelectionLength;
+        Text = Text.Remove(start, length);
+        CollapseSelectionAt(start);
+    }
+
+    private void PushUndoState()
+    {
+        _undo.Push(CaptureState());
+        _redo.Clear();
+    }
+
+    private EditState CaptureState() => new(Text, CaretIndex, _selectionAnchor);
+
+    private void RestoreState(EditState state)
+    {
+        Text = state.Text;
+        _selectionAnchor = state.SelectionAnchor;
+        SetCaret(state.CaretIndex);
+        if (_selectionAnchor >= 0 && SelectionAnchor == CaretIndex) _selectionAnchor = -1;
+    }
+
+    private sealed record EditState(string Text, int CaretIndex, int SelectionAnchor);
 
     public override HavenComponentMetadata Metadata => new(
         "Input",

@@ -1,0 +1,15 @@
+<DynamicUI Name="AgentCatalogCard">
+  <Container Name="Card" Layout="Vertical" Width="100%" Gap="8px" Padding="16px" Background="SurfaceRaised" BorderColor="Border" BorderWidth="1px" Radius="16px" Shadow="Card">
+    <Container Name="Heading" Layout="Grid" Columns="1fr Auto" Width="100%">
+      <Text Name="Name" Content="{{NAME}}" FontSize="17" FontWeight="800" Foreground="TextPrimary" />
+      <Text Name="Badge" Content="{{BADGE}}" Column="1" FontSize="10" FontWeight="800" Foreground="Accent" HorizontalAlignment="End" />
+    </Container>
+    <Text Name="Description" Content="{{DESCRIPTION}}" FontSize="12" Foreground="TextSecondary" />
+    <Text Name="Model" Content="Model · {{MODEL}}" FontSize="11" FontWeight="700" Foreground="TextSecondary" />
+    <Container Name="Actions" Layout="Horizontal" Width="100%" Gap="8px" HorizontalAlignment="End">
+      <Button Name="Edit" Variant="Secondary" Content="Edit" MinHeight="36px" />
+      <Button Name="Duplicate" Variant="Secondary" Content="Duplicate" MinHeight="36px" />
+      <Button Name="Delete" Variant="Danger" Content="{{DELETE_LABEL}}" MinHeight="36px" />
+    </Container>
+  </Container>
+</DynamicUI>

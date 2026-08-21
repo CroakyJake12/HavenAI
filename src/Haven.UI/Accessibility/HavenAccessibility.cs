@@ -12,6 +12,8 @@ public enum HavenAccessibleRole
     Slider,
     List,
     ListItem,
+    Tab,
+    TabItem,
     Image,
     Link,
     Menu,
@@ -28,4 +30,5 @@ public sealed class HavenAccessibility
     public bool Selected { get; set; }
     public bool Checked { get; set; }
     public bool Enabled { get; set; } = true;
+    public bool IsPassword { get; set; }
 }

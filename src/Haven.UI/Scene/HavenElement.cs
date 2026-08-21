@@ -42,6 +42,13 @@ public abstract class HavenElement
 
     public event EventHandler? Invalidated;
     public event EventHandler? Invoked;
+    public event EventHandler? SecondaryInvoked;
+
+    internal void InvokeSecondary()
+    {
+        SecondaryInvoked?.Invoke(this, EventArgs.Empty);
+        Invalidate();
+    }
 
     /// <summary>Requests a new Haven measure/render pass after component-owned state changes.</summary>
     protected internal void Invalidate()

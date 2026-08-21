@@ -42,7 +42,7 @@ public sealed class ChatHavenSceneTests
 
         scene.SetSending(true, modelAvailable: true);
 
-        Assert.False(scene.Instruction.GetValue(HavenProperties.Enabled));
+        Assert.True(scene.Instruction.GetValue(HavenProperties.Enabled));
         Assert.True(scene.SendButton.GetValue(HavenProperties.Enabled));
         Assert.Equal("Stop response", scene.SendButton.Accessibility.AccessibleName);
         Assert.Equal("close", scene.SendIcon.Key);
@@ -264,6 +264,21 @@ public sealed class ChatHavenSceneTests
         }
     }
 
+    [Fact]
+    public void Manage_responses_shows_the_live_per_chat_response_state()
+    {
+        using var scene = new ChatHavenScene();
+        scene.SetResponseState("Research Agent", ChatActionMode.AllowAllActions, GenerativeUiResponseMode.AlwaysVisual);
+        scene.ShowAddMenu();
+
+        var summary = scene.AddMenuPrefab.DescendantsAndSelf().OfType<Haven.UI.Components.Text>()
+            .Single(text => text.Name == "CurrentResponseState");
+        Assert.Equal("Research Agent · All actions · Always visual", summary.Content);
+        Assert.Equal(
+            "Current agent: Research Agent",
+            scene.AddMenuPrefab.GetComponent<Haven.UI.Components.Button>("Agents").Accessibility.Description);
+    }
+
     [AvaloniaFact]
     public void Message_three_dot_opens_detached_popup_without_changing_message_height()
     {
@@ -301,6 +316,103 @@ public sealed class ChatHavenSceneTests
             window.Content = null;
             window.Close();
         }
+    }
+
+    [AvaloniaFact]
+    public void Resolve_problems_uses_detached_shared_popup_and_dismisses_after_selection()
+    {
+        using var scene = new ChatHavenScene();
+        var selected = string.Empty;
+        var host = new HavenSceneControl { Root = scene.Root };
+        var window = new Window { Width = 1000, Height = 760, Content = host };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            scene.ShowResolveProblemsMenu(
+                "Resolve Problems",
+                "Choose a recovery.",
+                [("Hallucinating", () => selected = "hallucinating"), ("Looping", () => selected = "looping")]);
+            window.UpdateLayout();
+
+            var popup = Assert.Single(scene.Root.Children.OfType<PopupMenu>());
+            Assert.DoesNotContain(scene.Root.Children, child => child.Name == "ChatModalOverlay");
+            Assert.Equal("Resolve Problems", popup.Card.Accessibility.AccessibleName);
+            var looping = popup.Card.DescendantsAndSelf().OfType<Haven.UI.Components.Button>().Single(button => button.Content == "Looping");
+            var router = new HavenInputRouter(scene.Root);
+            Click(router, looping);
+            window.UpdateLayout();
+
+            Assert.Equal("looping", selected);
+            Assert.Empty(scene.Root.Children.OfType<PopupMenu>());
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Message_secondary_choices_use_detached_popup_anchored_to_the_message()
+    {
+        using var scene = new ChatHavenScene();
+        var messageId = Guid.NewGuid();
+        var selected = false;
+        scene.SyncMessages([new ChatSceneMessage(messageId, MessageRole.User, "Hello", string.Empty, false, string.Empty)]);
+        var host = new HavenSceneControl { Root = scene.Root };
+        var window = new Window { Width = 1000, Height = 760, Content = host };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            scene.ShowMessageChoiceMenu(messageId, "Branch message", [("Branch in new chat", () => selected = true)]);
+            window.UpdateLayout();
+
+            var popup = Assert.Single(scene.Root.Children.OfType<PopupMenu>());
+            Assert.DoesNotContain(scene.Root.Children, child => child.Name == "ChatModalOverlay");
+            Assert.Equal("Branch message", popup.Card.Accessibility.AccessibleName);
+            var choice = popup.Card.DescendantsAndSelf().OfType<Haven.UI.Components.Button>().Single(button => button.Content == "Branch in new chat");
+            var router = new HavenInputRouter(scene.Root);
+            Click(router, choice);
+            window.UpdateLayout();
+
+            Assert.True(selected);
+            Assert.Empty(scene.Root.Children.OfType<PopupMenu>());
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [Fact]
+    public void Transcript_sync_handles_120_messages_without_losing_dynamic_item_identity()
+    {
+        using var scene = new ChatHavenScene();
+        var messages = Enumerable.Range(0, 120)
+            .Select(index => new ChatSceneMessage(
+                Guid.NewGuid(),
+                index % 2 == 0 ? MessageRole.User : MessageRole.Assistant,
+                $"Message {index}",
+                index % 2 == 0 ? string.Empty : "Haven",
+                false,
+                string.Empty))
+            .ToArray();
+
+        scene.SyncMessages(messages);
+
+        Assert.Equal(120, scene.Messages.Items.Count);
+        Assert.All(messages, message => Assert.NotNull(scene.Messages.GetItem(message.Id.ToString("N"))));
+
+        var tracked = messages[61];
+        var originalItem = scene.Messages.GetItem(tracked.Id.ToString("N"));
+        scene.UpdateMessage(tracked with { Content = "Updated at scale" });
+
+        Assert.Equal(120, scene.Messages.Items.Count);
+        Assert.Same(originalItem, scene.Messages.GetItem(tracked.Id.ToString("N")));
+        Assert.Equal("Updated at scale", originalItem.GetComponent<Markdown>("Body").Content);
     }
 
     private static void Click(HavenInputRouter router, HavenElement element)

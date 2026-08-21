@@ -1,5 +1,5 @@
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Core;
 
 namespace Haven.Desktop.Tests;

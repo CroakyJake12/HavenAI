@@ -1,8 +1,9 @@
-<Container Name="AddOverlay" Layout="Overlay" Width="100%" Height="100%" Visibility="Collapsed" ZIndex="100">
+<Container Name="AddOverlay" Layout="Overlay" LayoutParticipation="Overlay" Width="100%" Height="100%" Visibility="Collapsed" ZIndex="100">
   <Button Name="Dismiss" Variant="Text" Content="" Width="100%" Height="100%" Background="Transparent" />
   <Container Name="Panels" Layout="Horizontal" Width="100%" MaxWidth="900px" HorizontalAlignment="Center" VerticalAlignment="End" Gap="12px" Margin="0px 0px 70px 0px" PointerEvents="ChildrenOnly" ZIndex="101">
     <Container Name="MainMenu" Layout="Vertical" Width="324px" Background="SurfaceRaised" BorderColor="Border" BorderWidth="1px" Radius="18px" Shadow="Card" Gap="8px" Padding="14px">
       <Text Content="Manage Responses" FontSize="22" FontWeight="800" />
+      <Text Name="CurrentResponseState" Content="Default agent · Basic actions · Auto" FontSize="11" FontWeight="600" Foreground="TextSecondary" />
       <Text Content="Available Tools" FontSize="13" FontWeight="800" />
       <Container Name="Tools" Layout="Grid" Columns="1fr 1fr" Rows="44px 44px" Width="296px" Gap="8px">
         <Button Name="Agents" Variant="Tertiary" IconKey="agents" Content="Agents" Width="144px" MinHeight="44px" Padding="10px 12px" Radius="14px" FontSize="12" FontWeight="700" />

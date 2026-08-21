@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Haven.Application;
-using Haven.Application.Tasks;
+using Haven.Application.Automations;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Events;
@@ -68,7 +68,12 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton(provider => new SafeModeBrowserAutomationService(
             provider.GetRequiredService<BrowserAutomationService>(),
             provider.GetRequiredService<IProductionDiagnostics>()));
-        collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
+        collection.AddSingleton(provider => new BrowserNativeDownloadAutomationService(
+            provider.GetRequiredService<SafeModeBrowserAutomationService>(),
+            provider.GetRequiredService<IBrowserNavigationPolicy>(),
+            provider.GetRequiredService<IBrowserAutomationStore>()));
+        collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<BrowserNativeDownloadAutomationService>());
+        collection.AddSingleton<IBrowserNativeDownloadService>(provider => provider.GetRequiredService<BrowserNativeDownloadAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
         collection.AddSingleton<BrowserCompletionService>();
         collection.AddSingleton<BrowserToolRuntime>();
@@ -89,6 +94,16 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
         collection.AddSingleton<ComputerUseOverlayCoordinator>();
+#if !ANDROID
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceRegistry>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayContextActionCandidateService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayForegroundContextCaptureService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayVisualContextCaptureService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayChatSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGoSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGlobalHotkey>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceController>();
+#endif
         // Legacy automation delivery polling retired; Tasks owns execution state.
         
         collection.AddSingleton<FloatingActivityStateStore>();
@@ -99,6 +114,7 @@ public sealed partial class App : Avalonia.Application
 #endif
         
         collection.AddSingleton<HavenEventBus>();
+        collection.AddSingleton<Haven.Desktop.ViewModels.ProviderConnectionsViewModel>();
         collection.AddSingleton<MainView>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -150,6 +166,9 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
+#if !ANDROID
+            await services.GetRequiredService<Haven.Desktop.Overlay.OverlayWorkspaceController>().InitializeAsync(CancellationToken.None);
+#endif
             // Scheduled Tasks have no parallel automation delivery loop.
 
             if (recoveryState.IsSafeMode)

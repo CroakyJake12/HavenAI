@@ -8,23 +8,26 @@ public sealed class HavenAppRoutePolicyTests
 {
     private static readonly string[] ExpectedBuiltInKeys =
     [
-        "chat", "study", "tasks", "studio", "browse", "plan", "training", "imagine",
-        "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard"
+        "chat", "study", "automations", "tasks", "studio", "browse", "plan", "training", "imagine", "canvas",
+        "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write"
     ];
 
     public static TheoryData<string, HavenAppRouteKind, HavenSurface> BuiltInRoutes => new()
     {
         { "chat", HavenAppRouteKind.BaseMode, HavenSurface.Chat },
         { "study", HavenAppRouteKind.BaseMode, HavenSurface.Study },
+        { "automations", HavenAppRouteKind.Automations, HavenSurface.Automations },
         { "tasks", HavenAppRouteKind.BaseMode, HavenSurface.Tasks },
         { "studio", HavenAppRouteKind.BaseMode, HavenSurface.Studio },
         { "browse", HavenAppRouteKind.Browse, HavenSurface.Browse },
         { "plan", HavenAppRouteKind.Plan, HavenSurface.Plan },
         { "training", HavenAppRouteKind.Training, HavenSurface.Training },
-        { "imagine", HavenAppRouteKind.ModeWorkspace, HavenSurface.Imagine },
+        { "imagine", HavenAppRouteKind.Imagine, HavenSurface.Imagine },
+        { "write", HavenAppRouteKind.ModeWorkspace, HavenSurface.Write },
+        { "canvas", HavenAppRouteKind.ModeWorkspace, HavenSurface.Canvas },
         { "present", HavenAppRouteKind.ModeWorkspace, HavenSurface.Present },
         { "data", HavenAppRouteKind.ModeWorkspace, HavenSurface.Data },
-        { "vision", HavenAppRouteKind.ModeWorkspace, HavenSurface.Vision },
+        { "vision", HavenAppRouteKind.Vision, HavenSurface.Vision },
         { "play", HavenAppRouteKind.ModeWorkspace, HavenSurface.Play },
         { "translate", HavenAppRouteKind.ModeWorkspace, HavenSurface.Translate },
         { "launcher", HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher },

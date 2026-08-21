@@ -29,15 +29,18 @@ public sealed class ModeIdentityTests
     {
         string[] expectedKeys =
         [
-            "chat", "study", "tasks", "studio", "browse", "plan", "training",
-            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard"
+            "chat", "study", "automations", "tasks", "studio", "browse", "plan", "training",
+            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write"
         ];
 
         Assert.Equal(expectedKeys, BuiltInModeSeed.Modes.Select(mode => mode.Key));
         Assert.Equal(BuiltInModeSeed.Modes.Count, BuiltInModeSeed.Modes.Select(mode => mode.Id).Distinct().Count());
         Assert.DoesNotContain(BuiltInModeSeed.Modes, mode => mode.Key is "teach" or "do");
         Assert.Equal(HavenMode.Study, BuiltInModeSeed.Modes.Single(mode => mode.Key == "study").BaseMode);
+        Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "automations").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000003"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "automations").Id);
         Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000019"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").Id);
         Assert.NotEqual(SurfaceKind.Tasks, SurfaceKind.Go);
     }
 }

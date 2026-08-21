@@ -22,6 +22,7 @@ public sealed class PopupMenu : Container
         Name = "PopupMenuOverlay";
         SetValue(HavenProperties.Width, HavenLength.Percent(100));
         SetValue(HavenProperties.Height, HavenLength.Percent(100));
+        SetValue(HavenProperties.LayoutParticipation, HavenLayoutParticipation.Overlay);
         SetValue(HavenProperties.ZIndex, 500);
         SetValue(HavenProperties.PointerEvents, HavenPointerEvents.ChildrenOnly);
 

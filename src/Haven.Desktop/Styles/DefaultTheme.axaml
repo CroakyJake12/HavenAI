@@ -78,6 +78,10 @@
     <Color x:Key="HavenAccentSecondaryGlowColor">#A8FF7A4B</Color>
     <Color x:Key="HavenAccentTertiaryGlowColor">#925A2108</Color>
     <SolidColorBrush x:Key="HavenAccentInkBrush" Color="#FFFFFF" />
+    <LinearGradientBrush x:Key="HavenModelReasoningLowBrush" StartPoint="0%,50%" EndPoint="100%,50%"><GradientStop Color="#FFFFB640" Offset="0"/><GradientStop Color="#FFFF8A23" Offset="1"/></LinearGradientBrush>
+    <LinearGradientBrush x:Key="HavenModelReasoningBalancedBrush" StartPoint="0%,50%" EndPoint="100%,50%"><GradientStop Color="#FFFF7A35" Offset="0"/><GradientStop Color="#FFFF4B0B" Offset="1"/></LinearGradientBrush>
+    <LinearGradientBrush x:Key="HavenModelReasoningHighBrush" StartPoint="0%,50%" EndPoint="100%,50%"><GradientStop Color="#FFFF4F2C" Offset="0"/><GradientStop Color="#FFE91C12" Offset="1"/></LinearGradientBrush>
+    <LinearGradientBrush x:Key="HavenModelReasoningMaxBrush" StartPoint="0%,50%" EndPoint="100%,50%"><GradientStop Color="#FFB650FF" Offset="0"/><GradientStop Color="#FF6D30E8" Offset="1"/></LinearGradientBrush>
     <SolidColorBrush x:Key="HavenAccentSoftBrush" Color="#E0F7FA" />
     <SolidColorBrush x:Key="HavenBlueSoftBrush" Color="#E0F2F1" />
 
