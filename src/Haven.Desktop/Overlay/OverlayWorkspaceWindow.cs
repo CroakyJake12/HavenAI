@@ -62,7 +62,7 @@ internal sealed class OverlayWorkspaceWindow : Window
         AutomationProperties.SetAutomationId(BodyControl, goPage is not null ? "HavenOverlayGo" : "HavenOverlayChat");
         AutomationProperties.SetName(BodyControl, goPage is not null ? "Haven Overlay Go workspace" : "Haven Overlay Chat workspace");
 
-        Content = ShellControl;
+        Content = CreateVisualRoot(ShellControl, chatPage, goPage);
         ShellControl.InputSubmitted += input =>
         {
             if (ReferenceEquals(input, ShellScene.ComposerInput)) ShellScene.SubmitComposer();
@@ -108,6 +108,13 @@ internal sealed class OverlayWorkspaceWindow : Window
     public event EventHandler<string>? SubmitRequested;
     public event EventHandler<OverlaySurfaceGeometry>? GeometryChanged;
 
+    internal static Control CreateVisualRoot(HavenSceneControl shellControl, params Control?[] executionBackends)
+    {
+        ArgumentNullException.ThrowIfNull(shellControl);
+        _ = executionBackends;
+        return shellControl;
+    }
+
     public void ApplySnapshot(OverlayWorkspaceSnapshot snapshot)
     {
         ShellScene.ApplySnapshot(snapshot, SessionId);
@@ -122,6 +129,8 @@ internal sealed class OverlayWorkspaceWindow : Window
             MinHeight = 56;
             Width = 360;
             Height = 64;
+            Position = new PixelPoint((int)Math.Round(current.Geometry.X), (int)Math.Round(current.Geometry.Y));
+            if (IsVisible) EnsureVisibleOnAvailableScreen();
             return;
         }
 
@@ -131,6 +140,7 @@ internal sealed class OverlayWorkspaceWindow : Window
         Width = Math.Clamp(current.Geometry.Width, 480, 720);
         Height = Math.Clamp(current.Geometry.Height, 360, 560);
         Position = new PixelPoint((int)Math.Round(current.Geometry.X), (int)Math.Round(current.Geometry.Y));
+        if (IsVisible) EnsureVisibleOnAvailableScreen();
     }    public void SetActions(IReadOnlyList<OverlayContextActionDescriptor> actions) => ShellScene.SetActions(actions);
     public void SetSuggestions(IReadOnlyList<string> labels) => ShellScene.SetSuggestions(labels);
 
@@ -143,6 +153,7 @@ internal sealed class OverlayWorkspaceWindow : Window
     public void ShowAndActivate()
     {
         if (!IsVisible) Show();
+        EnsureVisibleOnAvailableScreen();
         Activate();
         if (_chatPage is not null) _chatPage.FocusComposer();
         else GoPage?.FocusComposer();
@@ -166,6 +177,36 @@ internal sealed class OverlayWorkspaceWindow : Window
             Position.X + (int)Math.Round(delta.X),
             Position.Y + (int)Math.Round(delta.Y));
     }
+
+    private void EnsureVisibleOnAvailableScreen()
+    {
+        var screens = Screens.All;
+        if (screens.Count == 0) return;
+        var screen = screens.FirstOrDefault(candidate => Contains(candidate.WorkingArea, Position))
+                     ?? Screens.Primary
+                     ?? screens[0];
+        Position = ClampPositionToWorkingArea(Position, screen.WorkingArea, screen.Scaling, Width, Height);
+    }
+
+    internal static PixelPoint ClampPositionToWorkingArea(
+        PixelPoint desired,
+        PixelRect workingArea,
+        double scaling,
+        double width,
+        double height)
+    {
+        scaling = scaling <= 0 ? 1 : scaling;
+        var widthPixels = Math.Max(1, (int)Math.Ceiling(width * scaling));
+        var heightPixels = Math.Max(1, (int)Math.Ceiling(height * scaling));
+        var maxX = Math.Max(workingArea.X, workingArea.Right - widthPixels);
+        var maxY = Math.Max(workingArea.Y, workingArea.Bottom - heightPixels);
+        return new PixelPoint(
+            Math.Clamp(desired.X, workingArea.X, maxX),
+            Math.Clamp(desired.Y, workingArea.Y, maxY));
+    }
+
+    private static bool Contains(PixelRect area, PixelPoint point) =>
+        point.X >= area.X && point.X < area.Right && point.Y >= area.Y && point.Y < area.Bottom;
 
     private void PublishGeometry() => GeometryChanged?.Invoke(this, CaptureGeometry());
 }
