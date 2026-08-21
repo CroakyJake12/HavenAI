@@ -66,6 +66,14 @@ public static class NotesExperienceNavigation
         return Task.CompletedTask;
     }
 
+    public static async Task<bool> OpenDocumentAsync(MainView shell, Guid documentId, bool forceNewTab = false)
+    {
+        ArgumentNullException.ThrowIfNull(shell);
+        await OpenAsync(shell, NotesExperienceKind.Notes, forceNewTab);
+        return shell.SelectedTab?.Page is WritePage write
+               && await write.OpenDocumentAsync(documentId);
+    }
+
     /// <summary>
     /// Performs the display name step owned by this component.
     /// </summary>

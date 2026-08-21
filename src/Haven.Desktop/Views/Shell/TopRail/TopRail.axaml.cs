@@ -132,9 +132,13 @@ public sealed partial class TopRail : UserControl, IDisposable
         Action openSettings)
     {
         _searchFlyout?.Hide();
-        _searchControl = new UniversalSearchControl();
+        _searchControl = new UniversalSearchControl
+        {
+            Width = Math.Min(690, Math.Max(320, Bounds.Width - 32))
+        };
         _searchControl.SetItems(items);
         _searchControl.ItemInvoked += (_, _) => _searchFlyout?.Hide();
+        _searchControl.CloseRequested += (_, _) => _searchFlyout?.Hide();
         _searchControl.ViewAllRequested += (_, _) =>
         {
             _searchFlyout?.Hide();
@@ -156,6 +160,11 @@ public sealed partial class TopRail : UserControl, IDisposable
         };
         _searchFlyout.ShowAt(SearchButton);
         _searchControl.FocusSearch();
+    }
+
+    public void UpdateUniversalSearchItems(IReadOnlyList<UniversalSearchItem> items)
+    {
+        _searchControl?.SetItems(items);
     }
 
     public void ShowNotifications()

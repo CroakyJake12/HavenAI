@@ -365,6 +365,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public ObservableCollection<CommandPaletteItemViewModel> CommandItems { get; } = [];
     public ObservableCollection<ToastNotification> Notifications => _notifications.Notifications;
     private IReadOnlyList<CommandPaletteItemViewModel> AllCommandItems { get; set; } = [];
+    private int _launcherSearchGeneration;
     public CompanionDockViewModel CompanionDock => _companionDockVm;
 
     public HavenEventBus EventBus => _eventBus;
@@ -951,6 +952,13 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddOrSelectTab(_edition == HavenShellEdition.New ? "plan-full" : "plan", title, _planPage, false, HavenSurface.Plan);
     }
 
+    private async Task OpenPlanTaskAsync(Guid taskId)
+    {
+        OpenLegacyPlan();
+        if (_planPage is not null && await _planPage.OpenTaskByIdAsync(taskId)) return;
+        _notifications.Show("Task unavailable", "That Planner task could not be opened.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+    }
+
     private async void OnNativePlanStudyRequested(object? sender, PlannerStudyLink link)
     {
         try
@@ -1327,64 +1335,118 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task ShowUniversalSearchAsync()
     {
+        var generation = Interlocked.Increment(ref _launcherSearchGeneration);
+        var immediate = BuildImmediateLauncherItems();
+        TopRail.ShowUniversalSearch(immediate, OpenCommandPalette, OpenApplicationSettings);
+
         try
         {
+            var services = App.Services;
+            var notesRepository = services?.GetService(typeof(INotesRepository)) as INotesRepository;
             var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
             var conversationsTask = _conversations.GetRecentAsync(null, 40, CancellationToken.None);
+            var projectsTask = _containers.GetByModeAsync(HavenMode.Studio, CancellationToken.None);
+            var documentsTask = notesRepository?.ListAsync(CancellationToken.None)
+                ?? Task.FromResult<IReadOnlyList<NotesDocumentSummary>>([]);
             var tasksTask = _planner.GetTasksAsync(new PlannerTaskQuery(IncludeCompleted: false), CancellationToken.None);
-            await Task.WhenAll(appsTask, conversationsTask, tasksTask);
+            await Task.WhenAll(appsTask, conversationsTask, projectsTask, documentsTask, tasksTask);
+            if (generation != _launcherSearchGeneration) return;
 
-            var items = new List<UniversalSearchItem>();
+            var loaded = new List<UniversalSearchItem>();
             foreach (var app in (await appsTask).Where(item => item.IsEnabled && !IsRetiredApp(item)).Take(18))
             {
                 var captured = app;
-                items.Add(new UniversalSearchItem(
+                loaded.Add(new UniversalSearchItem(
                     "Apps", captured.Name, captured.Description, captured.IconKey, "App",
-                    () => _ = LaunchAppAsync(captured, false)));
+                    () => _ = LaunchAppAsync(captured, false), SearchKeywords: captured.Key));
             }
 
             foreach (var conversation in (await conversationsTask).Take(24))
             {
                 var captured = conversation;
-                items.Add(new UniversalSearchItem(
+                loaded.Add(new UniversalSearchItem(
                     "Chats", captured.Title,
-                    $"{captured.UpdatedAt.LocalDateTime:g} Â· {DisplayMode(captured.Mode)}",
+                    $"{captured.UpdatedAt.LocalDateTime:g} | {DisplayMode(captured.Mode)}",
                     "chat", "Chat", () => _ = OpenConversationDefinitionAsync(captured)));
+            }
+
+            foreach (var project in (await projectsTask).Where(item => !item.IsArchived).OrderByDescending(item => item.UpdatedAt).Take(18))
+            {
+                var captured = project;
+                loaded.Add(new UniversalSearchItem(
+                    "Projects", captured.Name, $"Updated {captured.UpdatedAt.LocalDateTime:g}",
+                    "studio", "Project", () => _ = OpenContainerDefinitionAsync(captured)));
+            }
+
+            foreach (var document in (await documentsTask).OrderByDescending(item => item.UpdatedAt).Take(18))
+            {
+                var captured = document;
+                loaded.Add(new UniversalSearchItem(
+                    "Documents", captured.Title, $"Updated {captured.UpdatedAt.LocalDateTime:g} | {captured.WordCount} words",
+                    "file", "Document", () => _ = OpenLauncherDocumentAsync(captured.Id)));
             }
 
             foreach (var task in (await tasksTask).OrderBy(item => item.DueAt ?? DateTimeOffset.MaxValue).Take(18))
             {
                 var captured = task;
                 var due = captured.DueAt is null ? "No due date" : $"Due {captured.DueAt.Value.LocalDateTime:g}";
-                items.Add(new UniversalSearchItem(
-                    "Tasks", captured.Title, due, "tasks", "Task", OpenPlan));
+                loaded.Add(new UniversalSearchItem(
+                    "Tasks", captured.Title, due, "tasks", "Task", () => _ = OpenPlanTaskAsync(captured.Id)));
             }
 
-            foreach (var tab in OpenTabs)
+            var items = loaded.Concat(BuildImmediateLauncherItems().Where(item => item.Group != "Recommended")).ToList();
+            var recommendedItems = new List<UniversalSearchItem>();
+            foreach (var group in new[] { "Chats", "Projects", "Documents", "Tasks", "Apps", "Tabs" })
             {
-                var captured = tab;
-                items.Add(new UniversalSearchItem(
-                    "Tabs", captured.Title, DisplaySurface(captured.Surface), "window", "Tab",
-                    () => SelectedTab = captured));
+                var recommended = items.FirstOrDefault(item => item.IsEnabled && item.Group == group);
+                if (recommended is not null) recommendedItems.Add(recommended with { Group = "Recommended" });
             }
-
-            foreach (var command in AllCommandItems.Take(30))
-            {
-                var captured = command;
-                items.Add(new UniversalSearchItem(
-                    "Actions", captured.Name, captured.Description, ActionIcon(captured.Name), "Action",
-                    () => Invoke(captured.RunCommand)));
-            }
-
-            foreach (var recommended in items.Where(item => item.Group is "Apps" or "Tasks" or "Chats").Take(4).ToArray())
-                items.Insert(0, recommended with { Group = "Recommended" });
-
-            TopRail.ShowUniversalSearch(items, OpenCommandPalette, OpenApplicationSettings);
+            items.InsertRange(0, recommendedItems.Take(5));
+            TopRail.UpdateUniversalSearchItems(items);
         }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        catch (Exception ex)
         {
-            _notifications.Show("Search unavailable", "Haven could not load the local search index.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+            System.Diagnostics.Debug.WriteLine($"[Launcher search] {ex}");
+            if (generation != _launcherSearchGeneration) return;
+            var items = BuildImmediateLauncherItems();
+            items.Insert(0, new UniversalSearchItem(
+                "Recommended", "Some local results are unavailable",
+                "Apps, chats, projects, documents or tasks could not be refreshed. Existing tabs and commands are still available.",
+                "warning", "Status", () => { }, false, "Local search refresh failed."));
+            TopRail.UpdateUniversalSearchItems(items);
         }
+    }
+
+    private List<UniversalSearchItem> BuildImmediateLauncherItems()
+    {
+        var items = new List<UniversalSearchItem>();
+        foreach (var tab in OpenTabs)
+        {
+            var captured = tab;
+            items.Add(new UniversalSearchItem(
+                "Tabs", captured.Title, DisplaySurface(captured.Surface), "window", "Tab",
+                () => SelectedTab = captured));
+        }
+
+        foreach (var command in AllCommandItems.Take(30))
+        {
+            var captured = command;
+            var enabled = captured.RunCommand.CanExecute(null);
+            items.Add(new UniversalSearchItem(
+                "Commands", captured.Name, captured.Description, ActionIcon(captured.Name), "Command",
+                () => Invoke(captured.RunCommand), enabled,
+                enabled ? null : "Unavailable in the current context or permission state.", captured.Shortcut));
+        }
+
+        foreach (var recommended in items.Where(item => item.IsEnabled).Take(4).Reverse().ToArray())
+            items.Insert(0, recommended with { Group = "Recommended" });
+        return items;
+    }
+
+    private async Task OpenLauncherDocumentAsync(Guid documentId)
+    {
+        if (await NotesExperienceNavigation.OpenDocumentAsync(this, documentId)) return;
+        _notifications.Show("Document unavailable", "That local Write document could not be opened.", ToastKind.Warning, TimeSpan.FromSeconds(5));
     }
 
     private static string DisplayMode(HavenMode mode) => mode switch
@@ -1411,7 +1473,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async Task LaunchAppAsync(ModeDefinition app, bool openInNewTab)
     {
         var route = HavenAppRoutePolicy.Resolve(app);
-        if (route.Kind == HavenAppRouteKind.Go)
+        if (route.Surface == HavenSurface.Launcher)
+        {
+            await ShowUniversalSearchAsync();
+        }
+        else if (route.Kind == HavenAppRouteKind.Go)
         {
             if (openInNewTab) AddNewTab();
             await OpenGoAsync();
@@ -1535,6 +1601,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Dashboard:
                     await OpenDashboardAsync();
+                    break;
+                case HavenSurface.Launcher:
+                    await ShowUniversalSearchAsync();
                     break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);
@@ -2719,7 +2788,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     }
 
     private CommandPaletteItemViewModel Command(string name, string description, string shortcut, System.Windows.Input.ICommand command) =>
-        new(name, description, shortcut, new RelayCommand(() => { IsCommandPaletteOpen = false; if (command.CanExecute(null)) command.Execute(null); }));
+        new(name, description, shortcut, new RelayCommand(
+            () => { IsCommandPaletteOpen = false; if (command.CanExecute(null)) command.Execute(null); },
+            () => command.CanExecute(null)));
 
     private void FilterCommands()
     {
@@ -3239,7 +3310,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
 
-        if (control && e.Key == Key.K)
+        if (control && e.Key == Key.Space)
+        {
+            await ShowUniversalSearchAsync();
+            e.Handled = true;
+        }
+        else if (control && e.Key == Key.K)
         {
             OpenCommandPaletteCommand.Execute(null);
             e.Handled = true;

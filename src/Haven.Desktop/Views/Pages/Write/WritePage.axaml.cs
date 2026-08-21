@@ -560,6 +560,29 @@ public sealed partial class WritePage : UserControl, IDisposable
         await OpenDocumentAtAsync(next, CancellationToken.None, saveBeforeSwitch: true);
     }
 
+    public async Task<bool> OpenDocumentAsync(Guid documentId, CancellationToken cancellationToken = default)
+    {
+        if (_disposed) return false;
+        await InitializeAsync(cancellationToken);
+        await RefreshDocumentsAsync(cancellationToken);
+        var index = -1;
+        for (var candidate = 0; candidate < _documents.Count; candidate++)
+        {
+            if (_documents[candidate].Id != documentId) continue;
+            index = candidate;
+            break;
+        }
+
+        if (index < 0)
+        {
+            _route.SetStatus("That local document no longer exists.");
+            return false;
+        }
+
+        await OpenDocumentAtAsync(index, cancellationToken, saveBeforeSwitch: true);
+        return Document?.Id == documentId;
+    }
+
     private async Task CreateDocumentAsync(CancellationToken cancellationToken)
     {
         if (Document is not null && _dirty

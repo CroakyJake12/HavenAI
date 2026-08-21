@@ -1041,6 +1041,32 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         TaskEditor = new PlannerTaskEditorViewModel(item.Definition, _repository, async () => { TaskEditor = null; await RefreshAsync(); });
     }
 
+    public async Task<bool> OpenTaskByIdAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var task = await _repository.GetTaskAsync(taskId, cancellationToken);
+            if (task is null)
+            {
+                Status = "That task no longer exists.";
+                return false;
+            }
+
+            OpenTaskEditor(new PlannerTaskItemViewModel(task, string.Empty));
+            Status = $"Opened {task.Title}.";
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Status = $"Task could not be opened: {ex.Message}";
+            return false;
+        }
+    }
+
     /// <summary>
     /// Performs add subtask asynchronously so I/O does not block the caller's thread.
     /// </summary>
