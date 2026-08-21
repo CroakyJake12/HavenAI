@@ -401,10 +401,11 @@ public sealed class ConversationProductionRepository(
     }
 
     /// <summary>
-    /// Retrieves recent attachments across conversations for the read-only File Library.
+    /// Retrieves the most recently updated persisted attachments across conversations.
     /// </summary>
-    public async Task<IReadOnlyList<MessageAttachment>> GetAttachmentLibraryAsync(int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MessageAttachment>> GetRecentAttachmentsAsync(int limit, CancellationToken cancellationToken)
     {
+        if (limit <= 0) return [];
         await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();

@@ -122,6 +122,35 @@ public sealed class ConversationProductionRepositoryTests : IDisposable
     /// Performs the production schema is created for every database instance step owned by this component.
     /// </summary>
     [Fact]
+    public async Task RecentAttachmentsAreReturnedAcrossChatsNewestFirstAndBounded()
+    {
+        var database = await CreateDatabaseAsync();
+        var conversations = new ConversationRepository(database);
+        var production = CreateProduction(database, conversations);
+        var now = DateTimeOffset.UtcNow;
+        var firstConversation = ConversationAt(now) with { Title = "First" };
+        var secondConversation = ConversationAt(now.AddMinutes(1)) with { Title = "Second" };
+        await conversations.UpsertConversationAsync(firstConversation, CancellationToken.None);
+        await conversations.UpsertConversationAsync(secondConversation, CancellationToken.None);
+
+        var oldest = new MessageAttachment(Guid.NewGuid(), firstConversation.Id, null, null, "old.txt", "old.txt", "text/plain", MessageAttachmentKind.PlainText, 3, "old", AttachmentProcessingState.Ready, AttachmentAnalysisMethod.TextExtracted, "old", "{}", now, now);
+        var middle = new MessageAttachment(Guid.NewGuid(), secondConversation.Id, null, null, "middle.pdf", "middle.pdf", "application/pdf", MessageAttachmentKind.Pdf, 4, "middle", AttachmentProcessingState.Ready, AttachmentAnalysisMethod.None, string.Empty, "{}", now.AddMinutes(1), now.AddMinutes(1));
+        var newest = new MessageAttachment(Guid.NewGuid(), firstConversation.Id, null, null, "new.cs", "new.cs", "text/plain", MessageAttachmentKind.SourceCode, 5, "new", AttachmentProcessingState.Ready, AttachmentAnalysisMethod.TextExtracted, "code", "{}", now.AddMinutes(2), now.AddMinutes(2));
+        await production.UpsertAttachmentAsync(oldest, CancellationToken.None);
+        await production.UpsertAttachmentAsync(middle, CancellationToken.None);
+        await production.UpsertAttachmentAsync(newest, CancellationToken.None);
+
+        var recent = await production.GetRecentAttachmentsAsync(2, CancellationToken.None);
+
+        Assert.Collection(recent,
+            item => Assert.Equal(newest.Id, item.Id),
+            item => Assert.Equal(middle.Id, item.Id));
+        Assert.Contains(recent, item => item.ConversationId == firstConversation.Id);
+        Assert.Contains(recent, item => item.ConversationId == secondConversation.Id);
+        Assert.Empty(await production.GetRecentAttachmentsAsync(0, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ProductionSchemaIsCreatedForEveryDatabaseInstance()
     {
         var firstPaths = new TestPaths();

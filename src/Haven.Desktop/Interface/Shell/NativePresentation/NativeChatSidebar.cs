@@ -20,11 +20,13 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private readonly Func<ContainerDefinition, Task> _openGroup;
     private readonly Func<HavenMode, Task> _switchMode;
     private readonly NativeChatUiStateStore _stateStore;
+    private readonly IConversationProductionRepository? _production;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly ChatSidebarHavenScene _scene;
 
     private IReadOnlyList<Conversation> _conversationRows = [];
     private IReadOnlyList<ContainerDefinition> _groupRows = [];
+    private IReadOnlyList<MessageAttachment> _fileRows = [];
     private IReadOnlyDictionary<Guid, NativeChatItemState> _states = new Dictionary<Guid, NativeChatItemState>();
     private Guid? _activeConversationId;
     private Guid? _activeGroupId;
@@ -32,6 +34,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private string _query = string.Empty;
     private bool _refreshing;
     private bool _refreshPending;
+    private bool _startingChat;
     private bool _disposed;
 
     public NativeChatSidebar(
@@ -41,7 +44,8 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         Func<HavenMode, Guid?, Task> startChat,
         Func<ContainerDefinition, Task> openGroup,
         Func<HavenMode, Task> switchMode,
-        NativeChatUiStateStore? stateStore = null)
+        NativeChatUiStateStore? stateStore = null,
+        IConversationProductionRepository? production = null)
     {
         _conversations = conversations ?? throw new ArgumentNullException(nameof(conversations));
         _containers = containers ?? throw new ArgumentNullException(nameof(containers));
@@ -50,6 +54,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _openGroup = openGroup ?? throw new ArgumentNullException(nameof(openGroup));
         _switchMode = switchMode ?? throw new ArgumentNullException(nameof(switchMode));
         _stateStore = stateStore ?? new NativeChatUiStateStore();
+        _production = production;
 
         _scene = new ChatSidebarHavenScene();
         SceneHost = new HavenSceneControl { Root = _scene.Root };
@@ -64,6 +69,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _scene.NewGroupRequested += OnNewGroupRequested;
         _scene.ConversationActionRequested += OnConversationActionRequested;
         _scene.GroupActionRequested += OnGroupActionRequested;
+        _scene.FileRequested += OnFileRequested;
         _ = RefreshAsync();
     }
 
@@ -88,12 +94,16 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
                 var conversationTask = _conversations.GetRecentAsync(_currentMode, 500, _lifetime.Token);
                 var groupTask = _containers.GetByModeAsync(_currentMode, _lifetime.Token);
                 var stateTask = _stateStore.GetAllAsync(_lifetime.Token);
-                await Task.WhenAll(conversationTask, groupTask, stateTask).ConfigureAwait(false);
+                var fileTask = _production is null || _currentMode != HavenMode.Chat
+                    ? Task.FromResult<IReadOnlyList<MessageAttachment>>([])
+                    : _production.GetRecentAttachmentsAsync(100, _lifetime.Token);
+                await Task.WhenAll(conversationTask, groupTask, stateTask, fileTask).ConfigureAwait(false);
 
                 _conversationRows = conversationTask.Result
                     .Where(item => !item.IsArchived && item.Kind != ConversationKind.Call)
                     .ToArray();
                 _groupRows = groupTask.Result.Where(item => !item.IsArchived).ToArray();
+                _fileRows = fileTask.Result;
                 _states = stateTask.Result;
 
                 if (Dispatcher.UIThread.CheckAccess()) Render();
@@ -175,13 +185,22 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
                 .Select(chat => ConversationEntry(chat, true)));
         }
 
+        var sourceConversationIds = _conversationRows.Select(chat => chat.Id).ToHashSet();
+        var files = _currentMode == HavenMode.Chat
+            ? _fileRows
+                .Where(file => sourceConversationIds.Contains(file.ConversationId) && Matches(file.OriginalName))
+                .Take(20)
+                .Select(FileEntry)
+                .ToArray()
+            : [];
+
         var chats = conversations
             .Where(chat => chat.ContainerId is null && !chat.IsPinned && !IsUnread(chat))
             .Select(chat => ConversationEntry(chat, false))
             .ToArray();
 
-        _scene.SetRows(pinned, unread, groupEntries, chats);
-        _scene.SetStatus(conversations.Length == 0 && groups.Length == 0
+        _scene.SetRows(pinned, unread, groupEntries, files, chats);
+        _scene.SetStatus(conversations.Length == 0 && groups.Length == 0 && files.Length == 0
             ? $"No saved {ModeName(_currentMode)} chats or {GroupName(_currentMode, plural: true)} yet."
             : null);
     }
@@ -195,6 +214,14 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         chat.IsPinned,
         false,
         indented);
+
+    private ChatSidebarEntry FileEntry(MessageAttachment file) => new(
+        ChatSidebarEntryKind.File,
+        file.Id,
+        file.OriginalName,
+        _activeConversationId == file.ConversationId,
+        false,
+        false);
 
     private ChatSidebarEntry GroupEntry(ContainerDefinition group)
     {
@@ -228,6 +255,31 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     }
 
     private void OnNewGroupRequested(object? sender, EventArgs e) => ShowCreateGroupPrompt();
+
+    private async void OnFileRequested(object? sender, Guid attachmentId)
+    {
+        var file = _fileRows.FirstOrDefault(item => item.Id == attachmentId);
+        if (file is null) return;
+        var chat = _conversationRows.FirstOrDefault(item => item.Id == file.ConversationId);
+        if (chat is null)
+        {
+            _scene.SetStatus("The chat that owns this file is no longer available.");
+            return;
+        }
+
+        try
+        {
+            await _stateStore.MarkReadAsync(chat.Id, DateTimeOffset.UtcNow, _lifetime.Token);
+            _activeConversationId = chat.Id;
+            _activeGroupId = chat.ContainerId;
+            await _openConversation(chat);
+            await RefreshAsync();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus(exception.Message);
+        }
+    }
 
     private async void OnConversationActionRequested(object? sender, ChatSidebarConversationRequest request)
     {
@@ -352,11 +404,21 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private async Task StartChatAsync(Guid? groupId)
     {
-        if (groupId is Guid id) await _stateStore.SetExpandedAsync(id, true, _lifetime.Token);
-        await _startChat(_currentMode, groupId);
-        _activeConversationId = null;
-        _activeGroupId = groupId;
-        await RefreshAsync();
+        if (_startingChat) return;
+        _startingChat = true;
+        _scene.SetNewChatBusy(true);
+        try
+        {
+            if (groupId is Guid id) await _stateStore.SetExpandedAsync(id, true, _lifetime.Token);
+            await _startChat(_currentMode, groupId);
+            _activeGroupId = groupId;
+            await RefreshAsync();
+        }
+        finally
+        {
+            _startingChat = false;
+            _scene.SetNewChatBusy(false);
+        }
     }
 
     private async Task ToggleConversationPinAsync(Conversation chat)
@@ -386,14 +448,10 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
 
     private async Task DeleteConversationAsync(Conversation chat)
     {
+        var wasActive = _activeConversationId == chat.Id;
         await _conversations.DeleteConversationAsync(chat.Id, _lifetime.Token);
-        if (_activeConversationId == chat.Id)
-        {
-            await _startChat(_currentMode, null);
-            _activeConversationId = null;
-            _activeGroupId = null;
-        }
-        await RefreshAsync();
+        if (wasActive) await StartChatAsync(null);
+        else await RefreshAsync();
     }
 
     private async Task ArchiveGroupAsync(ContainerDefinition group)
@@ -448,6 +506,7 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _scene.NewGroupRequested -= OnNewGroupRequested;
         _scene.ConversationActionRequested -= OnConversationActionRequested;
         _scene.GroupActionRequested -= OnGroupActionRequested;
+        _scene.FileRequested -= OnFileRequested;
         _scene.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();

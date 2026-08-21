@@ -11,15 +11,16 @@ public sealed partial class MainView
 
     private void InitialiseNativeChatSidebar()
     {
+        var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable while constructing the Chat sidebar.");
         _nativeChatSidebar = new NativeChatSidebar(
             _conversations,
             _containers,
             OpenNativeConversationAsync,
             StartNativeConversationAsync,
             OpenNativeContainerAsync,
-            SwitchNativeChatModeAsync);
+            SwitchNativeChatModeAsync,
+            production: services.GetRequiredService<IConversationProductionRepository>());
 
-        var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable while constructing the Study sidebar.");
         _studyAssignmentsSidebar = new StudyAssignmentsSidebarCoordinator(
             _nativeChatSidebar,
             _containers,

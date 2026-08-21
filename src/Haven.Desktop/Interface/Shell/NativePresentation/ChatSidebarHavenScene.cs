@@ -9,7 +9,8 @@ namespace Haven.Desktop.Views.Shell.NativePresentation;
 internal enum ChatSidebarEntryKind
 {
     Conversation,
-    Group
+    Group,
+    File
 }
 
 internal enum ChatSidebarConversationAction
@@ -61,6 +62,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private readonly Dictionary<Guid, ChatSidebarEntry> _entryState = [];
     private IReadOnlyList<ChatSidebarFileEntry> _fileEntries = [];
     private PopupMenu? _activePopup;
+    private HavenMode _mode = HavenMode.Chat;
     private bool _disposed;
 
     public ChatSidebarHavenScene()
@@ -73,14 +75,18 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         ChatMode = Get<HavenButton>("ChatMode");
         StudyMode = Get<HavenButton>("StudyMode");
         TasksMode = Get<HavenButton>("TasksMode");
+        SidebarTitle = Get<HavenText>("SidebarTitle");
         Search = Get<Input>("Search");
         PinnedHeading = Get<HavenText>("PinnedHeading");
         UnreadHeading = Get<HavenText>("UnreadHeading");
         GroupsHeading = Get<HavenText>("GroupsHeading");
+        FilesHeading = Get<HavenText>("FilesHeading");
+        FilesEmpty = Get<HavenText>("FilesEmpty");
         ChatsHeading = Get<HavenText>("ChatsHeading");
         PinnedRows = Get<DynamicUIRuntime>("PinnedRows");
         UnreadRows = Get<DynamicUIRuntime>("UnreadRows");
         GroupRows = Get<DynamicUIRuntime>("GroupRows");
+        FileRows = Get<DynamicUIRuntime>("FileRows");
         ChatRows = Get<DynamicUIRuntime>("ChatRows");
         NewChat = Get<HavenButton>("NewChat");
         NewGroup = Get<HavenButton>("NewGroup");
@@ -102,14 +108,18 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     public HavenButton ChatMode { get; }
     public HavenButton StudyMode { get; }
     public HavenButton TasksMode { get; }
+    public HavenText SidebarTitle { get; }
     public Input Search { get; }
     public HavenText PinnedHeading { get; }
     public HavenText UnreadHeading { get; }
     public HavenText GroupsHeading { get; }
+    public HavenText FilesHeading { get; }
+    public HavenText FilesEmpty { get; }
     public HavenText ChatsHeading { get; }
     public DynamicUIRuntime PinnedRows { get; }
     public DynamicUIRuntime UnreadRows { get; }
     public DynamicUIRuntime GroupRows { get; }
+    public DynamicUIRuntime FileRows { get; }
     public DynamicUIRuntime ChatRows { get; }
     public HavenButton NewChat { get; }
     public HavenButton NewGroup { get; }
@@ -121,12 +131,15 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     public event EventHandler? NewGroupRequested;
     public event EventHandler<ChatSidebarConversationRequest>? ConversationActionRequested;
     public event EventHandler<ChatSidebarGroupRequest>? GroupActionRequested;
+    public event EventHandler<Guid>? FileRequested;
 
     public void SetMode(HavenMode mode)
     {
+        _mode = mode;
         var modeName = ModeName(mode);
+        SidebarTitle.Content = modeName;
         ModeButton.Content = modeName;
-        ModeButton.Accessibility.AccessibleName = $"Current mode: {modeName}. Select Chat mode";
+        ModeButton.Accessibility.AccessibleName = $"Current mode: {modeName}";
         GroupsHeading.Content = GroupName(mode, plural: true);
         ChatsHeading.Content = mode switch
         {
@@ -134,29 +147,48 @@ internal sealed class ChatSidebarHavenScene : IDisposable
             HavenMode.Tasks => "Task Chats",
             _ => "Chats"
         };
-        Search.Placeholder = $"Search {modeName}";
-        Search.Accessibility.AccessibleName = $"Search {modeName} chats and groups";
+        Search.Placeholder = mode == HavenMode.Chat ? "Search chats, groups and files" : $"Search {modeName}";
+        Search.Accessibility.AccessibleName = mode == HavenMode.Chat
+            ? "Search chats, Chat Groups and File Library"
+            : $"Search {modeName} chats and groups";
         NewChat.Content = NewChatLabel(mode);
-        NewGroup.Content = $"New {GroupName(mode, plural: false)}";
+        NewGroup.Content = string.Empty;
+        NewGroup.Accessibility.AccessibleName = $"Create {GroupName(mode, plural: false)}";
         ModeOptions.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        SetHeadingVisibility(FilesHeading, mode == HavenMode.Chat);
+        FilesEmpty.SetValue(HavenProperties.Visibility, mode == HavenMode.Chat && FileRows.Items.Count == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
 
     public void SetRows(
         IReadOnlyList<ChatSidebarEntry> pinned,
         IReadOnlyList<ChatSidebarEntry> unread,
         IReadOnlyList<ChatSidebarEntry> groups,
+        IReadOnlyList<ChatSidebarEntry> chats) =>
+        SetRows(pinned, unread, groups, [], chats);
+
+    public void SetRows(
+        IReadOnlyList<ChatSidebarEntry> pinned,
+        IReadOnlyList<ChatSidebarEntry> unread,
+        IReadOnlyList<ChatSidebarEntry> groups,
+        IReadOnlyList<ChatSidebarEntry> files,
         IReadOnlyList<ChatSidebarEntry> chats)
     {
         _entryState.Clear();
         SyncRows("PinnedRows", pinned);
         SyncRows("UnreadRows", unread);
         SyncRows("GroupRows", groups);
+        SyncRows("FileRows", files);
         SyncRows("ChatRows", chats);
         SetHeadingVisibility(PinnedHeading, pinned.Count > 0);
         SetHeadingVisibility(UnreadHeading, unread.Count > 0);
         SetHeadingVisibility(GroupsHeading, true);
+        SetHeadingVisibility(FilesHeading, _mode == HavenMode.Chat);
+        FilesEmpty.SetValue(HavenProperties.Visibility, _mode == HavenMode.Chat && files.Count == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         SetHeadingVisibility(ChatsHeading, true);
     }
+
+    public void SetNewChatBusy(bool busy) =>
+        NewChat.SetValue(HavenProperties.Enabled, !busy);
 
     public void SetStatus(string? value)
     {
@@ -232,15 +264,26 @@ internal sealed class ChatSidebarHavenScene : IDisposable
             var values = Values(entry);
             if (!byId.TryGetValue(id, out var item))
             {
-                item = _dynamicUi.CreateItem(
-                    entry.Kind == ChatSidebarEntryKind.Group ? "ChatSidebarGroupRow" : "ChatSidebarConversationRow",
-                    location,
-                    id,
-                    values,
-                    index);
+                var template = entry.Kind switch
+                {
+                    ChatSidebarEntryKind.Group => "ChatSidebarGroupRow",
+                    ChatSidebarEntryKind.File => "ChatSidebarFileRow",
+                    _ => "ChatSidebarConversationRow"
+                };
+                item = _dynamicUi.CreateItem(template, location, id, values, index);
                 byId[id] = item;
-                if (entry.Kind == ChatSidebarEntryKind.Group) WireGroup(item, entry.Id);
-                else WireConversation(item, entry.Id);
+                switch (entry.Kind)
+                {
+                    case ChatSidebarEntryKind.Group:
+                        WireGroup(item, entry.Id);
+                        break;
+                    case ChatSidebarEntryKind.File:
+                        WireFile(item, entry.Id);
+                        break;
+                    default:
+                        WireConversation(item, entry.Id);
+                        break;
+                }
             }
             else
             {
@@ -256,7 +299,11 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private void RefreshAccessibility(DynamicUIItem item, ChatSidebarEntry entry)
     {
         var open = item.GetComponent<HavenButton>("Open");
-        open.Accessibility.AccessibleName = entry.Title + (entry.Unread ? ", unread" : string.Empty);
+        open.Accessibility.AccessibleName = entry.Kind == ChatSidebarEntryKind.File
+            ? $"Open source chat for file {entry.Title}"
+            : entry.Title + (entry.Unread ? ", unread" : string.Empty);
+        if (entry.Kind == ChatSidebarEntryKind.File) return;
+
         item.GetComponent<HavenButton>("More").Accessibility.AccessibleName = $"Manage {entry.Title}";
         if (entry.Kind == ChatSidebarEntryKind.Group)
             item.GetComponent<HavenButton>("Toggle").Accessibility.AccessibleName = entry.Expanded ? $"Collapse {entry.Title}" : $"Expand {entry.Title}";
@@ -276,6 +323,9 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         item.GetComponent<HavenButton>("More").Invoked += (_, _) =>
             ShowGroupMenu(item.GetComponent<HavenButton>("More"), id);
     }
+
+    private void WireFile(DynamicUIItem item, Guid id) =>
+        Wire(item, "Open", () => FileRequested?.Invoke(this, id));
 
     private void ShowConversationMenu(HavenButton anchor, Guid id)
     {
@@ -325,15 +375,22 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         if (entry.Kind == ChatSidebarEntryKind.Group)
             return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                ["TITLE"] = entry.Title + (entry.Unread ? " Ã¢â‚¬Â¢" : string.Empty),
-                ["BACKGROUND"] = entry.Active ? "SurfaceRaised" : "Transparent",
+                ["TITLE"] = entry.Title + (entry.Unread ? " •" : string.Empty),
+                ["BACKGROUND"] = entry.Active ? "AccentMuted" : "Transparent",
                 ["CHEVRON"] = entry.Expanded ? "chevron-down" : "chevron-right",
+            };
+
+        if (entry.Kind == ChatSidebarEntryKind.File)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["TITLE"] = entry.Title,
+                ["BACKGROUND"] = entry.Active ? "AccentMuted" : "Transparent",
             };
 
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["TITLE"] = entry.Title + (entry.Unread ? " Ã¢â‚¬Â¢" : string.Empty),
-            ["BACKGROUND"] = entry.Active ? "SurfaceRaised" : "Transparent",
+            ["TITLE"] = entry.Title + (entry.Unread ? " •" : string.Empty),
+            ["BACKGROUND"] = entry.Active ? "AccentMuted" : "Transparent",
             ["MARGIN"] = entry.Indented ? "28px 0px 0px 0px" : "0px",
         };
     }
@@ -395,7 +452,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         (T)Root.DescendantsAndSelf().Single(element => element.Name == name);
 
     private static string InstanceId(ChatSidebarEntry entry) =>
-        $"{(entry.Kind == ChatSidebarEntryKind.Group ? "group" : "chat")}-{entry.Id:N}";
+        $"{entry.Kind switch { ChatSidebarEntryKind.Group => "group", ChatSidebarEntryKind.File => "file", _ => "chat" }}-{entry.Id:N}";
 
     private static void SetHeadingVisibility(HavenText heading, bool visible) =>
         heading.SetValue(HavenProperties.Visibility, visible ? HavenVisibility.Visible : HavenVisibility.Collapsed);
@@ -424,30 +481,35 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private static Page BuildRoot()
     {
         const string markup = """
-            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto Auto 1fr Auto Auto" Gap="10px" Padding="14px" Background="Surface">
-              <Container Name="ModeRow" Row="0" Layout="Horizontal" Width="100%" Gap="8px">
-                <Text Content="Mode:" FontWeight="700" VerticalAlignment="Center" />
-                <Button Name="ModeButton" Variant="Tertiary" Content="Chat" MinHeight="36px" />
+            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
+              <Container Name="ModeRow" Row="0" Layout="Horizontal" Width="100%" Gap="0px">
+                <Text Name="SidebarTitle" Content="Chat" Level="H2" VerticalAlignment="Center" />
+                <Button Name="ModeButton" Variant="Ghost" Content="Chat" Visibility="Collapsed" />
               </Container>
               <Container Name="ModeOptions" Row="1" Layout="Horizontal" Width="100%" Gap="4px" Visibility="Collapsed">
                 <Button Name="ChatMode" Variant="Ghost" Content="Chat" MinHeight="32px" />
                 <Button Name="StudyMode" Variant="Ghost" Content="Study" MinHeight="32px" />
                 <Button Name="TasksMode" Variant="Ghost" Content="Tasks" MinHeight="32px" />
               </Container>
-              <Input Name="Search" Row="2" Width="100%" Height="44px" MinHeight="44px" Placeholder="Search Chat" />
+              <Input Name="Search" Row="2" Width="100%" Height="34px" MinHeight="34px" Placeholder="Search chats, groups and files" />
               <Container Name="ScrollHost" Row="3" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="6px">
+                <Container Name="GroupsHeader" Layout="Grid" Columns="1fr 32px" Width="100%" Gap="4px">
+                  <Text Name="GroupsHeading" Content="Chat Groups" Level="H3" Column="0" VerticalAlignment="Center" />
+                  <Button Name="NewGroup" Variant="Icon" IconKey="plus" Content="" Column="1" Width="32px" Height="32px" MinHeight="32px" />
+                </Container>
+                <DynamicUIRuntime Name="GroupRows" Width="100%" />
+                <Text Name="FilesHeading" Content="File Library" Level="H3" />
+                <DynamicUIRuntime Name="FileRows" Width="100%" />
+                <Text Name="FilesEmpty" Content="Files attached to chats appear here." FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
                 <Text Name="PinnedHeading" Content="Pinned" Level="H3" Visibility="Collapsed" />
                 <DynamicUIRuntime Name="PinnedRows" Width="100%" />
                 <Text Name="UnreadHeading" Content="Unread Notifications" Level="H3" Visibility="Collapsed" />
                 <DynamicUIRuntime Name="UnreadRows" Width="100%" />
-                <Text Name="GroupsHeading" Content="Chat Groups" Level="H3" />
-                <DynamicUIRuntime Name="GroupRows" Width="100%" />
                 <Text Name="ChatsHeading" Content="Chats" Level="H3" />
                 <DynamicUIRuntime Name="ChatRows" Width="100%" />
               </Container>
-              <Container Name="Footer" Row="4" Layout="Grid" Columns="1fr 1fr" Width="100%" Gap="6px">
-                <Button Name="NewChat" Variant="Primary" IconKey="plus" Content="New Chat" Column="0" MinHeight="40px" />
-                <Button Name="NewGroup" Variant="Tertiary" IconKey="folder" Content="New Chat Group" Column="1" MinHeight="40px" />
+              <Container Name="Footer" Row="4" Layout="Grid" Columns="1fr" Width="100%">
+                <Button Name="NewChat" Variant="Primary" IconKey="plus" Content="New Chat" Column="0" Width="100%" MinHeight="40px" />
               </Container>
               <Text Name="Status" Row="5" Content="" FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
             </Page>

@@ -145,6 +145,36 @@ public sealed class ChatSidebarHavenSceneTests
         Assert.Equal("Updated at scale", refreshedItem.GetComponent<HavenButton>("Open").Content);
     }
 
+    [AvaloniaFact]
+    public void Sidebar_uses_compact_chat_hierarchy_and_routes_file_library_rows()
+    {
+        using var scene = new ChatSidebarHavenScene();
+        var fileId = Guid.NewGuid();
+        Guid? requestedFile = null;
+        scene.FileRequested += (_, id) => requestedFile = id;
+
+        Assert.Equal("Chat", scene.SidebarTitle.Content);
+        Assert.Equal(HavenVisibility.Collapsed, scene.ModeButton.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.ModeOptions.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenLength.Px(34), scene.Search.GetValue(HavenProperties.Height));
+        Assert.Equal(HavenLength.Percent(100), scene.NewChat.GetValue(HavenProperties.Width));
+        Assert.Equal(string.Empty, scene.NewGroup.Content);
+        Assert.Equal("Create Chat Group", scene.NewGroup.Accessibility.AccessibleName);
+
+        scene.SetRows([], [], [], [new ChatSidebarEntry(ChatSidebarEntryKind.File, fileId, "notes.pdf", false, false, false)], []);
+        Assert.Equal(HavenVisibility.Visible, scene.FilesHeading.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.FilesEmpty.GetValue(HavenProperties.Visibility));
+        var file = Assert.Single(scene.FileRows.Items);
+        var open = file.GetComponent<HavenButton>("Open");
+        Assert.Equal("Open source chat for file notes.pdf", open.Accessibility.AccessibleName);
+        Click(scene, open);
+        Assert.Equal(fileId, requestedFile);
+
+        scene.SetMode(HavenMode.Study);
+        Assert.Equal("Study", scene.SidebarTitle.Content);
+        Assert.Equal(HavenVisibility.Collapsed, scene.FilesHeading.GetValue(HavenProperties.Visibility));
+    }
+
     private static void Click(HavenInputRouter router, HavenElement element)
     {
         var point = new HavenPoint(element.Bounds.X + element.Bounds.Width / 2, element.Bounds.Y + element.Bounds.Height / 2);
