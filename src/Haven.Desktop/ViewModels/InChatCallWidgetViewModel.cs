@@ -38,6 +38,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     private bool _isActive;
     private bool _isMuted;
     private double _audioLevel;
+    private VoiceInputStatus _inputStatus = new(VoiceInputState.Ready, "Microphone ready.");
 
     public InChatCallWidgetViewModel(
         ICallCoordinator callCoordinator,
@@ -61,6 +62,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         StartCallCommand = new AsyncRelayCommand(StartCallAsync, () => !IsActive && _selectedModel is not null);
         EndCallCommand = new AsyncRelayCommand(EndCallAsync, () => IsActive);
         ToggleMuteCommand = new AsyncRelayCommand(ToggleMuteAsync);
+        RetryMicrophoneCommand = new AsyncRelayCommand(RetryMicrophoneAsync, () => CanRetryVoiceInput);
         TogglePauseCommand = new AsyncRelayCommand(TogglePauseAsync, () => IsActive);
         InterruptCommand = new AsyncRelayCommand(InterruptAsync, () => IsActive && !IsPaused);
         TogglePushToTalkCommand = new AsyncRelayCommand(TogglePushToTalkAsync, () => CanPushToTalk || IsPushToTalkRecording);
@@ -73,6 +75,18 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
 
         _selectedInputDevice = InputDevices.FirstOrDefault(item => item.IsDefault) ?? InputDevices.FirstOrDefault();
         _selectedVoice = Voices.FirstOrDefault(item => item.IsDefault) ?? Voices.FirstOrDefault();
+
+        if (_callCoordinator is IVoiceInputStatusSource inputStatusSource)
+        {
+            _inputStatus = inputStatusSource.InputStatus;
+            inputStatusSource.InputStatusChanged += OnVoiceInputStatusChanged;
+        }
+        else if (!_callCoordinator.Capabilities.HasSpeechInput)
+        {
+            _inputStatus = new VoiceInputStatus(
+                VoiceInputState.Unavailable,
+                _callCoordinator.Capabilities.SpeechInputUnavailableReason ?? "Microphone transcription is unavailable.");
+        }
 
         _callCoordinator.StateChanged += OnCallStateChanged;
         _callCoordinator.TranscriptChanged += OnTranscriptChanged;
@@ -161,6 +175,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             StartCallCommand.RaiseCanExecuteChanged();
             EndCallCommand.RaiseCanExecuteChanged();
             ToggleMuteCommand.RaiseCanExecuteChanged();
+            RaisePropertyChanged(nameof(CanRetryVoiceInput));
+            RetryMicrophoneCommand.RaiseCanExecuteChanged();
             RaiseVoiceControlCanExecuteChanged();
             ToggleScreenShareCommand.RaiseCanExecuteChanged();
             SubmitTextCommand.RaiseCanExecuteChanged();
@@ -184,6 +200,29 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         get => _audioLevel;
         private set => SetProperty(ref _audioLevel, value);
     }
+
+    public VoiceInputStatus InputStatus
+    {
+        get => _inputStatus;
+        private set
+        {
+            if (!SetProperty(ref _inputStatus, value)) return;
+            RaisePropertyChanged(nameof(IsVoiceInputDegraded));
+            RaisePropertyChanged(nameof(CanRetryVoiceInput));
+            RaisePropertyChanged(nameof(CanPushToTalk));
+            if (IsVoiceInputDegraded)
+            {
+                AudioLevel = 0;
+                if (IsPushToTalkRecording) IsPushToTalkRecording = false;
+            }
+            RetryMicrophoneCommand.RaiseCanExecuteChanged();
+            TogglePushToTalkCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool IsVoiceInputDegraded => InputStatus.State is
+        VoiceInputState.PermissionDenied or VoiceInputState.Unavailable or VoiceInputState.Error;
+    public bool CanRetryVoiceInput => IsActive && IsVoiceInputDegraded && InputStatus.CanRetry;
 
     public IReadOnlyList<VoiceTranscriptTurn> TranscriptTurns => _transcriptTurns;
 
@@ -215,7 +254,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             TogglePushToTalkCommand.RaiseCanExecuteChanged();
         }
     }
-    public bool CanPushToTalk => IsActive && InputMode == CallInputMode.PushToTalk && _callCoordinator.Capabilities.HasSpeechInput && !IsMuted && !IsPaused;
+    public bool CanPushToTalk => IsActive && InputMode == CallInputMode.PushToTalk && _callCoordinator.Capabilities.HasSpeechInput && !IsVoiceInputDegraded && !IsMuted && !IsPaused;
 
     public VoiceProfile? SelectedVoiceProfile
     {
@@ -305,6 +344,7 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
     public AsyncRelayCommand StartCallCommand { get; }
     public AsyncRelayCommand EndCallCommand { get; }
     public AsyncRelayCommand ToggleMuteCommand { get; }
+    public AsyncRelayCommand RetryMicrophoneCommand { get; }
     public AsyncRelayCommand TogglePauseCommand { get; }
     public AsyncRelayCommand InterruptCommand { get; }
     public AsyncRelayCommand TogglePushToTalkCommand { get; }
@@ -403,7 +443,17 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(TranscriptTurns));
             CallSummary = null;
             IsActive = true;
-            Status = "Active";
+            if (_callCoordinator is IVoiceInputStatusSource inputStatusSource)
+                InputStatus = inputStatusSource.InputStatus;
+            Status = _callCoordinator.State switch
+            {
+                CallState.Listening => "Listening",
+                CallState.Transcribing => "Transcribing",
+                CallState.Thinking => "Thinking",
+                CallState.Speaking => "Speaking",
+                CallState.Paused => "Paused",
+                _ => "Active"
+            };
             if (startMuted)
             {
                 await _callCoordinator.SetMutedAsync(true, CancellationToken.None);
@@ -464,6 +514,24 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         var next = !IsMuted;
         await _callCoordinator.SetMutedAsync(next, CancellationToken.None);
         IsMuted = next;
+    }
+
+    private async Task RetryMicrophoneAsync()
+    {
+        if (!CanRetryVoiceInput) return;
+        try
+        {
+            if (!_callCoordinator.IsMuted)
+                await _callCoordinator.SetMutedAsync(true, CancellationToken.None);
+            await _callCoordinator.SetMutedAsync(false, CancellationToken.None);
+            IsMuted = _callCoordinator.IsMuted;
+            if (_callCoordinator is IVoiceInputStatusSource inputStatusSource)
+                InputStatus = inputStatusSource.InputStatus;
+        }
+        catch (Exception exception)
+        {
+            Status = $"Microphone retry failed: {exception.Message}";
+        }
     }
 
     private async Task TogglePauseAsync()
@@ -652,6 +720,11 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         Avalonia.Threading.Dispatcher.UIThread.Post(() => AudioLevel = args.Level);
     }
 
+    private void OnVoiceInputStatusChanged(object? sender, VoiceInputStatusChangedEventArgs args)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => InputStatus = args.Status);
+    }
+
     private void OnVoiceReactionChanged(object? sender, VoiceReactionEventArgs args)
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -666,6 +739,8 @@ public sealed class InChatCallWidgetViewModel : ObservableObject, IDisposable
         _callCoordinator.StateChanged -= OnCallStateChanged;
         _callCoordinator.TranscriptChanged -= OnTranscriptChanged;
         _callCoordinator.AudioLevelChanged -= OnAudioLevelChanged;
+        if (_callCoordinator is IVoiceInputStatusSource inputStatusSource)
+            inputStatusSource.InputStatusChanged -= OnVoiceInputStatusChanged;
         if (_callCoordinator is IVoiceReactionSource reactionSource)
             reactionSource.VoiceReactionChanged -= OnVoiceReactionChanged;
     }

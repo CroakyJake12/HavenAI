@@ -19,6 +19,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
     private readonly InChatCallWidgetViewModel _viewModel;
     private readonly Dictionary<string, Container> _panels = [];
     private readonly List<string> _contextItems = [];
+    private readonly Dictionary<Guid, Container> _transcriptBubbles = [];
+    private readonly Dictionary<Guid, HavenText> _transcriptBodies = [];
+    private readonly HashSet<Guid> _interruptedTurns = [];
     private string? _openPanel;
     private DateTimeOffset? _startedAt;
     private bool _disposed;
@@ -59,6 +62,9 @@ internal sealed class GlobalCallHavenScene : IDisposable
         AudioLevel.Accessibility.AccessibleName = "Microphone level";
         Set(AudioLevel, HavenProperties.Width, HavenLength.Percent(100));
         Root.Add(AudioLevel);
+        InputStatusText = Secondary("Microphone ready.", "Voice.Input.Status");
+        InputStatusText.Accessibility.AccessibleName = "Microphone status";
+        Root.Add(InputStatusText);
 
         var modeRow = new Container { Name = "Voice.Mode.Row", Layout = HavenLayout.Grid, Columns = "220px 1fr", Rows = "auto" };
         Set(modeRow, HavenProperties.Gap, HavenLength.Px(10));
@@ -143,6 +149,7 @@ internal sealed class GlobalCallHavenScene : IDisposable
     public HavenText StatusText { get; }
     public HavenText DurationText { get; }
     public Progress AudioLevel { get; }
+    public HavenText InputStatusText { get; }
     public Select VoiceMode { get; }
     public HavenText ReactionText { get; }
     public HavenText SummaryText { get; }
@@ -205,10 +212,15 @@ internal sealed class GlobalCallHavenScene : IDisposable
         SyncCollections();
         StatusText.Content = _viewModel.Status;
         AudioLevel.Value = Math.Clamp(_viewModel.AudioLevel, 0, 1);
+        InputStatusText.Content = _viewModel.InputStatus.Message;
+        Visible(InputStatusText, _viewModel.IsActive || _viewModel.IsVoiceInputDegraded);
         CallButton.Content = _viewModel.IsActive ? "End" : "Start";
         CallButton.Variant = _viewModel.IsActive ? ButtonVariant.Danger : ButtonVariant.Primary;
         Enabled(CallButton, _viewModel.IsActive || _viewModel.StartCallCommand.CanExecute(null));
-        MuteButton.Content = _viewModel.IsMuted ? "Mic off" : "Mic on";
+        MuteButton.Content = _viewModel.IsVoiceInputDegraded
+            ? _viewModel.CanRetryVoiceInput ? "Retry mic" : "Mic unavailable"
+            : _viewModel.IsMuted ? "Mic off" : "Mic on";
+        Enabled(MuteButton, !_viewModel.IsVoiceInputDegraded || _viewModel.CanRetryVoiceInput);
         ReactionText.Content = _viewModel.IsActive ? _viewModel.LiveReaction : _viewModel.InputMode == CallInputMode.PushToTalk ? "Tap Talk to record; tap Stop & send when finished." : "Hands-free listens continuously while the call is active.";
         Enabled(VoiceMode, !_viewModel.IsActive);
         PauseButton.Content = _viewModel.IsPaused ? "Resume" : "Pause";
@@ -235,7 +247,7 @@ internal sealed class GlobalCallHavenScene : IDisposable
         ShareAction.Variant = _viewModel.IsScreenSharing ? ButtonVariant.Danger : ButtonVariant.Secondary;
         Enabled(ShareAction, _viewModel.IsActive && _viewModel.CanShareScreen);
 
-        RebuildTranscript();
+        SyncTranscriptTurns();
         if (!string.Equals(TranscriptInput.Text, _viewModel.TypedTranscript, StringComparison.Ordinal))
             TranscriptInput.Text = _viewModel.TypedTranscript;
         Enabled(TranscriptInput, _viewModel.IsActive);
@@ -333,28 +345,72 @@ internal sealed class GlobalCallHavenScene : IDisposable
     private void RebuildTranscript()
     {
         foreach (var child in TranscriptTurns.Children.ToArray()) TranscriptTurns.Remove(child);
+        _transcriptBubbles.Clear();
+        _transcriptBodies.Clear();
+        _interruptedTurns.Clear();
+
         if (_viewModel.TranscriptTurns.Count == 0)
         {
             TranscriptTurns.Add(Secondary("Transcript will appear here while the session is active.", "Voice.Transcript.Empty"));
             return;
         }
 
+        foreach (var turn in _viewModel.TranscriptTurns) AddTranscriptTurn(turn);
+    }
+
+    private void SyncTranscriptTurns()
+    {
+        if (_viewModel.TranscriptTurns.Count == 0)
+        {
+            if (_transcriptBodies.Count != 0 || TranscriptTurns.Children.Count != 1) RebuildTranscript();
+            return;
+        }
+
+        if (_transcriptBodies.Count > _viewModel.TranscriptTurns.Count)
+        {
+            RebuildTranscript();
+            return;
+        }
+
+        if (_transcriptBodies.Count == 0)
+            foreach (var child in TranscriptTurns.Children.ToArray()) TranscriptTurns.Remove(child);
+
         foreach (var turn in _viewModel.TranscriptTurns)
         {
-            var bubble = Panel($"Voice.Transcript.{turn.MessageId:N}");
-            Set(bubble, HavenProperties.Background, turn.Role == MessageRole.User ? "AccentMuted" : "SurfaceRaised");
-            Set(bubble, HavenProperties.BorderColor, "Border");
-            Set(bubble, HavenProperties.BorderWidth, HavenLength.Px(1));
-            Set(bubble, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(16)));
-            Set(bubble, HavenProperties.Padding, HavenThickness.Parse("10px 12px"));
-            var speaker = new HavenText(turn.Role == MessageRole.User ? "You" : "Haven") { Level = TextLevel.Caption };
-            Set(speaker, HavenProperties.FontWeight, 800);
-            bubble.Add(speaker);
-            bubble.Add(new HavenText(turn.Content) { Level = TextLevel.Paragraph });
-            if (turn.WasInterrupted)
+            if (!_transcriptBodies.TryGetValue(turn.MessageId, out var body))
+            {
+                AddTranscriptTurn(turn);
+                continue;
+            }
+
+            if (!string.Equals(body.Content, turn.Content, StringComparison.Ordinal)) body.Content = turn.Content;
+            if (turn.WasInterrupted && _interruptedTurns.Add(turn.MessageId)
+                && _transcriptBubbles.TryGetValue(turn.MessageId, out var bubble))
                 bubble.Add(Secondary("Interrupted", $"Voice.Transcript.{turn.MessageId:N}.Interrupted"));
-            TranscriptTurns.Add(bubble);
         }
+    }
+
+    private void AddTranscriptTurn(VoiceTranscriptTurn turn)
+    {
+        var bubble = Panel($"Voice.Transcript.{turn.MessageId:N}");
+        Set(bubble, HavenProperties.Background, turn.Role == MessageRole.User ? "AccentMuted" : "SurfaceRaised");
+        Set(bubble, HavenProperties.BorderColor, "Border");
+        Set(bubble, HavenProperties.BorderWidth, HavenLength.Px(1));
+        Set(bubble, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(16)));
+        Set(bubble, HavenProperties.Padding, HavenThickness.Parse("10px 12px"));
+        var speaker = new HavenText(turn.Role == MessageRole.User ? "You" : "Haven") { Level = TextLevel.Caption };
+        Set(speaker, HavenProperties.FontWeight, 800);
+        bubble.Add(speaker);
+        var body = new HavenText(turn.Content) { Level = TextLevel.Paragraph };
+        bubble.Add(body);
+        if (turn.WasInterrupted)
+        {
+            _interruptedTurns.Add(turn.MessageId);
+            bubble.Add(Secondary("Interrupted", $"Voice.Transcript.{turn.MessageId:N}.Interrupted"));
+        }
+        _transcriptBubbles[turn.MessageId] = bubble;
+        _transcriptBodies[turn.MessageId] = body;
+        TranscriptTurns.Add(bubble);
     }
 
     private void SyncCollections()
@@ -382,7 +438,8 @@ internal sealed class GlobalCallHavenScene : IDisposable
         : string.Join("  •  ", _contextItems);
 
     private void OnCallInvoked(object? sender, EventArgs e) => Execute(_viewModel.IsActive ? _viewModel.EndCallCommand : _viewModel.StartCallCommand);
-    private void OnMuteInvoked(object? sender, EventArgs e) => Execute(_viewModel.ToggleMuteCommand);
+    private void OnMuteInvoked(object? sender, EventArgs e) =>
+        Execute(_viewModel.IsVoiceInputDegraded ? _viewModel.RetryMicrophoneCommand : _viewModel.ToggleMuteCommand);
     private void OnPauseInvoked(object? sender, EventArgs e) => Execute(_viewModel.TogglePauseCommand);
     private void OnInterruptInvoked(object? sender, EventArgs e) => Execute(_viewModel.InterruptCommand);
     private void OnPushToTalkInvoked(object? sender, EventArgs e) => Execute(_viewModel.TogglePushToTalkCommand);
@@ -436,7 +493,36 @@ internal sealed class GlobalCallHavenScene : IDisposable
             _viewModel.TypedTranscript = TranscriptInput.Text;
     }
 
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) => Refresh();
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(InChatCallWidgetViewModel.AudioLevel):
+                AudioLevel.Value = Math.Clamp(_viewModel.AudioLevel, 0, 1);
+                return;
+            case nameof(InChatCallWidgetViewModel.Transcript):
+                // TranscriptTurns carries the structured UI update; avoid duplicate work.
+                return;
+            case nameof(InChatCallWidgetViewModel.TranscriptTurns):
+                SyncTranscriptTurns();
+                return;
+            case nameof(InChatCallWidgetViewModel.TypedTranscript):
+                if (!string.Equals(TranscriptInput.Text, _viewModel.TypedTranscript, StringComparison.Ordinal))
+                    TranscriptInput.Text = _viewModel.TypedTranscript;
+                Enabled(SendButton, _viewModel.SubmitTextCommand.CanExecute(null));
+                return;
+            case nameof(InChatCallWidgetViewModel.LiveReaction):
+                ReactionText.Content = _viewModel.IsActive
+                    ? _viewModel.LiveReaction
+                    : _viewModel.InputMode == CallInputMode.PushToTalk
+                        ? "Tap Talk to record; tap Stop & send when finished."
+                        : "Hands-free listens continuously while the call is active.";
+                return;
+            default:
+                Refresh();
+                return;
+        }
+    }
     private void OnCallEnded(object? sender, EventArgs e) { _startedAt = null; Refresh(); }
 
     private void AddPanel(string key, Container panel)

@@ -1,8 +1,11 @@
+using Avalonia.Headless.XUnit;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views.Shell.Overlays;
 using Haven.UI;
+using Container = Haven.UI.Components.Container;
+using HavenText = Haven.UI.Components.Text;
 using Xunit;
 
 namespace Haven.Desktop.Tests;
@@ -57,6 +60,67 @@ public sealed class GlobalCallHavenSceneTests
         Assert.False(scene.SendButton.GetValue(HavenProperties.Enabled));
     }
 
+    [AvaloniaFact]
+    public async Task Scene_shows_retryable_microphone_degradation_without_ending_voice()
+    {
+        var coordinator = new FakeCallCoordinator { Active = true };
+        using var viewModel = new InChatCallWidgetViewModel(coordinator, new StubConversationRepository());
+        using var scene = new GlobalCallHavenScene(viewModel);
+        const string message = "Microphone permission is required for Haven Voice. Typed transcript mode is ready.";
+
+        coordinator.RaiseInputStatus(new VoiceInputStatus(
+            VoiceInputState.PermissionDenied,
+            message,
+            CanRetry: true));
+        await FlushUiAsync();
+
+        Assert.True(viewModel.IsActive);
+        Assert.True(viewModel.IsVoiceInputDegraded);
+        Assert.True(viewModel.CanRetryVoiceInput);
+        Assert.Equal("Retry mic", scene.MuteButton.Content);
+        Assert.Equal(message, scene.InputStatusText.Content);
+        Assert.True(scene.MuteButton.GetValue(HavenProperties.Enabled));
+    }
+
+    [AvaloniaFact]
+    public async Task Scene_updates_live_voice_hot_paths_without_rebuilding_transcript_bubble()
+    {
+        var coordinator = new FakeCallCoordinator();
+        using var viewModel = new InChatCallWidgetViewModel(coordinator, new StubConversationRepository());
+        using var scene = new GlobalCallHavenScene(viewModel);
+        var messageId = Guid.NewGuid();
+
+        coordinator.RaiseTranscript(new CallTranscriptEventArgs(
+            messageId, MessageRole.User, "Hello", isDelta: false, isFinal: false));
+        await FlushUiAsync();
+
+        var bubble = Assert.IsType<Container>(Assert.Single(scene.TranscriptTurns.Children));
+        var body = bubble.Children.OfType<HavenText>().Last();
+        Assert.Equal("Hello", body.Content);
+
+        coordinator.RaiseTranscript(new CallTranscriptEventArgs(
+            messageId, MessageRole.User, " world", isDelta: true, isFinal: false));
+        await FlushUiAsync();
+
+        var updatedBubble = Assert.IsType<Container>(Assert.Single(scene.TranscriptTurns.Children));
+        var updatedBody = updatedBubble.Children.OfType<HavenText>().Last();
+        Assert.Same(bubble, updatedBubble);
+        Assert.Same(body, updatedBody);
+        Assert.Equal("Hello world", updatedBody.Content);
+
+        coordinator.RaiseAudio(0.8);
+        await FlushUiAsync();
+
+        Assert.Same(bubble, Assert.Single(scene.TranscriptTurns.Children));
+        Assert.Equal(0.8, scene.AudioLevel.Value, 3);
+
+        coordinator.RaiseState(CallState.Thinking, "Thinking");
+        await FlushUiAsync();
+
+        Assert.Same(bubble, Assert.Single(scene.TranscriptTurns.Children));
+        Assert.Equal("Thinking", scene.StatusText.Content);
+    }
+
     [Fact]
     public void Scene_drag_header_consumes_pointer_sequence_and_reports_incremental_delta()
     {
@@ -85,6 +149,9 @@ public sealed class GlobalCallHavenSceneTests
             new HavenPoint(20, 12), new HavenPoint(14, 6), HavenPointerKind.Mouse)));
     }
 
+    private static async Task FlushUiAsync() =>
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { });
+
     private static ModelDescriptor TestModel() => new(
         "voice-test",
         1_000_000,
@@ -106,8 +173,10 @@ public sealed class GlobalCallHavenSceneTests
         public Task DeleteConversationAsync(Guid id, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private sealed class FakeCallCoordinator : ICallCoordinator
+    private sealed class FakeCallCoordinator : ICallCoordinator, IVoiceInputStatusSource
     {
+        private VoiceInputStatus _inputStatus = new(VoiceInputState.Ready, "Microphone ready.");
+        public bool Active { get; set; }
         public CallState State => CallState.Idle;
         public CallSession? CurrentSession => null;
         public Conversation? CurrentConversation => null;
@@ -121,14 +190,16 @@ public sealed class GlobalCallHavenSceneTests
             [new CallAudioDevice("mic-one", "Mic One", true), new CallAudioDevice("mic-two", "Mic Two")],
             [new CallAudioDevice("speaker-one", "Speaker One", true)],
             [new CallVoice("voice-one", "Voice One", null, true)]);
-        public bool IsActive => false;
+        public bool IsActive => Active;
         public bool IsMuted => false;
         public bool IsScreenSharing => false;
+        public VoiceInputStatus InputStatus => _inputStatus;
 
         public event EventHandler<CallStateChangedEventArgs>? StateChanged;
         public event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;
         public event EventHandler<CallAudioLevelEventArgs>? AudioLevelChanged;
         public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
+        public event EventHandler<VoiceInputStatusChangedEventArgs>? InputStatusChanged;
 
         public Task<CallSession> StartAsync(CallStartOptions options, SpeechModelInfo? speechModel, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -145,6 +216,11 @@ public sealed class GlobalCallHavenSceneTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
         public void RaiseState(CallState state, string status) => StateChanged?.Invoke(this, new CallStateChangedEventArgs(state, status));
+        public void RaiseInputStatus(VoiceInputStatus status)
+        {
+            _inputStatus = status;
+            InputStatusChanged?.Invoke(this, new VoiceInputStatusChangedEventArgs(status));
+        }
         public void RaiseTranscript(CallTranscriptEventArgs args) => TranscriptChanged?.Invoke(this, args);
         public void RaiseAudio(double level) => AudioLevelChanged?.Invoke(this, new CallAudioLevelEventArgs(level));
         public void RaiseScreen(ScreenShareSnapshot snapshot) => ScreenPreviewChanged?.Invoke(this, new ScreenShareSnapshotEventArgs(snapshot));

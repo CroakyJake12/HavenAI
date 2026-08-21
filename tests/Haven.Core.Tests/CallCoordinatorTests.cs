@@ -108,6 +108,82 @@ public sealed class CallCoordinatorTests
         Assert.Null(calls.Items[session.Id].EndedAt);
     }
 
+    [Fact]
+    public async Task MicrophonePermissionDeniedKeepsTypedVoiceActiveAndCanRecover()
+    {
+        var calls = new MemoryCallRepository();
+        var conversations = new MemoryConversationRepository();
+        var input = new FakeSpeechInput { ThrowUnauthorizedOnStart = true };
+        await using var coordinator = new CallCoordinator(
+            calls,
+            conversations,
+            new FakeOllamaClient(["Typed fallback works."]),
+            input,
+            new FakeSpeechOutput(),
+            new FakeScreenShare());
+
+        var session = await coordinator.StartAsync(
+            new CallStartOptions(Model()), null, CancellationToken.None);
+
+        Assert.True(coordinator.IsActive);
+        Assert.Equal(CallState.Listening, coordinator.State);
+        Assert.Equal(VoiceInputState.PermissionDenied, coordinator.InputStatus.State);
+        Assert.True(coordinator.InputStatus.CanRetry);
+        Assert.Contains("permission", coordinator.InputStatus.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("typed transcript mode is ready", coordinator.InputStatus.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, input.StartCount);
+
+        await coordinator.SubmitTextAsync("Continue without the mic", CancellationToken.None);
+        Assert.Collection(
+            conversations.Messages[session.ConversationId],
+            user => Assert.Equal("Continue without the mic", user.Content),
+            assistant => Assert.Equal("Typed fallback works.", assistant.Content));
+
+        input.ThrowUnauthorizedOnStart = false;
+        await coordinator.SetMutedAsync(true, CancellationToken.None);
+        await coordinator.SetMutedAsync(false, CancellationToken.None);
+
+        Assert.True(coordinator.IsActive);
+        Assert.Equal(VoiceInputState.Listening, coordinator.InputStatus.State);
+        Assert.False(coordinator.InputStatus.CanRetry);
+        Assert.Equal(2, input.StartCount);
+    }
+
+    [Fact]
+    public async Task MicrophoneUnavailableAtStartCanRecoverAfterDeviceAppears()
+    {
+        var input = new FakeSpeechInput
+        {
+            Available = false,
+            UnavailableReason = "No microphone is currently available."
+        };
+        await using var coordinator = new CallCoordinator(
+            new MemoryCallRepository(),
+            new MemoryConversationRepository(),
+            new FakeOllamaClient(["unused"]),
+            input,
+            new FakeSpeechOutput(),
+            new FakeScreenShare());
+
+        await coordinator.StartAsync(new CallStartOptions(Model()), null, CancellationToken.None);
+
+        Assert.True(coordinator.IsActive);
+        Assert.Equal(VoiceInputState.Unavailable, coordinator.InputStatus.State);
+        Assert.True(coordinator.InputStatus.CanRetry);
+        Assert.Equal(0, input.StartCount);
+        Assert.False(coordinator.Capabilities.HasSpeechInput);
+
+        input.Available = true;
+        input.UnavailableReason = null;
+        await coordinator.SetMutedAsync(true, CancellationToken.None);
+        await coordinator.SetMutedAsync(false, CancellationToken.None);
+
+        Assert.True(coordinator.IsActive);
+        Assert.True(coordinator.Capabilities.HasSpeechInput);
+        Assert.Equal(VoiceInputState.Listening, coordinator.InputStatus.State);
+        Assert.Equal(1, input.StartCount);
+    }
+
     /// <summary>
     /// Performs the interrupt cancels generation and persists only marked partial transcript step owned by this component.
     /// </summary>
@@ -141,34 +217,33 @@ public sealed class CallCoordinatorTests
     }
 
     /// <summary>
-    /// Performs the speech source closure fails call and releases every media service step owned by this component.
+    /// A lost microphone source degrades to typed transcript mode without destroying the active Voice session.
     /// </summary>
     [Fact]
-    public async Task SpeechSourceClosureFailsCallAndReleasesEveryMediaService()
+    public async Task SpeechSourceClosureKeepsCallActiveInTypedFallbackMode()
     {
         var calls = new MemoryCallRepository();
         var input = new FakeSpeechInput();
-        var output = new FakeSpeechOutput();
-        var screen = new FakeScreenShare();
         await using var coordinator = new CallCoordinator(
             calls,
             new MemoryConversationRepository(),
             new FakeOllamaClient(["unused"]),
             input,
-            output,
-            screen);
+            new FakeSpeechOutput(),
+            new FakeScreenShare());
         var session = await coordinator.StartAsync(
             new CallStartOptions(Model()), null, CancellationToken.None);
 
         await input.EmitAsync(new SpeechInputEvent(SpeechInputEventKind.SourceClosed));
 
-        Assert.False(coordinator.IsActive);
-        Assert.Equal(CallState.Error, coordinator.State);
-        Assert.Equal(CallSessionStatus.Failed, calls.Items[session.Id].Status);
-        Assert.NotNull(calls.Items[session.Id].EndedAt);
+        Assert.True(coordinator.IsActive);
+        Assert.Equal(CallState.Listening, coordinator.State);
+        Assert.Equal(CallSessionStatus.Active, calls.Items[session.Id].Status);
+        Assert.Null(calls.Items[session.Id].EndedAt);
+        Assert.Equal(VoiceInputState.Error, coordinator.InputStatus.State);
+        Assert.True(coordinator.InputStatus.CanRetry);
+        Assert.Contains("typed transcript mode is ready", coordinator.InputStatus.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(input.StopCount > 0);
-        Assert.True(output.StopCount > 0);
-        Assert.True(screen.StopCount > 0);
     }
 
     /// <summary>
@@ -566,14 +641,15 @@ public sealed class CallCoordinatorTests
         /// Stores callback token locally so this component can preserve the dependency, cache, or state between member calls.
         /// </summary>
         private CancellationToken _callbackToken;
+        public bool Available { get; set; } = true;
         /// <summary>
         /// Reports whether available applies to the current state.
         /// </summary>
-        public bool IsAvailable => true;
+        public bool IsAvailable => Available;
         /// <summary>
         /// Gets or updates unavailable reason, the bindable or domain state represented by this property.
         /// </summary>
-        public string? UnavailableReason => null;
+        public string? UnavailableReason { get; set; }
         /// <summary>
         /// Gets or updates devices, the bindable or domain state represented by this property.
         /// </summary>
@@ -582,6 +658,8 @@ public sealed class CallCoordinatorTests
         /// Gets or updates stop count, the bindable or domain state represented by this property.
         /// </summary>
         public int StopCount { get; private set; }
+        public int StartCount { get; private set; }
+        public bool ThrowUnauthorizedOnStart { get; set; }
 
         /// <summary>
         /// Performs start asynchronously so I/O does not block the caller's thread.
@@ -591,6 +669,9 @@ public sealed class CallCoordinatorTests
             Func<SpeechInputEvent, CancellationToken, Task> onEvent,
             CancellationToken cancellationToken)
         {
+            StartCount++;
+            if (ThrowUnauthorizedOnStart)
+                throw new UnauthorizedAccessException("Microphone permission is required for Haven Voice.");
             _callback = onEvent;
             _callbackToken = cancellationToken;
             return Task.CompletedTask;

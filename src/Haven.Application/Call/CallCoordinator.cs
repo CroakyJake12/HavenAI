@@ -18,7 +18,7 @@ namespace Haven.Application;
 /// only expose transcripts/snapshots, which keeps raw audio and video out of
 /// persistence by construction.
 /// </summary>
-public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
+public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource, IVoiceInputStatusSource
 {
     /// <summary>
     /// Stores default system prompt locally so this component can preserve the dependency, cache, or state between member calls.
@@ -97,6 +97,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
     /// Stores disposed locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private bool _disposed;
+    private VoiceInputStatus _inputStatus = new(VoiceInputState.Ready, "Microphone ready.");
 
     public CallCoordinator(
         ICallRepository calls,
@@ -149,6 +150,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
     public VoiceProfile? ActiveVoiceProfile { get; private set; }
     public VoiceReaction? LatestVoiceReaction => _voiceReactionRuntime?.Current;
     public VoiceReaction? CurrentVoiceReaction => LatestVoiceReaction;
+    public VoiceInputStatus InputStatus => _inputStatus;
 
     /// <summary>
     /// Gets or updates capabilities, the bindable or domain state represented by this property.
@@ -181,6 +183,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
     /// </summary>
     public event EventHandler<ScreenShareSnapshotEventArgs>? ScreenPreviewChanged;
     public event EventHandler<VoiceReactionEventArgs>? VoiceReactionChanged;
+    public event EventHandler<VoiceInputStatusChangedEventArgs>? InputStatusChanged;
 
     /// <summary>
     /// Performs start asynchronously so I/O does not block the caller's thread.
@@ -224,20 +227,21 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
             await _conversations.UpsertConversationAsync(CurrentConversation, cancellationToken).ConfigureAwait(false);
             await _calls.UpsertAsync(CurrentSession, cancellationToken).ConfigureAwait(false);
 
-            SetState(CallState.Listening, _speechInput.IsAvailable
-                ? "Listening"
-                : _speechInput.UnavailableReason ?? "Microphone transcription is unavailable; type a transcript to continue.");
-
-            if (_speechInput.IsAvailable)
+            if (!_speechInput.IsAvailable)
             {
-                try
-                {
-                    await StartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    SetState(CallState.Listening, $"Microphone unavailable ({ex.Message}); typed transcript mode is still ready.");
-                }
+                SetInputStatus(new VoiceInputStatus(
+                    VoiceInputState.Unavailable,
+                    _speechInput.UnavailableReason ?? "Microphone transcription is unavailable; typed transcript mode is ready.",
+                    CanRetry: true));
+                SetState(CallState.Listening, InputStatus.Message);
+            }
+            else if (await TryStartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false))
+            {
+                SetState(CallState.Listening, "Listening");
+            }
+            else
+            {
+                SetState(CallState.Listening, InputStatus.Message);
             }
 
             return CurrentSession;
@@ -251,6 +255,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
             CurrentConversation = null;
             _options = null;
             _speechModel = null;
+            ResetInputStatus();
             SetState(CallState.Idle, "Call could not start");
             throw;
         }
@@ -283,6 +288,11 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
             SetState(State, _speechInput.UnavailableReason ?? "Push-to-talk is unavailable; use the transcript box.");
             return;
         }
+        if (InputStatus.State is VoiceInputState.PermissionDenied or VoiceInputState.Unavailable or VoiceInputState.Error)
+        {
+            SetState(State, InputStatus.Message);
+            return;
+        }
 
         await InterruptAsync(cancellationToken).ConfigureAwait(false);
         SetState(CallState.Transcribing, "Push-to-talk recording… release to send");
@@ -311,13 +321,31 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
         if (muted)
         {
             await _speechInput.StopAsync(cancellationToken).ConfigureAwait(false);
+            SetInputStatus(new VoiceInputStatus(VoiceInputState.Muted, "Microphone muted.", CanRetry: true));
             SetState(State, "Microphone muted");
+            return;
         }
-        else if (State != CallState.Paused && _speechInput.IsAvailable && _lifetimeCts is not null)
+
+        if (State == CallState.Paused)
         {
-            await StartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false);
-            SetState(CallState.Listening, "Listening");
+            SetInputStatus(new VoiceInputStatus(VoiceInputState.Paused, "Microphone paused.", CanRetry: true));
+            return;
         }
+
+        if (!_speechInput.IsAvailable)
+        {
+            SetInputStatus(new VoiceInputStatus(
+                VoiceInputState.Unavailable,
+                _speechInput.UnavailableReason ?? "Microphone transcription is unavailable; typed transcript mode is ready.",
+                CanRetry: true));
+            SetState(CallState.Listening, InputStatus.Message);
+            return;
+        }
+
+        if (_lifetimeCts is not null && await TryStartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false))
+            SetState(CallState.Listening, "Listening");
+        else
+            SetState(CallState.Listening, InputStatus.Message);
     }
 
     /// <summary>
@@ -328,6 +356,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
         EnsureActive();
         _turnCts?.Cancel();
         await StopMediaInputAndOutputAsync(cancellationToken).ConfigureAwait(false);
+        SetInputStatus(new VoiceInputStatus(VoiceInputState.Paused, "Microphone paused.", CanRetry: true));
         SetState(CallState.Paused, "Call paused");
     }
 
@@ -338,9 +367,27 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
     {
         EnsureActive();
         if (State != CallState.Paused) return;
-        if (!IsMuted && _speechInput.IsAvailable && _lifetimeCts is not null)
-            await StartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false);
-        SetState(CallState.Listening, IsMuted ? "Call resumed · microphone muted" : "Listening");
+        if (IsMuted)
+        {
+            SetInputStatus(new VoiceInputStatus(VoiceInputState.Muted, "Microphone muted.", CanRetry: true));
+            SetState(CallState.Listening, "Call resumed · microphone muted");
+            return;
+        }
+
+        if (!_speechInput.IsAvailable)
+        {
+            SetInputStatus(new VoiceInputStatus(
+                VoiceInputState.Unavailable,
+                _speechInput.UnavailableReason ?? "Microphone transcription is unavailable; typed transcript mode is ready.",
+                CanRetry: true));
+            SetState(CallState.Listening, InputStatus.Message);
+            return;
+        }
+
+        if (_lifetimeCts is not null && await TryStartSpeechInputAsync(_lifetimeCts.Token).ConfigureAwait(false))
+            SetState(CallState.Listening, "Listening");
+        else
+            SetState(CallState.Listening, InputStatus.Message);
     }
 
     /// <summary>
@@ -644,6 +691,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
                 if (State is CallState.Speaking or CallState.Thinking)
                     await InterruptAsync(cancellationToken).ConfigureAwait(false);
                 _partialUserMessageId = Guid.NewGuid();
+                SetInputStatus(new VoiceInputStatus(VoiceInputState.Listening, "Microphone listening."));
                 SetState(CallState.Transcribing, "Listening to you…");
                 await PublishVoiceReactionAsync(_voiceReactionRuntime?.ObserveSpeechStarted(), cancellationToken).ConfigureAwait(false);
                 break;
@@ -678,10 +726,10 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
                     : "No speech was detected · listening");
                 break;
             case SpeechInputEventKind.Error:
-                await FailAsync(inputEvent.Error ?? "Speech input failed.").ConfigureAwait(false);
+                await DegradeSpeechInputAsync(inputEvent.Error ?? "Speech input failed.").ConfigureAwait(false);
                 break;
             case SpeechInputEventKind.SourceClosed:
-                await FailAsync("The microphone source closed unexpectedly.").ConfigureAwait(false);
+                await DegradeSpeechInputAsync("The microphone source closed unexpectedly.").ConfigureAwait(false);
                 break;
         }
     }
@@ -699,6 +747,61 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
                     : CallInputMode.PushToTalk),
             HandleSpeechInputEventAsync,
             cancellationToken);
+
+    private async Task<bool> TryStartSpeechInputAsync(CancellationToken cancellationToken)
+    {
+        SetInputStatus(new VoiceInputStatus(VoiceInputState.Starting, "Starting microphone…", CanRetry: true));
+        try
+        {
+            await StartSpeechInputAsync(cancellationToken).ConfigureAwait(false);
+            SetInputStatus(new VoiceInputStatus(VoiceInputState.Listening, "Microphone listening."));
+            return true;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            SetInputStatus(new VoiceInputStatus(
+                VoiceInputState.PermissionDenied,
+                $"{exception.Message} Typed transcript mode is ready.",
+                CanRetry: true));
+            return false;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetInputStatus(new VoiceInputStatus(
+                VoiceInputState.Error,
+                $"Microphone unavailable ({exception.Message}). Typed transcript mode is ready.",
+                CanRetry: true));
+            return false;
+        }
+    }
+
+    private async Task DegradeSpeechInputAsync(string message)
+    {
+        await BestEffortAsync(() => _speechInput.StopAsync(CancellationToken.None)).ConfigureAwait(false);
+        if (_ending || !IsActive || State == CallState.Paused) return;
+
+        SetInputStatus(new VoiceInputStatus(
+            VoiceInputState.Error,
+            $"{message} Typed transcript mode is ready.",
+            CanRetry: true));
+        SetState(CallState.Listening, InputStatus.Message);
+    }
+
+    private void SetInputStatus(VoiceInputStatus status)
+    {
+        if (_inputStatus == status) return;
+        _inputStatus = status;
+        InputStatusChanged?.Invoke(this, new VoiceInputStatusChangedEventArgs(status));
+    }
+
+    private void ResetInputStatus()
+    {
+        SetInputStatus(_speechInput.IsAvailable
+            ? new VoiceInputStatus(VoiceInputState.Ready, "Microphone ready.")
+            : new VoiceInputStatus(
+                VoiceInputState.Unavailable,
+                _speechInput.UnavailableReason ?? "Microphone transcription is unavailable."));
+    }
 
     /// <summary>
     /// Performs fail asynchronously so I/O does not block the caller's thread.
@@ -752,6 +855,7 @@ public sealed class CallCoordinator : ICallCoordinator, IVoiceReactionSource
             _ephemeralHistory.Clear();
             _voiceReactionRuntime = null;
             ActiveVoiceProfile = null;
+            ResetInputStatus();
             _ending = false;
         }
     }
