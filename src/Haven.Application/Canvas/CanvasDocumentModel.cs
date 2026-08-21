@@ -201,7 +201,7 @@ public sealed class CanvasHistory
     }
 }
 
-public sealed class CanvasInteractionController
+public sealed partial class CanvasInteractionController
 {
     private NotesInkStroke? _activeStroke;
     private Guid? _dragObjectId;
@@ -240,8 +240,12 @@ public sealed class CanvasInteractionController
         if (clearHistory) History.Clear();
     }
 
-    public void SelectObject(Guid? id) =>
+    public void SelectObject(Guid? id)
+    {
+        _selectedObjectIds.Clear();
         SelectedObjectId = id is { } value && Board.Objects.Any(candidate => candidate.Id == value) ? value : null;
+        if (SelectedObjectId is { } selected) _selectedObjectIds.Add(selected);
+    }
 
     public bool Begin(CanvasPointerSample sample)
     {
@@ -566,7 +570,7 @@ public sealed class CanvasInteractionController
         Board.Objects
             .Where(value => value.Kind != NotesCanvasObjectKind.Connector)
             .OrderByDescending(value => value.ZIndex)
-            .FirstOrDefault(value => x >= value.X && x <= value.X + value.Width && y >= value.Y && y <= value.Y + value.Height);
+            .FirstOrDefault(value => ContainsRotated(value, x, y));
 
     private NotesInkStroke? FindStroke(double x, double y, double radius)
     {

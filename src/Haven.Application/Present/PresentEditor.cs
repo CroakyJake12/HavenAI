@@ -33,7 +33,7 @@ public sealed record PresentSnapResult(
     double Y,
     IReadOnlyList<PresentSnapGuide> Guides);
 
-public sealed class PresentEditor
+public sealed partial class PresentEditor
 {
     private const int HistoryLimit = 100;
     private static readonly JsonSerializerOptions SnapshotOptions = new(JsonSerializerDefaults.Web);
@@ -381,6 +381,29 @@ public sealed class PresentEditor
         return true;
     }
 
+    public bool TransformSelection(double deltaX, double deltaY, double deltaWidth, double deltaHeight, double deltaRotationDegrees)
+    {
+        var elements = EditableSelection();
+        if (elements.Count == 0 || !double.IsFinite(deltaX) || !double.IsFinite(deltaY)
+            || !double.IsFinite(deltaWidth) || !double.IsFinite(deltaHeight) || !double.IsFinite(deltaRotationDegrees)) return false;
+        Mutate(() =>
+        {
+            foreach (var element in elements)
+            {
+                var x = Math.Clamp(element.X + deltaX, 0, .99);
+                var y = Math.Clamp(element.Y + deltaY, 0, .99);
+                var width = Math.Clamp(element.Width + deltaWidth, .01, 1 - x);
+                var height = Math.Clamp(element.Height + deltaHeight, .01, 1 - y);
+                element.X = Math.Min(x, 1 - width);
+                element.Y = Math.Min(y, 1 - height);
+                element.Width = width;
+                element.Height = height;
+                element.RotationDegrees += deltaRotationDegrees;
+            }
+        });
+        return true;
+    }
+
     public bool BringForward() => MoveSelectionInZOrder(1);
     public bool SendBackward() => MoveSelectionInZOrder(-1);
 
@@ -639,6 +662,7 @@ public sealed class PresentEditor
 
     private void Mutate(Action mutation)
     {
+        if (_liveTextEditBefore is not null) CommitLiveTextEdit();
         var before = Snapshot(Document);
         mutation();
         Document.Normalize();

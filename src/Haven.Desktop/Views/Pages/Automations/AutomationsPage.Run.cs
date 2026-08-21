@@ -17,14 +17,7 @@ public sealed partial class AutomationsPage
                 return;
             }
 
-            if (!AutomationGraphCodec.TryDeserialize(item.GraphJson, out var graph) ||
-                graph.Nodes.Any(node => string.Equals(node.Category, DeviceAutomationNodeCategory.Key, StringComparison.OrdinalIgnoreCase)))
-            {
-                _status.Text = "The DEVICE runtime is unavailable. Haven did not execute this workflow.";
-                return;
-            }
-
-            await InvokeAsync(item.Instruction);
+            _status.Text = "The graph runtime is unavailable. Haven did not route this graph to Tasks or perform a substitute instruction.";
             return;
         }
 
@@ -38,6 +31,8 @@ public sealed partial class AutomationsPage
                 return;
             }
 
+            if (run.GraphResult is not null && !string.IsNullOrWhiteSpace(item.GraphJson))
+                await RecordGraphHistoryAsync(item, item.GraphJson, run.GraphResult);
             _status.Text = FormatDeviceWorkflowRunStatus(run);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

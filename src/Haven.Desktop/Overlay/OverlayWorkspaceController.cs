@@ -218,7 +218,10 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
                 RunOnUi(() => AttachFilesToGoAsync(session.Id, page));
         };
         window.CaptureRequested += (_, _) => RunOnUi(() => CaptureVisualContextAsync(session.Id));
+        window.SetSuggestions(page.Suggestions.Select(suggestion => suggestion.Label).ToArray());
         window.ActionRequested += (_, action) => RunOnUi(() => HandleGoActionAsync(session.Id, action));
+        window.SubmitRequested += (_, text) => RunOnUi(() => page.SubmitOverlayInstructionAsync(text));
+        window.AddRequested += (_, _) => RunOnUi(() => AttachFilesToGoAsync(session.Id, page));
     }
 
     private void WireWindow(OverlayWorkspaceWindow window, Guid sessionId, bool openGoOnNewWorkspace)
@@ -333,6 +336,8 @@ internal sealed class OverlayWorkspaceController : IAsyncDisposable
         {
             if (!_windows.ContainsKey(sessionId)) return;
             await _go.RefreshSuggestionsAsync(page, activity, CancellationToken.None);
+            if (_windows.TryGetValue(sessionId, out var window))
+                window.SetSuggestions(page.Suggestions.Select(suggestion => suggestion.Label).ToArray());
         });
     }
 

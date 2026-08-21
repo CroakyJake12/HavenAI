@@ -33,10 +33,12 @@ public sealed class CanvasProductionTests : IDisposable
         controller.SelectObject(first.Id);
         var beforeDragX = controller.SelectedObject!.X;
         var beforeDragY = controller.SelectedObject.Y;
+        var dragStartX = beforeDragX + controller.SelectedObject.Width / 2;
+        var dragStartY = beforeDragY + controller.SelectedObject.Height / 2;
         controller.Tool = CanvasTool.Select;
-        controller.Begin(new CanvasPointerSample(beforeDragX + 10, beforeDragY + 10));
-        Assert.True(controller.Move(new CanvasPointerSample(beforeDragX + 70, beforeDragY + 50)));
-        controller.End(new CanvasPointerSample(beforeDragX + 70, beforeDragY + 50));
+        controller.Begin(new CanvasPointerSample(dragStartX, dragStartY));
+        Assert.True(controller.Move(new CanvasPointerSample(dragStartX + 60, dragStartY + 40)));
+        controller.End(new CanvasPointerSample(dragStartX + 60, dragStartY + 40));
         Assert.True(controller.Board.Objects.Single(value => value.Id == first.Id).X > beforeDragX);
         Assert.True(controller.Undo());
         Assert.Equal(beforeDragX, controller.Board.Objects.Single(value => value.Id == first.Id).X, 3);
@@ -184,6 +186,76 @@ public sealed class CanvasProductionTests : IDisposable
         Assert.Equal(45, layout.RotationDegrees, 6);
         Assert.Equal(60 - Math.Sqrt(20_000) / 2, layout.Left, 6);
         Assert.Equal(68, layout.Top, 6);
+    }
+
+    [Fact]
+    public void Multi_selection_supports_marquee_atomic_transform_clipboard_and_undo()
+    {
+        var board = CanvasDocumentModel.GetBoard(CanvasDocumentModel.Create("Direct manipulation"));
+        board.OffsetX = 0; board.OffsetY = 0; board.Zoom = 1;
+        var controller = new CanvasInteractionController(board);
+        var first = controller.AddObjectAt(NotesCanvasObjectKind.Shape, 100, 100, 120, 80, "One");
+        var second = controller.AddObjectAt(NotesCanvasObjectKind.Text, 280, 120, 140, 70, "Two");
+        _ = controller.AddObjectAt(NotesCanvasObjectKind.Frame, 700, 500, 180, 120, "Outside");
+
+        var selected = controller.SelectViewportRectangle(80, 80, 380, 160);
+        Assert.Equal(2, selected.Count);
+        Assert.Contains(first.Id, selected);
+        Assert.Contains(second.Id, selected);
+
+        var firstX = first.X; var secondX = second.X; var firstWidth = first.Width;
+        Assert.True(controller.TransformSelection(25, 15, 60, 30, 20));
+        Assert.True(first.X > firstX);
+        Assert.True(second.X > secondX);
+        Assert.True(first.Width > firstWidth);
+        Assert.Equal(20, first.Rotation, 3);
+        Assert.Equal(20, second.Rotation, 3);
+
+        Assert.True(controller.Undo());
+        var restoredFirst = controller.Board.Objects.Single(value => value.Id == first.Id);
+        var restoredSecond = controller.Board.Objects.Single(value => value.Id == second.Id);
+        Assert.Equal(firstX, restoredFirst.X, 3);
+        Assert.Equal(secondX, restoredSecond.X, 3);
+        Assert.Equal(firstWidth, restoredFirst.Width, 3);
+
+        controller.SetSelection([restoredFirst.Id, restoredSecond.Id]);
+        Assert.True(controller.CopySelection());
+        Assert.True(controller.PasteSelection());
+        Assert.Equal(2, controller.SelectedObjectIds.Count);
+        Assert.Equal(5, controller.Board.Objects.Count);
+        Assert.DoesNotContain(controller.SelectedObjectIds, id => id == restoredFirst.Id || id == restoredSecond.Id);
+    }
+
+    [Fact]
+    public void Rotated_hit_testing_matches_visible_geometry()
+    {
+        var board = CanvasDocumentModel.GetBoard(CanvasDocumentModel.Create("Rotated geometry"));
+        board.OffsetX = 0; board.OffsetY = 0; board.Zoom = 1;
+        var controller = new CanvasInteractionController(board);
+        var value = controller.AddObjectAt(NotesCanvasObjectKind.Shape, 100, 100, 200, 40, "Rotated");
+        controller.SelectObject(value.Id);
+        Assert.True(controller.RotateSelected(90));
+
+        Assert.Equal(value.Id, controller.HitObjectAtViewport(200, 30)?.Id);
+        Assert.Null(controller.HitObjectAtViewport(110, 110));
+    }
+
+    [Fact]
+    public void Hundreds_of_canvas_objects_transform_without_rebuilding_the_model()
+    {
+        var board = CanvasDocumentModel.GetBoard(CanvasDocumentModel.Create("Stress"));
+        board.OffsetX = 0; board.OffsetY = 0; board.Zoom = 1;
+        var controller = new CanvasInteractionController(board);
+        for (var index = 0; index < 400; index++)
+            controller.AddObjectAt(NotesCanvasObjectKind.Shape, (index % 20) * 60, (index / 20) * 50, 40, 30, index.ToString());
+        var ids = controller.Board.Objects.Select(value => value.Id).ToArray();
+        controller.SetSelection(ids);
+
+        Assert.True(controller.TranslateSelection(5, 7, snap: false));
+        Assert.Equal(400, controller.Board.Objects.Count);
+        Assert.All(controller.Board.Objects, value => Assert.True(value.X >= 5 && value.Y >= 7));
+        Assert.True(controller.Undo());
+        Assert.Equal(400, controller.Board.Objects.Count);
     }
 
     public void Dispose() => _paths.Dispose();

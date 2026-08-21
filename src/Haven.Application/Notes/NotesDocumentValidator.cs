@@ -216,12 +216,13 @@ public sealed partial class NotesDocumentValidator : INotesDocumentValidator
         {
             if (block.Table is null) { Error($"blocks[{block.Id}].table", "Table blocks require table data."); return; }
             if (block.Table.Rows.Count is 0 or > 10_000) Error($"blocks[{block.Id}].table.rows", "Tables require 1–10,000 rows.");
-            var columnCount = block.Table.Rows.FirstOrDefault()?.Cells.Count ?? 0;
-            if (columnCount is 0 or > 500) Error($"blocks[{block.Id}].table.columns", "Tables require 1–500 columns.");
+            var columnCount = block.Table.Rows.FirstOrDefault()?.Cells.Sum(cell => Math.Max(1, cell.ColumnSpan)) ?? 0;
+            if (columnCount is 0 or > 500) Error($"blocks[{block.Id}].table.columns", "Tables require 1–500 effective columns.");
             foreach (var row in block.Table.Rows)
             {
                 AddId(row.Id, $"blocks[{block.Id}].table.rows[{row.Id}]");
-                if (row.Cells.Count != columnCount) Error($"blocks[{block.Id}].table.rows[{row.Id}]", "Every table row must have the same number of cells.");
+                var effectiveColumns = row.Cells.Sum(cell => Math.Max(1, cell.ColumnSpan));
+                if (effectiveColumns != columnCount) Error($"blocks[{block.Id}].table.rows[{row.Id}]", "Every table row must cover the same effective column count after spans.");
                 foreach (var cell in row.Cells)
                 {
                     AddId(cell.Id, $"blocks[{block.Id}].table.cells[{cell.Id}]");

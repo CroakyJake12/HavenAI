@@ -148,6 +148,8 @@ public sealed partial class ProviderConnectionsViewModel : ObservableObject
 
             if (!Uri.TryCreate(item.Endpoint.Trim(), UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https"))
                 throw new InvalidOperationException("Enter an absolute HTTP or HTTPS endpoint.");
+            if (endpoint.Scheme == "http" && !endpoint.IsLoopback)
+                throw new InvalidOperationException("Remote provider endpoints must use HTTPS. HTTP is allowed only for loopback services on this device.");
 
             var storedSecret = await _secrets.GetAsync(item.Id, "api-key", CancellationToken.None);
             if (string.IsNullOrWhiteSpace(item.ApiKey) && string.IsNullOrWhiteSpace(storedSecret))

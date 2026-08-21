@@ -16,7 +16,11 @@ namespace Haven.Application;
 /// <summary>
 /// Represents automation tool runtime and keeps its related state and behavior together.
 /// </summary>
-public sealed class AutomationToolRuntime(IAutomationRepository automations, IWorkspaceStateRepository workspaceState)
+public sealed class AutomationToolRuntime(
+    IAutomationRepository automations,
+    IWorkspaceStateRepository workspaceState,
+    IPermissionDecisionEngine permissions,
+    IConversationSafetyService safety)
 {
     /// <summary>
     /// Retrieves definitions for the current operation.
@@ -52,11 +56,28 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
     /// </summary>
-    public async Task<WorkspaceToolResult> ExecuteAsync(OllamaToolCall call, HavenMode mode, Guid? containerId, CancellationToken cancellationToken)
+    public async Task<WorkspaceToolResult> ExecuteAsync(
+        OllamaToolCall call,
+        HavenMode mode,
+        Guid conversationId,
+        Guid? containerId,
+        CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
         try
         {
+            if (call.Name is "automation_create" or "task_create")
+            {
+                await safety.EnsureMayActAsync(conversationId, $"tool.{call.Name}", cancellationToken).ConfigureAwait(false);
+                var decision = permissions.Evaluate(
+                    call.Name == "automation_create" ? "tasks.automation.create" : "tasks.reusable.create",
+                    CapabilityRiskClass.Consequential,
+                    requiresPermission: true,
+                    $"Allow Haven to execute {call.Name}.");
+                if (decision.Kind != PermissionDecisionKind.Allowed)
+                    throw new InvalidOperationException("Explicit scoped approval is required before this action can persist changes.");
+            }
+
             var output = call.Name switch
             {
                 "automation_create" => await CreateAutomationAsync(call, mode, containerId, cancellationToken).ConfigureAwait(false),

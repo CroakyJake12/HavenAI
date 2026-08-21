@@ -30,9 +30,15 @@ internal sealed partial class BrowserHavenScene
 
         _utilityPanel = new Container { Name = "Browser.Utility.Panel", Layout = HavenLayout.Vertical };
         _utilityPanel.SetValue(HavenProperties.Row, 3);
-        _utilityPanel.SetValue(HavenProperties.Column, 1);
-        _utilityPanel.SetValue(HavenProperties.Width, HavenLength.Px(340));
+        _utilityPanel.SetValue(HavenProperties.Column, 0);
+        _utilityPanel.SetValue(HavenProperties.Width, HavenLength.Px(380));
+        _utilityPanel.SetValue(HavenProperties.MaxWidth, HavenLength.Percent(92));
         _utilityPanel.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+        _utilityPanel.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.End);
+        _utilityPanel.SetValue(HavenProperties.ZIndex, 20);
+        _utilityPanel.SetValue(HavenProperties.BorderColor, "Border");
+        _utilityPanel.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        _utilityPanel.SetValue(HavenProperties.Shadow, "Card");
         _utilityPanel.SetValue(HavenProperties.Padding, HavenThickness.Parse("12px"));
         _utilityPanel.SetValue(HavenProperties.Gap, HavenLength.Px(8));
         _utilityPanel.SetValue(HavenProperties.Background, "Transparent");
@@ -66,6 +72,11 @@ internal sealed partial class BrowserHavenScene
             if (_page.IsAssistantOpen) _page.AssistantInput = _utilityInput1.Text;
             else if (_page.IsResearchOpen) _page.ResearchInput = _utilityInput1.Text;
             else if (_page.IsSettingsOpen) _page.HomePage = _utilityInput1.Text;
+            else if (_page.IsBookmarksOpen || _page.IsHistoryOpen || _page.IsDownloadsOpen || _page.IsTabsManagerOpen)
+            {
+                _page.ManagementSearch = _utilityInput1.Text;
+                RefreshUtilityPanel();
+            }
         };
         _utilityInput2.TextChanged += (_, _) =>
         {
@@ -86,6 +97,18 @@ internal sealed partial class BrowserHavenScene
         if (_page.IsHistoryOpen)
         {
             if (primary) _page.ClearHistoryCommand.Execute(null);
+            else _page.LoadMoreHistoryCommand.Execute(null);
+            return;
+        }
+        if (_page.IsDownloadsOpen)
+        {
+            if (primary) _page.RefreshDownloadsCommand.Execute(null);
+            return;
+        }
+        if (_page.IsTabsManagerOpen)
+        {
+            if (primary) _page.NewTabCommand.Execute(null);
+            else _page.NewPrivateTabCommand.Execute(null);
             return;
         }
         if (_page.IsAssistantOpen)
@@ -116,9 +139,11 @@ internal sealed partial class BrowserHavenScene
 
         if (_page.IsBookmarksOpen)
         {
-            ConfigureUtility("Bookmarks", "", "", false, false, "Bookmark current", "", true, false, "");
-            foreach (var bookmark in _page.Bookmarks)
-                AddUtilityRow(bookmark.Title, "Remove",
+            ConfigureUtility("Bookmarks", _page.ManagementSearch, "", true, false, "Bookmark current", "", true, false, _page.BookmarkSummary);
+            _utilityInput1.Placeholder = "Search bookmarks";
+            _utilityInput1.Multiline = false;
+            foreach (var bookmark in _page.VisibleBookmarks())
+                AddUtilityRow($"{bookmark.Title} — {bookmark.Group}", "Remove",
                     () => _page.OpenBookmarkCommand.Execute(bookmark),
                     () => _page.RemoveBookmarkCommand.Execute(bookmark));
             return;
@@ -126,10 +151,46 @@ internal sealed partial class BrowserHavenScene
 
         if (_page.IsHistoryOpen)
         {
-            ConfigureUtility("History", "", "", false, false, "Clear history", "", true, false, "");
-            foreach (var entry in _page.History.Take(80))
-                AddUtilityRow(entry.Title, "",
+            ConfigureUtility("History", _page.ManagementSearch, "", true, false, "Clear history", "Load more", true, _page.HasMoreHistory, _page.HistoryResultSummary);
+            _utilityInput1.Placeholder = "Search history";
+            _utilityInput1.Multiline = false;
+            foreach (var entry in _page.VisibleHistory())
+                AddUtilityRow($"{entry.Title} — {entry.VisitedAt.LocalDateTime:g}", "",
                     () => _page.OpenHistoryCommand.Execute(entry), null);
+            return;
+        }
+
+        if (_page.IsDownloadsOpen)
+        {
+            ConfigureUtility("Downloads", _page.ManagementSearch, "", true, false, "Refresh", "", true, false,
+                _page.Downloads.Count == 0 ? "No completed downloads yet." : $"{_page.Downloads.Count} completed downloads");
+            _utilityInput1.Placeholder = "Search downloads";
+            _utilityInput1.Multiline = false;
+            foreach (var download in _page.VisibleDownloads())
+                AddUtilityRow($"{download.FileName} — {BrowserPage.FormatDownloadSize(download.SizeBytes)}", "Show in folder",
+                    () => _page.OpenDownloadCommand.Execute(download),
+                    () => _page.RevealDownloadCommand.Execute(download));
+            return;
+        }
+
+        if (_page.IsTabsManagerOpen)
+        {
+            ConfigureUtility("All tabs", _page.ManagementSearch, "", true, false, "New tab", "Private tab", true, true, $"{_page.Tabs.Count} open tab{(_page.Tabs.Count == 1 ? string.Empty : "s")}");
+            _utilityInput1.Placeholder = "Search open tabs";
+            _utilityInput1.Multiline = false;
+            foreach (var tab in _page.VisibleManagedTabs())
+                AddUtilityRow($"{(tab.IsSelected ? "• " : string.Empty)}{tab.DisplayTitle}", "Close",
+                    () => _page.SelectTabCommand.Execute(tab),
+                    () => _page.CloseTabCommand.Execute(tab));
+            return;
+        }
+
+        if (_page.IsPageActionsOpen)
+        {
+            ConfigureUtility("Page actions", "", "", false, false, "", "", false, false, "Actions apply to the active page.");
+            AddUtilityRow("Hard reload", "", () => _page.HardReloadCommand.Execute(null), null);
+            AddUtilityRow("Print page", "", () => _page.PrintCommand.Execute(null), null);
+            AddUtilityRow("Developer tools", "", () => _page.InspectCommand.Execute(null), null);
             return;
         }
 

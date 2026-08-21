@@ -60,6 +60,7 @@ internal sealed class ImagineMediaCanvasElement : ImagineCanvasElement, IHavenDr
 
     public void SetMode(ImagineMediaKind mode)
     {
+        if (_mode == ImagineMediaKind.Video && mode != ImagineMediaKind.Video) ClearVideoPreview();
         _mode = mode;
         var image = mode == ImagineMediaKind.Image;
         var video = mode == ImagineMediaKind.Video;

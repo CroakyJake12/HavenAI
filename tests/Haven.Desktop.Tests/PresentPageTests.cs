@@ -192,6 +192,81 @@ public sealed class PresentPageTests
         Assert.Equal(0, repository.SaveCalls);
     }
 
+    [AvaloniaFact]
+    public async Task Present_thumbnail_navigator_stays_retained_and_scrolls_a_50_slide_deck()
+    {
+        var document = PresentDocument.Create("Stress deck");
+        for (var index = 1; index < 50; index++)
+        {
+            var slide = PresentSlide.Create(index);
+            slide.Title = $"Slide {index + 1}";
+            slide.GetOrCreateBodyText().Text = $"Body {index + 1}";
+            document.Slides.Add(slide);
+        }
+        document.Normalize();
+
+        using var page = new PresentPage(new HavenEventBus(), new FakePresentRepository(document), new FakePresentExporter());
+        await page.InitializeAsync();
+        var window = new Window { Width = 1400, Height = 900, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var navigator = page.Route.SlideNavigator;
+            Assert.Equal(50, navigator.SlideCount);
+            Assert.Empty(navigator.Children);
+            Assert.True(navigator.Bounds.Height > 200);
+
+            var before = navigator.ScrollOffset;
+            Assert.True(navigator.PointerWheel(new HavenPoint(navigator.Bounds.Width / 2, navigator.Bounds.Height / 2), 0, -4));
+            Assert.True(navigator.ScrollOffset > before);
+            Assert.Empty(navigator.Children);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Present_thumbnail_click_and_drag_reorder_are_direct_and_undoable()
+    {
+        var document = PresentDocument.Create("Reorder deck");
+        for (var index = 1; index < 6; index++)
+        {
+            var slide = PresentSlide.Create(index);
+            slide.Title = $"Slide {index + 1}";
+            document.Slides.Add(slide);
+        }
+        document.Normalize();
+        var originalFirstId = document.Slides[0].Id;
+        var secondId = document.Slides[1].Id;
+
+        using var page = new PresentPage(new HavenEventBus(), new FakePresentRepository(document), new FakePresentExporter());
+        await page.InitializeAsync();
+        var window = new Window { Width = 1400, Height = 900, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var navigator = page.Route.SlideNavigator;
+            var itemWidth = Math.Max(40, navigator.Bounds.Width - 20);
+            var stride = itemWidth * 9d / 16d + 22 + 12;
+
+            var second = new HavenPoint(navigator.Bounds.Width / 2, 8 + stride + 20);
+            Assert.True(navigator.PointerPressed(new HavenPointerInput(second, second, HavenPointerKind.Mouse)));
+            Assert.True(navigator.PointerReleased(new HavenPointerInput(second, second, HavenPointerKind.Mouse)));
+            Assert.Equal(secondId, page.Editor!.Selection.SlideId);
+
+            var start = new HavenPoint(navigator.Bounds.Width / 2, 28);
+            var end = new HavenPoint(navigator.Bounds.Width / 2, 8 + stride * 3 + 20);
+            Assert.True(navigator.PointerPressed(new HavenPointerInput(start, start, HavenPointerKind.Mouse)));
+            Assert.True(navigator.PointerMoved(new HavenPointerInput(end, end, HavenPointerKind.Mouse)));
+            Assert.True(navigator.PointerReleased(new HavenPointerInput(end, end, HavenPointerKind.Mouse)));
+
+            Assert.Equal(originalFirstId, page.Document!.Slides[3].Id);
+            Assert.True(page.Editor.CanUndo);
+            Assert.True(page.Editor.Undo());
+            Assert.Equal(originalFirstId, page.Document!.Slides[0].Id);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
+
     private static void Click(HavenInputRouter router, HavenElement element)
     {
         var point = new HavenPoint(

@@ -401,6 +401,19 @@ public sealed class ConversationProductionRepository(
     }
 
     /// <summary>
+    /// Retrieves recent attachments across conversations for the read-only File Library.
+    /// </summary>
+    public async Task<IReadOnlyList<MessageAttachment>> GetAttachmentLibraryAsync(int limit, CancellationToken cancellationToken)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM message_attachments ORDER BY updated_at DESC, created_at DESC LIMIT $limit;";
+        command.Parameters.AddWithValue("$limit", Math.Clamp(limit, 1, 500));
+        return await ReadAttachmentsAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Performs upsert attachment asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public async Task<MessageAttachment> UpsertAttachmentAsync(MessageAttachment attachment, CancellationToken cancellationToken)
@@ -980,9 +993,9 @@ public sealed class ConversationProductionRepository(
     {
         const int radius = 90;
         var index = content.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        if (index < 0) return content.Length <= radius * 2 ? content : content[..(radius * 2)] + "…";
+        if (index < 0) return content.Length <= radius * 2 ? content : content[..(radius * 2)] + "â€¦";
         var start = Math.Max(0, index - radius);
         var length = Math.Min(content.Length - start, query.Length + radius * 2);
-        return (start > 0 ? "…" : string.Empty) + content.Substring(start, length) + (start + length < content.Length ? "…" : string.Empty);
+        return (start > 0 ? "â€¦" : string.Empty) + content.Substring(start, length) + (start + length < content.Length ? "â€¦" : string.Empty);
     }
 }

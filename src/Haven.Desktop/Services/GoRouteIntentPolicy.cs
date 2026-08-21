@@ -61,6 +61,7 @@ public static class GoRouteIntentPolicy
     private static readonly string[] PlayTerms = ["play a game", "launch a game", "interactive experience"];
     private static readonly string[] LauncherTerms = ["open calculator", "launch calculator", "open an app", "launch an app", "open application", "launch application"];
     private static readonly string[] TaskTerms = ["delegate this task", "delegate this", "run this as a task", "one-off task", "agent task"];
+    private static readonly string[] SpaceTerms = ["manage spaces", "open spaces", "show spaces", "my spaces", "space picker"];
 
     public static GoRouteDecision Resolve(string instruction, GoRoutingContext? context = null)
     {
@@ -92,6 +93,7 @@ public static class GoRouteIntentPolicy
             return new GoRouteDecision(GoRouteDestination.Project, instruction, context, ProjectName: namedProject);
         }
 
+        if (ContainsAny(normalized, SpaceTerms)) return App(instruction, context, "spaces");
         if (ContainsAny(normalized, PresentationTerms)) return App(instruction, context, "present");
         if (ContainsAny(normalized, WriteTerms)) return App(instruction, context, "write");
         if (ContainsAny(normalized, StudyTerms)) return App(instruction, context, "study");

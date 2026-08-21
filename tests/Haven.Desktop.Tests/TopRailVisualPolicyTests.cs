@@ -98,6 +98,66 @@ public sealed class TopRailVisualPolicyTests
     }
 
     [AvaloniaFact]
+    public async Task Tab_context_menu_is_haven_owned_uses_the_real_tab_anchor_and_preserves_actions()
+    {
+        using var rail = new TopRail();
+        var window = new Window { Width = 1440, Height = 120, Content = rail };
+        try
+        {
+            string? closed = null;
+            rail.TabCloseRequested += (_, key) => closed = key;
+            window.Show();
+            rail.SetTabs([new TopRailTab("home", "Home", "home", true, false), new TopRailTab("notes", "Notes", "edit", false, true)]);
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            window.UpdateLayout();
+            var scene = Assert.IsType<TopRailFinalScene>(rail.HavenOwnedScene);
+            TopRailTab? renameRequested = null;
+            scene.TabRenameRequested += (_, tab) => renameRequested = tab;
+            var router = new HavenInputRouter(scene.Root);
+
+            SecondaryInvoke(router, scene.TabStrip.ItemButtons[0]);
+            var homeMenu = Assert.IsType<Haven.UI.Components.PopupMenu>(scene.ActiveTabMenu);
+            var homeClose = Assert.IsType<Haven.UI.Components.Button>(homeMenu.Card.Children[1]);
+            Assert.False(homeClose.GetValue(HavenProperties.Enabled));
+
+            SecondaryInvoke(router, scene.TabStrip.ItemButtons[1]);
+            var notesMenu = Assert.IsType<Haven.UI.Components.PopupMenu>(scene.ActiveTabMenu);
+            Assert.DoesNotContain(homeMenu, scene.Root.Children);
+            var rename = Assert.IsType<Haven.UI.Components.Button>(notesMenu.Card.Children[0]);
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            window.UpdateLayout();
+            PrimaryInvoke(new HavenInputRouter(scene.Root), rename);
+            Assert.Null(scene.ActiveTabMenu);
+            Assert.NotNull(renameRequested);
+            Assert.Equal("notes", renameRequested!.Key);
+
+            SecondaryInvoke(router, scene.TabStrip.ItemButtons[1]);
+            var reopened = Assert.IsType<Haven.UI.Components.PopupMenu>(scene.ActiveTabMenu);
+            var close = Assert.IsType<Haven.UI.Components.Button>(reopened.Card.Children[1]);
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            window.UpdateLayout();
+            PrimaryInvoke(new HavenInputRouter(scene.Root), close);
+            Assert.Equal("notes", closed);
+            Assert.Null(scene.ActiveTabMenu);
+        }
+        finally { window.Close(); }
+
+        static void SecondaryInvoke(HavenInputRouter router, Haven.UI.Components.Button button)
+        {
+            var point = new HavenPoint(button.Bounds.X + button.Bounds.Width / 2, button.Bounds.Y + button.Bounds.Height / 2);
+            router.PointerPressed(point, pointerButton: HavenPointerButton.Secondary);
+            Assert.True(router.PointerReleased(point));
+        }
+
+        static void PrimaryInvoke(HavenInputRouter router, Haven.UI.Components.Button button)
+        {
+            var point = new HavenPoint(button.Bounds.X + button.Bounds.Width / 2, button.Bounds.Y + button.Bounds.Height / 2);
+            router.PointerPressed(point);
+            Assert.True(router.PointerReleased(point));
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Header_badge_tracks_the_real_notification_collection_in_haven_scene()
     {
         using var service = new NotificationService();

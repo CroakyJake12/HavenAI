@@ -13,9 +13,9 @@
   </queries>
 
   <application
-      android:allowBackup="true"
+      android:allowBackup="false"
       android:label="Haven"
       android:icon="@drawable/haven_icon"
       android:supportsRtl="true"
-      android:usesCleartextTraffic="true" />
+      android:usesCleartextTraffic="false" />
 </manifest>

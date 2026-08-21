@@ -41,6 +41,7 @@ public sealed partial class GoPage : UserControl, IDisposable
     internal HavenSceneControl SceneHost => Scene;
     internal GoHavenScene Route => _route;
     internal HavenElement SceneRoot => _route.Root;
+    internal IReadOnlyList<GoSuggestion> Suggestions => _suggestions;
 
     public void AttachFiles(IEnumerable<string> paths)
     {
@@ -87,6 +88,15 @@ public sealed partial class GoPage : UserControl, IDisposable
     }
 
     public void FocusComposer() => Scene.FocusElement(_route.Instruction);
+
+    internal Task SubmitOverlayInstructionAsync(string instruction)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(instruction)) return Task.CompletedTask;
+        _route.Instruction.Text = instruction.Trim();
+        _route.Instruction.PlaceCaretAtEnd();
+        Submit();
+        return Task.CompletedTask;
+    }
 
     public void SetSuggestions(IReadOnlyList<GoSuggestion> suggestions)
     {
@@ -201,7 +211,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         if (_attachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _attachments.Apps.Select(item => item.Name)));
         if (_attachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _attachments.Capabilities.Select(item => item.Name)));
         if (_attachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _attachments.Files.Select(Path.GetFileName)));
-        _route.SetAttachmentStatus(string.Join("  •  ", parts));
+        _route.SetAttachmentStatus(string.Join("  â€¢  ", parts));
     }
 
     public void Dispose()

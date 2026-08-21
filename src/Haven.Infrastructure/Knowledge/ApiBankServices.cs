@@ -72,7 +72,7 @@ public sealed class ApiBankService(ISqliteConnectionFactory factory) : IApiBank
     }
 }
 
-public sealed class BackgroundLearningScheduler : IBackgroundLearningScheduler
+public sealed class BackgroundLearningScheduler(IPrivacyPreferenceStore privacy) : IBackgroundLearningScheduler
 {
     private readonly object _gate = new();
     private readonly Queue<BackgroundLearningTask> _tasks = new();
@@ -81,7 +81,7 @@ public sealed class BackgroundLearningScheduler : IBackgroundLearningScheduler
     public BackgroundLearningMode Mode { get; private set; } = BackgroundLearningMode.Balanced;
     public bool IsEnabled(KnowledgeCategory category)
     {
-        lock (_gate) return !_disabledCategories.Contains(category);
+        lock (_gate) return privacy.Current.BackgroundLearningEnabled && !_disabledCategories.Contains(category);
     }
 
     public Task<BackgroundLearningTask> EnqueueAsync(string title, KnowledgeCategory category, BackgroundLearningPriority priority, CancellationToken cancellationToken)

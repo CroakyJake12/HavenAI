@@ -20,4 +20,63 @@ public sealed class WriteWordProcessorTests
     {
         var document = NotesDocument.Create(); var block = document.Sections[0].Pages[0].Blocks[0]; block.Runs = [new NotesTextRun { Text = "Bold ", Bold = true }, new NotesTextRun { Text = "italic", Italic = true }]; block.PlainText = "Bold italic"; var editor = new WriteDocumentEditor(document); editor.SelectBlock(block.Id, 5); editor.ReplaceSelectedText("Bold stronger italic", 12); Assert.Equal("Bold stronger ", block.Runs[0].Text); Assert.True(block.Runs[0].Bold); Assert.Equal("italic", block.Runs[1].Text); Assert.True(block.Runs[1].Italic); Assert.Equal("Bold stronger italic", block.PlainText);
     }
+
+    [Fact]
+    public void Document_range_selection_replaces_text_across_paragraphs_as_one_edit()
+    {
+        var document = NotesDocument.Create("Range editing");
+        var page = document.Sections[0].Pages[0];
+        var first = page.Blocks[0];
+        first.PlainText = "Hello";
+        first.Runs = [new NotesTextRun { Text = "Hello" }];
+        var second = NotesBlock.CreateParagraph();
+        second.PlainText = "World";
+        second.Runs = [new NotesTextRun { Text = "World" }];
+        page.Blocks.Add(second);
+        var editor = new WriteDocumentEditor(document);
+
+        editor.SetDocumentCaret(first.Id, 2);
+        editor.SetDocumentCaret(second.Id, 3, extendSelection: true);
+
+        Assert.True(editor.HasDocumentSelection);
+        Assert.Equal("llo\nWor", editor.SelectedDocumentText);
+        Assert.True(editor.InsertDocumentText("X"));
+        Assert.False(editor.HasDocumentSelection);
+        Assert.Equal("HeXld", Assert.Single(editor.TextBlocks()).PlainText);
+        Assert.Equal(3, editor.DocumentCaret.Offset);
+
+        Assert.True(editor.Undo());
+        Assert.Equal(2, editor.TextBlocks().Count);
+        Assert.Equal("Hello", editor.TextBlocks()[0].PlainText);
+        Assert.Equal("World", editor.TextBlocks()[1].PlainText);
+    }
+
+    [Fact]
+    public void Document_enter_backspace_and_selection_formatting_follow_word_processor_boundaries()
+    {
+        var document = NotesDocument.Create("Keyboard editing");
+        var block = document.Sections[0].Pages[0].Blocks[0];
+        block.PlainText = "AlphaBeta";
+        block.Runs = [new NotesTextRun { Text = "AlphaBeta" }];
+        var editor = new WriteDocumentEditor(document);
+
+        editor.SetDocumentCaret(block.Id, 5);
+        Assert.True(editor.InsertDocumentText("\n"));
+        var split = editor.TextBlocks();
+        Assert.Equal(2, split.Count);
+        Assert.Equal("Alpha", split[0].PlainText);
+        Assert.Equal("Beta", split[1].PlainText);
+
+        editor.SetDocumentCaret(split[1].Id, 0);
+        Assert.True(editor.BackspaceDocument());
+        var merged = Assert.Single(editor.TextBlocks());
+        Assert.Equal("AlphaBeta", merged.PlainText);
+
+        editor.SetDocumentCaret(merged.Id, 5);
+        editor.SetDocumentCaret(merged.Id, 9, extendSelection: true);
+        editor.ToggleCharacter(WriteCharacterFormat.Bold);
+        var runs = editor.TextBlocks()[0].Runs;
+        Assert.Contains(runs, run => run.Text == "Alpha" && !run.Bold);
+        Assert.Contains(runs, run => run.Text == "Beta" && run.Bold);
+    }
 }

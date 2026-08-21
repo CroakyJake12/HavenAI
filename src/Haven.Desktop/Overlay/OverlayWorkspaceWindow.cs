@@ -41,9 +41,9 @@ internal sealed class OverlayWorkspaceWindow : Window
         ShellControl = new HavenSceneControl { Root = ShellScene.Root };
 
         Title = "Haven Overlay — " + session.Title;
-        Width = session.Geometry.Width;
-        Height = session.Geometry.Height;
-        MinWidth = 420;
+        Width = Math.Clamp(session.Geometry.Width, 480, 720);
+        Height = Math.Clamp(session.Geometry.Height, 360, 560);
+        MinWidth = 480;
         MinHeight = 360;
         CanResize = true;
         ShowInTaskbar = false;
@@ -62,26 +62,11 @@ internal sealed class OverlayWorkspaceWindow : Window
         AutomationProperties.SetAutomationId(BodyControl, goPage is not null ? "HavenOverlayGo" : "HavenOverlayChat");
         AutomationProperties.SetName(BodyControl, goPage is not null ? "Haven Overlay Go workspace" : "Haven Overlay Chat workspace");
 
-        if (goPage is not null)
+        Content = ShellControl;
+        ShellControl.InputSubmitted += input =>
         {
-            ShellScene.SourceText.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            ShellScene.SessionTabs.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            ShellScene.ContextPanel.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-            ShellScene.Actions.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
-        }
-
-        var root = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            RowSpacing = 7,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch
+            if (ReferenceEquals(input, ShellScene.ComposerInput)) ShellScene.SubmitComposer();
         };
-        root.Children.Add(ShellControl);
-        Grid.SetRow(BodyControl, 1);
-        root.Children.Add(BodyControl);
-        Content = root;
-
         ShellScene.DragDelta += OnDragDelta;
         ShellScene.CaptureRequested += (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty);
         ShellScene.NewChatRequested += (_, _) => NewChatRequested?.Invoke(this, EventArgs.Empty);
@@ -90,6 +75,8 @@ internal sealed class OverlayWorkspaceWindow : Window
         ShellScene.CloseRequested += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
         ShellScene.SessionActivated += (_, id) => SessionActivated?.Invoke(this, id);
         ShellScene.ActionRequested += (_, action) => ActionRequested?.Invoke(this, action);
+        ShellScene.AddRequested += (_, _) => AddRequested?.Invoke(this, EventArgs.Empty);
+        ShellScene.SubmitRequested += (_, text) => SubmitRequested?.Invoke(this, text);
         PositionChanged += (_, _) => PublishGeometry();
         SizeChanged += (_, _) => PublishGeometry();
         Closed += (_, _) =>
@@ -117,6 +104,8 @@ internal sealed class OverlayWorkspaceWindow : Window
     public event EventHandler? NativeCloseRequested;
     public event EventHandler<Guid>? SessionActivated;
     public event EventHandler<OverlayContextActionDescriptor>? ActionRequested;
+    public event EventHandler? AddRequested;
+    public event EventHandler<string>? SubmitRequested;
     public event EventHandler<OverlaySurfaceGeometry>? GeometryChanged;
 
     public void ApplySnapshot(OverlayWorkspaceSnapshot snapshot)
@@ -125,29 +114,25 @@ internal sealed class OverlayWorkspaceWindow : Window
         var current = snapshot.Sessions.FirstOrDefault(session => session.Id == SessionId);
         if (current is null) return;
 
-        var showExpandedChrome = !current.IsCollapsed && GoPage is null;
-        ShellScene.SourceText.SetValue(HavenProperties.Visibility, showExpandedChrome ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        ShellScene.SessionTabs.SetValue(HavenProperties.Visibility, showExpandedChrome ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        ShellScene.ContextPanel.SetValue(HavenProperties.Visibility, showExpandedChrome ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        ShellScene.Actions.SetValue(HavenProperties.Visibility, showExpandedChrome ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        BodyControl.IsVisible = !current.IsCollapsed;
-        CanResize = !current.IsCollapsed;
-
+        Title = "Haven Overlay - " + current.Title;
         if (current.IsCollapsed)
         {
-            MinHeight = 72;
-            if (Height > 120) Height = 96;
+            CanResize = false;
+            MinWidth = 300;
+            MinHeight = 56;
+            Width = 360;
+            Height = 64;
             return;
         }
 
+        CanResize = true;
+        MinWidth = 480;
         MinHeight = 360;
-        if (Height > 120) return;
-        Width = current.Geometry.Width;
-        Height = current.Geometry.Height;
+        Width = Math.Clamp(current.Geometry.Width, 480, 720);
+        Height = Math.Clamp(current.Geometry.Height, 360, 560);
         Position = new PixelPoint((int)Math.Round(current.Geometry.X), (int)Math.Round(current.Geometry.Y));
-    }
-
-    public void SetActions(IReadOnlyList<OverlayContextActionDescriptor> actions) => ShellScene.SetActions(actions);
+    }    public void SetActions(IReadOnlyList<OverlayContextActionDescriptor> actions) => ShellScene.SetActions(actions);
+    public void SetSuggestions(IReadOnlyList<string> labels) => ShellScene.SetSuggestions(labels);
 
     public OverlaySurfaceGeometry CaptureGeometry() => new(
         Math.Max(MinWidth, Width),

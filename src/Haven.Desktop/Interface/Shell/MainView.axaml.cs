@@ -48,6 +48,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly IProjectIntelligenceService _projectIntelligence;
     private readonly IOllamaClient _ollama;
     private readonly ChatSessionService _sessions;
+    private readonly IConversationSafetyService _conversationSafety;
     private readonly IConversationVersioningService _conversationVersioning;
     private readonly CapabilityPreflightService _preflight;
     private readonly CapabilityRegistryService _capabilityRegistry;
@@ -73,6 +74,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly ScheduledTaskRunner _automationRunner;
     private readonly ScheduledTaskScheduleCalculator _scheduleCalculator;
     private readonly UserPreferencesService _preferences;
+    private readonly IPrivacyPreferenceStore _privacy;
+    private readonly IModelProviderRegistry _modelProviders;
+    private readonly IProviderConfigurationStore _providerConfigurations;
+    private readonly IProviderSecretStore _providerSecrets;
     private readonly GoSuggestionService _goSuggestions;
     private readonly Dictionary<GoPage, CancellationTokenSource> _goSuggestionRefreshes = [];
     private Flyout? _modelSelectorFlyout;
@@ -149,6 +154,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IProjectIntelligenceService projectIntelligence,
         IProviderModelClient ollama,
         ChatSessionService sessions,
+        IConversationSafetyService conversationSafety,
         IConversationVersioningService conversationVersioning,
         CapabilityPreflightService preflight,
         CapabilityRegistryService capabilityRegistry,
@@ -174,6 +180,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         ScheduledTaskRunner automationRunner,
         ScheduledTaskScheduleCalculator scheduleCalculator,
         UserPreferencesService preferences,
+        IPrivacyPreferenceStore privacy,
+        IModelProviderRegistry modelProviders,
+        IProviderConfigurationStore providerConfigurations,
+        IProviderSecretStore providerSecrets,
         ProjectCreationService projectCreator,
         NotificationService notifications,
         ITrainingRepository trainingRepo,
@@ -203,6 +213,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _projectIntelligence = projectIntelligence;
         _ollama = ollama;
         _sessions = sessions;
+        _conversationSafety = conversationSafety;
         _conversationVersioning = conversationVersioning;
         _preflight = preflight;
         _capabilityRegistry = capabilityRegistry;
@@ -228,6 +239,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _automationRunner = automationRunner;
         _scheduleCalculator = scheduleCalculator;
         _preferences = preferences;
+        _privacy = privacy;
+        _modelProviders = modelProviders;
+        _providerConfigurations = providerConfigurations;
+        _providerSecrets = providerSecrets;
         _goSuggestions = new GoSuggestionService(_conversations, _ollama, _preferences);
         _projectCreator = projectCreator;
         _notifications = notifications;
@@ -285,7 +300,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         });
         NewProjectChatCommand = new AsyncRelayCommand(() => StartProjectChatAsync(string.Empty));
         NavigateProjectHomeCommand = new RelayCommand(OpenActiveProjectHome);
-        ToggleTemporaryCommand = new RelayCommand(() => CurrentChat.ToggleTemporaryCommand.Execute(null));
+        ToggleTemporaryCommand = new AsyncRelayCommand(ToggleTemporaryActiveConversationAsync);
         RefreshModelsCommand = new AsyncRelayCommand(RefreshActiveModelsAsync);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarOpen = !IsSidebarOpen);
         SelectContainerCommand = new AsyncRelayCommand<ContainerItemViewModel>(SelectContainerAsync);
@@ -296,8 +311,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddNewTabCommand = new RelayCommand(AddNewTab);
         NavigateBackCommand = new RelayCommand(NavigateBack, () => SelectedTab?.CanGoBack == true);
         NavigateForwardCommand = new RelayCommand(NavigateForward, () => SelectedTab?.CanGoForward == true);
-        BranchCurrentCommand = new AsyncRelayCommand(() => CurrentChat.BranchCurrentAsync());
-        CompactCurrentCommand = new AsyncRelayCommand(() => CurrentChat.CompactContextAsync());
+        BranchCurrentCommand = new AsyncRelayCommand(BranchActiveConversationAsync);
+        CompactCurrentCommand = new AsyncRelayCommand(CompactActiveConversationAsync);
         ArchiveCurrentCommand = new AsyncRelayCommand(ArchiveActiveConversationAsync);
         TogglePinCurrentCommand = new AsyncRelayCommand(TogglePinCurrentAsync);
         BeginRenameCurrentCommand = new RelayCommand(BeginRenameCurrent);
@@ -309,8 +324,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         ConfigureModelCommand = new RelayCommand(ShowModelSelector);
         CopyLastResponseCommand = new RelayCommand(CopyLastResponse);
         DictateCommand = new RelayCommand(() => DictateRequested?.Invoke(this, EventArgs.Empty));
-        UndoCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.UndoCommand.Execute(null));
-        RedoCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.RedoCommand.Execute(null));
+        UndoCurrentCommand = new AsyncRelayCommand(UndoActiveAsync);
+        RedoCurrentCommand = new AsyncRelayCommand(RedoActiveAsync);
         SaveCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.SaveCommand.Execute(null));
         BuildBrowserExtensionCommand = new RelayCommand(() =>
         {
@@ -664,7 +679,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public AsyncRelayCommand<ContainerItemViewModel> DeleteContainerCommand { get; }
     public AsyncRelayCommand NewProjectChatCommand { get; }
     public RelayCommand NavigateProjectHomeCommand { get; }
-    public RelayCommand ToggleTemporaryCommand { get; }
+    public AsyncRelayCommand ToggleTemporaryCommand { get; }
     public AsyncRelayCommand RefreshModelsCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
     public AsyncRelayCommand<ContainerItemViewModel> SelectContainerCommand { get; }
@@ -688,8 +703,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public RelayCommand ConfigureModelCommand { get; }
     public RelayCommand CopyLastResponseCommand { get; }
     public RelayCommand DictateCommand { get; }
-    public RelayCommand UndoCurrentCommand { get; }
-    public RelayCommand RedoCurrentCommand { get; }
+    public AsyncRelayCommand UndoCurrentCommand { get; }
+    public AsyncRelayCommand RedoCurrentCommand { get; }
     public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand BuildBrowserExtensionCommand { get; }
     public AsyncRelayCommand<string> SwitchSurfaceCommand { get; }
@@ -812,6 +827,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             _conversations,
             _ollama,
             _sessions,
+            _conversationSafety,
             _conversationVersioning,
             _preferences,
             _genUiRouter,
@@ -1612,7 +1628,22 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private NewDashboardPage CreateNewDashboardPage()
     {
-        var page = new NewDashboardPage(_bus, _modeRegistry, _modeUsage, _pins, _conversations, _versionedSettings);
+        var page = new NewDashboardPage(
+            _bus, _modeRegistry, _modeUsage, _pins, _conversations, _versionedSettings,
+            _dashboard, _dashboardLayout, _dashboardProviders);
+        page.EnableDashboardAssistant(new DashboardEditPlanner(_ollama, () => _preferences.DefaultModel));
+        page.DashboardActionRequested += async (_, actionKey) =>
+        {
+            switch (actionKey.Trim().ToLowerInvariant())
+            {
+                case "new-chat": await OpenNewChatAsync(); break;
+                case "call": await OpenVoiceSessionFromActionAsync(); break;
+                case "plan": OpenPlan(); break;
+                case "browse": OpenBrowser(); break;
+                case "automations": OpenAutomations(); break;
+                default: await LaunchAppByKeyAsync(actionKey); break;
+            }
+        };
         page.ModeRequested += async (_, mode) => await LaunchAppAsync(mode, false);
         page.ConversationRequested += async (_, conversation) =>
         {
@@ -1620,8 +1651,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (_newChatPage is not null) await _newChatPage.LoadConversationAsync(conversation);
         };
         page.ManageAppsRequested += async (_, _) => await ShowAppLauncherAsync(false);
-        page.EditWithHavenRequested += async (_, _) =>
-            await OpenNewChatAsync("Help me customise my Haven dashboard around what I use most.");
         return page;
     }
 
@@ -1998,8 +2027,18 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenApplicationSettings()
     {
-        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsHavenPage(_bus, _preferences, _ollama)
-            , true);
+        AddOrSelectTab(
+            "settings-" + CurrentMode,
+            "Settings",
+            new SettingsHavenPage(
+                _bus,
+                _preferences,
+                _ollama,
+                _privacy,
+                _modelProviders,
+                _providerConfigurations,
+                _providerSecrets),
+            true);
     }
 
     private async Task OpenConversationAsync(RecentConversationViewModel? item)
@@ -2133,6 +2172,52 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (item is null) return;
         await _conversations.UpsertConversationAsync(item with { IsPinned = !item.IsPinned, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
         await RefreshRecentsAsync(CancellationToken.None);
+    }
+
+    private async Task ToggleTemporaryActiveConversationAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.ToggleTemporaryAsync();
+            return;
+        }
+
+        if (CurrentChat.ToggleTemporaryCommand.CanExecute(null))
+            CurrentChat.ToggleTemporaryCommand.Execute(null);
+    }
+
+    private Task BranchActiveConversationAsync() =>
+        CurrentPage is NewChatPage newChat
+            ? newChat.BranchLatestAsync()
+            : CurrentChat.BranchCurrentAsync();
+
+    private Task CompactActiveConversationAsync() =>
+        CurrentPage is NewChatPage newChat
+            ? newChat.CompactContextAsync()
+            : CurrentChat.CompactContextAsync();
+
+    private async Task UndoActiveAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.UndoLatestAsync();
+            return;
+        }
+
+        if (CurrentPage is WorkspaceEditorPage editor && editor.UndoCommand.CanExecute(null))
+            editor.UndoCommand.Execute(null);
+    }
+
+    private async Task RedoActiveAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.RedoLatestAsync();
+            return;
+        }
+
+        if (CurrentPage is WorkspaceEditorPage editor && editor.RedoCommand.CanExecute(null))
+            editor.RedoCommand.Execute(null);
     }
 
     private void BeginRenameCurrent()
@@ -2306,15 +2391,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Delete current chat", "Permanently remove the current conversation after confirmation.", string.Empty, RequestDeleteCurrentCommand),
             Command("Pin or unpin chat", "Toggle the chat in the Pinned section.", string.Empty, TogglePinCurrentCommand),
             Command("Copy last response", "Copy the most recent Haven response.", string.Empty, CopyLastResponseCommand),
-            Command("Undo", "Undo the latest editable workspace change.", "Ctrl+Z", UndoCurrentCommand),
-            Command("Redo", "Redo the latest editable workspace change.", "Ctrl+Y", RedoCurrentCommand),
+            Command("Undo", "Undo the latest chat message or editable workspace change.", "Ctrl+Z", UndoCurrentCommand),
+            Command("Redo", "Restore the latest undone chat message or workspace change.", "Ctrl+Y", RedoCurrentCommand),
             Command("Save", "Save the current editable workspace.", "Ctrl+S", SaveCurrentCommand),
             Command("Configure model", "Search models and open advanced generation and safety options.", string.Empty, ConfigureModelCommand),
             Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
-            Command("Automations", "Create and manage reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Automations", "Create, test, and run reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Archive", "Restore archived chats, groups, and projects.", string.Empty, NavigateArchiveCommand),
             Command("Activity Log", "View recent conversations and tool activity across sessions.", string.Empty, NavigateActivityLogCommand),
@@ -2377,10 +2461,6 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             {
                 contextual.Add(new("Branch chat", "branch", () => _ = CurrentChat.BranchCurrentAsync(),
                     Category: "Chat", Description: "Create an independent branch from the current chat."));
-                contextual.Add(new("Undo last message", "chevron-left", () => Invoke(UndoCurrentCommand),
-                    Category: "Chat", Description: "Undo the most recent editable chat change."));
-                contextual.Add(new("Redo last message", "chevron-right", () => Invoke(RedoCurrentCommand),
-                    Category: "Chat", Description: "Restore the most recently undone chat change."));
             }
             if (CurrentSurface == HavenSurface.Study)
             {

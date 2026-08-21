@@ -153,7 +153,6 @@ public sealed partial class PlanPage : UserControl
         WireEventEditor();
         WireAiSection();
         WireCalendarProviders();
-        WireDragDrop();
     }
 
     private void WireViewButtons()
@@ -330,13 +329,6 @@ public sealed partial class PlanPage : UserControl
             _anchorDate = DateTimeOffset.Now;
             await RefreshAsync(CancellationToken.None);
         };
-    }
-
-    private void WireDragDrop()
-    {
-        DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
-        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
     private void PopulateStaticCombos()
@@ -1589,8 +1581,6 @@ public sealed partial class PlanPage : UserControl
         e.Handled = true;
         await MoveTaskToStatusAsync(id, column.Status);
     }
-
-    private async void OnDrop(object? sender, DragEventArgs e) { }
 
     private static async Task StartDragAsync(PointerPressedEventArgs e, string value)
     {

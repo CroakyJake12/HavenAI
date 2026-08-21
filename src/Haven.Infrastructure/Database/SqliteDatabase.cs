@@ -577,6 +577,49 @@ internal static class Migrations
         """),
         new(15, """
             ALTER TABLE reusable_tasks ADD COLUMN graph_json TEXT NULL;
+        """),
+        new(16, """
+            CREATE TABLE conversation_safety_flags(
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                event_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                category TEXT NOT NULL,
+                evidence_hash TEXT NOT NULL,
+                confirmed_at TEXT NOT NULL,
+                PRIMARY KEY(conversation_id,event_id)
+            );
+            CREATE INDEX ix_conversation_safety_flags_confirmed
+                ON conversation_safety_flags(conversation_id,confirmed_at);
+
+            CREATE TABLE conversation_safety_state(
+                conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+                confirmed_count INTEGER NOT NULL DEFAULT 0 CHECK(confirmed_count>=0),
+                state INTEGER NOT NULL DEFAULT 0 CHECK(state IN(0,1)),
+                locked_at TEXT NULL,
+                version INTEGER NOT NULL DEFAULT 0 CHECK(version>=0),
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TRIGGER conversation_safety_block_conversation_update
+            BEFORE UPDATE ON conversations
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_message_insert
+            BEFORE INSERT ON messages
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_message_update
+            BEFORE UPDATE ON messages
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_context_insert
+            BEFORE INSERT ON conversation_context
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_context_update
+            BEFORE UPDATE ON conversation_context
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
         """)
     ];
 }

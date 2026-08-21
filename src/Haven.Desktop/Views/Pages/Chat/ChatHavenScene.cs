@@ -46,6 +46,7 @@ internal sealed class ChatHavenScene : IDisposable
     private readonly ChatAddMenuSurface _addMenu;
     private PopupMenu? _activeMessagePopup;
     private bool _isSending;
+    private bool _safetyLocked;
     private bool _disposed;
 
     public ChatHavenScene()
@@ -129,10 +130,19 @@ internal sealed class ChatHavenScene : IDisposable
         _isSending = sending;
         // Keep the composer editable while a response is streaming so the user can prepare
         // their next message without interrupting the active response.
-        Instruction.SetValue(HavenProperties.Enabled, true);
-        SendButton.SetValue(HavenProperties.Enabled, sending || modelAvailable);
+        Instruction.SetValue(HavenProperties.Enabled, !_safetyLocked);
+        SendButton.SetValue(HavenProperties.Enabled, !_safetyLocked && (sending || modelAvailable));
         SendButton.Accessibility.AccessibleName = sending ? "Stop response" : "Send message";
         SendIcon.Key = sending ? "close" : "arrow-up";
+    }
+
+    public void SetSafetyLocked(bool locked)
+    {
+        _safetyLocked = locked;
+        Instruction.SetValue(HavenProperties.Enabled, !locked);
+        SendButton.SetValue(HavenProperties.Enabled, !locked && (_isSending || !string.IsNullOrWhiteSpace(Instruction.Text)));
+        AddButton.SetValue(HavenProperties.Enabled, !locked);
+        if (locked) HideAddMenu();
     }
 
     public void SetStatus(string? value)
@@ -451,16 +461,16 @@ internal sealed class ChatHavenScene : IDisposable
         IReadOnlyList<PopupMenuItem> actions = role == MessageRole.Assistant
             ?
             [
-                new PopupMenuItem("Re-generate", () => RequestMessageAction(messageId, ChatMessageAction.Regenerate)),
+                new PopupMenuItem("Re-generate", () => RequestMessageAction(messageId, ChatMessageAction.Regenerate), Enabled: !_safetyLocked),
                 new PopupMenuItem("Copy", () => RequestMessageAction(messageId, ChatMessageAction.Copy)),
-                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch)),
+                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch), Enabled: !_safetyLocked),
                 new PopupMenuItem("Delete from memory", () => RequestMessageAction(messageId, ChatMessageAction.Forget), true)
             ]
             :
             [
-                new PopupMenuItem("Edit", () => RequestMessageAction(messageId, ChatMessageAction.Edit)),
+                new PopupMenuItem("Edit", () => RequestMessageAction(messageId, ChatMessageAction.Edit), Enabled: !_safetyLocked),
                 new PopupMenuItem("Copy", () => RequestMessageAction(messageId, ChatMessageAction.Copy)),
-                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch)),
+                new PopupMenuItem("Branch", () => RequestMessageAction(messageId, ChatMessageAction.Branch), Enabled: !_safetyLocked),
                 new PopupMenuItem("Delete", () => RequestMessageAction(messageId, ChatMessageAction.Delete), true)
             ];
         var popup = new PopupMenu(anchor, Root, actions, 190d, role == MessageRole.Assistant ? "Response actions" : "Message actions");

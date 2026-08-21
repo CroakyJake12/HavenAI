@@ -85,6 +85,7 @@ public sealed partial class App : Avalonia.Application
             provider.GetRequiredService<IConversationRepository>(),
             provider.GetRequiredService<ProviderRoutingModelClient>(),
             provider.GetRequiredService<CapabilityPreflightService>(),
+            provider.GetRequiredService<IConversationSafetyService>(),
             provider.GetRequiredService<WorkspaceToolRuntime>(),
             provider.GetRequiredService<ComputerToolRuntime>(),
             provider.GetRequiredService<BrowserToolRuntime>(),
@@ -184,7 +185,29 @@ public sealed partial class App : Avalonia.Application
         }
         catch (Exception ex)
         {
-            await LogExceptionAsync("startup-failed", ex, correlationId);
+            try
+            {
+                await LogExceptionAsync("startup-failed", ex, correlationId);
+            }
+            catch
+            {
+                // The diagnostics sink must not hide the primary startup failure.
+            }
+
+            var userMessage = $"Haven could not finish starting. Diagnostic reference: {correlationId}.";
+            shell.SetStartupError(userMessage);
+            try
+            {
+                _services?.GetService<NotificationService>()?.Show(
+                    "Haven startup problem",
+                    userMessage,
+                    ToastKind.Error,
+                    TimeSpan.FromSeconds(30));
+            }
+            catch
+            {
+                // The persistent shell status remains available if toast delivery fails.
+            }
         }
     }
 

@@ -500,26 +500,26 @@ public sealed class HavenLayoutEngine
     {
         var overflow = tracks.Sum() + gap * Math.Max(0, tracks.Length - 1) - available;
         if (overflow <= .0001d) return;
-        var flexible = Enumerable.Range(0, tracks.Length)
-            .Where(index => specs[index].Unit is HavenLengthUnit.Auto or HavenLengthUnit.Fraction && tracks[index] > 0)
-            .ToArray();
-        while (overflow > .0001d && flexible.Length > 0)
+        foreach (var unit in new[] { HavenLengthUnit.Fraction, HavenLengthUnit.Auto })
         {
-            var share = overflow / flexible.Length;
-            var removed = 0d;
-            foreach (var index in flexible)
+            var flexible = Enumerable.Range(0, tracks.Length).Where(index => specs[index].Unit == unit && tracks[index] > .0001d).ToArray();
+            while (overflow > .0001d && flexible.Length > 0)
             {
-                var amount = Math.Min(share, tracks[index]);
-                tracks[index] -= amount;
-                removed += amount;
+                var share = overflow / flexible.Length;
+                var removed = 0d;
+                foreach (var index in flexible)
+                {
+                    var amount = Math.Min(share, tracks[index]);
+                    tracks[index] -= amount;
+                    removed += amount;
+                }
+                if (removed <= .0001d) break;
+                overflow -= removed;
+                flexible = flexible.Where(index => tracks[index] > .0001d).ToArray();
             }
-            if (removed <= .0001d) break;
-            overflow -= removed;
-            flexible = flexible.Where(index => tracks[index] > .0001d).ToArray();
+            if (overflow <= .0001d) return;
         }
-    }
-
-    private HavenSize ApplySize(HavenElement element, HavenSize desired, HavenSize available)
+    }    private HavenSize ApplySize(HavenElement element, HavenSize desired, HavenSize available)
     {
         var widthProperty = element.GetValue(HavenProperties.Width);
         var heightProperty = element.GetValue(HavenProperties.Height);

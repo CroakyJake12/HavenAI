@@ -15,6 +15,7 @@ internal sealed record SpaceLaunchPlan(
     string Title,
     string? ModelName,
     SpaceThinkingMode ThinkingMode,
+    EffortLevel? EffortOverride,
     string RegisteredContext,
     IReadOnlyList<SpaceFileReference> Files,
     SpaceGeneratedSurface? GeneratedSurface,
@@ -35,6 +36,13 @@ internal static class SpaceLaunchPolicy
             space.Name,
             space.ModelName,
             space.ThinkingMode,
+            space.ThinkingMode switch
+            {
+                SpaceThinkingMode.Fast => EffortLevel.Low,
+                SpaceThinkingMode.Balanced => EffortLevel.Medium,
+                SpaceThinkingMode.Deep => EffortLevel.High,
+                _ => null
+            },
             BuildRegisteredContext(space),
             space.Files.ToArray(),
             space.GeneratedSurface,

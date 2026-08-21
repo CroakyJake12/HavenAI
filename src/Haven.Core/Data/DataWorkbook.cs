@@ -83,12 +83,117 @@ public sealed class DataWorkbook
 
 public sealed class DataSheet
 {
-    public Guid Id { get; set; } = Guid.NewGuid(); public int Order { get; set; } public string Name { get; set; } = "Sheet"; public List<DataCell> Cells { get; set; } = []; public List<DataDrawingObject> Drawings { get; set; } = []; public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
-    public static DataSheet Create(int order, string? name = null) => new() { Order = order, Name = string.IsNullOrWhiteSpace(name) ? $"Sheet {order + 1}" : name.Trim() };
-    public DataCell? GetCell(int row, int column) => Cells.FirstOrDefault(cell => cell.Row == row && cell.Column == column);
-    public DataCell GetOrCreateCell(int row, int column) { if (row < 0 || column < 0) throw new ArgumentOutOfRangeException(row < 0 ? nameof(row) : nameof(column)); var cell = GetCell(row, column); if (cell is not null) return cell; cell = new() { Row = row, Column = column }; Cells.Add(cell); return cell; }
-    public void SetCell(int row, int column, string? value, string? formula = null, DataCellKind? kind = null) { var cell = GetOrCreateCell(row, column); cell.Value = value ?? string.Empty; cell.Formula = formula ?? string.Empty; cell.Kind = !string.IsNullOrWhiteSpace(cell.Formula) ? DataCellKind.Formula : kind ?? DataCell.InferKind(cell.Value); if (string.IsNullOrEmpty(cell.Value) && string.IsNullOrEmpty(cell.Formula) && cell.Metadata.Count == 0) Cells.Remove(cell); }
-    public void Normalize(int order) { Order = order; Name = string.IsNullOrWhiteSpace(Name) ? $"Sheet {order + 1}" : Name.Trim(); Cells ??= []; Drawings ??= []; Metadata ??= new(StringComparer.Ordinal); var unique = new Dictionary<(int, int), DataCell>(); foreach (var cell in Cells.Where(cell => cell is not null && cell.Row >= 0 && cell.Column >= 0)) { cell.Normalize(); unique[(cell.Row, cell.Column)] = cell; } Cells = unique.Values.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToList(); var drawingIds = new HashSet<Guid>(); foreach (var drawing in Drawings.Where(value => value is not null)) { drawing.Normalize(); if (drawing.Id == Guid.Empty || !drawingIds.Add(drawing.Id)) { drawing.Id = Guid.NewGuid(); drawingIds.Add(drawing.Id); } } Drawings = Drawings.Where(value => value is not null).OrderBy(value => value.ZIndex).ToList(); }
+    private Dictionary<long, DataCell>? _cellIndex;
+    private List<DataCell>? _indexedCells;
+    private int _indexedCellCount = -1;
+
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Order { get; set; }
+    public string Name { get; set; } = "Sheet";
+    public List<DataCell> Cells { get; set; } = [];
+    public List<DataDrawingObject> Drawings { get; set; } = [];
+    public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
+
+    public static DataSheet Create(int order, string? name = null) =>
+        new() { Order = order, Name = string.IsNullOrWhiteSpace(name) ? $"Sheet {order + 1}" : name.Trim() };
+
+    public DataCell? GetCell(int row, int column)
+    {
+        if (row < 0 || column < 0) return null;
+        EnsureCellIndex();
+        return _cellIndex!.GetValueOrDefault(CellKey(row, column));
+    }
+
+    public DataCell GetOrCreateCell(int row, int column)
+    {
+        if (row < 0 || column < 0)
+            throw new ArgumentOutOfRangeException(row < 0 ? nameof(row) : nameof(column));
+        EnsureCellIndex();
+        var key = CellKey(row, column);
+        if (_cellIndex!.TryGetValue(key, out var existing)) return existing;
+        var cell = new DataCell { Row = row, Column = column };
+        Cells.Add(cell);
+        _cellIndex[key] = cell;
+        _indexedCellCount = Cells.Count;
+        return cell;
+    }
+
+    public void SetCell(int row, int column, string? value, string? formula = null, DataCellKind? kind = null)
+    {
+        var cell = GetOrCreateCell(row, column);
+        cell.Value = value ?? string.Empty;
+        cell.Formula = formula ?? string.Empty;
+        cell.Kind = !string.IsNullOrWhiteSpace(cell.Formula)
+            ? DataCellKind.Formula
+            : kind ?? DataCell.InferKind(cell.Value);
+        if (string.IsNullOrEmpty(cell.Value)
+            && string.IsNullOrEmpty(cell.Formula)
+            && cell.Metadata.Count == 0)
+        {
+            Cells.Remove(cell);
+            _cellIndex?.Remove(CellKey(row, column));
+            _indexedCellCount = Cells.Count;
+        }
+    }
+
+    public void Normalize(int order)
+    {
+        Order = order;
+        Name = string.IsNullOrWhiteSpace(Name) ? $"Sheet {order + 1}" : Name.Trim();
+        Cells ??= [];
+        Drawings ??= [];
+        Metadata ??= new(StringComparer.Ordinal);
+        var unique = new Dictionary<(int, int), DataCell>();
+        foreach (var cell in Cells.Where(cell => cell is not null && cell.Row >= 0 && cell.Column >= 0))
+        {
+            cell.Normalize();
+            unique[(cell.Row, cell.Column)] = cell;
+        }
+        Cells = unique.Values.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToList();
+        InvalidateCellIndex();
+        EnsureCellIndex();
+
+        var drawingIds = new HashSet<Guid>();
+        foreach (var drawing in Drawings.Where(value => value is not null))
+        {
+            drawing.Normalize();
+            if (drawing.Id == Guid.Empty || !drawingIds.Add(drawing.Id))
+            {
+                drawing.Id = Guid.NewGuid();
+                drawingIds.Add(drawing.Id);
+            }
+        }
+        Drawings = Drawings.Where(value => value is not null).OrderBy(value => value.ZIndex).ToList();
+    }
+
+    private void EnsureCellIndex()
+    {
+        Cells ??= [];
+        if (_cellIndex is not null
+            && ReferenceEquals(_indexedCells, Cells)
+            && _indexedCellCount == Cells.Count)
+            return;
+
+        var index = new Dictionary<long, DataCell>(Cells.Count);
+        foreach (var cell in Cells)
+        {
+            if (cell is null || cell.Row < 0 || cell.Column < 0) continue;
+            index[CellKey(cell.Row, cell.Column)] = cell;
+        }
+        _cellIndex = index;
+        _indexedCells = Cells;
+        _indexedCellCount = Cells.Count;
+    }
+
+    private void InvalidateCellIndex()
+    {
+        _cellIndex = null;
+        _indexedCells = null;
+        _indexedCellCount = -1;
+    }
+
+    private static long CellKey(int row, int column) =>
+        ((long)(uint)row << 32) | (uint)column;
 }
 
 public sealed class DataCell

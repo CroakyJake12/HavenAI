@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
+using Haven.Desktop.HavenUI.Creative;
 using Haven.Desktop.HavenUI.GenerativeUi;
 using Haven.UI;
 using Haven.UI.Components;
@@ -16,7 +17,7 @@ namespace Haven.Desktop.Tests;
 public sealed class HavenNativeWhiteboardTests
 {
     [AvaloniaFact]
-    public async Task Canvas_is_native_persisted_editable_and_restores_without_placeholder()
+    public async Task Canvas_is_native_persisted_editable_and_restores_on_the_canonical_canvas_engine()
     {
         var store = new GenUiInstanceStore();
         var local = new GenUiLocalActionRegistry();
@@ -53,7 +54,7 @@ public sealed class HavenNativeWhiteboardTests
             window.Show();
             window.UpdateLayout();
 
-            var canvas = Assert.Single(surface.Root.DescendantsAndSelf().OfType<HavenWhiteboardCanvas>());
+            var canvas = Assert.Single(surface.Root.DescendantsAndSelf().OfType<UnifiedCanvasSurface>());
             Assert.True(canvas.Bounds.Width > 400);
             Assert.True(canvas.Bounds.Height >= 280);
             Assert.DoesNotContain(surface.Root.DescendantsAndSelf().OfType<HavenText>(),
@@ -82,34 +83,42 @@ public sealed class HavenNativeWhiteboardTests
 
             const string stateKey = "canvas.board.canvas";
             var state = State(store, instanceId, stateKey);
-            Assert.Single(state.GetProperty("Elements").EnumerateArray());
+            Assert.Equal(3, state.GetProperty("version").GetInt32());
+            Assert.Single(Board(state).GetProperty("strokes").EnumerateArray());
             Assert.True(new HavenSceneRenderer().Render(surface.Root).OfType<HavenLineCommand>().Any());
 
-            var centre = new HavenPoint(
-                canvas.Bounds.X + canvas.Bounds.Width / 2,
-                canvas.Bounds.Y + canvas.Bounds.Height / 2);
+            var centre = new HavenPoint(canvas.Bounds.X + canvas.Bounds.Width / 2, canvas.Bounds.Y + canvas.Bounds.Height / 2);
             Assert.True(input.Scroll(centre, 0, -48));
             await Dispatcher.UIThread.InvokeAsync(() => { });
             state = State(store, instanceId, stateKey);
-            Assert.True(state.GetProperty("Zoom").GetDouble() > 1);
+            Assert.True(Board(state).GetProperty("zoom").GetDouble() > 1);
 
             Click(surface.Root, Button(surface.Root, "Undo"));
             await Dispatcher.UIThread.InvokeAsync(() => { });
-            Assert.Empty(State(store, instanceId, stateKey).GetProperty("Elements").EnumerateArray());
+            Assert.Empty(Board(State(store, instanceId, stateKey)).GetProperty("strokes").EnumerateArray());
 
             Click(surface.Root, Button(surface.Root, "Redo"));
-            Click(surface.Root, Button(surface.Root, "Select"));
+            Click(surface.Root, Button(surface.Root, "Fit Canvas"));
+            Click(surface.Root, Button(surface.Root, "Rectangle"));
+            var objectStart = new HavenPoint(canvas.Bounds.X + 240, canvas.Bounds.Y + 200);
+            var objectEnd = new HavenPoint(canvas.Bounds.X + 360, canvas.Bounds.Y + 280);
+            input.PointerPressed(objectStart);
+            input.PointerMoved(objectEnd);
+            Assert.True(input.PointerReleased(objectEnd));
             await Dispatcher.UIThread.InvokeAsync(() => { });
 
-            var zoom = State(store, instanceId, stateKey).GetProperty("Zoom").GetDouble();
-            var selectStart = new HavenPoint(canvas.Bounds.X + 80 * zoom, canvas.Bounds.Y + 80 * zoom);
-            input.PointerPressed(selectStart);
-            input.PointerMoved(new HavenPoint(selectStart.X + 32, selectStart.Y + 20));
-            Assert.True(input.PointerReleased(new HavenPoint(selectStart.X + 32, selectStart.Y + 20)));
+            state = State(store, instanceId, stateKey);
+            var objects = Board(state).GetProperty("objects");
+            Assert.Single(objects.EnumerateArray());
+            var originalX = objects[0].GetProperty("x").GetDouble();
+
+            var selectPoint = new HavenPoint(canvas.Bounds.X + 280, canvas.Bounds.Y + 235);
+            input.PointerPressed(selectPoint);
+            input.PointerMoved(new HavenPoint(selectPoint.X + 32, selectPoint.Y + 20));
+            Assert.True(input.PointerReleased(new HavenPoint(selectPoint.X + 32, selectPoint.Y + 20)));
             await Dispatcher.UIThread.InvokeAsync(() => { });
             state = State(store, instanceId, stateKey);
-            var movedFirstPoint = state.GetProperty("Elements")[0].GetProperty("Points")[0];
-            Assert.True(movedFirstPoint.GetProperty("X").GetDouble() > 80);
+            Assert.True(Board(state).GetProperty("objects")[0].GetProperty("x").GetDouble() > originalX);
 
             var latest = store.TryGet(instanceId);
             Assert.NotNull(latest);
@@ -121,8 +130,11 @@ public sealed class HavenNativeWhiteboardTests
                 restored.PresentExisting(latest!);
                 restoredWindow.Show();
                 restoredWindow.UpdateLayout();
-                Assert.Single(restored.Root.DescendantsAndSelf().OfType<HavenWhiteboardCanvas>());
+                Assert.Single(restored.Root.DescendantsAndSelf().OfType<UnifiedCanvasSurface>());
                 Assert.True(new HavenSceneRenderer().Render(restored.Root).OfType<HavenLineCommand>().Any());
+                var restoredState = State(store, instanceId, stateKey);
+                Assert.Single(Board(restoredState).GetProperty("strokes").EnumerateArray());
+                Assert.Single(Board(restoredState).GetProperty("objects").EnumerateArray());
             }
             finally
             {
@@ -144,6 +156,8 @@ public sealed class HavenNativeWhiteboardTests
         Assert.True(document!.State.TryGetValue(key, out var state));
         return state;
     }
+
+    private static JsonElement Board(JsonElement state) => state.GetProperty("board");
 
     private static HavenButton Button(HavenElement root, string content) =>
         Assert.Single(root.DescendantsAndSelf().OfType<HavenButton>(), button => button.Content == content);

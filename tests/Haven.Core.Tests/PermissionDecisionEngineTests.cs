@@ -27,6 +27,15 @@ public sealed class PermissionDecisionEngineTests
     }
 
     [Fact]
+    public void AlwaysAllowStillRequiresScopedGrantForConsequentialAction()
+    {
+        var engine = new PermissionDecisionEngine();
+        engine.SetPolicy(HavenPermissionPolicy.AlwaysAllow);
+        Assert.Equal(PermissionDecisionKind.Ask,
+            engine.Evaluate("tasks.automation.create", CapabilityRiskClass.Consequential, true, "Create a scheduled action").Kind);
+    }
+
+    [Fact]
     public void ScopedGrantDoesNotGrantAnotherCapability()
     {
         var engine = new PermissionDecisionEngine();

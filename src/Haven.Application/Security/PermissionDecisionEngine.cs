@@ -62,7 +62,7 @@ public sealed class PermissionDecisionEngine : IPermissionDecisionEngine
             {
                 HavenPermissionPolicy.AlwaysAsk => true,
                 HavenPermissionPolicy.AskWithHighRisk => risk >= CapabilityRiskClass.Consequential,
-                HavenPermissionPolicy.AlwaysAllow => false,
+                HavenPermissionPolicy.AlwaysAllow => risk >= CapabilityRiskClass.Consequential,
                 _ => true
             };
             return ask

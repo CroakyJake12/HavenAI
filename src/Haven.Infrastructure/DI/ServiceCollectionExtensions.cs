@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHavenInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<PrivacyPreferenceStore>();
+        services.AddSingleton<IPrivacyPreferenceStore>(provider => provider.GetRequiredService<PrivacyPreferenceStore>());
         services.AddSingleton<ProductionDiagnostics>();
         services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
         services.AddSingleton<INotesDocumentValidator, NotesDocumentValidator>();
@@ -61,6 +63,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
+        services.AddSingleton<ConversationSafetyService>();
+        services.AddSingleton<IConversationSafetyService>(provider => provider.GetRequiredService<ConversationSafetyService>());
         services.AddSingleton<ITextEmbeddingService, LocalHashEmbeddingService>();
         services.AddSingleton<RetrievalIndexService>();
         services.AddSingleton<IRetrievalIndexService>(provider => provider.GetRequiredService<RetrievalIndexService>());
@@ -169,7 +173,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelRouter, ModelRouter>();
         services.AddSingleton<ProviderRoutingModelClient>(provider => new ProviderRoutingModelClient(
             provider.GetRequiredService<ILocalOllamaClient>(),
-            provider.GetRequiredService<IModelProviderRegistry>()));
+            provider.GetRequiredService<IModelProviderRegistry>(),
+            provider.GetRequiredService<IPrivacyPreferenceStore>()));
         services.AddSingleton<ResilientProviderRoutingModelClient>();
         services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ResilientProviderRoutingModelClient>());
         services.AddSingleton<INotesAiService>(provider => new NotesAiService(
@@ -193,6 +198,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModeManifestValidator>();
         services.AddSingleton<ModeCreationService>();
         services.AddSingleton<FilesystemActionService>();
+        services.AddSingleton<Haven.Application.Automations.BuiltInAutomationActionNodeExecutor>();
         services.AddSingleton<SettingsEncryptionService>();
         services.AddSingleton<SettingsExportService>();
         services.AddSingleton<KeybindingService>();

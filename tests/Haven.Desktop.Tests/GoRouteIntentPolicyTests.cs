@@ -6,6 +6,8 @@ public sealed class GoRouteIntentPolicyTests
 {
     public static TheoryData<string, GoRouteDestination, string?> ClearRoutes => new()
     {
+        { "manage spaces", GoRouteDestination.App, "spaces" },
+        { "open my spaces", GoRouteDestination.App, "spaces" },
         { "make me a presentation", GoRouteDestination.App, "present" },
         { "build a slide deck for results day", GoRouteDestination.App, "present" },
         { "write a letter to my teacher", GoRouteDestination.App, "write" },

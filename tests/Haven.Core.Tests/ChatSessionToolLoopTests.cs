@@ -35,7 +35,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         var ollama = new FakeOllama(model);
         var conversations = new FakeConversations(recordMessages: true);
         var service = new ChatSessionService(
-            conversations, ollama, new CapabilityPreflightService(),
+            conversations, ollama, new CapabilityPreflightService(), new PermitSafety(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()));
         var now = DateTimeOffset.UtcNow;
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Studio, ConversationKind.StudioChat, "Test", null, null, false, false, now, now);
@@ -70,7 +70,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         var ollama = new FakeOllama(model);
         var conversations = new FakeConversations();
         var service = new ChatSessionService(
-            conversations, ollama, new CapabilityPreflightService(),
+            conversations, ollama, new CapabilityPreflightService(), new PermitSafety(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()));
         var now = DateTimeOffset.UtcNow;
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Test", null, null, false, true, now, now);
@@ -95,7 +95,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         var ollama = new FakeOllama(model);
         var computer = new TestComputerTools();
         var service = new ChatSessionService(
-            new FakeConversations(), ollama, new CapabilityPreflightService(),
+            new FakeConversations(), ollama, new CapabilityPreflightService(), new PermitSafety(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(computer));
         var now = DateTimeOffset.UtcNow;
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Test", null, null, false, true, now, now);
@@ -120,7 +120,7 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     {
         var model = new ModelDescriptor("legacy-model", 1, "test", "test", "test", new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.ComputerUse }, DateTimeOffset.UtcNow);
         var service = new ChatSessionService(
-            new FakeConversations(), new UnsupportedToolsOllama(model), new CapabilityPreflightService(),
+            new FakeConversations(), new UnsupportedToolsOllama(model), new CapabilityPreflightService(), new PermitSafety(),
             new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()));
         var now = DateTimeOffset.UtcNow;
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Test", null, null, false, true, now, now);
@@ -139,6 +139,15 @@ public sealed class ChatSessionToolLoopTests : IDisposable
     /// <summary>
     /// Performs the dispose step owned by this component.
     /// </summary>
+    private sealed class PermitSafety : IConversationSafetyService
+    {
+        public Task<ConversationSafetySnapshot> GetSnapshotAsync(Guid conversationId, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConversationSafetySnapshot(conversationId, 0, ConversationSafetyState.Active, null, 0));
+        public Task<ConversationSafetyFlagResult> RecordConfirmedFlagAsync(Guid conversationId, ConfirmedSafetyFlag flag, CancellationToken cancellationToken) =>
+            Task.FromResult(new ConversationSafetyFlagResult(true, false, new ConversationSafetySnapshot(conversationId, 1, ConversationSafetyState.Active, null, 1)));
+        public Task EnsureMayActAsync(Guid conversationId, string operation, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);

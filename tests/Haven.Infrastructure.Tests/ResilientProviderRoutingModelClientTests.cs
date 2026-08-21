@@ -100,14 +100,44 @@ public sealed class ResilientProviderRoutingModelClientTests
     /// <summary>
     /// Creates client with the invariants required by its callers.
     /// </summary>
+    [Fact]
+    public async Task LocalOnlyModeHidesAndRejectsCloudProvider()
+    {
+        var local = FakeProvider.Failing("ollama", "local-model", isLocal: true);
+        var cloud = FakeProvider.Completing("second", "model-b", "cloud");
+        var registry = new ModelProviderRegistry([local, cloud]);
+        var client = new ProviderRoutingModelClient(new FakeLocalClient(), registry, new TestPrivacy(localOnly: true));
+
+        Assert.False(await client.IsAvailableAsync(CancellationToken.None));
+        var models = await client.GetModelsAsync(CancellationToken.None);
+        Assert.Single(models);
+        Assert.Equal("local-model", models[0].Name);
+        Assert.Equal(0, cloud.ModelDiscoveryCalls);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.CompleteAsync(
+            new OllamaChatRequest("second:model-b", [new OllamaMessage("user", "hello")], EffortLevel.Medium),
+            CancellationToken.None));
+        Assert.Equal(0, cloud.CompletionCalls);
+    }
+
+    [Fact]
+    public async Task CloudProviderCanReportAvailableWhenLocalOnlyModeIsOff()
+    {
+        var cloud = FakeProvider.Completing("second", "model-b", "cloud");
+        var registry = new ModelProviderRegistry([cloud]);
+        var client = new ProviderRoutingModelClient(new FakeLocalClient(), registry, new TestPrivacy());
+
+        Assert.True(await client.IsAvailableAsync(CancellationToken.None));
+    }
+
     private static ResilientProviderRoutingModelClient CreateClient(
         IReadOnlyList<IModelProvider> providers,
         IReadOnlyDictionary<string, ProviderConfiguration> configurations)
     {
         var registry = new ModelProviderRegistry(providers);
         var localClient = new FakeLocalClient();
-        var primary = new ProviderRoutingModelClient(localClient, registry);
-        return new ResilientProviderRoutingModelClient(primary, registry, new FakeConfigurationStore(configurations));
+        var primary = new ProviderRoutingModelClient(localClient, registry, new TestPrivacy());
+        var privacy = new TestPrivacy();
+        return new ResilientProviderRoutingModelClient(primary, registry, new FakeConfigurationStore(configurations), privacy);
     }
 
     /// <summary>
@@ -132,6 +162,16 @@ public sealed class ResilientProviderRoutingModelClientTests
     /// <summary>
     /// Represents fake configuration store and keeps its related state and behavior together.
     /// </summary>
+    private sealed class TestPrivacy(bool localOnly = false) : IPrivacyPreferenceStore
+    {
+        public PrivacyPreferences Current { get; private set; } = PrivacyPreferences.Default with { LocalOnlyMode = localOnly };
+        public Task UpdateAsync(PrivacyPreferences preferences, CancellationToken cancellationToken)
+        {
+            Current = preferences;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeConfigurationStore(IReadOnlyDictionary<string, ProviderConfiguration> values) : IProviderConfigurationStore
     {
         /// <summary>
@@ -242,6 +282,7 @@ public sealed class ResilientProviderRoutingModelClientTests
         /// Gets or updates stream calls, the bindable or domain state represented by this property.
         /// </summary>
         public int StreamCalls { get; private set; }
+        public int ModelDiscoveryCalls { get; private set; }
         /// <summary>
         /// Gets or updates id, the bindable or domain state represented by this property.
         /// </summary>
@@ -274,6 +315,7 @@ public sealed class ResilientProviderRoutingModelClientTests
         /// </summary>
         public Task<IReadOnlyList<ProviderModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
         {
+            ModelDiscoveryCalls++;
             var capabilities = new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Streaming };
             var model = new ModelDescriptor(_model, 0, Id, string.Empty, string.Empty, capabilities, DateTimeOffset.UtcNow);
             return Task.FromResult<IReadOnlyList<ProviderModelDescriptor>>([new ProviderModelDescriptor(Id, IsLocal, model, 32_000, _model)]);

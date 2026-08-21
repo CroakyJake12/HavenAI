@@ -10,7 +10,7 @@ namespace Haven.Desktop.Views.Pages.Write;
 internal enum WordWriteRibbonTab { Home, Insert, Layout, Review }
 
 /// <summary>Word-class Haven.UI surface for Write. Platform code only hosts this scene.</summary>
-internal sealed class WordWriteHavenScene : IDisposable
+internal sealed partial class WordWriteHavenScene : IDisposable
 {
     private bool _suppress;
     private bool _disposed;
@@ -21,21 +21,85 @@ internal sealed class WordWriteHavenScene : IDisposable
 
     public WordWriteHavenScene()
     {
-        Root = new Page { Name = "Write.Word.Root", Layout = HavenLayout.Grid, Columns = "1fr", Rows = "Auto Auto Auto 1fr Auto" }; Root.SetValue(HavenProperties.Background, "Surface"); Root.SetValue(HavenProperties.Overflow, HavenOverflow.Clip);
-        Header = new Container { Name = "Write.Word.Header", Layout = HavenLayout.Grid, Columns = "1fr Auto", Rows = "Auto" }; Header.SetValue(HavenProperties.Padding, HavenThickness.Parse("10px 18px 6px 18px")); Header.SetValue(HavenProperties.Gap, HavenLength.Px(10)); TitleInput = Field("Write.Word.Title", "Document title", "Untitled document"); TitleInput.SetValue(HavenProperties.FontSize, 20d); TitleInput.SetValue(HavenProperties.FontWeight, 700); Header.Add(TitleInput); DocumentPositionText = Caption("Local document"); DocumentPositionText.SetValue(HavenProperties.Column, 1); DocumentPositionText.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center); Header.Add(DocumentPositionText); Root.Add(Header);
-        QuickBar = Bar("Write.Word.Quick", 1); PreviousButton = Btn("Write.Previous", "Previous"); NextButton = Btn("Write.Next", "Next"); NewButton = Btn("Write.New", "New"); ImportButton = Btn("Write.Import", "Import"); ExportButton = Btn("Write.Export", "Export"); SaveButton = Btn("Write.Save", "Save", ButtonVariant.Primary); UndoButton = Btn("Write.Undo", "Undo"); RedoButton = Btn("Write.Redo", "Redo"); foreach (var value in new[] { PreviousButton, NextButton, NewButton, ImportButton, ExportButton, SaveButton, UndoButton, RedoButton }) QuickBar.Add(value); Root.Add(QuickBar);
-        Ribbon = new Container { Name = "Write.Word.Ribbon", Layout = HavenLayout.Vertical }; Ribbon.SetValue(HavenProperties.Row, 2); Ribbon.SetValue(HavenProperties.Background, "SurfaceRaised"); Ribbon.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 18px 9px 18px")); Ribbon.SetValue(HavenProperties.Gap, HavenLength.Px(5)); RibbonTabs = Bar("Write.Word.RibbonTabs", 0); HomeTab = Btn("Write.Tab.Home", "Home"); InsertTab = Btn("Write.Tab.Insert", "Insert"); LayoutTab = Btn("Write.Tab.Layout", "Layout"); ReviewTab = Btn("Write.Tab.Review", "Review"); foreach (var value in new[] { HomeTab, InsertTab, LayoutTab, ReviewTab }) RibbonTabs.Add(value); Ribbon.Add(RibbonTabs); RibbonContent = new Container { Name = "Write.Word.RibbonContent", Layout = HavenLayout.Horizontal }; RibbonContent.SetValue(HavenProperties.Gap, HavenLength.Px(7)); RibbonContent.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); Ribbon.Add(RibbonContent); Root.Add(Ribbon);
-        Scroller = new Container { Name = "Write.Word.Scroller", Layout = HavenLayout.Vertical }; Scroller.SetValue(HavenProperties.Row, 3); Scroller.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); Scroller.SetValue(HavenProperties.Padding, HavenThickness.Parse("22px 32px 40px 32px")); DocumentHost = new Container { Name = "Write.Word.Document", Layout = HavenLayout.Vertical }; DocumentHost.SetValue(HavenProperties.HorizontalAlignment, HavenHorizontalAlignment.Center); DocumentHost.SetValue(HavenProperties.Background, "SurfaceRaised"); DocumentHost.SetValue(HavenProperties.BorderColor, "Border"); DocumentHost.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1)); DocumentHost.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(8))); DocumentHost.SetValue(HavenProperties.Gap, HavenLength.Px(11)); Scroller.Add(DocumentHost); Root.Add(Scroller);
-        StatusText = Caption("Opening local documents…"); StatusText.Name = "Write.Status"; StatusText.SetValue(HavenProperties.Row, 4); StatusText.SetValue(HavenProperties.Padding, HavenThickness.Parse("8px 18px")); Root.Add(StatusText);
-        TitleInput.Invalidated += OnTitleInvalidated; PreviousButton.Invoked += (_, _) => PreviousRequested?.Invoke(this, EventArgs.Empty); NextButton.Invoked += (_, _) => NextRequested?.Invoke(this, EventArgs.Empty); NewButton.Invoked += (_, _) => NewRequested?.Invoke(this, EventArgs.Empty); ImportButton.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty); ExportButton.Invoked += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty); SaveButton.Invoked += (_, _) => SaveRequested?.Invoke(this, EventArgs.Empty); UndoButton.Invoked += (_, _) => Apply(editor => editor.Undo()); RedoButton.Invoked += (_, _) => Apply(editor => editor.Redo()); HomeTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Home); InsertTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Insert); LayoutTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Layout); ReviewTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Review);
+        Root = new Page { Name = "Write.Word.Root", Layout = HavenLayout.Grid, Columns = "1fr", Rows = "Auto 1fr Auto" };
+        Root.SetValue(HavenProperties.Background, "Surface");
+        Root.SetValue(HavenProperties.Overflow, HavenOverflow.Clip);
+
+        Chrome = new Container { Name = "Write.Word.Chrome", Layout = HavenLayout.Vertical };
+        Chrome.SetValue(HavenProperties.Background, "SurfaceRaised");
+        Chrome.SetValue(HavenProperties.Gap, HavenLength.Px(0));
+
+        Header = new Container { Name = "Write.Word.Header", Layout = HavenLayout.Grid, Columns = "Auto 1fr Auto", Rows = "Auto" };
+        Header.SetValue(HavenProperties.Background, "SurfaceRaised");
+        Header.SetValue(HavenProperties.Padding, HavenThickness.Parse("7px 16px 5px 16px"));
+        Header.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        var product = new HavenText("Write") { Name = "Write.Word.Product", Level = TextLevel.Paragraph };
+        product.SetValue(HavenProperties.Foreground, "ButtonTextPrimary");
+        product.SetValue(HavenProperties.FontWeight, 700);
+        product.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
+        Header.Add(product);
+        TitleInput = Field("Write.Word.Title", "Document title", "Untitled document");
+        TitleInput.SetValue(HavenProperties.Column, 1);
+        TitleInput.SetValue(HavenProperties.FontSize, 15d);
+        TitleInput.SetValue(HavenProperties.FontWeight, 600);
+        TitleInput.SetValue(HavenProperties.MinHeight, HavenLength.Px(32));
+        TitleInput.SetValue(HavenProperties.Background, "Transparent");
+        TitleInput.SetValue(HavenProperties.Foreground, "ButtonTextPrimary");
+        TitleInput.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(4)));
+        Header.Add(TitleInput);
+        DocumentPositionText = Caption("Local document");
+        DocumentPositionText.SetValue(HavenProperties.Column, 2);
+        DocumentPositionText.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
+        Header.Add(DocumentPositionText);
+        Chrome.Add(Header);
+
+        QuickBar = Bar("Write.Word.Quick", 0);
+        QuickBar.SetValue(HavenProperties.Background, "SurfaceRaised");
+        QuickBar.SetValue(HavenProperties.Padding, HavenThickness.Parse("2px 16px 5px 16px"));
+        PreviousButton = Btn("Write.Previous", "Previous"); NextButton = Btn("Write.Next", "Next");
+        NewButton = Btn("Write.New", "New"); ImportButton = Btn("Write.Import", "Open"); ExportButton = Btn("Write.Export", "Export");
+        SaveButton = Btn("Write.Save", "Save", ButtonVariant.Primary); UndoButton = Btn("Write.Undo", "Undo"); RedoButton = Btn("Write.Redo", "Redo");
+        foreach (var value in new[] { SaveButton, UndoButton, RedoButton, NewButton, ImportButton, ExportButton, PreviousButton, NextButton }) QuickBar.Add(value);
+        Chrome.Add(QuickBar);
+        Ribbon = new Container { Name = "Write.Word.Ribbon", Layout = HavenLayout.Vertical }; Ribbon.SetValue(HavenProperties.Background, "SurfaceRaised"); Ribbon.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 18px 9px 18px")); Ribbon.SetValue(HavenProperties.Gap, HavenLength.Px(5)); RibbonTabs = Bar("Write.Word.RibbonTabs", 0); HomeTab = Btn("Write.Tab.Home", "Home"); InsertTab = Btn("Write.Tab.Insert", "Insert"); LayoutTab = Btn("Write.Tab.Layout", "Layout"); ReviewTab = Btn("Write.Tab.Review", "Review"); foreach (var value in new[] { HomeTab, InsertTab, LayoutTab, ReviewTab }) RibbonTabs.Add(value); Ribbon.Add(RibbonTabs); RibbonContent = new Container { Name = "Write.Word.RibbonContent", Layout = HavenLayout.Horizontal }; RibbonContent.SetValue(HavenProperties.Gap, HavenLength.Px(7)); RibbonContent.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); Ribbon.Add(RibbonContent); Chrome.Add(Ribbon);
+        Ruler = CreateRuler();
+        Chrome.Add(Ruler);
+        Root.Add(Chrome);
+
+        Scroller = new Container { Name = "Write.Word.Scroller", Layout = HavenLayout.Vertical };
+        Scroller.SetValue(HavenProperties.Row, 1);
+        Scroller.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        Scroller.SetValue(HavenProperties.Padding, HavenThickness.Parse("18px 18px 34px 18px"));
+        Scroller.SetValue(HavenProperties.Background, "Surface");
+        DocumentHost = new Container { Name = "Write.Word.Document", Layout = HavenLayout.Vertical };
+        DocumentHost.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        DocumentHost.SetValue(HavenProperties.Background, "Transparent");
+        DocumentHost.SetValue(HavenProperties.Gap, HavenLength.Px(0));
+        DocumentSurface = new WriteDocumentSurface();
+        DocumentSurface.SelectionChanged += OnDocumentSelectionChanged;
+        DocumentHost.Add(DocumentSurface);
+        Scroller.Add(DocumentHost);
+        Root.Add(Scroller);
+
+        StatusBar = new Container { Name = "Write.StatusBar", Layout = HavenLayout.Grid, Columns = "1fr Auto Auto Auto", Rows = "Auto" };
+        StatusBar.SetValue(HavenProperties.Row, 2);
+        StatusBar.SetValue(HavenProperties.Background, "SurfaceRaised");
+        StatusBar.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 16px"));
+        StatusBar.SetValue(HavenProperties.Gap, HavenLength.Px(5));
+        StatusText = Caption("Opening local documents…"); StatusText.Name = "Write.Status"; StatusBar.Add(StatusText);
+        StatusZoomOutButton = Btn("Write.Status.ZoomOut", "−"); StatusZoomOutButton.Accessibility.AccessibleName = "Zoom out"; StatusZoomOutButton.SetValue(HavenProperties.Column, 1);
+        ZoomStatusText = Caption("100%"); ZoomStatusText.Name = "Write.Status.Zoom"; ZoomStatusText.SetValue(HavenProperties.Column, 2); ZoomStatusText.SetValue(HavenProperties.VerticalAlignment, HavenVerticalAlignment.Center);
+        StatusZoomInButton = Btn("Write.Status.ZoomIn", "+"); StatusZoomInButton.Accessibility.AccessibleName = "Zoom in"; StatusZoomInButton.SetValue(HavenProperties.Column, 3);
+        StatusBar.Add(StatusZoomOutButton); StatusBar.Add(ZoomStatusText); StatusBar.Add(StatusZoomInButton); Root.Add(StatusBar);
+        TitleInput.Invalidated += OnTitleInvalidated; PreviousButton.Invoked += (_, _) => PreviousRequested?.Invoke(this, EventArgs.Empty); NextButton.Invoked += (_, _) => NextRequested?.Invoke(this, EventArgs.Empty); NewButton.Invoked += (_, _) => NewRequested?.Invoke(this, EventArgs.Empty); ImportButton.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty); ExportButton.Invoked += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty); SaveButton.Invoked += (_, _) => SaveRequested?.Invoke(this, EventArgs.Empty); UndoButton.Invoked += (_, _) => Apply(editor => editor.Undo()); RedoButton.Invoked += (_, _) => Apply(editor => editor.Redo()); HomeTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Home); InsertTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Insert); LayoutTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Layout); ReviewTab.Invoked += (_, _) => SetTab(WordWriteRibbonTab.Review); StatusZoomOutButton.Invoked += (_, _) => SetDocumentZoom(DocumentSurface.Zoom - .1); StatusZoomInButton.Invoked += (_, _) => SetDocumentZoom(DocumentSurface.Zoom + .1);
     }
 
     public event EventHandler? PreviousRequested; public event EventHandler? NextRequested; public event EventHandler? NewRequested; public event EventHandler? ImportRequested; public event EventHandler? ExportRequested; public event EventHandler? SaveRequested; public event EventHandler? ImageRequested; public event EventHandler? DocumentChanged;
     public event Action<string>? TitleChanged { add { } remove { } }
     public event Action<WriteBlockTextChangedEventArgs>? BlockTextChanged { add { } remove { } }
-    public Page Root { get; } public Container Header { get; } public Container QuickBar { get; } public Container Ribbon { get; } public Container RibbonTabs { get; } public Container RibbonContent { get; } public Container Scroller { get; } public Container DocumentHost { get; }
-    public Input TitleInput { get; } public HavenText DocumentPositionText { get; } public HavenText StatusText { get; }
-    public HavenButton PreviousButton { get; } public HavenButton NextButton { get; } public HavenButton NewButton { get; } public HavenButton ImportButton { get; } public HavenButton ExportButton { get; } public HavenButton SaveButton { get; } public HavenButton UndoButton { get; } public HavenButton RedoButton { get; } public HavenButton HomeTab { get; } public HavenButton InsertTab { get; } public HavenButton LayoutTab { get; } public HavenButton ReviewTab { get; }
+    public Page Root { get; } public Container Chrome { get; } public Container Header { get; } public Container QuickBar { get; } public Container Ribbon { get; } public Container RibbonTabs { get; } public Container RibbonContent { get; } public Container Ruler { get; } public Container Scroller { get; } public Container DocumentHost { get; } public WriteDocumentSurface DocumentSurface { get; } public Container StatusBar { get; }
+    public Input TitleInput { get; } public HavenText DocumentPositionText { get; } public HavenText StatusText { get; } public HavenText ZoomStatusText { get; }
+    public HavenButton PreviousButton { get; } public HavenButton NextButton { get; } public HavenButton NewButton { get; } public HavenButton ImportButton { get; } public HavenButton ExportButton { get; } public HavenButton SaveButton { get; } public HavenButton UndoButton { get; } public HavenButton RedoButton { get; } public HavenButton HomeTab { get; } public HavenButton InsertTab { get; } public HavenButton LayoutTab { get; } public HavenButton ReviewTab { get; } public HavenButton StatusZoomOutButton { get; } public HavenButton StatusZoomInButton { get; }
     public IReadOnlyDictionary<Guid, Input> BlockInputs => _blockInputs; public NotesDocument? Document => _editor?.Document;
 
     public void SetDocument(NotesDocument document, int index, int count) { if (_editor is not null) _editor.Changed -= OnEditorChanged; _editor = new WriteDocumentEditor(document); _editor.Changed += OnEditorChanged; _suppress = true; try { TitleInput.Text = document.Title; } finally { _suppress = false; } DocumentPositionText.Content = $"{index + 1} of {Math.Max(1, count)} · v{document.Version}"; RebuildAll(); }
@@ -45,11 +109,11 @@ internal sealed class WordWriteHavenScene : IDisposable
     public void SetBusy(bool busy) { foreach (var button in Root.DescendantsAndSelf().OfType<HavenButton>()) button.SetValue(HavenProperties.Enabled, !busy); TitleInput.SetValue(HavenProperties.Enabled, !busy); if (!busy) RefreshCommands(); }
 
     private void OnTitleInvalidated(object? sender, EventArgs e) { if (_suppress || _editor is null || TitleInput.Text == _editor.Document.Title) return; _editor.SetTitle(TitleInput.Text); }
-    private void OnEditorChanged(object? sender, EventArgs e) { if (_editor is null) return; _suppress = true; try { if (TitleInput.Text != _editor.Document.Title) TitleInput.Text = _editor.Document.Title; } finally { _suppress = false; } UpdateStats(); RefreshCommands(); DocumentChanged?.Invoke(this, EventArgs.Empty); }
+    private void OnEditorChanged(object? sender, EventArgs e) { if (_editor is null) return; _suppress = true; try { if (TitleInput.Text != _editor.Document.Title) TitleInput.Text = _editor.Document.Title; } finally { _suppress = false; } DocumentSurface.InvalidateDocument(); UpdateStats(); RefreshCommands(); DocumentChanged?.Invoke(this, EventArgs.Empty); }
     private void SetTab(WordWriteRibbonTab tab) { _tab = tab; RebuildRibbon(); }
     private void RebuildAll() { RebuildRibbon(); RebuildDocument(); UpdateStats(); RefreshCommands(); }
-    private void RefreshCommands() { if (_editor is null) return; UndoButton.SetValue(HavenProperties.Enabled, _editor.CanUndo); RedoButton.SetValue(HavenProperties.Enabled, _editor.CanRedo); HomeTab.Variant = _tab == WordWriteRibbonTab.Home ? ButtonVariant.Primary : ButtonVariant.Tertiary; InsertTab.Variant = _tab == WordWriteRibbonTab.Insert ? ButtonVariant.Primary : ButtonVariant.Tertiary; LayoutTab.Variant = _tab == WordWriteRibbonTab.Layout ? ButtonVariant.Primary : ButtonVariant.Tertiary; ReviewTab.Variant = _tab == WordWriteRibbonTab.Review ? ButtonVariant.Primary : ButtonVariant.Tertiary; }
-    private void RebuildRibbon() { RibbonContent.Children.ToList().ForEach(child => child.Parent?.Remove(child)); if (_editor is null) return; switch (_tab) { case WordWriteRibbonTab.Home: Home(); break; case WordWriteRibbonTab.Insert: Insert(); break; case WordWriteRibbonTab.Layout: Layout(); break; case WordWriteRibbonTab.Review: Review(); break; } RefreshCommands(); }
+    private void RefreshCommands() { if (_editor is null) return; UndoButton.SetValue(HavenProperties.Enabled, _editor.CanUndo); RedoButton.SetValue(HavenProperties.Enabled, _editor.CanRedo); StyleRibbonTab(HomeTab, _tab == WordWriteRibbonTab.Home); StyleRibbonTab(InsertTab, _tab == WordWriteRibbonTab.Insert); StyleRibbonTab(LayoutTab, _tab == WordWriteRibbonTab.Layout); StyleRibbonTab(ReviewTab, _tab == WordWriteRibbonTab.Review); }
+    private void RebuildRibbon() { RibbonContent.Children.ToList().ForEach(child => child.Parent?.Remove(child)); if (_editor is null) return; switch (_tab) { case WordWriteRibbonTab.Home: HomeModern(); break; case WordWriteRibbonTab.Insert: InsertModern(); break; case WordWriteRibbonTab.Layout: LayoutModern(); break; case WordWriteRibbonTab.Review: Review(); break; } BuildRibbonGroups(); RefreshCommands(); }
 
     private void Home()
     {
@@ -79,7 +143,11 @@ internal sealed class WordWriteHavenScene : IDisposable
 
     private void RebuildDocument()
     {
-        _blockInputs.Clear(); DocumentHost.Children.ToList().ForEach(child => child.Parent?.Remove(child)); if (_editor is null) return; var setup = _editor.Document.PageSetup; var width = Math.Clamp(setup.WidthPoints * .92, 520, 900); var margin = Math.Clamp(setup.MarginLeftPoints * .75, 28, 100); DocumentHost.SetValue(HavenProperties.MaxWidth, HavenLength.Px(width)); DocumentHost.SetValue(HavenProperties.Padding, HavenThickness.Parse($"{margin:0}px")); foreach (var section in _editor.Document.Sections) foreach (var page in section.Pages) foreach (var block in page.Blocks.OrderBy(value => value.Order)) DocumentHost.Add(Block(block));
+        _blockInputs.Clear();
+        if (_editor is null) return;
+        DocumentHost.SetValue(HavenProperties.MaxWidth, HavenLength.Auto);
+        DocumentHost.SetValue(HavenProperties.Padding, HavenThickness.Parse("0px"));
+        DocumentSurface.SetEditor(_editor);
     }
 
     private HavenElement Block(NotesBlock block)
@@ -135,12 +203,13 @@ internal sealed class WordWriteHavenScene : IDisposable
     private HavenButton Format(string name, string label, bool selected, WriteCharacterFormat format) { var button = Btn(name, label, selected ? ButtonVariant.Primary : ButtonVariant.Tertiary); button.SetValue(HavenProperties.FontWeight, 800); button.Invoked += (_, _) => Apply(editor => { editor.ToggleCharacter(format); return true; }); return button; }
     private Input NumberField(string name, string accessible, double value, Action<double> apply, double width) { var input = Field(name, accessible, value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)); input.Text = value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture); input.SetValue(HavenProperties.Width, HavenLength.Px(width)); input.Invalidated += (_, _) => { if (_suppress || !double.TryParse(input.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)) return; apply(parsed); }; return input; }
     private void Apply(Func<WriteDocumentEditor, bool> action) { if (_editor is null || !action(_editor)) return; RebuildAll(); }
-    private void UpdateStats() { if (_editor is null) return; var stats = _editor.Statistics; StatusText.Content = $"{stats.Words} words · {stats.Characters} characters · {stats.ReadingMinutes} min read · autosave on"; }
+    private void UpdateStats() { if (_editor is null) return; var stats = _editor.Statistics; StatusText.Content = $"Page 1 · {stats.Words} words · {stats.Characters} characters · {stats.ReadingMinutes} min read · autosave on"; ZoomStatusText.Content = $"{Math.Round(DocumentSurface.Zoom * 100)}%"; }
+    private void SetDocumentZoom(double zoom) { DocumentSurface.SetZoom(zoom); UpdateStats(); }
     private static string Label(NotesBlock block) => block.Kind switch { NotesBlockKind.Heading => block.StyleId == "heading-2" ? "Heading 2" : "Heading 1", NotesBlockKind.List when block.List is not null => block.List.Kind + " list", _ => block.Kind.ToString() };
     private static Container Bar(string name, int row) { var bar = new Container { Name = name, Layout = HavenLayout.Horizontal }; bar.SetValue(HavenProperties.Row, row); bar.SetValue(HavenProperties.Gap, HavenLength.Px(6)); bar.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); bar.SetValue(HavenProperties.Padding, HavenThickness.Parse("4px 18px")); return bar; }
-    private static HavenButton Btn(string name, string label, ButtonVariant variant = ButtonVariant.Tertiary) { var button = new HavenButton { Name = name, Content = label, Variant = variant }; button.Accessibility.AccessibleName = label; button.SetValue(HavenProperties.MinHeight, HavenLength.Px(34)); return button; }
-    private static Input Field(string name, string accessible, string placeholder) { var input = new Input { Name = name, Placeholder = placeholder }; input.Accessibility.AccessibleName = accessible; input.SetValue(HavenProperties.MinHeight, HavenLength.Px(40)); return input; }
-    private static Select Choice(string name, string accessible, IReadOnlyList<string> items, int index) { var select = new Select { Name = name, Items = items, SelectedIndex = index }; select.Accessibility.AccessibleName = accessible; select.SetValue(HavenProperties.MinWidth, HavenLength.Px(116)); return select; }
-    private static HavenText Caption(string text) { var value = new HavenText(text) { Level = TextLevel.Caption }; value.SetValue(HavenProperties.Foreground, "TextSecondary"); return value; }
+    private static HavenButton Btn(string name, string label, ButtonVariant variant = ButtonVariant.Ghost) { var button = new HavenButton { Name = name, Content = label, Variant = variant }; button.Accessibility.AccessibleName = label; button.SetValue(HavenProperties.Foreground, "ButtonTextSecondary"); button.SetValue(HavenProperties.FontSize, 12d); button.SetValue(HavenProperties.FontWeight, 600); button.SetValue(HavenProperties.MinHeight, HavenLength.Px(30)); button.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 9px")); button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(6))); return button; }
+    private static Input Field(string name, string accessible, string placeholder) { var input = new Input { Name = name, Placeholder = placeholder }; input.Accessibility.AccessibleName = accessible; input.SetValue(HavenProperties.Foreground, "ButtonTextSecondary"); input.SetValue(HavenProperties.MinHeight, HavenLength.Px(40)); return input; }
+    private static Select Choice(string name, string accessible, IReadOnlyList<string> items, int index) { var select = new Select { Name = name, Items = items, SelectedIndex = index }; select.Accessibility.AccessibleName = accessible; select.SetValue(HavenProperties.Foreground, "ButtonTextSecondary"); select.SetValue(HavenProperties.MinWidth, HavenLength.Px(116)); return select; }
+    private static HavenText Caption(string text) { var value = new HavenText(text) { Level = TextLevel.Caption }; value.SetValue(HavenProperties.Foreground, "ButtonTextSecondary"); return value; }
     public void Dispose() { if (_disposed) return; _disposed = true; TitleInput.Invalidated -= OnTitleInvalidated; if (_editor is not null) _editor.Changed -= OnEditorChanged; PreviousRequested = null; NextRequested = null; NewRequested = null; ImportRequested = null; ExportRequested = null; SaveRequested = null; ImageRequested = null; DocumentChanged = null; }
 }

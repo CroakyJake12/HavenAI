@@ -13,6 +13,13 @@ namespace Haven.Desktop.Tests;
 public sealed class HavenSceneBackendTests
 {
     [AvaloniaFact]
+    public void Recovered_editor_semantic_brushes_resolve_against_the_runtime_theme()
+    {
+        Assert.NotNull(HavenAvaloniaThemeResolver.Resolve("AccentSubtle"));
+        Assert.NotNull(HavenAvaloniaThemeResolver.Resolve("SurfaceSubtle"));
+    }
+
+    [AvaloniaFact]
     public void One_backend_surface_hosts_and_lays_out_a_complete_haven_scene()
     {
         var root = new HavenPage { Layout = HavenLayout.Grid, Columns = "1fr 2fr", Rows = "Auto" };

@@ -16,7 +16,7 @@ public sealed partial class MainView
             _containers,
             OpenNativeConversationAsync,
             StartNativeConversationAsync,
-            OpenChatGroupAsync,
+            OpenNativeContainerAsync,
             SwitchNativeChatModeAsync);
 
         var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable while constructing the Study sidebar.");

@@ -39,10 +39,17 @@ internal sealed partial class PresentHavenScene
     public event EventHandler? AlignTopRequested;
     public event EventHandler? AlignMiddleRequested;
     public event Action<int>? SlideSelected;
+    public event Action<int, int>? SlideReorderRequested;
     public event Action<Guid>? ObjectSelectionToggled;
     public event Action<Guid?>? CanvasSelectionRequested;
+    public event Action<IReadOnlyCollection<Guid>>? CanvasSelectionSetRequested;
     public event Action<double, double>? CanvasMoveSelectionRequested;
+    public event Action<double, double, double, double, double>? CanvasTransformSelectionRequested;
     public event Action<Guid, Guid, PresentVectorHandleKind, double, double>? CanvasVectorHandleMoveRequested;
+    public event Action<string>? CanvasTitleTextPreviewRequested;
+    public event Action<Guid, string>? CanvasElementTextPreviewRequested;
+    public event EventHandler? CanvasTextEditCommitRequested;
+    public event EventHandler? CanvasTextEditCancelRequested;
 
     public HavenButton ImportButton { get; private set; } = null!;
     public HavenButton PresentButton { get; private set; } = null!;
@@ -51,7 +58,7 @@ internal sealed partial class PresentHavenScene
     public HavenButton DuplicateSlideButton { get; private set; } = null!;
     public HavenButton MoveSlideEarlierButton { get; private set; } = null!;
     public HavenButton MoveSlideLaterButton { get; private set; } = null!;
-    public Container SlideNavigator { get; private set; } = null!;
+    public PresentThumbnailNavigator SlideNavigator { get; private set; } = null!;
     public Container ObjectNavigator { get; private set; } = null!;
     public Container ObjectToolbar { get; private set; } = null!;
     public Container TransformToolbar { get; private set; } = null!;
@@ -63,8 +70,10 @@ internal sealed partial class PresentHavenScene
     {
         ImportButton = NewButton("Present.Deck.Import", "Import .pptx");
         PresentButton = NewButton("Present.Deck.Present", "Present");
-        DeckToolbar.Add(ImportButton);
+        // Keep playback/import actions on the deck row; SlideToolbar remains the separate root row below.
+        PresentButton.Variant = ButtonVariant.Primary;
         DeckToolbar.Add(PresentButton);
+        DeckToolbar.Add(ImportButton);
 
         UndoButton = NewButton("Present.Edit.Undo", "Undo");
         RedoButton = NewButton("Present.Edit.Redo", "Redo");
@@ -77,15 +86,16 @@ internal sealed partial class PresentHavenScene
         SlideToolbar.Add(MoveSlideEarlierButton);
         SlideToolbar.Add(MoveSlideLaterButton);
 
-        EditorHost.Add(Caption("Slides"));
-        SlideNavigator = NewToolbar("Present.Slides.Navigator", 0);
-        SlideNavigator.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        EditorHost.Add(SlideNavigator);
+        SlideNavigator = new PresentThumbnailNavigator();
+        SlideNavigator.SlideSelected += index => SlideSelected?.Invoke(index);
+        SlideNavigator.SlideReorderRequested += (fromIndex, toIndex) => SlideReorderRequested?.Invoke(fromIndex, toIndex);
+        SlidePane.Add(SlideNavigator);
 
-        EditorHost.Add(Caption("Objects · select multiple objects to group or align"));
-        ObjectNavigator = NewToolbar("Present.Objects.Navigator", 0);
+        InspectorPane.Add(Caption("Objects Â· Shift-click on the slide for multi-select"));
+        ObjectNavigator = new Container { Name = "Present.Objects.Navigator", Layout = HavenLayout.Vertical };
         ObjectNavigator.SetValue(HavenProperties.Width, HavenLength.Percent(100));
-        EditorHost.Add(ObjectNavigator);
+        ObjectNavigator.SetValue(HavenProperties.Gap, HavenLength.Px(5));
+        InspectorPane.Add(ObjectNavigator);
 
         ObjectToolbar = NewToolbar("Present.Objects.Toolbar", 0);
         var addText = NewButton("Present.Object.AddText", "Text box");
@@ -100,31 +110,38 @@ internal sealed partial class PresentHavenScene
         var bold = NewButton("Present.Object.Bold", "Bold");
         var italic = NewButton("Present.Object.Italic", "Italic");
         foreach (var button in new[] { addText, addShape, copy, paste, delete, group, ungroup, front, back, bold, italic }) ObjectToolbar.Add(button);
-        EditorHost.Add(ObjectToolbar);
+        InspectorPane.Add(ObjectToolbar);
 
         TransformToolbar = NewToolbar("Present.Transform.Toolbar", 0);
-        var left = NewButton("Present.Object.Left", "←");
-        var right = NewButton("Present.Object.Right", "→");
-        var up = NewButton("Present.Object.Up", "↑");
-        var down = NewButton("Present.Object.Down", "↓");
+        var left = NewButton("Present.Object.Left", "â†");
+        var right = NewButton("Present.Object.Right", "â†’");
+        var up = NewButton("Present.Object.Up", "â†‘");
+        var down = NewButton("Present.Object.Down", "â†“");
         var grow = NewButton("Present.Object.Grow", "Grow");
         var shrink = NewButton("Present.Object.Shrink", "Shrink");
-        var rotateLeft = NewButton("Present.Object.RotateLeft", "Rotate −15°");
-        var rotateRight = NewButton("Present.Object.RotateRight", "Rotate +15°");
+        var rotateLeft = NewButton("Present.Object.RotateLeft", "Rotate âˆ’15Â°");
+        var rotateRight = NewButton("Present.Object.RotateRight", "Rotate +15Â°");
         var alignLeft = NewButton("Present.Object.AlignLeft", "Align left");
         var alignCenter = NewButton("Present.Object.AlignCenter", "Align centre");
         var alignTop = NewButton("Present.Object.AlignTop", "Align top");
         var alignMiddle = NewButton("Present.Object.AlignMiddle", "Align middle");
         foreach (var button in new[] { left, right, up, down, grow, shrink, rotateLeft, rotateRight, alignLeft, alignCenter, alignTop, alignMiddle }) TransformToolbar.Add(button);
-        EditorHost.Add(TransformToolbar);
+        InspectorPane.Add(TransformToolbar);
 
         InspectorText = new HavenText { Name = "Present.Inspector", Level = TextLevel.Caption };
         InspectorText.SetValue(HavenProperties.Foreground, "TextSecondary");
-        EditorHost.Add(InspectorText);
+        InspectorPane.Add(InspectorText);
+        BuildDesignPlaybackControls();
 
         SlideCanvas.SelectionRequested += elementId => CanvasSelectionRequested?.Invoke(elementId);
+        SlideCanvas.SelectionSetRequested += elementIds => CanvasSelectionSetRequested?.Invoke(elementIds);
         SlideCanvas.MoveSelectionRequested += (deltaX, deltaY) => CanvasMoveSelectionRequested?.Invoke(deltaX, deltaY);
+        SlideCanvas.TransformSelectionRequested += (deltaX, deltaY, deltaWidth, deltaHeight, deltaRotation) => CanvasTransformSelectionRequested?.Invoke(deltaX, deltaY, deltaWidth, deltaHeight, deltaRotation);
         SlideCanvas.VectorHandleMoveRequested += (elementId, nodeId, kind, x, y) => CanvasVectorHandleMoveRequested?.Invoke(elementId, nodeId, kind, x, y);
+        SlideCanvas.TitleTextPreviewRequested += value => CanvasTitleTextPreviewRequested?.Invoke(value);
+        SlideCanvas.ElementTextPreviewRequested += (elementId, value) => CanvasElementTextPreviewRequested?.Invoke(elementId, value);
+        SlideCanvas.TextEditCommitRequested += (_, _) => CanvasTextEditCommitRequested?.Invoke(this, EventArgs.Empty);
+        SlideCanvas.TextEditCancelRequested += (_, _) => CanvasTextEditCancelRequested?.Invoke(this, EventArgs.Empty);
 
         ImportButton.Invoked += (_, _) => ImportRequested?.Invoke(this, EventArgs.Empty);
         PresentButton.Invoked += (_, _) => PresentRequested?.Invoke(this, EventArgs.Empty);
@@ -181,17 +198,7 @@ internal sealed partial class PresentHavenScene
         MoveSlideEarlierButton.SetValue(HavenProperties.Enabled, slideIndex > 0);
         MoveSlideLaterButton.SetValue(HavenProperties.Enabled, slideIndex < document.Slides.Count - 1);
 
-        ClearChildren(SlideNavigator);
-        for (var index = 0; index < document.Slides.Count; index++)
-        {
-            var capturedIndex = index;
-            var item = document.Slides[index];
-            var button = NewButton($"Present.Thumbnail.{item.Id:N}", $"{index + 1} · {DisplayTitle(item.Title)}");
-            button.Accessibility.AccessibleName = $"Slide {index + 1}: {DisplayTitle(item.Title)}";
-            button.SetState(HavenElementState.Selected, index == slideIndex);
-            button.Invoked += (_, _) => SlideSelected?.Invoke(capturedIndex);
-            SlideNavigator.Add(button);
-        }
+        SlideNavigator.SetDocument(document, slideIndex);
 
         ClearChildren(ObjectNavigator);
         foreach (var element in slide.Elements.OrderBy(item => item.Order))
@@ -200,9 +207,9 @@ internal sealed partial class PresentHavenScene
             var label = element.Kind switch
             {
                 PresentElementKind.Text => string.IsNullOrWhiteSpace(element.Text) ? "Text box" : TrimLabel(element.Text),
-                PresentElementKind.Image => "Image · " + TrimLabel(element.AlternativeText),
-                PresentElementKind.Media => "Media · " + TrimLabel(element.AlternativeText),
-                PresentElementKind.Shape => "Shape · " + (string.IsNullOrWhiteSpace(element.ShapeType) ? "rect" : element.ShapeType),
+                PresentElementKind.Image => "Image Â· " + TrimLabel(element.AlternativeText),
+                PresentElementKind.Media => "Media Â· " + TrimLabel(element.AlternativeText),
+                PresentElementKind.Shape => "Shape Â· " + (string.IsNullOrWhiteSpace(element.ShapeType) ? "rect" : element.ShapeType),
                 PresentElementKind.Group => "Group",
                 PresentElementKind.GenUi => "Interactive Haven UI",
                 _ => element.Kind.ToString()
@@ -215,13 +222,14 @@ internal sealed partial class PresentHavenScene
         }
 
         var selectedElements = slide.Elements.Where(element => selected.Contains(element.Id)).ToArray();
+        SetDesignPlaybackDocument(document, slide, selectedElements);
         var selectedDescription = selectedElements.Length == 0
             ? "No object selected"
             : selectedElements.Length == 1
-                ? $"1 selected · {selectedElements[0].Kind} · x {selectedElements[0].X:0.###}, y {selectedElements[0].Y:0.###}, {selectedElements[0].Width:0.###} × {selectedElements[0].Height:0.###} · {selectedElements[0].RotationDegrees:0.#}°"
+                ? $"1 selected Â· {selectedElements[0].Kind} Â· x {selectedElements[0].X:0.###}, y {selectedElements[0].Y:0.###}, {selectedElements[0].Width:0.###} Ã— {selectedElements[0].Height:0.###} Â· {selectedElements[0].RotationDegrees:0.#}Â°"
                 : $"{selectedElements.Length} objects selected";
         InspectorText.Content =
-            $"{document.SlideSize.WidthInches:0.##} × {document.SlideSize.HeightInches:0.##} in · {document.Theme.Name} · {selectedDescription} · transition {slide.Transition.Kind} · {slide.Animations.Count} animation cue(s)";
+            $"{document.SlideSize.WidthInches:0.##} Ã— {document.SlideSize.HeightInches:0.##} in Â· {document.Theme.Name} Â· {selectedDescription} Â· transition {slide.Transition.Kind} Â· {slide.Animations.Count} animation cue(s)";
     }
 
     public void SetPhase2Busy(bool busy)
@@ -244,6 +252,6 @@ internal sealed partial class PresentHavenScene
     {
         if (string.IsNullOrWhiteSpace(value)) return "Untitled";
         var normalized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return normalized.Length <= 30 ? normalized : normalized[..27] + "…";
+        return normalized.Length <= 30 ? normalized : normalized[..27] + "â€¦";
     }
 }

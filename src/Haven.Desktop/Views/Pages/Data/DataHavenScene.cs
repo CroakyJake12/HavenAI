@@ -126,6 +126,7 @@ internal sealed class DataHavenScene : IDisposable
     public event EventHandler? BuildSqlRequested; public event EventHandler? RunQueryRequested;
     public event EventHandler? AddShapeRequested; public event EventHandler? PreviousDrawingRequested; public event EventHandler? NextDrawingRequested; public event EventHandler? RotateDrawingRequested; public event EventHandler? DeleteDrawingRequested;
     public event Action<int>? SheetSelected; public event Action<int>? QuerySelected; public event Action<int, int>? CellSelected; public event Action<int, int>? GridWindowRequested;
+    public event Action? SpreadsheetUndoRequested; public event Action? SpreadsheetRedoRequested;
     public event Action<string>? WorkbookTitleChanged; public event Action<string>? SheetNameChanged; public event Action<string>? CellValueChanged; public event Action<string>? CellFormulaChanged;
     public event Action<string>? QueryNameChanged; public event Action<string>? SqlChanged; public event Action<string>? VisualSourceChanged; public event Action<string>? VisualColumnsChanged; public event Action<string>? VisualFilterChanged; public event Action<string>? VisualGroupChanged; public event Action<string>? VisualOrderChanged; public event Action<string>? VisualLimitChanged;
 
@@ -155,6 +156,22 @@ internal sealed class DataHavenScene : IDisposable
             PositionText.Content = $"Workbook {workbookIndex + 1} of {Math.Max(workbookCount, 1)} · {workbook.Sheets.Count} sheet{(workbook.Sheets.Count == 1 ? string.Empty : "s")} · {workbook.Queries.Count} quer{(workbook.Queries.Count == 1 ? "y" : "ies")} · v{workbook.Version}";
             SelectedCellText.Content = $"Selected cell · {ColumnName(selectedColumn)}{selectedRow + 1}";
             RebuildExplorer(workbook, sheetIndex); RebuildGrid(sheet, selectedRow, selectedColumn, rowOffset, columnOffset); RebuildQueryTabs(workbook, queryIndex); SetQuerySafety(query.Sql); SetQueryResult(result);
+        }
+        finally { _suppressChanges = false; }
+    }
+
+    public void SetSelectedCell(DataCell? cell, int row, int column)
+    {
+        _suppressChanges = true;
+        try
+        {
+            _cellValue = cell?.Value ?? string.Empty;
+            _cellFormula = cell?.Formula ?? string.Empty;
+            _selectedCellHasFormula = !string.IsNullOrWhiteSpace(_cellFormula);
+            CellValueInput.Text = _cellValue;
+            CellFormulaInput.Text = _cellFormula;
+            CellValueInput.SetValue(HavenProperties.Enabled, !_selectedCellHasFormula);
+            SelectedCellText.Content = $"Selected cell · {ColumnName(column)}{row + 1}";
         }
         finally { _suppressChanges = false; }
     }
@@ -276,6 +293,33 @@ internal sealed class DataHavenScene : IDisposable
 
     private void RebuildGrid(DataSheet sheet, int selectedRow, int selectedColumn, int rowOffset, int columnOffset)
     {
+        if (RebuildRetainedSpreadsheet()) return;
+        bool RebuildRetainedSpreadsheet()
+        {
+            var spreadsheet = GridHost.Children.OfType<DataSpreadsheetSurface>().FirstOrDefault();
+            if (spreadsheet is null)
+            {
+                spreadsheet = new DataSpreadsheetSurface();
+                spreadsheet.SelectionChanged += (row, column) => CellSelected?.Invoke(row, column);
+                spreadsheet.CellCommitted += (row, column, text) =>
+                {
+                    CellSelected?.Invoke(row, column);
+                    if (text.StartsWith("=", StringComparison.Ordinal)) { CellFormulaChanged?.Invoke(text); return; }
+                    CellFormulaChanged?.Invoke(string.Empty); CellValueChanged?.Invoke(text);
+                };
+                spreadsheet.UndoRequested += () => SpreadsheetUndoRequested?.Invoke(); spreadsheet.RedoRequested += () => SpreadsheetRedoRequested?.Invoke();
+                spreadsheet.ViewportChanged += () => GridWindowText.Content = spreadsheet.ViewportSummary;
+            }
+            GridHost.Children.ToList().ForEach(child => child.Parent?.Remove(child)); GridHost.Columns = "1fr"; GridHost.Rows = "1fr"; GridHost.SetValue(HavenProperties.Gap, HavenLength.Px(0)); GridHost.SetValue(HavenProperties.MinHeight, HavenLength.Px(560));
+            PreviousRowsButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed); NextRowsButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed); PreviousColumnsButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed); NextColumnsButton.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+            spreadsheet.SetSheet(sheet, selectedRow, selectedColumn); GridHost.Add(spreadsheet); GridWindowText.Content = spreadsheet.ViewportSummary + " · scroll continuously · type to edit";
+            if (GridWindowText.Parent is Container toolbar && !toolbar.Children.Any(child => child.Name == "Data.Grid.Zoom.Out"))
+            {
+                var zoomOut = NewButton("Data.Grid.Zoom.Out", "Zoom −"); var zoomReset = NewButton("Data.Grid.Zoom.Reset", "100%"); var zoomIn = NewButton("Data.Grid.Zoom.In", "Zoom +");
+                zoomOut.Invoked += (_, _) => spreadsheet.SetZoom(spreadsheet.Zoom - .1); zoomReset.Invoked += (_, _) => spreadsheet.SetZoom(1); zoomIn.Invoked += (_, _) => spreadsheet.SetZoom(spreadsheet.Zoom + .1); toolbar.Add(zoomOut); toolbar.Add(zoomReset); toolbar.Add(zoomIn);
+            }
+            return true;
+        }
         rowOffset = Math.Max(0, rowOffset); columnOffset = Math.Max(0, columnOffset); GridHost.Children.ToList().ForEach(child => child.Parent?.Remove(child));
         GridHost.Columns = "48px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr"; GridHost.Rows = string.Join(' ', Enumerable.Repeat("Auto", VisibleRows + 1));
         GridWindowText.Content = $"{ColumnName(columnOffset)}{rowOffset + 1}:{ColumnName(columnOffset + VisibleColumns - 1)}{rowOffset + VisibleRows}";

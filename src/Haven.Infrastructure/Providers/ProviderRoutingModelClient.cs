@@ -19,7 +19,8 @@ namespace Haven.Infrastructure;
 /// </summary>
 public sealed class ProviderRoutingModelClient(
     IOllamaClient localOllama,
-    IModelProviderRegistry providers) : IProviderModelClient
+    IModelProviderRegistry providers,
+    IPrivacyPreferenceStore privacy) : IProviderModelClient
 {
     /// <summary>
     /// Reports whether available async applies to the current state.
@@ -27,23 +28,57 @@ public sealed class ProviderRoutingModelClient(
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
         if (await localOllama.IsAvailableAsync(cancellationToken).ConfigureAwait(false)) return true;
-        if (RuntimeSafetyState.IsSafeMode) return false;
-        return (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false)).Count > 0;
+        foreach (var provider in providers.Providers.Where(item =>
+                     (!RuntimeSafetyState.IsSafeMode || item.IsLocal)
+                     && (!privacy.Current.LocalOnlyMode || item.IsLocal)))
+        {
+            try
+            {
+                if ((await provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false)).IsHealthy)
+                    return true;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
+            {
+                // A provider that cannot complete its health check is unavailable.
+            }
+        }
+        return false;
     }
 
     /// <summary>
     /// Retrieves models async for the current operation.
     /// </summary>
-    public async Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) =>
-        (await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false))
-        .Where(item => !RuntimeSafetyState.IsSafeMode || item.IsLocal)
-        .Select(ToCompatibilityDescriptor)
-        .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-        .Select(group => group.First())
-        .OrderByDescending(item => !item.Name.Contains(':', StringComparison.Ordinal))
-        .ThenBy(item => item.Family, StringComparer.OrdinalIgnoreCase)
-        .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+    public async Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken)
+    {
+        var descriptors = new List<ProviderModelDescriptor>();
+        foreach (var provider in EligibleProviders())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                descriptors.AddRange(await provider.GetModelsAsync(cancellationToken).ConfigureAwait(false));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException
+                                             || ex is TaskCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                // One unavailable eligible provider must not hide the others.
+            }
+        }
+
+        return descriptors
+            .Where(item => (!RuntimeSafetyState.IsSafeMode || item.IsLocal) && (!privacy.Current.LocalOnlyMode || item.IsLocal))
+            .Select(ToCompatibilityDescriptor)
+            .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderByDescending(item => !item.Name.Contains(':', StringComparison.Ordinal))
+            .ThenBy(item => item.Family, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IEnumerable<IModelProvider> EligibleProviders() => providers.Providers.Where(item =>
+        (!RuntimeSafetyState.IsSafeMode || item.IsLocal)
+        && (!privacy.Current.LocalOnlyMode || item.IsLocal));
 
     /// <summary>
     /// Performs stream chat asynchronously so I/O does not block the caller's thread.
@@ -121,8 +156,8 @@ public sealed class ProviderRoutingModelClient(
             var providerId = trimmed[..separator];
             if (providers.Find(providerId) is { } provider)
             {
-                if (RuntimeSafetyState.IsSafeMode && !provider.IsLocal)
-                    throw new InvalidOperationException("Cloud model providers are disabled while Haven is in crash-loop recovery safe mode. Select a local Ollama model or restart after resolving the startup problem.");
+                if (!provider.IsLocal && (RuntimeSafetyState.IsSafeMode || privacy.Current.LocalOnlyMode))
+                    throw new InvalidOperationException("Cloud model providers are disabled by the active safety or local-only privacy policy. Select a local Ollama model or change the applicable policy first.");
                 var actualModel = trimmed[(separator + 1)..];
                 if (string.IsNullOrWhiteSpace(actualModel)) throw new ArgumentException("The provider-qualified model key is incomplete.", nameof(model));
                 return new ResolvedProvider(provider, actualModel);

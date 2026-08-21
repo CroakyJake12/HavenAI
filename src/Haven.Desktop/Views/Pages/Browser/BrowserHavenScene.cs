@@ -42,7 +42,7 @@ internal sealed partial class BrowserHavenScene : IDisposable
         {
             Name = "Browser.Root",
             Layout = HavenLayout.Grid,
-            Columns = "1fr Auto",
+            Columns = "1fr",
             Rows = "Auto Auto Auto 1fr Auto"
         };
         Root.SetValue(HavenProperties.Background, "Transparent");
@@ -97,9 +97,13 @@ internal sealed partial class BrowserHavenScene : IDisposable
         tools.SetValue(HavenProperties.Row, 2);
         tools.SetValue(HavenProperties.Gap, HavenLength.Px(6));
         tools.SetValue(HavenProperties.Padding, HavenThickness.Parse("2px 8px 6px 8px"));
+        tools.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
 
         BookmarksButton = Tool("Browser.Tools.Bookmarks", "Bookmarks");
         HistoryButton = Tool("Browser.Tools.History", "History");
+        DownloadsButton = Tool("Browser.Tools.Downloads", "Downloads");
+        TabsManagerButton = Tool("Browser.Tools.Tabs", "All tabs");
+        PageActionsButton = Tool("Browser.Tools.PageActions", "Page");
         AssistantButton = Tool("Browser.Tools.Assistant", "Ask Haven");
         SettingsButton = Tool("Browser.Tools.Settings", "Settings");
         PrivateTabButton = Tool("Browser.Tools.Private", "Private tab");
@@ -107,6 +111,9 @@ internal sealed partial class BrowserHavenScene : IDisposable
         LoginsButton = Tool("Browser.Tools.Logins", "Logins");
         tools.Add(BookmarksButton);
         tools.Add(HistoryButton);
+        tools.Add(DownloadsButton);
+        tools.Add(TabsManagerButton);
+        tools.Add(PageActionsButton);
         tools.Add(AssistantButton);
         BuildResearchTool(tools);
         tools.Add(SettingsButton);
@@ -149,6 +156,9 @@ internal sealed partial class BrowserHavenScene : IDisposable
     public HavenButton NewTabButton { get; }
     public HavenButton BookmarksButton { get; }
     public HavenButton HistoryButton { get; }
+    public HavenButton DownloadsButton { get; }
+    public HavenButton TabsManagerButton { get; }
+    public HavenButton PageActionsButton { get; }
     public HavenButton AssistantButton { get; }
     public HavenButton SettingsButton { get; }
     public HavenButton PrivateTabButton { get; }
@@ -179,6 +189,9 @@ internal sealed partial class BrowserHavenScene : IDisposable
         PrivateTabButton.Invoked += (_, _) => _page.NewPrivateTabCommand.Execute(null);
         BookmarksButton.Invoked += (_, _) => _page.ToggleBookmarksCommand.Execute(null);
         HistoryButton.Invoked += (_, _) => _page.ToggleHistoryCommand.Execute(null);
+        DownloadsButton.Invoked += (_, _) => _page.ToggleDownloadsCommand.Execute(null);
+        TabsManagerButton.Invoked += (_, _) => _page.ToggleTabsManagerCommand.Execute(null);
+        PageActionsButton.Invoked += (_, _) => _page.TogglePageActionsCommand.Execute(null);
         AssistantButton.Invoked += (_, _) => _page.ToggleAssistantCommand.Execute(null);
         SettingsButton.Invoked += (_, _) => _page.ToggleSettingsCommand.Execute(null);
         ExtensionsButton.Invoked += (_, _) => _page.ToggleExtensionsCommand.Execute(null);

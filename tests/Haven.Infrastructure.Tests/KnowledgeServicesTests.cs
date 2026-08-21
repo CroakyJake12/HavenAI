@@ -9,7 +9,7 @@ public sealed class KnowledgeServicesTests
     [Fact]
     public async Task SchedulerQueuesVisiblePriorityTask()
     {
-        var scheduler = new BackgroundLearningScheduler();
+        var scheduler = new BackgroundLearningScheduler(new TestPrivacy(backgroundLearning: true));
 
         var task = await scheduler.EnqueueAsync(
             "Index Avalonia documentation",
@@ -24,11 +24,19 @@ public sealed class KnowledgeServicesTests
     [Fact]
     public async Task DisabledKnowledgeCategoryCannotBeQueued()
     {
-        var scheduler = new BackgroundLearningScheduler();
+        var scheduler = new BackgroundLearningScheduler(new TestPrivacy(backgroundLearning: true));
         scheduler.SetCategoryEnabled(KnowledgeCategory.LearnMe, false);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => scheduler.EnqueueAsync(
             "Learn preference", KnowledgeCategory.LearnMe, BackgroundLearningPriority.Low, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task BackgroundLearningRequiresExplicitOptIn()
+    {
+        var scheduler = new BackgroundLearningScheduler(new TestPrivacy(backgroundLearning: false));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => scheduler.EnqueueAsync(
+            "Background work", KnowledgeCategory.WorldKnowledge, BackgroundLearningPriority.Low, CancellationToken.None));
     }
 
     [Fact]
@@ -40,5 +48,17 @@ public sealed class KnowledgeServicesTests
             null, "conversation", []);
 
         Assert.Equal(KnowledgePrivacyClass.NeverLearn, record.PrivacyClass);
+    }
+
+    private sealed class TestPrivacy(bool backgroundLearning) : IPrivacyPreferenceStore
+    {
+        public PrivacyPreferences Current { get; private set; } =
+            PrivacyPreferences.Default with { BackgroundLearningEnabled = backgroundLearning };
+
+        public Task UpdateAsync(PrivacyPreferences preferences, CancellationToken cancellationToken)
+        {
+            Current = preferences;
+            return Task.CompletedTask;
+        }
     }
 }

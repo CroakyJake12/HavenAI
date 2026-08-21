@@ -6,6 +6,7 @@
       <Text Name="Meta" Content="{{META}}" FontSize="11" FontWeight="500" Foreground="TextSecondary" />
     </Container>
     <Container Name="Actions" Column="2" Layout="Horizontal" Gap="6px" VerticalAlignment="Center">
+      <Button Name="Edit" Variant="Ghost" IconKey="edit" Content="Details" MinHeight="32px" />
       <Button Name="Study" Variant="Ghost" IconKey="book" Content="{{STUDYLABEL}}" MinHeight="32px" Visibility="{{STUDYVISIBILITY}}" />
       <Button Name="Complete" Variant="Icon" IconKey="check" Content="" Width="32px" Height="32px" MinHeight="32px" Visibility="{{COMPLETEVISIBILITY}}" />
     </Container>

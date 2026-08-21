@@ -1,6 +1,11 @@
 namespace Haven.UI.Components;
 
-public sealed record PopupMenuItem(string Label, Action Action, bool Destructive = false, string IconKey = "");
+public sealed record PopupMenuItem(
+    string Label,
+    Action Action,
+    bool Destructive = false,
+    string IconKey = "",
+    bool Enabled = true);
 
 /// <summary>
 /// Haven-owned detached popup menu. The full-scene layer provides light-dismiss semantics while
@@ -64,8 +69,11 @@ public sealed class PopupMenu : Container
             menuItem.SetValue(HavenProperties.Padding, HavenThickness.Parse("7px 10px"));
             menuItem.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(10)));
             menuItem.SetValue(HavenProperties.FontSize, 13d);
+            menuItem.SetValue(HavenProperties.Enabled, item.Enabled);
+            menuItem.SetState(HavenElementState.Disabled, !item.Enabled);
             menuItem.Invoked += (_, _) =>
             {
+                if (!item.Enabled) return;
                 Dismiss();
                 item.Action();
             };

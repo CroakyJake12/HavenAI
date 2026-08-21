@@ -71,7 +71,7 @@ public sealed class ConversationProductionDatabase : IAppDatabase
         {
             // Version 12 is the highest additive continuation schema currently used.
             // One verified backup protects the base, conversation and retrieval migrations.
-            await _maintenance.PrepareForMigrationAsync(12, cancellationToken).ConfigureAwait(false);
+            await _maintenance.PrepareForMigrationAsync(16, cancellationToken).ConfigureAwait(false);
         }
 
         await _database.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -250,5 +250,74 @@ internal static class ConversationProductionSchema
             stopped_at TEXT NULL
         );
         CREATE INDEX IF NOT EXISTS ix_shared_sessions_active ON shared_sessions(conversation_id, state, expires_at);
+
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_branch_insert
+        BEFORE INSERT ON conversation_branches
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_branch_update
+        BEFORE UPDATE ON conversation_branches
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_branch_message_insert
+        BEFORE INSERT ON conversation_branch_messages
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state s JOIN conversation_branches b ON b.conversation_id=s.conversation_id WHERE b.id=NEW.branch_id AND s.state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_branch_message_update
+        BEFORE UPDATE ON conversation_branch_messages
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state s JOIN conversation_branches b ON b.conversation_id=s.conversation_id WHERE b.id=OLD.branch_id AND s.state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_turn_insert
+        BEFORE INSERT ON conversation_turns
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_turn_update
+        BEFORE UPDATE ON conversation_turns
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_version_insert
+        BEFORE INSERT ON message_versions
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state s JOIN conversation_branches b ON b.conversation_id=s.conversation_id WHERE b.id=NEW.branch_id AND s.state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_version_update
+        BEFORE UPDATE ON message_versions
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state s JOIN conversation_branches b ON b.conversation_id=s.conversation_id WHERE b.id=OLD.branch_id AND s.state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_attachment_insert
+        BEFORE INSERT ON message_attachments
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_attachment_update
+        BEFORE UPDATE ON message_attachments
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_usage_insert
+        BEFORE INSERT ON response_usage
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_draft_insert
+        BEFORE INSERT ON conversation_drafts
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_draft_update
+        BEFORE UPDATE ON conversation_drafts
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_bookmark_insert
+        BEFORE INSERT ON message_bookmarks
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_bookmark_update
+        BEFORE UPDATE ON message_bookmarks
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_share_insert
+        BEFORE INSERT ON shared_sessions
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        CREATE TRIGGER IF NOT EXISTS conversation_safety_block_share_update
+        BEFORE UPDATE ON shared_sessions
+        WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+        BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
         """;
 }

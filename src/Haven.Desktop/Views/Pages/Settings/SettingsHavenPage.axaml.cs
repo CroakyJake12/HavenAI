@@ -17,6 +17,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
     private readonly HavenEventBus _bus;
     private readonly UserPreferencesService _preferences;
     private readonly IOllamaClient _ollama;
+    private readonly IPrivacyPreferenceStore _privacy;
     private readonly MotionPreferencesService _motionPreferences = MotionPreferencesService.Current;
     private readonly SettingsHavenScene _route;
     private readonly CancellationTokenSource _lifetime = new();
@@ -24,17 +25,30 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
     private IReadOnlyList<ModelDescriptor> _models = [];
     private bool _disposed;
 
-    public SettingsHavenPage(HavenEventBus bus, UserPreferencesService preferences, IOllamaClient ollama)
+    public SettingsHavenPage(
+        HavenEventBus bus,
+        UserPreferencesService preferences,
+        IOllamaClient ollama,
+        IPrivacyPreferenceStore privacy,
+        IModelProviderRegistry modelProviders,
+        IProviderConfigurationStore providerConfigurations,
+        IProviderSecretStore providerSecrets)
     {
         _bus = bus;
         _preferences = preferences;
         _ollama = ollama;
+        _privacy = privacy;
+        _ = modelProviders;
+        _ = providerConfigurations;
+        _ = providerSecrets;
 
         InitializeComponent();
         _route = new SettingsHavenScene();
         Scene.Root = _route.Root;
         _route.LoadPreferences(_preferences, _motionPreferences);
+        _route.LoadPrivacyPreferences(_privacy.Current);
         WireEvents();
+        InitializeConnections();
         _ = RefreshModelsAsync();
     }
 
@@ -65,6 +79,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
 
         _route.SaveFeaturesButton.Invoked += (_, _) => SaveFeatures();
         _route.SavePermissionsButton.Invoked += (_, _) => SavePermissions();
+        _route.SavePrivacyButton.Invoked += async (_, _) => await SavePrivacyAsync();
         _route.SaveAdvancedButton.Invoked += (_, _) => SaveAdvanced();
 
         _route.InstallModelButton.Invoked += async (_, _) => await InstallModelAsync(_route.InstallModelInput.Text);
@@ -143,6 +158,31 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             Parse(_route.ComputerPermissionSelect.SelectedItem));
         _route.SetStatus("Permission defaults saved.");
         _bus.Fire("Settings.Permissions.Saved");
+    }
+
+    private async Task SavePrivacyAsync()
+    {
+        if (_disposed) return;
+        try
+        {
+            var updated = _privacy.Current with
+            {
+                LocalOnlyMode = _route.LocalOnlyToggle.IsChecked,
+                BackgroundLearningEnabled = _route.BackgroundLearningToggle.IsChecked,
+                ModelImprovementSharingEnabled = _route.ModelImprovementSharingToggle.IsChecked
+            };
+            await _privacy.UpdateAsync(updated, _lifetime.Token);
+            _route.LoadPrivacyPreferences(_privacy.Current);
+            _route.SetStatus("Privacy choices saved locally.");
+            _bus.Fire("Settings.Privacy.Saved");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _route.SetStatus($"Could not save privacy choices: {ex.Message}");
+        }
     }
 
     private void SaveAdvanced()

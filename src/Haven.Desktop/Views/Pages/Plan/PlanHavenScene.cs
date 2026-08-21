@@ -44,12 +44,21 @@ internal sealed class PlanHavenScene : IDisposable
         EmptyFree = Get<HavenElement>("EmptyFree");
         EmptyCountdowns = Get<HavenElement>("EmptyCountdowns");
         RefreshButton = Get<HavenButton>("Refresh");
-        FullPlannerButton = Get<HavenButton>("FullPlanner");
+        WeekButton = Get<HavenButton>("Week");
+        NewTaskButton = Get<HavenButton>("NewTask");
+        NewEventButton = Get<HavenButton>("NewEvent");
+        MonthButton = Get<HavenButton>("Month");
 
         RefreshButton.Accessibility.AccessibleName = "Refresh Plan Today";
-        FullPlannerButton.Accessibility.AccessibleName = "Open full planner";
+        WeekButton.Accessibility.AccessibleName = "Open Plan Week";
+        NewTaskButton.Accessibility.AccessibleName = "Create planner task";
+        NewEventButton.Accessibility.AccessibleName = "Create calendar event";
+        MonthButton.Accessibility.AccessibleName = "Open Plan Month";
         RefreshButton.Invoked += OnRefreshInvoked;
-        FullPlannerButton.Invoked += OnFullPlannerInvoked;
+        WeekButton.Invoked += OnWeekInvoked;
+        NewTaskButton.Invoked += OnNewTaskInvoked;
+        NewEventButton.Invoked += OnNewEventInvoked;
+        MonthButton.Invoked += OnMonthInvoked;
     }
 
     public Page Root { get; }
@@ -68,10 +77,17 @@ internal sealed class PlanHavenScene : IDisposable
     public HavenElement EmptyFree { get; }
     public HavenElement EmptyCountdowns { get; }
     public HavenButton RefreshButton { get; }
-    public HavenButton FullPlannerButton { get; }
+    public HavenButton WeekButton { get; }
+    public HavenButton NewTaskButton { get; }
+    public HavenButton NewEventButton { get; }
+    public HavenButton MonthButton { get; }
 
     public event EventHandler? RefreshRequested;
-    public event EventHandler? FullPlannerRequested;
+    public event EventHandler? WeekRequested;
+    public event EventHandler? NewTaskRequested;
+    public event EventHandler? NewEventRequested;
+    public event EventHandler? MonthRequested;
+    public event EventHandler<PlanItemEditRequest>? EditItemRequested;
     public event EventHandler<Guid>? CompleteTaskRequested;
     public event EventHandler<PlannerStudyLink>? StudyRequested;
 
@@ -163,7 +179,7 @@ internal sealed class PlanHavenScene : IDisposable
 
     public void SetCountdowns(IReadOnlyList<PlannerCountdown> countdowns, TimeZoneInfo timeZone)
     {
-        var visible = countdowns.Take(8).ToArray();
+        var visible = countdowns.ToArray();
         var expected = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < visible.Length; index++)
         {
@@ -200,6 +216,9 @@ internal sealed class PlanHavenScene : IDisposable
 
     private void WireDayRow(DynamicUIItem row, PlannerDayItem item)
     {
+        var edit = row.GetComponent<HavenButton>("Edit");
+        edit.Accessibility.AccessibleName = $"Open details for {item.Title}";
+        edit.Invoked += (_, _) => EditItemRequested?.Invoke(this, new PlanItemEditRequest(item.EntityId, item.Kind));
         var complete = row.GetComponent<HavenButton>("Complete");
         complete.Accessibility.AccessibleName = $"Complete {item.Title}";
         complete.Invoked += (_, _) => CompleteTaskRequested?.Invoke(this, item.EntityId);
@@ -261,17 +280,24 @@ internal sealed class PlanHavenScene : IDisposable
 
     private T Get<T>(string name) where T : HavenElement => (T)Root.DescendantsAndSelf().Single(element => element.Name == name);
     private void OnRefreshInvoked(object? sender, EventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
-    private void OnFullPlannerInvoked(object? sender, EventArgs e) => FullPlannerRequested?.Invoke(this, EventArgs.Empty);
+    private void OnWeekInvoked(object? sender, EventArgs e) => WeekRequested?.Invoke(this, EventArgs.Empty);
+    private void OnNewTaskInvoked(object? sender, EventArgs e) => NewTaskRequested?.Invoke(this, EventArgs.Empty);
+    private void OnNewEventInvoked(object? sender, EventArgs e) => NewEventRequested?.Invoke(this, EventArgs.Empty);
+    private void OnMonthInvoked(object? sender, EventArgs e) => MonthRequested?.Invoke(this, EventArgs.Empty);
 
     private Page BuildRoot()
     {
         const string markup = """
             <Page Name="PlanRoot" Layout="Vertical" Background="Transparent" Width="100%" Height="100%" Padding="30px 26px 30px 22px" Gap="16px">
-              <Container Name="Header" Layout="Grid" Columns="1fr Auto Auto" Rows="Auto" Width="100%" Gap="8px">
+              <Container Name="Header" Layout="Grid" Columns="1fr Auto Auto Auto Auto Auto" Rows="Auto" Width="100%" Gap="8px">
                 <Container Name="Heading" Column="0" Layout="Vertical" Gap="2px"><Text Content="Plan" Level="H1" /><Text Name="DateLabel" Content="Today" FontSize="12" FontWeight="600" Foreground="TextSecondary" /></Container>
-                <Button Name="FullPlanner" Column="1" Variant="Ghost" IconKey="calendar" Content="Full planner" MinHeight="36px" VerticalAlignment="Center" />
-                <Button Name="Refresh" Column="2" Variant="Icon" IconKey="refresh" Content="" Width="36px" Height="36px" MinHeight="36px" VerticalAlignment="Center" />
+                <Button Name="NewTask" Column="1" Variant="Primary" IconKey="plus" Content="New task" MinHeight="36px" VerticalAlignment="Center" />
+                <Button Name="NewEvent" Column="2" Variant="Ghost" IconKey="calendar" Content="New event" MinHeight="36px" VerticalAlignment="Center" />
+                <Button Name="Week" Column="3" Variant="Ghost" IconKey="calendar" Content="Week" MinHeight="36px" VerticalAlignment="Center" />
+                <Button Name="Month" Column="4" Variant="Ghost" IconKey="calendar" Content="Month" MinHeight="36px" VerticalAlignment="Center" />
+                <Button Name="Refresh" Column="5" Variant="Icon" IconKey="refresh" Content="" Width="36px" Height="36px" MinHeight="36px" VerticalAlignment="Center" />
               </Container>
+              <Container Name="AuthoringHost" Layout="Vertical" Width="100%" Gap="8px" />
               <Container Name="Viewport" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="16px">
                 <Container Name="NowCard" Layout="Vertical" Width="100%" Gap="9px" Padding="18px" Background="Surface" BorderColor="Border" BorderWidth="1px" Radius="20px" Shadow="Card">
                   <Text Content="NOW" FontSize="10" FontWeight="800" Foreground="Accent" /><Text Name="CurrentTitle" Content="Nothing in progress" Level="H2" /><Text Name="CurrentMeta" Content="You are between scheduled items." FontSize="12" Foreground="TextSecondary" />
@@ -297,9 +323,12 @@ internal sealed class PlanHavenScene : IDisposable
         if (_disposed) return;
         _disposed = true;
         RefreshButton.Invoked -= OnRefreshInvoked;
-        FullPlannerButton.Invoked -= OnFullPlannerInvoked;
+        WeekButton.Invoked -= OnWeekInvoked;
+        MonthButton.Invoked -= OnMonthInvoked;
         _dayRows.Clear();
         _freeRows.Clear();
         _countdownRows.Clear();
     }
 }
+
+internal sealed record PlanItemEditRequest(Guid EntityId, PlannerDayItemKind Kind);

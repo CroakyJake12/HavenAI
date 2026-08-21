@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Haven.Desktop.HavenUI.Backend;
@@ -38,10 +37,11 @@ public sealed partial class TopRail
             _havenOwnedScene.NotificationsRequested += (_, _) => InvokeNotificationsAction();
             _havenOwnedScene.SearchRequested += (_, _) => InvokeSearchAction();
             _havenOwnedScene.TabSelected += (_, key) => InvokeTabSelection(key);
-            _havenOwnedScene.TabContextRequested += (_, tab) =>
+            _havenOwnedScene.TabRenameRequested += (_, tab) => ShowRenameFlyout(tab);
+            _havenOwnedScene.TabCloseRequested += (_, key) =>
             {
-                var anchor = FindTabAnchor(tab.Key);
-                if (anchor is not null) BuildTabMenu(tab).ShowAt(anchor);
+                Fire("TopRail.Tabs.CloseTab");
+                TabCloseRequested?.Invoke(this, key);
             };
         }
 
@@ -83,10 +83,6 @@ public sealed partial class TopRail
             int.TryParse(NotificationBadgeText.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out unread);
         scene.SetNotificationCount(unread);
     }
-
-    private Button? FindTabAnchor(string key) => TabStrip.Children
-        .OfType<Button>()
-        .FirstOrDefault(button => button.Tag is string tabKey && tabKey.Equals(key, StringComparison.Ordinal));
 
     private static int ParseEffort(string? text)
     {

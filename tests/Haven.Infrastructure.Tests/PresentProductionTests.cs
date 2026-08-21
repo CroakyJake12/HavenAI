@@ -23,6 +23,36 @@ public sealed class PresentProductionTests : IDisposable
     }
 
     [Fact]
+    public void Editor_transforms_multi_selection_atomically_and_undoes_the_direct_gesture()
+    {
+        var document = PresentDocument.Create("Direct manipulation");
+        var editor = new PresentEditor(document);
+        var slideId = document.Slides[0].Id;
+        var first = editor.AddShape(slideId);
+        var second = editor.AddText(slideId, "Caption");
+        first.X = .10; first.Y = .10; first.Width = .20; first.Height = .20;
+        second.X = .40; second.Y = .35; second.Width = .25; second.Height = .15;
+        editor.SelectElements([first.Id, second.Id]);
+
+        Assert.True(editor.TransformSelection(.05, .03, .04, .02, 15));
+        Assert.Equal(.15, first.X, 3);
+        Assert.Equal(.13, first.Y, 3);
+        Assert.Equal(.24, first.Width, 3);
+        Assert.Equal(.22, first.Height, 3);
+        Assert.Equal(15, first.RotationDegrees, 3);
+        Assert.Equal(.45, second.X, 3);
+        Assert.Equal(15, second.RotationDegrees, 3);
+
+        Assert.True(editor.Undo());
+        var restoredFirst = editor.SelectedSlide.Elements.Single(element => element.Id == first.Id);
+        var restoredSecond = editor.SelectedSlide.Elements.Single(element => element.Id == second.Id);
+        Assert.Equal(.10, restoredFirst.X, 3);
+        Assert.Equal(.40, restoredSecond.X, 3);
+        Assert.Equal(0, restoredFirst.RotationDegrees, 3);
+        Assert.Equal(0, restoredSecond.RotationDegrees, 3);
+    }
+
+    [Fact]
     public async Task Repository_round_trip_preserves_slides_notes_and_haven_elements()
     {
         var repository = new PresentRepository(_paths);

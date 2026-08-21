@@ -21,14 +21,24 @@ internal sealed class PlanWeekCoordinator
     private readonly HavenElement _todayViewport;
     private readonly HavenContainer _root;
     private readonly HavenContainer _strip;
+    private readonly HavenContainer _monthRoot;
+    private readonly HavenContainer _monthHost;
+    private readonly HavenText _monthRange;
+    private readonly HavenButton _monthPrevious;
+    private readonly HavenButton _monthThisMonth;
+    private readonly HavenButton _monthNext;
+    private readonly HavenButton _monthRefresh;
     private readonly HavenText _range;
     private readonly HavenButton _previous;
     private readonly HavenButton _thisWeek;
     private readonly HavenButton _next;
     private readonly HavenButton _refresh;
     private DateTimeOffset _anchor = DateTimeOffset.Now;
+    private DateTimeOffset _monthAnchor = DateTimeOffset.Now;
     private int _version;
+    private int _monthVersion;
     private bool _visible;
+    private bool _monthVisible;
 
     private PlanWeekCoordinator(
         PlanHavenScene scene,
@@ -64,9 +74,27 @@ internal sealed class PlanWeekCoordinator
         _strip.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
         _strip.SetValue(HavenProperties.Padding, HavenThickness.Parse("2px 2px 12px 2px"));
         _root.Add(_strip);
-        scene.Root.Add(_root);
+        _monthRoot = Vertical("PlanMonthRoot", 12);
+        _monthRoot.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        _monthRoot.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll);
+        _monthRoot.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        var monthNav = Horizontal("PlanMonthNavigation", 8);
+        _monthPrevious = Button("PlanMonthPrevious", "Previous", "chevron-left");
+        _monthThisMonth = Button("PlanMonthThisMonth", "This month", "calendar");
+        _monthNext = Button("PlanMonthNext", "Next", "chevron-right");
+        _monthRefresh = Button("PlanMonthRefresh", "Refresh", "refresh");
+        _monthRange = new HavenText { Name = "PlanMonthRange", Content = "Month", Level = TextLevel.H2 };
+        monthNav.Add(_monthPrevious); monthNav.Add(_monthRange); monthNav.Add(_monthThisMonth); monthNav.Add(_monthNext); monthNav.Add(_monthRefresh);
+        _monthRoot.Add(monthNav);
+        _monthHost = Vertical("PlanMonthHost", 10); _monthHost.SetValue(HavenProperties.Width, HavenLength.Percent(100)); _monthHost.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); _monthRoot.Add(_monthHost);
+        scene.Root.Add(_root); scene.Root.Add(_monthRoot);
 
-        scene.FullPlannerRequested += (_, _) => _ = ToggleAsync();
+        scene.WeekRequested += (_, _) => _ = ToggleAsync();
+        scene.MonthRequested += (_, _) => _ = ToggleMonthAsync();
+        _monthPrevious.Invoked += (_, _) => ShiftMonth(-1);
+        _monthThisMonth.Invoked += (_, _) => { _monthAnchor = DateTimeOffset.Now; _ = RefreshMonthAsync(); };
+        _monthNext.Invoked += (_, _) => ShiftMonth(1);
+        _monthRefresh.Invoked += (_, _) => _ = RefreshMonthAsync();
         _previous.Invoked += (_, _) => Shift(-7);
         _thisWeek.Invoked += (_, _) => { _anchor = DateTimeOffset.Now; _ = RefreshAsync(); };
         _next.Invoked += (_, _) => Shift(7);
@@ -81,32 +109,13 @@ internal sealed class PlanWeekCoordinator
         Action<PlannerStudyLink> openStudy) =>
         _ = new PlanWeekCoordinator(scene, planner, containers, refreshToday, openStudy);
 
-    private async Task ToggleAsync()
-    {
-        _visible = !_visible;
-        Interlocked.Increment(ref _version);
-        ApplyVisibility();
-        if (_visible)
-        {
-            _anchor = DateTimeOffset.Now;
-            await RefreshAsync();
-        }
-        else
-        {
-            try { await _refreshToday(CancellationToken.None); }
-            catch (Exception ex) { _scene.SetStatus($"Plan Today could not refresh: {ex.Message}"); }
-        }
-    }
+    private async Task ToggleAsync() { if (_visible) { _visible=false; ApplyVisibility(); await RefreshTodaySafeAsync(); return; } _monthVisible=false; _visible=true; Interlocked.Increment(ref _monthVersion); _anchor=DateTimeOffset.Now; ApplyVisibility(); await RefreshAsync(); }
 
-    private void ApplyVisibility()
-    {
-        _todayViewport.SetValue(HavenProperties.Visibility, _visible ? HavenVisibility.Collapsed : HavenVisibility.Visible);
-        _root.SetValue(HavenProperties.Visibility, _visible ? HavenVisibility.Visible : HavenVisibility.Collapsed);
-        _scene.DateLabel.SetValue(HavenProperties.Visibility, _visible ? HavenVisibility.Collapsed : HavenVisibility.Visible);
-        _scene.RefreshButton.SetValue(HavenProperties.Visibility, _visible ? HavenVisibility.Collapsed : HavenVisibility.Visible);
-        _scene.FullPlannerButton.Content = _visible ? "Today" : "Full planner";
-        _scene.FullPlannerButton.Accessibility.AccessibleName = _visible ? "Return to Plan Today" : "Open full planner";
-    }
+    private async Task ToggleMonthAsync() { if (_monthVisible) { _monthVisible=false; ApplyVisibility(); await RefreshTodaySafeAsync(); return; } _visible=false; _monthVisible=true; Interlocked.Increment(ref _version); _monthAnchor=DateTimeOffset.Now; ApplyVisibility(); await RefreshMonthAsync(); }
+
+    private async Task RefreshTodaySafeAsync() { try { await _refreshToday(CancellationToken.None); } catch (Exception ex) { _scene.SetStatus($"Plan Today could not refresh: {ex.Message}"); } }
+
+    private void ApplyVisibility() { var any=_visible||_monthVisible; _todayViewport.SetValue(HavenProperties.Visibility,any?HavenVisibility.Collapsed:HavenVisibility.Visible); _root.SetValue(HavenProperties.Visibility,_visible?HavenVisibility.Visible:HavenVisibility.Collapsed); _monthRoot.SetValue(HavenProperties.Visibility,_monthVisible?HavenVisibility.Visible:HavenVisibility.Collapsed); _scene.DateLabel.SetValue(HavenProperties.Visibility,any?HavenVisibility.Collapsed:HavenVisibility.Visible); _scene.RefreshButton.SetValue(HavenProperties.Visibility,any?HavenVisibility.Collapsed:HavenVisibility.Visible); _scene.WeekButton.Content=_visible?"Today":"Week"; _scene.MonthButton.Content=_monthVisible?"Today":"Month"; _scene.WeekButton.Accessibility.AccessibleName=_visible?"Return to Plan Today":"Open Plan Week"; _scene.MonthButton.Accessibility.AccessibleName=_monthVisible?"Return to Plan Today":"Open Plan Month"; }
 
     private void Shift(int days)
     {
@@ -115,6 +124,38 @@ internal sealed class PlanWeekCoordinator
         _ = RefreshAsync();
     }
 
+    private void ShiftMonth(int months)
+    {
+        var zone = TimeZoneInfo.Local;
+        var local = TimeZoneInfo.ConvertTime(_monthAnchor, zone).Date;
+        _monthAnchor = LocalNoon(local.AddMonths(months), zone);
+        _ = RefreshMonthAsync();
+    }
+
+    private async Task RefreshMonthAsync()
+    {
+        if (!_monthVisible) return;
+        var version = Interlocked.Increment(ref _monthVersion);
+        try
+        {
+            await _planner.EnsureDefaultsAsync(CancellationToken.None);
+            var zone = TimeZoneInfo.Local;
+            var local = TimeZoneInfo.ConvertTime(_monthAnchor, zone).Date;
+            var monthStart = new DateTime(local.Year, local.Month, 1);
+            var gridStart = monthStart.AddDays(-(((int)monthStart.DayOfWeek + 6) % 7));
+            var (start, _) = PlannerDayTimeline.GetDayBounds(LocalNoon(gridStart, zone), zone.Id);
+            var (_, end) = PlannerDayTimeline.GetDayBounds(LocalNoon(gridStart.AddDays(41), zone), zone.Id);            var tasksTask = _planner.GetTasksAsync(new PlannerTaskQuery(RangeStart: start, RangeEnd: end, IncludeCompleted: true), CancellationToken.None);
+            var eventsTask = _planner.GetEventsAsync(start, end, null, CancellationToken.None);
+            await Task.WhenAll(tasksTask, eventsTask);
+            if (!_monthVisible || version != _monthVersion) return;
+            var tasks = await tasksTask; var events = await eventsTask;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (_monthVisible && version == _monthVersion) RenderMonth(monthStart, gridStart, tasks, events, zone);
+            });
+        }
+        catch (Exception ex) { _scene.SetStatus($"Plan Month could not refresh: {ex.Message}"); }
+    }
     private async Task RefreshAsync()
     {
         if (!_visible) return;
@@ -175,7 +216,273 @@ internal sealed class PlanWeekCoordinator
             : $"{first:d MMM}–{last:d MMM yyyy}";
         foreach (var child in _strip.Children.ToArray()) _strip.Remove(child);
         var today = TimeZoneInfo.ConvertTime(now, zone).Date;
-        foreach (var day in days) _strip.Add(DayCard(day, zone, links, subjects, today));
+        _strip.Add(WeekGrid(days, zone, links, subjects, today));
+    }
+
+    private void RenderMonth(DateTime monthStart, DateTime gridStart, IReadOnlyList<PlannerTask> tasks, IReadOnlyList<PlannerEvent> events, TimeZoneInfo zone)
+    {
+        _monthRange.Content = monthStart.ToString("MMMM yyyy");
+        foreach (var child in _monthHost.Children.ToArray()) _monthHost.Remove(child);
+        var grid = new HavenContainer { Name = "PlanMonthGrid", Layout = HavenLayout.Grid, Columns = "1fr 1fr 1fr 1fr 1fr 1fr 1fr", Rows = "Auto 112px 112px 112px 112px 112px 112px" };
+        grid.SetValue(HavenProperties.MinWidth, HavenLength.Px(980));
+        grid.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        grid.SetValue(HavenProperties.Background, "Surface");
+        grid.SetValue(HavenProperties.BorderColor, "Border");
+        grid.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        grid.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(16)));
+        grid.SetValue(HavenProperties.Clip, true);
+        var names = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+        for (var col = 0; col < 7; col++)
+        {
+            var header = new HavenText { Content = names[col], Level = TextLevel.Caption };
+            header.SetValue(HavenProperties.Row, 0); header.SetValue(HavenProperties.Column, col); header.SetValue(HavenProperties.Padding, HavenThickness.Parse("9px 10px")); header.SetValue(HavenProperties.FontWeight, 700); grid.Add(header);
+        }        var today = DateTime.Today;
+        for (var index = 0; index < 42; index++)
+        {
+            var day = gridStart.AddDays(index); var cell = Vertical($"PlanMonthDay-{day:yyyyMMdd}", 4); Card(cell, 8, 0);
+            cell.SetValue(HavenProperties.Row, 1 + index / 7); cell.SetValue(HavenProperties.Column, index % 7); cell.SetValue(HavenProperties.MinHeight, HavenLength.Px(112));
+            if (day.Month != monthStart.Month) cell.SetValue(HavenProperties.Opacity, .55d);
+            if (day == today) cell.SetValue(HavenProperties.BorderColor, "Accent");
+            var open = Button($"PlanMonthOpen-{day:yyyyMMdd}", day.Day.ToString(), "calendar"); open.Accessibility.AccessibleName = $"Open week containing {day:dddd d MMMM}";
+            open.Invoked += (_, _) => OpenWeekAt(day); cell.Add(open);
+            var labels = MonthLabels(day, tasks, events, zone);
+            foreach (var label in labels.Take(3)) { var text = new HavenText { Content = label, Level = TextLevel.Caption }; cell.Add(text); }
+            if (labels.Count > 3)
+            {
+                var more = Button($"PlanMonthMore-{day:yyyyMMdd}", $"+{labels.Count - 3} more", "more-horizontal"); more.Invoked += (_, _) => OpenWeekAt(day); cell.Add(more);
+            }
+            grid.Add(cell);
+        }
+        _monthHost.Add(grid);
+    }
+    private static List<string> MonthLabels(DateTime day, IReadOnlyList<PlannerTask> tasks, IReadOnlyList<PlannerEvent> events, TimeZoneInfo zone)
+    {
+        var labels = new List<(DateTimeOffset Sort, string Label)>();
+        foreach (var task in tasks)
+        {
+            var when = task.StartsAt ?? task.DueAt; if (when is null) continue; var local = TimeZoneInfo.ConvertTime(when.Value, zone); if (local.Date != day.Date) continue;
+            labels.Add((local, $"{local:HH:mm} {task.Title}"));
+        }
+        var (dayStart, dayEnd) = PlannerDayTimeline.GetDayBounds(LocalNoon(day, zone), zone.Id);
+        foreach (var item in events)
+        {
+            if (item.StartsAt >= dayEnd || item.EndsAt <= dayStart) continue; var local = TimeZoneInfo.ConvertTime(item.StartsAt, zone);
+            labels.Add((local, item.IsAllDay ? $"All day {item.Title}" : $"{local:HH:mm} {item.Title}"));
+        }
+        return labels.OrderBy(x => x.Sort).ThenBy(x => x.Label, StringComparer.CurrentCultureIgnoreCase).Select(x => x.Label).ToList();
+    }
+
+    private void OpenWeekAt(DateTime day)
+    {
+        _monthVisible = false; _visible = true; _anchor = LocalNoon(day, TimeZoneInfo.Local); Interlocked.Increment(ref _monthVersion); ApplyVisibility(); _ = RefreshAsync();
+    }
+    private HavenContainer WeekGrid(
+        IReadOnlyList<PlannerDaySnapshot> days,
+        TimeZoneInfo zone,
+        IReadOnlyDictionary<Guid, PlannerStudyLink> links,
+        IReadOnlyDictionary<Guid, string> subjects,
+        DateTime today)
+    {
+        const int slotMinutes = 30;
+        const int slotCount = 48;
+        const int firstTimedRow = 2;
+        var grid = new HavenContainer
+        {
+            Name = "PlanWeekTemporalGrid",
+            Layout = HavenLayout.Grid,
+            Columns = "64px 1fr 1fr 1fr 1fr 1fr 1fr 1fr",
+            Rows = $"Auto Auto {string.Join(' ', Enumerable.Repeat("32px", slotCount))}"
+        };
+        grid.SetValue(HavenProperties.MinWidth, HavenLength.Px(1060));
+        grid.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        grid.SetValue(HavenProperties.Background, "Surface");
+        grid.SetValue(HavenProperties.BorderColor, "Border");
+        grid.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        grid.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(16)));
+        grid.SetValue(HavenProperties.Clip, true);
+
+        var corner = Muted("Time");
+        corner.SetValue(HavenProperties.Row, 0);
+        corner.SetValue(HavenProperties.Column, 0);
+        corner.SetValue(HavenProperties.Padding, HavenThickness.Parse("10px 8px"));
+        grid.Add(corner);
+
+        var allDayLabel = Muted("All day");
+        allDayLabel.SetValue(HavenProperties.Row, 1);
+        allDayLabel.SetValue(HavenProperties.Column, 0);
+        allDayLabel.SetValue(HavenProperties.Padding, HavenThickness.Parse("10px 8px"));
+        grid.Add(allDayLabel);
+
+        for (var dayIndex = 0; dayIndex < days.Count; dayIndex++)
+        {
+            var day = days[dayIndex];
+            var localDay = TimeZoneInfo.ConvertTime(day.DayStart, zone);
+            var column = dayIndex + 1;
+            var header = Vertical($"PlanWeekHeader-{localDay:yyyyMMdd}", 2);
+            header.SetValue(HavenProperties.Row, 0);
+            header.SetValue(HavenProperties.Column, column);
+            header.SetValue(HavenProperties.Padding, HavenThickness.Parse("9px 8px"));
+            header.SetValue(HavenProperties.BorderColor, "Border");
+            header.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+            if (localDay.Date == today) header.SetValue(HavenProperties.Background, "AccentSecondary");
+            var weekday = new HavenText { Content = localDay.ToString("ddd"), Level = TextLevel.Caption };
+            weekday.SetValue(HavenProperties.FontWeight, 800);
+            weekday.SetValue(HavenProperties.Foreground, localDay.Date == today ? "Accent" : "TextSecondary");
+            header.Add(weekday);
+            header.Add(new HavenText { Content = localDay.ToString("d MMM"), Level = TextLevel.H3 });
+            grid.Add(header);
+
+            var allDay = Vertical($"PlanWeekAllDay-{localDay:yyyyMMdd}", 4);
+            allDay.SetValue(HavenProperties.Row, 1);
+            allDay.SetValue(HavenProperties.Column, column);
+            allDay.SetValue(HavenProperties.MinHeight, HavenLength.Px(44));
+            allDay.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px"));
+            allDay.SetValue(HavenProperties.BorderColor, "Border");
+            allDay.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+            foreach (var item in day.Items.Where(IsUntimedOrAllDay))
+                allDay.Add(CompactAgendaItem(item, zone, links, subjects));
+            grid.Add(allDay);
+        }
+
+        for (var hour = 0; hour < 24; hour++)
+        {
+            var row = firstTimedRow + hour * 2;
+            var label = Muted($"{hour:00}:00");
+            label.SetValue(HavenProperties.Row, row);
+            label.SetValue(HavenProperties.RowSpan, 2);
+            label.SetValue(HavenProperties.Column, 0);
+            label.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 8px"));
+            label.SetValue(HavenProperties.BorderColor, "Border");
+            label.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+            grid.Add(label);
+
+            for (var dayIndex = 0; dayIndex < days.Count; dayIndex++)
+            {
+                var cell = new HavenContainer { Name = $"PlanWeekHour-{dayIndex}-{hour}", Layout = HavenLayout.Vertical };
+                cell.SetValue(HavenProperties.Row, row);
+                cell.SetValue(HavenProperties.RowSpan, 2);
+                cell.SetValue(HavenProperties.Column, dayIndex + 1);
+                cell.SetValue(HavenProperties.BorderColor, "Border");
+                cell.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+                cell.SetValue(HavenProperties.Background, "Surface");
+                grid.Add(cell);
+            }
+        }
+
+        for (var dayIndex = 0; dayIndex < days.Count; dayIndex++)
+        {
+            var day = days[dayIndex];
+            var localDay = TimeZoneInfo.ConvertTime(day.DayStart, zone);
+            foreach (var item in day.Items.Where(item => !IsUntimedOrAllDay(item)))
+            {
+                var placement = Place(item, localDay, zone, slotMinutes, slotCount);
+                var eventCard = TimedItem(item, localDay.Date, zone, links, subjects, placement.Span);
+                eventCard.SetValue(HavenProperties.Row, firstTimedRow + placement.Start);
+                eventCard.SetValue(HavenProperties.RowSpan, placement.Span);
+                eventCard.SetValue(HavenProperties.Column, dayIndex + 1);
+                eventCard.SetValue(HavenProperties.Margin, HavenThickness.Parse("2px 3px"));
+                eventCard.SetValue(HavenProperties.ZIndex, 3);
+                grid.Add(eventCard);
+            }
+        }
+
+        return grid;
+    }
+
+    private HavenContainer CompactAgendaItem(
+        PlannerDayItem item,
+        TimeZoneInfo zone,
+        IReadOnlyDictionary<Guid, PlannerStudyLink> links,
+        IReadOnlyDictionary<Guid, string> subjects)
+    {
+        var row = Horizontal($"PlanWeekAllDayItem-{item.Kind}-{item.EntityId:N}", 4);
+        row.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        row.SetValue(HavenProperties.Padding, HavenThickness.Parse("5px 7px"));
+        row.SetValue(HavenProperties.Background, "SurfaceSecondary");
+        row.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(8)));
+        var title = new HavenText { Content = item.Title, Level = TextLevel.Caption };
+        title.SetValue(HavenProperties.FontWeight, 700);
+        row.Add(title);
+        if (item.Kind == PlannerDayItemKind.Task && item.IsActionable)
+        {
+            var done = Button("Complete", "Done", "check");
+            done.Accessibility.AccessibleName = $"Complete {item.Title}";
+            done.Invoked += async (_, _) => await CompleteAsync(item.EntityId);
+            row.Add(done);
+        }
+        if (item.Kind == PlannerDayItemKind.Task && links.TryGetValue(item.EntityId, out var study))
+        {
+            var subject = subjects.GetValueOrDefault(study.SubjectId);
+            var open = Button("Study", string.IsNullOrWhiteSpace(subject) ? "Study" : subject, "book");
+            open.Invoked += (_, _) => _openStudy(study);
+            row.Add(open);
+        }
+        return row;
+    }
+
+    private HavenContainer TimedItem(
+        PlannerDayItem item,
+        DateTime localDay,
+        TimeZoneInfo zone,
+        IReadOnlyDictionary<Guid, PlannerStudyLink> links,
+        IReadOnlyDictionary<Guid, string> subjects,
+        int span)
+    {
+        var card = Vertical($"PlanWeekTimed-{item.Kind}-{item.EntityId:N}-{localDay:yyyyMMdd}", 2);
+        card.SetValue(HavenProperties.Padding, HavenThickness.Parse(span >= 2 ? "6px 7px" : "3px 6px"));
+        card.SetValue(HavenProperties.Background, item.Kind == PlannerDayItemKind.Event ? "AccentSecondary" : "SurfaceRaised");
+        card.SetValue(HavenProperties.BorderColor, item.Kind == PlannerDayItemKind.Event ? "Accent" : "Border");
+        card.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        card.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(8)));
+        if (item.IsCompleted) card.SetValue(HavenProperties.Opacity, .62d);
+
+        var title = new HavenText { Content = item.Title, Level = TextLevel.Caption };
+        title.SetValue(HavenProperties.FontWeight, 750);
+        card.Add(title);
+        if (span >= 2) card.Add(Muted(Time(item, zone)));
+        if (span >= 3)
+        {
+            var actions = Horizontal(null, 4);
+            if (item.Kind == PlannerDayItemKind.Task && item.IsActionable)
+            {
+                var done = Button("Complete", "Done", "check");
+                done.Accessibility.AccessibleName = $"Complete {item.Title}";
+                done.Invoked += async (_, _) => await CompleteAsync(item.EntityId);
+                actions.Add(done);
+            }
+            if (item.Kind == PlannerDayItemKind.Task && links.TryGetValue(item.EntityId, out var study))
+            {
+                var subject = subjects.GetValueOrDefault(study.SubjectId);
+                var open = Button("Study", string.IsNullOrWhiteSpace(subject) ? "Study" : subject, "book");
+                open.Invoked += (_, _) => _openStudy(study);
+                actions.Add(open);
+            }
+            if (actions.Children.Count > 0) card.Add(actions);
+        }
+        return card;
+    }
+
+    private static bool IsUntimedOrAllDay(PlannerDayItem item) =>
+        item.IsAllDay || (item.StartsAt is null && item.DueAt is null);
+
+    private static (int Start, int Span) Place(
+        PlannerDayItem item,
+        DateTimeOffset localDay,
+        TimeZoneInfo zone,
+        int slotMinutes,
+        int slotCount)
+    {
+        var dayStart = localDay.Date;
+        var startValue = item.StartsAt ?? item.DueAt ?? item.EndsAt ?? localDay;
+        var localStart = TimeZoneInfo.ConvertTime(startValue, zone).DateTime;
+        var localEnd = item.EndsAt is null
+            ? localStart.AddMinutes(slotMinutes)
+            : TimeZoneInfo.ConvertTime(item.EndsAt.Value, zone).DateTime;
+        var startMinutes = Math.Clamp((localStart - dayStart).TotalMinutes, 0, 24 * 60 - slotMinutes);
+        var endMinutes = Math.Clamp((localEnd - dayStart).TotalMinutes, startMinutes + slotMinutes, 24 * 60);
+        var start = Math.Clamp((int)Math.Floor(startMinutes / slotMinutes), 0, slotCount - 1);
+        var end = Math.Clamp((int)Math.Ceiling(endMinutes / slotMinutes), start + 1, slotCount);
+        return (start, Math.Max(1, end - start));
     }
 
     private HavenContainer DayCard(

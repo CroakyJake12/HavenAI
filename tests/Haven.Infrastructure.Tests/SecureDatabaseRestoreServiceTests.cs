@@ -33,7 +33,7 @@ public sealed class SecureDatabaseRestoreServiceTests : IDisposable
         await database.InitializeAsync(CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
         var backup = Assert.IsType<DatabaseBackupInfo>(
-            await maintenance.PrepareForMigrationAsync(16, CancellationToken.None));
+            await maintenance.PrepareForMigrationAsync(17, CancellationToken.None));
         var renamedManifest = Path.Combine(
             Path.GetDirectoryName(backup.ManifestPath)!,
             "renamed-manifest.json");
@@ -62,7 +62,7 @@ public sealed class SecureDatabaseRestoreServiceTests : IDisposable
         await database.InitializeAsync(CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
         var backup = Assert.IsType<DatabaseBackupInfo>(
-            await maintenance.PrepareForMigrationAsync(16, CancellationToken.None));
+            await maintenance.PrepareForMigrationAsync(17, CancellationToken.None));
         var inner = new DatabaseRestoreService(_paths, diagnostics);
         var secure = new SecureDatabaseRestoreService(inner, _paths, diagnostics);
 

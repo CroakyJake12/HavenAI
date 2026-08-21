@@ -36,7 +36,7 @@
           <TextBlock x:Name="DateText" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
         </StackPanel>
 
-        <StackPanel Spacing="12">
+        <StackPanel x:Name="PinnedSection" Spacing="12" IsVisible="False">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="Pinned Apps &amp; Activities" FontSize="16" FontWeight="ExtraBold" VerticalAlignment="Center"/>
             <hui:HavenChipButton x:Name="EditPinnedButton" Grid.Column="1" Content="Edit Pinned"/>

@@ -1,3 +1,4 @@
+using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Services;
 using Haven.UI;
@@ -8,7 +9,7 @@ using HavenText = Haven.UI.Components.Text;
 namespace Haven.Desktop.Views.Pages.Settings;
 
 /// <summary>Haven-owned Settings information architecture and interaction surface.</summary>
-internal sealed class SettingsHavenScene : IDisposable
+internal sealed partial class SettingsHavenScene : IDisposable
 {
     private sealed record SectionDefinition(string Key, string Title, string Description, string[] Keywords);
 
@@ -152,6 +153,11 @@ internal sealed class SettingsHavenScene : IDisposable
 
     public HavenText VoiceProfileStatus { get; private set; } = null!;
 
+    public Toggle LocalOnlyToggle { get; private set; } = null!;
+    public Toggle BackgroundLearningToggle { get; private set; } = null!;
+    public Toggle ModelImprovementSharingToggle { get; private set; } = null!;
+    public HavenButton SavePrivacyButton { get; private set; } = null!;
+
     public Slider TemperatureSlider { get; private set; } = null!;
     public Slider ContextLimitSlider { get; private set; } = null!;
     public Slider ActionLimitSlider { get; private set; } = null!;
@@ -195,6 +201,14 @@ internal sealed class SettingsHavenScene : IDisposable
             : $"{preferences.CustomVoiceProfiles.Count} custom voice profile{(preferences.CustomVoiceProfiles.Count == 1 ? string.Empty : "s")} stored locally.";
         UpdateAdvancedValues();
         UpdateCompactValue();
+    }
+
+    public void LoadPrivacyPreferences(PrivacyPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        LocalOnlyToggle.IsChecked = preferences.LocalOnlyMode;
+        BackgroundLearningToggle.IsChecked = preferences.BackgroundLearningEnabled;
+        ModelImprovementSharingToggle.IsChecked = preferences.ModelImprovementSharingEnabled;
     }
 
     public void SetModels(IReadOnlyList<string> models, string? preferred)
@@ -463,25 +477,17 @@ internal sealed class SettingsHavenScene : IDisposable
         CommandPermissionSelect = NewSelect("Settings.Permissions.Commands", names);
         BrowserPermissionSelect = NewSelect("Settings.Permissions.Browser", names);
         ComputerPermissionSelect = NewSelect("Settings.Permissions.Computer", names);
-        card.Add(SettingRow("Files", "Default permission policy for file access.", FilePermissionSelect));
-        card.Add(SettingRow("Commands", "Default permission policy for command execution.", CommandPermissionSelect));
-        card.Add(SettingRow("Browser", "Default permission policy for browser actions.", BrowserPermissionSelect));
-        card.Add(SettingRow("Device use", "Default permission policy for device/computer-use actions.", ComputerPermissionSelect));
+        card.Add(SettingRow("Files", "Controls whether Haven may read or change local files requested by tools. Ask requires approval, Deny blocks access, and Allow permits it within the configured scope.", FilePermissionSelect));
+        card.Add(SettingRow("Commands", "Controls local command execution. Commands may start processes, change files or use the network depending on the command; Ask requires approval before execution.", CommandPermissionSelect));
+        card.Add(SettingRow("Browser", "Controls browser actions that can read the current page and perform navigation or form actions. Use Ask when you want approval before Haven acts.", BrowserPermissionSelect));
+        card.Add(SettingRow("Device use", "Controls supported device-control actions such as clicking, typing or changing device state. Ask requires approval before the action.", ComputerPermissionSelect));
         SavePermissionsButton = new HavenButton { Name = "Settings.Permissions.Save", Content = "Save permission defaults", Variant = ButtonVariant.Primary };
         card.Add(SavePermissionsButton);
         section.Add(card);
         return section;
     }
 
-    private Container BuildIntegrations()
-    {
-        var section = Section("Settings.Integrations");
-        var card = Card("Settings.Integrations.Card");
-        card.Add(Heading("Settings.Integrations.Heading", "Provider connections", 18));
-        card.Add(Muted("Settings.Integrations.Description", "Haven has real provider configuration and credential services, but this Haven.UI surface will not expose API-key editing until the shared Input component supports secure secret entry. Existing provider configuration is preserved."));
-        section.Add(card);
-        return section;
-    }
+    private Container BuildIntegrations() => BuildConnectionsSection();
 
     private Container BuildVoice()
     {
@@ -500,11 +506,18 @@ internal sealed class SettingsHavenScene : IDisposable
         var section = Section("Settings.Privacy");
         var local = Card("Settings.Privacy.Local");
         local.Add(Heading("Settings.Privacy.LocalHeading", "Local preferences", 18));
-        local.Add(Muted("Settings.Privacy.LocalDescription", "Haven's user preferences are persisted in the configured local application data directory. Provider data leaves the device only through providers and integrations the product invokes."));
+        local.Add(Muted("Settings.Privacy.LocalDescription", "These privacy choices are persisted in the configured local application-data directory and enforced by Haven services."));
+        LocalOnlyToggle = NewToggle("Settings.Privacy.LocalOnly");
+        local.Add(SettingRow("Local-only mode", "Restrict model discovery and generation to local providers. Cloud providers remain configured but are not used while this is on.", LocalOnlyToggle));
         section.Add(local);
         var learning = Card("Settings.Privacy.BackgroundLearning");
         learning.Add(Heading("Settings.Privacy.BackgroundHeading", "Background Learning", 18));
-        learning.Add(Muted("Settings.Privacy.BackgroundDescription", "No persisted Background Learning preference exists in the current repository, so Settings does not expose a fake toggle. The category remains visible for transparency until the real service lands."));
+        BackgroundLearningToggle = NewToggle("Settings.Privacy.BackgroundLearningEnabled");
+        ModelImprovementSharingToggle = NewToggle("Settings.Privacy.ModelImprovementSharingEnabled");
+        learning.Add(SettingRow("Allow Background Learning tasks (preview)", "Permit the local scheduler to accept future learning tasks. No background-learning worker runs in this build, and this stays off by default.", BackgroundLearningToggle));
+        learning.Add(SettingRow("Share for model improvement", "Allow explicitly eligible data to be considered for model-improvement sharing. This stays off by default and does not itself transmit data.", ModelImprovementSharingToggle));
+        SavePrivacyButton = new HavenButton { Name = "Settings.Privacy.Save", Content = "Save privacy choices", Variant = ButtonVariant.Primary };
+        learning.Add(SavePrivacyButton);
         section.Add(learning);
         return section;
     }

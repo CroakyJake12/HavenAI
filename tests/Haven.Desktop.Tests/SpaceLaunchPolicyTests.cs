@@ -31,6 +31,7 @@ public sealed class SpaceLaunchPolicyTests
         Assert.Equal(HavenMode.Chat, plan.Mode);
         Assert.Equal("space-model", plan.ModelName);
         Assert.Equal(SpaceThinkingMode.Deep, plan.ThinkingMode);
+        Assert.Equal(EffortLevel.High, plan.EffortOverride);
         Assert.Single(plan.Files);
         Assert.NotNull(plan.GeneratedSurface);
         Assert.NotNull(plan.LayoutDocument);

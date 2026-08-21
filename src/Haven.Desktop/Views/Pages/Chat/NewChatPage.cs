@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -26,6 +26,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly IConversationRepository _conversations;
     private readonly IOllamaClient _ollama;
     private readonly ChatSessionService _sessions;
+    private readonly IConversationSafetyService _safety;
     private readonly IConversationVersioningService _versioning;
     private readonly UserPreferencesService _preferences;
     private readonly GenerativeUiEventRouter _genUiRouter;
@@ -44,6 +45,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly CustomTemplateRuntime _customTemplate;
     private readonly ChatHavenScene _scene;
     private readonly List<ChatMessage> _messages = [];
+    private readonly Stack<ChatMessage> _redoMessages = [];
     private readonly HashSet<Guid> _streamingMessages = [];
     private readonly List<PromptDefinition> _activeInstructions = [];
     private readonly List<string> _attachedImages = [];
@@ -62,12 +64,15 @@ public sealed class NewChatPage : UserControl, IDisposable
     private AgentDefinition? _activeAgent;
     private ChatActionMode? _chatActionModeOverride;
     private GenerativeUiResponseMode? _chatGenerativeUiResponseModeOverride;
+    private string? _registeredContextOverride;
+    private EffortLevel? _effortOverride;
     private ModelDescriptor? _selectedModel;
     private string? _pendingInstruction;
     private bool _pendingInstructionPreservesDraft;
     private CancellationTokenSource? _sendCancellation;
     private readonly DispatcherTimer _sendProgressTimer;
     private bool _isSending;
+    private bool _safetyLocked;
     private bool _isTaskMode;
     private bool _lastReportedHasStarted;
     private bool _disposed;
@@ -78,6 +83,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         IConversationRepository conversations,
         IOllamaClient ollama,
         ChatSessionService sessions,
+        IConversationSafetyService safety,
         IConversationVersioningService versioning,
         UserPreferencesService preferences,
         GenerativeUiEventRouter genUiRouter,
@@ -99,6 +105,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _conversations = conversations;
         _ollama = ollama;
         _sessions = sessions;
+        _safety = safety;
         _versioning = versioning;
         _preferences = preferences;
         _genUiRouter = genUiRouter;
@@ -248,18 +255,151 @@ public sealed class NewChatPage : UserControl, IDisposable
         FocusComposer();
     }
 
-    public void ShowAddMenu() => _scene.ShowAddMenu();
-
-    public Task RegenerateLatestAsync()
+    public void ConfigureRegisteredContext(string? context, EffortLevel? effortOverride = null)
     {
-        var response = _messages.LastOrDefault(message => message.Role == MessageRole.Assistant);
-        return response is null ? Task.CompletedTask : RegenerateResponseAsync(response, ResponseRegenerationMode.Here);
+        if (HasStarted) throw new InvalidOperationException("A started conversation cannot change its registered workspace context.");
+        _registeredContextOverride = string.IsNullOrWhiteSpace(context) ? null : context.Trim();
+        _effortOverride = effortOverride;
     }
 
-    public Task BranchLatestAsync()
+    public void ShowAddMenu() => _scene.ShowAddMenu();
+
+    public async Task RegenerateLatestAsync()
     {
+        if (!await EnsureConversationMayActAsync("chat.regenerate")) return;
+        var response = _messages.LastOrDefault(message => message.Role == MessageRole.Assistant);
+        if (response is not null) await RegenerateResponseAsync(response, ResponseRegenerationMode.Here);
+    }
+
+    public async Task BranchLatestAsync()
+    {
+        if (!await EnsureConversationMayActAsync("chat.branch")) return;
         var through = _messages.LastOrDefault();
-        return through is null ? Task.CompletedTask : BranchIntoNewChatAsync(through);
+        if (through is not null) await BranchIntoNewChatAsync(through);
+    }
+
+    public async Task UndoLatestAsync()
+    {
+        if (_isSending)
+        {
+            _scene.SetStatus("Stop the current response before undoing a message.");
+            return;
+        }
+        if (!await EnsureConversationMayActAsync("chat.undo")) return;
+        if (_messages.Count == 0)
+        {
+            _scene.SetStatus("There is no message to undo.");
+            return;
+        }
+
+        var message = _messages[^1];
+        try
+        {
+            if (!_conversation.IsTemporary)
+                await _conversations.DeleteMessageAsync(_conversation.Id, message.Id, CancellationToken.None);
+            _messages.RemoveAt(_messages.Count - 1);
+            _redoMessages.Push(message);
+            RefreshMessages();
+            _scene.SetStatus("Undid the latest message. Use Redo to restore it.");
+            ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException or IOException)
+        {
+            _scene.SetStatus("The latest message could not be undone: " + exception.Message);
+        }
+    }
+
+    public async Task RedoLatestAsync()
+    {
+        if (_isSending)
+        {
+            _scene.SetStatus("Stop the current response before redoing a message.");
+            return;
+        }
+        if (!await EnsureConversationMayActAsync("chat.redo")) return;
+        if (_redoMessages.Count == 0)
+        {
+            _scene.SetStatus("There is no undone message to restore.");
+            return;
+        }
+
+        var message = _redoMessages.Peek();
+        try
+        {
+            if (!_conversation.IsTemporary)
+                await _conversations.AddMessageAsync(message, CancellationToken.None);
+            _messages.Add(message);
+            _redoMessages.Pop();
+            RefreshMessages();
+            _scene.SetStatus("Restored the latest undone message.");
+            ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException or IOException)
+        {
+            _scene.SetStatus("The message could not be restored: " + exception.Message);
+        }
+    }
+
+    public async Task CompactContextAsync()
+    {
+        if (!await EnsureConversationMayActAsync("chat.compact-context")) return;
+        if (_selectedModel is null)
+        {
+            _scene.SetStatus("Choose an available model before compacting context.");
+            return;
+        }
+
+        var compactable = _messages
+            .Where(message => !message.IsCompacted && message.Role is MessageRole.User or MessageRole.Assistant)
+            .SkipLast(6)
+            .ToArray();
+        if (compactable.Length < 4)
+        {
+            _scene.SetStatus("There is not enough older context to compact yet.");
+            return;
+        }
+
+        _scene.SetStatus("Compacting older context…");
+        var transcript = string.Join("\n\n", compactable.Select(message => $"{message.Role}: {message.Content}"));
+        if (transcript.Length > 180_000) transcript = transcript[^180_000..];
+        string summary;
+        try
+        {
+            summary = await _ollama.CompleteAsync(
+                new OllamaChatRequest(
+                    _selectedModel.Name,
+                    [new OllamaMessage("user", "Summarise this conversation context for a future assistant. Preserve requirements, decisions, named files, unresolved questions, errors, and verified evidence. Do not invent facts.\n\n" + transcript)],
+                    EffortLevel.Medium,
+                    Options: _preferences.GenerationOptions with { Temperature = 0.2 }),
+                CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or IOException)
+        {
+            _scene.SetStatus("Context compaction failed: " + exception.Message);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (!_conversation.IsTemporary)
+        {
+            await _conversations.AddContextEntryAsync(
+                new ConversationContextEntry(
+                    Guid.NewGuid(), _conversation.Id, ContextEntryKind.CompactSummary,
+                    "Manual compact summary", summary,
+                    $"Compacted {compactable.Length} messages at {now:O}", now),
+                CancellationToken.None);
+            await _conversations.MarkMessagesCompactedAsync(
+                _conversation.Id, compactable.Select(message => message.Id).ToArray(), CancellationToken.None);
+            _conversation = _conversation with { CompactedAt = now, UpdatedAt = now };
+            await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        }
+
+        var compactedIds = compactable.Select(message => message.Id).ToHashSet();
+        for (var index = 0; index < _messages.Count; index++)
+            if (compactedIds.Contains(_messages[index].Id)) _messages[index] = _messages[index] with { IsCompacted = true };
+        _redoMessages.Clear();
+        RefreshMessages();
+        _scene.SetStatus($"Compacted {compactable.Length} older messages into a durable summary.");
     }
 
     public void StartFreshConversation(Guid? chatGroupId = null)
@@ -302,6 +442,8 @@ public sealed class NewChatPage : UserControl, IDisposable
         _activeInstructions.Clear();
         _chatActionModeOverride = null;
         _chatGenerativeUiResponseModeOverride = null;
+        _registeredContextOverride = null;
+        _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
         _taskAttachments.Clear();
@@ -309,8 +451,10 @@ public sealed class NewChatPage : UserControl, IDisposable
         _pendingInstructionPreservesDraft = false;
         RefreshAttachmentStatus();
         RefreshResponseControls();
+        _redoMessages.Clear();
         _messages.Clear();
         _messages.AddRange(await _conversations.GetMessagesAsync(conversation.Id, CancellationToken.None));
+        await RefreshSafetyStateAsync();
         RefreshMessages();
         ConversationStateChanged?.Invoke(this, EventArgs.Empty);
         FocusComposer();
@@ -476,6 +620,47 @@ public sealed class NewChatPage : UserControl, IDisposable
     public void SetTemporary(bool isTemporary) =>
         _conversation = _conversation with { IsTemporary = isTemporary, UpdatedAt = DateTimeOffset.UtcNow };
 
+    public async Task ToggleTemporaryAsync()
+    {
+        if (!await EnsureConversationMayActAsync("chat.temporary-toggle")) return;
+        _conversation = _conversation with
+        {
+            IsTemporary = !_conversation.IsTemporary,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
+        if (!_conversation.IsTemporary)
+            foreach (var message in _messages)
+                await _conversations.AddMessageAsync(message, CancellationToken.None);
+        _scene.SetStatus(_conversation.IsTemporary
+            ? "Temporary chat is on. New messages remain only in this session."
+            : "Temporary chat is off. This conversation is saved locally.");
+        ConversationStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task<bool> EnsureConversationMayActAsync(string operation)
+    {
+        try
+        {
+            await _safety.EnsureMayActAsync(_conversation.Id, operation, CancellationToken.None);
+            return true;
+        }
+        catch (ConversationSafetyLockException)
+        {
+            await RefreshSafetyStateAsync();
+            return false;
+        }
+    }
+
+    private async Task RefreshSafetyStateAsync()
+    {
+        var snapshot = await _safety.GetSnapshotAsync(_conversation.Id, CancellationToken.None);
+        _safetyLocked = snapshot.State == ConversationSafetyState.Locked;
+        _scene.SetSafetyLocked(_safetyLocked);
+        if (_safetyLocked)
+            _scene.SetStatus("This conversation is safety-locked after three confirmed safety flags. Sending, editing, branching and regeneration are disabled; deletion remains available.");
+    }
+
     private void WireScene()
     {
         _bus.RegisterElement("Chat.Composer.Add", Scene);
@@ -545,6 +730,12 @@ public sealed class NewChatPage : UserControl, IDisposable
             ]);
     }
 
+    internal Task SubmitOverlayInstructionAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return Task.CompletedTask;
+        SetRecoveryDraft(text.Trim());
+        return Task.CompletedTask;
+    }
     private void SetRecoveryDraft(string text)
     {
         if (_isSending)
@@ -573,6 +764,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     {
         var instruction = _scene.Instruction.Text.Trim();
         if (_isSending || string.IsNullOrWhiteSpace(instruction)) return;
+        if (!await EnsureConversationMayActAsync("chat.send")) return;
         if (_selectedModel is null)
         {
             _pendingInstruction = instruction;
@@ -582,6 +774,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         }
 
         _pendingInstruction = null;
+        _redoMessages.Clear();
         _scene.Instruction.Text = string.Empty;
         _bus.Fire("Chat.Composer.Send.Click");
         _isSending = true;
@@ -615,7 +808,7 @@ public sealed class NewChatPage : UserControl, IDisposable
                                _conversation,
                                instruction,
                                _selectedModel,
-                               _preferences.DefaultEffort,
+                               _effortOverride ?? _preferences.DefaultEffort,
                                [],
                                _activeAgent?.Name ?? "Haven",
                                _activeAgent?.Instructions ?? string.Empty,
@@ -663,6 +856,7 @@ public sealed class NewChatPage : UserControl, IDisposable
             _sendCancellation?.Dispose();
             _sendCancellation = null;
             _isSending = false;
+            await RefreshSafetyStateAsync();
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 RefreshVisualState();
@@ -991,6 +1185,9 @@ public sealed class NewChatPage : UserControl, IDisposable
     {
         var message = _messages.FirstOrDefault(item => item.Id == request.MessageId);
         if (message is null) return;
+        if (request.Action is ChatMessageAction.Regenerate or ChatMessageAction.Branch or ChatMessageAction.Edit
+            && !await EnsureConversationMayActAsync($"chat.message.{request.Action.ToString().ToLowerInvariant()}"))
+            return;
         switch (request.Action)
         {
             case ChatMessageAction.Copy:
@@ -1074,6 +1271,7 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task RegenerateResponseAsync(ChatMessage message, ResponseRegenerationMode requestedMode)
     {
+        if (!await EnsureConversationMayActAsync("chat.regenerate")) return;
         try
         {
             var index = _messages.FindIndex(item => item.Id == message.Id);
@@ -1098,6 +1296,7 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task ApplyMessageEditAsync(ChatMessage message, string content, MessageEditChoice choice)
     {
+        if (!await EnsureConversationMayActAsync("chat.edit")) return;
         var index = _messages.FindIndex(item => item.Id == message.Id);
         if (index < 0) return;
         if (choice == MessageEditChoice.MemoryOnly)
@@ -1138,6 +1337,7 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task BranchIntoNewChatAsync(ChatMessage throughMessage)
     {
+        if (!await EnsureConversationMayActAsync("chat.branch")) return;
         var index = _messages.FindIndex(message => message.Id == throughMessage.Id);
         if (index < 0) return;
         var source = _conversation;
@@ -1161,6 +1361,7 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task ShowExistingChatPickerAsync(ChatMessage sourceMessage)
     {
+        if (!await EnsureConversationMayActAsync("chat.branch-existing")) return;
         var recent = (await _conversations.GetRecentAsync(_conversation.Mode, 12, CancellationToken.None))
             .Where(item => item.Id != _conversation.Id && !item.IsArchived)
             .ToArray();
@@ -1179,6 +1380,7 @@ public sealed class NewChatPage : UserControl, IDisposable
 
     private async Task ContinueInExistingChatAsync(Conversation target, ChatMessage sourceMessage)
     {
+        if (!await EnsureConversationMayActAsync("chat.branch-existing")) return;
         var messages = await _conversations.GetMessagesAsync(target.Id, CancellationToken.None);
         _conversation = target;
         _messages.Clear();
@@ -1211,10 +1413,15 @@ public sealed class NewChatPage : UserControl, IDisposable
         _activeInstructions.Clear();
         _chatActionModeOverride = null;
         _chatGenerativeUiResponseModeOverride = null;
+        _registeredContextOverride = null;
+        _effortOverride = null;
         _attachedImages.Clear();
         _attachedContext.Clear();
         _taskAttachments.Clear();
         _messages.Clear();
+        _redoMessages.Clear();
+        _safetyLocked = false;
+        _scene.SetSafetyLocked(false);
         _streamingMessages.Clear();
         _thinkingContent.Clear();
         _thinkingStartTick.Clear();
@@ -1282,6 +1489,7 @@ public sealed class NewChatPage : UserControl, IDisposable
     private string? BuildRegisteredContext()
     {
         var sections = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_registeredContextOverride)) sections.Add(_registeredContextOverride);
         if (_modeDefinition is { } mode)
         {
             sections.Add($"Active Haven app: {mode.Name}.\nPurpose: {mode.Description}");

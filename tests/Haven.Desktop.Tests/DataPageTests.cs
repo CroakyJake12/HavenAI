@@ -77,6 +77,9 @@ public sealed class DataPageTests
             Assert.Equal("Grace", page.Workbook!.Sheets[0].GetCell(0, 0)?.Value);
 
             window.UpdateLayout();
+            Assert.True(page.Route.Editor.MaxScrollY > 0);
+            page.Route.Editor.ScrollY = page.Route.Editor.MaxScrollY;
+            window.UpdateLayout();
             Click(router, page.Route.BuildSqlButton);
             Assert.Equal("SELECT A FROM \"People\" WHERE A IS NOT NULL LIMIT 20;", page.Workbook.Queries[0].Sql);
             window.UpdateLayout();
@@ -112,28 +115,39 @@ public sealed class DataPageTests
         try
         {
             window.Show(); window.UpdateLayout();
-            var router = new HavenInputRouter(page.SceneRoot);
             Assert.Equal("20", page.Workbook!.Sheets[0].GetCell(0, 1)!.Value);
             Assert.Equal(1, page.FormulaReport.FormulaCells);
-            var b1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.B1"));
-            Assert.Equal("20", b1.Content);
+            var spreadsheet = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>());
+            spreadsheet.SelectCell(0, 1); window.UpdateLayout();
+            Assert.Equal("=A1*2", page.Route.CellFormulaInput.Text); Assert.Equal("20", page.Route.CellValueInput.Text); Assert.False(page.Route.CellValueInput.GetValue(HavenProperties.Enabled)); Assert.Contains("Calculated locally", page.Route.FormulaStatusText.Content, StringComparison.Ordinal);
+            spreadsheet = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); spreadsheet.SelectCell(0, 0); window.UpdateLayout(); page.Route.CellValueInput.Text = "7";
+            Assert.Equal("14", page.Workbook.Sheets[0].GetCell(0, 1)!.Value); Assert.True(page.IsDirty); Assert.True(await page.SaveAsync("Formula interaction test")); Assert.Equal("14", repository.LastSaved!.Sheets[0].GetCell(0, 1)!.Value);
+        }
+        finally { window.Content = null; window.Close(); }
+    }
 
-            Click(router, b1); window.UpdateLayout();
-            Assert.Equal("=A1*2", page.Route.CellFormulaInput.Text);
-            Assert.Equal("20", page.Route.CellValueInput.Text);
-            Assert.False(page.Route.CellValueInput.GetValue(HavenProperties.Enabled));
-            Assert.Contains("Calculated locally", page.Route.FormulaStatusText.Content, StringComparison.Ordinal);
+    [AvaloniaFact]
+    public async Task Spreadsheet_selection_updates_cell_chrome_without_rebuilding_or_normalizing_the_workbook()
+    {
+        var workbook = DataWorkbook.Create("Selection hot path");
+        using var page = new DataPage(new HavenEventBus(), new FakeDataRepository(workbook), new FakeDataFormats(), new FakeDataQueries());
+        await page.InitializeAsync();
+        var window = new Window { Width = 1400, Height = 1000, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var sheet = page.Workbook!.Sheets[0];
+            var late = new DataCell { Row = 50, Column = 0, Value = "late" };
+            var early = new DataCell { Row = 3, Column = 0, Value = "early" };
+            sheet.Cells.Clear(); sheet.Cells.Add(late); sheet.Cells.Add(early);
+            var spreadsheet = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>());
 
-            var a1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.A1"));
-            Click(router, a1); window.UpdateLayout();
-            page.Route.CellValueInput.Text = "7";
+            spreadsheet.SelectCell(3, 0);
 
-            Assert.Equal("14", page.Workbook.Sheets[0].GetCell(0, 1)!.Value);
-            b1 = Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Cell.B1"));
-            Assert.Equal("14", b1.Content);
-            Assert.True(page.IsDirty);
-            Assert.True(await page.SaveAsync("Formula interaction test"));
-            Assert.Equal("14", repository.LastSaved!.Sheets[0].GetCell(0, 1)!.Value);
+            Assert.Same(spreadsheet, Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()));
+            Assert.Same(late, sheet.Cells[0]); Assert.Same(early, sheet.Cells[1]);
+            Assert.Equal("early", page.Route.CellValueInput.Text);
+            Assert.Equal("Selected cell · A4", page.Route.SelectedCellText.Content);
         }
         finally { window.Content = null; window.Close(); }
     }
@@ -200,6 +214,53 @@ public sealed class DataPageTests
         Assert.Contains("Couldn’t save", page.Route.StatusText.Content, StringComparison.Ordinal);
         Assert.False(page.Route.RunQueryButton.GetValue(HavenProperties.Enabled));
         Assert.Equal(0, queries.Calls);
+    }
+
+    [AvaloniaFact]
+    public async Task Spreadsheet_table_sort_filter_and_keyboard_undo_redo_round_trip_cells_and_metadata()
+    {
+        var workbook = DataWorkbook.Create("Spreadsheet commands");
+        var sheet = workbook.Sheets[0];
+        sheet.SetCell(0, 0, "Name"); sheet.SetCell(0, 1, "Score");
+        sheet.SetCell(1, 0, "beta"); sheet.SetCell(1, 1, "10", kind: DataCellKind.Number);
+        sheet.SetCell(2, 0, "alpha"); sheet.SetCell(2, 1, "30", kind: DataCellKind.Number);
+        sheet.SetCell(3, 0, "gamma"); sheet.SetCell(3, 1, "20", kind: DataCellKind.Number);
+        using var page = new DataPage(new HavenEventBus(), new FakeDataRepository(workbook), new FakeDataFormats(), new FakeDataQueries());
+        await page.InitializeAsync();
+        var window = new Window { Width = 3200, Height = 1400, Content = page };
+        try
+        {
+            window.Show(); window.UpdateLayout(); var router = new HavenInputRouter(page.SceneRoot);
+            var surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); surface.SelectRange(0, 0, 3, 1);
+            Click(router, Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Grid.Table.Create")));
+            var table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); Assert.NotNull(table); Assert.Equal(0, table!.StartRow); Assert.Equal(3, table.EndRow); Assert.True(table.HasHeaders);
+
+            surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); surface.SelectCell(1, 1); window.UpdateLayout();
+            Click(router, Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Grid.Sort.Ascending")));
+            Assert.Equal("beta", sheet.GetCell(1, 0)?.Value); Assert.Equal("10", sheet.GetCell(1, 1)?.Value);
+            Assert.Equal("gamma", sheet.GetCell(2, 0)?.Value); Assert.Equal("20", sheet.GetCell(2, 1)?.Value);
+            Assert.Equal("alpha", sheet.GetCell(3, 0)?.Value); Assert.Equal("30", sheet.GetCell(3, 1)?.Value);
+
+            var filter = Assert.IsType<Input>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Grid.Filter.Value")); filter.Text = "20"; window.UpdateLayout();
+            Click(router, Assert.IsType<HavenButton>(page.SceneRoot.DescendantsAndSelf().Single(element => element.Name == "Data.Grid.Filter.Apply")));
+            table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); Assert.Equal(1, table?.FilterColumn); Assert.Equal("20", table?.FilterText);
+            surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); Assert.Equal(2, surface.FilteredOutRowCount);
+            Assert.Equal("beta", sheet.GetCell(1, 0)?.Value); Assert.Equal("gamma", sheet.GetCell(2, 0)?.Value); Assert.Equal("alpha", sheet.GetCell(3, 0)?.Value);
+
+            Assert.True(surface.KeyDown(new HavenKeyInput(HavenKey.Z, HavenKeyModifiers.Control)));
+            table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); Assert.NotNull(table); Assert.Null(table!.FilterColumn); Assert.Equal(string.Empty, table.FilterText);
+            surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); Assert.Equal(0, surface.FilteredOutRowCount); Assert.Equal("gamma", sheet.GetCell(2, 0)?.Value);
+
+            Assert.True(surface.KeyDown(new HavenKeyInput(HavenKey.Z, HavenKeyModifiers.Control)));
+            Assert.Equal("beta", sheet.GetCell(1, 0)?.Value); Assert.Equal("alpha", sheet.GetCell(2, 0)?.Value); Assert.Equal("gamma", sheet.GetCell(3, 0)?.Value);
+            Assert.NotNull(DataSpreadsheetTableMetadata.Read(sheet.Metadata));
+
+            surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); Assert.True(surface.KeyDown(new HavenKeyInput(HavenKey.Y, HavenKeyModifiers.Control)));
+            Assert.Equal("beta", sheet.GetCell(1, 0)?.Value); Assert.Equal("gamma", sheet.GetCell(2, 0)?.Value); Assert.Equal("alpha", sheet.GetCell(3, 0)?.Value);
+            surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); Assert.True(surface.KeyDown(new HavenKeyInput(HavenKey.Y, HavenKeyModifiers.Control)));
+            table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); Assert.Equal(1, table?.FilterColumn); Assert.Equal("20", table?.FilterText); surface = Assert.Single(page.Route.GridHost.Children.OfType<DataSpreadsheetSurface>()); Assert.Equal(2, surface.FilteredOutRowCount);
+        }
+        finally { window.Content = null; window.Close(); }
     }
 
     private static void Click(HavenInputRouter router, HavenElement element)

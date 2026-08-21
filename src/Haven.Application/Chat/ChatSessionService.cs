@@ -20,6 +20,7 @@ public sealed class ChatSessionService(
     IConversationRepository conversations,
     IOllamaClient ollama,
     CapabilityPreflightService preflight,
+    IConversationSafetyService safety,
     WorkspaceToolRuntime workspaceTools,
     ComputerToolRuntime computerTools,
     BrowserToolRuntime? browserTools = null,
@@ -90,6 +91,7 @@ public sealed class ChatSessionService(
         IReadOnlyCollection<ToolCapability>? explicitCapabilities = null,
         IReadOnlyCollection<ActiveCapability>? availableCapabilities = null)
     {
+        await safety.EnsureMayActAsync(conversation.Id, "chat.send", cancellationToken).ConfigureAwait(false);
         ModelDescriptor etaModel = model;
 
         async Task<string?> EstimateEtaAsync(
@@ -179,6 +181,7 @@ public sealed class ChatSessionService(
         }
 
         execution.Update(ChatExecutionStage.LoadingModel, "Loading Model");
+        await safety.EnsureMayActAsync(conversation.Id, "chat.model-discovery", cancellationToken).ConfigureAwait(false);
         var installed = await _modelInventory.GetAsync(
             forceRefresh: false,
             cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -314,6 +317,7 @@ public sealed class ChatSessionService(
 
             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
             {
+                await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.{call.Name}", cancellationToken).ConfigureAwait(false);
                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
                 {
                     execution.Update(
@@ -325,7 +329,7 @@ public sealed class ChatSessionService(
                     if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
                     if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
-                        return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+                        return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
                     if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
                         return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
                 }
@@ -357,6 +361,7 @@ public sealed class ChatSessionService(
                 var unsupportedToolSchema = false;
                 try
                 {
+                    await safety.EnsureMayActAsync(conversation.Id, "chat.model-tool-turn", cancellationToken).ConfigureAwait(false);
                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
                 }
@@ -453,6 +458,7 @@ public sealed class ChatSessionService(
         {
             var firstChunk = true;
             var thinkingBuffer = new StringBuilder();
+            await safety.EnsureMayActAsync(conversation.Id, "chat.model-stream", cancellationToken).ConfigureAwait(false);
             await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
             {
                 if (firstChunk)
@@ -462,6 +468,7 @@ public sealed class ChatSessionService(
                 }
 
                 // Detect thinking tokens (prefixed with \x00T:)
+                await safety.EnsureMayActAsync(conversation.Id, "chat.model-stream-chunk", cancellationToken).ConfigureAwait(false);
                 if (chunk.StartsWith("\x00T:"))
                 {
                     var thinkingContent = chunk[3..];
@@ -476,6 +483,7 @@ public sealed class ChatSessionService(
             }
         }
 
+        await safety.EnsureMayActAsync(conversation.Id, "chat.complete", cancellationToken).ConfigureAwait(false);
         var assistantMetadata = toolActivities.Count == 0 ? null : JsonSerializer.Serialize(new { toolActivities });
         var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, assistantMetadata, DateTimeOffset.UtcNow);
         if (!conversation.IsTemporary)

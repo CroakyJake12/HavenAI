@@ -81,20 +81,18 @@ public sealed class ReusableDeviceWorkflowRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_MultipleNodes_RefusesPartialDeviceExecution()
+    public async Task RunAsync_TriggerThenDevice_ExecutesConnectedGraph()
     {
         var provider = new RecordingProvider();
-        var device = AutomationGraphNodeDefinition.FromDevice(
-            new DeviceAutomationNodeDefinition(Guid.NewGuid(), ThisPc, "ui.snapshot", new Dictionary<string, string>()));
-        var graph = new AutomationGraphDefinition(
-            AutomationGraphDefinition.CurrentVersion,
-            [device, new AutomationGraphNodeDefinition(Guid.NewGuid(), "Instruction", null, null, new Dictionary<string, string>())],
-            []);
-
+        var trigger = new AutomationGraphNodeDefinition(Guid.NewGuid(), "Trigger", null, null, new Dictionary<string, string>()) { Title = "Workspace opened", X = 40, Y = 80 };
+        var device = AutomationGraphNodeDefinition.FromDevice(new DeviceAutomationNodeDefinition(Guid.NewGuid(), ThisPc, "ui.snapshot", new Dictionary<string, string>())) with { X = 360, Y = 80 };
+        var graph = new AutomationGraphDefinition(AutomationGraphDefinition.CurrentVersion, [trigger, device], [new AutomationGraphEdgeDefinition(trigger.Id, device.Id)]);
         var result = await CreateRunner(provider).RunAsync(Definition(AutomationGraphCodec.Serialize(graph)), false, CancellationToken.None);
-
-        Assert.Equal(ReusableDeviceWorkflowRunKind.UnsupportedGraph, result.Kind);
-        Assert.Equal(0, provider.ExecuteCount);
+        Assert.Equal(ReusableDeviceWorkflowRunKind.DeviceAction, result.Kind);
+        Assert.True(result.GraphResult?.Succeeded);
+        Assert.Equal(2, result.GraphResult!.Trace.Count);
+        Assert.All(result.GraphResult.Trace, item => Assert.Equal(AutomationGraphTraceStatus.Succeeded, item.Status));
+        Assert.Equal(1, provider.ExecuteCount);
     }
 
     [Fact]

@@ -61,6 +61,10 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         var addAudioTrack = Action("TimelineAddAudioTrack", "Add audio track", "music"); addAudioTrack.Invoked += (_, _) => AddTimelineAudioTrack(); TimelineTools.Add(addAudioTrack);
         var previewFrame = Action("TimelinePreviewFrame", "Preview frame", "image");
         TimelineTools.Add(previewFrame);
+        var exportVideoClip = Action("TimelineExportVideoClip", "Export selected clip", "archive");
+        exportVideoClip.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        exportVideoClip.Invoked += (_, _) => ExportVideoClipRequested?.Invoke(this, EventArgs.Empty);
+        TimelineTools.Add(exportVideoClip);
         TimelineTools.Add(Action("TimelinePreviewAudio", "Preview audio clip", "volume"));
         TimelineTools.Add(Action("TimelinePauseAudio", "Pause / resume", "pause"));
         TimelineTools.Add(Action("TimelineStopAudio", "Stop preview", "close"));
@@ -178,10 +182,12 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
     {
         Canvas.SetMode(mode);
         var image = mode == ImagineMediaKind.Image;
+        Find<HavenButton>("Export").Content = image ? "Export image" : "Export project";
         ImageTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         TimelineTools.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Collapsed : HavenVisibility.Visible);
         Find<HavenButton>("TimelineAddAudioTrack").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         Find<HavenButton>("TimelinePreviewFrame").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
+        Find<HavenButton>("TimelineExportVideoClip").SetValue(HavenProperties.Visibility, mode == ImagineMediaKind.Video ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         LayerPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         SemanticPanel.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         Assistant.SetValue(HavenProperties.Visibility, image ? HavenVisibility.Visible : HavenVisibility.Collapsed);

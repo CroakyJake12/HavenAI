@@ -90,7 +90,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         catch (Exception ex)
         {
             _initialized = false;
-            _route.SetStatus("Couldn’t open local documents: " + ex.Message);
+            _route.SetStatus("Couldnâ€™t open local documents: " + ex.Message);
         }
         finally
         {
@@ -124,7 +124,7 @@ public sealed partial class WritePage : UserControl, IDisposable
             await RefreshDocumentsAsync(cancellationToken);
             _documentIndex = IndexOfDocument(Document.Id);
             UpdatePosition();
-            _route.SetStatus($"Saved locally at {result.SavedAt.LocalDateTime:t} · v{result.Version}");
+            _route.SetStatus($"Saved locally at {result.SavedAt.LocalDateTime:t} Â· v{result.Version}");
             _bus.Fire("Write.Saved");
             return true;
         }
@@ -134,7 +134,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            _route.SetStatus("Couldn’t save this document: " + ex.Message);
+            _route.SetStatus("Couldn't save this document: " + ex.Message);
             return false;
         }
         finally
@@ -220,7 +220,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            _route.SetStatus("Couldn’t import this document: " + ex.Message);
+            _route.SetStatus("Couldnâ€™t import this document: " + ex.Message);
             return false;
         }
     }
@@ -249,7 +249,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            _route.SetStatus("Couldn’t export this document: " + ex.Message);
+            _route.SetStatus("Couldnâ€™t export this document: " + ex.Message);
             return false;
         }
     }
@@ -259,7 +259,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         var top = TopLevel.GetTopLevel(this);
         if (top?.StorageProvider is null)
         {
-            _route.SetStatus("Import isn’t available from this platform surface.");
+            _route.SetStatus("Import isnâ€™t available from this platform surface.");
             return;
         }
 
@@ -306,7 +306,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         var top = TopLevel.GetTopLevel(this);
         if (top?.StorageProvider is null)
         {
-            _route.SetStatus("Export isn’t available from this platform surface.");
+            _route.SetStatus("Export isnâ€™t available from this platform surface.");
             return;
         }
 
@@ -548,7 +548,7 @@ public sealed partial class WritePage : UserControl, IDisposable
 
         Document.UpdatedAt = DateTimeOffset.UtcNow;
         _dirty = true;
-        _route.SetStatus("Unsaved changes · autosave is on");
+        _route.SetStatus("Unsaved changes Â· autosave is on");
     }
 
     private async Task MoveAsync(int offset)
@@ -613,7 +613,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         _route.SetStatus(
             loaded.Recovery.HasUnsavedRecovery
                 ? "Recovered the last valid local version. Review it, then save to confirm recovery."
-                : "Saved locally · autosave is on");
+                : "Saved locally Â· autosave is on");
         _bus.Fire("Write.Document.Opened");
     }
 
@@ -638,7 +638,7 @@ public sealed partial class WritePage : UserControl, IDisposable
 
         _route.DocumentPositionText.Content = _documents.Count == 0
             ? "Local document"
-            : $"{_documentIndex + 1} of {_documents.Count} · v{Document.Version}";
+            : $"{_documentIndex + 1} of {_documents.Count} Â· v{Document.Version}";
     }
 
     private async Task RunBusyAsync(Func<Task> action, string description)
@@ -653,7 +653,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         }
         catch (Exception ex)
         {
-            _route.SetStatus($"Couldn’t {description}: {ex.Message}");
+            _route.SetStatus($"Couldnâ€™t {description}: {ex.Message}");
         }
         finally
         {

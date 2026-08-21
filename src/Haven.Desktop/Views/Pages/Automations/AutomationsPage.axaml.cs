@@ -95,16 +95,21 @@ public sealed partial class AutomationsPage : UserControl
         IAutomationRepository automations,
         Guid? containerId,
         Func<Task> startOneTimeTask,
-        Func<string, Task> runTask)
+        Func<string, Task> runTask,
+        IVersionedSettingsStore? versionedSettings = null)
     {
         _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
         _automations = automations ?? throw new ArgumentNullException(nameof(automations));
         _containerId = containerId;
         _startOneTimeTask = startOneTimeTask ?? throw new ArgumentNullException(nameof(startOneTimeTask));
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
+        _graphHistorySettings = versionedSettings;
         _deviceActions = Haven.Desktop.App.Services?.GetService(typeof(DeviceActionRouter)) as DeviceActionRouter;
         var deviceExecutor = Haven.Desktop.App.Services?.GetService(typeof(DeviceAutomationNodeExecutor)) as DeviceAutomationNodeExecutor;
-        _deviceWorkflowRunner = deviceExecutor is null ? null : new ReusableDeviceWorkflowRunner(deviceExecutor);
+        var builtInExecutor = Haven.Desktop.App.Services?.GetService(typeof(BuiltInAutomationActionNodeExecutor)) as BuiltInAutomationActionNodeExecutor;
+        _deviceWorkflowRunner = deviceExecutor is null && builtInExecutor is null
+            ? null
+            : new ReusableDeviceWorkflowRunner(deviceExecutor, builtInExecutor);
 
         InitializeComponent();
         var host = this.FindControl<Grid>("CodeBehindHost")
@@ -279,7 +284,7 @@ public sealed partial class AutomationsPage : UserControl
         });
     }
 
-    private void BuildEditor()
+    private void BuildLegacyEditor()
     {
         var discard = SoftButton("Discard Changes");
         discard.Click += (_, _) => ShowDashboard();
@@ -449,7 +454,7 @@ public sealed partial class AutomationsPage : UserControl
                 var detail = item.NextRunAt is null
                     ? "Waiting for trigger"
                     : "Next " + item.NextRunAt.Value.LocalDateTime.ToString("g");
-                _automaticItems.Children.Add(TaskChip(item.Name, () => InvokeAsync(item.Instruction), detail));
+                _automaticItems.Children.Add(TaskChip(item.Name, () => OpenScheduledAutomationAsync(item, reusableTask.Result), detail));
             }
 
             var runs = new List<(AutomationDefinition Definition, AutomationRun Run)>();
@@ -465,6 +470,7 @@ public sealed partial class AutomationsPage : UserControl
             if (_runningItems.Children.Count == 0)
                 _runningItems.Children.Add(Muted("No automation is currently pending or running."));
 
+            await RefreshGraphHistoryRowsAsync();
             foreach (var entry in runs.Where(entry => entry.Run.Status is not (AutomationRunStatus.Pending or AutomationRunStatus.Running)).OrderByDescending(entry => entry.Run.CompletedAt ?? entry.Run.StartedAt ?? entry.Run.ScheduledFor))
                 _historyItems.Children.Add(AutomationRunRow(entry.Definition, entry.Run));
 
@@ -699,10 +705,13 @@ public sealed partial class AutomationsPage : UserControl
             graphJson));
     }
 
-    private async Task TestDefinitionAsync(ReusableTaskDefinition item) => await InvokeAsync(
-        "TEST MODE — do not mutate files, applications, accounts, services, messages, settings, or external state. " +
-        "Walk through the task plan, identify missing inputs and risks, and explain exactly how success would be verified.\n\n" +
-        item.Instruction);
+    private async Task TestDefinitionAsync(ReusableTaskDefinition item)
+    {
+        // Safe tests stay inside Automations: hydrate the persisted graph and use the
+        // graph runner's Test mode so no Tasks conversation or external side effect is created.
+        ShowEditor(item);
+        await TestGraphAsync();
+    }
 
     private async Task AskAssistantAsync()
     {
@@ -743,6 +752,7 @@ public sealed partial class AutomationsPage : UserControl
 
     private async Task DeleteAsync(ReusableTaskDefinition item)
     {
+        await DeleteLinkedScheduledGraphAsync(item.Id);
         await _tasks.DeleteReusableTaskAsync(item.Id, CancellationToken.None);
         await RefreshAsync();
         _status.Text = $"Deleted {item.Name}.";

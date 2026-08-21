@@ -13,6 +13,7 @@ internal sealed class TopRailFinalScene
 {
     private const double MaximumTabStripWidth = 460d;
     private IReadOnlyList<TopRailTab> _tabs = [];
+    private PopupMenu? _activeTabMenu;
 
     public TopRailFinalScene()
     {
@@ -63,7 +64,7 @@ internal sealed class TopRailFinalScene
         TabStrip.ItemSecondaryInvoked += (_, key) =>
         {
             var tab = _tabs.FirstOrDefault(x => x.Key.Equals(key, StringComparison.Ordinal));
-            if (tab is not null) TabContextRequested?.Invoke(this, tab);
+            if (tab is not null) ShowTabContextMenu(tab);
         };
         Root.Add(TabStrip);
 
@@ -147,7 +148,8 @@ internal sealed class TopRailFinalScene
     public event EventHandler? NotificationsRequested;
     public event EventHandler? SearchRequested;
     public event EventHandler<string>? TabSelected;
-    public event EventHandler<TopRailTab>? TabContextRequested;
+    public event EventHandler<TopRailTab>? TabRenameRequested;
+    public event EventHandler<string>? TabCloseRequested;
 
     public Page Root { get; }
     public Container LogoHost { get; }
@@ -172,12 +174,43 @@ internal sealed class TopRailFinalScene
     public HavenText NotificationBadgeText { get; }
     public HavenButton SearchButton { get; }
     public IReadOnlyList<TopRailTab> Tabs => _tabs;
+    internal PopupMenu? ActiveTabMenu => _activeTabMenu;
 
     public void SetTabs(IReadOnlyList<TopRailTab> tabs)
     {
+        _activeTabMenu?.Dismiss();
         _tabs = tabs.ToArray();
-        TabStrip.SetItems(_tabs.Select(x => new HavenTabStripItem(x.Key, x.Title, x.IsSelected, x.IsCloseable)).ToArray());
+        TabStrip.SetItems(_tabs.Select(x => new HavenTabStripItem(x.Key, x.Title, x.IsSelected, HasContextMenu: true)).ToArray());
         TabStrip.SetValue(HavenProperties.Width, HavenLength.Px(PreferredTabStripWidth(_tabs)));
+    }
+
+    private void ShowTabContextMenu(TopRailTab tab)
+    {
+        var index = -1;
+        for (var candidate = 0; candidate < _tabs.Count; candidate++)
+        {
+            if (!_tabs[candidate].Key.Equals(tab.Key, StringComparison.Ordinal)) continue;
+            index = candidate;
+            break;
+        }
+        if (index < 0 || index >= TabStrip.ItemButtons.Count) return;
+
+        _activeTabMenu?.Dismiss();
+        var menu = new PopupMenu(
+            TabStrip.ItemButtons[index],
+            Root,
+            [
+                new PopupMenuItem("Rename tab", () => TabRenameRequested?.Invoke(this, tab), IconKey: "edit"),
+                new PopupMenuItem("Close tab", () => TabCloseRequested?.Invoke(this, tab.Key), Destructive: true, IconKey: "close", Enabled: tab.IsCloseable)
+            ],
+            220d,
+            $"Options for {tab.Title}");
+        _activeTabMenu = menu;
+        menu.Dismissed += (_, _) =>
+        {
+            if (ReferenceEquals(_activeTabMenu, menu)) _activeTabMenu = null;
+        };
+        Root.Add(menu);
     }
 
     public void SetNavigationAvailability(bool back, bool forward)

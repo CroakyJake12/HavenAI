@@ -19,6 +19,7 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
     private readonly IPlannerAvailabilityService _availabilityService;
     private readonly IPlannerCountdownService _countdownService;
     private readonly PlanHavenScene _scene;
+    private readonly PlanAuthoringCoordinator _authoring;
     private readonly DispatcherTimer _refreshTimer;
     private CancellationTokenSource? _refreshCancellation;
     private bool _active;
@@ -41,7 +42,7 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
         _scene.RefreshRequested += OnRefreshRequested;
         _scene.CompleteTaskRequested += OnCompleteTaskRequested;
         _scene.StudyRequested += OnStudyRequested;
-        _scene.FullPlannerRequested += OnFullPlannerRequested;
+        _authoring = new PlanAuthoringCoordinator(_scene, _planner, RefreshAsync);
         PlanWeekCoordinator.Attach(_scene, _planner, _containers, RefreshAsync, link => StudyRequested?.Invoke(this, link));
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _refreshTimer.Tick += OnRefreshTimer;
@@ -49,7 +50,6 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
 
     public HavenSceneControl Scene { get; }
     public event EventHandler<PlannerStudyLink>? StudyRequested;
-    public event EventHandler? FullPlannerRequested;
 
     public async Task ActivateAsync(CancellationToken cancellationToken)
     {
@@ -141,7 +141,6 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
         }
     }
     private void OnStudyRequested(object? sender, PlannerStudyLink link) => StudyRequested?.Invoke(this, link);
-    private void OnFullPlannerRequested(object? sender, EventArgs e) => FullPlannerRequested?.Invoke(this, EventArgs.Empty);
     private void OnRefreshTimer(object? sender, EventArgs e) { if (_active) _ = RefreshAsync(); }
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -156,7 +155,7 @@ public sealed class NativePlanPage : UserControl, IActivatablePage, IDisposable
         _scene.RefreshRequested -= OnRefreshRequested;
         _scene.CompleteTaskRequested -= OnCompleteTaskRequested;
         _scene.StudyRequested -= OnStudyRequested;
-        _scene.FullPlannerRequested -= OnFullPlannerRequested;
+        _authoring.Dispose();
         _scene.Dispose();
     }
 }

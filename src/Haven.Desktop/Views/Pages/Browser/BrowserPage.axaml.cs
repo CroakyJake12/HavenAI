@@ -137,6 +137,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         ToggleAssistantCommand = new RelayCommand(() => TogglePanel(nameof(IsAssistantOpen)));
         ImportExtensionRequestedCommand = new RelayCommand(() => ImportExtensionRequested?.Invoke(this, false));
         ConvertChromeExtensionRequestedCommand = new RelayCommand(() => ImportExtensionRequested?.Invoke(this, true));
+        InitializeRecoveryManagement();
 
         RefreshCollections();
         RestoreSavedTabs();
@@ -204,7 +205,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
     public bool IsExtensionsOpen { get => _isExtensionsOpen; private set => SetProperty(ref _isExtensionsOpen, value); }
     public bool IsLoginsOpen { get => _isLoginsOpen; private set => SetProperty(ref _isLoginsOpen, value); }
     public bool IsAssistantOpen { get => _isAssistantOpen; private set => SetProperty(ref _isAssistantOpen, value); }
-    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen || IsResearchOpen;
+    public bool IsAnyPanelOpen => IsBookmarksOpen || IsHistoryOpen || IsSettingsOpen || IsExtensionsOpen || IsLoginsOpen || IsAssistantOpen || IsResearchOpen || IsDownloadsOpen || IsTabsManagerOpen || IsPageActionsOpen;
     public bool IsPrivate => SelectedTab?.IsPrivate == true;
     public string PrivacyLabel => IsPrivate ? "Private tab - history and tab state are not saved" : "Standard tab";
     public string HomePage { get => _homePage; set => SetProperty(ref _homePage, value); }
@@ -546,6 +547,9 @@ public sealed partial class BrowserPage : UserControl, IDisposable
             nameof(IsExtensionsOpen) => !IsExtensionsOpen,
             nameof(IsLoginsOpen) => !IsLoginsOpen,
             nameof(IsResearchOpen) => !IsResearchOpen,
+            nameof(IsDownloadsOpen) => !IsDownloadsOpen,
+            nameof(IsTabsManagerOpen) => !IsTabsManagerOpen,
+            nameof(IsPageActionsOpen) => !IsPageActionsOpen,
             _ => !IsAssistantOpen
         };
         IsBookmarksOpen = opening && panel == nameof(IsBookmarksOpen);
@@ -554,6 +558,9 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         IsExtensionsOpen = opening && panel == nameof(IsExtensionsOpen);
         IsLoginsOpen = opening && panel == nameof(IsLoginsOpen);
         IsResearchOpen = opening && panel == nameof(IsResearchOpen);
+        IsDownloadsOpen = opening && panel == nameof(IsDownloadsOpen);
+        IsTabsManagerOpen = opening && panel == nameof(IsTabsManagerOpen);
+        IsPageActionsOpen = opening && panel == nameof(IsPageActionsOpen);
         IsAssistantOpen = opening && panel == nameof(IsAssistantOpen);
         RaisePropertyChanged(nameof(IsAnyPanelOpen));
     }

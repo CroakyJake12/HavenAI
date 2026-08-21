@@ -7,7 +7,7 @@ public enum WriteCharacterFormat { Bold, Italic, Underline, StrikeThrough }
 public sealed record WriteFindResult(Guid BlockId, string Kind, string Snippet, int Offset);
 
 /// <summary>Framework-neutral word-processing operations over Haven's persisted Notes document model.</summary>
-public sealed class WriteDocumentEditor
+public sealed partial class WriteDocumentEditor
 {
     private const int HistoryLimit = 50;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -36,7 +36,9 @@ public sealed class WriteDocumentEditor
     {
         var block = Blocks().FirstOrDefault(candidate => candidate.Id == blockId);
         if (block is null) return;
-        SelectedBlockId = block.Id; CaretIndex = Math.Max(0, caretIndex); ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
+        SelectedBlockId = block.Id; CaretIndex = Math.Clamp(caretIndex, 0, EditableText(block).Length); ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
+        _documentCaret = new WriteDocumentPosition(block.Id, CaretIndex);
+        _documentAnchor = null;
     }
 
     public void SetTitle(string title)
@@ -70,6 +72,33 @@ public sealed class WriteDocumentEditor
 
     public void ToggleCharacter(WriteCharacterFormat format)
     {
+        if (HasDocumentSelection)
+        {
+            var current = SelectedRuns().ToArray();
+            if (current.Length == 0) return;
+            var enable = format switch
+            {
+                WriteCharacterFormat.Bold => current.Any(run => !run.Bold),
+                WriteCharacterFormat.Italic => current.Any(run => !run.Italic),
+                WriteCharacterFormat.Underline => current.Any(run => !run.Underline),
+                WriteCharacterFormat.StrikeThrough => current.Any(run => !run.StrikeThrough),
+                _ => true
+            };
+            Mutate(() =>
+            {
+                foreach (var selected in SelectedRuns(splitBoundaries: true))
+                {
+                    switch (format)
+                    {
+                        case WriteCharacterFormat.Bold: selected.Bold = enable; break;
+                        case WriteCharacterFormat.Italic: selected.Italic = enable; break;
+                        case WriteCharacterFormat.Underline: selected.Underline = enable; break;
+                        case WriteCharacterFormat.StrikeThrough: selected.StrikeThrough = enable; break;
+                    }
+                }
+            }, "Changed character formatting");
+            return;
+        }
         if (!TryActiveRun(out var run)) return;
         Mutate(() => { switch (format) { case WriteCharacterFormat.Bold: run.Bold = !run.Bold; break; case WriteCharacterFormat.Italic: run.Italic = !run.Italic; break; case WriteCharacterFormat.Underline: run.Underline = !run.Underline; break; case WriteCharacterFormat.StrikeThrough: run.StrikeThrough = !run.StrikeThrough; break; } }, "Changed character formatting");
     }
@@ -148,6 +177,90 @@ public sealed class WriteDocumentEditor
     public void UpdateEquation(string source, string alternative) { if (SelectedBlock?.Equation is not { } equation) return; if (equation.Source == source && equation.AccessibleAlternative == alternative) return; Mutate(() => { equation.Source = source ?? string.Empty; equation.AccessibleAlternative = alternative ?? string.Empty; equation.RenderedText = equation.Source; equation.Error = string.Empty; }, "Edited equation"); }
     public void UpdateMedia(string alt, string caption, string wrapping) { if (SelectedBlock?.Media is not { } media) return; Mutate(() => { media.AltText = alt ?? string.Empty; media.Caption = caption ?? string.Empty; if (!string.IsNullOrWhiteSpace(wrapping)) media.Wrapping = wrapping; }, "Edited image properties"); }
 
+    public bool ResizeSelectedMedia(double width, double height)
+    {
+        if (SelectedBlock?.Media is not { } media) return false;
+        var nextWidth = Math.Clamp(Finite(width, media.Width), 24, 10_000);
+        var nextHeight = Math.Clamp(Finite(height, media.Height), 24, 10_000);
+        if (Math.Abs(nextWidth - media.Width) < .001 && Math.Abs(nextHeight - media.Height) < .001) return false;
+        Mutate(() => { media.Width = nextWidth; media.Height = nextHeight; }, "Resized media");
+        return true;
+    }
+
+    public bool RotateSelectedMedia(double deltaDegrees)
+    {
+        if (SelectedBlock?.Media is not { } media || !double.IsFinite(deltaDegrees) || Math.Abs(deltaDegrees) < .001) return false;
+        Mutate(() =>
+        {
+            var next = (media.Rotation + deltaDegrees) % 360;
+            if (next > 180) next -= 360;
+            if (next <= -180) next += 360;
+            media.Rotation = next;
+        }, "Rotated media");
+        return true;
+    }
+
+    public bool SetSelectedMediaCrop(double left, double top, double right, double bottom)
+    {
+        if (SelectedBlock?.Media is not { } media) return false;
+        left = Math.Clamp(Finite(left, media.CropLeft), 0, .95);
+        top = Math.Clamp(Finite(top, media.CropTop), 0, .95);
+        right = Math.Clamp(Finite(right, media.CropRight), 0, .95);
+        bottom = Math.Clamp(Finite(bottom, media.CropBottom), 0, .95);
+        if (left + right >= .99 || top + bottom >= .99) return false;
+        if (Math.Abs(left - media.CropLeft) < .001 && Math.Abs(top - media.CropTop) < .001 && Math.Abs(right - media.CropRight) < .001 && Math.Abs(bottom - media.CropBottom) < .001) return false;
+        Mutate(() => { media.CropLeft = left; media.CropTop = top; media.CropRight = right; media.CropBottom = bottom; }, "Cropped media");
+        return true;
+    }
+
+    public bool MergeTableCellRight(Guid cellId)
+    {
+        if (SelectedBlock?.Table is not { } table) return false;
+        foreach (var row in table.Rows)
+        {
+            var index = row.Cells.FindIndex(cell => cell.Id == cellId);
+            if (index < 0 || index >= row.Cells.Count - 1) continue;
+            var cell = row.Cells[index];
+            var next = row.Cells[index + 1];
+            Mutate(() =>
+            {
+                cell.ColumnSpan = Math.Clamp(cell.ColumnSpan + Math.Max(1, next.ColumnSpan), 1, 50);
+                if (!string.IsNullOrWhiteSpace(next.Text)) cell.Text = string.IsNullOrWhiteSpace(cell.Text) ? next.Text : cell.Text + Environment.NewLine + next.Text;
+                row.Cells.RemoveAt(index + 1);
+            }, "Merged table cells");
+            return true;
+        }
+        return false;
+    }
+
+    public bool SplitTableCell(Guid cellId)
+    {
+        if (SelectedBlock?.Table is not { } table) return false;
+        foreach (var row in table.Rows)
+        {
+            var index = row.Cells.FindIndex(cell => cell.Id == cellId);
+            if (index < 0) continue;
+            var cell = row.Cells[index];
+            if (cell.ColumnSpan <= 1) return false;
+            Mutate(() =>
+            {
+                cell.ColumnSpan--;
+                row.Cells.Insert(index + 1, new NotesTableCell { Background = cell.Background, VerticalAlignment = cell.VerticalAlignment });
+            }, "Split table cell");
+            return true;
+        }
+        return false;
+    }
+
+    public bool SetTableCellBackground(Guid cellId, string colour)
+    {
+        if (SelectedBlock?.Table?.Rows.SelectMany(row => row.Cells).FirstOrDefault(cell => cell.Id == cellId) is not { } cell) return false;
+        var next = NormaliseColour(colour, cell.Background);
+        if (cell.Background.Equals(next, StringComparison.OrdinalIgnoreCase)) return false;
+        Mutate(() => cell.Background = next, "Changed table cell background");
+        return true;
+    }
+
     public void SetPagePreset(string preset) => Mutate(() => { if (preset.Equals("Letter", StringComparison.OrdinalIgnoreCase)) { Document.PageSetup.WidthPoints = 612; Document.PageSetup.HeightPoints = 792; } else { Document.PageSetup.WidthPoints = 595; Document.PageSetup.HeightPoints = 842; } ApplyOrientation(Document.PageSetup.Orientation); }, "Changed page size");
     public void SetOrientation(string orientation) => Mutate(() => ApplyOrientation(orientation), "Changed page orientation");
     public void SetMargins(double points) => Mutate(() => { var value = Math.Clamp(Finite(points, 72), 0, 1000); Document.PageSetup.MarginTopPoints = value; Document.PageSetup.MarginRightPoints = value; Document.PageSetup.MarginBottomPoints = value; Document.PageSetup.MarginLeftPoints = value; }, "Changed page margins");
@@ -180,7 +293,17 @@ public sealed class WriteDocumentEditor
     public bool Undo() { if (_undo.Count == 0) return false; _redo.Add(Clone(Document)); var restored = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); Restore(restored); Changed?.Invoke(this, EventArgs.Empty); return true; }
     public bool Redo() { if (_redo.Count == 0) return false; _undo.Add(Clone(Document)); var restored = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); Restore(restored); Changed?.Invoke(this, EventArgs.Empty); return true; }
 
-    private void SetRun(Action<NotesTextRun> apply, string reason) { if (!TryActiveRun(out var run)) return; Mutate(() => apply(run), reason); }
+    private void SetRun(Action<NotesTextRun> apply, string reason)
+    {
+        if (HasDocumentSelection)
+        {
+            if (!SelectedRuns().Any()) return;
+            Mutate(() => { foreach (var selected in SelectedRuns(splitBoundaries: true)) apply(selected); }, reason);
+            return;
+        }
+        if (!TryActiveRun(out var run)) return;
+        Mutate(() => apply(run), reason);
+    }
     private void SetParagraph(Action<NotesParagraphFormat> apply, string reason) { if (SelectedBlock is not { } block) return; Mutate(() => apply(block.Paragraph), reason); }
     private bool TryActiveRun(out NotesTextRun run) { run = null!; if (SelectedBlock is not { } block) return false; EnsureRuns(block); ActiveRunIndex = Math.Clamp(ActiveRunIndex, 0, block.Runs.Count - 1); run = block.Runs[ActiveRunIndex]; return true; }
     private void Mutate(Action action, string reason) { _undo.Add(Clone(Document)); if (_undo.Count > HistoryLimit) _undo.RemoveAt(0); _redo.Clear(); action(); Document.UpdatedAt = DateTimeOffset.UtcNow; Changed?.Invoke(this, EventArgs.Empty); }

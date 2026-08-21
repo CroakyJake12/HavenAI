@@ -77,6 +77,17 @@ public sealed partial class MainView
             return;
         }
 
+        if (decision.TargetKey.Equals("spaces", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenSpacesAsync();
+            if (snapshot.Files.Count > 0 || snapshot.Apps.Count > 0 || snapshot.Capabilities.Count > 0)
+            {
+                page.RestorePendingTask(decision.Instruction, snapshot);
+                _notifications.Show("Go", "Opened Spaces. Your attached Go context is still available when you return.", ToastKind.Info, TimeSpan.FromSeconds(5));
+            }
+            return;
+        }
+
         var app = await _modeRegistry.GetModeByKeyAsync(decision.TargetKey, CancellationToken.None);
         if (app is null)
         {

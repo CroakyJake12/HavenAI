@@ -415,6 +415,26 @@ public sealed class ChatHavenSceneTests
         Assert.Equal("Updated at scale", originalItem.GetComponent<Markdown>("Body").Content);
     }
 
+    [Fact]
+    public void Safety_lock_disables_authoritative_composer_and_consequential_message_actions()
+    {
+        using var scene = new ChatHavenScene();
+        scene.Instruction.Text = "unsafe continuation";
+        scene.SetSending(false, modelAvailable: true);
+
+        scene.SetSafetyLocked(true);
+
+        Assert.False(scene.Instruction.GetValue(HavenProperties.Enabled));
+        Assert.False(scene.SendButton.GetValue(HavenProperties.Enabled));
+        Assert.False(scene.AddButton.GetValue(HavenProperties.Enabled));
+
+        scene.SetSafetyLocked(false);
+        scene.SetSending(false, modelAvailable: true);
+        Assert.True(scene.Instruction.GetValue(HavenProperties.Enabled));
+        Assert.True(scene.SendButton.GetValue(HavenProperties.Enabled));
+        Assert.True(scene.AddButton.GetValue(HavenProperties.Enabled));
+    }
+
     private static void Click(HavenInputRouter router, HavenElement element)
     {
         var point = new HavenPoint(element.Bounds.X + element.Bounds.Width / 2, element.Bounds.Y + element.Bounds.Height / 2);

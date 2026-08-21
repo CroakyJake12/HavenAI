@@ -52,11 +52,11 @@ public sealed class PlanHavenSceneTests
         var task = new PlannerDayItem(taskId, PlannerDayItemKind.Task, "Revision", dayStart.AddHours(10), dayStart.AddHours(11), dayStart.AddHours(12), false, false, false, false, PlannerDefaults.CollegeCollectionId, null);
         scene.SetDay(new PlannerDaySnapshot(dayStart, dayStart.AddDays(1), dayStart.AddHours(9), [task], [], null, task, task.StartsAt, task.EndsAt, 0), TimeZoneInfo.Utc, new Dictionary<Guid, PlannerStudyLink> { [taskId] = new(subjectId, lessonId) }, new Dictionary<Guid, string> { [subjectId] = "Maths" });
         var refreshes = 0;
-        var fullPlanner = 0;
+        var month = 0;
         Guid? completed = null;
         PlannerStudyLink? study = null;
         scene.RefreshRequested += (_, _) => refreshes++;
-        scene.FullPlannerRequested += (_, _) => fullPlanner++;
+        scene.MonthRequested += (_, _) => month++;
         scene.CompleteTaskRequested += (_, id) => completed = id;
         scene.StudyRequested += (_, link) => study = link;
         var host = new HavenSceneControl { Root = scene.Root };
@@ -67,12 +67,12 @@ public sealed class PlanHavenSceneTests
             window.UpdateLayout();
             var router = new HavenInputRouter(scene.Root);
             Click(router, scene.RefreshButton);
-            Click(router, scene.FullPlannerButton);
+            Click(router, scene.MonthButton);
             var row = scene.DayItems.GetItem($"task-{taskId:N}");
             Click(router, row.GetComponent<Haven.UI.Components.Button>("Complete"));
             Click(router, row.GetComponent<Haven.UI.Components.Button>("Study"));
             Assert.Equal(1, refreshes);
-            Assert.Equal(1, fullPlanner);
+            Assert.Equal(1, month);
             Assert.Equal(taskId, completed);
             Assert.NotNull(study);
             Assert.Equal(subjectId, study!.SubjectId);

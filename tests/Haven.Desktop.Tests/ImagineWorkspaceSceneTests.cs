@@ -16,6 +16,8 @@ public sealed class ImagineWorkspaceSceneTests
         scene.SetSession(session);
 
         Assert.Equal(ImagineMediaKind.Image, scene.Mode);
+        var globalExport = scene.Root.DescendantsAndSelf().OfType<Button>().Single(button => button.Name == "Export");
+        Assert.Equal("Export image", globalExport.Content);
         Assert.Equal(HavenVisibility.Visible, scene.ImageTools.GetValue(HavenProperties.Visibility));
         Assert.Equal(HavenVisibility.Collapsed, scene.TimelineTools.GetValue(HavenProperties.Visibility));
         scene.SetMode(ImagineMediaKind.Audio);
@@ -29,13 +31,16 @@ public sealed class ImagineWorkspaceSceneTests
         scene.SetMode(ImagineMediaKind.Video);
         Assert.Equal(ImagineMediaKind.Video, scene.Canvas.Timeline.Kind);
         var frameButton = scene.Root.DescendantsAndSelf().OfType<Button>().Single(button => button.Name == "TimelinePreviewFrame");
+        var exportClip = scene.Root.DescendantsAndSelf().OfType<Button>().Single(button => button.Name == "TimelineExportVideoClip");
         Assert.Equal(HavenVisibility.Visible, frameButton.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Visible, exportClip.GetValue(HavenProperties.Visibility));
         Assert.Equal(HavenVisibility.Visible, scene.Canvas.VideoPreview.GetValue(HavenProperties.Visibility));
         Assert.Equal("Decoded video frame preview", scene.Canvas.VideoPreview.Accessibility.AccessibleName);
         Assert.Contains("ffmpeg-decoded", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("not yet available", scene.Canvas.Notice.Content, StringComparison.OrdinalIgnoreCase);
         scene.SetMode(ImagineMediaKind.Audio);
         Assert.Equal(HavenVisibility.Collapsed, frameButton.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, exportClip.GetValue(HavenProperties.Visibility));
         Assert.Equal(HavenVisibility.Collapsed, scene.Canvas.VideoPreview.GetValue(HavenProperties.Visibility));
     }
 

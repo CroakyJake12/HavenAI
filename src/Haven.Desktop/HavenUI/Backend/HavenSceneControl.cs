@@ -119,13 +119,37 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     protected override Size MeasureOverride(Size availableSize)
     {
         if (_root is null) return default;
-        var width = double.IsInfinity(availableSize.Width) ? Math.Max(0, Bounds.Width) : availableSize.Width;
-        var height = double.IsInfinity(availableSize.Height) ? Math.Max(0, Bounds.Height) : availableSize.Height;
-        UpdateSurfaceMetrics(width, height);
-        _layout.Layout(_root, SurfaceMetrics.Viewport, Platform, this);
-        return new Size(_root.DesiredSize.Width, _root.DesiredSize.Height);
+
+        // Avalonia uses +Infinity on an Auto/unconstrained axis. Preserve that
+        // for Haven's intrinsic measure pass instead of substituting the
+        // not-yet-arranged Bounds (which is 0 on first measure and collapses
+        // retained scenes such as Overlay chrome). Responsive surface metrics
+        // stay finite so breakpoints remain deterministic during measurement.
+        var metricWidth = FiniteMeasureMetric(availableSize.Width, Bounds.Width, SurfaceMetrics.Viewport.Width, 1280d);
+        var metricHeight = FiniteMeasureMetric(availableSize.Height, Bounds.Height, SurfaceMetrics.Viewport.Height, 720d);
+        UpdateSurfaceMetrics(metricWidth, metricHeight);
+
+        _layout.Layout(
+            _root,
+            new HavenSize(availableSize.Width, availableSize.Height),
+            Platform,
+            this);
+
+        return new Size(
+            FiniteDesired(_root.DesiredSize.Width, metricWidth),
+            FiniteDesired(_root.DesiredSize.Height, metricHeight));
     }
 
+    private static double FiniteMeasureMetric(double available, double current, double previous, double fallback)
+    {
+        if (double.IsFinite(available)) return Math.Max(0, available);
+        if (double.IsFinite(current) && current > 0) return current;
+        if (double.IsFinite(previous) && previous > 0) return previous;
+        return fallback;
+    }
+
+    private static double FiniteDesired(double desired, double fallback)
+        => double.IsFinite(desired) ? Math.Max(0, desired) : Math.Max(0, fallback);
     protected override Size ArrangeOverride(Size finalSize)
     {
         UpdateSurfaceMetrics(finalSize.Width, finalSize.Height);
@@ -148,7 +172,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         {
             Text value => value.Content,
             Haven.UI.Components.Button value => value.Content,
-            Input value => string.IsNullOrEmpty(value.Text) ? value.Placeholder : value.Text,
+            Input value => string.IsNullOrEmpty(value.Text) ? value.Placeholder : value.DisplayText,
             Select value => value.SelectedItem ?? "Select",
             _ => string.Empty
         };
@@ -433,6 +457,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         Key.Delete => HavenKey.Delete,
         Key.A => HavenKey.A,
         Key.C => HavenKey.C,
+        Key.D => HavenKey.D,
         Key.F => HavenKey.F,
         Key.V => HavenKey.V,
         Key.X => HavenKey.X,
@@ -559,7 +584,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
             case HavenStrokeRoundedRectCommand stroke: context.DrawRectangle(null, new Pen(Resolve(stroke.Pen.Brush), stroke.Pen.Thickness), Rect(stroke.Rect), stroke.Radius, stroke.Radius, default); break;
             case HavenTextCommand text:
             {
-                var formatted = CreateText(text.Layout.Text, text.Layout.FontFamily, text.Layout.FontSize, text.Layout.FontWeight, text.Layout.MaxWidth, Resolve(text.Brush));
+                var formatted = CreateText(text.Layout.Text, text.Layout.FontFamily, text.Layout.FontSize, text.Layout.FontWeight, text.Layout.MaxWidth, Resolve(text.Brush), text.Layout.Italic);
                 var y = text.Layout.CenterVertically
                     ? text.Rect.Y + Math.Max(0, (text.Rect.Height - formatted.Height) / 2d)
                     : text.Rect.Y;
@@ -687,10 +712,10 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private static Avalonia.Rect Rect(HavenRect rect) => new(rect.X, rect.Y, rect.Width, rect.Height);
     private void UpdateSurfaceMetrics(double width, double height) => SurfaceMetrics = new(new HavenSize(Math.Max(0, width), Math.Max(0, height)), Math.Max(.01d, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1d), Platform);
     private static FormattedText CreateText(string text, HavenElement element, double maxWidth) => CreateText(text, element.GetValue(HavenProperties.FontFamily), element.GetValue(HavenProperties.FontSize), element.GetValue(HavenProperties.FontWeight), maxWidth, HavenAvaloniaThemeResolver.Resolve(element.GetValue(HavenProperties.Foreground)));
-    private static FormattedText CreateText(string text, string family, double size, int weight, double maxWidth, IBrush foreground)
+    private static FormattedText CreateText(string text, string family, double size, int weight, double maxWidth, IBrush foreground, bool italic = false)
     {
         var fontFamily = family.Equals("Montserrat", StringComparison.OrdinalIgnoreCase) ? new FontFamily("avares://Haven/Assets/Fonts/MontserratStatic#Montserrat") : new FontFamily(family);
-        return new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(fontFamily, FontStyle.Normal, Weight(weight), FontStretch.Normal), size, foreground) { MaxTextWidth = Math.Max(1, maxWidth) };
+        return new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(fontFamily, italic ? FontStyle.Italic : FontStyle.Normal, Weight(weight), FontStretch.Normal), size, foreground) { MaxTextWidth = Math.Max(1, maxWidth) };
     }
     private static FontWeight Weight(int weight) => weight switch { >= 800 => FontWeight.ExtraBold, >= 700 => FontWeight.Bold, >= 600 => FontWeight.SemiBold, >= 500 => FontWeight.Medium, _ => FontWeight.Normal };
     private static HavenKey MapKey(Key key) => key switch { Key.Enter => HavenKey.Enter, Key.Space => HavenKey.Space, Key.Escape => HavenKey.Escape, Key.Tab => HavenKey.Tab, Key.Left => HavenKey.Left, Key.Right => HavenKey.Right, Key.Up => HavenKey.Up, Key.Down => HavenKey.Down, Key.Home => HavenKey.Home, Key.End => HavenKey.End, Key.Back => HavenKey.Backspace, Key.Delete => HavenKey.Delete, _ => HavenKey.Unknown };

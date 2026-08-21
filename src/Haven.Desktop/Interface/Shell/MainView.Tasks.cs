@@ -51,7 +51,8 @@ public sealed partial class MainView
             _automations,
             containerId,
             StartOneTimeTaskAsync,
-            InvokeTaskAsync);
+            InvokeTaskAsync,
+            _versionedSettings);
 
         AddOrSelectTab(
             key,

@@ -60,6 +60,7 @@ public interface IConversationProductionRepository
     Task RemoveBranchMessagesAfterAsync(Guid branchId, Guid messageId, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<MessageAttachment>> GetAttachmentsAsync(Guid conversationId, Guid? messageId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MessageAttachment>> GetAttachmentLibraryAsync(int limit, CancellationToken cancellationToken);
     Task<MessageAttachment> UpsertAttachmentAsync(MessageAttachment attachment, CancellationToken cancellationToken);
     Task DeleteAttachmentAsync(Guid attachmentId, CancellationToken cancellationToken);
 

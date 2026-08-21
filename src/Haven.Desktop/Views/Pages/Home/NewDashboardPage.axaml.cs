@@ -74,10 +74,19 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
         if (_disposed) return;
         _clock.Start();
         await EnsurePageStateLoadedAsync(cancellationToken);
+        if (_widgetDashboard is not null)
+        {
+            await RefreshWidgetSurfaceAsync(cancellationToken);
+            return;
+        }
         await RefreshAsync(cancellationToken);
     }
 
-    public void Deactivate() => _clock.Stop();
+    public void Deactivate()
+    {
+        _clock.Stop();
+        _widgetRefreshCancellation?.Cancel();
+    }
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -96,6 +105,11 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
 
     private void RenderPage()
     {
+        if (_widgetDashboard is not null)
+        {
+            RenderWidgetPage();
+            return;
+        }
         RebuildPageTabs();
         var page = SelectedPage;
         var modeById = _cachedModes.ToDictionary(mode => mode.Id);
@@ -252,6 +266,11 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
 
     private void ShowPageEditor(DashboardPageProfile? existing)
     {
+        if (_widgetDashboard is not null)
+        {
+            ShowWidgetPageEditor(existing);
+            return;
+        }
         var isNew = existing is null;
         var source = existing ?? new DashboardPageProfile(
             Guid.NewGuid().ToString("N"), "New page", [], IncludeAllPinned: false, _pages.Count);

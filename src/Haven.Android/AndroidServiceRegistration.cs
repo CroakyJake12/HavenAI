@@ -1,5 +1,8 @@
 using Haven.Application;
+using Haven.Application.Automations;
+using Haven.Desktop.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Haven.Android;
 
@@ -8,6 +11,17 @@ public static class AndroidServiceRegistration
     public static IServiceCollection AddHavenAndroidPlatformServices(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.RemoveAll<IComputerToolService>();
+        services.AddSingleton<IComputerToolService, AndroidComputerToolService>();
+        services.RemoveAll<IDeviceActionProvider>();
+        services.AddSingleton<IDeviceActionProvider, AndroidDeviceActionProvider>();
+        services.AddSingleton<AndroidEncryptedPreferenceStore>();
+        services.RemoveAll<IProviderSecretStore>();
+        services.AddSingleton<IProviderSecretStore, AndroidProviderSecretStore>();
+        services.RemoveAll<ICalendarTokenStore>();
+        services.AddSingleton<ICalendarTokenStore, AndroidCalendarTokenStore>();
+        services.RemoveAll<IScreenShareService>();
+        services.AddSingleton<IScreenShareService, WindowsGraphicsCaptureService>();
         services.AddSingleton<ISpeechInputService, AndroidSpeechInputService>();
         services.AddSingleton<AndroidNotificationBridge>();
         services.AddSingleton<AndroidAssistantOverlayCoordinator>();

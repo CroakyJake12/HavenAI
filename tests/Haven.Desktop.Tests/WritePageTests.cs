@@ -68,10 +68,19 @@ public sealed class WritePageTests
             Assert.Same(writePage.SceneRoot, writePage.SceneHost.Root);
             Assert.Single(writePage.SceneHost.Children);
             Assert.Equal(document.Id, writePage.Document?.Id);
-            Assert.True(writePage.Route.BlockInputs.ContainsKey(paragraph.Id));
+            Assert.Empty(writePage.Route.BlockInputs);
+            Assert.Contains(writePage.Route.DocumentSurface, writePage.SceneRoot.DescendantsAndSelf());
+            Assert.Equal(HavenAccessibleRole.Input, writePage.Route.DocumentSurface.Accessibility.Role);
+            Assert.True(writePage.Route.DocumentSurface.Accessibility.Focusable);
+            Assert.Equal("Document editor", writePage.Route.DocumentSurface.Accessibility.AccessibleName);
+            Assert.False(string.IsNullOrWhiteSpace(writePage.Route.DocumentSurface.Accessibility.Description));
 
             writePage.Route.TitleInput.Text = "Results Day brief";
-            writePage.Route.BlockInputs[paragraph.Id].Text = "Bold stronger italic";
+            var router = new HavenInputRouter(writePage.SceneRoot);
+            router.Focus(writePage.Route.DocumentSurface);
+            for (var index = 0; index < 5; index++)
+                Assert.True(router.KeyDown(HavenKey.Right, new HavenInputModifiers()));
+            Assert.True(router.TextInput("stronger "));
 
             Assert.True(writePage.IsDirty);
             Assert.Equal("Results Day brief", writePage.Document?.Title);
@@ -128,7 +137,7 @@ public sealed class WritePageTests
         Assert.False(saved);
         Assert.True(writePage.IsDirty);
         Assert.Equal("Still unsaved", writePage.Document?.Title);
-        Assert.Contains("Couldn’t save", writePage.Route.StatusText.Content, StringComparison.Ordinal);
+        Assert.Contains("Couldn't save this document", writePage.Route.StatusText.Content, StringComparison.Ordinal);
         Assert.Equal(0, repository.SaveCalls);
     }
 

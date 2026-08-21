@@ -4,7 +4,7 @@ namespace Haven.UI;
 
 public enum HavenPointerKind { Mouse, Touch, Pen }
 public enum HavenPointerButton { Primary, Secondary, Middle }
-public enum HavenKey { Unknown, Enter, Space, Escape, Tab, Left, Right, Up, Down, Home, End, Backspace, Delete, A, C, F, V, X, Y, Z }
+public enum HavenKey { Unknown, Enter, Space, Escape, Tab, Left, Right, Up, Down, Home, End, Backspace, Delete, A, C, D, F, V, X, Y, Z }
 
 public sealed class HavenInputRouter(HavenElement root)
 {

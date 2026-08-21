@@ -47,6 +47,7 @@ internal sealed record ChatSidebarEntry(
 
 internal sealed record ChatSidebarConversationRequest(Guid ConversationId, ChatSidebarConversationAction Action);
 internal sealed record ChatSidebarGroupRequest(Guid GroupId, ChatSidebarGroupAction Action);
+internal sealed record ChatSidebarFileEntry(Guid AttachmentId, Guid ConversationId, string Name, string MediaType, long SizeBytes, DateTimeOffset UpdatedAt);
 
 /// <summary>
 /// Haven-owned Chat sidebar scene. Avalonia may host this scene, but every visible sidebar control
@@ -58,6 +59,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private readonly DynamicUI _dynamicUi;
     private readonly Dictionary<string, Dictionary<string, DynamicUIItem>> _items = new(StringComparer.Ordinal);
     private readonly Dictionary<Guid, ChatSidebarEntry> _entryState = [];
+    private IReadOnlyList<ChatSidebarFileEntry> _fileEntries = [];
     private PopupMenu? _activePopup;
     private bool _disposed;
 
@@ -67,7 +69,6 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         Root = BuildRoot();
         _dynamicUi = new DynamicUI(Root, _templates);
 
-        ModeButton = Get<HavenButton>("ModeButton");
         ModeOptions = Get<Container>("ModeOptions");
         ChatMode = Get<HavenButton>("ChatMode");
         StudyMode = Get<HavenButton>("StudyMode");
@@ -324,14 +325,14 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         if (entry.Kind == ChatSidebarEntryKind.Group)
             return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
-                ["TITLE"] = entry.Title + (entry.Unread ? " •" : string.Empty),
+                ["TITLE"] = entry.Title + (entry.Unread ? " Ã¢â‚¬Â¢" : string.Empty),
                 ["BACKGROUND"] = entry.Active ? "SurfaceRaised" : "Transparent",
                 ["CHEVRON"] = entry.Expanded ? "chevron-down" : "chevron-right",
             };
 
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["TITLE"] = entry.Title + (entry.Unread ? " •" : string.Empty),
+            ["TITLE"] = entry.Title + (entry.Unread ? " Ã¢â‚¬Â¢" : string.Empty),
             ["BACKGROUND"] = entry.Active ? "SurfaceRaised" : "Transparent",
             ["MARGIN"] = entry.Indented ? "28px 0px 0px 0px" : "0px",
         };

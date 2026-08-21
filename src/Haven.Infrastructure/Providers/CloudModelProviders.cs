@@ -40,6 +40,10 @@ internal static class ProviderHttp
         if (!configuration.IsEnabled) throw new InvalidOperationException($"{configuration.DisplayName} is disabled in Haven settings.");
         var endpoint = string.IsNullOrWhiteSpace(configuration.Endpoint) ? defaultEndpoint : configuration.Endpoint;
         if (string.IsNullOrWhiteSpace(endpoint)) throw new InvalidOperationException($"{configuration.DisplayName} requires an endpoint.");
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme is not ("http" or "https"))
+            throw new InvalidOperationException($"{configuration.DisplayName} requires an absolute HTTP or HTTPS endpoint.");
+        if (endpointUri.Scheme == "http" && !endpointUri.IsLoopback)
+            throw new InvalidOperationException($"{configuration.DisplayName} must use HTTPS for a non-loopback endpoint.");
         if (!endpoint.EndsWith("/", StringComparison.Ordinal)) endpoint += "/";
         return configuration with { Endpoint = endpoint };
     }

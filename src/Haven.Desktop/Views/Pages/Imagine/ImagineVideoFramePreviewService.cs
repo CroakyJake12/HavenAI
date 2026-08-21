@@ -85,8 +85,9 @@ internal sealed class ImagineVideoFramePreviewService(ILocalMediaToolLocator too
                 if (process.ExitCode != 0 || !File.Exists(output) || new FileInfo(output).Length == 0)
                 {
                     DeleteTemporary(output);
-                    var detail = string.IsNullOrWhiteSpace(error) ? string.Empty : " " + error.Trim();
-                    return new ImagineVideoFrameResult(false, "ffmpeg could not decode that video frame." + detail);
+                    var detail = string.IsNullOrWhiteSpace(error) ? string.Empty : error.Trim();
+                    if (detail.Length > 500) detail = detail[..500] + "...";
+                    return new ImagineVideoFrameResult(false, "ffmpeg could not decode that video frame." + (detail.Length == 0 ? string.Empty : " " + detail));
                 }
                 return new ImagineVideoFrameResult(true, $"Previewing source frame at {plan.SourceSeconds:0.###}s.", output, plan.SourceSeconds);
             }

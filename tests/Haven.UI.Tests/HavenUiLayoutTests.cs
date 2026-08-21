@@ -231,6 +231,28 @@ public sealed class HavenUiLayoutTests
     }
 
     [Fact]
+    public void Popup_menu_keeps_disabled_actions_visible_but_noninteractive()
+    {
+        var root = SizedContainer(320, 220);
+        root.Layout = HavenLayout.Overlay;
+        var anchor = new Button { Content = "Open menu" };
+        root.Add(anchor);
+        Layout(root, new NamedMeasure());
+
+        var invoked = false;
+        var popup = new PopupMenu(anchor, root, [new PopupMenuItem("Close", () => invoked = true, Enabled: false)]);
+        root.Add(popup);
+        Layout(root, new NamedMeasure());
+
+        var item = Assert.IsType<Button>(Assert.Single(popup.Card.Children));
+        Assert.False(item.GetValue(HavenProperties.Enabled));
+        Assert.True(item.State.HasFlag(HavenElementState.Disabled));
+        Assert.NotSame(item, new HavenInputRouter(root).HitTest(new HavenPoint(item.Bounds.X + 4, item.Bounds.Y + 4)));
+        Assert.False(invoked);
+        Assert.Contains(popup, root.Children);
+    }
+
+    [Fact]
     public void Signed_zindex_controls_render_and_hit_order()
     {
         var root = SizedContainer(160, 80);
@@ -446,6 +468,24 @@ public sealed class HavenUiLayoutTests
         return container;
     }
 
+    [Fact]
+    public void Responsive_grid_preserves_auto_rows_before_shrinking_fraction_rows()
+    {
+        var root = SizedContainer(100, 100);
+        root.Layout = HavenLayout.Grid;
+        root.Rows = "Auto 1fr Auto";
+        root.SetValue(HavenProperties.Responsive, true);
+        var header = Cell("header", 0, 0);
+        var content = Cell("content", 1, 0);
+        var footer = Cell("footer", 2, 0);
+        root.Add(header); root.Add(content); root.Add(footer);
+        Layout(root, new NamedMeasure(("header", new HavenSize(100, 30)), ("content", new HavenSize(100, 100)), ("footer", new HavenSize(100, 20))));
+        Assert.Equal(30, header.Bounds.Height);
+        Assert.Equal(50, content.Bounds.Height);
+        Assert.Equal(20, footer.Bounds.Height);
+        Assert.Equal(30, content.Bounds.Y);
+        Assert.Equal(80, footer.Bounds.Y);
+    }
     private static Text Cell(string name, int row, int column)
     {
         var child = new Text(name) { Name = name };

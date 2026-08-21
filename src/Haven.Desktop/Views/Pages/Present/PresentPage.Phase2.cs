@@ -49,10 +49,18 @@ public sealed partial class PresentPage
         _route.AlignTopRequested += OnAlignTopRequested;
         _route.AlignMiddleRequested += OnAlignMiddleRequested;
         _route.SlideSelected += OnSlideSelected;
+        _route.SlideReorderRequested += OnSlideReorderRequested;
         _route.ObjectSelectionToggled += OnObjectSelectionToggled;
         _route.CanvasSelectionRequested += OnCanvasSelectionRequested;
+        _route.CanvasSelectionSetRequested += OnCanvasSelectionSetRequested;
         _route.CanvasMoveSelectionRequested += OnCanvasMoveSelectionRequested;
+        _route.CanvasTransformSelectionRequested += OnCanvasTransformSelectionRequested;
         _route.CanvasVectorHandleMoveRequested += OnCanvasVectorHandleMoveRequested;
+        _route.CanvasTitleTextPreviewRequested += OnCanvasTitleTextPreviewRequested;
+        _route.CanvasElementTextPreviewRequested += OnCanvasElementTextPreviewRequested;
+        _route.CanvasTextEditCommitRequested += OnCanvasTextEditCommitRequested;
+        _route.CanvasTextEditCancelRequested += OnCanvasTextEditCancelRequested;
+        InitializeDesignPlayback();
     }
 
     private void AttachEditor(PresentDocument document)
@@ -273,6 +281,16 @@ public sealed partial class PresentPage
         RenderCurrent();
     }
 
+    private void OnSlideReorderRequested(int fromIndex, int toIndex)
+    {
+        if (_editor is null || Document is null || Document.Slides.Count < 2) return;
+        fromIndex = Math.Clamp(fromIndex, 0, Document.Slides.Count - 1);
+        toIndex = Math.Clamp(toIndex, 0, Document.Slides.Count - 1);
+        if (fromIndex == toIndex) return;
+        var slide = Document.Slides[fromIndex];
+        if (_editor.MoveSlide(slide.Id, toIndex)) _slideIndex = IndexOfSlide(slide.Id);
+    }
+
     private void OnObjectSelectionToggled(Guid elementId)
     {
         if (_editor is null) return;
@@ -287,9 +305,23 @@ public sealed partial class PresentPage
         if (_editor is null) return; _editor.SelectElements(elementId is { } id ? [id] : []); RenderCurrent();
     }
 
+    private void OnCanvasSelectionSetRequested(IReadOnlyCollection<Guid> elementIds)
+    {
+        if (_editor is null) return;
+        _editor.SelectElements(elementIds);
+        RenderCurrent();
+    }
+
     private void OnCanvasMoveSelectionRequested(double deltaX, double deltaY)
     {
-        if (_editor is null) return; _editor.MoveSelection(deltaX, deltaY, snap: true);
+        if (_editor is null) return;
+        _editor.MoveSelection(deltaX, deltaY, snap: true);
+    }
+
+    private void OnCanvasTransformSelectionRequested(double deltaX, double deltaY, double deltaWidth, double deltaHeight, double deltaRotation)
+    {
+        if (_editor is null) return;
+        _editor.TransformSelection(deltaX, deltaY, deltaWidth, deltaHeight, deltaRotation);
     }
 
     private void OnCanvasVectorHandleMoveRequested(Guid elementId, Guid nodeId, PresentVectorHandleKind kind, double x, double y)
@@ -301,6 +333,23 @@ public sealed partial class PresentPage
             else vectorEditor.MoveControlPoint(nodeId, kind == PresentVectorHandleKind.Control1 ? 1 : 2, x, y);
         });
     }
+
+    private void OnCanvasTitleTextPreviewRequested(string value)
+    {
+        if (_editor is null || !_editor.PreviewSlideTitle(_editor.Selection.SlideId, value)) return;
+        _dirty = true;
+        _route.SetStatus("Editing slide title · Ctrl+Enter to commit · Esc to cancel");
+    }
+
+    private void OnCanvasElementTextPreviewRequested(Guid elementId, string value)
+    {
+        if (_editor is null || !_editor.PreviewElementText(_editor.Selection.SlideId, elementId, value)) return;
+        _dirty = true;
+        _route.SetStatus("Editing text on slide · Ctrl+Enter to commit · Esc to cancel");
+    }
+
+    private void OnCanvasTextEditCommitRequested(object? sender, EventArgs e) => _editor?.CommitLiveTextEdit();
+    private void OnCanvasTextEditCancelRequested(object? sender, EventArgs e) => _editor?.CancelLiveTextEdit();
 
     internal async Task<bool> ImportFromPathAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
@@ -366,8 +415,16 @@ public sealed partial class PresentPage
         _route.RotateLeftRequested -= OnRotateLeftRequested; _route.RotateRightRequested -= OnRotateRightRequested;
         _route.AlignLeftRequested -= OnAlignLeftRequested; _route.AlignCenterRequested -= OnAlignCenterRequested;
         _route.AlignTopRequested -= OnAlignTopRequested; _route.AlignMiddleRequested -= OnAlignMiddleRequested;
-        _route.SlideSelected -= OnSlideSelected; _route.ObjectSelectionToggled -= OnObjectSelectionToggled;
-        _route.CanvasSelectionRequested -= OnCanvasSelectionRequested; _route.CanvasMoveSelectionRequested -= OnCanvasMoveSelectionRequested;
+        _route.SlideSelected -= OnSlideSelected; _route.SlideReorderRequested -= OnSlideReorderRequested; _route.ObjectSelectionToggled -= OnObjectSelectionToggled;
+        _route.CanvasSelectionRequested -= OnCanvasSelectionRequested;
+        _route.CanvasSelectionSetRequested -= OnCanvasSelectionSetRequested;
+        _route.CanvasMoveSelectionRequested -= OnCanvasMoveSelectionRequested;
+        _route.CanvasTransformSelectionRequested -= OnCanvasTransformSelectionRequested;
         _route.CanvasVectorHandleMoveRequested -= OnCanvasVectorHandleMoveRequested;
+        _route.CanvasTitleTextPreviewRequested -= OnCanvasTitleTextPreviewRequested;
+        _route.CanvasElementTextPreviewRequested -= OnCanvasElementTextPreviewRequested;
+        _route.CanvasTextEditCommitRequested -= OnCanvasTextEditCommitRequested;
+        _route.CanvasTextEditCancelRequested -= OnCanvasTextEditCancelRequested;
+        DisposeDesignPlayback();
     }
 }

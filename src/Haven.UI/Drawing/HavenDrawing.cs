@@ -40,7 +40,7 @@ public sealed record HavenGeometry(HavenPath Path, HavenRect? ViewBox = null);
 public sealed record HavenTransform(double ScaleX = 1, double ScaleY = 1, double RotationDegrees = 0, double TranslateX = 0, double TranslateY = 0);
 public sealed record HavenImage(string Source);
 public enum HavenImageLayout { Contain, Cover, Fill, None }
-public sealed record HavenTextLayout(string Text, string FontFamily, double FontSize, int FontWeight, double MaxWidth = double.PositiveInfinity, bool CenterVertically = false);
+public sealed record HavenTextLayout(string Text, string FontFamily, double FontSize, int FontWeight, double MaxWidth = double.PositiveInfinity, bool CenterVertically = false, bool Italic = false);
 public sealed record HavenShadow(HavenBrush Brush, double Blur, double OffsetX, double OffsetY, double Spread = 0, double Opacity = 1d);
 public sealed record HavenGlow(HavenBrush Brush, double Blur, double Opacity);
 
