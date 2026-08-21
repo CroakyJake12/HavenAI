@@ -75,7 +75,7 @@ internal sealed class OverlayWorkspaceWindow : Window
         AutomationProperties.SetAutomationId(ShellControl, "HavenOverlayShell");
         AutomationProperties.SetName(ShellControl, "Haven Overlay compact surface");
 
-        Content = CreateVisualRoot(ShellControl);
+        Content = CreateVisualRoot(ShellControl, chatPage, goPage);
 
         ShellScene.DragDelta += OnDragDelta;
         ShellScene.CaptureRequested += (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty);
@@ -125,9 +125,10 @@ internal sealed class OverlayWorkspaceWindow : Window
     public event EventHandler<OverlayContextActionDescriptor>? ActionRequested;
     public event EventHandler<OverlaySurfaceGeometry>? GeometryChanged;
 
-    internal static Control CreateVisualRoot(HavenSceneControl shellControl)
+    internal static Control CreateVisualRoot(HavenSceneControl shellControl, params Control?[] executionBackends)
     {
         ArgumentNullException.ThrowIfNull(shellControl);
+        _ = executionBackends;
         return shellControl;
     }
 
@@ -297,7 +298,7 @@ internal sealed class OverlayWorkspaceWindow : Window
         {
             backendDraft = chatRoot.DescendantsAndSelf()
                 .OfType<HavenInput>()
-                .FirstOrDefault(input => input.Name.EndsWith("Instruction", StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(input => input.Name?.EndsWith("Instruction", StringComparison.OrdinalIgnoreCase) == true)
                 ?.Text;
         }
         else if (GoPage is { } goPage)
