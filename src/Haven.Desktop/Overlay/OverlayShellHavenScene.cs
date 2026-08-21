@@ -128,6 +128,8 @@ internal sealed class OverlayShellHavenScene : IDisposable
 
         // Preserve the existing multi-session projection as state, but do not expose a tab strip in the compact surface.
         SessionTabs = new DynamicUIRuntime { Name = "Overlay.SessionTabs", Layout = HavenLayout.Horizontal };
+        Set(SessionTabs, HavenProperties.Visibility, HavenVisibility.Collapsed);
+        Root.Add(SessionTabs);
         NewChatButton = Action("Overlay.NewChat", "New chat", ButtonVariant.Secondary);
 
         _dynamicUi = new DynamicUI(Root, HavenDynamicUITemplateCatalog.FromAssembly(typeof(OverlayShellHavenScene).Assembly));
