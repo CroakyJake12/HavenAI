@@ -21,6 +21,7 @@ public sealed class HavenInputBackendRecoveryTests
         Assert.True(modifiers.Meta);
         Assert.Equal(HavenKey.A, HavenSceneControl.MapInputKey(Key.A));
         Assert.Equal(HavenKey.C, HavenSceneControl.MapInputKey(Key.C));
+        Assert.Equal(HavenKey.D, HavenSceneControl.MapInputKey(Key.D));
         Assert.Equal(HavenKey.F, HavenSceneControl.MapInputKey(Key.F));
         Assert.Equal(HavenKey.V, HavenSceneControl.MapInputKey(Key.V));
         Assert.Equal(HavenKey.X, HavenSceneControl.MapInputKey(Key.X));
