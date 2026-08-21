@@ -104,11 +104,20 @@ public sealed class GenUiIncrementalUpdater
     /// </summary>
     public IReadOnlyList<bool> ApplyBatch(IEnumerable<GenUiIncrementalChange> changes)
     {
-        var results = new List<bool>();
-        foreach (var change in changes) results.Add(Apply(change));
-        return results;
-    }
+       var batch = changes.ToArray();
+       if (batch.Length == 0) return [];
+       if (batch.Any(change => change.Operation is GenUiIncrementalOperation.AddComponent
+          or GenUiIncrementalOperation.RemoveComponent
+          or GenUiIncrementalOperation.ReplaceComponent
+          or GenUiIncrementalOperation.MoveComponent
+          or GenUiIncrementalOperation.DismissSurface))
+          throw new InvalidOperationException("Atomic batches currently support state/property/progress/error changes only.");
 
+       var results = _instances.ApplyPatchesAtomically(batch.Select(change => change.ToPatch()).ToArray());
+       for (var i = 0; i < batch.Length; i++)
+          if (results[i]) ChangeApplied?.Invoke(this, batch[i]);
+       return results;
+    }
     private bool ApplyStructuralChange(GenUiIncrementalChange change)
     {
         var document = _instances.TryGet(change.InstanceId);

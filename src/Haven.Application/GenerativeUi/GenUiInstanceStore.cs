@@ -56,6 +56,45 @@ public sealed class GenUiInstanceStore
         }
     }
 
+    public IReadOnlyList<bool> ApplyPatchesAtomically(IReadOnlyList<GenUiStatePatch> patches)
+    {
+        if (patches.Count == 0) return [];
+        var instanceId = patches[0].InstanceId;
+        if (patches.Any(patch => patch.InstanceId != instanceId))
+            throw new InvalidOperationException("An atomic GenUI patch batch cannot span multiple instances.");
+        if (!_instances.TryGetValue(instanceId, out var instance))
+            throw new InvalidOperationException($"GenUI instance '{instanceId}' is not registered.");
+
+        GenUiDocument? changed = null;
+        bool[] results;
+        lock (instance.Gate)
+        {
+            var staged = instance.Document;
+            var stagedIds = new HashSet<Guid>(instance.AppliedPatches);
+            results = new bool[patches.Count];
+            for (var i = 0; i < patches.Count; i++)
+            {
+                var patch = patches[i];
+                if (!stagedIds.Add(patch.PatchId)) continue;
+                staged = patch.TargetId.Equals("state", StringComparison.Ordinal)
+                    ? PatchState(staged, patch)
+                    : PatchComponent(staged, patch);
+                GenerativeUiContractValidator.ValidateAndThrow(staged);
+                staged = staged with { UpdatedAt = patch.Timestamp };
+                results[i] = true;
+            }
+
+            if (results.Any(value => value))
+            {
+                instance.Document = staged;
+                instance.AppliedPatches.Clear();
+                instance.AppliedPatches.UnionWith(stagedIds);
+                changed = staged;
+            }
+        }
+        if (changed is not null) DocumentChanged?.Invoke(this, changed);
+        return results;
+    }
     public bool Remove(Guid instanceId) => _instances.TryRemove(instanceId, out _);
 
     private static GenUiDocument PatchState(GenUiDocument document, GenUiStatePatch patch)
