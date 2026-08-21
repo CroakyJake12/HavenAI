@@ -25,6 +25,7 @@ public sealed class GoRouteIntentPolicyTests
         { "analyse this csv", GoRouteDestination.App, "data" },
         { "open the spreadsheet", GoRouteDestination.App, "data" },
         { "translate this into Spanish", GoRouteDestination.App, "translate" },
+        { "Translate this sentence into French: Good morning, everyone.", GoRouteDestination.App, "translate" },
         { "make a whiteboard for this topic", GoRouteDestination.App, "canvas" },
         { "play a game", GoRouteDestination.App, "play" },
         { "open calculator", GoRouteDestination.App, "launcher" },

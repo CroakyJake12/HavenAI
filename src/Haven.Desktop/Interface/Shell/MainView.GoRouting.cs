@@ -115,6 +115,13 @@ public sealed partial class MainView
             return;
         }
 
+        if (route.Kind == HavenAppRouteKind.Translate)
+        {
+            await OpenTranslateAsync(true, decision.Instruction, snapshot.Files);
+            await _modeUsage.RecordUsageAsync(app.Id, DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
+            return;
+        }
+
         if (route.Kind == HavenAppRouteKind.BaseMode && app.BaseMode == HavenMode.Chat)
         {
             await OpenNewChatAsync(decision.Instruction, forceNewTab: true, initialAttachments: snapshot);

@@ -1515,6 +1515,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (openInNewTab) AddNewTab();
             OpenAutomationsDashboard();
         }
+        else if (route.Kind == HavenAppRouteKind.Translate)
+        {
+            await OpenTranslateAsync(openInNewTab);
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
@@ -1604,6 +1608,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Launcher:
                     await ShowUniversalSearchAsync();
+                    break;
+                case HavenSurface.Translate:
+                    await OpenTranslateAsync(false);
                     break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);
