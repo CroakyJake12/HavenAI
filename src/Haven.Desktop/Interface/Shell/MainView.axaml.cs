@@ -58,6 +58,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly IGenUiTemplateRepository _genUiTemplates;
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
+    private readonly IGenUiAppRepository _genUiApps;
+    private readonly GenUiAppSessionService _genUiSessions;
     private readonly CalculatorTemplateRuntime _calculatorTemplate;
     private readonly StructuredFormTemplateRuntime _structuredFormTemplate;
     private readonly ChoicePromptTemplateRuntime _choicePromptTemplate;
@@ -166,6 +168,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IGenUiTemplateRepository genUiTemplates,
         GenerativeUiEventRouter genUiRouter,
         GenUiInstanceStore genUiInstances,
+        IGenUiAppRepository genUiApps,
+        GenUiAppSessionService genUiSessions,
         CalculatorTemplateRuntime calculatorTemplate,
         StructuredFormTemplateRuntime structuredFormTemplate,
         ChoicePromptTemplateRuntime choicePromptTemplate,
@@ -226,6 +230,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _genUiTemplates = genUiTemplates;
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
+        _genUiApps = genUiApps;
+        _genUiSessions = genUiSessions;
         _calculatorTemplate = calculatorTemplate;
         _structuredFormTemplate = structuredFormTemplate;
         _choicePromptTemplate = choicePromptTemplate;
@@ -1824,6 +1830,22 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             HavenSurface.Studio);
     }
 
+    private void OpenGenUiCreationHome()
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-create");
+        if (existing is not null) { SelectedTab = existing; return; }
+        AddOrSelectTab("genui-create", "Create with Generative UI",
+            new GenUiCreationHomePage(_bus, _genUiApps, _genUiSessions, _genUiRouter, _genUiInstances, OpenGenUiGenerationAsync),
+            true, HavenSurface.Studio);
+    }
+
+    private async Task OpenGenUiGenerationAsync(string prompt)
+    {
+        var request = "Create this as a Haven Generative UI app or interactive surface. Build the complete first-turn workflow rather than describing it in text.\n\n" + prompt;
+        await OpenScopedNewChatPageAsync(HavenMode.Studio, null, $"genui-generation-{Guid.NewGuid():N}",
+            "Generative UI", HavenSurface.Studio, prompt: request);
+    }
+
     private void OpenTemplateLab()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-template-lab");
@@ -2532,6 +2554,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
+            Command("Create with Generative UI", "Generate, reopen, pin and import persistent interactive Haven surfaces.", string.Empty, new RelayCommand(OpenGenUiCreationHome)),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
             Command("Automations", "Create, test, and run reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Archive", "Restore archived chats, groups, and projects.", string.Empty, NavigateArchiveCommand),
@@ -2634,6 +2657,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 new("Run tests", "test", () => Invoke(project.TestCommand), Category: "Studio", Description: "Run the active project's tests."),
                 new("Open terminal", "commands", () => Invoke(project.OpenTerminalCommand), Category: "Studio", Description: "Open a terminal at the project root."),
                 new("Project chat", "chat", () => Invoke(project.StartChatCommand), Category: "Studio", Description: "Start a chat scoped to this project."),
+                new("Create with Generative UI", "sparkles", OpenGenUiCreationHome, Category: "Studio", Description: "Generate or reopen persistent interactive Haven surfaces."),
                 new("Template Preview Lab", "sparkles", OpenTemplateLab, Category: "Studio", Description: "Inspect and exercise trusted structured GenUI templates.")
             ]);
         }

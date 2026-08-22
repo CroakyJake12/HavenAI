@@ -44,6 +44,25 @@ public sealed class GenUiAppRepositoryTests : IDisposable
         Assert.Equal("Dinner plan v2", restored!.Document.State["title"].GetString());
     }
 
+    [Fact]
+    public async Task Generated_app_pin_survives_repository_recreation()
+    {
+        var db = new SqliteDatabase(_paths);
+        await new ConversationProductionDatabase(db).InitializeAsync(CancellationToken.None);
+        var source = CreateApp();
+        var repository = new GenUiAppRepository(db);
+        await repository.UpsertAsync(source, CancellationToken.None);
+        await repository.SetPinnedAsync(source.Document.Origin.InstanceId, true, CancellationToken.None);
+
+        var reopened = new GenUiAppRepository(new SqliteDatabase(_paths));
+        var pinned = await reopened.GetPinnedAsync(10, CancellationToken.None);
+        Assert.Contains(pinned, app => app.Document.Origin.InstanceId == source.Document.Origin.InstanceId);
+
+        await reopened.SetPinnedAsync(source.Document.Origin.InstanceId, false, CancellationToken.None);
+        var afterUnpin = await new GenUiAppRepository(new SqliteDatabase(_paths)).GetPinnedAsync(10, CancellationToken.None);
+        Assert.DoesNotContain(afterUnpin, app => app.Document.Origin.InstanceId == source.Document.Origin.InstanceId);
+    }
+
     private static GenUiAppDefinition CreateApp()
     {
         var origin = new GenUiOrigin(Guid.NewGuid(), "genui", null, Guid.NewGuid());

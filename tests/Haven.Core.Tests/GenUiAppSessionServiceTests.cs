@@ -66,6 +66,16 @@ public sealed class GenUiAppSessionServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<IReadOnlyList<GenUiAppDefinition>>(_items.Values.Take(limit).ToArray());
         }
+        public Task<IReadOnlyList<GenUiAppDefinition>> GetPinnedAsync(int limit, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<GenUiAppDefinition>>(Array.Empty<GenUiAppDefinition>());
+        }
+        public Task SetPinnedAsync(Guid instanceId, bool pinned, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
         public Task DeleteAsync(Guid instanceId, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

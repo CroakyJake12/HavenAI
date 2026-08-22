@@ -20,6 +20,14 @@ public sealed class GenUiAppRepository(ISqliteConnectionFactory factory):IGenUiA
  {
   await using var c=await factory.OpenAsync(ct); await using var cmd=c.CreateCommand(); cmd.CommandText="SELECT definition_json FROM genui_apps ORDER BY updated_at DESC LIMIT $limit;"; cmd.Parameters.AddWithValue("$limit",Math.Clamp(limit,1,100)); var result=new List<GenUiAppDefinition>(); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) result.Add(Read(r.GetString(0))); return result;
  }
+ public async Task<IReadOnlyList<GenUiAppDefinition>> GetPinnedAsync(int limit,CancellationToken ct)
+ {
+  await using var c=await factory.OpenAsync(ct); await using var cmd=c.CreateCommand(); cmd.CommandText="SELECT definition_json FROM genui_apps WHERE is_pinned=1 ORDER BY updated_at DESC LIMIT $limit;"; cmd.Parameters.AddWithValue("$limit",Math.Clamp(limit,1,100)); var result=new List<GenUiAppDefinition>(); await using var r=await cmd.ExecuteReaderAsync(ct); while(await r.ReadAsync(ct)) result.Add(Read(r.GetString(0))); return result;
+ }
+ public async Task SetPinnedAsync(Guid instanceId,bool pinned,CancellationToken ct)
+ {
+  await using var c=await factory.OpenAsync(ct); await using var cmd=c.CreateCommand(); cmd.CommandText="UPDATE genui_apps SET is_pinned=$pinned WHERE instance_id=$id;"; cmd.Parameters.AddWithValue("$pinned",pinned?1:0); cmd.Parameters.AddWithValue("$id",instanceId.ToString()); await cmd.ExecuteNonQueryAsync(ct);
+ }
  public async Task DeleteAsync(Guid instanceId,CancellationToken ct)
  {
   await using var c=await factory.OpenAsync(ct); await using var cmd=c.CreateCommand(); cmd.CommandText="DELETE FROM genui_apps WHERE instance_id=$id;"; cmd.Parameters.AddWithValue("$id",instanceId.ToString()); await cmd.ExecuteNonQueryAsync(ct);

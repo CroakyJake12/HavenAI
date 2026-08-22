@@ -723,6 +723,10 @@ internal static class Migrations
             CREATE TABLE genui_apps(instance_id TEXT PRIMARY KEY, app_id TEXT NOT NULL, thread_id TEXT NOT NULL, definition_json TEXT NOT NULL, updated_at TEXT NOT NULL);
             CREATE INDEX ix_genui_apps_updated ON genui_apps(updated_at DESC);
             CREATE INDEX ix_genui_apps_thread ON genui_apps(thread_id,updated_at DESC);
+        """),
+        new(17, """
+            ALTER TABLE genui_apps ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+            CREATE INDEX ix_genui_apps_pinned_updated ON genui_apps(is_pinned,updated_at DESC);
         """)
     ];
 }
