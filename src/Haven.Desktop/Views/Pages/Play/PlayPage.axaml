@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+             x:Class="Haven.Desktop.Views.Pages.Play.PlayPage">
+  <Grid Background="Transparent">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <Grid Margin="24,78,24,28">
+        <StackPanel x:Name="HomeSection" Spacing="24">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="5">
+              <TextBlock Text="Play" FontSize="34" FontWeight="ExtraBold"/>
+              <TextBlock Text="Local interactive experiences, with AI when it genuinely adds something." Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+            <hui:HavenPrimaryButton x:Name="CreateButton" Grid.Column="1" Content="Create with Haven" Padding="20,11" VerticalAlignment="Center"/>
+          </Grid>
+
+          <hui:HavenTextInput x:Name="SearchBox" PlaceholderText="Search Play"/>
+          <WrapPanel x:Name="CategoryPanel" Orientation="Horizontal"/>
+
+          <StackPanel x:Name="ContinueSection" Spacing="10" IsVisible="False">
+            <TextBlock Text="Continue" FontSize="18" FontWeight="ExtraBold"/>
+            <WrapPanel x:Name="ContinuePanel" Orientation="Horizontal"/>
+          </StackPanel>
+
+          <StackPanel Spacing="10">
+            <TextBlock Text="Featured" FontSize="18" FontWeight="ExtraBold"/>
+            <WrapPanel x:Name="FeaturedPanel" Orientation="Horizontal"/>
+          </StackPanel>
+
+          <StackPanel Spacing="10">
+            <TextBlock Text="Recent" FontSize="18" FontWeight="ExtraBold"/>
+            <WrapPanel x:Name="RecentPanel" Orientation="Horizontal"/>
+            <TextBlock x:Name="RecentEmptyText" Text="Your recent Play sessions will appear here." Classes="muted"/>
+          </StackPanel>
+
+          <TextBlock x:Name="PageStatus" Classes="muted" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StackPanel x:Name="ExperienceSection" Spacing="18" IsVisible="False">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <hui:HavenTertiaryButton x:Name="BackButton" Content="Back"/>
+            <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+              <TextBlock x:Name="ExperienceTitle" FontSize="24" FontWeight="ExtraBold"/>
+              <TextBlock x:Name="ExperienceStatus" Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+            <hui:HavenSecondaryButton x:Name="RestartButton" Grid.Column="2" Content="Restart"/>
+          </Grid>
+          <hui:HavenCard Padding="18" MinHeight="560">
+            <ContentControl x:Name="ExperienceHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+          </hui:HavenCard>
+          <TextBlock Text="Play state is saved locally so you can leave and continue later." Classes="muted" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

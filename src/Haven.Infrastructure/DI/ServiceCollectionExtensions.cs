@@ -94,6 +94,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<GenUiInstanceStore>();
         services.AddSingleton<GenUiLocalActionRegistry>();
         services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());
+        services.AddSingleton<GenUiAppEventHandler>();
+        services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiAppEventHandler>());
         services.AddSingleton<CalculatorTemplateRuntime>();
         services.AddSingleton<StructuredFormTemplateRuntime>();
         services.AddSingleton<ChoicePromptTemplateRuntime>();
@@ -207,6 +209,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConversationPlacementService, ConversationPlacementService>();
         services.AddSingleton<IModePackageValidator, ModePackageValidator>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
+        services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();
         services.AddSingleton<ISingleInstanceService, SingleInstanceService>();
         return services;

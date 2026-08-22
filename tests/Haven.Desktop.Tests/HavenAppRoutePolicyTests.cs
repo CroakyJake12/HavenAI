@@ -29,7 +29,7 @@ public sealed class HavenAppRoutePolicyTests
         { "present", HavenAppRouteKind.ModeWorkspace, HavenSurface.Present },
         { "data", HavenAppRouteKind.ModeWorkspace, HavenSurface.Data },
         { "vision", HavenAppRouteKind.Vision, HavenSurface.Vision },
-        { "play", HavenAppRouteKind.ModeWorkspace, HavenSurface.Play },
+        { "play", HavenAppRouteKind.Play, HavenSurface.Play },
         { "translate", HavenAppRouteKind.Translate, HavenSurface.Translate },
         { "launcher", HavenAppRouteKind.ModeWorkspace, HavenSurface.Launcher },
         { "go", HavenAppRouteKind.Go, HavenSurface.Go },

@@ -25,6 +25,7 @@ using Haven.Desktop.Views.Pages.ContainerSettings;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
 using Haven.Desktop.Views.Pages.Plan;
+using Haven.Desktop.Views.Pages.Play;
 using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
@@ -89,6 +90,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly IDashboardRepository _dashboard;
     private readonly IDashboardLayoutRepository _dashboardLayout;
     private readonly IVersionedSettingsStore _versionedSettings;
+    private readonly Haven.Application.Play.PlaySessionService _playSessions;
     private readonly IReadOnlyList<IDashboardTileProvider> _dashboardProviders;
     private readonly ICallCoordinator _callCoordinator;
     private readonly IPlannerRepository _planner;
@@ -112,6 +114,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
     private TerminalPage? _terminalPage;
+    private PlayPage? _playPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
     private object? _currentPage;
@@ -192,6 +195,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IDashboardRepository dashboard,
         IDashboardLayoutRepository dashboardLayout,
         IVersionedSettingsStore versionedSettings,
+        Haven.Application.Play.PlaySessionService playSessions,
         IDashboardTileProviderRegistry dashboardProviders,
         ICallCoordinator callCoordinator,
         ISpeechModelManager speechModels,
@@ -252,6 +256,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _dashboard = dashboard;
         _dashboardLayout = dashboardLayout;
         _versionedSettings = versionedSettings;
+        _playSessions = playSessions;
         _dashboardProviders = dashboardProviders.Providers;
         _callCoordinator = callCoordinator;
         _ = speechModels; // Retained in the composition signature while the retired Call surface is removed.
@@ -954,6 +959,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _ = RefreshNativeChatSidebarAsync();
     }
 
+    private void OpenPlay()
+    {
+        _playPage ??= CreatePlayPage();
+        AddOrSelectTab("play", "Play", _playPage, false, HavenSurface.Play);
+        _ = _playPage.ActivateAsync(CancellationToken.None);
+    }
+
+    private PlayPage CreatePlayPage()
+    {
+        var page = new PlayPage(_playSessions, _genUiRouter);
+        page.CreateRequested += async (_, _) => await OpenNewChatAsync("Help me create an interactive Play experience. Ask what I want to play, then design it with Haven interactive UI and deterministic local state where possible.");
+        return page;
+    }
+
     private void OpenPlan()
     {
         // The Plan App opens the authoritative planner/calendar workspace in every shell edition.
@@ -1534,6 +1553,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
         }
+        else if (route.Kind == HavenAppRouteKind.Play)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenPlay();
+        }
         else if (route.Kind == HavenAppRouteKind.Automations)
         {
             if (openInNewTab) AddNewTab();
@@ -1618,6 +1642,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Plan:
                     OpenPlan();
+                    break;
+                case HavenSurface.Play:
+                    OpenPlay();
                     break;
                 case HavenSurface.Automations:
                     OpenAutomationsDashboard();
