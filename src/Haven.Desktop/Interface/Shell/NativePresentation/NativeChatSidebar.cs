@@ -18,7 +18,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     private readonly Func<Conversation, Task> _openConversation;
     private readonly Func<HavenMode, Guid?, Task> _startChat;
     private readonly Func<ContainerDefinition, Task> _openGroup;
-    private readonly Func<HavenMode, Task> _switchMode;
     private readonly NativeChatUiStateStore _stateStore;
     private readonly IConversationProductionRepository? _production;
     private readonly CancellationTokenSource _lifetime = new();
@@ -43,7 +42,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         Func<Conversation, Task> openConversation,
         Func<HavenMode, Guid?, Task> startChat,
         Func<ContainerDefinition, Task> openGroup,
-        Func<HavenMode, Task> switchMode,
         NativeChatUiStateStore? stateStore = null,
         IConversationProductionRepository? production = null)
     {
@@ -52,7 +50,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _openConversation = openConversation ?? throw new ArgumentNullException(nameof(openConversation));
         _startChat = startChat ?? throw new ArgumentNullException(nameof(startChat));
         _openGroup = openGroup ?? throw new ArgumentNullException(nameof(openGroup));
-        _switchMode = switchMode ?? throw new ArgumentNullException(nameof(switchMode));
         _stateStore = stateStore ?? new NativeChatUiStateStore();
         _production = production;
 
@@ -64,7 +61,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         Content = SceneHost;
 
         _scene.SearchChanged += OnSearchChanged;
-        _scene.ModeRequested += OnModeRequested;
         _scene.NewChatRequested += OnNewChatRequested;
         _scene.NewGroupRequested += OnNewGroupRequested;
         _scene.ConversationActionRequested += OnConversationActionRequested;
@@ -240,12 +236,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
     {
         _query = query;
         Render();
-    }
-
-    private async void OnModeRequested(object? sender, HavenMode mode)
-    {
-        try { await _switchMode(mode); }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException) { _scene.SetStatus(exception.Message); }
     }
 
     private async void OnNewChatRequested(object? sender, EventArgs e)
@@ -501,7 +491,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         _scene.SearchChanged -= OnSearchChanged;
-        _scene.ModeRequested -= OnModeRequested;
         _scene.NewChatRequested -= OnNewChatRequested;
         _scene.NewGroupRequested -= OnNewGroupRequested;
         _scene.ConversationActionRequested -= OnConversationActionRequested;

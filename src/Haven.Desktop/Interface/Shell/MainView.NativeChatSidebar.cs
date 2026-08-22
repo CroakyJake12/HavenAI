@@ -18,7 +18,6 @@ public sealed partial class MainView
             OpenNativeConversationAsync,
             StartNativeConversationAsync,
             OpenNativeContainerAsync,
-            SwitchNativeChatModeAsync,
             production: services.GetRequiredService<IConversationProductionRepository>());
 
         _studyAssignmentsSidebar = new StudyAssignmentsSidebarCoordinator(
