@@ -377,6 +377,51 @@ public sealed class GenUiLiveActivityTests
     }
 
     [Fact]
+    public void LiveActivitySupportsWatchSteerTakeOverAndPresentationModes()
+    {
+        var surface = new DefaultGenUiLiveActivitySurface(
+            Guid.NewGuid(), Guid.NewGuid(), "write", "Test", new GenUiInstanceStore());
+
+        Assert.Equal(GenUiLiveActivityControlMode.Watch, surface.ControlMode);
+        Assert.Equal(GenUiActivityPresentation.Compact, surface.Presentation);
+
+        surface.SetControlMode(GenUiLiveActivityControlMode.Steer);
+        surface.SetPresentation(GenUiActivityPresentation.FullScreen);
+        Assert.Equal(GenUiLiveActivityControlMode.Steer, surface.ControlMode);
+        Assert.Equal(GenUiActivityPresentation.FullScreen, surface.Presentation);
+
+        surface.SetControlMode(GenUiLiveActivityControlMode.TakeOver);
+        Assert.Equal(GenUiLiveActivityControlMode.TakeOver, surface.ControlMode);
+    }
+
+    [Fact]
+    public void LiveActivityPatchFailureIsVisibleAndAtomic()
+    {
+        var store = new GenUiInstanceStore();
+        var origin = new GenUiOrigin(Guid.NewGuid(), "write", null, Guid.NewGuid());
+        var document = new GenUiDocument(
+            Guid.NewGuid(), GenerativeUiContractValidator.CurrentContractVersion, origin, "Test", "write",
+            new GenUiComponent("root", "HavenWorkspace", new Dictionary<string, JsonElement>(), [], []),
+            new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement(1) },
+            DateTimeOffset.UtcNow);
+        store.Register(document);
+        var surface = new DefaultGenUiLiveActivitySurface(Guid.NewGuid(), origin.ThreadId, "write", "Test", store);
+        var now = DateTimeOffset.UtcNow;
+
+        surface.Update(new GenUiLiveActivityUpdate(
+            GenUiLiveActivityPhase.Operating, "Applying", 40,
+            [
+                new GenUiStatePatch(Guid.NewGuid(), origin.InstanceId, GenUiPatchOperation.Replace, "state", "value", JsonSerializer.SerializeToElement(2), now),
+                new GenUiStatePatch(Guid.NewGuid(), origin.InstanceId, GenUiPatchOperation.Replace, "missing-component", "text", JsonSerializer.SerializeToElement("boom"), now)
+            ], null, now));
+
+        Assert.Equal(GenUiLiveActivityPhase.Failed, surface.Phase);
+        Assert.NotNull(surface.LastError);
+        Assert.Contains("failed", surface.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, store.TryGet(origin.InstanceId)!.State["value"].GetInt32());
+    }
+
+    [Fact]
     public void LiveActivityTrackerTracksAndFilters()
     {
         var tracker = new GenUiLiveActivityTracker();
