@@ -113,6 +113,8 @@ public static class PlannerServiceCollectionExtensions
         services.TryAddSingleton<IPlannerCountdownService, PlannerCountdownService>();
         services.TryAddSingleton<IPlannerAvailabilityService, PlannerAvailabilityService>();
         services.TryAddSingleton<IStudyPlannerService, StudyPlannerService>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IDynamicCapabilityProvider, ConnectionCapabilityProvider>());
+        services.TryAddSingleton<CalendarConnectionToolRuntime>();
         services.TryAddSingleton<ICalendarTokenStore, WindowsCalendarTokenStore>();
         services.AddHttpClient("HavenCalendarSync", client => client.Timeout = TimeSpan.FromSeconds(45));
         services.TryAddSingleton<GoogleCalendarProviderTransport>(provider => new GoogleCalendarProviderTransport(

@@ -93,9 +93,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExternalConnectionRepository, ExternalConnectionRepository>();
         services.AddSingleton<IMcpConnectionClient, McpConnectionClient>();
         services.AddSingleton<ExternalConnectionRegistryService>();
-        services.AddSingleton<IDynamicCapabilityProvider, ConnectionCapabilityProvider>();
         services.AddSingleton<McpToolRuntime>();
-        services.AddSingleton<CalendarConnectionToolRuntime>();
         services.AddSingleton<CapabilityRegistryService>();
         services.AddSingleton<IGenUiTemplateRepository, GenUiTemplateRepository>();
         services.AddSingleton<IGenUiAppRepository, GenUiAppRepository>();

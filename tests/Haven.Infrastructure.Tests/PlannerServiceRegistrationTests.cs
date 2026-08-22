@@ -16,5 +16,7 @@ public sealed class PlannerServiceRegistrationTests
         using var provider = services.BuildServiceProvider();
 
         Assert.IsType<StudyPlannerService>(provider.GetRequiredService<IStudyPlannerService>());
+        Assert.IsType<CalendarConnectionToolRuntime>(provider.GetRequiredService<CalendarConnectionToolRuntime>());
+        Assert.Contains(provider.GetServices<IDynamicCapabilityProvider>(), item => item is ConnectionCapabilityProvider);
     }
 }
