@@ -20,6 +20,10 @@ public sealed partial class GoPage : UserControl, IDisposable
     private readonly List<(HavenElement Element, EventHandler Handler)> _stateSubscriptions = [];
     private IReadOnlyList<ModeDefinition> _availableApps = [];
     private IReadOnlyList<GoSuggestion> _suggestions = GoSuggestionService.ImmediateDefaults;
+    private readonly List<PromptDefinition> _activeInstructions = [];
+    private AgentDefinition? _activeAgent;
+    private ChatActionMode? _actionModeOverride;
+    private GenerativeUiResponseMode? _visualResponseModeOverride;
     private bool _disposed;
 
     public GoPage(HavenEventBus bus)
@@ -30,6 +34,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         Scene.Root = _route.Root;
         WireEvents();
         SetSuggestions(_suggestions);
+        RefreshResponseState();
     }
 
     public event EventHandler<string>? SubmitRequested;
@@ -77,13 +82,39 @@ public sealed partial class GoPage : UserControl, IDisposable
         return snapshot;
     }
 
-    public void RestorePendingTask(string instruction, TaskAttachmentSnapshot snapshot)
+    internal GoTaskSnapshot TakeTaskSnapshot()
+    {
+        var snapshot = new GoTaskSnapshot(
+            _attachments.TakeSnapshot(),
+            _activeAgent,
+            _activeInstructions.ToArray(),
+            _actionModeOverride,
+            _visualResponseModeOverride);
+        _activeAgent = null;
+        _activeInstructions.Clear();
+        _actionModeOverride = null;
+        _visualResponseModeOverride = null;
+        RefreshAttachmentStatus();
+        RefreshResponseState();
+        return snapshot;
+    }
+
+    public void RestorePendingTask(string instruction, TaskAttachmentSnapshot snapshot) =>
+        RestorePendingTask(instruction, new GoTaskSnapshot(snapshot, null, [], null, null));
+
+    internal void RestorePendingTask(string instruction, GoTaskSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        _attachments.AttachSnapshot(snapshot);
+        _attachments.AttachSnapshot(snapshot.Attachments);
+        _activeAgent = snapshot.Agent;
+        _activeInstructions.Clear();
+        _activeInstructions.AddRange(snapshot.Instructions);
+        _actionModeOverride = snapshot.ActionMode;
+        _visualResponseModeOverride = snapshot.VisualResponseMode;
         _route.Instruction.Text = instruction ?? string.Empty;
         _route.Instruction.PlaceCaretAtEnd();
         RefreshAttachmentStatus();
+        RefreshResponseState();
         FocusComposer();
     }
 
@@ -96,6 +127,32 @@ public sealed partial class GoPage : UserControl, IDisposable
         _route.Instruction.PlaceCaretAtEnd();
         Submit();
         return Task.CompletedTask;
+    internal void ApplyTaskSelection(AddMenuSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        switch (selection.Item)
+        {
+            case ModeDefinition app:
+                AttachApp(app);
+                break;
+            case CapabilityDefinition capability:
+                ToggleCapability(capability);
+                break;
+            case AgentDefinition agent:
+                _activeAgent = agent;
+                break;
+            case PromptDefinition instruction:
+                if (_activeInstructions.All(item => item.Id != instruction.Id)) _activeInstructions.Add(instruction);
+                break;
+            case ChatActionMode actionMode:
+                _actionModeOverride = actionMode;
+                break;
+            case GenerativeUiResponseMode visualMode:
+                _visualResponseModeOverride = visualMode;
+                break;
+        }
+        RefreshAttachmentStatus();
+        RefreshResponseState();
     }
 
     public void SetSuggestions(IReadOnlyList<GoSuggestion> suggestions)
@@ -150,8 +207,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         _route.AddActionSelected += (_, action) => AddRequested?.Invoke(this, action);
         _route.CatalogItemSelected += (_, selection) =>
         {
-            if (selection.Item is ModeDefinition app) AttachApp(app);
-            if (selection.Item is CapabilityDefinition capability) ToggleCapability(capability);
+            ApplyTaskSelection(selection);
             AddCatalogItemSelected?.Invoke(this, selection);
         };
     }
@@ -201,7 +257,7 @@ public sealed partial class GoPage : UserControl, IDisposable
 
     private void RefreshAttachmentStatus()
     {
-        if (_attachments.IsEmpty)
+        if (_attachments.IsEmpty && _activeInstructions.Count == 0)
         {
             _route.SetAttachmentStatus(null);
             return;
@@ -210,9 +266,16 @@ public sealed partial class GoPage : UserControl, IDisposable
         var parts = new List<string>();
         if (_attachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _attachments.Apps.Select(item => item.Name)));
         if (_attachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _attachments.Capabilities.Select(item => item.Name)));
+        if (_activeInstructions.Count > 0) parts.Add("Instructions: " + string.Join(", ", _activeInstructions.Select(item => item.Name)));
         if (_attachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _attachments.Files.Select(Path.GetFileName)));
         _route.SetAttachmentStatus(string.Join("  â€¢  ", parts));
     }
+
+    private void RefreshResponseState() =>
+        _route.SetResponseState(
+            _activeAgent?.Name ?? "No Agent (Default)",
+            _actionModeOverride ?? ChatActionMode.AllowBasicActions,
+            _visualResponseModeOverride ?? GenerativeUiResponseMode.Auto);
 
     public void Dispose()
     {
@@ -226,3 +289,10 @@ public sealed partial class GoPage : UserControl, IDisposable
         Disposed?.Invoke(this, EventArgs.Empty);
     }
 }
+
+internal sealed record GoTaskSnapshot(
+    TaskAttachmentSnapshot Attachments,
+    AgentDefinition? Agent,
+    IReadOnlyList<PromptDefinition> Instructions,
+    ChatActionMode? ActionMode,
+    GenerativeUiResponseMode? VisualResponseMode);

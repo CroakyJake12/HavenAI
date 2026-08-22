@@ -156,6 +156,9 @@ internal sealed class GoHavenScene : IDisposable
         IReadOnlyList<ModeDefinition> apps) =>
         _addMenu.SetCatalogue(agents, capabilities, instructions, apps);
 
+    public void SetResponseState(string agentName, ChatActionMode actionMode, GenerativeUiResponseMode visualMode) =>
+        _addMenu.SetResponseState(agentName, actionMode, visualMode);
+
     public void SetRefreshInProgress(bool inProgress)
     {
         LoadMoreButton.SetValue(HavenProperties.Enabled, !inProgress);

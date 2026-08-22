@@ -1,5 +1,6 @@
 using Haven.Core;
 using Haven.Desktop.Services;
+using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Shell.TopRail;
 
@@ -9,7 +10,7 @@ public sealed partial class MainView
 {
     private async Task RouteGoSubmissionAsync(GoPage page, string instruction)
     {
-        var snapshot = page.TakeAttachments();
+        var taskContext = page.TakeTaskSnapshot();
         try
         {
             var projects = (await _containers.GetByModeAsync(HavenMode.Studio, CancellationToken.None))
@@ -17,44 +18,51 @@ public sealed partial class MainView
                 .ToArray();
             var decision = GoRouteIntentPolicy.Resolve(
                 instruction,
-                new GoRoutingContext(snapshot.Files, projects.Select(project => project.Name).ToArray()));
+                new GoRoutingContext(taskContext.Attachments.Files, projects.Select(project => project.Name).ToArray()));
 
             switch (decision.Destination)
             {
                 case GoRouteDestination.Chat:
-                    await OpenNewChatAsync(decision.Instruction, initialAttachments: snapshot);
+                    var chat = await OpenScopedNewChatPageAsync(
+                        HavenMode.Chat,
+                        null,
+                        $"go-chat-{Guid.NewGuid():N}",
+                        "Chat",
+                        HavenSurface.Chat);
+                    ApplyGoTaskContext(chat, taskContext);
+                    chat.Submit(decision.Instruction);
                     return;
 
                 case GoRouteDestination.Project:
-                    await RouteGoProjectAsync(page, decision, snapshot, projects);
+                    await RouteGoProjectAsync(page, decision, taskContext, projects);
                     return;
 
                 case GoRouteDestination.App:
-                    await RouteGoAppAsync(page, decision, snapshot);
+                    await RouteGoAppAsync(page, decision, taskContext);
                     return;
 
                 default:
-                    RestoreGoTask(page, instruction, snapshot, decision.Clarification ?? "Tell Haven where you want this task to go.");
+                    RestoreGoTask(page, instruction, taskContext, decision.Clarification ?? "Tell Haven where you want this task to go.");
                     return;
             }
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or ArgumentException)
         {
-            RestoreGoTask(page, instruction, snapshot, "Haven could not route that task: " + exception.Message);
+            RestoreGoTask(page, instruction, taskContext, "Haven could not route that task: " + exception.Message);
         }
     }
 
     private async Task RouteGoProjectAsync(
         GoPage page,
         GoRouteDecision decision,
-        TaskAttachmentSnapshot snapshot,
+        GoTaskSnapshot taskContext,
         IReadOnlyList<ContainerDefinition> projects)
     {
         var project = projects.FirstOrDefault(item =>
             item.Name.Equals(decision.ProjectName, StringComparison.OrdinalIgnoreCase));
         if (project is null)
         {
-            RestoreGoTask(page, decision.Instruction, snapshot, "That project is not available anymore. Choose another project and try again.");
+            RestoreGoTask(page, decision.Instruction, taskContext, "That project is not available anymore. Choose another project and try again.");
             return;
         }
 
@@ -65,15 +73,15 @@ public sealed partial class MainView
             $"go-project-{project.Id:N}-{Guid.NewGuid():N}",
             project.Name + " chat",
             HavenSurface.Studio);
-        chat.AttachSnapshot(snapshot);
+        ApplyGoTaskContext(chat, taskContext);
         chat.Submit(decision.Instruction);
     }
 
-    private async Task RouteGoAppAsync(GoPage page, GoRouteDecision decision, TaskAttachmentSnapshot snapshot)
+    private async Task RouteGoAppAsync(GoPage page, GoRouteDecision decision, GoTaskSnapshot taskContext)
     {
         if (string.IsNullOrWhiteSpace(decision.TargetKey))
         {
-            RestoreGoTask(page, decision.Instruction, snapshot, "Haven could not identify the destination App.");
+            RestoreGoTask(page, decision.Instruction, taskContext, "Haven could not identify the destination App.");
             return;
         }
 
@@ -91,7 +99,7 @@ public sealed partial class MainView
         var app = await _modeRegistry.GetModeByKeyAsync(decision.TargetKey, CancellationToken.None);
         if (app is null)
         {
-            RestoreGoTask(page, decision.Instruction, snapshot, $"The {decision.TargetKey} App is not registered in this profile.");
+            RestoreGoTask(page, decision.Instruction, taskContext, $"The {decision.TargetKey} App is not registered in this profile.");
             return;
         }
 
@@ -101,7 +109,7 @@ public sealed partial class MainView
             var chat = CreateNewChatPage();
             chat.ConfigureMode(app);
             await ConfigureAddMenuAsync(chat);
-            chat.AttachSnapshot(snapshot);
+            ApplyGoTaskContext(chat, taskContext);
             AddOrSelectTab(
                 $"go-app-{app.Key}-{Guid.NewGuid():N}",
                 app.Name,
@@ -124,7 +132,14 @@ public sealed partial class MainView
 
         if (route.Kind == HavenAppRouteKind.BaseMode && app.BaseMode == HavenMode.Chat)
         {
-            await OpenNewChatAsync(decision.Instruction, forceNewTab: true, initialAttachments: snapshot);
+            var chat = await OpenScopedNewChatPageAsync(
+                HavenMode.Chat,
+                null,
+                $"go-app-chat-{Guid.NewGuid():N}",
+                app.Name,
+                HavenSurface.Chat);
+            ApplyGoTaskContext(chat, taskContext);
+            chat.Submit(decision.Instruction);
             await _modeUsage.RecordUsageAsync(app.Id, DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
             return;
         }
@@ -137,7 +152,7 @@ public sealed partial class MainView
                 $"go-task-{Guid.NewGuid():N}",
                 "Task",
                 HavenSurface.Tasks);
-            task.AttachSnapshot(snapshot);
+            ApplyGoTaskContext(task, taskContext);
             task.Submit(decision.Instruction);
             await _modeUsage.RecordUsageAsync(app.Id, DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
             return;
@@ -147,13 +162,26 @@ public sealed partial class MainView
         RestoreGoTask(
             page,
             decision.Instruction,
-            snapshot,
-            $"Opened {app.Name}. This App does not expose direct Go task handoff yet, so your instruction and attachments remain in Go.");
+            taskContext,
+            $"Opened {app.Name}. This App does not expose direct Go task handoff yet, so your instruction and context remain in Go.");
     }
 
-    private void RestoreGoTask(GoPage page, string instruction, TaskAttachmentSnapshot snapshot, string message)
+    private static void ApplyGoTaskContext(NewChatPage chat, GoTaskSnapshot taskContext)
     {
-        page.RestorePendingTask(instruction, snapshot);
+        chat.AttachSnapshot(taskContext.Attachments);
+        if (taskContext.Agent is not null)
+            chat.ApplyAddSelection(new AddMenuSelection(AddMenu.AddMenuAction.Agent, taskContext.Agent));
+        foreach (var instruction in taskContext.Instructions)
+            chat.ApplyAddSelection(new AddMenuSelection(AddMenu.AddMenuAction.Instruction, instruction));
+        if (taskContext.ActionMode is ChatActionMode actionMode)
+            chat.ApplyAddSelection(new AddMenuSelection(AddMenu.AddMenuAction.AllowActions, actionMode));
+        if (taskContext.VisualResponseMode is GenerativeUiResponseMode visualMode)
+            chat.ApplyAddSelection(new AddMenuSelection(AddMenu.AddMenuAction.VisualResponses, visualMode));
+    }
+
+    private void RestoreGoTask(GoPage page, string instruction, GoTaskSnapshot taskContext, string message)
+    {
+        page.RestorePendingTask(instruction, taskContext);
         _notifications.Show("Go", message, ToastKind.Warning, TimeSpan.FromSeconds(6));
     }
 }
