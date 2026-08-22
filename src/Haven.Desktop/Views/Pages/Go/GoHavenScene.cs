@@ -18,6 +18,26 @@ internal sealed class GoHavenScene : IDisposable
     private readonly ChatAddMenuSurface _addMenu;
     private bool _disposed;
 
+    private sealed class DashedOutline : HavenElement, IHavenDrawCommandSource
+    {
+        public void Draw(HavenDrawingContext context, double opacity)
+        {
+            var pen = new HavenPen(new HavenTokenBrush("AccentSecondary"), 1.5);
+            const double dash = 8;
+            const double gap = 5;
+            for (var x = Bounds.X + 10; x < Bounds.Right - 10; x += dash + gap)
+            {
+                context.Add(new HavenLineCommand(new HavenPoint(x, Bounds.Y + 1), new HavenPoint(Math.Min(x + dash, Bounds.Right - 10), Bounds.Y + 1), pen, opacity));
+                context.Add(new HavenLineCommand(new HavenPoint(x, Bounds.Bottom - 1), new HavenPoint(Math.Min(x + dash, Bounds.Right - 10), Bounds.Bottom - 1), pen, opacity));
+            }
+            for (var y = Bounds.Y + 10; y < Bounds.Bottom - 10; y += dash + gap)
+            {
+                context.Add(new HavenLineCommand(new HavenPoint(Bounds.X + 1, y), new HavenPoint(Bounds.X + 1, Math.Min(y + dash, Bounds.Bottom - 10)), pen, opacity));
+                context.Add(new HavenLineCommand(new HavenPoint(Bounds.Right - 1, y), new HavenPoint(Bounds.Right - 1, Math.Min(y + dash, Bounds.Bottom - 10)), pen, opacity));
+            }
+        }
+    }
+
     public GoHavenScene()
     {
         _prefabs = HavenPrefabCatalog.FromAssembly(typeof(GoHavenScene).Assembly);
@@ -83,6 +103,7 @@ internal sealed class GoHavenScene : IDisposable
 
     public event EventHandler<AddMenu.AddMenuAction>? AddActionSelected;
     public event EventHandler<AddMenuSelection>? CatalogItemSelected;
+    public event EventHandler<ModeDefinition>? AppShortcutInvoked;
 
     public Page Root { get; }
     public Container WideHero { get; }
@@ -91,6 +112,8 @@ internal sealed class GoHavenScene : IDisposable
     public HavenText CompactTitle { get; private set; } = null!;
     public Container WideSuggestions { get; private set; } = null!;
     public Container CompactSuggestions { get; private set; } = null!;
+    public Container WideAppShortcuts { get; private set; } = null!;
+    public Container CompactAppShortcuts { get; private set; } = null!;
     public Container AttachmentHost { get; }
     public HavenButton LoadMoreButton { get; }
     public HavenText AttachmentText { get; }
@@ -133,6 +156,49 @@ internal sealed class GoHavenScene : IDisposable
                          element.Name == $"Go.Suggestions.Item{index}.IconPill.Wide"
                          || element.Name == $"Go.Suggestions.Item{index}.IconPill.Compact"))
                 pill.SetValue(HavenProperties.Background, AccentTokenForColour(suggestion.Colour));
+        }
+    }
+
+    public void SetAppShortcuts(IReadOnlyList<GoAppShortcut> shortcuts)
+    {
+        RebuildAppShortcuts(WideAppShortcuts, shortcuts, compact: false);
+        RebuildAppShortcuts(CompactAppShortcuts, shortcuts, compact: true);
+    }
+
+    private void RebuildAppShortcuts(Container host, IReadOnlyList<GoAppShortcut> shortcuts, bool compact)
+    {
+        foreach (var child in host.Children.ToArray()) host.Remove(child);
+        host.SetValue(HavenProperties.Visibility, shortcuts.Count == 0 ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        foreach (var shortcut in shortcuts.Take(compact ? 4 : 8))
+        {
+            var tile = new Container { Layout = HavenLayout.Overlay };
+            tile.SetValue(HavenProperties.Width, HavenLength.Px(compact ? 154 : 172));
+            tile.SetValue(HavenProperties.Height, HavenLength.Px(48));
+            var button = new HavenButton
+            {
+                Content = shortcut.App.Name,
+                IconKey = shortcut.App.IconKey,
+                Variant = shortcut.IsPinned ? ButtonVariant.Secondary : ButtonVariant.Ghost
+            };
+            button.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+            button.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+            button.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(16)));
+            button.SetValue(HavenProperties.Background, shortcut.IsPinned ? "SurfaceRaised" : "Transparent");
+            button.Accessibility.AccessibleName = shortcut.IsPinned ? $"Open pinned App {shortcut.App.Name}" : $"Open suggested App {shortcut.App.Name}";
+            button.Accessibility.Description = shortcut.IsPinned ? "Pinned App" : "Suggested App";
+            var app = shortcut.App;
+            button.Invoked += (_, _) => AppShortcutInvoked?.Invoke(this, app);
+            tile.Add(button);
+            if (!shortcut.IsPinned)
+            {
+                var outline = new DashedOutline();
+                outline.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+                outline.SetValue(HavenProperties.Height, HavenLength.Percent(100));
+                outline.SetValue(HavenProperties.PointerEvents, HavenPointerEvents.None);
+                outline.SetValue(HavenProperties.ZIndex, 2);
+                tile.Add(outline);
+            }
+            host.Add(tile);
         }
     }
 
@@ -213,8 +279,19 @@ internal sealed class GoHavenScene : IDisposable
         }
         hero.Add(suggestions);
 
-        if (compact) { CompactTitle = title; CompactSuggestions = suggestions; }
-        else { WideTitle = title; WideSuggestions = suggestions; }
+        var shortcutSection = new Container { Name = compact ? "Go.AppShortcuts.Compact.Section" : "Go.AppShortcuts.Wide.Section", Layout = HavenLayout.Vertical };
+        shortcutSection.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        shortcutSection.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        shortcutSection.Add(new HavenText("Pinned & suggested Apps") { Level = TextLevel.Caption });
+        var shortcuts = new Container { Name = compact ? "Go.AppShortcuts.Compact" : "Go.AppShortcuts.Wide", Layout = HavenLayout.Wrap };
+        shortcuts.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        shortcuts.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        shortcuts.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+        shortcutSection.Add(shortcuts);
+        hero.Add(shortcutSection);
+
+        if (compact) { CompactTitle = title; CompactSuggestions = suggestions; CompactAppShortcuts = shortcuts; }
+        else { WideTitle = title; WideSuggestions = suggestions; WideAppShortcuts = shortcuts; }
         return hero;
     }
 
@@ -298,3 +375,5 @@ internal sealed class GoHavenScene : IDisposable
         _visualSubscriptions.Clear();
     }
 }
+
+internal sealed record GoAppShortcut(ModeDefinition App, bool IsPinned);

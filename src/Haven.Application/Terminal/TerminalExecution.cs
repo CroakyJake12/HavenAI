@@ -29,6 +29,7 @@ public static class SensitiveTextRedactor
 {
     private static readonly Regex UrlPattern = new(@"https?://[^\s<>""']+", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex BearerPattern = new(@"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex JsonSecretPattern = new(@"(?i)(?<prefix>[""']?(?:api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|authorization|cookie|credential)[""']?\s*:\s*)(?<quote>[""'])(?<value>.*?)(?:\k<quote>)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex SecretAssignmentPattern = new(@"(?i)(api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|authorization|cookie|credential)\s*[:=]\s*([^\s,;]+)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static string Redact(string? value, int maximumLength = 4_000)
     {
@@ -37,6 +38,7 @@ public static class SensitiveTextRedactor
         var sanitized = value.Replace('\0', ' ');
         sanitized = UrlPattern.Replace(sanitized, match => RedactUrl(match.Value));
         sanitized = BearerPattern.Replace(sanitized, "Bearer <redacted>");
+        sanitized = JsonSecretPattern.Replace(sanitized, "${prefix}${quote}<redacted>${quote}");
         sanitized = SecretAssignmentPattern.Replace(sanitized, "$1=<redacted>");
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrWhiteSpace(profile)) sanitized = sanitized.Replace(profile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);

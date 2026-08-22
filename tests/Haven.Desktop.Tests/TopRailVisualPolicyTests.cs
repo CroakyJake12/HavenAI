@@ -117,7 +117,7 @@ public sealed class TopRailVisualPolicyTests
 
             SecondaryInvoke(router, scene.TabStrip.ItemButtons[0]);
             var homeMenu = Assert.IsType<Haven.UI.Components.PopupMenu>(scene.ActiveTabMenu);
-            var homeClose = Assert.IsType<Haven.UI.Components.Button>(homeMenu.Card.Children[1]);
+            var homeClose = Assert.IsType<Haven.UI.Components.Button>(homeMenu.Card.Children[^1]);
             Assert.False(homeClose.GetValue(HavenProperties.Enabled));
 
             SecondaryInvoke(router, scene.TabStrip.ItemButtons[1]);
@@ -133,7 +133,11 @@ public sealed class TopRailVisualPolicyTests
 
             SecondaryInvoke(router, scene.TabStrip.ItemButtons[1]);
             var reopened = Assert.IsType<Haven.UI.Components.PopupMenu>(scene.ActiveTabMenu);
-            var close = Assert.IsType<Haven.UI.Components.Button>(reopened.Card.Children[1]);
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+            window.UpdateLayout();
+            var close = Assert.IsType<Haven.UI.Components.Button>(reopened.Card.Children[^1]);
+            var menuPoint = new HavenPoint(reopened.Card.Bounds.X + 12, reopened.Card.Bounds.Y + 12);
+            Assert.True(router.Scroll(menuPoint, 0, 10_000));
             await Dispatcher.UIThread.InvokeAsync(() => { });
             window.UpdateLayout();
             PrimaryInvoke(new HavenInputRouter(scene.Root), close);

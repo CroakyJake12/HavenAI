@@ -28,7 +28,8 @@ public sealed class ChatSessionService(
     ToolAvailabilityPlanner? toolAvailability = null,
     ChatModelInventoryCache? modelInventory = null,
     McpToolRuntime? mcpTools = null,
-    CalendarConnectionToolRuntime? calendarTools = null)
+    CalendarConnectionToolRuntime? calendarTools = null,
+    IExecutionEventSink? executionEvents = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -123,10 +124,59 @@ public sealed class ChatSessionService(
             ChatExecutionStage.Preparing,
             EstimateEtaAsync);
 
+        var promptActionId = Guid.NewGuid();
+        executionEvents?.TryPublish(new ExecutionEvent(
+            Guid.NewGuid(), execution.OperationId, promptActionId, null, ExecutionOrigin.Haven,
+            ExecutionActionType.UserPrompt, ExecutionActionStatus.Completed,
+            SummarizePrompt(prompt), null, null, "chat", DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, TabId: null,
+            SafeMetadata: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["conversationId"] = conversation.Id.ToString(),
+                ["mode"] = conversation.Mode.ToString()
+            }));
+
+        var publishedLogCount = 0;
+        Guid parentActionId = promptActionId;
+        Guid? activeActionId = null;
+        ChatExecutionLogEntry? activeEntry = null;
+        DateTimeOffset? activeStartedAt = null;
+
         void PublishExecution(ChatExecutionSnapshot snapshot)
         {
             CurrentExecution = snapshot;
             ExecutionChanged?.Invoke(snapshot);
+            if (executionEvents is null) return;
+            for (; publishedLogCount < snapshot.Log.Count; publishedLogCount++)
+            {
+                var entry = snapshot.Log[publishedLogCount];
+                if (activeActionId is { } previousAction && activeEntry is { } previousEntry && activeStartedAt is { } previousStart)
+                {
+                    executionEvents.TryPublish(new ExecutionEvent(
+                        Guid.NewGuid(), snapshot.OperationId, previousAction, parentActionId, ExecutionOrigin.Haven,
+                        MapActionType(previousEntry.Stage), ExecutionActionStatus.Completed, previousEntry.Summary,
+                        SafeReasoningFor(previousEntry.Stage), previousEntry.Detail, "chat", entry.Timestamp,
+                        previousStart, entry.Timestamp));
+                    parentActionId = previousAction;
+                    activeActionId = null;
+                    activeEntry = null;
+                    activeStartedAt = null;
+                }
+                var actionId = Guid.NewGuid();
+                var terminal = IsTerminal(entry.Stage);
+                executionEvents.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), snapshot.OperationId, actionId, parentActionId, ExecutionOrigin.Haven,
+                    MapActionType(entry.Stage), terminal || !entry.Succeeded ? MapActionStatus(entry) : ExecutionActionStatus.Running, entry.Summary,
+                    SafeReasoningFor(entry.Stage), entry.Detail, "chat", entry.Timestamp,
+                    entry.Timestamp, terminal ? entry.Timestamp : null));
+                if (terminal) parentActionId = actionId;
+                else
+                {
+                    activeActionId = actionId;
+                    activeEntry = entry;
+                    activeStartedAt = entry.Timestamp;
+                }
+            }
         }
 
         execution.Changed += PublishExecution;
@@ -328,6 +378,14 @@ public sealed class ChatSessionService(
             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
             {
                 await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.{call.Name}", cancellationToken).ConfigureAwait(false);
+                var toolActionId = Guid.NewGuid();
+                var toolStartedAt = DateTimeOffset.UtcNow;
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, toolActionId, activeActionId ?? parentActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolCall, ExecutionActionStatus.Running, StatusForTool(call.Name),
+                    "The registered tool matched the requested operation and current permissions.", DescribeTool(call),
+                    call.Name, toolStartedAt, toolStartedAt));
+                WorkspaceToolResult result;
                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
                 {
                     execution.Update(
@@ -335,22 +393,48 @@ public sealed class ChatSessionService(
                         StatusForTool(call.Name),
                         DescribeTool(call));
                     if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
-                        return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
-                        return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
-                        return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
-                        return await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
-                        return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
-                        return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                        result = await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+                    else if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+                        result = await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
+                    else if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+                        result = await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+                    else if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
+                        result = await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
+                    else if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
+                        result = await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
+                    else if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+                        result = await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                    else
+                        result = new WorkspaceToolResult(
+                            new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                            "Tool error: registered runtime is unavailable.");
                 }
-                var detail = modelPlan.GetUnavailableReason(call.Name);
-                return new WorkspaceToolResult(
-                    new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
-                    "Tool error: " + detail);
+                else
+                {
+                    var detail = modelPlan.GetUnavailableReason(call.Name);
+                    result = new WorkspaceToolResult(
+                        new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                        "Tool error: " + detail);
+                }
+                var endedAt = DateTimeOffset.UtcNow;
+                var status = result.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed;
+                var unavailable = !modelPlan.TryGetRuntime(call.Name, out _);
+                var failure = result.Activity.Succeeded ? null : new ExecutionFailure(
+                    unavailable ? "TOOL_UNAVAILABLE" : "TOOL_EXECUTION_FAILED",
+                    unavailable ? "Tool unavailable" : "Tool execution failed",
+                    result.Activity.Detail, AffectedComponent: call.Name);
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, toolActionId, activeActionId ?? parentActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolCall, status, StatusForTool(call.Name), null, result.Activity.Detail,
+                    call.Name, endedAt, toolStartedAt, endedAt, Failure: failure));
+                var resultActionId = Guid.NewGuid();
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, resultActionId, toolActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolResult, status, result.Activity.Title + " result", null,
+                    SensitiveTextRedactor.Redact(result.Output, 8_000), call.Name, endedAt, toolStartedAt, endedAt,
+                    Failure: failure));
+                parentActionId = resultActionId;
+                return result;
             }
 
             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
@@ -506,6 +590,53 @@ public sealed class ChatSessionService(
         execution.Changed -= PublishExecution;
         yield return ChatStreamEvent.AssistantCompleted(assistant);
     }
+
+    private static string SummarizePrompt(string prompt)
+    {
+        var firstLine = prompt.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Request";
+        return SensitiveTextRedactor.Redact(firstLine, 240);
+    }
+
+    private static ExecutionActionType MapActionType(ChatExecutionStage stage) => stage switch
+    {
+        ChatExecutionStage.Preparing or ChatExecutionStage.LoadingModel or ChatExecutionStage.LoadingContext => ExecutionActionType.Planning,
+        ChatExecutionStage.SelectingCapabilities or ChatExecutionStage.Thinking => ExecutionActionType.ReasoningSummary,
+        ChatExecutionStage.InspectingCode => ExecutionActionType.ProjectAction,
+        ChatExecutionStage.Searching => ExecutionActionType.Search,
+        ChatExecutionStage.Browsing => ExecutionActionType.ToolCall,
+        ChatExecutionStage.RunningTool or ChatExecutionStage.RunningCommand => ExecutionActionType.ToolCall,
+        ChatExecutionStage.EditingFiles => ExecutionActionType.FileAction,
+        ChatExecutionStage.Testing => ExecutionActionType.ProjectAction,
+        ChatExecutionStage.Generating or ChatExecutionStage.Speaking => ExecutionActionType.ModelExecution,
+        ChatExecutionStage.WaitingForApproval => ExecutionActionType.UserActionRequired,
+        ChatExecutionStage.Recovering => ExecutionActionType.AutomaticRepair,
+        ChatExecutionStage.Completed => ExecutionActionType.FinalResponse,
+        ChatExecutionStage.Failed => ExecutionActionType.Error,
+        ChatExecutionStage.Cancelled => ExecutionActionType.Warning,
+        _ => ExecutionActionType.ModelExecution
+    };
+
+    private static ExecutionActionStatus MapActionStatus(ChatExecutionLogEntry entry) => entry.Stage switch
+    {
+        ChatExecutionStage.Completed => ExecutionActionStatus.Completed,
+        ChatExecutionStage.Failed => ExecutionActionStatus.Failed,
+        ChatExecutionStage.Cancelled => ExecutionActionStatus.Cancelled,
+        ChatExecutionStage.WaitingForApproval => ExecutionActionStatus.UserActionRequired,
+        _ when !entry.Succeeded => ExecutionActionStatus.Failed,
+        _ => ExecutionActionStatus.Running
+    };
+
+    private static bool IsTerminal(ChatExecutionStage stage) => stage is
+        ChatExecutionStage.Completed or ChatExecutionStage.Failed or ChatExecutionStage.Cancelled;
+
+    private static string? SafeReasoningFor(ChatExecutionStage stage) => stage switch
+    {
+        ChatExecutionStage.LoadingModel => "Selecting an available model that supports the requested work.",
+        ChatExecutionStage.LoadingContext => "Loading only the authorised context needed for this response.",
+        ChatExecutionStage.SelectingCapabilities => "Selecting registered capabilities relevant to the request.",
+        ChatExecutionStage.Recovering => "A bounded recovery path is being attempted within the existing permissions.",
+        _ => null
+    };
 
     /// <summary>
     /// Creates availability plan with the invariants required by its callers.

@@ -93,7 +93,8 @@ public sealed partial class App : Avalonia.Application
             provider.GetRequiredService<BrowserToolRuntime>(),
             provider.GetRequiredService<AutomationToolRuntime>(),
             mcpTools: provider.GetRequiredService<McpToolRuntime>(),
-            calendarTools: provider.GetRequiredService<CalendarConnectionToolRuntime>()));
+            calendarTools: provider.GetRequiredService<CalendarConnectionToolRuntime>(),
+            executionEvents: provider.GetRequiredService<IExecutionEventSink>()));
         collection.AddSingleton<UserPreferencesService>();
         collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
@@ -122,7 +123,9 @@ public sealed partial class App : Avalonia.Application
         
         collection.AddSingleton<HavenEventBus>();
         collection.AddSingleton<Haven.Desktop.ViewModels.ProviderConnectionsViewModel>();
-        collection.AddSingleton<MainView>();
+        collection.AddTransient<MainView>();
+        collection.AddSingleton<WorkspaceSessionCoordinator>();
+        collection.AddSingleton<WorkspaceWindowService>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
@@ -145,7 +148,8 @@ public sealed partial class App : Avalonia.Application
             preferences.ApplyAppearance(preferences.Appearance, save: false);
             var mainView = _services.GetRequiredService<MainView>();
             mainView.ApplyEdition(HavenStartupExperiencePolicy.Edition);
-            var window = new MainWindow(preferences) { DataContext = mainView };
+            _services.GetRequiredService<WorkspaceSessionCoordinator>().Register(mainView, WorkspaceWindowKind.Main, queueSave: false);
+            var window = new MainWindow(preferences) { DataContext = mainView, PreserveWorkspaceSessionOnClose = true };
             window.Opened += async (_, _) => await InitialiseHaven(mainView);
             window.Closed += (_, _) => desktop.Shutdown();
             desktop.MainWindow = window;
@@ -173,6 +177,7 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
+            await shell.RestoreWorkspaceSessionAsync(CancellationToken.None);
 
             if (!recoveryState.IsSafeMode)
             {

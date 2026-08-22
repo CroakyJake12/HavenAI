@@ -117,17 +117,20 @@ public sealed class TaskAttachmentContext
 
     public TaskAttachmentSnapshot TakeSnapshot()
     {
-        var snapshot = new TaskAttachmentSnapshot(
-            _files.ToArray(),
-            _apps.ToArray(),
-            _capabilities.ToArray(),
-            _explicitAppIds.ToHashSet());
+        var snapshot = Snapshot();
         _files.Clear();
         _apps.Clear();
         _capabilities.Clear();
         _explicitAppIds.Clear();
         return snapshot;
     }
+
+    /// <summary>Copies attachment state without transferring ownership or clearing the source.</summary>
+    public TaskAttachmentSnapshot Snapshot() => new(
+        _files.ToArray(),
+        _apps.ToArray(),
+        _capabilities.ToArray(),
+        _explicitAppIds.ToHashSet());
 
     public void Clear()
     {

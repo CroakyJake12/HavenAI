@@ -63,19 +63,10 @@ public sealed partial class AppLauncherControl : UserControl
                            || item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                            || item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        var pinned = filtered.Where(item => _pinnedIds.Contains(item.Id)).ToArray();
-        var unpinned = filtered.Where(item => !_pinnedIds.Contains(item.Id)).ToArray();
-        var recommended = unpinned.Take(6).ToArray();
-        var remaining = unpinned.Skip(recommended.Length).ToArray();
-
-        AddSection("Pinned", string.IsNullOrWhiteSpace(query) ? pinned.Take(6).ToArray() : pinned);
-        if (string.IsNullOrWhiteSpace(query) && pinned.Length > 6)
-            AddInlineAction("View all pinned", "pin", () => _manage?.Invoke());
-        AddSection("Recommended", recommended);
-        AddSection("General", remaining.Where(item => CategoryFor(item) == "General").ToArray());
-        AddSection("Productivity", remaining.Where(item => CategoryFor(item) == "Productivity").ToArray());
-        AddSection("Media & creativity", remaining.Where(item => CategoryFor(item) == "Media & creativity").ToArray());
-        AddSection("More", remaining.Where(item => CategoryFor(item) == "More").ToArray());
+        AddSection("General", filtered.Where(item => CategoryFor(item) == "General").ToArray());
+        AddSection("Productivity", filtered.Where(item => CategoryFor(item) == "Productivity").ToArray());
+        AddSection("Media & creativity", filtered.Where(item => CategoryFor(item) == "Media & creativity").ToArray());
+        AddSection("More", filtered.Where(item => CategoryFor(item) == "More").ToArray());
     }
 
     private void AddSection(string title, IReadOnlyList<ModeDefinition> items)

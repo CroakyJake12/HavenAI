@@ -43,8 +43,7 @@ internal static class AppLauncherFlyout
                                || item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(item => item.Name)
                 .ToArray();
-            AddSection("Pinned", filtered.Where(item => pinnedIds.Contains(item.Id)).ToArray());
-            AddSection("Productivity", filtered.Where(item => !pinnedIds.Contains(item.Id)).ToArray());
+            AddSection("Apps", filtered);
         }
 
         void AddSection(string title, IReadOnlyList<ModeDefinition> items)

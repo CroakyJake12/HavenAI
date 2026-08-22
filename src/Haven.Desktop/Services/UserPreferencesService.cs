@@ -152,6 +152,8 @@ public sealed class UserPreferencesService
     public string ThemeId => _preferences.ThemeId;
     /// <summary>Gets the current four-position HavenUI brightness appearance.</summary>
     public HavenUiAppearance Appearance => _preferences.HavenUiAppearance;
+    /// <summary>Gets the installed app key selected for normal new tabs, if any.</summary>
+    public string? DefaultTabAppKey => _preferences.DefaultTabAppKey;
     /// <summary>
     /// Gets or updates default model, the bindable or domain state represented by this property.
     /// </summary>
@@ -394,6 +396,16 @@ public sealed class UserPreferencesService
         Save();
     }
 
+    /// <summary>Persists a registry key without deleting it when that app is temporarily unavailable.</summary>
+    public void SetDefaultTabAppKey(string? appKey)
+    {
+        _preferences = _preferences with
+        {
+            DefaultTabAppKey = string.IsNullOrWhiteSpace(appKey) ? null : appKey.Trim()
+        };
+        Save();
+    }
+
     /// <summary>
     /// Performs the set advanced model options step owned by this component.
     /// </summary>
@@ -588,6 +600,8 @@ public sealed class UserPreferencesService
         /// Gets or updates default model, the bindable or domain state represented by this property.
         /// </summary>
         public string? DefaultModel { get; init; }
+        /// <summary>Installed mode/application registry key used for normal new tabs.</summary>
+        public string? DefaultTabAppKey { get; init; }
         /// <summary>
         /// Gets or updates default effort, the bindable or domain state represented by this property.
         /// </summary>

@@ -113,6 +113,7 @@ internal sealed record Migration(int Version, string Sql);
 /// </summary>
 internal static class Migrations
 {
+    public static int LatestVersion => All[^1].Version;
     /// <summary>
     /// Stores all locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -769,6 +770,118 @@ internal static class Migrations
             );
              CREATE INDEX ix_agent_runs_recent ON agent_runs(created_at DESC);
              CREATE INDEX ix_agent_runs_agent ON agent_runs(agent_id,created_at DESC);
+        """),
+        new(22, """
+            CREATE TABLE execution_events(
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL UNIQUE,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                parent_action_id TEXT NULL,
+                origin INTEGER NOT NULL,
+                action_type INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                component_id TEXT NULL,
+                timestamp TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            CREATE INDEX ix_execution_events_execution_sequence ON execution_events(execution_id,sequence);
+            CREATE INDEX ix_execution_events_history ON execution_events(timestamp DESC,execution_id);
+            CREATE INDEX ix_execution_events_action ON execution_events(execution_id,action_id);
+
+            CREATE TABLE action_feedback(
+                id TEXT PRIMARY KEY,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                rating INTEGER NULL,
+                comment TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(execution_id,action_id)
+            );
+            CREATE INDEX ix_action_feedback_execution ON action_feedback(execution_id,action_id);
+
+            CREATE TABLE remediations(
+                id TEXT PRIMARY KEY,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                state INTEGER NOT NULL,
+                expires_at TEXT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_remediations_waiting ON remediations(state,expires_at);
+
+            CREATE TABLE external_agent_tasks(
+                id TEXT PRIMARY KEY,
+                locator TEXT NOT NULL UNIQUE,
+                owner_user_id TEXT NOT NULL,
+                workspace_id TEXT NULL,
+                project_id TEXT NULL,
+                status INTEGER NOT NULL,
+                claimed_by TEXT NULL,
+                lease_token_hash TEXT NULL,
+                lease_expires_at TEXT NULL,
+                idempotency_key TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT NULL
+            );
+            CREATE INDEX ix_external_tasks_owner_status ON external_agent_tasks(owner_user_id,status,updated_at DESC);
+            CREATE INDEX ix_external_tasks_lease ON external_agent_tasks(status,lease_expires_at);
+
+            CREATE TABLE haven_notifications(
+                id TEXT PRIMARY KEY,
+                kind INTEGER NOT NULL,
+                priority INTEGER NOT NULL,
+                is_live INTEGER NOT NULL,
+                is_read INTEGER NOT NULL,
+                is_dismissed INTEGER NOT NULL,
+                requires_attention INTEGER NOT NULL,
+                coalescing_key TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_haven_notifications_recent ON haven_notifications(is_dismissed,updated_at DESC);
+            CREATE INDEX ix_haven_notifications_attention ON haven_notifications(requires_attention,is_read,is_dismissed);
+
+            CREATE TABLE workspace_session(
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                schema_version INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                saved_at TEXT NOT NULL
+            );
+
+            CREATE TABLE extension_sources(
+                id TEXT PRIMARY KEY,
+                type INTEGER NOT NULL,
+                repository_uri TEXT NOT NULL,
+                is_private INTEGER NOT NULL,
+                is_enabled INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX ix_extension_sources_uri ON extension_sources(repository_uri);
+
+            CREATE TABLE extension_packages(
+                id TEXT PRIMARY KEY,
+                package_id TEXT NOT NULL UNIQUE,
+                source_id TEXT NOT NULL REFERENCES extension_sources(id) ON DELETE RESTRICT,
+                package_type INTEGER NOT NULL,
+                version TEXT NOT NULL,
+                state INTEGER NOT NULL,
+                is_enabled INTEGER NOT NULL,
+                granted_permissions INTEGER NOT NULL,
+                content_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                installed_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_extension_packages_source ON extension_packages(source_id,package_type,is_enabled);
         """)
     ];
 }

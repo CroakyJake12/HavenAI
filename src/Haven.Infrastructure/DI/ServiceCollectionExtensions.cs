@@ -63,6 +63,19 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
+        services.AddSingleton<IExecutionEventRepository, ExecutionEventRepository>();
+        services.AddSingleton<IActionFeedbackRepository, ActionFeedbackRepository>();
+        services.AddSingleton<IRemediationRepository, RemediationRepository>();
+        services.AddSingleton<IExternalAgentTaskRepository, ExternalAgentTaskRepository>();
+        services.AddSingleton<IHavenNotificationRepository, HavenNotificationRepository>();
+        services.AddSingleton<IWorkspaceSessionRepository, WorkspaceSessionRepository>();
+        services.AddSingleton<IExtensionRepository, ExtensionRepository>();
+        services.AddSingleton<ExecutionEventHub>();
+        services.AddSingleton<IExecutionEventSink>(provider => provider.GetRequiredService<ExecutionEventHub>());
+        services.AddSingleton<ExecutionTraceService>();
+        services.AddSingleton<AutonomousRecoveryService>();
+        services.AddSingleton<ExternalAgentTaskService>();
+        services.AddSingleton<HavenNotificationService>();
         services.AddSingleton<ConversationSafetyService>();
         services.AddSingleton<IConversationSafetyService>(provider => provider.GetRequiredService<ConversationSafetyService>());
         services.AddSingleton<ITextEmbeddingService, LocalHashEmbeddingService>();
@@ -173,6 +186,8 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Haven.ModelProvider.gemini");
         services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
         services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
+        services.AddSingleton<RemediationCoordinator>();
+        services.AddSingleton<IProjectPreviewProvider, WebProjectPreviewProvider>();
         services.AddSingleton<IModelProvider>(provider => new OllamaModelProvider(
             provider.GetRequiredService<ILocalOllamaClient>(),
             provider.GetRequiredService<IProviderConfigurationStore>()));
@@ -218,6 +233,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DiagnosticsService>();
         services.AddSingleton<IConversationPlacementService, ConversationPlacementService>();
         services.AddSingleton<IModePackageValidator, ModePackageValidator>();
+        services.AddSingleton<ExtensionManifestValidator>();
+        services.AddSingleton<IExtensionSourceTransport, GitExtensionSourceTransport>();
+        services.AddSingleton<INativePluginProcessFactory, NativePluginProcessFactory>();
+        services.AddSingleton<NativePluginRuntime>();
+        services.AddSingleton<ExtensionManager>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
         services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();

@@ -1,10 +1,12 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Services;
+using Haven.Core;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -37,8 +39,8 @@ public sealed class NotificationCentre : Grid, IDisposable
         _priorityItems = new StackPanel { Spacing = 6 };
         _unreadItems = new StackPanel { Spacing = 6 };
 
-        _prioritySection = BuildSection("Priority", _priorityItems);
-        _unreadSection = BuildSection("Unread", _unreadItems);
+        _prioritySection = BuildSection("Live", _priorityItems);
+        _unreadSection = BuildSection("Recent", _unreadItems);
 
         _emptyState = new TextBlock
         {
@@ -147,6 +149,7 @@ public sealed class NotificationCentre : Grid, IDisposable
     /// <summary>Raised when the panel's own close button is used.</summary>
     public event EventHandler? CloseRequested;
     public event EventHandler<Guid>? DismissRequested;
+    public event EventHandler<HavenNavigationTarget>? OpenRequested;
 
     /// <summary>
     /// Returns whether the panel is currently open.
@@ -217,7 +220,7 @@ public sealed class NotificationCentre : Grid, IDisposable
         _unreadItems.Children.Clear();
         foreach (var notification in notifications.OrderByDescending(item => item.CreatedAt))
         {
-            var priority = notification.Kind is ToastKind.Warning or ToastKind.Error;
+            var priority = notification.IsLive;
             var icon = notification.Kind switch
             {
                 ToastKind.Success => "check",
@@ -225,7 +228,10 @@ public sealed class NotificationCentre : Grid, IDisposable
                 ToastKind.Error => "warning",
                 _ => "info"
             };
-            var item = BuildNotificationItem(notification.Id, notification.Title, notification.Message, icon, priority);
+            var source = string.IsNullOrWhiteSpace(notification.SourceName)
+                ? notification.Message
+                : notification.SourceName + " · " + notification.Message;
+            var item = BuildNotificationItem(notification.Id, notification.Title, source, icon, priority, notification.Target);
             (priority ? _priorityItems : _unreadItems).Children.Add(item);
         }
         UpdateEmptyState();
@@ -250,7 +256,7 @@ public sealed class NotificationCentre : Grid, IDisposable
         };
     }
 
-    private Border BuildNotificationItem(Guid id, string title, string source, string iconKey, bool isPriority)
+    private Border BuildNotificationItem(Guid id, string title, string source, string iconKey, bool isPriority, HavenNavigationTarget? target = null)
     {
         var icon = new HavenIcon
         {
@@ -303,10 +309,8 @@ public sealed class NotificationCentre : Grid, IDisposable
         {
             Padding = new Thickness(10, 8),
             CornerRadius = new CornerRadius(10),
-            Background = isPriority
-                ? new SolidColorBrush(Color.FromArgb(30, 255, 180, 50))
-                : new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+            Background = ResourceBrush(isPriority ? "HavenAccentSoftBrush" : "HavenOverlaySurfaceBrush", Colors.Transparent),
+            BorderBrush = ResourceBrush("HavenBorderSubtleBrush", Colors.Transparent),
             BorderThickness = new Thickness(1),
             Child = grid
         };
@@ -319,6 +323,15 @@ public sealed class NotificationCentre : Grid, IDisposable
             parent?.Children.Remove(border);
             UpdateEmptyState();
         };
+        if (target is not null)
+        {
+            border.Cursor = new Cursor(StandardCursorType.Hand);
+            border.PointerPressed += (_, e) =>
+            {
+                OpenRequested?.Invoke(this, target);
+                e.Handled = true;
+            };
+        }
 
         return border;
     }

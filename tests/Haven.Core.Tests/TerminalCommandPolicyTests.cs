@@ -35,11 +35,13 @@ public sealed class TerminalCommandPolicyTests
     [Fact]
     public void RedactorRemovesCommonSecretsAndSignedUrlData()
     {
-        const string input = "Bearer abc.def api_key=super-secret password:hunter2 https://example.test/path?token=signed#fragment";
+        const string input = "Bearer abc.def api_key=super-secret password:hunter2 {\"apiKey\":\"json-secret\"} https://example.test/path?token=signed#fragment";
         var output = SensitiveTextRedactor.Redact(input);
         Assert.DoesNotContain("abc.def", output, StringComparison.Ordinal);
         Assert.DoesNotContain("super-secret", output, StringComparison.Ordinal);
         Assert.DoesNotContain("hunter2", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("json-secret", output, StringComparison.Ordinal);
+        Assert.Contains("{\"apiKey\":\"<redacted>\"}", output, StringComparison.Ordinal);
         Assert.DoesNotContain("signed", output, StringComparison.Ordinal);
         Assert.DoesNotContain("?token=", output, StringComparison.Ordinal);
         Assert.Contains("<redacted>", output, StringComparison.Ordinal);

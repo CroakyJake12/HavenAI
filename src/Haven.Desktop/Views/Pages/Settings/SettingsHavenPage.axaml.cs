@@ -19,6 +19,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
     private readonly UserPreferencesService _preferences;
     private readonly IOllamaClient _ollama;
     private readonly IPrivacyPreferenceStore _privacy;
+    private readonly IModeRegistry? _modeRegistry;
     private readonly MotionPreferencesService _motionPreferences = MotionPreferencesService.Current;
     private readonly SettingsHavenScene _route;
     private readonly CancellationTokenSource _lifetime = new();
@@ -28,10 +29,18 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
     private readonly IKnowledgeLibrary? _knowledge;
     private readonly IApiBank? _apiBank;
     private readonly IKnowledgeMaintenanceService? _knowledgeMaintenance;
+    private readonly ExtensionManager? _extensionManager;
     private IReadOnlyList<KnowledgeRecord> _learnMeRecords = [];
     private IReadOnlyList<ApiBankRecord> _apiRecords = [];
     private IReadOnlyList<BackgroundLearningTask> _learningTasks = [];
+    private IReadOnlyList<ModeDefinition> _defaultTabModes = [];
+    private bool _refreshingDefaultTabs;
     private bool _refreshingLearning;
+    private IReadOnlyList<ExtensionSource> _extensionSources = [];
+    private IReadOnlyList<DiscoveredExtensionPackage> _availableExtensions = [];
+    private IReadOnlyList<InstalledExtensionPackage> _installedExtensions = [];
+    private string? _permissionReviewPackageId;
+    private Guid? _uninstallConfirmationId;
     private bool _disposed;
 
     public SettingsHavenPage(
@@ -47,6 +56,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _preferences = preferences;
         _ollama = ollama;
         _privacy = privacy;
+        _modeRegistry = App.Services?.GetService<IModeRegistry>();
         _ = modelProviders;
         _ = providerConfigurations;
         _ = providerSecrets;
@@ -54,6 +64,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _knowledge = App.Services?.GetService<IKnowledgeLibrary>();
         _apiBank = App.Services?.GetService<IApiBank>();
         _knowledgeMaintenance = App.Services?.GetService<IKnowledgeMaintenanceService>();
+        _extensionManager = App.Services?.GetService<ExtensionManager>();
 
         InitializeComponent();
         _route = new SettingsHavenScene();
@@ -63,6 +74,8 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         WireEvents();
         InitializeConnections();
         _ = RefreshModelsAsync();
+        _ = RefreshDefaultTabsAsync();
+        _ = RefreshExtensionsAsync();
         _ = RefreshLearningAsync();
     }
 
@@ -84,6 +97,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         };
 
         _route.AppearanceSelect.SelectionChanged += (_, _) => ApplyAppearance();
+        _route.DefaultTabSelect.SelectionChanged += (_, _) => SaveDefaultTab();
         _route.ReduceMotionToggle.CheckedChanged += (_, _) =>
         {
             _motionPreferences.SetReduceAnimations(_route.ReduceMotionToggle.IsChecked);
@@ -95,6 +109,15 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.SavePermissionsButton.Invoked += (_, _) => SavePermissions();
         _route.SavePrivacyButton.Invoked += async (_, _) => await SavePrivacyAsync();
         _route.SaveAdvancedButton.Invoked += (_, _) => SaveAdvanced();
+
+        _route.ExtensionAddSourceButton.Invoked += async (_, _) => await AddExtensionSourceAsync();
+        _route.ExtensionRefreshButton.Invoked += async (_, _) => await RefreshSelectedExtensionSourceAsync();
+        _route.ExtensionRemoveSourceButton.Invoked += async (_, _) => await RemoveSelectedExtensionSourceAsync();
+        _route.AvailableExtensionSelect.SelectionChanged += (_, _) => ShowSelectedAvailableExtension();
+        _route.InstalledExtensionSelect.SelectionChanged += (_, _) => ShowSelectedInstalledExtension();
+        _route.ExtensionInstallButton.Invoked += async (_, _) => await InstallSelectedExtensionAsync();
+        _route.ExtensionToggleButton.Invoked += async (_, _) => await ToggleSelectedExtensionAsync();
+        _route.ExtensionUninstallButton.Invoked += async (_, _) => await UninstallSelectedExtensionAsync();
 
         _route.InstallModelButton.Invoked += async (_, _) => await InstallModelAsync(_route.InstallModelInput.Text);
         _route.InstallCatalogButton.Invoked += async (_, _) => await InstallModelAsync(_route.CatalogModelSelect.SelectedItem);
@@ -180,6 +203,190 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.SetStatus($"Appearance changed to {_route.AppearanceSelect.SelectedItem}.");
         _bus.Fire("Settings.Appearance.Changed");
     }
+
+    private async Task RefreshDefaultTabsAsync()
+    {
+        if (_modeRegistry is null)
+        {
+            _route.SetDefaultTabModes([], -1);
+            return;
+        }
+        try
+        {
+            _refreshingDefaultTabs = true;
+            _defaultTabModes = (await _modeRegistry.GetModesAsync(_lifetime.Token))
+                .Where(mode => mode.IsEnabled && mode.InstallState == ModeInstallState.Installed)
+                .OrderBy(mode => mode.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            var selected = _defaultTabModes.ToList().FindIndex(mode =>
+                mode.Key.Equals(_preferences.DefaultTabAppKey, StringComparison.OrdinalIgnoreCase));
+            _route.SetDefaultTabModes(_defaultTabModes.Select(mode => mode.Name).ToArray(), selected);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            _refreshingDefaultTabs = false;
+        }
+    }
+
+    private void SaveDefaultTab()
+    {
+        if (_refreshingDefaultTabs) return;
+        var index = _route.DefaultTabSelect.SelectedIndex;
+        if (index < 0 || index >= _defaultTabModes.Count) return;
+        var mode = _defaultTabModes[index];
+        _preferences.SetDefaultTabAppKey(mode.Key);
+        _route.SetStatus($"New tabs will open {mode.Name}. If it becomes unavailable, Haven will fall back safely.");
+        _bus.Fire("Settings.Personalisation.DefaultTabChanged");
+    }
+
+    private async Task RefreshExtensionsAsync()
+    {
+        if (_extensionManager is null)
+        {
+            _route.ExtensionStatusText.Content = "Plugin and Skill services are unavailable in this build.";
+            return;
+        }
+        try
+        {
+            _extensionSources = await _extensionManager.GetSourcesAsync(_lifetime.Token);
+            _installedExtensions = await _extensionManager.GetInstalledAsync(_lifetime.Token);
+            _route.SetExtensionSources(_extensionSources.Select(source => $"{source.DisplayName} · {source.UpdateMode}").ToArray(), _route.ExtensionSourceSelect.SelectedIndex);
+            _route.SetInstalledExtensions(_installedExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} · {package.Manifest.Version}").ToArray(), _route.InstalledExtensionSelect.SelectedIndex);
+            ShowSelectedInstalledExtension();
+            _route.ExtensionStatusText.Content = $"{_extensionSources.Count} source(s), {_installedExtensions.Count} installed package(s).";
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex) { _route.ExtensionStatusText.Content = "Could not load Plugins & Skills: " + ex.Message; }
+    }
+
+    private async Task AddExtensionSourceAsync()
+    {
+        if (_extensionManager is null) return;
+        var uri = _route.ExtensionSourceUriInput.Text.Trim();
+        var name = _route.ExtensionSourceNameInput.Text.Trim();
+        if (string.IsNullOrWhiteSpace(uri) || string.IsNullOrWhiteSpace(name))
+        {
+            _route.ExtensionStatusText.Content = "A source name and GitHub repository URL are required.";
+            return;
+        }
+        try
+        {
+            var isPrivate = _route.ExtensionPrivateToggle.IsChecked;
+            var account = _route.ExtensionConnectedAccountInput.Text.Trim();
+            var mode = Enum.TryParse<ExtensionUpdateMode>(_route.ExtensionUpdateModeSelect.SelectedItem, true, out var selected) ? selected : ExtensionUpdateMode.Notify;
+            await _extensionManager.AddSourceAsync(new ExtensionSource(Guid.NewGuid(), ExtensionSourceType.GitHubRepository, name, uri, null,
+                isPrivate, string.IsNullOrWhiteSpace(account) ? null : account, mode, true, null, null), _lifetime.Token);
+            _route.ExtensionSourceNameInput.Text = string.Empty;
+            _route.ExtensionSourceUriInput.Text = string.Empty;
+            _route.ExtensionConnectedAccountInput.Text = string.Empty;
+            await RefreshExtensionsAsync();
+            _route.ExtensionStatusText.Content = "GitHub repository source added. Refresh it to discover packages.";
+        }
+        catch (Exception ex) { _route.ExtensionStatusText.Content = "Source was not added: " + ex.Message; }
+    }
+
+    private async Task RefreshSelectedExtensionSourceAsync()
+    {
+        if (_extensionManager is null || Selected(_extensionSources, _route.ExtensionSourceSelect.SelectedIndex) is not { } source) return;
+        try
+        {
+            _route.ExtensionStatusText.Content = "Refreshing repository manifest…";
+            _availableExtensions = await _extensionManager.RefreshAsync(source.Id, _lifetime.Token);
+            _permissionReviewPackageId = null;
+            _route.ExtensionInstallButton.Content = "Review permissions";
+            _route.SetAvailableExtensions(_availableExtensions.Select(package => $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} · {package.Manifest.Version} · {package.State}").ToArray(), 0);
+            ShowSelectedAvailableExtension();
+            await RefreshExtensionsAsync();
+            _route.ExtensionStatusText.Content = $"Discovered {_availableExtensions.Count} validated package(s) from {source.DisplayName}.";
+        }
+        catch (Exception ex) { _route.ExtensionStatusText.Content = "Repository refresh failed: " + ex.Message; }
+    }
+
+    private async Task RemoveSelectedExtensionSourceAsync()
+    {
+        if (_extensionManager is null || Selected(_extensionSources, _route.ExtensionSourceSelect.SelectedIndex) is not { } source) return;
+        await _extensionManager.RemoveSourceAsync(source.Id, _lifetime.Token);
+        _availableExtensions = _availableExtensions.Where(package => package.SourceId != source.Id).ToArray();
+        _route.SetAvailableExtensions(_availableExtensions.Select(package => package.Manifest.DisplayName).ToArray(), 0);
+        await RefreshExtensionsAsync();
+    }
+
+    private void ShowSelectedAvailableExtension()
+    {
+        var package = Selected(_availableExtensions, _route.AvailableExtensionSelect.SelectedIndex);
+        if (package is null)
+        {
+            _route.AvailableExtensionDetails.Content = "Refresh a source to discover validated packages.";
+            return;
+        }
+        var manifest = package.Manifest;
+        _route.AvailableExtensionDetails.Content = $"{PackageTypeLabel(manifest.PackageType)} · {manifest.DisplayName} {manifest.Version}\n{manifest.Description}\nAuthor: {manifest.Author} · Publisher: {manifest.Publisher}\nHaven compatibility: {manifest.HavenVersionRange}\nSource package: {manifest.PackagePath}\nRequested permissions: {PermissionLabel(manifest.RequestedPermissions)}\nCapabilities: {manifest.Capabilities.Count} · Skills: {manifest.Skills.Count}\nState: {package.State}";
+        if (_permissionReviewPackageId != manifest.PackageId) _route.ExtensionInstallButton.Content = "Review permissions";
+    }
+
+    private async Task InstallSelectedExtensionAsync()
+    {
+        if (_extensionManager is null || Selected(_availableExtensions, _route.AvailableExtensionSelect.SelectedIndex) is not { } package) return;
+        if (_permissionReviewPackageId != package.Manifest.PackageId)
+        {
+            _permissionReviewPackageId = package.Manifest.PackageId;
+            _route.AvailableExtensionDetails.Content += $"\n\nPermission review\nSource: {Selected(_extensionSources, _route.ExtensionSourceSelect.SelectedIndex)?.RepositoryUri ?? "repository"}\nThis executable package requests: {PermissionLabel(package.Manifest.RequestedPermissions)}. GitHub-hosted code is not automatically trusted. Select the button again to grant exactly these permissions and install.";
+            _route.ExtensionInstallButton.Content = "Grant listed permissions & install";
+            return;
+        }
+        try
+        {
+            _route.ExtensionStatusText.Content = "Installing package atomically…";
+            await _extensionManager.InstallAsync(package, package.Manifest.RequestedPermissions, _lifetime.Token);
+            _permissionReviewPackageId = null;
+            _route.ExtensionInstallButton.Content = "Review permissions";
+            await RefreshExtensionsAsync();
+            _route.ExtensionStatusText.Content = $"{package.Manifest.DisplayName} installed and registered.";
+        }
+        catch (Exception ex) { _route.ExtensionStatusText.Content = "Installation failed: " + ex.Message; }
+    }
+
+    private void ShowSelectedInstalledExtension()
+    {
+        var package = Selected(_installedExtensions, _route.InstalledExtensionSelect.SelectedIndex);
+        if (package is null)
+        {
+            _route.InstalledExtensionDetails.Content = "No installed packages.";
+            return;
+        }
+        _route.InstalledExtensionDetails.Content = $"{PackageTypeLabel(package.Manifest.PackageType)} · {package.Manifest.DisplayName} {package.Manifest.Version}\n{package.Manifest.Description}\nPublisher: {package.Manifest.Publisher}\nGranted permissions: {PermissionLabel(package.GrantedPermissions)}\nEnabled: {package.IsEnabled} · State: {package.State}\nSource ID: {package.SourceId}\nLocal modifications: {package.HasLocalModifications}";
+        _route.ExtensionToggleButton.Content = package.IsEnabled ? "Disable" : "Enable";
+        if (_uninstallConfirmationId != package.Id) _route.ExtensionUninstallButton.Content = "Uninstall";
+    }
+
+    private async Task ToggleSelectedExtensionAsync()
+    {
+        if (_extensionManager is null || Selected(_installedExtensions, _route.InstalledExtensionSelect.SelectedIndex) is not { } package) return;
+        await _extensionManager.SetEnabledAsync(package.Id, !package.IsEnabled, _lifetime.Token);
+        await RefreshExtensionsAsync();
+    }
+
+    private async Task UninstallSelectedExtensionAsync()
+    {
+        if (_extensionManager is null || Selected(_installedExtensions, _route.InstalledExtensionSelect.SelectedIndex) is not { } package) return;
+        if (_uninstallConfirmationId != package.Id)
+        {
+            _uninstallConfirmationId = package.Id;
+            _route.ExtensionUninstallButton.Content = "Confirm uninstall";
+            _route.ExtensionStatusText.Content = $"Confirm uninstalling {package.Manifest.DisplayName}. Installed package files will be removed; repository sources remain.";
+            return;
+        }
+        await _extensionManager.UninstallAsync(package.Id, _lifetime.Token);
+        _uninstallConfirmationId = null;
+        await RefreshExtensionsAsync();
+    }
+
+    private static T? Selected<T>(IReadOnlyList<T> values, int index) where T : class => index >= 0 && index < values.Count ? values[index] : null;
+    private static string PackageTypeLabel(ExtensionPackageType type) => type switch { ExtensionPackageType.PluginAndSkills => "Plugin + Skills", _ => type.ToString() };
+    private static string PermissionLabel(ExtensionPermission permissions) => permissions == ExtensionPermission.None ? "None" : string.Join(", ", Enum.GetValues<ExtensionPermission>().Where(value => value != ExtensionPermission.None && permissions.HasFlag(value)));
 
     private async Task RefreshLearningAsync()
     {

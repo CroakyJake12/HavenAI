@@ -145,7 +145,7 @@ public sealed class HavenUiComponentSystemTests
             new HavenCard(), new HavenDropdownCard(), new HavenPopupCard(), new HavenMobileSheet(),
             new HavenDragHandle(), new HavenSelectionIndicator(),
             new HavenComposerShell(), new HavenToolbar(), new HavenNavigationRail(),
-            new HavenNotification(), new HavenBadge(), new HavenStatusChip(),
+            new Haven.Desktop.HavenUI.Components.HavenNotification(), new HavenBadge(), new HavenStatusChip(),
             new HavenLoadingState(), new HavenErrorState(), new HavenContextMenu()
         ];
 

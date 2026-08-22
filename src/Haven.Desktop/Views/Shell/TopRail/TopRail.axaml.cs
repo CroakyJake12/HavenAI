@@ -8,8 +8,8 @@ using Avalonia.Threading;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
 using Haven.Desktop.Services;
-using Haven.Desktop.HavenUI.Components;
 using Haven.Core;
+using Haven.Desktop.HavenUI.Components;
 using System.Collections.Specialized;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
@@ -51,6 +51,8 @@ public sealed partial class TopRail : UserControl, IDisposable
     public event EventHandler<string>? TabSelected;
     public event EventHandler<string>? TabCloseRequested;
     public event EventHandler<TabRenameRequestedEventArgs>? TabRenameRequested;
+    public event EventHandler<TabCommandRequestedEventArgs>? TabCommandRequested;
+    public event EventHandler<HavenNavigationTarget>? NotificationOpenRequested;
 
     /// <summary>Attaches the one application event bus used by the entire shell.</summary>
     public void AttachEventBus(HavenEventBus eventBus)
@@ -411,6 +413,11 @@ public sealed partial class TopRail : UserControl, IDisposable
         var centre = new NotificationCentre { Height = 520 };
         centre.CloseRequested += (_, _) => _notificationFlyout?.Hide();
         centre.DismissRequested += (_, id) => _notificationService?.Dismiss(id);
+        centre.OpenRequested += (_, target) =>
+        {
+            _notificationFlyout?.Hide();
+            NotificationOpenRequested?.Invoke(this, target);
+        };
         return centre;
     }
 
@@ -497,10 +504,19 @@ public sealed record TopRailTab(
     string Title,
     string IconKey,
     bool IsSelected,
-    bool IsCloseable);
+    bool IsCloseable,
+    Guid? GroupId = null,
+    string? GroupName = null,
+    bool IsGroupCollapsed = false);
 
 public sealed class TabRenameRequestedEventArgs(string key, string title) : EventArgs
 {
     public string Key { get; } = key;
     public string Title { get; } = title;
+}
+
+public sealed class TabCommandRequestedEventArgs(string key, string command) : EventArgs
+{
+    public string Key { get; } = key;
+    public string Command { get; } = command;
 }

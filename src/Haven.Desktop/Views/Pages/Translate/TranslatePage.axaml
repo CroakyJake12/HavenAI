@@ -34,7 +34,7 @@
               <TextBlock Text="Source" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
               <TextBlock Grid.Column="1" x:Name="DetectedLanguageText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="12"/>
             </Grid>
-            <TextBox Grid.Row="1" x:Name="SourceText" AcceptsReturn="True" TextWrapping="Wrap" Watermark="Enter or paste text to translate…" MinHeight="300" VerticalContentAlignment="Top"/>
+            <TextBox Grid.Row="1" x:Name="SourceText" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter or paste text to translate…" MinHeight="300" VerticalContentAlignment="Top"/>
           </Grid>
         </Border>
 
@@ -47,7 +47,7 @@
               </StackPanel>
               <Button Grid.Column="1" Content="Copy" Click="OnCopyClick"/>
             </Grid>
-            <TextBox Grid.Row="1" x:Name="OutputText" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Watermark="Your translation will appear here." MinHeight="300" VerticalContentAlignment="Top"/>
+            <TextBox Grid.Row="1" x:Name="OutputText" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" PlaceholderText="Your translation will appear here." MinHeight="300" VerticalContentAlignment="Top"/>
           </Grid>
         </Border>
       </Grid>
@@ -60,7 +60,7 @@
           </StackPanel>
           <StackPanel Grid.Column="1" Spacing="5">
             <TextBlock Text="Context or terminology" Foreground="{DynamicResource HavenMutedBrush}"/>
-            <TextBox x:Name="ContextText" Watermark="Optional: audience, domain, preferred terminology…" TextChanged="OnContextChanged"/>
+            <TextBox x:Name="ContextText" PlaceholderText="Optional: audience, domain, preferred terminology…" TextChanged="OnContextChanged"/>
           </StackPanel>
         </Grid>
       </Expander>

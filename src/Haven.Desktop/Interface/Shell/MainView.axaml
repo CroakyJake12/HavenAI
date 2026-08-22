@@ -38,7 +38,21 @@
               CornerRadius="0"
               ClipToBounds="True">
         <Grid>
-          <ContentControl x:Name="PageContent" Margin="0" />
+          <Grid x:Name="PaneHost" ColumnDefinitions="*,0,0">
+            <ContentControl x:Name="PageContent" Grid.Column="0" Margin="0" />
+            <GridSplitter x:Name="SplitDivider"
+                          Grid.Column="1"
+                          Width="8"
+                          Background="{DynamicResource HavenLineStrongBrush}"
+                          ResizeDirection="Columns"
+                          IsVisible="False"
+                          Focusable="True"
+                          AutomationProperties.Name="Resize split view" />
+            <ContentControl x:Name="SecondaryPageContent"
+                            Grid.Column="2"
+                            Margin="0"
+                            IsVisible="False" />
+          </Grid>
 
           <!-- Retained as a hidden compatibility host for the existing event
                wiring. New Haven's page identity lives in the top tab rail. -->
