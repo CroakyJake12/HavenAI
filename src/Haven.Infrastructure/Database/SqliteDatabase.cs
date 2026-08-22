@@ -727,6 +727,26 @@ internal static class Migrations
         new(19, """
             ALTER TABLE genui_apps ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
             CREATE INDEX ix_genui_apps_pinned_updated ON genui_apps(is_pinned,updated_at DESC);
+        """),
+        new(20, """
+             CREATE TABLE external_connections(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider_key TEXT NOT NULL,
+                kind INTEGER NOT NULL,
+                preset_key TEXT NOT NULL DEFAULT '',
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                state INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT '',
+                configuration_json TEXT NOT NULL DEFAULT '{}',
+                server_name TEXT NULL,
+                server_version TEXT NULL,
+                protocol_version TEXT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+             CREATE INDEX ix_external_connections_provider ON external_connections(provider_key,is_enabled);
+             CREATE INDEX ix_external_connections_preset ON external_connections(preset_key,is_enabled);
         """)
     ];
 }

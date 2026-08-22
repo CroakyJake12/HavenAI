@@ -111,17 +111,24 @@ public sealed class ServiceConnectionItemViewModel : ObservableObject
     private string _connectionLabel = "Disconnected";
     private string _lastSyncLabel = "Never synced";
     private string _status = string.Empty;
+    private bool _requiresReconnect;
 
     public ServiceConnectionItemViewModel(CalendarProviderKind kind)
     {
         Kind = kind;
         DisplayName = kind == CalendarProviderKind.Google ? "Google Calendar" : "Microsoft Calendar / Outlook";
-        CapabilityLabel = "Calendar read/write";
+        SetupMethodLabel = "Browser OAuth";
+        CapabilityLabel = "Calendar events - read and write";
+        PermissionLabel = kind == CalendarProviderKind.Google
+            ? "Haven requests: account email + Google Calendar read/write"
+            : "Haven requests: basic profile + calendar read/write + offline access";
     }
 
     public CalendarProviderKind Kind { get; }
     public string DisplayName { get; }
+    public string SetupMethodLabel { get; }
     public string CapabilityLabel { get; }
+    public string PermissionLabel { get; }
     public bool IsConfigured { get => _isConfigured; private set { if (SetProperty(ref _isConfigured, value)) OnAvailabilityChanged(); } }
     public bool IsConnected { get => _isConnected; private set { if (SetProperty(ref _isConnected, value)) OnAvailabilityChanged(); } }
     public Guid? AccountId { get => _accountId; private set { if (SetProperty(ref _accountId, value)) OnAvailabilityChanged(); } }
@@ -130,7 +137,9 @@ public sealed class ServiceConnectionItemViewModel : ObservableObject
     public string LastSyncLabel { get => _lastSyncLabel; private set => SetProperty(ref _lastSyncLabel, value); }
     public string Status { get => _status; set => SetProperty(ref _status, value); }
     public bool IsBusy { get => _isBusy; set { if (SetProperty(ref _isBusy, value)) OnAvailabilityChanged(); } }
-    public bool CanConnect => !IsBusy && IsConfigured && !IsConnected;
+    public bool RequiresReconnect { get => _requiresReconnect; private set { if (SetProperty(ref _requiresReconnect, value)) OnAvailabilityChanged(); } }
+    public string ConnectActionLabel => RequiresReconnect ? "Reconnect" : "Connect";
+    public bool CanConnect => !IsBusy && IsConfigured && (!IsConnected || RequiresReconnect);
     public bool CanDisconnect => !IsBusy && IsConnected && AccountId.HasValue;
 
     public void Apply(ICalendarSyncProvider provider, CalendarAccount? account)
@@ -138,12 +147,14 @@ public sealed class ServiceConnectionItemViewModel : ObservableObject
         IsConfigured = provider.IsConfigured;
         AccountId = account?.Id;
         IsConnected = account is not null && account.Status is not (CalendarSyncStatus.NotConfigured or CalendarSyncStatus.Disconnected);
+        RequiresReconnect = account is not null && NeedsAuthorizationRefresh(account.Status, account.StatusMessage);
         ConnectionLabel = !IsConfigured ? "Not configured" : account is null ? "Disconnected" : account.Status switch
         {
             CalendarSyncStatus.Ready => "Connected",
             CalendarSyncStatus.Syncing => "Syncing",
             CalendarSyncStatus.Offline => "Offline",
-            CalendarSyncStatus.Error => "Error",
+            CalendarSyncStatus.Error when RequiresReconnect => "Reconnect required",
+            CalendarSyncStatus.Error => "Needs attention",
             _ => "Disconnected"
         };
 
@@ -151,15 +162,29 @@ public sealed class ServiceConnectionItemViewModel : ObservableObject
             ? "No account connected"
             : string.Equals(account.DisplayName, account.AccountIdentifier, StringComparison.OrdinalIgnoreCase)
                 ? account.DisplayName
-                : $"{account.DisplayName} Â· {account.AccountIdentifier}";
+                : $"{account.DisplayName} - {account.AccountIdentifier}";
         LastSyncLabel = account?.LastSyncedAt is { } synced
             ? $"Last synced {synced.LocalDateTime:g}"
             : "Never synced";
         Status = account?.StatusMessage ?? provider.ConfigurationStatus;
     }
 
+    private static bool NeedsAuthorizationRefresh(CalendarSyncStatus status, string? message)
+    {
+        if (status != CalendarSyncStatus.Error || string.IsNullOrWhiteSpace(message))
+            return false;
+
+        return message.Contains("connect again", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("connected again", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("session expired", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("refresh token", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("token refresh", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("authorization expired", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void OnAvailabilityChanged()
     {
+        RaisePropertyChanged(nameof(ConnectActionLabel));
         RaisePropertyChanged(nameof(CanConnect));
         RaisePropertyChanged(nameof(CanDisconnect));
     }

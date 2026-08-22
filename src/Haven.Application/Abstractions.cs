@@ -220,7 +220,8 @@ public sealed record OllamaToolDefinition(
     string Name,
     string Description,
     IReadOnlyDictionary<string, object> Properties,
-    IReadOnlyList<string> Required);
+    IReadOnlyList<string> Required,
+    System.Text.Json.JsonElement? InputSchema = null);
 
 /// <summary>
 /// Represents ollama tool call and keeps its related state and behavior together.

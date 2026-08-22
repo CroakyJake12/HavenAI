@@ -26,7 +26,9 @@ public sealed class ChatSessionService(
     BrowserToolRuntime? browserTools = null,
     AutomationToolRuntime? automationTools = null,
     ToolAvailabilityPlanner? toolAvailability = null,
-    ChatModelInventoryCache? modelInventory = null)
+    ChatModelInventoryCache? modelInventory = null,
+    McpToolRuntime? mcpTools = null,
+    CalendarConnectionToolRuntime? calendarTools = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -224,6 +226,12 @@ public sealed class ChatSessionService(
             .Concat(capabilities)
             .DistinctBy(capability => capability.Key, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var mcpDefinitions = mcpTools is null
+            ? []
+            : await mcpTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
+        var calendarDefinitions = calendarTools is null
+            ? []
+            : await calendarTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
         var availabilityPlan = CreateAvailabilityPlan(
             conversation.Mode,
             workspaceRoot,
@@ -231,7 +239,9 @@ public sealed class ChatSessionService(
             filePermission,
             commandPermission,
             browserPermission,
-            computerPassCandidate.Definitions);
+            computerPassCandidate.Definitions,
+            mcpDefinitions,
+            calendarDefinitions);
 
         var modelPlan = availabilityPlan.RestrictToModel(turnModel);
         var modelCapabilities = FilterCapabilitiesForTurn(
@@ -330,6 +340,10 @@ public sealed class ChatSessionService(
                         return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
                     if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
                         return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
+                    if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
+                        return await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
+                    if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
+                        return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
                     if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
                         return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
                 }
@@ -502,6 +516,11 @@ public sealed class ChatSessionService(
         var result = new HashSet<ToolCapability>();
         foreach (var capability in capabilities)
         {
+            if (ExternalConnectionNaming.IsConnectionCapability(capability.Key))
+            {
+                result.Add(ToolCapability.Tools);
+                continue;
+            }
             switch (capability.Key)
             {
                 case "web-search":
@@ -545,7 +564,9 @@ public sealed class ChatSessionService(
         if (!NeedsToolRuntime(required)) return [];
 
         return registeredCapabilities
-            .Where(capability => capability.Key switch
+            .Where(capability => ExternalConnectionNaming.IsConnectionCapability(capability.Key)
+                ? required.Contains(ToolCapability.Tools)
+                : capability.Key switch
             {
                 "web-search" => required.Contains(ToolCapability.WebSearch),
                 "browser-use" => required.Contains(ToolCapability.Browser)
@@ -576,7 +597,7 @@ public sealed class ChatSessionService(
                 capabilities.Contains(ToolCapability.WebSearch),
             ToolRuntimeKind.Computer =>
                 capabilities.Contains(ToolCapability.ComputerUse),
-            ToolRuntimeKind.Workspace or ToolRuntimeKind.Automation =>
+            ToolRuntimeKind.Workspace or ToolRuntimeKind.Automation or ToolRuntimeKind.Mcp =>
                 capabilities.Contains(ToolCapability.Tools),
             _ => false
         };
@@ -669,7 +690,9 @@ public sealed class ChatSessionService(
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission,
-        IReadOnlyList<OllamaToolDefinition> computerDefinitions) =>
+        IReadOnlyList<OllamaToolDefinition> computerDefinitions,
+        IReadOnlyList<OllamaToolDefinition>? mcpDefinitions = null,
+        IReadOnlyList<OllamaToolDefinition>? calendarDefinitions = null) =>
         (toolAvailability ?? ToolAvailabilityPlanner.Default).Create(
             new ToolAvailabilityContext(
                 mode,
@@ -688,7 +711,9 @@ public sealed class ChatSessionService(
                 browserTools?.BackgroundDefinitions ?? [],
                 browserTools?.InteractiveDefinitions ?? [],
                 automationTools?.GetDefinitions(true, false) ?? [],
-                automationTools?.GetDefinitions(false, true) ?? []));
+                automationTools?.GetDefinitions(false, true) ?? [],
+                mcpDefinitions ?? [],
+                calendarDefinitions ?? []));
 
     /// <summary>
     /// Performs the approvable step owned by this component.
