@@ -176,6 +176,25 @@ internal sealed class ProjectHavenScene : IDisposable
         LastBuild.SetValue(HavenProperties.Column, 2); StateStrip.Add(LastBuild);
         Recommended.SetValue(HavenProperties.Column, 3); StateStrip.Add(Recommended);
         ToolDock.Add(StateStrip);
+
+        var intelligence = Grid("Project.Intelligence", "1fr 1fr 1fr", "Auto Auto");
+        LastCommit = StatusValue("Project.Intelligence.Commit", "Commit");
+        LatestError = StatusValue("Project.Intelligence.Error", "Latest error");
+        Risk = StatusValue("Project.Intelligence.Risk", "Release risk");
+        intelligence.Add(LastCommit);
+        LatestError.SetValue(HavenProperties.Column, 1); intelligence.Add(LatestError);
+        Risk.SetValue(HavenProperties.Column, 2); intelligence.Add(Risk);
+        DecisionCount = StatusValue("Project.Intelligence.Decisions", "Decisions");
+        DecisionCount.SetValue(HavenProperties.Row, 1); intelligence.Add(DecisionCount);
+        AutomationCount = StatusValue("Project.Intelligence.Automations", "Automations");
+        AutomationCount.SetValue(HavenProperties.Column, 1); AutomationCount.SetValue(HavenProperties.Row, 1); intelligence.Add(AutomationCount);
+        var intelligenceActions = Wrap("Project.Intelligence.Actions", 6);
+        intelligenceActions.SetValue(HavenProperties.Column, 2); intelligenceActions.SetValue(HavenProperties.Row, 1);
+        intelligenceActions.Add(Ghost("Project.Intelligence.ForecastRisk", "Forecast risk", "shield-check"));
+        intelligenceActions.Add(Ghost("Project.Intelligence.AskError", "Ask Haven about error", "sparkles"));
+        intelligence.Add(intelligenceActions);
+        ToolDock.Add(intelligence);
+
         Status = Muted("Project.Status", "Loading project state…");
         ToolDock.Add(Status);
 
@@ -192,6 +211,8 @@ internal sealed class ProjectHavenScene : IDisposable
         Wire("Project.Tests", () => TestRequested?.Invoke(this, EventArgs.Empty));
         Wire("Project.Terminal", () => TerminalRequested?.Invoke(this, EventArgs.Empty));
         Wire("Project.Server", () => ServerRequested?.Invoke(this, EventArgs.Empty));
+        Wire("Project.Intelligence.ForecastRisk", () => RiskRequested?.Invoke(this, EventArgs.Empty));
+        Wire("Project.Intelligence.AskError", () => ReviewErrorRequested?.Invoke(this, EventArgs.Empty));
         Wire(openEditor, () => EditorRequested?.Invoke(this, EventArgs.Empty));
         Wire("Project.Settings.Save", () => SaveSettingsRequested?.Invoke(this, EventArgs.Empty));
         Wire("Project.Settings.Cancel", () => CancelSettingsRequested?.Invoke(this, EventArgs.Empty));
@@ -223,6 +244,11 @@ internal sealed class ProjectHavenScene : IDisposable
     public HavenText WorkState { get; }
     public HavenText LastBuild { get; }
     public HavenText Recommended { get; }
+    public HavenText LastCommit { get; }
+    public HavenText LatestError { get; }
+    public HavenText Risk { get; }
+    public HavenText DecisionCount { get; }
+    public HavenText AutomationCount { get; }
     public Input ExplorerSearch { get; }
     public Input CompactSearch { get; }
     public DynamicUIRuntime ExplorerChats { get; }
@@ -251,6 +277,8 @@ internal sealed class ProjectHavenScene : IDisposable
     public event EventHandler? EditorRequested;
     public event EventHandler? TerminalRequested;
     public event EventHandler? ServerRequested;
+    public event EventHandler? RiskRequested;
+    public event EventHandler? ReviewErrorRequested;
     public event EventHandler? ContextRequested;
     public event EventHandler? SaveSettingsRequested;
     public event EventHandler? CancelSettingsRequested;
@@ -271,6 +299,11 @@ internal sealed class ProjectHavenScene : IDisposable
         WorkState.Content = "Work tree · " + state.WorkState;
         LastBuild.Content = "Build · " + state.LastBuild;
         Recommended.Content = "Next · " + state.RecommendedAction;
+        LastCommit.Content = "Commit · " + state.LastCommit;
+        LatestError.Content = "Latest error · " + state.LatestError;
+        Risk.Content = "Release risk · " + state.RiskSummary;
+        DecisionCount.Content = $"Decisions · {state.DecisionCount}";
+        AutomationCount.Content = $"Automations · {state.AutomationCount}";
         SettingsOverlay.SetValue(HavenProperties.Visibility, state.IsInConfigureMode ? HavenVisibility.Visible : HavenVisibility.Collapsed);
         ComposerInput.SetValue(HavenProperties.Enabled, !state.IsInConfigureMode);
         SendButton.SetValue(HavenProperties.Enabled, !state.IsInConfigureMode);
@@ -291,6 +324,11 @@ internal sealed class ProjectHavenScene : IDisposable
         WorkState.Content = "Work tree · unavailable";
         LastBuild.Content = "Build · unavailable";
         Recommended.Content = "Next · return to Projects";
+        LastCommit.Content = "Commit · unavailable";
+        LatestError.Content = "Latest error · unavailable";
+        Risk.Content = "Release risk · unavailable";
+        DecisionCount.Content = "Decisions · 0";
+        AutomationCount.Content = "Automations · 0";
         ClearRows();
     }
 

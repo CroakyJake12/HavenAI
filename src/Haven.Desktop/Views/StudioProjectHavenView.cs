@@ -46,6 +46,12 @@ public sealed class StudioProjectHavenView : UserControl
         _scene.EditorRequested += async (_, _) => await ExecuteAsync(_page?.OpenEditorCommand);
         _scene.TerminalRequested += async (_, _) => await ExecuteAsync(_page?.OpenTerminalCommand);
         _scene.ServerRequested += async (_, _) => await ExecuteAsync(_page?.StartServerCommand);
+        _scene.RiskRequested += async (_, _) => { await ExecuteAsync(_page?.ForecastRiskCommand); RefreshAll(); };
+        _scene.ReviewErrorRequested += async (_, _) =>
+        {
+            if (_page is { } page)
+                await page.StartChatWithPromptCommand.ExecuteAsync($">Debug Review the latest project error and help me fix it safely.\n\nLatest error:\n{page.LatestError}");
+        };
         _scene.ContextRequested += (_, _) =>
         {
             if (_page is { } page)
@@ -96,6 +102,7 @@ public sealed class StudioProjectHavenView : UserControl
         }
         _scene.Sync(new StudioSceneState(
             page.ProjectName, page.Status, page.Branch, page.WorkState, page.LastBuild, page.RecommendedAction,
+            page.LastCommit, page.LatestError, page.RiskSummary, page.Decisions.Count, page.ActiveAutomations.Count,
             page.RootPath, page.IsInConfigureMode, page.ProjectNameDraft, page.ProjectContextDraft, page.ConfigureStatus,
             page.ProjectConversations.ToArray(), page.Files.ToArray()));
     }
@@ -138,6 +145,11 @@ internal sealed record StudioSceneState(
     string WorkState,
     string LastBuild,
     string RecommendedAction,
+    string LastCommit,
+    string LatestError,
+    string RiskSummary,
+    int DecisionCount,
+    int AutomationCount,
     string RootPath,
     bool IsInConfigureMode,
     string ProjectNameDraft,

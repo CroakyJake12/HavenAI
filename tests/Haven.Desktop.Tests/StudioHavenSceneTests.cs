@@ -31,7 +31,7 @@ public sealed class StudioHavenSceneTests
         var conversation = new Conversation(Guid.NewGuid(), HavenMode.Studio, ConversationKind.Chat, "Results Day", projectId, null, false, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
         var file = new WorkspaceFileItemViewModel(Path.GetTempPath(), "src/ResultsDay.cs");
         scene.Sync(new StudioSceneState(
-            "Haven", "Captured", "main", "Working tree clean", "Passed", "Run tests", Path.GetTempPath(), false,
+            "Haven", "Captured", "main", "Working tree clean", "Passed", "Run tests", "abc123 · Project shell", "No recent error found", "Not forecast yet", 0, 0, Path.GetTempPath(), false,
             "Haven", "Context", string.Empty, [conversation], [file]));
 
         Assert.Single(scene.SidebarChats.Items);
@@ -41,7 +41,7 @@ public sealed class StudioHavenSceneTests
         var chatItem = scene.MainChats.Items[0];
 
         scene.Sync(new StudioSceneState(
-            "Haven", "Status changed only", "main", "Working tree clean", "Passed", "Run tests", Path.GetTempPath(), false,
+            "Haven", "Status changed only", "main", "Working tree clean", "Passed", "Run tests", "abc123 · Project shell", "No recent error found", "Not forecast yet", 0, 0, Path.GetTempPath(), false,
             "Haven", "Context", string.Empty, [conversation], [file]));
         Assert.Same(chatItem, scene.MainChats.Items[0]);
 
