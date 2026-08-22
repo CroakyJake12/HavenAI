@@ -40,6 +40,12 @@ public sealed class BuiltInModeSeed
             ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[]",
             DateTimeOffset.MinValue, DateTimeOffset.MinValue),
         new ModeDefinition(
+            Guid.Parse("a0000000-0000-0000-0000-000000000020"),
+            "terminal", "Terminal", "Run local commands with visible permissions and real output", "commands",
+            HavenMode.Tasks, "[\"Terminal\"]", "[\"run_command\",\"run_tests\"]", "[]", "[]", "",
+            ModeSource.BuiltIn, ModeInstallState.BuiltIn, "Haven", "1.0.0", "[\"developer\",\"productivity\"]",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue),
+        new ModeDefinition(
             Guid.Parse("a0000000-0000-0000-0000-000000000019"),
             "tasks", "Tasks", "One-off delegated and agentic work", "tasks",
             HavenMode.Tasks, "[\"Tasks\"]", "[\"write_file\",\"replace_in_file\",\"run_tests\",\"run_command\"]", "[]", "[]", "",

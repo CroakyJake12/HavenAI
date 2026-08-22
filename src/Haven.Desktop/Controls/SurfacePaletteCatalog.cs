@@ -70,6 +70,7 @@ internal static class SurfacePaletteCatalog
             [HavenSurface.Browse] = Hue("#FF10273A", "#FF168FEA", "#FF59B5FF", "#FF075C9C", "#FF193246"),
             [HavenSurface.Plan] = Hue("#FF3C270F", "#FFFFA11A", "#FFFFBE5C", "#FFB96B00", "#FF42331B"),
             [HavenSurface.Automations] = Hue("#FF3C270F", "#FFFFA11A", "#FFFFBE5C", "#FFB96B00", "#FF42331B"),
+            [HavenSurface.Terminal] = Hue("#FF102B3A", "#FF19B8FF", "#FF62CEFF", "#FF007CB7", "#FF173342"),
             [HavenSurface.Training] = Hue("#FFDCCBFA", "#FF8254CB", "#FFA27BDD", "#FF56308F", "#FFEDE4FC"),
             [HavenSurface.Imagine] = Hue("#FFE6C9F8", "#FFA34EC4", "#FFC37BDD", "#FF702B8C", "#FFF2E1FA"),
             [HavenSurface.Present] = Hue("#FFFFCAB7", "#FFE65F42", "#FFF08D74", "#FF9E3824", "#FFFFE5DC"),

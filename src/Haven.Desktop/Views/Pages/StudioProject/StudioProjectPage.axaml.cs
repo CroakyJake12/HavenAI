@@ -27,6 +27,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
     private readonly IProjectIntelligenceService _intelligence;
     private readonly Func<WorkspaceFileItemViewModel, Task> _openFile;
     private readonly Func<string, Task> _startChat;
+    private readonly Func<string, Task> _openTerminal;
     private readonly IModeRegistry? _modeRegistry;
     private readonly ICatalogRepository? _catalog;
     private readonly ICapabilityRepository? _capabilityRepository;
@@ -71,7 +72,8 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         ICatalogRepository? catalog = null,
         IOllamaClient? ollama = null,
         Func<Task>? backToProjects = null,
-        Func<Conversation, Task>? openConversation = null)
+        Func<Conversation, Task>? openConversation = null,
+        Func<string, Task>? openTerminal = null)
     {
         _project = project;
         _conversations = conversations;
@@ -81,6 +83,7 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
         _intelligence = intelligence;
         _openFile = openFile;
         _startChat = startChat;
+        _openTerminal = openTerminal ?? (root => _intelligence.LaunchTerminalAsync(root, CancellationToken.None));
         _modeRegistry = modeRegistry;
         _catalog = catalog;
         _capabilityRepository = App.Services?.GetService<ICapabilityRepository>();
@@ -96,7 +99,12 @@ public sealed partial class StudioProjectPage : UserControl, INotifyPropertyChan
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{item.FullPath}\"") { UseShellExecute = true });
         });
         OpenEditorCommand = new AsyncRelayCommand(() => WithRoot(_intelligence.LaunchEditorAsync));
-        OpenTerminalCommand = new AsyncRelayCommand(() => WithRoot(_intelligence.LaunchTerminalAsync));
+        OpenTerminalCommand = new AsyncRelayCommand(async () =>
+        {
+            if (!HasRoot) { Status = "Connect a project folder first."; return; }
+            await _openTerminal(RootPath);
+            Status = "Opened Haven Terminal at the project root.";
+        });
         StartServerCommand = new AsyncRelayCommand(() => WithRoot(_intelligence.LaunchLocalServerAsync));
         BuildCommand = new AsyncRelayCommand(BuildAsync);
         TestCommand = new AsyncRelayCommand(TestAsync);

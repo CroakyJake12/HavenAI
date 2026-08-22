@@ -29,6 +29,7 @@ using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
 using Haven.Desktop.Views.Pages.Automations;
+using Haven.Desktop.Views.Pages.Terminal;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.Infrastructure;
@@ -111,6 +112,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
     private NativePlanPage? _nativePlanPage;
+    private TerminalPage? _terminalPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
     private object? _currentPage;
@@ -773,6 +775,34 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         return Task.CompletedTask;
     }
 
+    private void OpenTerminal(bool forceNewTab = false, string? initialDirectory = null)
+    {
+        var hub = Haven.Desktop.App.Services?.GetService(typeof(TerminalCommandActivityHub)) as TerminalCommandActivityHub;
+        if (hub is null)
+        {
+            _notifications.Show("Terminal unavailable", "The Terminal activity service is not available.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+            return;
+        }
+
+        TerminalPage page;
+        string key;
+        if (forceNewTab)
+        {
+            page = new TerminalPage(_workspaceTools, _preferences, hub, initialDirectory);
+            key = "terminal-" + Guid.NewGuid().ToString("N")[..8];
+        }
+        else
+        {
+            _terminalPage ??= new TerminalPage(_workspaceTools, _preferences, hub, initialDirectory);
+            page = _terminalPage;
+            key = "terminal";
+        }
+
+        AddOrSelectTab(key, "Terminal", page, forceNewTab, HavenSurface.Terminal, forceNewTab);
+        ApplyShellVisualState();
+        page.FocusCommandLine();
+    }
+
     private async Task OpenDashboardAsync()
     {
         _newDashboardPage ??= CreateNewDashboardPage();
@@ -1212,7 +1242,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (_projectPages.TryGetValue(definition.Id, out var page)) return page;
         page = new StudioProjectPage(definition, _conversations, _containers, _automations, _workspaceState, _projectIntelligence,
             file => OpenFileAsync(definition, file), StartProjectChatAsync, _modeRegistry, _catalog, _ollama,
-            () => NavigateModeAsync(HavenMode.Studio, true), OpenProjectConversationAsync);
+            () => NavigateModeAsync(HavenMode.Studio, true), OpenProjectConversationAsync,
+            root => { OpenTerminal(true, root); return Task.CompletedTask; });
         _projectPages[definition.Id] = page;
         return page;
     }
@@ -1519,6 +1550,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             await OpenTranslateAsync(openInNewTab);
         }
+        else if (route.Kind == HavenAppRouteKind.Terminal)
+        {
+            OpenTerminal(openInNewTab);
+        }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
             await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
@@ -1593,6 +1628,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Automations:
                     OpenAutomationsDashboard();
+                    break;
+                case HavenSurface.Terminal:
+                    OpenTerminal(false);
                     break;
                 case HavenSurface.Training:
                     OpenTraining();
@@ -2659,7 +2697,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"Ã¢Å“â€œ {captured.Name}" : captured.Name,
+                attached ? $"+¾+¶ÈÃú {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2680,7 +2718,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"Ã¢Å“â€œ {captured.Name}" : captured.Name,
+                attached ? $"+¾+¶ÈÃú {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2702,7 +2740,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     };
 
     private static string CapabilityDescription(CapabilityDefinition capability, bool attached) =>
-        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} Ã‚Â· {capability.RiskClass} risk Ã‚Â· {capability.Availability}. Attachment does not grant permission.";
+        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} +Ú-+ {capability.RiskClass} risk +Ú-+ {capability.Availability}. Attachment does not grant permission.";
 
     private void AddModeWorkspaceActions(List<DynamicActionToolbar.ToolbarAction> actions, NewChatPage page)
     {
