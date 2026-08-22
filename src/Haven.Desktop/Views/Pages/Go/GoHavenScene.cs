@@ -114,6 +114,8 @@ internal sealed class GoHavenScene : IDisposable
     public Container CompactSuggestions { get; private set; } = null!;
     public Container WideAppShortcuts { get; private set; } = null!;
     public Container CompactAppShortcuts { get; private set; } = null!;
+    public Container WideAppShortcutSection { get; private set; } = null!;
+    public Container CompactAppShortcutSection { get; private set; } = null!;
     public Container AttachmentHost { get; }
     public HavenButton LoadMoreButton { get; }
     public HavenText AttachmentText { get; }
@@ -161,6 +163,8 @@ internal sealed class GoHavenScene : IDisposable
 
     public void SetAppShortcuts(IReadOnlyList<GoAppShortcut> shortcuts)
     {
+        WideAppShortcutSection.SetValue(HavenProperties.Visibility, shortcuts.Count == 0 ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        CompactAppShortcutSection.SetValue(HavenProperties.Visibility, shortcuts.Count == 0 ? HavenVisibility.Collapsed : HavenVisibility.Visible);
         RebuildAppShortcuts(WideAppShortcuts, shortcuts, compact: false);
         RebuildAppShortcuts(CompactAppShortcuts, shortcuts, compact: true);
     }
@@ -282,6 +286,7 @@ internal sealed class GoHavenScene : IDisposable
         var shortcutSection = new Container { Name = compact ? "Go.AppShortcuts.Compact.Section" : "Go.AppShortcuts.Wide.Section", Layout = HavenLayout.Vertical };
         shortcutSection.SetValue(HavenProperties.Width, HavenLength.Percent(100));
         shortcutSection.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        shortcutSection.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
         shortcutSection.Add(new HavenText("Pinned & suggested Apps") { Level = TextLevel.Caption });
         var shortcuts = new Container { Name = compact ? "Go.AppShortcuts.Compact" : "Go.AppShortcuts.Wide", Layout = HavenLayout.Wrap };
         shortcuts.SetValue(HavenProperties.Width, HavenLength.Percent(100));
@@ -290,8 +295,8 @@ internal sealed class GoHavenScene : IDisposable
         shortcutSection.Add(shortcuts);
         hero.Add(shortcutSection);
 
-        if (compact) { CompactTitle = title; CompactSuggestions = suggestions; CompactAppShortcuts = shortcuts; }
-        else { WideTitle = title; WideSuggestions = suggestions; WideAppShortcuts = shortcuts; }
+        if (compact) { CompactTitle = title; CompactSuggestions = suggestions; CompactAppShortcuts = shortcuts; CompactAppShortcutSection = shortcutSection; }
+        else { WideTitle = title; WideSuggestions = suggestions; WideAppShortcuts = shortcuts; WideAppShortcutSection = shortcutSection; }
         return hero;
     }
 
