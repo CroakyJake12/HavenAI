@@ -5,6 +5,7 @@ using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Services;
 using Haven.UI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views.Pages.Settings;
 
@@ -23,6 +24,14 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _installCancellation;
     private IReadOnlyList<ModelDescriptor> _models = [];
+    private readonly IBackgroundLearningScheduler? _backgroundLearning;
+    private readonly IKnowledgeLibrary? _knowledge;
+    private readonly IApiBank? _apiBank;
+    private readonly IKnowledgeMaintenanceService? _knowledgeMaintenance;
+    private IReadOnlyList<KnowledgeRecord> _learnMeRecords = [];
+    private IReadOnlyList<ApiBankRecord> _apiRecords = [];
+    private IReadOnlyList<BackgroundLearningTask> _learningTasks = [];
+    private bool _refreshingLearning;
     private bool _disposed;
 
     public SettingsHavenPage(
@@ -41,6 +50,10 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _ = modelProviders;
         _ = providerConfigurations;
         _ = providerSecrets;
+        _backgroundLearning = App.Services?.GetService<IBackgroundLearningScheduler>();
+        _knowledge = App.Services?.GetService<IKnowledgeLibrary>();
+        _apiBank = App.Services?.GetService<IApiBank>();
+        _knowledgeMaintenance = App.Services?.GetService<IKnowledgeMaintenanceService>();
 
         InitializeComponent();
         _route = new SettingsHavenScene();
@@ -50,6 +63,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         WireEvents();
         InitializeConnections();
         _ = RefreshModelsAsync();
+        _ = RefreshLearningAsync();
     }
 
     internal SettingsHavenScene Route => _route;
@@ -86,6 +100,41 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _route.InstallCatalogButton.Invoked += async (_, _) => await InstallModelAsync(_route.CatalogModelSelect.SelectedItem);
         _route.CancelInstallButton.Invoked += (_, _) => _installCancellation?.Cancel();
         _route.ConfirmDeleteButton.Invoked += async (_, _) => await DeleteSelectedModelAsync();
+
+        _route.BackgroundLearningToggle.CheckedChanged += async (_, _) =>
+        {
+            if (_refreshingLearning || _backgroundLearning is null) return;
+            await RunLearningActionAsync(
+                token => _backgroundLearning.SetGlobalEnabledAsync(_route.BackgroundLearningToggle.IsChecked, token),
+                _route.BackgroundLearningToggle.IsChecked ? "Background Learning enabled." : "Background Learning disabled.");
+        };
+        _route.BackgroundModeSelect.SelectionChanged += async (_, _) =>
+        {
+            if (_refreshingLearning || _backgroundLearning is null || !Enum.TryParse<BackgroundLearningMode>(_route.BackgroundModeSelect.SelectedItem, true, out var mode)) return;
+            await RunLearningActionAsync(token => _backgroundLearning.SetModeAsync(mode, token), $"Background Learning mode changed to {mode}.");
+        };
+        foreach (var (category, toggle) in _route.LearningCategoryToggles)
+        {
+            toggle.CheckedChanged += async (_, _) =>
+            {
+                if (_refreshingLearning || _backgroundLearning is null) return;
+                await RunLearningActionAsync(token => _backgroundLearning.SetCategoryEnabledAsync(category, toggle.IsChecked, token), $"{category} learning {(toggle.IsChecked ? "enabled" : "disabled")}.");
+            };
+        }
+        _route.LearningRefreshButton.Invoked += async (_, _) => await RefreshLearningAsync();
+        _route.LearningCleanupButton.Invoked += async (_, _) => await CleanupLearningAsync();
+        _route.LearnMeSelect.SelectionChanged += (_, _) => ShowSelectedLearnMe();
+        _route.LearnMeCorrectButton.Invoked += async (_, _) => await CorrectSelectedLearnMeAsync();
+        _route.LearnMePinButton.Invoked += async (_, _) => await ToggleSelectedLearnMePinAsync();
+        _route.LearnMeRejectButton.Invoked += async (_, _) => await RejectSelectedLearnMeAsync();
+        _route.LearnMeForgetButton.Invoked += async (_, _) => await ForgetSelectedLearnMeAsync();
+        _route.ApiBankSelect.SelectionChanged += (_, _) => ShowSelectedApi();
+        _route.ApiBankPinButton.Invoked += async (_, _) => await ToggleSelectedApiPinAsync();
+        _route.ApiBankRemoveButton.Invoked += async (_, _) => await RemoveSelectedApiAsync();
+        _route.LearningTaskSelect.SelectionChanged += (_, _) => ShowSelectedTask();
+        _route.LearningTaskPauseButton.Invoked += async (_, _) => await ChangeSelectedTaskAsync(BackgroundLearningTaskStatus.Paused);
+        _route.LearningTaskResumeButton.Invoked += async (_, _) => await ChangeSelectedTaskAsync(BackgroundLearningTaskStatus.Queued);
+        _route.LearningTaskCancelButton.Invoked += async (_, _) => await ChangeSelectedTaskAsync(BackgroundLearningTaskStatus.Cancelled);
     }
 
     private async Task RefreshModelsAsync()
@@ -130,6 +179,181 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         _preferences.ApplyAppearance(appearance);
         _route.SetStatus($"Appearance changed to {_route.AppearanceSelect.SelectedItem}.");
         _bus.Fire("Settings.Appearance.Changed");
+    }
+
+    private async Task RefreshLearningAsync()
+    {
+        if (_disposed) return;
+        if (_backgroundLearning is null || _knowledge is null || _apiBank is null || _knowledgeMaintenance is null)
+        {
+            _route.SetLearningFeedback("Background Learning services are unavailable in this build. Existing local data has not been changed.");
+            return;
+        }
+
+        _refreshingLearning = true;
+        try
+        {
+            _route.SetLearningFeedback("Loading Background Learning state…");
+            await _backgroundLearning.InitializeAsync(_lifetime.Token);
+            var snapshot = await _backgroundLearning.GetSnapshotAsync(_lifetime.Token);
+            _learningTasks = snapshot.Tasks;
+
+            var errors = new List<string>();
+            var storage = new KnowledgeStorageSnapshot(0, KnowledgeStorageLimits.BackgroundLearningBytes, 0, 0, 0, KnowledgeStorageLimits.ApiBankBytes, 0, 0);
+            try { storage = await _knowledgeMaintenance.GetStorageAsync(_lifetime.Token); }
+            catch (Exception ex) { errors.Add($"storage: {ex.Message}"); }
+
+            try { _learnMeRecords = await _knowledge.SearchMetadataAsync(null, KnowledgeCategory.LearnMe, _lifetime.Token); }
+            catch (Exception ex) { _learnMeRecords = []; errors.Add($"Learn Me: {ex.Message}"); }
+
+            try { _apiRecords = await _apiBank.SearchAsync(null, _lifetime.Token); }
+            catch (Exception ex) { _apiRecords = []; errors.Add($"API Bank: {ex.Message}"); }
+
+            _route.SetLearningSnapshot(snapshot, storage, _learnMeRecords, _apiRecords);
+            ShowSelectedLearnMe();
+            ShowSelectedApi();
+            ShowSelectedTask();
+            if (errors.Count > 0)
+                _route.SetLearningFeedback($"Background Learning loaded partially — {string.Join(" · ", errors)}");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _route.SetLearningFeedback($"Could not load Background Learning: {ex.Message}");
+        }
+        finally
+        {
+            _refreshingLearning = false;
+        }
+    }
+
+    private async Task RunLearningActionAsync(Func<CancellationToken, Task> action, string success)
+    {
+        try
+        {
+            await action(_lifetime.Token);
+            await RefreshLearningAsync();
+            if (!_disposed) _route.SetLearningFeedback(success);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _route.SetLearningFeedback($"Background Learning change failed: {ex.Message}");
+        }
+    }
+
+    private async Task CleanupLearningAsync()
+    {
+        if (_knowledgeMaintenance is null) return;
+        try
+        {
+            _route.SetLearningFeedback("Cleaning up stale, expired and superseded unpinned knowledge…");
+            var result = await _knowledgeMaintenance.CleanupAsync(_lifetime.Token);
+            await RefreshLearningAsync();
+            _route.SetLearningFeedback(result.Summary);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex) { _route.SetLearningFeedback($"Cleanup failed: {ex.Message}"); }
+    }
+
+    private KnowledgeRecord? SelectedLearnMe()
+        => _route.LearnMeSelect.SelectedIndex is var index && index >= 0 && index < _learnMeRecords.Count ? _learnMeRecords[index] : null;
+
+    private ApiBankRecord? SelectedApi()
+        => _route.ApiBankSelect.SelectedIndex is var index && index >= 0 && index < _apiRecords.Count ? _apiRecords[index] : null;
+
+    private BackgroundLearningTask? SelectedTask()
+        => _route.LearningTaskSelect.SelectedIndex is var index && index >= 0 && index < _learningTasks.Count ? _learningTasks[index] : null;
+
+    private void ShowSelectedLearnMe() => _route.ShowLearnMe(SelectedLearnMe());
+    private void ShowSelectedApi() => _route.ShowApi(SelectedApi());
+    private void ShowSelectedTask() => _route.ShowTask(SelectedTask());
+
+    private async Task CorrectSelectedLearnMeAsync()
+    {
+        if (_knowledge is null) return;
+        var record = SelectedLearnMe();
+        var correction = _route.LearnMeCorrectionInput.Text.Trim();
+        if (record is null) { _route.SetLearningFeedback("Choose a Learn Me record to correct."); return; }
+        if (string.IsNullOrWhiteSpace(correction)) { _route.SetLearningFeedback("Enter the corrected information first."); return; }
+        try
+        {
+            await _knowledge.CorrectAsync(record.Id, correction, "Corrected from Privacy & Memory", _lifetime.Token);
+            _route.LearnMeCorrectionInput.Text = string.Empty;
+            await RefreshLearningAsync();
+            _route.SetLearningFeedback("Correction saved as explicit user-authoritative knowledge; the previous record was superseded.");
+        }
+        catch (Exception ex) { _route.SetLearningFeedback($"Could not save correction: {ex.Message}"); }
+    }
+
+    private async Task ToggleSelectedLearnMePinAsync()
+    {
+        if (_knowledge is null) return;
+        var record = SelectedLearnMe();
+        if (record is null) { _route.SetLearningFeedback("Choose a Learn Me record first."); return; }
+        await _knowledge.SetPinnedAsync(record.Id, !record.IsPinned, _lifetime.Token);
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback(record.IsPinned ? "Learn Me record unpinned." : "Learn Me record pinned and protected from cleanup.");
+    }
+
+    private async Task RejectSelectedLearnMeAsync()
+    {
+        if (_knowledge is null) return;
+        var record = SelectedLearnMe();
+        if (record is null) { _route.SetLearningFeedback("Choose a Learn Me record to reject."); return; }
+        await _knowledge.RejectAsync(record.Id, "Rejected from Privacy & Memory", _lifetime.Token);
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback("Inference rejected and suppressed from immediate re-learning.");
+    }
+
+    private async Task ForgetSelectedLearnMeAsync()
+    {
+        if (_knowledge is null) return;
+        var record = SelectedLearnMe();
+        if (record is null) { _route.SetLearningFeedback("Choose a Learn Me record to forget."); return; }
+        await _knowledge.ForgetAsync(record.Id, _lifetime.Token);
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback("Learn Me record forgotten.");
+    }
+
+    private async Task ToggleSelectedApiPinAsync()
+    {
+        if (_apiBank is null) return;
+        var record = SelectedApi();
+        if (record is null) { _route.SetLearningFeedback("Choose an API Bank record first."); return; }
+        await _apiBank.SetPinnedAsync(record.Id, !record.IsPinned, _lifetime.Token);
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback(record.IsPinned ? "API Bank record unpinned." : "API Bank record pinned and protected from cleanup.");
+    }
+
+    private async Task RemoveSelectedApiAsync()
+    {
+        if (_apiBank is null) return;
+        var record = SelectedApi();
+        if (record is null) { _route.SetLearningFeedback("Choose an API Bank record to remove."); return; }
+        await _apiBank.RemoveAsync(record.Id, _lifetime.Token);
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback("API Bank record removed.");
+    }
+
+    private async Task ChangeSelectedTaskAsync(BackgroundLearningTaskStatus requestedStatus)
+    {
+        if (_backgroundLearning is null) return;
+        var task = SelectedTask();
+        if (task is null) { _route.SetLearningFeedback("Choose a background-learning task first."); return; }
+        var changed = requestedStatus switch
+        {
+            BackgroundLearningTaskStatus.Paused => await _backgroundLearning.PauseAsync(task.Id, _lifetime.Token),
+            BackgroundLearningTaskStatus.Queued => await _backgroundLearning.ResumeAsync(task.Id, _lifetime.Token),
+            BackgroundLearningTaskStatus.Cancelled => await _backgroundLearning.CancelAsync(task.Id, _lifetime.Token),
+            _ => false
+        };
+        await RefreshLearningAsync();
+        _route.SetLearningFeedback(changed ? $"Task state changed to {requestedStatus}." : "That task cannot make the requested state transition.");
     }
 
     private void SaveFeatures()

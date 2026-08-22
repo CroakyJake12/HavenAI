@@ -129,6 +129,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<VoiceProfileCatalog>();
         services.AddSingleton<IKnowledgeLibrary, KnowledgeLibraryService>();
         services.AddSingleton<IApiBank, ApiBankService>();
+        services.AddSingleton<IKnowledgeMaintenanceService, KnowledgeMaintenanceService>();
         services.AddSingleton<BackgroundLearningScheduler>();
         services.AddSingleton<IBackgroundLearningScheduler>(provider => provider.GetRequiredService<BackgroundLearningScheduler>());
         services.AddSingleton<IPermissionDecisionEngine, PermissionDecisionEngine>();

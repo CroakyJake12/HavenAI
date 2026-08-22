@@ -620,6 +620,104 @@ internal static class Migrations
             BEFORE UPDATE ON conversation_context
             WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
             BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        """),
+        new(17, """
+            CREATE TABLE IF NOT EXISTS knowledge_records(
+                id TEXT PRIMARY KEY,
+                category INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                privacy_class INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                is_pinned INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT NULL,
+                learned_because TEXT NOT NULL,
+                sources_json TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_knowledge_records_category ON knowledge_records(category,updated_at);
+
+            CREATE TABLE IF NOT EXISTS knowledge_record_details(
+                id TEXT PRIMARY KEY REFERENCES knowledge_records(id) ON DELETE CASCADE,
+                freshness INTEGER NOT NULL DEFAULT 0,
+                last_confirmed_at TEXT NULL,
+                scope TEXT NOT NULL DEFAULT 'global',
+                status INTEGER NOT NULL DEFAULT 0,
+                origin INTEGER NOT NULL DEFAULT 0,
+                user_correction TEXT NULL,
+                supersedes_id TEXT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_knowledge_details_status ON knowledge_record_details(status,last_confirmed_at);
+
+            CREATE TABLE IF NOT EXISTS knowledge_rejections(
+                fingerprint TEXT PRIMARY KEY,
+                record_id TEXT NULL,
+                reason TEXT NULL,
+                rejected_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS api_bank_records(
+                id TEXT PRIMARY KEY,
+                application TEXT NOT NULL,
+                api_name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                documentation_url TEXT NOT NULL,
+                actions_json TEXT NOT NULL,
+                authentication TEXT NOT NULL,
+                requires_internet INTEGER NOT NULL,
+                requires_credentials INTEGER NOT NULL,
+                cost_per_request TEXT NULL,
+                alternatives_json TEXT NOT NULL,
+                deprecation TEXT NULL,
+                last_checked_at TEXT NOT NULL,
+                documentation_hash TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_api_bank_name ON api_bank_records(application,api_name);
+
+            CREATE TABLE IF NOT EXISTS api_bank_details(
+                id TEXT PRIMARY KEY REFERENCES api_bank_records(id) ON DELETE CASCADE,
+                inputs_json TEXT NOT NULL DEFAULT '[]',
+                outputs_json TEXT NOT NULL DEFAULT '[]',
+                scopes_json TEXT NOT NULL DEFAULT '[]',
+                rate_limits TEXT NOT NULL DEFAULT '',
+                pricing TEXT NOT NULL DEFAULT '',
+                capability_notes TEXT NOT NULL DEFAULT '',
+                limitations TEXT NOT NULL DEFAULT '',
+                offline_queue_policy TEXT NOT NULL DEFAULT '',
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                source_url TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS background_learning_settings(
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                global_enabled INTEGER NOT NULL DEFAULT 1,
+                mode INTEGER NOT NULL DEFAULT 1,
+                disabled_categories_json TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO background_learning_settings(id,global_enabled,mode,disabled_categories_json,updated_at)
+            VALUES(1,1,1,'[]','2026-08-21T00:00:00+00:00');
+
+            CREATE TABLE IF NOT EXISTS background_learning_tasks(
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                category INTEGER NOT NULL,
+                priority INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                source TEXT NOT NULL,
+                started_at TEXT NULL,
+                last_run_at TEXT NULL,
+                completed_at TEXT NULL,
+                result TEXT NULL,
+                error TEXT NULL,
+                requires_network INTEGER NOT NULL DEFAULT 0,
+                requires_model INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX IF NOT EXISTS ix_background_learning_tasks_status
+                ON background_learning_tasks(status,created_at DESC);
         """)
     ];
 }

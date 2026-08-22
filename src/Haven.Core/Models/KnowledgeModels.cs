@@ -28,6 +28,35 @@ public enum BackgroundLearningMode
     Maximum = 3
 }
 
+public enum KnowledgeFreshnessClass
+{
+    Durable = 0,
+    Changing = 1,
+    ShortLived = 2
+}
+
+public enum KnowledgeRecordStatus
+{
+    Active = 0,
+    Corrected = 1,
+    Rejected = 2,
+    Superseded = 3
+}
+
+public enum KnowledgeOrigin
+{
+    Inferred = 0,
+    Explicit = 1,
+    Imported = 2,
+    Prepared = 3
+}
+
+public static class KnowledgeStorageLimits
+{
+    public const long BackgroundLearningBytes = 512L * 1024 * 1024;
+    public const long ApiBankBytes = 1024L * 1024 * 1024;
+}
+
 public sealed record KnowledgeSource(
     string SourceId,
     string Title,
@@ -52,7 +81,14 @@ public sealed record KnowledgeRecord(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? ExpiresAt,
     string LearnedBecause,
-    IReadOnlyList<KnowledgeSource> Sources);
+    IReadOnlyList<KnowledgeSource> Sources,
+    KnowledgeFreshnessClass Freshness = KnowledgeFreshnessClass.Durable,
+    DateTimeOffset? LastConfirmedAt = null,
+    string Scope = "global",
+    KnowledgeRecordStatus Status = KnowledgeRecordStatus.Active,
+    KnowledgeOrigin Origin = KnowledgeOrigin.Inferred,
+    string? UserCorrection = null,
+    Guid? SupersedesId = null);
 
 public sealed record ApiBankRecord(
     Guid Id,
@@ -68,4 +104,31 @@ public sealed record ApiBankRecord(
     string AlternativesJson,
     string? Deprecation,
     DateTimeOffset LastCheckedAt,
-    string DocumentationHash);
+    string DocumentationHash,
+    string InputsJson = "[]",
+    string OutputsJson = "[]",
+    string ScopesJson = "[]",
+    string RateLimits = "",
+    string Pricing = "",
+    string CapabilityNotes = "",
+    string Limitations = "",
+    string OfflineQueuePolicy = "",
+    bool IsPinned = false,
+    string SourceUrl = "");
+
+public sealed record KnowledgeStorageSnapshot(
+    long KnowledgeBytes,
+    long KnowledgeLimitBytes,
+    int KnowledgeCount,
+    int KnowledgePinnedCount,
+    long ApiBankBytes,
+    long ApiBankLimitBytes,
+    int ApiBankCount,
+    int ApiBankPinnedCount);
+
+public sealed record KnowledgeCleanupResult(
+    int KnowledgeRemoved,
+    int ApiBankRemoved,
+    long KnowledgeBytesFreed,
+    long ApiBankBytesFreed,
+    string Summary);

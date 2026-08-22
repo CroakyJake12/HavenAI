@@ -157,6 +157,28 @@ internal sealed partial class SettingsHavenScene : IDisposable
     public Toggle BackgroundLearningToggle { get; private set; } = null!;
     public Toggle ModelImprovementSharingToggle { get; private set; } = null!;
     public HavenButton SavePrivacyButton { get; private set; } = null!;
+    public Select BackgroundModeSelect { get; private set; } = null!;
+    public Dictionary<KnowledgeCategory, Toggle> LearningCategoryToggles { get; } = [];
+    public HavenButton LearningRefreshButton { get; private set; } = null!;
+    public HavenButton LearningCleanupButton { get; private set; } = null!;
+    public HavenText LearningStatusText { get; private set; } = null!;
+    public HavenText LearningStorageText { get; private set; } = null!;
+    public Select LearningTaskSelect { get; private set; } = null!;
+    public HavenText LearningTaskDetails { get; private set; } = null!;
+    public HavenButton LearningTaskPauseButton { get; private set; } = null!;
+    public HavenButton LearningTaskResumeButton { get; private set; } = null!;
+    public HavenButton LearningTaskCancelButton { get; private set; } = null!;
+    public Select LearnMeSelect { get; private set; } = null!;
+    public HavenText LearnMeDetails { get; private set; } = null!;
+    public Input LearnMeCorrectionInput { get; private set; } = null!;
+    public HavenButton LearnMeCorrectButton { get; private set; } = null!;
+    public HavenButton LearnMePinButton { get; private set; } = null!;
+    public HavenButton LearnMeRejectButton { get; private set; } = null!;
+    public HavenButton LearnMeForgetButton { get; private set; } = null!;
+    public Select ApiBankSelect { get; private set; } = null!;
+    public HavenText ApiBankDetails { get; private set; } = null!;
+    public HavenButton ApiBankPinButton { get; private set; } = null!;
+    public HavenButton ApiBankRemoveButton { get; private set; } = null!;
 
     public Slider TemperatureSlider { get; private set; } = null!;
     public Slider ContextLimitSlider { get; private set; } = null!;
@@ -504,23 +526,137 @@ internal sealed partial class SettingsHavenScene : IDisposable
     private Container BuildPrivacy()
     {
         var section = Section("Settings.Privacy");
+
         var local = Card("Settings.Privacy.Local");
         local.Add(Heading("Settings.Privacy.LocalHeading", "Local preferences", 18));
         local.Add(Muted("Settings.Privacy.LocalDescription", "These privacy choices are persisted in the configured local application-data directory and enforced by Haven services."));
         LocalOnlyToggle = NewToggle("Settings.Privacy.LocalOnly");
         local.Add(SettingRow("Local-only mode", "Restrict model discovery and generation to local providers. Cloud providers remain configured but are not used while this is on.", LocalOnlyToggle));
         section.Add(local);
+
         var learning = Card("Settings.Privacy.BackgroundLearning");
         learning.Add(Heading("Settings.Privacy.BackgroundHeading", "Background Learning", 18));
-        BackgroundLearningToggle = NewToggle("Settings.Privacy.BackgroundLearningEnabled");
+        learning.Add(Muted("Settings.Privacy.BackgroundDescription", "Control what Haven may learn in the background. Running work is resource-gated and reports real task states rather than simulated progress."));
+        BackgroundLearningToggle = NewToggle("Settings.Privacy.BackgroundLearning.Enabled");
+        learning.Add(SettingRow("Background Learning", "Turn all background learning on or off.", BackgroundLearningToggle));
+        BackgroundModeSelect = NewSelect("Settings.Privacy.BackgroundLearning.Mode", Enum.GetNames<BackgroundLearningMode>());
+        learning.Add(SettingRow("Learning mode", "Minimal and Balanced avoid battery-heavy work; Maximum permits more resource use.", BackgroundModeSelect));
+        foreach (var category in Enum.GetValues<KnowledgeCategory>())
+        {
+            var toggle = NewToggle($"Settings.Privacy.BackgroundLearning.Category.{category}");
+            LearningCategoryToggles[category] = toggle;
+            learning.Add(SettingRow(category.ToString(), $"Allow Background Learning tasks for {category}.", toggle));
+        }
+        LearningRefreshButton = new HavenButton { Name = "Settings.Privacy.BackgroundLearning.Refresh", Content = "Refresh learning status", Variant = ButtonVariant.Secondary };
+        LearningStatusText = Muted("Settings.Privacy.BackgroundLearning.Status", "Loading Background Learning state…");
+        learning.Add(LearningRefreshButton);
+        learning.Add(LearningStatusText);
         ModelImprovementSharingToggle = NewToggle("Settings.Privacy.ModelImprovementSharingEnabled");
-        learning.Add(SettingRow("Allow Background Learning tasks (preview)", "Permit the local scheduler to accept future learning tasks. No background-learning worker runs in this build, and this stays off by default.", BackgroundLearningToggle));
         learning.Add(SettingRow("Share for model improvement", "Allow explicitly eligible data to be considered for model-improvement sharing. This stays off by default and does not itself transmit data.", ModelImprovementSharingToggle));
         SavePrivacyButton = new HavenButton { Name = "Settings.Privacy.Save", Content = "Save privacy choices", Variant = ButtonVariant.Primary };
         learning.Add(SavePrivacyButton);
         section.Add(learning);
+
+        var storage = Card("Settings.Privacy.Storage");
+        storage.Add(Heading("Settings.Privacy.StorageHeading", "Storage and cleanup", 18));
+        storage.Add(Muted("Settings.Privacy.StorageDescription", "Background knowledge is capped at 512 MB. API Bank has a separate 1 GB budget. Pinned records are protected from automatic cleanup."));
+        LearningStorageText = Muted("Settings.Privacy.StorageStatus", "Loading storage usage…");
+        LearningCleanupButton = new HavenButton { Name = "Settings.Privacy.Cleanup", Content = "Clean up stale knowledge", Variant = ButtonVariant.Secondary };
+        storage.Add(LearningStorageText);
+        storage.Add(LearningCleanupButton);
+        section.Add(storage);
+
+        var activity = Card("Settings.Privacy.Activity");
+        activity.Add(Heading("Settings.Privacy.ActivityHeading", "Background activity", 18));
+        LearningTaskSelect = NewSelect("Settings.Privacy.Activity.Task", []);
+        LearningTaskDetails = Muted("Settings.Privacy.Activity.Details", "No background-learning tasks yet.");
+        LearningTaskPauseButton = new HavenButton { Name = "Settings.Privacy.Activity.Pause", Content = "Pause", Variant = ButtonVariant.Secondary };
+        LearningTaskResumeButton = new HavenButton { Name = "Settings.Privacy.Activity.Resume", Content = "Resume", Variant = ButtonVariant.Secondary };
+        LearningTaskCancelButton = new HavenButton { Name = "Settings.Privacy.Activity.Cancel", Content = "Cancel task", Variant = ButtonVariant.Danger };
+        activity.Add(LearningTaskSelect);
+        activity.Add(LearningTaskDetails);
+        activity.Add(LearningTaskPauseButton);
+        activity.Add(LearningTaskResumeButton);
+        activity.Add(LearningTaskCancelButton);
+        section.Add(activity);
+
+        var learnMe = Card("Settings.Privacy.LearnMe");
+        learnMe.Add(Heading("Settings.Privacy.LearnMeHeading", "Learn Me", 18));
+        learnMe.Add(Muted("Settings.Privacy.LearnMeDescription", "Inspect what Haven believes about you, including why it learned it, confidence, freshness and provenance. Corrections become explicit user-authoritative records."));
+        LearnMeSelect = NewSelect("Settings.Privacy.LearnMe.Item", []);
+        LearnMeDetails = Muted("Settings.Privacy.LearnMe.Details", "No Learn Me records stored.");
+        LearnMeCorrectionInput = new Input { Name = "Settings.Privacy.LearnMe.Correction", Placeholder = "Enter the corrected information" };
+        LearnMeCorrectionInput.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        LearnMeCorrectButton = new HavenButton { Name = "Settings.Privacy.LearnMe.Correct", Content = "Save correction", Variant = ButtonVariant.Primary };
+        LearnMePinButton = new HavenButton { Name = "Settings.Privacy.LearnMe.Pin", Content = "Pin / unpin", Variant = ButtonVariant.Secondary };
+        LearnMeRejectButton = new HavenButton { Name = "Settings.Privacy.LearnMe.Reject", Content = "Reject inference", Variant = ButtonVariant.Secondary };
+        LearnMeForgetButton = new HavenButton { Name = "Settings.Privacy.LearnMe.Forget", Content = "Forget item", Variant = ButtonVariant.Danger };
+        learnMe.Add(LearnMeSelect);
+        learnMe.Add(LearnMeDetails);
+        learnMe.Add(LearnMeCorrectionInput);
+        learnMe.Add(LearnMeCorrectButton);
+        learnMe.Add(LearnMePinButton);
+        learnMe.Add(LearnMeRejectButton);
+        learnMe.Add(LearnMeForgetButton);
+        section.Add(learnMe);
+
+        var api = Card("Settings.Privacy.ApiBank");
+        api.Add(Heading("Settings.Privacy.ApiBankHeading", "API Bank", 18));
+        api.Add(Muted("Settings.Privacy.ApiBankDescription", "A separate local knowledge store for API actions, inputs, outputs, auth/scopes, limits, pricing, examples, provenance, versions and deprecations. Credentials are never stored here as ordinary knowledge."));
+        ApiBankSelect = NewSelect("Settings.Privacy.ApiBank.Item", []);
+        ApiBankDetails = Muted("Settings.Privacy.ApiBank.Details", "No API Bank records stored.");
+        ApiBankPinButton = new HavenButton { Name = "Settings.Privacy.ApiBank.Pin", Content = "Pin / unpin", Variant = ButtonVariant.Secondary };
+        ApiBankRemoveButton = new HavenButton { Name = "Settings.Privacy.ApiBank.Remove", Content = "Remove API record", Variant = ButtonVariant.Danger };
+        api.Add(ApiBankSelect);
+        api.Add(ApiBankDetails);
+        api.Add(ApiBankPinButton);
+        api.Add(ApiBankRemoveButton);
+        section.Add(api);
+
         return section;
     }
+
+    public void SetLearningSnapshot(BackgroundLearningSchedulerSnapshot snapshot, KnowledgeStorageSnapshot storage, IReadOnlyList<KnowledgeRecord> learnMe, IReadOnlyList<ApiBankRecord> apiRecords)
+    {
+        BackgroundLearningToggle.IsChecked = snapshot.IsGloballyEnabled;
+        SelectText(BackgroundModeSelect, snapshot.Mode.ToString());
+        foreach (var (category, toggle) in LearningCategoryToggles)
+            toggle.IsChecked = snapshot.Categories.TryGetValue(category, out var enabled) && enabled;
+        LearningStorageText.Content = $"Knowledge: {FormatBytes(storage.KnowledgeBytes)} of {FormatBytes(storage.KnowledgeLimitBytes)} · {storage.KnowledgeCount} records ({storage.KnowledgePinnedCount} pinned). API Bank: {FormatBytes(storage.ApiBankBytes)} of {FormatBytes(storage.ApiBankLimitBytes)} · {storage.ApiBankCount} records ({storage.ApiBankPinnedCount} pinned).";
+        LearningStatusText.Content = $"{(snapshot.IsGloballyEnabled ? "Enabled" : "Disabled")} · {snapshot.Mode} · {snapshot.Tasks.Count} tracked task(s)" + (snapshot.LastChangedAt is { } changed ? $" · settings updated {changed.LocalDateTime:g}" : string.Empty);
+        LearnMeSelect.Items = learnMe.Select(item => $"{item.Title} · {item.Status}").ToArray();
+        LearnMeSelect.SelectedIndex = learnMe.Count > 0 ? Math.Clamp(LearnMeSelect.SelectedIndex, 0, learnMe.Count - 1) : -1;
+        ApiBankSelect.Items = apiRecords.Select(item => $"{item.Application} · {item.ApiName} {item.Version}").ToArray();
+        ApiBankSelect.SelectedIndex = apiRecords.Count > 0 ? Math.Clamp(ApiBankSelect.SelectedIndex, 0, apiRecords.Count - 1) : -1;
+        LearningTaskSelect.Items = snapshot.Tasks.Select(item => $"{item.Title} · {item.Status}").ToArray();
+        LearningTaskSelect.SelectedIndex = snapshot.Tasks.Count > 0 ? Math.Clamp(LearningTaskSelect.SelectedIndex, 0, snapshot.Tasks.Count - 1) : -1;
+    }
+
+    public void ShowLearnMe(KnowledgeRecord? record)
+    {
+        if (record is null) { LearnMeDetails.Content = "No Learn Me records stored."; return; }
+        var provenance = record.Sources.Count == 0 ? "No source metadata" : string.Join("; ", record.Sources.Select(source => $"{source.Title} ({source.SourceType}){(string.IsNullOrWhiteSpace(source.Url) ? string.Empty : $" — {source.Url}")}"));
+        LearnMeDetails.Content = $"{record.Summary}\nOrigin: {record.Origin} · Confidence: {record.Confidence:P0} · Freshness: {record.Freshness} · Status: {record.Status} · Scope: {record.Scope} · Pinned: {record.IsPinned}\nLast confirmed: {(record.LastConfirmedAt?.LocalDateTime.ToString("g") ?? "not confirmed")} · Updated: {record.UpdatedAt.LocalDateTime:g}\nWhy Haven learned this: {record.LearnedBecause}\nProvenance: {provenance}";
+    }
+
+    public void ShowApi(ApiBankRecord? record)
+    {
+        if (record is null) { ApiBankDetails.Content = "No API Bank records stored."; return; }
+        ApiBankDetails.Content = $"{record.Application} — {record.ApiName} {record.Version}\nDocs/source: {record.DocumentationUrl}{(string.IsNullOrWhiteSpace(record.SourceUrl) ? string.Empty : $" · {record.SourceUrl}")}\nAuth: {record.Authentication} · Scopes: {record.ScopesJson} · Internet: {record.RequiresInternet} · Credentials required: {record.RequiresCredentials}\nRate limits: {record.RateLimits} · Pricing: {record.Pricing} · Per-request cost: {(record.CostPerRequest?.ToString() ?? "not specified")}\nInputs: {record.InputsJson}\nOutputs: {record.OutputsJson}\nCapabilities: {record.CapabilityNotes}\nLimitations: {record.Limitations}\nOffline queue: {record.OfflineQueuePolicy} · Deprecation: {record.Deprecation ?? "none"} · Last verified: {record.LastCheckedAt.LocalDateTime:g} · Pinned: {record.IsPinned}";
+    }
+
+    public void ShowTask(BackgroundLearningTask? task)
+    {
+        if (task is null) { LearningTaskDetails.Content = "No background-learning tasks yet."; return; }
+        LearningTaskDetails.Content = $"Source: {task.Source} · Category: {task.Category} · Priority: {task.Priority} · Status: {task.Status}\nCreated: {task.CreatedAt.LocalDateTime:g} · Started: {(task.StartedAt?.LocalDateTime.ToString("g") ?? "not started")} · Last run: {(task.LastRunAt?.LocalDateTime.ToString("g") ?? "never")} · Completed: {(task.CompletedAt?.LocalDateTime.ToString("g") ?? "not completed")}\nRequires network: {task.RequiresNetwork} · Requires model: {task.RequiresModel}\nResult: {task.Result ?? "none"}\nError: {task.Error ?? "none"}";
+    }
+
+    public void SetLearningFeedback(string text) => LearningStatusText.Content = text;
+
+    private static string FormatBytes(long bytes)
+        => bytes >= 1024L * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.##} GB"
+            : bytes >= 1024L * 1024 ? $"{bytes / (1024d * 1024):0.##} MB"
+            : $"{bytes / 1024d:0.##} KB";
 
     private Container BuildAdvanced()
     {

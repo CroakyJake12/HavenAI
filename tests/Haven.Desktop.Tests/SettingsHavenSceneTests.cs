@@ -117,5 +117,29 @@ public sealed class SettingsHavenSceneTests
         Assert.False(scene.ModelImprovementSharingToggle.IsChecked);
         Assert.NotNull(scene.SavePrivacyButton);
         Assert.Equal("Privacy & Memory", scene.PageTitle.Content);
+
+    [Fact]
+    public void Privacy_memory_exposes_real_background_learning_management()
+    {
+        using var scene = new SettingsHavenScene();
+        var categories = Enum.GetValues<Haven.Core.KnowledgeCategory>().ToDictionary(category => category, _ => true);
+        var snapshot = new Haven.Application.BackgroundLearningSchedulerSnapshot(
+            true, Haven.Core.BackgroundLearningMode.Balanced, categories, [], DateTimeOffset.UtcNow);
+        var storage = new Haven.Core.KnowledgeStorageSnapshot(
+            1024, Haven.Core.KnowledgeStorageLimits.BackgroundLearningBytes, 1, 1,
+            2048, Haven.Core.KnowledgeStorageLimits.ApiBankBytes, 2, 1);
+
+        scene.SetLearningSnapshot(snapshot, storage, [], []);
+        scene.NavigateTo("privacy");
+
+        Assert.True(scene.BackgroundLearningToggle.IsChecked);
+        Assert.Equal("Balanced", scene.BackgroundModeSelect.SelectedItem);
+        Assert.Equal(categories.Count, scene.LearningCategoryToggles.Count);
+        Assert.Contains("512 MB", scene.LearningStorageText.Content);
+        Assert.Contains("1 GB", scene.LearningStorageText.Content);
+        Assert.NotNull(scene.LearnMeCorrectButton);
+        Assert.NotNull(scene.LearnMeRejectButton);
+        Assert.NotNull(scene.ApiBankRemoveButton);
+        Assert.NotNull(scene.LearningTaskCancelButton);
     }
 }
