@@ -231,6 +231,33 @@ public sealed class HavenSceneBackendTests
         }
     }
 
+    [AvaloniaFact]
+    public void NativeHost_is_explicit_but_ordinary_containers_cannot_enter_native_bridge()
+    {
+        var root = new HavenPage { Layout = HavenLayout.Vertical };
+        var ordinary = new Container();
+        var nativeHost = new NativeHost();
+        root.Add(ordinary);
+        root.Add(nativeHost);
+
+        var nativeResolver = new RecordingNativeControlResolver();
+        var scene = new HavenSceneControl(new HavenAvaloniaImageResolver(), nativeResolver) { Root = root };
+        var window = new Window { Width = 320, Height = 200, Content = scene };
+        try
+        {
+            window.Show();
+
+            Assert.Contains(nativeHost, nativeResolver.RequestedElements);
+            Assert.DoesNotContain(ordinary, nativeResolver.RequestedElements);
+            Assert.Single(scene.GetVisualChildren().OfType<Border>());
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
     private sealed class RecordingNativeControlResolver : IHavenAvaloniaNativeControlResolver
     {
         public List<HavenElement> RequestedElements { get; } = [];
@@ -238,7 +265,7 @@ public sealed class HavenSceneBackendTests
         public bool TryCreate(HavenElement element, out Control? control)
         {
             RequestedElements.Add(element);
-            control = element is Video ? new Border() : null;
+            control = element is Video or NativeHost ? new Border() : null;
             return control is not null;
         }
     }

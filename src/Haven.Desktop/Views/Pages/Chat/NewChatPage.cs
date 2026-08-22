@@ -54,7 +54,8 @@ public sealed class NewChatPage : UserControl, IDisposable
     private readonly Dictionary<Guid, string> _thinkingContent = [];
     private readonly Dictionary<Guid, long> _thinkingStartTick = [];
     private readonly Dictionary<Guid, long> _thinkingEndTick = [];
-    private readonly Dictionary<(Guid MessageId, int SurfaceIndex), HavenGenUiSceneSurface> _generatedSurfaces = [];
+    private readonly Dictionary<(Guid MessageId, int SurfaceIndex), ChatGenUiSurfaceMount> _generatedSurfaces = [];
+    private readonly ChatGenUiNativeControlResolver _genUiNativeResolver = new();
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), Guid> _generatedInstanceIds = [];
     private readonly Dictionary<(Guid MessageId, int SurfaceIndex), string> _generatedSignatures = [];
     private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
@@ -127,7 +128,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _scene = new ChatHavenScene();
         AutomationProperties.SetAutomationId(this, "HavenNativeChatPage");
         AutomationProperties.SetName(this, "Haven-native Chat page");
-        Scene = new HavenSceneControl { Root = _scene.Root };
+        Scene = new HavenSceneControl(new HavenAvaloniaImageResolver(), _genUiNativeResolver) { Root = _scene.Root };
         AutomationProperties.SetAutomationId(Scene, "HavenNativeChatScene");
         AutomationProperties.SetName(Scene, "Haven-native Chat");
         Content = Scene;
@@ -1091,7 +1092,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         else _scene.SetGeneratedContent(message.Id, generated);
     }
 
-    private HavenGenUiSceneSurface GetOrCreateGeneratedSurface(ChatMessage message, int surfaceIndex, GenUiTemplateRequest request)
+    private ChatGenUiSurfaceMount GetOrCreateGeneratedSurface(ChatMessage message, int surfaceIndex, GenUiTemplateRequest request)
     {
         var slot = (message.Id, surfaceIndex);
         var signature = request.Signature;
@@ -1107,26 +1108,31 @@ public sealed class NewChatPage : UserControl, IDisposable
                     && _generatedInstanceIds.TryGetValue(slot, out var existingInstanceId)
                     && (document = _genUiInstances.TryGet(existingInstanceId)) is not null;
 
-        var surface = new HavenGenUiSceneSurface(_genUiRouter, _genUiInstances);
+        var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
+        GenUiGenerationPlan? plan = null;
+        GenUiGenerationSpecification? specification = null;
+        if (!reuse)
+        {
+            if (_generatedInstanceIds.Remove(slot, out var obsoleteInstance)) _genUiInstances.Remove(obsoleteInstance);
+            document = CreateGeneratedDocument(request, appKey);
+            if (!string.IsNullOrWhiteSpace(request.AccentKey)) document = document with { AccentKey = request.AccentKey };
+            plan = new GenUiGenerationPlan(
+                Intent: $"Render {request.TemplateKey} interactive content for chat message {message.Id:N}",
+                AppKey: appKey,
+                TemplateKey: request.TemplateKey);
+            specification = GenUiGenerationPipeline.CreateSpecification(plan, document);
+        }
+
+        var rendering = specification?.Definition.Rendering ?? GenUiRenderingLayerSelector.Select(document!);
+        var surface = ChatGenUiSurfaceMount.Create(rendering, _genUiRouter, _genUiInstances, _genUiNativeResolver);
         if (reuse)
         {
             surface.PresentExisting(document!);
         }
         else
         {
-            if (_generatedInstanceIds.Remove(slot, out var obsoleteInstance)) _genUiInstances.Remove(obsoleteInstance);
-            var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
-            document = CreateGeneratedDocument(request, appKey);
-            if (!string.IsNullOrWhiteSpace(request.AccentKey)) document = document with { AccentKey = request.AccentKey };
-            var plan = new GenUiGenerationPlan(
-                Intent: $"Render {request.TemplateKey} interactive content for chat message {message.Id:N}",
-                AppKey: appKey,
-                TemplateKey: request.TemplateKey);
-            var specification = GenUiGenerationPipeline.CreateSpecification(plan, document);
             var pipeline = GenUiGenerationPipeline.Execute(
-                plan,
-                specification,
-                surface.Present,
+                plan!, specification!, surface.Present,
                 definition => GenUiGenerationPipeline.InspectRegisteredRuntime(definition, _genUiInstances));
             document = pipeline.Definition.Document;
         }
