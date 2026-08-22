@@ -353,7 +353,10 @@ public sealed partial class ActionGraphPage : UserControl, IDisposable
             var input = request.RequiredInputs.FirstOrDefault();
             var secret = new TextBox { PasswordChar = '•', PlaceholderText = input?.Label ?? "Required secret" };
             secret.TextChanged += async (_, _) => await _remediationCoordinator.RecordInteractionAsync(request.Id, _lifetime.Token);
-            var save = new HavenPrimaryButton { Content = request.State == RemediationState.Suspended ? "Save Securely & Retry" : "Save Securely & Retry" };
+            // Saving the host-owned credential resolves the structured blocker. The blocked
+            // action remains responsible for exposing a real resumable/retry continuation;
+            // do not claim that retry occurred when no such continuation is registered.
+            var save = new HavenPrimaryButton { Content = "Save Securely" };
             save.Click += async (_, _) =>
             {
                 if (string.IsNullOrWhiteSpace(secret.Text)) return;
