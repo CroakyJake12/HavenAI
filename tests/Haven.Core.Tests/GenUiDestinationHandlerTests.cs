@@ -266,6 +266,31 @@ public sealed class GenUiIncrementalUpdaterTests
     }
 
     [Fact]
+    public async Task ApplyResultAsyncRollsBackWhenLaterPatchFails()
+    {
+        var store = new GenUiInstanceStore();
+        var document = CreateDocument();
+        store.Register(document);
+        var now = DateTimeOffset.UtcNow;
+        var result = new GenUiActionResult(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            document.Origin,
+            "test.button",
+            "test.action",
+            GenUiActionStatus.Completed,
+            "Test result.",
+            JsonSerializer.SerializeToElement(new { }),
+            [
+                new GenUiStatePatch(Guid.NewGuid(), document.Origin.InstanceId, GenUiPatchOperation.Replace, "state", "score", JsonSerializer.SerializeToElement(99), now),
+                new GenUiStatePatch(Guid.NewGuid(), document.Origin.InstanceId, GenUiPatchOperation.Replace, "missing-component", "text", JsonSerializer.SerializeToElement("boom"), now)
+            ],
+            now);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.ApplyResultAsync(result, CancellationToken.None));
+        Assert.Equal(0, store.TryGet(document.Origin.InstanceId)!.State["score"].GetInt32());
+    }
+    [Fact]
     public void ChangeAppliedEventFires()
     {
         var store = new GenUiInstanceStore();

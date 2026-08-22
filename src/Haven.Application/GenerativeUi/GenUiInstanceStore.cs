@@ -35,7 +35,7 @@ public sealed class GenUiInstanceStore
     public Task ApplyResultAsync(GenUiActionResult result, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        foreach (var patch in result.Patches) ApplyPatch(patch);
+        ApplyPatchesAtomically(result.Patches);
         return Task.CompletedTask;
     }
 
