@@ -117,6 +117,7 @@ public sealed class SettingsHavenSceneTests
         Assert.False(scene.ModelImprovementSharingToggle.IsChecked);
         Assert.NotNull(scene.SavePrivacyButton);
         Assert.Equal("Privacy & Memory", scene.PageTitle.Content);
+    }
 
     [Fact]
     public void Privacy_memory_exposes_real_background_learning_management()
