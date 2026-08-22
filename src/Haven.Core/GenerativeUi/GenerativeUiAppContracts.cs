@@ -4,6 +4,8 @@ public enum GenUiValueType { String, Integer, Number, Boolean, DateTime, Object,
 public enum GenUiPersistenceScope { Transient, Instance, Thread, App, User }
 public enum GenUiBindingMode { OneWay, TwoWay, Computed }
 public enum GenUiNavigationKind { Root, Push, Tab, Modal, Sheet, WizardStep, Detail }
+public enum GenUiRenderingLayer { Native, Composite, Scene, GeneratedSandbox }
+public sealed record GenUiRenderingDecision(GenUiRenderingLayer Layer, string Reason, bool AllowsExecutableCode = false);
 public enum GenUiActionExecutionKind { Local, App, Capability, External }
 public sealed record GenUiStateFieldDefinition(string Key, GenUiValueType Type, GenUiPersistenceScope Persistence, bool Required, object? DefaultValue = null);
 public sealed record GenUiDerivedStateDefinition(string Key, GenUiValueType Type, string Expression, IReadOnlyList<string> Dependencies);
@@ -18,5 +20,6 @@ public sealed record GenUiAppDefinition(string AppId, int SchemaVersion, GenUiDo
     public IReadOnlyList<GenUiActionDefinition> Actions { get; init; } = [];
     public IReadOnlyList<GenUiResultSchemaDefinition> ResultSchemas { get; init; } = [];
     public IReadOnlyList<GenUiErrorSchemaDefinition> ErrorSchemas { get; init; } = [];
+    public GenUiRenderingDecision Rendering { get; init; } = new(GenUiRenderingLayer.Native, "Default trusted native rendering.");
 }
 public sealed record GenUiSemanticValidationResult(IReadOnlyList<string> Errors, IReadOnlyList<string> Repairs, GenUiAppDefinition Definition) { public bool IsValid => Errors.Count == 0; }

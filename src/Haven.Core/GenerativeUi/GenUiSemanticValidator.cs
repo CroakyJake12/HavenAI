@@ -36,6 +36,8 @@ public static class GenUiSemanticValidator
    if(action.ResultSchemaId is { } resultId&&!resultSchemaIds.Contains(resultId)) errors.Add($"Action '{action.ActionId}' references unknown result schema '{resultId}'.");
    foreach(var errorId in action.ErrorSchemaIds) if(!errorSchemaIds.Contains(errorId)) errors.Add($"Action '{action.ActionId}' references unknown error schema '{errorId}'.");
   }
+  if(app.Rendering.AllowsExecutableCode) errors.Add("Generated executable code is not permitted by the current trusted GenUI runtime.");
+  if(app.Rendering.Layer==GenUiRenderingLayer.GeneratedSandbox && app.Document.Origin.TemplateId is not null) errors.Add("GeneratedSandbox rendering is reserved for purpose-built generated definitions without a trusted template ID.");
   var routes=app.Routes.ToList();
   var routeIds=routes.Select(x=>x.RouteId).ToHashSet(StringComparer.Ordinal);
   if(routeIds.Count!=routes.Count) errors.Add("Navigation route IDs must be unique.");

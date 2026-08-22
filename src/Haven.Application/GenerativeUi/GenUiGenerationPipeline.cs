@@ -43,7 +43,10 @@ public static class GenUiGenerationPipeline
             [],
             [],
             [new GenUiNavigationRoute("root", document.Root.ComponentId, GenUiNavigationKind.Root, null, null, true)],
-            RuntimeVersion);
+            RuntimeVersion)
+        {
+            Rendering = GenUiRenderingLayerSelector.Select(document)
+        };
         return new GenUiGenerationSpecification(definition);
     }
 
