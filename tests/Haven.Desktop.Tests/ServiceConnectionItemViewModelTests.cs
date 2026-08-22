@@ -33,7 +33,9 @@ public sealed class ServiceConnectionItemViewModelTests
         Assert.True(item.CanDisconnect);
         Assert.False(item.CanConnect);
         Assert.Equal("Connected", item.ConnectionLabel);
-        Assert.Contains("jacob@example.com", item.AccountLabel);
+        Assert.Equal("Browser OAuth", item.SetupMethodLabel);
+        Assert.Equal("Jacob - jacob@example.com", item.AccountLabel);
+        Assert.Contains("Google Calendar read/write", item.PermissionLabel, StringComparison.Ordinal);
         Assert.StartsWith("Last synced", item.LastSyncLabel);
     }
 
@@ -49,8 +51,29 @@ public sealed class ServiceConnectionItemViewModelTests
 
         Assert.True(item.IsConnected);
         Assert.True(item.CanDisconnect);
-        Assert.Equal("Error", item.ConnectionLabel);
+        Assert.True(item.RequiresReconnect);
+        Assert.True(item.CanConnect);
+        Assert.Equal("Reconnect", item.ConnectActionLabel);
+        Assert.Equal("Reconnect required", item.ConnectionLabel);
         Assert.Equal("Token refresh failed.", item.Status);
+    }
+
+    [Fact]
+    public void OrdinarySyncErrorNeedsAttentionWithoutOfferingReauthorization()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var account = new CalendarAccount(Guid.NewGuid(), CalendarProviderKind.Microsoft, "Microsoft account", "user@example.com",
+            CalendarSyncStatus.Error, "Calendar payload could not be parsed.", null, now, now);
+        var item = new ServiceConnectionItemViewModel(CalendarProviderKind.Microsoft);
+
+        item.Apply(new FakeProvider(CalendarProviderKind.Microsoft, true, "Microsoft Calendar is ready to connect."), account);
+
+        Assert.True(item.IsConnected);
+        Assert.False(item.RequiresReconnect);
+        Assert.False(item.CanConnect);
+        Assert.True(item.CanDisconnect);
+        Assert.Equal("Needs attention", item.ConnectionLabel);
+        Assert.Contains("offline access", item.PermissionLabel, StringComparison.Ordinal);
     }
 
     private sealed class FakeProvider(CalendarProviderKind kind, bool configured, string status) : ICalendarSyncProvider
