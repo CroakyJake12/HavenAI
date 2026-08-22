@@ -57,6 +57,8 @@ internal sealed partial class MeshHavenScene
             foreach (var device in _viewModel.Devices) parent.Add(BuildDeviceCard(device));
         }
 
+        BuildTransferHistory(parent);
+
         if (_viewModel.NearbyDevices.Count > 0)
         {
             parent.Add(Heading("Nearby untrusted devices", TextLevel.H2));
@@ -95,10 +97,18 @@ internal sealed partial class MeshHavenScene
         permissions.Add(GrantButton(peer.DeviceId, MeshCoordinator.RemoteAgentCapability, "Agents", grants));
         permissions.Add(GrantButton(peer.DeviceId, MeshCoordinator.RemoteTaskCapability, "Tasks", grants));
         permissions.Add(GrantButton(peer.DeviceId, "computer-device-use", "Device actions", grants));
+        permissions.Add(GrantButton(peer.DeviceId, MeshCoordinator.RemoteClipboardCapability, "Clipboard receive", grants));
+        permissions.Add(GrantButton(peer.DeviceId, MeshCoordinator.RemoteFileCapability, "File receive", grants));
         card.Add(permissions);
 
-        var actions = new Container { Layout = HavenLayout.Horizontal };
+        var actions = new Container { Layout = HavenLayout.Wrap };
         Set(actions, HavenProperties.Gap, HavenLength.Px(8));
+        var sendClipboard = Button("Mesh.Device.SendClipboard." + peer.DeviceId.ToString("N"), "Send clipboard", ButtonVariant.Secondary);
+        sendClipboard.Invoked += (_, _) => ClipboardSendRequested?.Invoke(peer.DeviceId);
+        actions.Add(sendClipboard);
+        var sendFile = Button("Mesh.Device.SendFile." + peer.DeviceId.ToString("N"), "Send file", ButtonVariant.Secondary);
+        sendFile.Invoked += (_, _) => FileSendRequested?.Invoke(peer.DeviceId);
+        actions.Add(sendFile);
         var connect = Button("Mesh.Device.Connect." + peer.DeviceId.ToString("N"), snapshot.Presence.Connection == MeshConnectionState.Connected ? "Reconnect" : "Connect", ButtonVariant.Secondary);
         connect.Invoked += async (_, _) => await RunAndRenderAsync(token => _viewModel.ConnectAsync(peer.DeviceId, token));
         actions.Add(connect);

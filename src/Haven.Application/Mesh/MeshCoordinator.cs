@@ -382,6 +382,8 @@ public sealed partial class MeshCoordinator : IAsyncDisposable
             ObservedAt = now,
             LastSeenAt = connection == MeshConnectionState.Connected ? now : existing.LastSeenAt
         };
+        if (connection != MeshConnectionState.Connected && _fileTransfers is not null)
+            _ = _fileTransfers.AbortSourceAsync(deviceId, CancellationToken.None);
         StateChanged?.Invoke();
     }
 
@@ -392,6 +394,7 @@ public sealed partial class MeshCoordinator : IAsyncDisposable
         if (TryHandleDeviceMessage(message)) return;
         if (TryHandleRuntimeMessage(message)) return;
         if (TryHandleTaskMessage(message)) return;
+        if (TryHandleTransferMessage(message)) return;
         if (message.Kind == "presence")
         {
             try

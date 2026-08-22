@@ -37,6 +37,8 @@ public sealed class MeshPageViewModel : ObservableObject, IDisposable
     public ObservableCollection<MeshWorkMessage> TeamMessages { get; } = [];
     public ObservableCollection<MeshWorkItem> WorkItems { get; } = [];
     public ObservableCollection<MeshRuntimeChoiceViewModel> RuntimeChoices { get; } = [];
+    public ObservableCollection<MeshIncomingClipboard> ReceivedClipboards { get; } = [];
+    public ObservableCollection<MeshReceivedFile> ReceivedFiles { get; } = [];
 
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public string PairingOffer { get => _pairingOffer; private set => SetProperty(ref _pairingOffer, value); }
@@ -63,13 +65,16 @@ public sealed class MeshPageViewModel : ObservableObject, IDisposable
     {
         var dashboard = await _mesh.GetDashboardAsync(cancellationToken);
         var work = await _mesh.GetWorkModeAsync(cancellationToken);
+        var transfers = await _mesh.GetTransferSnapshotAsync(cancellationToken);
         Replace(Devices, dashboard.TrustedPeers);
         Replace(NearbyDevices, dashboard.NearbyDevices ?? []);
         Replace(Workers, work.Members);
         Replace(TeamMessages, work.RecentMessages);
         Replace(WorkItems, work.RecentWork);
+        Replace(ReceivedClipboards, transfers.RecentClipboards);
+        Replace(ReceivedFiles, transfers.RecentFiles);
         if (DirectWorkerId is { } direct && !Workers.Any(worker => worker.Member.WorkerId == direct)) DirectWorkerId = null;
-        Status = $"{Devices.Count} trusted device{(Devices.Count == 1 ? string.Empty : "s")} · {Workers.Count} Work Mode member{(Workers.Count == 1 ? string.Empty : "s")}";
+        Status = $"{Devices.Count} trusted device{(Devices.Count == 1 ? string.Empty : "s")} · {Workers.Count} Work Mode member{(Workers.Count == 1 ? string.Empty : "s")} · {ReceivedFiles.Count} recent file{(ReceivedFiles.Count == 1 ? string.Empty : "s")}";
     }
 
     public async Task RefreshRuntimeChoicesAsync(CancellationToken cancellationToken)
@@ -118,15 +123,31 @@ public sealed class MeshPageViewModel : ObservableObject, IDisposable
     public async Task RevokeAsync(Guid deviceId, CancellationToken cancellationToken)
     {
         await _mesh.RevokeAsync(deviceId, cancellationToken);
-        Status = "Device trust revoked. It cannot reconnect without being paired again explicitly.";
         await RefreshAsync(cancellationToken);
+        Status = "Device trust revoked. It cannot reconnect without being paired again explicitly.";
     }
+
+    public async Task SendClipboardAsync(Guid deviceId, string text, CancellationToken cancellationToken)
+    {
+        var receipt = await _mesh.SendClipboardTextAsync(deviceId, text, cancellationToken);
+        await RefreshAsync(cancellationToken);
+        Status = receipt.Message;
+    }
+
+    public async Task SendFileAsync(Guid deviceId, string fileName, Stream content, CancellationToken cancellationToken)
+    {
+        var receipt = await _mesh.SendFileAsync(deviceId, fileName, content, cancellationToken);
+        await RefreshAsync(cancellationToken);
+        Status = receipt.Message;
+    }
+
+    public void SetStatus(string status) => Status = status;
 
     public async Task SetRemoteGrantAsync(Guid deviceId, string capability, bool allowed, CancellationToken cancellationToken)
     {
         await _mesh.SetPeerCapabilityPermissionAsync(deviceId, capability, allowed, cancellationToken);
-        Status = $"Remote {capability} is now {(allowed ? "allowed" : "blocked")} for this device.";
         await RefreshAsync(cancellationToken);
+        Status = $"Remote {capability} is now {(allowed ? "allowed" : "blocked")} for this device.";
     }
 
     public async Task CreateWorkerAsync(CancellationToken cancellationToken)

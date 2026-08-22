@@ -17,6 +17,7 @@ public static class MeshServiceCollectionExtensions
         services.AddSingleton<IMeshDiscoveryService, LanMeshDiscoveryService>();
         services.AddSingleton<IMeshInboundRuntimeExecutor, MeshInboundRuntimeExecutor>();
         services.AddSingleton<IMeshInboundTaskExecutor, MeshInboundTaskExecutor>();
+        services.AddSingleton<IMeshFileTransferStore, MeshFileTransferStore>();
         services.AddSingleton<IMeshTransport, SecureLanMeshTransport>();
         services.AddSingleton<MeshCoordinator>();
         services.AddSingleton<MeshRemoteModelProvider>();

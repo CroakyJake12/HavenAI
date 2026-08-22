@@ -188,6 +188,35 @@ public sealed class MeshReliabilityTests
     }
 
     [Fact]
+    public async Task IncomingClipboardRequiresExplicitPeerGrantBeforeEnteringReceiveQueue()
+    {
+        var peer = TrustedPeer();
+        var transport = new FakeTransport();
+        await using var coordinator = CreateCoordinator(transport, StateWithPeer(peer));
+        await coordinator.InitialiseAsync(CancellationToken.None);
+        transport.Observe(peer, []);
+
+        var deniedId = Guid.NewGuid();
+        transport.EmitMessage(peer.DeviceId, "transfer.clipboard", JsonSerializer.Serialize(new { TransferId = deniedId, Text = "blocked" }));
+        await WaitForAsync(() => transport.SentMessages.Any(message => message.Kind == "transfer.receipt"));
+        Assert.Empty((await coordinator.GetTransferSnapshotAsync(CancellationToken.None)).RecentClipboards);
+        using (var denied = JsonDocument.Parse(transport.SentMessages.Last(message => message.Kind == "transfer.receipt").Payload))
+            Assert.Equal((int)MeshTransferStatus.Failed, denied.RootElement.GetProperty("Status").GetInt32());
+
+        await coordinator.SetPeerCapabilityPermissionAsync(peer.DeviceId, MeshCoordinator.RemoteClipboardCapability, true, CancellationToken.None);
+        var acceptedId = Guid.NewGuid();
+        var previousReceipts = transport.SentMessages.Count(message => message.Kind == "transfer.receipt");
+        transport.EmitMessage(peer.DeviceId, "transfer.clipboard", JsonSerializer.Serialize(new { TransferId = acceptedId, Text = "allowed" }));
+        await WaitForAsync(() => transport.SentMessages.Count(message => message.Kind == "transfer.receipt") > previousReceipts);
+
+        var clipboard = Assert.Single((await coordinator.GetTransferSnapshotAsync(CancellationToken.None)).RecentClipboards);
+        Assert.Equal(acceptedId, clipboard.TransferId);
+        Assert.Equal("allowed", clipboard.Text);
+        using var accepted = JsonDocument.Parse(transport.SentMessages.Last(message => message.Kind == "transfer.receipt").Payload);
+        Assert.Equal((int)MeshTransferStatus.Succeeded, accepted.RootElement.GetProperty("Status").GetInt32());
+    }
+
+    [Fact]
     public async Task LoopbackPairingPinsIdentityAndPersistsStableListeningEndpoint()
     {
         var capabilities = new EmptyCapabilitySource();

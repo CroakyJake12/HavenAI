@@ -36,6 +36,40 @@ public sealed class MeshHavenSceneTests
         Assert.DoesNotContain(scene.Root.DescendantsAndSelf(), element => element.Name == "Mesh.Pairing.Generate");
     }
 
+    [Fact]
+    public void Device_card_exposes_explicit_transfer_actions_and_receive_grants()
+    {
+        var coordinator = new MeshCoordinator(new EmptyStateStore(), new EmptySecrets(), new EmptyTransport(), new EmptyCapabilities(), new EmptyMerge());
+        using var viewModel = new MeshPageViewModel(coordinator);
+        var deviceId = Guid.NewGuid();
+        var peer = new MeshPeerRecord(deviceId, "Peer", MeshDeviceClass.Laptop, CapabilityPlatform.Windows, new string('a', 64), MeshPeerTrustState.Trusted, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, "192.168.1.2:4242");
+        var presence = new MeshPresenceSnapshot(deviceId, MeshPresenceState.Available, MeshConnectionState.Connected, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, []);
+        viewModel.Devices.Add(new MeshPeerSnapshot(peer, presence));
+        using var scene = new MeshHavenScene(viewModel);
+
+        AssertNamed(scene.Root, $"Mesh.Device.SendClipboard.{deviceId:N}");
+        AssertNamed(scene.Root, $"Mesh.Device.SendFile.{deviceId:N}");
+        AssertNamed(scene.Root, $"Mesh.Grant.{deviceId:N}.{MeshCoordinator.RemoteClipboardCapability}");
+        AssertNamed(scene.Root, $"Mesh.Grant.{deviceId:N}.{MeshCoordinator.RemoteFileCapability}");
+    }
+
+    [Fact]
+    public void Received_transfers_remain_explicit_and_user_visible()
+    {
+        var coordinator = new MeshCoordinator(new EmptyStateStore(), new EmptySecrets(), new EmptyTransport(), new EmptyCapabilities(), new EmptyMerge());
+        using var viewModel = new MeshPageViewModel(coordinator);
+        var clipboardId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        viewModel.ReceivedClipboards.Add(new MeshIncomingClipboard(clipboardId, Guid.NewGuid(), "Phone", "hello from phone", DateTimeOffset.UtcNow));
+        viewModel.ReceivedFiles.Add(new MeshReceivedFile(fileId, Guid.NewGuid(), "Laptop", "notes.txt", 42, "C:\\Haven\\mesh-inbox\\notes.txt", DateTimeOffset.UtcNow));
+        using var scene = new MeshHavenScene(viewModel);
+
+        AssertNamed(scene.Root, $"Mesh.Transfer.Clipboard.Copy.{clipboardId:N}");
+        AssertNamed(scene.Root, $"Mesh.Transfer.File.CopyPath.{fileId:N}");
+        Assert.Contains(scene.Root.DescendantsAndSelf().OfType<Text>(), element => element.Content.Contains("not applied automatically", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(scene.Root.DescendantsAndSelf().OfType<Text>(), element => element.Content.Contains("SHA-256 verified", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static HavenElement AssertNamed(HavenElement root, string name) =>
         Assert.Single(root.DescendantsAndSelf(), element => element.Name == name);
 
