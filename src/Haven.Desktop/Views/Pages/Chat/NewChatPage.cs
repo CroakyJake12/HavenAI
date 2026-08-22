@@ -1118,7 +1118,17 @@ public sealed class NewChatPage : UserControl, IDisposable
             var appKey = _modeDefinition?.Key ?? (_isTaskMode ? "tasks" : "chat");
             document = CreateGeneratedDocument(request, appKey);
             if (!string.IsNullOrWhiteSpace(request.AccentKey)) document = document with { AccentKey = request.AccentKey };
-            surface.Present(document);
+            var plan = new GenUiGenerationPlan(
+                Intent: $"Render {request.TemplateKey} interactive content for chat message {message.Id:N}",
+                AppKey: appKey,
+                TemplateKey: request.TemplateKey);
+            var specification = GenUiGenerationPipeline.CreateSpecification(plan, document);
+            var pipeline = GenUiGenerationPipeline.Execute(
+                plan,
+                specification,
+                surface.Present,
+                definition => GenUiGenerationPipeline.InspectRegisteredRuntime(definition, _genUiInstances));
+            document = pipeline.Definition.Document;
         }
         _generatedSurfaces[slot] = surface;
         _generatedInstanceIds[slot] = document!.Origin.InstanceId;

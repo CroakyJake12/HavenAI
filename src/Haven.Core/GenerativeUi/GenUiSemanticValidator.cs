@@ -22,6 +22,20 @@ public static class GenUiSemanticValidator
    if(!state.Contains(binding.StateKey)&&!derived.Contains(binding.StateKey)) errors.Add($"Binding references unknown state '{binding.StateKey}'.");
    if(binding.Mode==GenUiBindingMode.TwoWay&&derived.Contains(binding.StateKey)) errors.Add($"Derived state '{binding.StateKey}' cannot be two-way bound.");
   }
+  var resultSchemaIds=app.ResultSchemas.Select(x=>x.SchemaId).ToHashSet(StringComparer.Ordinal);
+  if(resultSchemaIds.Count!=app.ResultSchemas.Count||resultSchemaIds.Contains("")) errors.Add("Result schema IDs must be unique and non-empty.");
+  var errorSchemaIds=app.ErrorSchemas.Select(x=>x.ErrorId).ToHashSet(StringComparer.Ordinal);
+  if(errorSchemaIds.Count!=app.ErrorSchemas.Count||errorSchemaIds.Contains("")) errors.Add("Error schema IDs must be unique and non-empty.");
+  foreach(var schema in app.ResultSchemas) if(schema.Fields.Select(x=>x.Key).Distinct(StringComparer.Ordinal).Count()!=schema.Fields.Count) errors.Add($"Result schema '{schema.SchemaId}' has duplicate field keys.");
+  foreach(var schema in app.ErrorSchemas) if(schema.Details.Select(x=>x.Key).Distinct(StringComparer.Ordinal).Count()!=schema.Details.Count) errors.Add($"Error schema '{schema.ErrorId}' has duplicate detail keys.");
+  var actionIds=app.Actions.Select(x=>x.ActionId).ToHashSet(StringComparer.Ordinal);
+  if(actionIds.Count!=app.Actions.Count||actionIds.Contains("")) errors.Add("Action IDs must be unique and non-empty.");
+  foreach(var action in app.Actions)
+  {
+   if(action.Inputs.Select(x=>x.Key).Distinct(StringComparer.Ordinal).Count()!=action.Inputs.Count) errors.Add($"Action '{action.ActionId}' has duplicate input keys.");
+   if(action.ResultSchemaId is { } resultId&&!resultSchemaIds.Contains(resultId)) errors.Add($"Action '{action.ActionId}' references unknown result schema '{resultId}'.");
+   foreach(var errorId in action.ErrorSchemaIds) if(!errorSchemaIds.Contains(errorId)) errors.Add($"Action '{action.ActionId}' references unknown error schema '{errorId}'.");
+  }
   var routes=app.Routes.ToList();
   var routeIds=routes.Select(x=>x.RouteId).ToHashSet(StringComparer.Ordinal);
   if(routeIds.Count!=routes.Count) errors.Add("Navigation route IDs must be unique.");

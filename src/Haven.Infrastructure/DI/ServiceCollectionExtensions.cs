@@ -92,6 +92,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CapabilityRegistryService>();
         services.AddSingleton<IGenUiTemplateRepository, GenUiTemplateRepository>();
         services.AddSingleton<IGenUiAppRepository, GenUiAppRepository>();
+        services.AddSingleton<GenUiAppSessionService>();
         services.AddSingleton<GenUiInstanceStore>();
         services.AddSingleton<GenUiLocalActionRegistry>();
         services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());

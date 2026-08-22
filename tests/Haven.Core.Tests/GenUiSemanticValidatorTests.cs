@@ -25,6 +25,21 @@ public sealed class GenUiSemanticValidatorTests
   Assert.True(result.IsValid,string.Join(Environment.NewLine,result.Errors));
   Assert.Empty(result.Repairs);
  }
+ [Fact] public void ValidatesTypedActionResultAndErrorSchemas()
+ {
+  var valid=App() with
+  {
+   ResultSchemas=[new("meal.result",[new("mealId",GenUiValueType.String,true)])],
+   ErrorSchemas=[new("meal.error","MEAL_INVALID","Meal data is invalid.",true,[new("field",GenUiValueType.String,false)])],
+   Actions=[new("meal.save",GenUiActionExecutionKind.Local,[new("name",GenUiValueType.String,true)],"meal.result",["meal.error"])]
+  };
+  Assert.True(GenUiSemanticValidator.ValidateAndRepair(valid).IsValid);
+
+  var invalid=valid with { Actions=[new("meal.save",GenUiActionExecutionKind.Local,[],"missing.result",["missing.error"])] };
+  var result=GenUiSemanticValidator.ValidateAndRepair(invalid);
+  Assert.Contains(result.Errors,e=>e.Contains("unknown result schema",StringComparison.Ordinal));
+  Assert.Contains(result.Errors,e=>e.Contains("unknown error schema",StringComparison.Ordinal));
+ }
  private static GenUiAppDefinition App()
  {
   var origin=new GenUiOrigin(Guid.NewGuid(),"genui",null,Guid.NewGuid());
