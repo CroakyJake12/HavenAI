@@ -19,6 +19,9 @@ public sealed class ProjectHavenSceneTests
         Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.Editor"));
         Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.Assistant"));
         Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.ToolDock"));
+        Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.Intelligence"));
+        Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.Intelligence.ForecastRisk"));
+        Assert.NotNull(scene.Root.DescendantsAndSelf().Single(x => x.Name == "Project.Intelligence.AskError"));
         Assert.DoesNotContain(scene.Root.DescendantsAndSelf().OfType<Text>(), text => string.Equals(text.Content, "Project Home", StringComparison.Ordinal));
         Assert.All(scene.Root.DescendantsAndSelf(), element => Assert.False(element.GetType().Namespace?.StartsWith("Avalonia", StringComparison.Ordinal) == true));
     }
@@ -73,6 +76,11 @@ public sealed class ProjectHavenSceneTests
 
         Assert.Equal("Chatbox", scene.Composer.PrefabID);
         Assert.Equal("Ask Haven about this project", scene.ComposerInput.Placeholder);
+        Assert.Equal("Commit · abc123 · Project shell", scene.LastCommit.Content);
+        Assert.Equal("Latest error · No recent error found", scene.LatestError.Content);
+        Assert.Equal("Release risk · Low · 12% risk", scene.Risk.Content);
+        Assert.Equal("Decisions · 3", scene.DecisionCount.Content);
+        Assert.Equal("Automations · 2", scene.AutomationCount.Content);
         scene.ExplorerSearch.Text = "ReleaseReview";
         Assert.Empty(scene.ExplorerChats.Items);
         Assert.Single(scene.ExplorerFiles.Items);
@@ -80,5 +88,5 @@ public sealed class ProjectHavenSceneTests
     }
 
     private static StudioSceneState State(IReadOnlyList<Conversation> chats, IReadOnlyList<WorkspaceFileItemViewModel> files) =>
-        new("Haven", "Captured", "main", "Working tree clean", "Passed", "Run tests", Path.GetTempPath(), false, "Haven", "Context", string.Empty, chats, files);
+        new("Haven", "Captured", "main", "Working tree clean", "Passed", "Run tests", "abc123 · Project shell", "No recent error found", "Low · 12% risk", 3, 2, Path.GetTempPath(), false, "Haven", "Context", string.Empty, chats, files);
 }
