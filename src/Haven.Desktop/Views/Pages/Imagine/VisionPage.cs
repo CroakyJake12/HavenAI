@@ -24,7 +24,7 @@ public sealed partial class VisionPage : UserControl, IDisposable
         WirePlatformImageInput();
     }
     public event Action<string>? OpenInImagineRequested; public string? ImagePath => _imagePath;
-    public Task LoadImageAsync(string path) { if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) { _scene.SetStatus("The requested image is unavailable."); return Task.CompletedTask; } _imagePath = Path.GetFullPath(path); _scene.SetImage(_imagePath); _scene.SetStatus("Image ready for visual analysis."); return Task.CompletedTask; }
+    public async Task LoadImageAsync(string path) { if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) { _scene.SetStatus("The requested image is unavailable."); return; } _imagePath = await PrepareLoadedImageAsync(path); _scene.SetImage(_imagePath); _scene.SetStatus("Image ready for visual analysis."); }
     private async Task PickImageAsync() { var storage = TopLevel.GetTopLevel(this)?.StorageProvider; if (storage is null) { _scene.SetStatus("The platform file picker is unavailable."); return; } var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Open image in Vision", AllowMultiple = false }); var path = files.FirstOrDefault()?.TryGetLocalPath(); if (!string.IsNullOrWhiteSpace(path)) await LoadImageAsync(path); }
     private async Task AnalyseAsync(string prompt)
     {
@@ -56,9 +56,13 @@ public sealed partial class VisionPage : UserControl, IDisposable
             var available = await _models.GetModelsAsync(cancellation.Token);
             var model = available.FirstOrDefault(item => item.Supports(ToolCapability.Vision));
             if (model is null) { _scene.SetStatus("No compatible vision model is available. The image was not sent to a text-only model."); return; }
-            var response = await _models.CompleteAsync(new OllamaChatRequest(model.Name, [new OllamaMessage("user", prompt.Trim(), [analysisPath])], EffortLevel.Medium, "Act as Haven Vision. Analyse only the supplied image, distinguish observation from inference, transcribe visible text accurately, and state uncertainty."), cancellation.Token);
+            var normalizedPrompt = prompt.Trim();
+            var analysisKey = await VisionWorkspaceStateStore.BuildAnalysisKeyAsync(analysisPath, model.Name, normalizedPrompt, cancellation.Token);
+            if (TryUseCachedAnalysis(analysisKey, regionAnalysis)) return;
+            var response = await _models.CompleteAsync(new OllamaChatRequest(model.Name, [new OllamaMessage("user", normalizedPrompt, [analysisPath])], EffortLevel.Medium, "Act as Haven Vision. Analyse only the supplied image, distinguish observation from inference, transcribe visible text accurately, and state uncertainty."), cancellation.Token);
             _scene.SetResponse(response, model.Name);
             _scene.Question.Text = string.Empty;
+            await StoreAnalysisAsync(sourcePath, normalizedPrompt, response, model.Name, analysisKey);
             _scene.SetStatus(regionAnalysis ? "Region analysis complete." : "Analysis complete.");
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { _scene.SetStatus("Vision analysis stopped."); }

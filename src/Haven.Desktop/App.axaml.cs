@@ -109,6 +109,7 @@ public sealed partial class App : Avalonia.Application
         // Legacy automation delivery polling retired; Tasks owns execution state.
         
         collection.AddSingleton<FloatingActivityStateStore>();
+        collection.AddSingleton<Haven.Desktop.Views.Pages.Imagine.VisionWorkspaceStateStore>();
 #if ANDROID
         collection.AddSingleton<IFloatingActivityHost, global::Haven.Android.Compatibility.AndroidFloatingActivityHost>();
 #else
