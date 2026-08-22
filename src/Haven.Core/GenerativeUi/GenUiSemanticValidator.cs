@@ -60,7 +60,7 @@ public static class GenUiSemanticValidator
      changed=false;
      foreach(var route in routes) if(!reachable.Contains(route.RouteId)&&route.ParentRouteId is { } p&&reachable.Contains(p)) { reachable.Add(route.RouteId); changed=true; }
     }
-    foreach(var route in routes.Where(x=>!reachable.Contains(x.RouteId)&&x.Kind!=GenUiNavigationKind.Tab)) errors.Add($"Route '{route.RouteId}' is unreachable from start route '{start}'.");
+    foreach(var route in routes.Where(x=>!reachable.Contains(x.RouteId))) errors.Add($"Route '{route.RouteId}' is unreachable from start route '{start}'.");
    }
   }
   return new(errors,repairs,app with { Routes=routes });

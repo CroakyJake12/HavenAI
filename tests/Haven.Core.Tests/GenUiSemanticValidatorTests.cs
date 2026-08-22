@@ -12,6 +12,12 @@ public sealed class GenUiSemanticValidatorTests
   Assert.Equal(2,result.Repairs.Count);
   Assert.Contains(result.Errors,e=>e.Contains("unreachable",StringComparison.Ordinal));
  }
+ [Fact] public void RejectsUnreachableTabRoute()
+ {
+  var app=App() with { Routes=[new("home","root",GenUiNavigationKind.Root,null,null,true),new("orphan-tab","details",GenUiNavigationKind.Tab,null,null,false)] };
+  var result=GenUiSemanticValidator.ValidateAndRepair(app);
+  Assert.Contains(result.Errors,e=>e.Contains("Route 'orphan-tab' is unreachable",StringComparison.Ordinal));
+ }
  [Fact] public void RejectsDeadBindingAndTwoWayDerivedState()
  {
   var app=App() with { DerivedState=[new("total",GenUiValueType.Number,"price * quantity",["price","quantity"])], Bindings=[new("missing","text","price",GenUiBindingMode.OneWay),new("root","text","total",GenUiBindingMode.TwoWay)] };
