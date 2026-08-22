@@ -65,6 +65,11 @@ public sealed partial class CatalogPageViewModel : ObservableObject
     /// Stores new model locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private string _newModel = string.Empty;
+    private string _newCapabilities = string.Empty;
+    private string _newPermissionProfile = string.Empty;
+    private string _newSandboxProfile = string.Empty;
+    private string _newKnowledgeResources = string.Empty;
+    private string _newMemoryMode = "session";
     /// <summary>
     /// Stores new persists locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -198,6 +203,11 @@ public sealed partial class CatalogPageViewModel : ObservableObject
     /// Gets or updates new model, the bindable or domain state represented by this property.
     /// </summary>
     public string NewModel { get => _newModel; set => SetProperty(ref _newModel, value); }
+    public string NewCapabilities { get => _newCapabilities; set => SetProperty(ref _newCapabilities, value); }
+    public string NewPermissionProfile { get => _newPermissionProfile; set => SetProperty(ref _newPermissionProfile, value); }
+    public string NewSandboxProfile { get => _newSandboxProfile; set => SetProperty(ref _newSandboxProfile, value); }
+    public string NewKnowledgeResources { get => _newKnowledgeResources; set => SetProperty(ref _newKnowledgeResources, value); }
+    public string NewMemoryMode { get => _newMemoryMode; set => SetProperty(ref _newMemoryMode, string.IsNullOrWhiteSpace(value) ? "session" : value); }
     /// <summary>
     /// Gets or updates new persists, the bindable or domain state represented by this property.
     /// </summary>
@@ -214,7 +224,7 @@ public sealed partial class CatalogPageViewModel : ObservableObject
     {
         Items.Clear();
         if (Kind == CatalogPageKind.Agents)
-            foreach (var item in await _catalog.GetAgentsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.PreferredModel, item.IsEnabled, item.IsBuiltIn));
+            foreach (var item in await _catalog.GetAllAgentsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.PreferredModel, item.IsEnabled, item.IsBuiltIn));
         else if (Kind == CatalogPageKind.Capabilities) { }
         else
             foreach (var item in await _catalog.GetPromptsAsync(CancellationToken.None)) Items.Add(new(item.Id, Kind, item.Name, item.IconKey, item.Description, item.Persists ? "Persistent" : "One-shot", item.IsEnabled, item.IsBuiltIn));
@@ -242,7 +252,7 @@ public sealed partial class CatalogPageViewModel : ObservableObject
                 await _catalog.UpsertAgentAsync(new AgentDefinition(
                     Guid.NewGuid(), NewName.Trim(), NewDescription.Trim(), NewInstructions.Trim(), "agent-custom",
                     string.IsNullOrWhiteSpace(NewModel) ? "default" : NewModel.Trim(), null, BuilderPrompt.Trim(),
-                    "{\"mode\":\"ask\"}", false, true, now), CancellationToken.None);
+                    MergeAgentConfiguration("{}", NewCapabilities, NewPermissionProfile, NewSandboxProfile, NewKnowledgeResources, NewMemoryMode), false, true, now), CancellationToken.None);
             }
             else
             {
@@ -254,6 +264,11 @@ public sealed partial class CatalogPageViewModel : ObservableObject
             NewName = string.Empty;
             NewDescription = string.Empty;
             NewInstructions = string.Empty;
+            NewCapabilities = string.Empty;
+            NewPermissionProfile = string.Empty;
+            NewSandboxProfile = string.Empty;
+            NewKnowledgeResources = string.Empty;
+            NewMemoryMode = "session";
             BuilderPrompt = string.Empty;
             IsCreating = false;
             await RefreshAsync();

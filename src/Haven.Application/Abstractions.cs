@@ -70,6 +70,7 @@ public interface IContainerResourceRepository
 public interface ICatalogRepository
 {
     Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentDefinition>> GetAllAgentsAsync(CancellationToken cancellationToken) => GetAgentsAsync(cancellationToken);
     
     Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken);
     Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken);
@@ -90,6 +91,15 @@ public interface ICapabilityRepository
     Task UpsertCapabilityAsync(CapabilityDefinition capability, CancellationToken cancellationToken);
     Task SetCapabilityEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
     Task DeleteCustomCapabilityAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>Persists durable Agent run history independently of Chat history.</summary>
+public interface IAgentRunRepository
+{
+    Task UpsertAsync(AgentRun run, CancellationToken cancellationToken);
+    Task<AgentRun?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentRun>> GetRecentAsync(int limit, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentRun>> GetByAgentAsync(Guid agentId, int limit, CancellationToken cancellationToken);
 }
 
 /// <summary>Persists and searches the extensible Generative UI Template Registry.</summary>

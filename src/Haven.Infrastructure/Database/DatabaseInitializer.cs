@@ -69,9 +69,10 @@ public sealed class ConversationProductionDatabase : IAppDatabase
 
         if (_maintenance is not null)
         {
-            // Version 12 is the highest additive continuation schema currently used.
-            // One verified backup protects the base, conversation and retrieval migrations.
-            await _maintenance.PrepareForMigrationAsync(16, cancellationToken).ConfigureAwait(false);
+            // One verified backup protects the complete additive migration sequence.
+            await _maintenance.PrepareForMigrationAsync(
+                Migrations.All.Max(migration => migration.Version),
+                cancellationToken).ConfigureAwait(false);
         }
 
         await _database.InitializeAsync(cancellationToken).ConfigureAwait(false);

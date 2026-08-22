@@ -113,6 +113,7 @@ public sealed partial class App : Avalonia.Application
         
         collection.AddSingleton<FloatingActivityStateStore>();
         collection.AddSingleton<Haven.Desktop.Views.Pages.Imagine.VisionWorkspaceStateStore>();
+        collection.AddSingleton<AgentTaskRuntimeService>();
 #if ANDROID
         collection.AddSingleton<IFloatingActivityHost, global::Haven.Android.Compatibility.AndroidFloatingActivityHost>();
 #else

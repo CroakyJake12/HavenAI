@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
+        services.AddSingleton<IAgentRunRepository, AgentRunRepository>();
         services.AddSingleton<ICapabilityRepository, CapabilityRepository>();
         services.AddSingleton<IExternalConnectionRepository, ExternalConnectionRepository>();
         services.AddSingleton<IMcpConnectionClient, McpConnectionClient>();

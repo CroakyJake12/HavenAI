@@ -747,6 +747,28 @@ internal static class Migrations
             );
              CREATE INDEX ix_external_connections_provider ON external_connections(provider_key,is_enabled);
              CREATE INDEX ix_external_connections_preset ON external_connections(preset_key,is_enabled);
+        """),
+        new(21, """
+             CREATE TABLE agent_runs(
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+                agent_name TEXT NOT NULL,
+                task TEXT NOT NULL,
+                status INTEGER NOT NULL,
+                model_name TEXT NOT NULL DEFAULT '',
+                result TEXT NOT NULL DEFAULT '',
+                error TEXT NOT NULL DEFAULT '',
+                capabilities_json TEXT NOT NULL DEFAULT '[]',
+                activity_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                started_at TEXT NULL,
+                completed_at TEXT NULL,
+                retry_of_run_id TEXT NULL REFERENCES agent_runs(id) ON DELETE SET NULL,
+                resource_reference TEXT NULL,
+                progress_percent INTEGER NOT NULL DEFAULT 0
+            );
+             CREATE INDEX ix_agent_runs_recent ON agent_runs(created_at DESC);
+             CREATE INDEX ix_agent_runs_agent ON agent_runs(agent_id,created_at DESC);
         """)
     ];
 }

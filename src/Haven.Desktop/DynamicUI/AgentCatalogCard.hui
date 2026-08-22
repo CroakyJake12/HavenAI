@@ -7,6 +7,8 @@
     <Text Name="Description" Content="{{DESCRIPTION}}" FontSize="12" Foreground="TextSecondary" />
     <Text Name="Model" Content="Model · {{MODEL}}" FontSize="11" FontWeight="700" Foreground="TextSecondary" />
     <Container Name="Actions" Layout="Horizontal" Width="100%" Gap="8px" HorizontalAlignment="End">
+      <Button Name="Run" Variant="Primary" Content="Run" MinHeight="36px" />
+      <Button Name="Toggle" Variant="Secondary" Content="{{ENABLE_LABEL}}" MinHeight="36px" />
       <Button Name="Edit" Variant="Secondary" Content="Edit" MinHeight="36px" />
       <Button Name="Duplicate" Variant="Secondary" Content="Duplicate" MinHeight="36px" />
       <Button Name="Delete" Variant="Danger" Content="{{DELETE_LABEL}}" MinHeight="36px" />

@@ -44,6 +44,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly HavenEventBus _bus;
     private readonly IContainerRepository _containers;
     private readonly ICatalogRepository _catalog;
+    private readonly AgentTaskRuntimeService? _agentRuntime;
     private readonly IAutomationRepository _automations;
     private readonly IWorkspaceStateRepository _workspaceState;
     private readonly IWorkspaceToolService _workspaceTools;
@@ -209,13 +210,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         SurfaceOrchestrationService surfaceOrchestration,
         IModeRegistry modeRegistry,
         IModeUsageRepository modeUsage,
-        IPinRepository pins)
+        IPinRepository pins,
+        AgentTaskRuntimeService? agentRuntime = null)
     {
         _eventBus = bus;
         _bus = bus;
         _conversations = conversations;
         _containers = containers;
         _catalog = catalog;
+        _agentRuntime = agentRuntime;
         _automations = automations;
         _workspaceState = workspaceState;
         _workspaceTools = workspaceTools;
@@ -1322,7 +1325,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
         if (kind == CatalogPageKind.Agents)
         {
-            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel), true);
+            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel, _agentRuntime), true);
             return;
         }
 

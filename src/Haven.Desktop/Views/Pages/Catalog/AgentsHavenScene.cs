@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.ViewModels;
 using Haven.UI;
 using Haven.UI.Components;
@@ -18,12 +20,16 @@ internal sealed class AgentsHavenScene : IDisposable
 {
     private readonly CatalogPageViewModel _viewModel;
     private readonly DynamicUI _dynamicUi;
+    private readonly AgentTaskRuntimeService? _runtime;
+    private AgentRun? _latestRun;
+    private IReadOnlyList<AgentRun> _recentRuns = [];
     private Guid? _pendingDeleteId;
     private bool _disposed;
 
-    public AgentsHavenScene(CatalogPageViewModel viewModel)
+    public AgentsHavenScene(CatalogPageViewModel viewModel, AgentTaskRuntimeService? runtime = null)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        _runtime = runtime;
         if (viewModel.Kind != CatalogPageKind.Agents)
             throw new ArgumentException("AgentsHavenScene requires the Agents catalogue view-model.", nameof(viewModel));
 
@@ -67,12 +73,36 @@ internal sealed class AgentsHavenScene : IDisposable
         Set(runtimeNotice, HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
         Set(runtimeNotice, HavenProperties.Padding, HavenThickness.Parse("12px 14px"));
         Set(runtimeNotice, HavenProperties.Gap, HavenLength.Px(3));
-        var runtimeTitle = new HavenText("Saved definitions, not live sessions") { Name = "Agents.RuntimeNotice.Title", Level = TextLevel.H4 };
+        var runtimeTitle = new HavenText("Agent runtime") { Name = "Agents.RuntimeNotice.Title", Level = TextLevel.H4 };
         runtimeNotice.Add(runtimeTitle);
-        ExecutionStatusText = new HavenText("This page saves configuration only. It does not start, track, or delegate live agent work. Chat and Go may consume these definitions where supported.") { Name = "Agents.Execution.Status", Level = TextLevel.Paragraph };
+        ExecutionStatusText = new HavenText(runtime is null
+            ? "Agent runtime is unavailable in this host."
+            : "Ready. Enter a task, then run it with any enabled Agent.") { Name = "Agents.Execution.Status", Level = TextLevel.Paragraph };
         ExecutionStatusText.Accessibility.AccessibleName = "Agent execution status";
         Set(ExecutionStatusText, HavenProperties.Foreground, "TextSecondary");
         runtimeNotice.Add(ExecutionStatusText);
+        RunTaskInput = InputField("Agents.Execution.Task", "Task for this agent");
+        RunTaskInput.Multiline = true;
+        RunTaskInput.SubmitOnEnter = false;
+        Set(RunTaskInput, HavenProperties.MinHeight, HavenLength.Px(72));
+        runtimeNotice.Add(RunTaskInput);
+        RunResourceInput = InputField("Agents.Execution.Resource", "Optional resource, file, URL, or Haven item reference");
+        runtimeNotice.Add(RunResourceInput);
+        var runActions = new Container { Layout = HavenLayout.Horizontal };
+        Set(runActions, HavenProperties.Gap, HavenLength.Px(8));
+        CancelLatestButton = new HavenButton { Name = "Agents.Execution.Cancel", Content = "Cancel active run", Variant = ButtonVariant.Secondary };
+        RetryLatestButton = new HavenButton { Name = "Agents.Execution.Retry", Content = "Retry latest", Variant = ButtonVariant.Secondary };
+        CancelLatestButton.Accessibility.AccessibleName = "Cancel active agent run";
+        RetryLatestButton.Accessibility.AccessibleName = "Retry latest agent run";
+        runActions.Add(CancelLatestButton);
+        runActions.Add(RetryLatestButton);
+        runtimeNotice.Add(runActions);
+        var recentTitle = new HavenText("Recent runs") { Level = TextLevel.H4 };
+        runtimeNotice.Add(recentTitle);
+        RecentRunsText = new HavenText("No Agent runs yet.") { Name = "Agents.Execution.RecentRuns", Level = TextLevel.Caption };
+        RecentRunsText.Accessibility.AccessibleName = "Recent Agent runs";
+        Set(RecentRunsText, HavenProperties.Foreground, "TextSecondary");
+        runtimeNotice.Add(RecentRunsText);
         Root.Add(runtimeNotice);
 
         Creator = BuildCreator();
@@ -104,12 +134,21 @@ internal sealed class AgentsHavenScene : IDisposable
         DescriptionInput.Invalidated += OnDraftInvalidated;
         InstructionsInput.Invalidated += OnDraftInvalidated;
         ModelInput.Invalidated += OnDraftInvalidated;
+        CapabilitiesInput.Invalidated += OnDraftInvalidated;
+        PermissionProfileInput.Invalidated += OnDraftInvalidated;
+        SandboxProfileInput.Invalidated += OnDraftInvalidated;
+        KnowledgeResourcesInput.Invalidated += OnDraftInvalidated;
+        MemoryModeInput.Invalidated += OnDraftInvalidated;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.Items.CollectionChanged += OnItemsCollectionChanged;
+        CancelLatestButton.Invoked += OnCancelLatestInvoked;
+        RetryLatestButton.Invoked += OnRetryLatestInvoked;
+        if (_runtime is not null) _runtime.RunChanged += OnRunChanged;
 
         SyncDraftFromViewModel();
         RefreshChrome();
         RefreshCards();
+        _ = RefreshRunsAsync();
     }
 
     public Page Root { get; }
@@ -122,9 +161,19 @@ internal sealed class AgentsHavenScene : IDisposable
     public Input DescriptionInput { get; private set; } = null!;
     public Input InstructionsInput { get; private set; } = null!;
     public Input ModelInput { get; private set; } = null!;
+    public Input CapabilitiesInput { get; private set; } = null!;
+    public Input PermissionProfileInput { get; private set; } = null!;
+    public Input SandboxProfileInput { get; private set; } = null!;
+    public Input KnowledgeResourcesInput { get; private set; } = null!;
+    public Input MemoryModeInput { get; private set; } = null!;
     public HavenButton SaveButton { get; private set; } = null!;
     public HavenText StatusText { get; }
     public HavenText ExecutionStatusText { get; }
+    public Input RunTaskInput { get; }
+    public Input RunResourceInput { get; }
+    public HavenButton CancelLatestButton { get; }
+    public HavenButton RetryLatestButton { get; }
+    public HavenText RecentRunsText { get; }
     public DynamicUIRuntime AgentCards { get; }
 
     private Container BuildCreator()
@@ -163,6 +212,18 @@ internal sealed class AgentsHavenScene : IDisposable
         InstructionsInput.SubmitOnEnter = false;
         Set(InstructionsInput, HavenProperties.MinHeight, HavenLength.Px(112));
         panel.Add(InstructionsInput);
+
+        CapabilitiesInput = InputField("Agents.Creator.Capabilities", "Capability keys, comma-separated (for example web-search)");
+        panel.Add(CapabilitiesInput);
+        var permissionNote = new HavenText("Capability access is an allowlist. Haven's global sandbox and permission settings always remain authoritative.") { Level = TextLevel.Caption };
+        Set(permissionNote, HavenProperties.Foreground, "TextSecondary");
+        panel.Add(permissionNote);
+
+        PermissionProfileInput = InputField("Agents.Creator.PermissionProfile", "Permission profile reference (optional)");
+        SandboxProfileInput = InputField("Agents.Creator.SandboxProfile", "Sandbox profile reference (optional)");
+        KnowledgeResourcesInput = InputField("Agents.Creator.KnowledgeResources", "Knowledge/resource references, comma-separated");
+        MemoryModeInput = InputField("Agents.Creator.MemoryMode", "Memory default: session, persistent, or none");
+        panel.Add(PermissionProfileInput); panel.Add(SandboxProfileInput); panel.Add(KnowledgeResourcesInput); panel.Add(MemoryModeInput);
 
         var footer = new Container { Layout = HavenLayout.Grid, Columns = "Auto 1fr Auto", Rows = "auto" };
         Set(footer, HavenProperties.Gap, HavenLength.Px(8));
@@ -280,12 +341,18 @@ internal sealed class AgentsHavenScene : IDisposable
         var duplicate = item.GetComponent<HavenButton>("Duplicate");
         duplicate.Invoked += async (_, _) => await DuplicateAgentAsync(card);
 
+        var run = item.GetComponent<HavenButton>("Run");
+        run.Invoked += async (_, _) => await RunAgentAsync(card);
+        var toggle = item.GetComponent<HavenButton>("Toggle");
+        toggle.Invoked += async (_, _) => await ToggleAgentAsync(card);
         var delete = item.GetComponent<HavenButton>("Delete");
         delete.Invoked += async (_, _) => await DeleteAgentAsync(card);
     }
 
     private static void UpdateCardAccessibility(DynamicUIItem item, CatalogCardViewModel card)
     {
+        item.GetComponent<HavenButton>("Run").Accessibility.AccessibleName = "Run " + card.Name;
+        item.GetComponent<HavenButton>("Toggle").Accessibility.AccessibleName = (card.IsEnabled ? "Disable " : "Enable ") + card.Name;
         item.GetComponent<HavenButton>("Edit").Accessibility.AccessibleName = "Edit " + card.Name;
         item.GetComponent<HavenButton>("Duplicate").Accessibility.AccessibleName = "Duplicate " + card.Name;
         item.GetComponent<HavenButton>("Delete").Accessibility.AccessibleName = "Delete " + card.Name;
@@ -296,9 +363,119 @@ internal sealed class AgentsHavenScene : IDisposable
         ["NAME"] = card.Name,
         ["DESCRIPTION"] = card.Description,
         ["MODEL"] = string.IsNullOrWhiteSpace(card.Meta) ? "default" : card.Meta,
-        ["BADGE"] = card.IsBuiltIn ? "BUILT-IN" : "CUSTOM",
+        ["BADGE"] = card.IsBuiltIn ? (card.IsEnabled ? "BUILT-IN" : "BUILT-IN · OFF") : (card.IsEnabled ? "CUSTOM" : "CUSTOM · OFF"),
+        ["ENABLE_LABEL"] = card.IsEnabled ? "Disable" : "Enable",
         ["DELETE_LABEL"] = _pendingDeleteId == card.Id ? "Confirm delete" : "Delete"
     };
+
+    internal async Task<AgentRun?> RunAgentAsync(CatalogCardViewModel card)
+    {
+        if (_runtime is null)
+        {
+            ExecutionStatusText.Content = "Agent runtime is unavailable in this host.";
+            return null;
+        }
+        if (!card.IsEnabled)
+        {
+            ExecutionStatusText.Content = $"{card.Name} is disabled. Enable it before running.";
+            return null;
+        }
+        if (string.IsNullOrWhiteSpace(RunTaskInput.Text))
+        {
+            ExecutionStatusText.Content = "Enter a task before starting the Agent.";
+            return null;
+        }
+
+        ExecutionStatusText.Content = $"Starting {card.Name}…";
+        var run = await _runtime.RunAsync(card.Id, RunTaskInput.Text.Trim(), CancellationToken.None, resourceReference: RunResourceInput.Text);
+        _latestRun = run;
+        _recentRuns = [run, .. _recentRuns.Where(item => item.Id != run.Id).Take(7)];
+        RefreshExecutionStatus();
+        return run;
+    }
+
+    internal async Task ToggleAgentAsync(CatalogCardViewModel card)
+    {
+        await _viewModel.SetAgentEnabledAsync(card, !card.IsEnabled);
+        RefreshCards();
+    }
+
+    internal async Task RefreshRunsAsync()
+    {
+        if (_runtime is null)
+        {
+            RefreshExecutionStatus();
+            return;
+        }
+        ExecutionStatusText.Content = "Loading Agent run history…";
+        var recent = await _runtime.GetRecentAsync(8, CancellationToken.None);
+        _recentRuns = recent;
+        _latestRun = recent.FirstOrDefault();
+        RefreshExecutionStatus();
+    }
+
+    private void RefreshExecutionStatus()
+    {
+        if (_runtime is null)
+        {
+            ExecutionStatusText.Content = "Agent runtime is unavailable in this host.";
+            Enabled(CancelLatestButton, false);
+            Enabled(RetryLatestButton, false);
+            RefreshRecentRunsText();
+            return;
+        }
+
+        if (_latestRun is null)
+        {
+            ExecutionStatusText.Content = "Ready. Enter a task, then run it with any enabled Agent.";
+            Enabled(CancelLatestButton, false);
+            Enabled(RetryLatestButton, false);
+            RefreshRecentRunsText();
+            return;
+        }
+
+        var detail = _latestRun.Status switch
+        {
+            AgentRunStatus.Completed => string.IsNullOrWhiteSpace(_latestRun.Result) ? "Completed." : _latestRun.Result,
+            AgentRunStatus.Failed => "Failed · " + _latestRun.Error,
+            AgentRunStatus.Cancelled => "Cancelled.",
+            AgentRunStatus.Running => "Running…",
+            _ => "Queued…"
+        };
+        var resource = string.IsNullOrWhiteSpace(_latestRun.ResourceReference) ? string.Empty : $" · {_latestRun.ResourceReference}";
+        ExecutionStatusText.Content = $"{_latestRun.AgentName} · {_latestRun.Status} · {_latestRun.ProgressPercent}%{resource} · {detail}";
+        Enabled(CancelLatestButton, _latestRun.Status is AgentRunStatus.Queued or AgentRunStatus.Running);
+        Enabled(RetryLatestButton, _latestRun.Status is AgentRunStatus.Completed or AgentRunStatus.Failed or AgentRunStatus.Cancelled);
+        RefreshRecentRunsText();
+    }
+
+    private void RefreshRecentRunsText()
+    {
+        RecentRunsText.Content = _recentRuns.Count == 0
+            ? "No Agent runs yet."
+            : string.Join(Environment.NewLine, _recentRuns.Take(6).Select(run =>
+                $"{run.AgentName} · {run.Status} · {run.ProgressPercent}% · {Short(run.Task, 72)}"));
+    }
+
+    private static string Short(string value, int limit) => value.Length <= limit ? value : value[..(limit - 1)] + "…";
+
+    private void OnRunChanged(AgentRun run)
+    {
+        _latestRun = run;
+        RefreshExecutionStatus();
+    }
+
+    private void OnCancelLatestInvoked(object? sender, EventArgs e)
+    {
+        if (_runtime is not null && _latestRun is not null) _runtime.Cancel(_latestRun.Id);
+    }
+
+    private async void OnRetryLatestInvoked(object? sender, EventArgs e)
+    {
+        if (_runtime is null || _latestRun is null) return;
+        _latestRun = await _runtime.RetryAsync(_latestRun.Id, CancellationToken.None);
+        RefreshExecutionStatus();
+    }
 
     private void UpdateDeleteLabels()
     {
@@ -328,6 +505,11 @@ internal sealed class AgentsHavenScene : IDisposable
         _viewModel.NewDescription = DescriptionInput.Text;
         _viewModel.NewInstructions = InstructionsInput.Text;
         _viewModel.NewModel = ModelInput.Text;
+        _viewModel.NewCapabilities = CapabilitiesInput.Text;
+        _viewModel.NewPermissionProfile = PermissionProfileInput.Text;
+        _viewModel.NewSandboxProfile = SandboxProfileInput.Text;
+        _viewModel.NewKnowledgeResources = KnowledgeResourcesInput.Text;
+        _viewModel.NewMemoryMode = MemoryModeInput.Text;
     }
 
     private void SyncDraftFromViewModel()
@@ -337,6 +519,8 @@ internal sealed class AgentsHavenScene : IDisposable
         DescriptionInput.Invalidated -= OnDraftInvalidated;
         InstructionsInput.Invalidated -= OnDraftInvalidated;
         ModelInput.Invalidated -= OnDraftInvalidated;
+        CapabilitiesInput.Invalidated -= OnDraftInvalidated;
+        PermissionProfileInput.Invalidated -= OnDraftInvalidated; SandboxProfileInput.Invalidated -= OnDraftInvalidated; KnowledgeResourcesInput.Invalidated -= OnDraftInvalidated; MemoryModeInput.Invalidated -= OnDraftInvalidated;
         try
         {
             SyncText(BuilderPromptInput, _viewModel.BuilderPrompt);
@@ -344,6 +528,8 @@ internal sealed class AgentsHavenScene : IDisposable
             SyncText(DescriptionInput, _viewModel.NewDescription);
             SyncText(InstructionsInput, _viewModel.NewInstructions);
             SyncText(ModelInput, _viewModel.NewModel);
+            SyncText(CapabilitiesInput, _viewModel.NewCapabilities);
+            SyncText(PermissionProfileInput, _viewModel.NewPermissionProfile); SyncText(SandboxProfileInput, _viewModel.NewSandboxProfile); SyncText(KnowledgeResourcesInput, _viewModel.NewKnowledgeResources); SyncText(MemoryModeInput, _viewModel.NewMemoryMode);
         }
         finally
         {
@@ -352,6 +538,8 @@ internal sealed class AgentsHavenScene : IDisposable
             DescriptionInput.Invalidated += OnDraftInvalidated;
             InstructionsInput.Invalidated += OnDraftInvalidated;
             ModelInput.Invalidated += OnDraftInvalidated;
+            CapabilitiesInput.Invalidated += OnDraftInvalidated;
+            PermissionProfileInput.Invalidated += OnDraftInvalidated; SandboxProfileInput.Invalidated += OnDraftInvalidated; KnowledgeResourcesInput.Invalidated += OnDraftInvalidated; MemoryModeInput.Invalidated += OnDraftInvalidated;
         }
     }
 
@@ -404,6 +592,7 @@ internal sealed class AgentsHavenScene : IDisposable
         _disposed = true;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel.Items.CollectionChanged -= OnItemsCollectionChanged;
+        if (_runtime is not null) _runtime.RunChanged -= OnRunChanged;
         _dynamicUi.Clear("AgentCards");
     }
 }

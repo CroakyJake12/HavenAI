@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using Haven.Application;
 using Haven.Core;
@@ -22,8 +23,8 @@ public sealed class AgentsHavenSceneTests
 
         using var scene = new AgentsHavenScene(viewModel);
 
-        Assert.Contains("does not start, track, or delegate live agent work", scene.ExecutionStatusText.Content, StringComparison.Ordinal);
-        Assert.Equal("Agent execution status", scene.ExecutionStatusText.Accessibility.AccessibleName);
+        Assert.Contains("runtime is unavailable", scene.ExecutionStatusText.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("runtime is unavailable", scene.ExecutionStatusText.Accessibility.AccessibleName, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(2, scene.AgentCards.Items.Count);
         var builtInItem = scene.AgentCards.GetItem(builtIn.Id.ToString("N"));
         var customItem = scene.AgentCards.GetItem(custom.Id.ToString("N"));
@@ -32,6 +33,8 @@ public sealed class AgentsHavenSceneTests
         Assert.Equal(HavenVisibility.Collapsed, builtInItem.GetComponent<Button>("Delete").GetValue(HavenProperties.Visibility));
         Assert.Equal("qwen", customItem.GetComponent<Text>("Model").Content.Replace("Model · ", string.Empty, StringComparison.Ordinal));
         Assert.Equal(HavenVisibility.Visible, customItem.GetComponent<Button>("Delete").GetValue(HavenProperties.Visibility));
+        Assert.Equal("Run Revision coach", customItem.GetComponent<Button>("Run").Accessibility.AccessibleName);
+        Assert.Equal("Disable Revision coach", customItem.GetComponent<Button>("Toggle").Accessibility.AccessibleName);
     }
 
     [Fact]
@@ -49,6 +52,11 @@ public sealed class AgentsHavenSceneTests
         scene.DescriptionInput.Text = "Plans work";
         scene.InstructionsInput.Text = "Create practical plans.";
         scene.ModelInput.Text = "mistral";
+        scene.CapabilitiesInput.Text = "web-search, document-read";
+        scene.PermissionProfileInput.Text = "profile-safe";
+        scene.SandboxProfileInput.Text = "sandbox-revision";
+        scene.KnowledgeResourcesInput.Text = "haven://doc/2, https://example.test/spec";
+        scene.MemoryModeInput.Text = "session";
         await scene.CreateAgentAsync();
 
         var created = Assert.Single(repository.Agents, agent => agent.Name == "Planner");
@@ -67,6 +75,26 @@ public sealed class AgentsHavenSceneTests
     }
 
     [Fact]
+    public async Task Scene_keeps_disabled_agents_visible_and_can_reenable_them()
+    {
+        var disabled = Agent(Guid.NewGuid(), "Paused", "Paused agent", "default", false, DateTimeOffset.UtcNow) with { IsEnabled = false };
+        var repository = new FakeCatalogRepository([disabled]);
+        var viewModel = new CatalogPageViewModel(CatalogPageKind.Agents, repository, new FakeOllamaClient(), true);
+        await viewModel.RefreshCommand.ExecuteAsync();
+        using var scene = new AgentsHavenScene(viewModel);
+
+        var card = Assert.Single(viewModel.Items);
+        Assert.False(card.IsEnabled);
+        var item = scene.AgentCards.GetItem(disabled.Id.ToString("N"));
+        Assert.Equal("Enable Paused", item.GetComponent<Button>("Toggle").Accessibility.AccessibleName);
+
+        await scene.ToggleAgentAsync(card);
+
+        Assert.True(Assert.Single(repository.Agents).IsEnabled);
+        Assert.True(Assert.Single(viewModel.Items).IsEnabled);
+    }
+
+    [Fact]
     public async Task Scene_edits_custom_agent_in_place_and_preserves_runtime_metadata()
     {
         var now = DateTimeOffset.UtcNow;
@@ -80,7 +108,7 @@ public sealed class AgentsHavenSceneTests
             "qwen",
             "fallback-model",
             "original-detection",
-            "{\"mode\":\"ask\",\"filesystem\":false}",
+            "{\"mode\":\"ask\",\"filesystem\":false,\"unknown\":\"keep\",\"capabilities\":[\"web-search\"],\"permissionProfileRef\":\"profile-old\",\"sandboxProfileRef\":\"sandbox-old\",\"knowledgeResources\":[\"haven://doc/1\"],\"memoryMode\":\"persistent\"}",
             false,
             true,
             now);
@@ -102,12 +130,22 @@ public sealed class AgentsHavenSceneTests
         Assert.Equal("Revision coach", scene.NameInput.Text);
         Assert.Equal("Original instructions", scene.InstructionsInput.Text);
         Assert.Equal("qwen", scene.ModelInput.Text);
+        Assert.Equal("web-search", scene.CapabilitiesInput.Text);
+        Assert.Equal("profile-old", scene.PermissionProfileInput.Text);
+        Assert.Equal("sandbox-old", scene.SandboxProfileInput.Text);
+        Assert.Equal("haven://doc/1", scene.KnowledgeResourcesInput.Text);
+        Assert.Equal("persistent", scene.MemoryModeInput.Text);
 
         scene.NameInput.Text = "Revision lead";
         scene.DescriptionInput.Text = "Leads revision sessions";
         scene.InstructionsInput.Text = "Build structured revision plans.";
         scene.ModelInput.Text = "mistral";
         scene.BuilderPromptInput.Text = "updated-detection";
+        scene.CapabilitiesInput.Text = "web-search, document-read";
+        scene.PermissionProfileInput.Text = "profile-safe";
+        scene.SandboxProfileInput.Text = "sandbox-revision";
+        scene.KnowledgeResourcesInput.Text = "haven://doc/2, https://example.test/spec";
+        scene.MemoryModeInput.Text = "session";
         await scene.CreateAgentAsync();
 
         Assert.Equal(2, repository.Agents.Count);
@@ -119,7 +157,15 @@ public sealed class AgentsHavenSceneTests
         Assert.Equal("fallback-model", edited.FallbackModel);
         Assert.Equal("agent-special", edited.IconKey);
         Assert.Equal("updated-detection", edited.DetectionRules);
-        Assert.Equal("{\"mode\":\"ask\",\"filesystem\":false}", edited.PermissionsJson);
+        using var permissions = JsonDocument.Parse(edited.PermissionsJson);
+        Assert.Equal("ask", permissions.RootElement.GetProperty("mode").GetString());
+        Assert.False(permissions.RootElement.GetProperty("filesystem").GetBoolean());
+        Assert.Equal("keep", permissions.RootElement.GetProperty("unknown").GetString());
+        Assert.Equal(["web-search", "document-read"], permissions.RootElement.GetProperty("capabilities").EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.Equal("profile-safe", permissions.RootElement.GetProperty("permissionProfileRef").GetString());
+        Assert.Equal("sandbox-revision", permissions.RootElement.GetProperty("sandboxProfileRef").GetString());
+        Assert.Equal(["haven://doc/2", "https://example.test/spec"], permissions.RootElement.GetProperty("knowledgeResources").EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.Equal("session", permissions.RootElement.GetProperty("memoryMode").GetString());
         Assert.False(viewModel.IsEditingAgent);
         Assert.False(viewModel.IsCreating);
         Assert.Contains("Updated Revision lead", viewModel.Status, StringComparison.Ordinal);
@@ -136,6 +182,9 @@ public sealed class AgentsHavenSceneTests
 
         public Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AgentDefinition>>(Agents.Where(agent => agent.IsEnabled).OrderByDescending(agent => agent.IsBuiltIn).ThenBy(agent => agent.Name).ToArray());
+
+        public Task<IReadOnlyList<AgentDefinition>> GetAllAgentsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AgentDefinition>>(Agents.OrderByDescending(agent => agent.IsBuiltIn).ThenBy(agent => agent.Name).ToArray());
 
         public Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<PromptDefinition>>(_prompts.Where(prompt => prompt.IsEnabled).ToArray());
