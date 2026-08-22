@@ -28,7 +28,7 @@ public sealed class StudyRevisionSchedulingSidebarTests
 
         using var sidebar = new NativeChatSidebar(
             new EmptyConversationRepository(), containers,
-            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask, _ => Task.CompletedTask);
+            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask);
         using var coordinator = new StudyAssignmentsSidebarCoordinator(sidebar, containers, study, () => { });
         var window = new Window { Width = 440, Height = 900, Content = sidebar };
         try
@@ -94,7 +94,7 @@ public sealed class StudyRevisionSchedulingSidebarTests
 
         using var sidebar = new NativeChatSidebar(
             new EmptyConversationRepository(), containers,
-            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask, _ => Task.CompletedTask);
+            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask);
         using var coordinator = new StudyAssignmentsSidebarCoordinator(sidebar, containers, study, () => { });
         var window = new Window { Width = 440, Height = 900, Content = sidebar };
         try

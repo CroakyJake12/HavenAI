@@ -30,7 +30,6 @@ public sealed class NativeChatSidebarNewChatTests
                     await releaseFirst.Task;
                 }
             },
-            _ => Task.CompletedTask,
             _ => Task.CompletedTask);
 
         var window = new Window { Width = 420, Height = 700, Content = sidebar };

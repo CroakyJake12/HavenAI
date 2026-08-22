@@ -62,7 +62,7 @@ public sealed class StudyAssignmentsSidebarTests
 
         using var sidebar = new NativeChatSidebar(
             new EmptyConversationRepository(), containers,
-            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask, _ => Task.CompletedTask);
+            _ => Task.CompletedTask, (_, _) => Task.CompletedTask, _ => Task.CompletedTask);
         using var coordinator = new StudyAssignmentsSidebarCoordinator(sidebar, containers, study, () => planOpened = true);
         var window = new Window { Width = 440, Height = 760, Content = sidebar };
         try

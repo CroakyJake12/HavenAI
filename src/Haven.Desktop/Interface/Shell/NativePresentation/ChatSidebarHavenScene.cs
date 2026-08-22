@@ -71,11 +71,8 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         Root = BuildRoot();
         _dynamicUi = new DynamicUI(Root, _templates);
 
-        ModeOptions = Get<Container>("ModeOptions");
-        ChatMode = Get<HavenButton>("ChatMode");
-        StudyMode = Get<HavenButton>("StudyMode");
-        TasksMode = Get<HavenButton>("TasksMode");
         SidebarTitle = Get<HavenText>("SidebarTitle");
+        SearchToggle = Get<HavenButton>("SearchToggle");
         Search = Get<Input>("Search");
         PinnedHeading = Get<HavenText>("PinnedHeading");
         UnreadHeading = Get<HavenText>("UnreadHeading");
@@ -92,10 +89,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         NewGroup = Get<HavenButton>("NewGroup");
         Status = Get<HavenText>("Status");
 
-        ModeButton.Invoked += OnModeButtonInvoked;
-        ChatMode.Invoked += OnChatModeInvoked;
-        StudyMode.Invoked += OnStudyModeInvoked;
-        TasksMode.Invoked += OnTasksModeInvoked;
+        SearchToggle.Invoked += OnSearchToggleInvoked;
         Search.TextChanged += OnSearchTextChanged;
         NewChat.Invoked += OnNewChatInvoked;
         NewGroup.Invoked += OnNewGroupInvoked;
@@ -103,12 +97,8 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     }
 
     public Page Root { get; }
-    public HavenButton ModeButton { get; }
-    public Container ModeOptions { get; }
-    public HavenButton ChatMode { get; }
-    public HavenButton StudyMode { get; }
-    public HavenButton TasksMode { get; }
     public HavenText SidebarTitle { get; }
+    public HavenButton SearchToggle { get; }
     public Input Search { get; }
     public HavenText PinnedHeading { get; }
     public HavenText UnreadHeading { get; }
@@ -126,7 +116,6 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     public HavenText Status { get; }
 
     public event EventHandler<string>? SearchChanged;
-    public event EventHandler<HavenMode>? ModeRequested;
     public event EventHandler? NewChatRequested;
     public event EventHandler? NewGroupRequested;
     public event EventHandler<ChatSidebarConversationRequest>? ConversationActionRequested;
@@ -138,8 +127,9 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         _mode = mode;
         var modeName = ModeName(mode);
         SidebarTitle.Content = modeName;
-        ModeButton.Content = modeName;
-        ModeButton.Accessibility.AccessibleName = $"Current mode: {modeName}";
+        SearchToggle.Accessibility.AccessibleName = mode == HavenMode.Chat
+            ? "Search chats, groups and files"
+            : $"Search {modeName}";
         GroupsHeading.Content = GroupName(mode, plural: true);
         ChatsHeading.Content = mode switch
         {
@@ -154,7 +144,6 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         NewChat.Content = NewChatLabel(mode);
         NewGroup.Content = string.Empty;
         NewGroup.Accessibility.AccessibleName = $"Create {GroupName(mode, plural: false)}";
-        ModeOptions.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
         SetHeadingVisibility(FilesHeading, mode == HavenMode.Chat);
         FilesEmpty.SetValue(HavenProperties.Visibility, mode == HavenMode.Chat && FileRows.Items.Count == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
@@ -435,15 +424,19 @@ internal sealed class ChatSidebarHavenScene : IDisposable
         if (ReferenceEquals(overlay.Parent, Root)) Root.Remove(overlay);
     }
 
-    private void OnModeButtonInvoked(object? sender, EventArgs e)
+    private void OnSearchToggleInvoked(object? sender, EventArgs e)
     {
-        var visible = ModeOptions.GetValue(HavenProperties.Visibility) == HavenVisibility.Visible;
-        ModeOptions.SetValue(HavenProperties.Visibility, visible ? HavenVisibility.Collapsed : HavenVisibility.Visible);
+        var visible = Search.GetValue(HavenProperties.Visibility) == HavenVisibility.Visible;
+        if (visible)
+        {
+            Search.Text = string.Empty;
+            Search.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+            return;
+        }
+
+        Search.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
     }
 
-    private void OnChatModeInvoked(object? sender, EventArgs e) => ModeRequested?.Invoke(this, HavenMode.Chat);
-    private void OnStudyModeInvoked(object? sender, EventArgs e) => ModeRequested?.Invoke(this, HavenMode.Study);
-    private void OnTasksModeInvoked(object? sender, EventArgs e) => ModeRequested?.Invoke(this, HavenMode.Tasks);
     private void OnSearchTextChanged(object? sender, EventArgs e) => SearchChanged?.Invoke(this, Search.Text.Trim());
     private void OnNewChatInvoked(object? sender, EventArgs e) => NewChatRequested?.Invoke(this, EventArgs.Empty);
     private void OnNewGroupInvoked(object? sender, EventArgs e) => NewGroupRequested?.Invoke(this, EventArgs.Empty);
@@ -481,18 +474,13 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     private static Page BuildRoot()
     {
         const string markup = """
-            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
-              <Container Name="ModeRow" Row="0" Layout="Horizontal" Width="100%" Gap="0px">
-                <Text Name="SidebarTitle" Content="Chat" Level="H2" VerticalAlignment="Center" />
-                <Button Name="ModeButton" Variant="Ghost" Content="Chat" Visibility="Collapsed" />
+            <Page Name="ChatSidebarRoot" Layout="Grid" Width="100%" Height="100%" Rows="Auto Auto 1fr Auto Auto" Gap="8px" Padding="14px" Background="Surface">
+              <Container Name="HeaderRow" Row="0" Layout="Grid" Columns="1fr 34px" Width="100%" Gap="6px">
+                <Text Name="SidebarTitle" Content="Chat" Level="H2" Column="0" VerticalAlignment="Center" />
+                <Button Name="SearchToggle" Variant="Icon" IconKey="search" Content="" Column="1" Width="34px" Height="34px" MinHeight="34px" />
               </Container>
-              <Container Name="ModeOptions" Row="1" Layout="Horizontal" Width="100%" Gap="4px" Visibility="Collapsed">
-                <Button Name="ChatMode" Variant="Ghost" Content="Chat" MinHeight="32px" />
-                <Button Name="StudyMode" Variant="Ghost" Content="Study" MinHeight="32px" />
-                <Button Name="TasksMode" Variant="Ghost" Content="Tasks" MinHeight="32px" />
-              </Container>
-              <Input Name="Search" Row="2" Width="100%" Height="34px" MinHeight="34px" Placeholder="Search chats, groups and files" />
-              <Container Name="ScrollHost" Row="3" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="6px">
+              <Input Name="Search" Row="1" Width="100%" Height="34px" MinHeight="34px" Placeholder="Search chats, groups and files" Visibility="Collapsed" />
+              <Container Name="ScrollHost" Row="2" Layout="Vertical" Width="100%" Overflow="Scroll" Clip="true" Gap="6px">
                 <Container Name="GroupsHeader" Layout="Grid" Columns="1fr 32px" Width="100%" Gap="4px">
                   <Text Name="GroupsHeading" Content="Chat Groups" Level="H3" Column="0" VerticalAlignment="Center" />
                   <Button Name="NewGroup" Variant="Icon" IconKey="plus" Content="" Column="1" Width="32px" Height="32px" MinHeight="32px" />
@@ -508,10 +496,10 @@ internal sealed class ChatSidebarHavenScene : IDisposable
                 <Text Name="ChatsHeading" Content="Chats" Level="H3" />
                 <DynamicUIRuntime Name="ChatRows" Width="100%" />
               </Container>
-              <Container Name="Footer" Row="4" Layout="Grid" Columns="1fr" Width="100%">
+              <Container Name="Footer" Row="3" Layout="Grid" Columns="1fr" Width="100%">
                 <Button Name="NewChat" Variant="Primary" IconKey="plus" Content="New Chat" Column="0" Width="100%" MinHeight="40px" />
               </Container>
-              <Text Name="Status" Row="5" Content="" FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
+              <Text Name="Status" Row="4" Content="" FontSize="11" Foreground="TextSecondary" Visibility="Collapsed" />
             </Page>
             """;
         return (Page)new HavenMarkupParser().Parse(markup, "ChatSidebar.hui");
@@ -521,10 +509,7 @@ internal sealed class ChatSidebarHavenScene : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        ModeButton.Invoked -= OnModeButtonInvoked;
-        ChatMode.Invoked -= OnChatModeInvoked;
-        StudyMode.Invoked -= OnStudyModeInvoked;
-        TasksMode.Invoked -= OnTasksModeInvoked;
+        SearchToggle.Invoked -= OnSearchToggleInvoked;
         Search.TextChanged -= OnSearchTextChanged;
         NewChat.Invoked -= OnNewChatInvoked;
         NewGroup.Invoked -= OnNewGroupInvoked;

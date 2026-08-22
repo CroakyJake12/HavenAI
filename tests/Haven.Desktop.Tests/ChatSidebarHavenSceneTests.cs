@@ -154,9 +154,15 @@ public sealed class ChatSidebarHavenSceneTests
         scene.FileRequested += (_, id) => requestedFile = id;
 
         Assert.Equal("Chat", scene.SidebarTitle.Content);
-        Assert.Equal(HavenVisibility.Collapsed, scene.ModeButton.GetValue(HavenProperties.Visibility));
-        Assert.Equal(HavenVisibility.Collapsed, scene.ModeOptions.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, scene.Search.GetValue(HavenProperties.Visibility));
+        Assert.Equal("Search chats, groups and files", scene.SearchToggle.Accessibility.AccessibleName);
         Assert.Equal(HavenLength.Px(34), scene.Search.GetValue(HavenProperties.Height));
+        Click(scene, scene.SearchToggle);
+        Assert.Equal(HavenVisibility.Visible, scene.Search.GetValue(HavenProperties.Visibility));
+        scene.Search.Text = "algebra";
+        Click(scene, scene.SearchToggle);
+        Assert.Equal(HavenVisibility.Collapsed, scene.Search.GetValue(HavenProperties.Visibility));
+        Assert.Equal(string.Empty, scene.Search.Text);
         Assert.Equal(HavenLength.Percent(100), scene.NewChat.GetValue(HavenProperties.Width));
         Assert.Equal(string.Empty, scene.NewGroup.Content);
         Assert.Equal("Create Chat Group", scene.NewGroup.Accessibility.AccessibleName);
