@@ -88,9 +88,12 @@ public sealed partial class HavenLauncherActivity
         if (_grid is null || _pageIndicator is null)
             return;
 
-        var rows = Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8);
-        var columns = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7);
+        var (rows, columns) = ResolveGridShape(
+            Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8),
+            Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7));
         var perPage = rows * columns;
+        var pageCount = Math.Max(1, (int)Math.Ceiling(_apps.Count / (double)perPage));
+        _page = Math.Clamp(_page, 0, pageCount - 1);
         var visible = _apps.Skip(_page * perPage).Take(perPage).ToArray();
 
         _grid.RemoveAllViews();
@@ -99,19 +102,26 @@ public sealed partial class HavenLauncherActivity
             _pageIndicator.Text = "Tap All apps to retry";
             return;
         }
+
         _grid.RowCount = rows;
         _grid.ColumnCount = columns;
 
-        var displayWidth = Resources?.DisplayMetrics?.WidthPixels ?? 1080;
-        var cellWidth = Math.Max(Dp(64), (displayWidth - Dp(24)) / columns);
-        var cellHeight = Math.Max(Dp(78), ((_grid.Height > 0 ? _grid.Height : Dp(540))) / rows);
+        var metrics = Resources?.DisplayMetrics;
+        var gridWidth = _grid.Width > 0
+            ? _grid.Width
+            : Math.Max(Dp(64), (metrics?.WidthPixels ?? Dp(360)) - Dp(24));
+        var gridHeight = _grid.Height > 0
+            ? _grid.Height
+            : Math.Max(Dp(78), (metrics?.HeightPixels ?? Dp(640)) - Dp(180));
+        var cellWidth = Math.Max(Dp(64), gridWidth / columns);
+        var cellHeight = Math.Max(Dp(78), gridHeight / rows);
 
         foreach (var app in visible)
             _grid.AddView(BuildAppTile(app, cellWidth, cellHeight));
 
-        _pageIndicator.Text = PageCount <= 1
+        _pageIndicator.Text = pageCount <= 1
             ? "Swipe up for apps"
-            : $"{_page + 1} / {PageCount}  •  Swipe up for apps";
+            : $"{_page + 1} / {pageCount}  \u2022  Swipe up for apps";
         AndroidTypography.ApplyTree(_grid);
     }
 
@@ -211,8 +221,34 @@ public sealed partial class HavenLauncherActivity
         {
             var rows = Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8);
             var columns = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7);
-            return Math.Max(1, (int)Math.Ceiling(_apps.Count / (double)(rows * columns)));
+            var (effectiveRows, effectiveColumns) = ResolveGridShape(rows, columns);
+            return Math.Max(
+                1,
+                (int)Math.Ceiling(_apps.Count / (double)(effectiveRows * effectiveColumns)));
         }
+    }
+
+    private (int Rows, int Columns) ResolveGridShape(int requestedRows, int requestedColumns)
+    {
+        var metrics = Resources?.DisplayMetrics;
+        var availableWidth = _grid?.Width > 0
+            ? _grid.Width
+            : Math.Max(Dp(64), (metrics?.WidthPixels ?? Dp(360)) - Dp(24));
+        var availableHeight = _grid?.Height > 0
+            ? _grid.Height
+            : Math.Max(Dp(78), (metrics?.HeightPixels ?? Dp(640)) - Dp(180));
+
+        var maxColumns = Math.Max(1, availableWidth / Dp(64));
+        var maxRows = Math.Max(1, availableHeight / Dp(78));
+        return (
+            Math.Max(1, Math.Min(requestedRows, maxRows)),
+            Math.Max(1, Math.Min(requestedColumns, maxColumns)));
+    }
+
+    private int ResolveColumnCount(int requestedColumns, int availableWidth)
+    {
+        var maxColumns = Math.Max(1, availableWidth / Dp(64));
+        return Math.Max(1, Math.Min(requestedColumns, maxColumns));
     }
 
     private void ChangePage(int delta)
@@ -288,11 +324,16 @@ public sealed partial class HavenLauncherActivity
                 0,
                 1f)
         };
+        var drawerWidth = Math.Max(
+            Dp(64),
+            (Resources?.DisplayMetrics?.WidthPixels ?? Dp(360)) - Dp(24));
         var grid = new GridLayout(this)
         {
-            ColumnCount = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7)
+            ColumnCount = ResolveColumnCount(
+                Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7),
+                drawerWidth)
         };
-        var width = (Resources?.DisplayMetrics?.WidthPixels ?? 1080) / grid.ColumnCount;
+        var width = Math.Max(Dp(64), drawerWidth / grid.ColumnCount);
         void RenderMatches(string? query)
         {
             grid.RemoveAllViews();
