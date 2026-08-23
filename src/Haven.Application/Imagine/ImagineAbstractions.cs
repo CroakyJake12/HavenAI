@@ -8,6 +8,7 @@ public interface IImagineProjectRepository
     Task<ImagineProject?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<ImagineProject>> GetRecentAsync(int limit, CancellationToken cancellationToken);
     Task SaveAsync(ImagineProject project, CancellationToken cancellationToken);
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
     Task<ImagineMediaAsset> ImportAssetAsync(Guid projectId, string sourcePath, ImagineMediaKind kind, CancellationToken cancellationToken);
     Task<string> ExportBundleAsync(ImagineProject project, string destinationPath, CancellationToken cancellationToken);
 }

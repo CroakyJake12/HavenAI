@@ -53,8 +53,10 @@ public sealed partial class MainView
         var page = new ImaginePage(
             services.GetRequiredService<IImagineProjectRepository>(),
             services.GetRequiredService<IImagineSemanticService>(),
-            services.GetRequiredService<IImagineAssistantService>());
+            services.GetRequiredService<IImagineAssistantService>(),
+            services.GetRequiredService<ImagineGenerationCommand>());
         page.InspectInVisionRequested += path => _ = OpenVisionAssetAsync(path);
+        page.ProviderSettingsRequested += (_, _) => OpenApplicationSettings();
         return page;
     }
 
