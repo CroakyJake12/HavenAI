@@ -8,7 +8,7 @@ namespace Haven.Desktop.HavenUI.Creative;
 
 internal enum UnifiedCanvasTool
 {
-    Select, Pen, Highlighter, Eraser, Pan, Text, Rectangle, Ellipse, Line, Frame, Connector
+    Select, Pen, Highlighter, Eraser, Pan, Lasso, LaserPointer, LaserLasso, Text, Rectangle, Ellipse, Line, Frame, Connector
 }
 
 internal enum UnifiedCanvasHandle { None, NorthWest, NorthEast, SouthWest, SouthEast, Rotate }
@@ -28,6 +28,8 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
     private UnifiedCanvasHandle _handle;
     private Dictionary<Guid, ObjectGeometry> _previewOriginals = [];
     private Guid? _connectorSource;
+    private readonly List<HavenPoint> _pointerPath = [];
+    private bool _pointerPathDrawing;
 
     public UnifiedCanvasSurface(CanvasInteractionController controller, Func<string>? textProvider = null)
     {
@@ -57,15 +59,34 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
     public bool ShowGuides { get; set; } = true;
     public void RefreshSurface() => Invalidate();
 
+    public bool ReleaseInputState()
+    {
+        if (_moving || _handle != UnifiedCanvasHandle.None) RestorePreviewOriginals();
+        _connectorSource = null;
+        _pointerPathDrawing = false;
+        _pointerPath.Clear();
+        ResetGesture();
+        var committedMutation = _controller.ReleaseInteraction();
+        Invalidate();
+        return committedMutation;
+    }
+
     public void SetController(CanvasInteractionController controller)
     {
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        _pointerPathDrawing = false;
+        _pointerPath.Clear();
         ResetGesture();
         Invalidate();
     }
 
     public void SetTool(UnifiedCanvasTool tool)
     {
+        if (_tool != tool)
+        {
+            _pointerPathDrawing = false;
+            _pointerPath.Clear();
+        }
         _tool = tool;
         _controller.Tool = tool switch
         {
@@ -93,6 +114,14 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
                 _controller.Begin(Sample(input));
                 Invalidate();
                 return true;
+            case UnifiedCanvasTool.Lasso:
+            case UnifiedCanvasTool.LaserPointer:
+            case UnifiedCanvasTool.LaserLasso:
+                _pointerPath.Clear();
+                _pointerPath.Add(input.LocalPosition);
+                _pointerPathDrawing = true;
+                Invalidate();
+                return true;
             case UnifiedCanvasTool.Text:
                 AddObjectAtPointer(NotesCanvasObjectKind.Text, 220, 72, _textProvider(), "{\"shape\":\"text\"}");
                 SetTool(UnifiedCanvasTool.Select);
@@ -115,6 +144,13 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
     public bool PointerMoved(HavenPointerInput input)
     {
         _pointerCurrent = input.LocalPosition;
+        if (_pointerPathDrawing)
+        {
+            if (_pointerPath.Count == 0 || DistanceSquared(_pointerPath[^1], input.LocalPosition) >= 4)
+                _pointerPath.Add(input.LocalPosition);
+            Invalidate();
+            return true;
+        }
         if (_tool is UnifiedCanvasTool.Pen or UnifiedCanvasTool.Highlighter or UnifiedCanvasTool.Eraser or UnifiedCanvasTool.Pan)
         {
             var changed = _controller.Move(Sample(input));
@@ -130,6 +166,21 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
     public bool PointerReleased(HavenPointerInput input)
     {
         _pointerCurrent = input.LocalPosition;
+        if (_pointerPathDrawing)
+        {
+            if (_pointerPath.Count == 0 || DistanceSquared(_pointerPath[^1], input.LocalPosition) >= 1)
+                _pointerPath.Add(input.LocalPosition);
+            _pointerPathDrawing = false;
+            if ((_tool is UnifiedCanvasTool.Lasso or UnifiedCanvasTool.LaserLasso) && _pointerPath.Count >= 3)
+            {
+                var samples = _pointerPath.Select(point => new CanvasPointerSample(point.X, point.Y)).ToArray();
+                _controller.SelectViewportPolygon(samples, input.Modifiers.HasFlag(HavenKeyModifiers.Shift));
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+            if (_tool is UnifiedCanvasTool.Lasso or UnifiedCanvasTool.LaserPointer) _pointerPath.Clear();
+            Invalidate();
+            return true;
+        }
         if (_tool is UnifiedCanvasTool.Pen or UnifiedCanvasTool.Highlighter or UnifiedCanvasTool.Eraser or UnifiedCanvasTool.Pan)
         {
             var changed = _controller.End(Sample(input));
@@ -193,7 +244,7 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
             case HavenKey.Right: return Nudge(1, 0, modifiers.Shift);
             case HavenKey.Up: return Nudge(0, -1, modifiers.Shift);
             case HavenKey.Down: return Nudge(0, 1, modifiers.Shift);
-            case HavenKey.Escape: _controller.ClearSelection(); _connectorSource = null; SelectionChanged?.Invoke(this, EventArgs.Empty); Invalidate(); return true;
+            case HavenKey.Escape: _controller.ClearSelection(); _connectorSource = null; _pointerPathDrawing = false; _pointerPath.Clear(); SelectionChanged?.Invoke(this, EventArgs.Empty); Invalidate(); return true;
         }
         return false;
     }
@@ -211,6 +262,7 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
         DrawCreationPreview(context, opacity);
         DrawSelection(context, opacity);
         DrawMarquee(context, opacity);
+        DrawPointerGesture(context, opacity);
         DrawSmartGuides(context, opacity);
     }
 
@@ -444,6 +496,18 @@ internal sealed class UnifiedCanvasSurface : HavenElement, IHavenDrawCommandSour
         if (!_marquee) return; var rect = Normalize(_pointerStart, _pointerCurrent);
         context.Add(new HavenFillRoundedRectCommand(rect, new HavenSolidBrush(28, 57, 110, 220), 2, opacity));
         context.Add(new HavenStrokeRoundedRectCommand(rect, new HavenPen(new HavenSolidBrush(210, 57, 110, 220), 1.5), 2, opacity));
+    }
+
+    private void DrawPointerGesture(HavenDrawingContext context, double opacity)
+    {
+        if (_pointerPath.Count < 2) return;
+        var laser = _tool is UnifiedCanvasTool.LaserPointer or UnifiedCanvasTool.LaserLasso;
+        var brush = laser ? new HavenSolidBrush(235, 255, 68, 98) : new HavenSolidBrush(220, 57, 110, 220);
+        var pen = new HavenPen(brush, laser ? 3.5 : 1.8);
+        for (var index = 1; index < _pointerPath.Count; index++)
+            context.Add(new HavenLineCommand(_pointerPath[index - 1], _pointerPath[index], pen, opacity));
+        if ((_tool is UnifiedCanvasTool.Lasso or UnifiedCanvasTool.LaserLasso) && _pointerPath.Count > 2)
+            context.Add(new HavenLineCommand(_pointerPath[^1], _pointerPath[0], pen, opacity));
     }
 
     private void DrawCreationPreview(HavenDrawingContext context, double opacity)

@@ -60,7 +60,7 @@ public sealed record HavenPreferenceSnapshot(
 /// <summary>
 /// Represents user preferences service and keeps its related state and behavior together.
 /// </summary>
-public sealed class UserPreferencesService
+public sealed partial class UserPreferencesService
 {
     /// <summary>
     /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
@@ -582,7 +582,7 @@ public sealed class UserPreferencesService
     /// <summary>
     /// Represents preferences and keeps its related state and behavior together.
     /// </summary>
-    private sealed record Preferences
+    private sealed partial record Preferences
     {
         /// <summary>
         /// Gets or updates default, the bindable or domain state represented by this property.
