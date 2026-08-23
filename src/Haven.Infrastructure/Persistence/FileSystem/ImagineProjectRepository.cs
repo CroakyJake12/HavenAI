@@ -95,6 +95,16 @@ public sealed class ImagineProjectRepository(IAppPaths paths) : IImagineProjectR
         }
     }
 
+    public Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var projectPath = ProjectPath(id);
+        if (File.Exists(projectPath)) File.Delete(projectPath);
+        var assetDirectory = Path.Combine(Assets, id.ToString("N"));
+        if (Directory.Exists(assetDirectory)) Directory.Delete(assetDirectory, recursive: true);
+        return Task.CompletedTask;
+    }
+
     public async Task<ImagineMediaAsset> ImportAssetAsync(
         Guid projectId,
         string sourcePath,

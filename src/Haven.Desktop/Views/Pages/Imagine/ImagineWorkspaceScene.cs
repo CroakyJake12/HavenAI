@@ -30,7 +30,7 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         var global = Wrap("Imagine.GlobalToolbar", 6);
         foreach (var button in new[]
         {
-            Action("Import", "Import", "plus"), Action("Save", "Save", "file"),
+            Action("Imagine.Home", "Create / Generate", "sparkles"), Action("Import", "Import", "plus"), Action("Save", "Save", "file"),
             Action("Export", "Export", "archive"), Action("Undo", "Undo", "chevron-left"),
             Action("Redo", "Redo", "chevron-right")
         }) global.Add(button);
@@ -48,6 +48,7 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         foreach (var button in new[]
         {
             Action("AddRectangle", "Rectangle", "window"), Action("Duplicate", "Duplicate", "plus"),
+            Action("Cut", "Cut", "edit"), Action("Copy", "Copy", "file"), Action("Paste", "Paste", "plus"),
             Action("Delete", "Delete", "delete"), Action("Decompose", "Semantic parts", "sparkles"),
             Action("Fit", "Fit canvas", "search"), Action("InspectVision", "Inspect in Vision", "vision")
         }) ImageTools.Add(button);
@@ -112,15 +113,17 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         Root.Add(Assistant);
 
         _dynamic = new DynamicUI(Root, HavenDynamicUITemplateCatalog.FromAssembly(typeof(ImagineWorkspaceScene).Assembly), _prefabs);
+        BuildEntrySurface();
         previewFrame.Invoked += async (_, _) =>
         {
             SetStatus("Decoding video frame…");
             SetStatus(await Canvas.PreviewSelectedVideoFrameAsync());
         };
-        Wire("Import", () => ImportRequested?.Invoke(this, EventArgs.Empty)); Wire("Save", () => SaveRequested?.Invoke(this, EventArgs.Empty));
+        Wire("Imagine.Home", () => HomeRequested?.Invoke(this, EventArgs.Empty)); Wire("Import", () => ImportRequested?.Invoke(this, EventArgs.Empty)); Wire("Save", () => SaveRequested?.Invoke(this, EventArgs.Empty));
         Wire("Export", () => ExportRequested?.Invoke(this, EventArgs.Empty)); Wire("Undo", () => UndoRequested?.Invoke(this, EventArgs.Empty));
         Wire("Redo", () => RedoRequested?.Invoke(this, EventArgs.Empty)); Wire("AddRectangle", () => AddRectangleRequested?.Invoke(this, EventArgs.Empty));
         Wire("AddText", () => AddTextRequested?.Invoke(this, EventArgs.Empty)); Wire("Duplicate", () => DuplicateRequested?.Invoke(this, EventArgs.Empty));
+        Wire("Cut", () => CutRequested?.Invoke(this, EventArgs.Empty)); Wire("Copy", () => CopyRequested?.Invoke(this, EventArgs.Empty)); Wire("Paste", () => PasteRequested?.Invoke(this, EventArgs.Empty));
         Wire("Delete", () => DeleteRequested?.Invoke(this, EventArgs.Empty)); Wire("Decompose", () => DecomposeRequested?.Invoke(this, EventArgs.Empty));
         Wire("Fit", () => FitRequested?.Invoke(this, EventArgs.Empty)); Wire("InspectVision", () => InspectVisionRequested?.Invoke(this, EventArgs.Empty));
         Wire("Imagine.Mode.Image", () => SetMode(ImagineMediaKind.Image)); Wire("Imagine.Mode.Audio", () => SetMode(ImagineMediaKind.Audio));
@@ -168,7 +171,7 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
 
     public event EventHandler? ImportRequested; public event EventHandler? SaveRequested; public event EventHandler? ExportRequested;
     public event EventHandler? UndoRequested; public event EventHandler? RedoRequested; public event EventHandler? AddRectangleRequested;
-    public event EventHandler? AddTextRequested; public event EventHandler? DuplicateRequested; public event EventHandler? DeleteRequested;
+    public event EventHandler? AddTextRequested; public event EventHandler? DuplicateRequested; public event EventHandler? CutRequested; public event EventHandler? CopyRequested; public event EventHandler? PasteRequested; public event EventHandler? DeleteRequested;
     public event EventHandler? DecomposeRequested; public event EventHandler? FitRequested; public event EventHandler? InspectVisionRequested;
     public event Action<ImagineProject>? ProjectRequested; public event Action<ImagineMediaAsset>? AssetRequested;
     public event Action<ImagineSemanticComponent>? ComponentRequested; public event Action<string>? AssistantRequested;
@@ -229,7 +232,7 @@ internal sealed partial class ImagineWorkspaceScene : IDisposable
         ComponentsEmpty.SetValue(HavenProperties.Visibility, project.SemanticComponents.Length == 0 ? HavenVisibility.Visible : HavenVisibility.Collapsed);
     }
 
-    public void SetStatus(string value) => Status.Content = value;
+    public void SetStatus(string value) { Status.Content = value; HomeStatus.Content = value; }
     public void SetUnavailable(string value) { Status.Content = value; RecentProjects.ClearItems(); Assets.ClearItems(); Layers.ClearItems(); Components.ClearItems(); }
 
     public void SetViewportWidth(double width)
