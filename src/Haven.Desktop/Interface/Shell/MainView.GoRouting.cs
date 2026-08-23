@@ -88,9 +88,9 @@ public sealed partial class MainView
         if (decision.TargetKey.Equals("spaces", StringComparison.OrdinalIgnoreCase))
         {
             await OpenSpacesAsync();
-            if (snapshot.Files.Count > 0 || snapshot.Apps.Count > 0 || snapshot.Capabilities.Count > 0)
+            if (taskContext.Attachments.Files.Count > 0 || taskContext.Attachments.Apps.Count > 0 || taskContext.Attachments.Capabilities.Count > 0)
             {
-                page.RestorePendingTask(decision.Instruction, snapshot);
+                page.RestorePendingTask(decision.Instruction, taskContext);
                 _notifications.Show("Go", "Opened Spaces. Your attached Go context is still available when you return.", ToastKind.Info, TimeSpan.FromSeconds(5));
             }
             return;
@@ -125,7 +125,7 @@ public sealed partial class MainView
 
         if (route.Kind == HavenAppRouteKind.Translate)
         {
-            await OpenTranslateAsync(true, decision.Instruction, snapshot.Files);
+            await OpenTranslateAsync(true, decision.Instruction, taskContext.Attachments.Files);
             await _modeUsage.RecordUsageAsync(app.Id, DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
             return;
         }

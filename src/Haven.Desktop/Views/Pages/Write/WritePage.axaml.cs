@@ -20,6 +20,9 @@ public sealed partial class WritePage : UserControl, IDisposable
     private readonly INotesImportExportService _formats;
     private readonly WordWriteHavenScene _route;
     private readonly DispatcherTimer _autosaveTimer;
+    private readonly Guid? _initialDocumentId;
+    private readonly INotesAiService? _ai;
+    private readonly IOllamaClient? _aiModels;
     private IReadOnlyList<NotesDocumentSummary> _documents = [];
     private int _documentIndex;
     private int _saveRunning;
@@ -32,16 +35,27 @@ public sealed partial class WritePage : UserControl, IDisposable
         HavenEventBus bus,
         INotesRepository repository,
         INotesImportExportService formats,
-        INotesAttachmentStore? attachments = null)
+        INotesAttachmentStore? attachments = null,
+        Guid? initialDocumentId = null,
+        INotesAiService? ai = null,
+        IOllamaClient? aiModels = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _formats = formats ?? throw new ArgumentNullException(nameof(formats));
         _wordAttachments = attachments;
+        _initialDocumentId = initialDocumentId;
+        _ai = ai;
+        _aiModels = aiModels;
 
         InitializeComponent();
         _route = new WordWriteHavenScene();
         Scene.Root = _route.Root;
+        _route.LibraryRequested += OnLibraryRequested;
+        _route.DocumentOpenRequested += OnDocumentOpenRequested;
+        _route.AiProposalRequested += OnAiProposalRequested;
+        _route.AiApplyRequested += OnAiApplyRequested;
+        _route.AiRejectRequested += OnAiRejectRequested;
         _route.NewRequested += OnNewRequested;
         _route.ImportRequested += OnImportRequested;
         _route.ExportRequested += OnExportRequested;
@@ -74,10 +88,16 @@ public sealed partial class WritePage : UserControl, IDisposable
         try
         {
             await RefreshDocumentsAsync(cancellationToken);
-            if (_documents.Count == 0)
-                await CreateDocumentAsync(cancellationToken);
+            await RefreshAiModelsAsync(cancellationToken);
+            if (_initialDocumentId is { } initialDocumentId)
+            {
+                if (!await OpenDocumentByIdAsync(initialDocumentId, cancellationToken, saveBeforeSwitch: false))
+                    ShowLibrary();
+            }
             else
-                await OpenDocumentAtAsync(0, cancellationToken, saveBeforeSwitch: false);
+            {
+                ShowLibrary();
+            }
 
             _autosaveTimer.Start();
             _bus.Fire("Write.Opened");
@@ -96,6 +116,14 @@ public sealed partial class WritePage : UserControl, IDisposable
         {
             SetBusy(false);
         }
+    }
+
+    private async Task RefreshAiModelsAsync(CancellationToken cancellationToken)
+    {
+        if (_aiModels is null) { _route.SetAiModels([]); return; }
+        try { var models = await _aiModels.GetModelsAsync(cancellationToken); _route.SetAiModels(models.Select(model => model.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToArray()); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { _route.SetAiModels([]); }
     }
 
     public async Task<bool> SaveAsync(
@@ -165,6 +193,41 @@ public sealed partial class WritePage : UserControl, IDisposable
             return;
 
         await SaveAsync("Autosave");
+    }
+
+    private async void OnLibraryRequested(object? sender, EventArgs e) =>
+        await RunBusyAsync(
+            () => ShowLibraryAsync(saveBeforeSwitch: true, CancellationToken.None),
+            "open the document library");
+
+    private async void OnDocumentOpenRequested(Guid documentId) =>
+        await RunBusyAsync(
+            async () => { await OpenDocumentByIdAsync(documentId, CancellationToken.None, saveBeforeSwitch: true); },
+            "open this document");
+
+    private async void OnAiProposalRequested(string instruction, bool allowDocumentContext, string modelName) =>
+        await RunBusyAsync(() => ProposeAiAsync(instruction, allowDocumentContext, modelName, CancellationToken.None), "create an AI proposal");
+
+    private async Task ProposeAiAsync(string instruction, bool allowDocumentContext, string modelName, CancellationToken cancellationToken)
+    {
+        if (Document is null) return;
+        if (_ai is null) { _route.SetStatus("AI proposals are unavailable because the Notes AI service is not registered."); return; }
+        var selectedText = _route.SelectedText;
+        if (!allowDocumentContext && string.IsNullOrWhiteSpace(selectedText)) { _route.SetStatus("Select text, or explicitly allow document context, before requesting an AI edit."); return; }
+        var context = allowDocumentContext ? string.Join("\n", NotesTextStatistics.EnumerateText(Document)) : string.Empty;
+        var result = await _ai.ProposeAsync(new NotesAiProposalRequest(Document.Id, _route.SelectedBlockId, instruction, selectedText, context, modelName, allowDocumentContext, Document.Citations), cancellationToken);
+        var change = new NotesAiChange { BlockId = _route.SelectedBlockId, Instruction = instruction.Trim(), OriginalContent = selectedText, ProposedContent = result.ProposedContent, Explanation = result.Explanation, CitationIds = result.CitationIds.ToList(), ProviderId = result.ProviderId, ModelName = result.ModelName, Status = NotesAiChangeStatus.Proposed, UserConsentRecorded = allowDocumentContext || !string.IsNullOrWhiteSpace(selectedText), SentDocumentContext = allowDocumentContext };
+        Document.AiChanges.Add(change); MarkDirty(); _route.SetPendingAiChange(change); _route.SetStatus("AI proposal ready for review. Nothing has been applied."); _bus.Fire("Write.Ai.Proposed");
+    }
+
+    private async void OnAiApplyRequested(object? sender, EventArgs e)
+    {
+        if (await SaveAsync("Applied reviewed AI proposal")) { _route.SetStatus("Reviewed AI proposal applied and saved."); _bus.Fire("Write.Ai.Applied"); }
+    }
+
+    private async void OnAiRejectRequested(object? sender, EventArgs e)
+    {
+        if (await SaveAsync("Rejected AI proposal")) { _route.SetStatus("AI proposal rejected. Document content was unchanged."); _bus.Fire("Write.Ai.Rejected"); }
     }
 
     private async void OnNewRequested(object? sender, EventArgs e) =>
@@ -239,7 +302,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         try
         {
             await _formats.ExportAsync(Document, destinationPath, cancellationToken);
-            _route.SetStatus("Exported " + Path.GetFileName(destinationPath));
+            _route.SetStatus(BuildExportStatus(destinationPath));
             _bus.Fire("Write.Document.Exported");
             return true;
         }
@@ -348,12 +411,23 @@ public sealed partial class WritePage : UserControl, IDisposable
             destination.SetLength(0);
             await source.CopyToAsync(destination);
             await destination.FlushAsync();
-            _route.SetStatus("Exported " + file.Name);
+            _route.SetStatus(BuildExportStatus(file.Name));
         }
         finally
         {
             DeleteTemporaryFile(temporaryPath);
         }
+    }
+
+    private static string BuildExportStatus(string path)
+    {
+        var name = Path.GetFileName(path);
+        var extension = Path.GetExtension(path);
+        var native = extension.Equals(".json", StringComparison.OrdinalIgnoreCase)
+                     || path.EndsWith(".haven-notes.json", StringComparison.OrdinalIgnoreCase);
+        return native
+            ? "Exported " + name
+            : "Exported " + name + " · This format may not preserve every Haven-only object or formatting detail.";
     }
 
     private static IReadOnlyList<FilePickerFileType> BuildFileTypes(
@@ -551,6 +625,31 @@ public sealed partial class WritePage : UserControl, IDisposable
         _route.SetStatus("Unsaved changes Â· autosave is on");
     }
 
+
+    private async Task<bool> OpenDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken, bool saveBeforeSwitch)
+    {
+        var index = -1;
+        for (var i = 0; i < _documents.Count; i++) if (_documents[i].Id == documentId) { index = i; break; }
+        if (index < 0) { _route.SetStatus("That local document no longer exists."); return false; }
+        await OpenDocumentAtAsync(index, cancellationToken, saveBeforeSwitch);
+        return Document?.Id == documentId;
+    }
+
+    private async Task ShowLibraryAsync(bool saveBeforeSwitch, CancellationToken cancellationToken)
+    {
+        if (saveBeforeSwitch && Document is not null && _dirty && !await SaveAsync("Autosave before opening document library", cancellationToken)) return;
+        await RefreshDocumentsAsync(cancellationToken);
+        ShowLibrary();
+    }
+
+    private void ShowLibrary()
+    {
+        Document = null; _dirty = false; _documentIndex = 0;
+        _route.SetLibrary(_documents);
+        _route.SetStatus(_documents.Count == 0 ? "No local documents yet. Create one or import a supported file." : "Choose a local document to open.");
+        _bus.Fire("Write.Library.Opened");
+    }
+
     private async Task MoveAsync(int offset)
     {
         if (_documents.Count <= 1)
@@ -700,6 +799,11 @@ public sealed partial class WritePage : UserControl, IDisposable
         _autosaveTimer.Tick -= OnAutosaveTick;
         Loaded -= OnLoaded;
         DetachedFromVisualTree -= OnDetachedFromVisualTree;
+        _route.LibraryRequested -= OnLibraryRequested;
+        _route.DocumentOpenRequested -= OnDocumentOpenRequested;
+        _route.AiProposalRequested -= OnAiProposalRequested;
+        _route.AiApplyRequested -= OnAiApplyRequested;
+        _route.AiRejectRequested -= OnAiRejectRequested;
         _route.NewRequested -= OnNewRequested;
         _route.ImportRequested -= OnImportRequested;
         _route.ExportRequested -= OnExportRequested;

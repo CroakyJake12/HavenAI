@@ -23,8 +23,13 @@ public sealed partial class WriteDocumentEditor
     public event EventHandler? Changed;
     public NotesDocument Document { get; }
     public Guid? SelectedBlockId { get; private set; }
+    public Guid? SelectedTableCellId { get; private set; }
     public int ActiveRunIndex { get; private set; }
     public int CaretIndex { get; private set; }
+    public int SelectionStart { get; private set; }
+    public int SelectionEnd { get; private set; }
+    public bool HasSelection => SelectionEnd > SelectionStart;
+    public string SelectedText => SelectedBlock is { } block && HasSelection ? EditableText(block).Substring(SelectionStart, SelectionEnd - SelectionStart) : SelectedBlock is { } selected ? EditableText(selected) : string.Empty;
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
     public NotesBlock? SelectedBlock => SelectedBlockId is { } id ? Blocks().FirstOrDefault(block => block.Id == id) : null;
@@ -32,12 +37,28 @@ public sealed partial class WriteDocumentEditor
     public NotesStatistics Statistics => NotesTextStatistics.Calculate(Document);
     public IReadOnlyList<NotesBlock> Blocks() => Document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).OrderBy(block => block.Order).ToArray();
 
-    public void SelectBlock(Guid blockId, int caretIndex = 0)
+    public void SelectBlock(Guid blockId, int caretIndex = 0, int? selectionStart = null, int? selectionEnd = null)
     {
         var block = Blocks().FirstOrDefault(candidate => candidate.Id == blockId);
         if (block is null) return;
-        SelectedBlockId = block.Id; CaretIndex = Math.Clamp(caretIndex, 0, EditableText(block).Length); ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
+        var length = EditableText(block).Length;
+        SelectedBlockId = block.Id;
+        CaretIndex = Math.Clamp(caretIndex, 0, length);
+        var start = Math.Clamp(selectionStart ?? CaretIndex, 0, length);
+        var end = Math.Clamp(selectionEnd ?? CaretIndex, 0, length);
+        SelectionStart = Math.Min(start, end);
+        SelectionEnd = Math.Max(start, end);
+        ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
         _documentCaret = new WriteDocumentPosition(block.Id, CaretIndex);
+        _documentAnchor = null;
+    }
+
+    public void SelectTableCell(Guid blockId, Guid cellId)
+    {
+        var block = Blocks().FirstOrDefault(candidate => candidate.Id == blockId);
+        if (block?.Table?.Rows.SelectMany(row => row.Cells).Any(cell => cell.Id == cellId) != true) return;
+        SelectedBlockId = block.Id; SelectedTableCellId = cellId; SelectionStart = SelectionEnd = CaretIndex = 0; ActiveRunIndex = 0;
+        _documentCaret = new WriteDocumentPosition(block.Id, 0);
         _documentAnchor = null;
     }
 
@@ -54,7 +75,7 @@ public sealed partial class WriteDocumentEditor
         var next = text ?? string.Empty;
         if (EditableText(block) == next) { CaretIndex = Math.Max(0, caretIndex); ActiveRunIndex = RunIndexAtCaret(block, CaretIndex); return; }
         Mutate(() => ReplaceTextPreservingRuns(block, next), "Edited text");
-        CaretIndex = Math.Clamp(caretIndex, 0, next.Length); ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
+        CaretIndex = Math.Clamp(caretIndex, 0, next.Length); SelectionStart = SelectionEnd = CaretIndex; ActiveRunIndex = RunIndexAtCaret(block, CaretIndex);
     }
 
     public void ApplyStyle(string styleId)
@@ -103,6 +124,14 @@ public sealed partial class WriteDocumentEditor
         Mutate(() => { switch (format) { case WriteCharacterFormat.Bold: run.Bold = !run.Bold; break; case WriteCharacterFormat.Italic: run.Italic = !run.Italic; break; case WriteCharacterFormat.Underline: run.Underline = !run.Underline; break; case WriteCharacterFormat.StrikeThrough: run.StrikeThrough = !run.StrikeThrough; break; } }, "Changed character formatting");
     }
 
+    public void ToggleSelectionCharacter(WriteCharacterFormat format)
+    {
+        if (!HasSelection) { ToggleCharacter(format); return; }
+        if (SelectedBlock is not { } block || !TryActiveRun(out var run)) return;
+        var value = !CharacterEnabled(run, format);
+        Mutate(() => ApplyCharacterFormatting(block, run, format, value), nameof(ToggleSelectionCharacter));
+    }
+
     public void SetFontFamily(string value) => SetRun(run => run.FontFamily = string.IsNullOrWhiteSpace(value) ? "Montserrat" : value.Trim(), "Changed font");
     public void SetFontSize(double value) => SetRun(run => run.FontSize = Math.Clamp(Finite(value, run.FontSize), 4, 300), "Changed font size");
     public void SetForeground(string value) => SetRun(run => run.Foreground = NormaliseColour(value, run.Foreground), "Changed text colour");
@@ -132,6 +161,20 @@ public sealed partial class WriteDocumentEditor
         var page = PageForSelection(); var index = SelectedBlock is { } selected ? page.Blocks.IndexOf(selected) + 1 : page.Blocks.Count;
         var block = kind switch { NotesBlockKind.Heading => NotesBlock.Heading("Heading"), NotesBlockKind.Quote => new NotesBlock { Kind = NotesBlockKind.Quote, StyleId = "quote", PlainText = "Quote" }, NotesBlockKind.Code => new NotesBlock { Kind = NotesBlockKind.Code, StyleId = "code", PlainText = "Code" }, NotesBlockKind.List => new NotesBlock { Kind = NotesBlockKind.List, List = new NotesListData { Kind = listKind, Items = [new NotesListItem { Text = "List item" }] } }, NotesBlockKind.Table => NotesBlock.TableBlock(3, 3), NotesBlockKind.Equation => NotesBlock.EquationBlock(), NotesBlockKind.Divider => new NotesBlock { Kind = NotesBlockKind.Divider }, _ => NotesBlock.CreateParagraph() };
         Mutate(() => { page.Blocks.Insert(Math.Clamp(index, 0, page.Blocks.Count), block); Renumber(page); SelectedBlockId = block.Id; ActiveRunIndex = 0; CaretIndex = 0; }, "Inserted " + kind); return block;
+    }
+
+    public NotesBlock InsertTable(int rows, int columns)
+    {
+        var safeRows = Math.Clamp(rows, 1, 100); var safeColumns = Math.Clamp(columns, 1, 50); var page = PageForSelection(); var index = SelectedBlock is { } selected ? page.Blocks.IndexOf(selected) + 1 : page.Blocks.Count; var block = NotesBlock.TableBlock(safeRows, safeColumns);
+        Mutate(() => { page.Blocks.Insert(Math.Clamp(index, 0, page.Blocks.Count), block); Renumber(page); SelectedBlockId = block.Id; SelectedTableCellId = block.Table?.Rows.FirstOrDefault()?.Cells.FirstOrDefault()?.Id; }, $"Inserted table {safeRows}x{safeColumns}"); return block;
+    }
+
+    public NotesBlock InsertPageBreak()
+    {
+        var page = PageForSelection(); var index = SelectedBlock is { } selected ? page.Blocks.IndexOf(selected) + 1 : page.Blocks.Count;
+        var block = NotesBlock.CreateParagraph(); block.Paragraph.PageBreakBefore = true;
+        Mutate(() => { page.Blocks.Insert(Math.Clamp(index, 0, page.Blocks.Count), block); Renumber(page); SelectedBlockId = block.Id; ActiveRunIndex = 0; CaretIndex = SelectionStart = SelectionEnd = 0; }, "Inserted page break");
+        return block;
     }
 
     public NotesBlock InsertMedia(NotesMediaData media)
@@ -168,11 +211,98 @@ public sealed partial class WriteDocumentEditor
     public void ToggleListItem(Guid itemId, bool value) { if (SelectedBlock?.List?.Items.FirstOrDefault(item => item.Id == itemId) is not { } item || item.Checked == value) return; Mutate(() => item.Checked = value, "Changed checklist item"); }
     public void SetListItemLevel(Guid itemId, int level) { if (SelectedBlock?.List?.Items.FirstOrDefault(item => item.Id == itemId) is not { } item) return; var next = Math.Clamp(level, 0, 8); if (item.Level == next) return; Mutate(() => item.Level = next, "Changed list nesting"); }
 
-    public void UpdateTableCell(Guid cellId, string text) { if (SelectedBlock?.Table?.Rows.SelectMany(row => row.Cells).FirstOrDefault(cell => cell.Id == cellId) is not { } cell || cell.Text == text) return; Mutate(() => cell.Text = text ?? string.Empty, "Edited table cell"); }
-    public void AddTableRow() { if (SelectedBlock?.Table is not { } table || table.Rows.Count == 0) return; Mutate(() => { var row = new NotesTableRow(); var columns = table.Rows.Max(value => value.Cells.Count); for (var i = 0; i < columns; i++) row.Cells.Add(new NotesTableCell()); table.Rows.Add(row); }, "Added table row"); }
-    public void AddTableColumn() { if (SelectedBlock?.Table is not { } table) return; Mutate(() => { foreach (var row in table.Rows) row.Cells.Add(new NotesTableCell()); }, "Added table column"); }
-    public void RemoveTableRow() { if (SelectedBlock?.Table is not { Rows.Count: > 1 } table) return; Mutate(() => table.Rows.RemoveAt(table.Rows.Count - 1), "Removed table row"); }
-    public void RemoveTableColumn() { if (SelectedBlock?.Table is not { } table || table.Rows.Count == 0 || table.Rows.Any(row => row.Cells.Count <= 1)) return; Mutate(() => { foreach (var row in table.Rows) row.Cells.RemoveAt(row.Cells.Count - 1); }, "Removed table column"); }
+    private (int Row, int Column) TableCellPosition(NotesTableData table) { if (SelectedTableCellId is { } selected) for (var row = 0; row < table.Rows.Count; row++) for (var column = 0; column < table.Rows[row].Cells.Count; column++) if (table.Rows[row].Cells[column].Id == selected) return (row, column); return (Math.Max(0, table.Rows.Count - 1), Math.Max(0, table.Rows.FirstOrDefault()?.Cells.Count - 1 ?? 0)); }
+
+    public void UpdateTableCell(Guid cellId, string text) { if (SelectedBlock?.Table?.Rows.SelectMany(row => row.Cells).FirstOrDefault(cell => cell.Id == cellId) is not { } cell) return; SelectedTableCellId = cellId; if (cell.Text == text) return; Mutate(() => cell.Text = text ?? string.Empty, "Edited table cell"); }
+    public void AddTableRow()
+    {
+        if (SelectedBlock?.Table is not { } table || table.Rows.Count == 0) return;
+        var (rowIndex, _) = TableCellPosition(table);
+        Mutate(() =>
+        {
+            var row = new NotesTableRow();
+            var columns = table.Rows.Max(value => value.Cells.Count);
+            for (var i = 0; i < columns; i++) row.Cells.Add(new NotesTableCell());
+            table.Rows.Insert(Math.Clamp(rowIndex + 1, 0, table.Rows.Count), row);
+            SelectedTableCellId = row.Cells.FirstOrDefault()?.Id;
+        }, "Added table row");
+    }
+
+    public void AddTableColumn()
+    {
+        if (SelectedBlock?.Table is not { } table || table.Rows.Count == 0) return;
+        var (_, columnIndex) = TableCellPosition(table);
+        Mutate(() =>
+        {
+            foreach (var row in table.Rows)
+            {
+                var insertion = Math.Clamp(columnIndex + 1, 0, row.Cells.Count);
+                row.Cells.Insert(insertion, new NotesTableCell());
+            }
+            SelectedTableCellId = table.Rows[0].Cells[Math.Clamp(columnIndex + 1, 0, table.Rows[0].Cells.Count - 1)].Id;
+        }, "Added table column");
+    }
+
+    public void RemoveTableRow()
+    {
+        if (SelectedBlock?.Table is not { Rows.Count: > 1 } table) return;
+        var (rowIndex, columnIndex) = TableCellPosition(table);
+        Mutate(() =>
+        {
+            table.Rows.RemoveAt(Math.Clamp(rowIndex, 0, table.Rows.Count - 1));
+            var nextRow = Math.Clamp(rowIndex, 0, table.Rows.Count - 1);
+            SelectedTableCellId = table.Rows[nextRow].Cells[Math.Clamp(columnIndex, 0, table.Rows[nextRow].Cells.Count - 1)].Id;
+        }, "Removed table row");
+    }
+
+    public void RemoveTableColumn()
+    {
+        if (SelectedBlock?.Table is not { } table || table.Rows.Count == 0 || table.Rows.Any(row => row.Cells.Count <= 1)) return;
+        var (rowIndex, columnIndex) = TableCellPosition(table);
+        Mutate(() =>
+        {
+            foreach (var row in table.Rows) row.Cells.RemoveAt(Math.Clamp(columnIndex, 0, row.Cells.Count - 1));
+            var nextRow = Math.Clamp(rowIndex, 0, table.Rows.Count - 1);
+            SelectedTableCellId = table.Rows[nextRow].Cells[Math.Clamp(columnIndex, 0, table.Rows[nextRow].Cells.Count - 1)].Id;
+        }, "Removed table column");
+    }
+
+    public bool MergeTableCellRight()
+    {
+        if (SelectedBlock?.Table is not { } table) return false;
+        var (rowIndex, columnIndex) = TableCellPosition(table);
+        if (rowIndex < 0 || rowIndex >= table.Rows.Count || columnIndex < 0 || columnIndex + 1 >= table.Rows[rowIndex].Cells.Count) return false;
+        var row = table.Rows[rowIndex];
+        var cell = row.Cells[columnIndex];
+        var next = row.Cells[columnIndex + 1];
+        Mutate(() =>
+        {
+            if (!string.IsNullOrWhiteSpace(next.Text))
+                cell.Text = string.IsNullOrWhiteSpace(cell.Text) ? next.Text : cell.Text + " " + next.Text;
+            cell.ColumnSpan = Math.Max(1, cell.ColumnSpan) + Math.Max(1, next.ColumnSpan);
+            row.Cells.RemoveAt(columnIndex + 1);
+            SelectedTableCellId = cell.Id;
+        }, "Merged table cells");
+        return true;
+    }
+
+    public bool SplitTableCell()
+    {
+        if (SelectedBlock?.Table is not { } table) return false;
+        var (rowIndex, columnIndex) = TableCellPosition(table);
+        if (rowIndex < 0 || rowIndex >= table.Rows.Count || columnIndex < 0 || columnIndex >= table.Rows[rowIndex].Cells.Count) return false;
+        var row = table.Rows[rowIndex];
+        var cell = row.Cells[columnIndex];
+        if (cell.ColumnSpan <= 1) return false;
+        var span = cell.ColumnSpan;
+        Mutate(() =>
+        {
+            cell.ColumnSpan = 1;
+            for (var i = 1; i < span; i++) row.Cells.Insert(columnIndex + i, new NotesTableCell());
+            SelectedTableCellId = cell.Id;
+        }, "Split table cell");
+        return true;
+    }
 
     public void UpdateEquation(string source, string alternative) { if (SelectedBlock?.Equation is not { } equation) return; if (equation.Source == source && equation.AccessibleAlternative == alternative) return; Mutate(() => { equation.Source = source ?? string.Empty; equation.AccessibleAlternative = alternative ?? string.Empty; equation.RenderedText = equation.Source; equation.Error = string.Empty; }, "Edited equation"); }
     public void UpdateMedia(string alt, string caption, string wrapping) { if (SelectedBlock?.Media is not { } media) return; Mutate(() => { media.AltText = alt ?? string.Empty; media.Caption = caption ?? string.Empty; if (!string.IsNullOrWhiteSpace(wrapping)) media.Wrapping = wrapping; }, "Edited image properties"); }
@@ -287,18 +417,50 @@ public sealed partial class WriteDocumentEditor
         }, "Replaced text"); return count;
     }
 
-    public void AddComment(string text) { if (SelectedBlock is not { } block || string.IsNullOrWhiteSpace(text)) return; Mutate(() => Document.Comments.Add(new NotesComment { BlockId = block.Id, StartOffset = 0, EndOffset = EditableText(block).Length, Text = text.Trim() }), "Added comment"); }
+    public void AddComment(string text) { if (SelectedBlock is not { } block || string.IsNullOrWhiteSpace(text)) return; Mutate(() => Document.Comments.Add(new NotesComment { BlockId = block.Id, StartOffset = HasSelection ? SelectionStart : 0, EndOffset = HasSelection ? SelectionEnd : EditableText(block).Length, Text = text.Trim() }), "Added comment"); }
+    public bool ApplyAiChange(NotesAiChange change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (change.Status != NotesAiChangeStatus.Proposed) return false;
+        var block = change.BlockId is { } blockId ? Blocks().FirstOrDefault(value => value.Id == blockId) : SelectedBlock;
+        if (block is null) return false;
+        Mutate(() =>
+        {
+            if (block.Equation is not null) { block.Equation.Source = change.ProposedContent; block.Equation.RenderedText = change.ProposedContent; block.Equation.Error = string.Empty; }
+            else if (block.Kind is NotesBlockKind.Paragraph or NotesBlockKind.Heading or NotesBlockKind.Quote or NotesBlockKind.Code) ReplaceTextPreservingRuns(block, change.ProposedContent);
+            else return;
+            change.Status = NotesAiChangeStatus.Applied; change.ReviewedAt = DateTimeOffset.UtcNow; change.ReviewedBy = Environment.UserName; change.UserConsentRecorded = true;
+            Document.Revisions.Add(new NotesRevision { Kind = NotesRevisionKind.AiApplied, BlockId = block.Id, Summary = "Applied reviewed AI proposal: " + change.Instruction, Author = Environment.UserName });
+        }, "Applied reviewed AI proposal");
+        return change.Status == NotesAiChangeStatus.Applied;
+    }
+
+    public bool RejectAiChange(NotesAiChange change)
+    {
+        ArgumentNullException.ThrowIfNull(change); if (change.Status != NotesAiChangeStatus.Proposed) return false;
+        Mutate(() => { change.Status = NotesAiChangeStatus.Rejected; change.ReviewedAt = DateTimeOffset.UtcNow; change.ReviewedBy = Environment.UserName; }, "Rejected AI proposal"); return true;
+    }
+
     public void AddCitation(string title, string authors, string url) { if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(url)) return; Mutate(() => Document.Citations.Add(new NotesCitation { Key = "ref" + (Document.Citations.Count + 1), Title = title?.Trim() ?? string.Empty, Authors = authors?.Trim() ?? string.Empty, Url = url?.Trim() ?? string.Empty, AccessedAt = DateTimeOffset.UtcNow }), "Added citation"); }
 
     public bool Undo() { if (_undo.Count == 0) return false; _redo.Add(Clone(Document)); var restored = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); Restore(restored); Changed?.Invoke(this, EventArgs.Empty); return true; }
     public bool Redo() { if (_redo.Count == 0) return false; _undo.Add(Clone(Document)); var restored = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); Restore(restored); Changed?.Invoke(this, EventArgs.Empty); return true; }
 
+    private IReadOnlyList<NotesTextRun> SelectedFormattingRuns(NotesBlock block) { EnsureRuns(block); SplitRunBoundary(block, SelectionEnd); SplitRunBoundary(block, SelectionStart); var result = new List<NotesTextRun>(); var offset = 0; foreach (var run in block.Runs) { var end = offset + run.Text.Length; if (offset < SelectionEnd && end > SelectionStart) result.Add(run); offset = end; } return result; }
+    private void ApplyCharacterFormatting(NotesBlock block, NotesTextRun run, WriteCharacterFormat format, bool value) { if (!HasSelection) { SetCharacter(run, format, value); return; } foreach (var selected in SelectedFormattingRuns(block)) SetCharacter(selected, format, value); }
+    private static bool CharacterEnabled(NotesTextRun run, WriteCharacterFormat format) => format switch { WriteCharacterFormat.Bold => run.Bold, WriteCharacterFormat.Italic => run.Italic, WriteCharacterFormat.Underline => run.Underline, WriteCharacterFormat.StrikeThrough => run.StrikeThrough, _ => false };
+    private static void SetCharacter(NotesTextRun run, WriteCharacterFormat format, bool value) { switch (format) { case WriteCharacterFormat.Bold: run.Bold = value; break; case WriteCharacterFormat.Italic: run.Italic = value; break; case WriteCharacterFormat.Underline: run.Underline = value; break; case WriteCharacterFormat.StrikeThrough: run.StrikeThrough = value; break; } }
     private void SetRun(Action<NotesTextRun> apply, string reason)
     {
         if (HasDocumentSelection)
         {
             if (!SelectedRuns().Any()) return;
             Mutate(() => { foreach (var selected in SelectedRuns(splitBoundaries: true)) apply(selected); }, reason);
+            return;
+        }
+        if (HasSelection && SelectedBlock is { } block)
+        {
+            Mutate(() => { foreach (var selected in SelectedFormattingRuns(block)) apply(selected); }, reason);
             return;
         }
         if (!TryActiveRun(out var run)) return;

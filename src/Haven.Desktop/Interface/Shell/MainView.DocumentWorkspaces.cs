@@ -26,7 +26,8 @@ public sealed partial class MainView
         return key.ToLowerInvariant() switch
         {
             "write" => new WritePage(_bus, services.GetRequiredService<INotesRepository>(),
-                services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>()),
+                services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>(),
+                ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>()),
             "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),

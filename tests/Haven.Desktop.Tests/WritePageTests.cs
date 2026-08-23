@@ -56,7 +56,7 @@ public sealed class WritePageTests
         table.Order = 1;
         document.Sections[0].Pages[0].Blocks.Add(table);
         var repository = new FakeNotesRepository(document);
-        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats());
+        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats(), initialDocumentId: document.Id);
 
         await writePage.InitializeAsync();
         var window = new Window { Width = 1100, Height = 800, Content = writePage };
@@ -106,20 +106,36 @@ public sealed class WritePageTests
     }
 
     [AvaloniaFact]
-    public async Task Write_page_creates_and_persists_document_when_repository_is_empty()
+    public async Task Write_page_shows_library_when_repository_is_empty()
     {
         var repository = new FakeNotesRepository();
         using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats());
-
         await writePage.InitializeAsync();
-
-        Assert.NotNull(writePage.Document);
-        Assert.Equal("Untitled document", writePage.Document!.Title);
-        Assert.Equal("Untitled document", writePage.Route.TitleInput.Text);
+        Assert.Null(writePage.Document);
+        Assert.Equal("Write", writePage.Route.TitleInput.Text);
         Assert.False(writePage.IsDirty);
-        Assert.Equal(1, repository.SaveCalls);
-        Assert.Single(await repository.ListAsync(CancellationToken.None));
-        Assert.Equal(writePage.Document.Id, repository.LastSaved?.Id);
+        Assert.Equal(0, repository.SaveCalls);
+        Assert.Empty(await repository.ListAsync(CancellationToken.None));
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.New");
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Import");
+        Assert.DoesNotContain(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Save");
+    }
+
+    [AvaloniaFact]
+    public async Task Write_page_library_opens_selected_document()
+    {
+        var first = NotesDocument.Create("First");
+        var second = NotesDocument.Create("Second");
+        var repository = new FakeNotesRepository(first, second);
+        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats());
+        await writePage.InitializeAsync();
+        Assert.Null(writePage.Document);
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == $"Write.Library.Card.{first.Id:N}");
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == $"Write.Library.Card.{second.Id:N}");
+        Assert.True(await writePage.OpenDocumentAsync(second.Id));
+        Assert.Equal(second.Id, writePage.Document?.Id);
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Library");
+        Assert.Contains(writePage.SceneRoot.DescendantsAndSelf(), element => element.Name == "Write.Pill.Save");
     }
 
     [AvaloniaFact]
@@ -127,7 +143,7 @@ public sealed class WritePageTests
     {
         var document = NotesDocument.Create("Failure safety");
         var repository = new FakeNotesRepository(document) { FailSaves = true };
-        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats());
+        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats(), initialDocumentId: document.Id);
 
         await writePage.InitializeAsync();
         writePage.Route.TitleInput.Text = "Still unsaved";
@@ -146,7 +162,7 @@ public sealed class WritePageTests
     {
         var document = NotesDocument.Create("Detach save");
         var repository = new FakeNotesRepository(document);
-        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats());
+        using var writePage = new WritePage(new HavenEventBus(), repository, new FakeNotesFormats(), initialDocumentId: document.Id);
         await writePage.InitializeAsync();
         var window = new Window { Width = 900, Height = 700, Content = writePage };
         try
@@ -194,6 +210,7 @@ public sealed class WritePageTests
         Assert.Equal(destinationPath, formats.ExportPath);
         Assert.Same(imported, formats.ExportedDocument);
         Assert.Contains("Exported", writePage.Route.StatusText.Content, StringComparison.Ordinal);
+        Assert.Contains("may not preserve every Haven-only object", writePage.Route.StatusText.Content, StringComparison.Ordinal);
     }
 
     private sealed class FakeNotesFormats : INotesImportExportService

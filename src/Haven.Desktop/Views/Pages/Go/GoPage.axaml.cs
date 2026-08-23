@@ -127,6 +127,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         _route.Instruction.PlaceCaretAtEnd();
         Submit();
         return Task.CompletedTask;
+    }
     internal void ApplyTaskSelection(AddMenuSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
