@@ -9,7 +9,7 @@ using HavenText = Haven.UI.Components.Text;
 namespace Haven.Desktop.Views;
 
 /// <summary>Haven-native integrated Project workspace. Internal Studio model names remain compatibility-only.</summary>
-internal sealed class ProjectHavenScene : IDisposable
+internal sealed partial class ProjectHavenScene : IDisposable
 {
     private readonly HavenPrefabCatalog _prefabs;
     private readonly DynamicUI _dynamicUi;

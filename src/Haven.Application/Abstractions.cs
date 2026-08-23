@@ -144,6 +144,12 @@ public interface IProjectIntelligenceService
     Task<ProcessResult> RunTestsAsync(string root, CancellationToken cancellationToken);
     Task<ProcessResult> InitializeGitAsync(string root, CancellationToken cancellationToken);
     Task<ProcessResult> ConnectGitRemoteAsync(string root, string remoteUrl, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> GetSourceControlAsync(string root, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> StageAsync(string root, string relativePath, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> UnstageAsync(string root, string relativePath, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> CheckoutBranchAsync(string root, string branchName, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> CreateStashAsync(string root, string message, CancellationToken cancellationToken);
+    Task<ProjectSourceControlSnapshot> ApplyStashAsync(string root, string stashReference, CancellationToken cancellationToken);
     Task<ProcessResult> RunBugTimeMachineAsync(string root, string reproductionCommand, CancellationToken cancellationToken);
     Task LaunchEditorAsync(string root, CancellationToken cancellationToken);
     Task LaunchTerminalAsync(string root, CancellationToken cancellationToken);

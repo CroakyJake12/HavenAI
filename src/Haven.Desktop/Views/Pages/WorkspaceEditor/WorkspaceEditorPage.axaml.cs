@@ -46,7 +46,8 @@ public sealed partial class WorkspaceEditorPage : UserControl, INotifyPropertyCh
         IWorkspaceStateRepository history,
         IConversationRepository conversations,
         Func<Task> branch,
-        Action interrupt)
+        Action interrupt,
+        Func<CodeLocation, Task>? navigateCode = null)
     {
         _container = container;
         _conversationId = conversationId;
@@ -56,6 +57,7 @@ public sealed partial class WorkspaceEditorPage : UserControl, INotifyPropertyCh
         _conversations = conversations;
         _branch = branch;
         _interrupt = interrupt;
+        _navigateCode = navigateCode ?? (_ => Task.CompletedTask);
 
         InitializeComponent();
 
