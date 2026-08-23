@@ -231,6 +231,23 @@ public sealed class GoPageResponsiveTests
     }
 
     [AvaloniaFact]
+    public void App_shortcut_section_is_hidden_until_real_pinned_or_suggested_apps_exist()
+    {
+        using var page = new GoPage(new HavenEventBus());
+
+        page.SetAppShortcuts([]);
+
+        Assert.Equal(HavenVisibility.Collapsed, page.Route.WideAppShortcutSection.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Collapsed, page.Route.CompactAppShortcutSection.GetValue(HavenProperties.Visibility));
+
+        var app = Assert.Single(BuiltInModeSeed.Modes, mode => mode.Key == "chat");
+        page.SetAppShortcuts([new GoAppShortcut(app, true)]);
+
+        Assert.Equal(HavenVisibility.Visible, page.Route.WideAppShortcutSection.GetValue(HavenProperties.Visibility));
+        Assert.Equal(HavenVisibility.Visible, page.Route.CompactAppShortcutSection.GetValue(HavenProperties.Visibility));
+    }
+
+    [AvaloniaFact]
     public void Suggestion_hover_scales_the_entire_visual_host()
     {
         using var page = new GoPage(new HavenEventBus());

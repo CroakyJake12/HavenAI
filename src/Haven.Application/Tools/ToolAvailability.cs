@@ -14,7 +14,7 @@ namespace Haven.Application;
 /// <summary>
 /// Lists the supported tool runtime kind values used to make state explicit and type-safe.
 /// </summary>
-public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation }
+public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation, Mcp, Calendar }
 
 /// <summary>
 /// Represents tool availability context and keeps its related state and behavior together.
@@ -51,7 +51,9 @@ public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> BrowserBackground,
     IReadOnlyList<OllamaToolDefinition> BrowserInteractive,
     IReadOnlyList<OllamaToolDefinition> Automation,
-    IReadOnlyList<OllamaToolDefinition> ReusableTasks);
+    IReadOnlyList<OllamaToolDefinition> ReusableTasks,
+    IReadOnlyList<OllamaToolDefinition>? Mcp = null,
+    IReadOnlyList<OllamaToolDefinition>? Calendar = null);
 
 /// <summary>
 /// Represents tool availability plan and keeps its related state and behavior together.
@@ -188,6 +190,8 @@ public sealed class ToolAvailabilityPlanner
         PlanComputer(context, sources.Computer, definitions, routes, reasons, capabilities);
         PlanBrowser(context, sources.BrowserBackground, sources.BrowserInteractive, definitions, routes, reasons, capabilities);
         PlanAutomations(context, sources.Automation, sources.ReusableTasks, definitions, routes, reasons, capabilities);
+        PlanMcp(sources.Mcp ?? [], definitions, routes);
+        PlanCalendar(sources.Calendar ?? [], definitions, routes);
         return new ToolAvailabilityPlan(definitions, routes, reasons, capabilities);
     }
 
@@ -331,6 +335,20 @@ public sealed class ToolAvailabilityPlanner
             else if (!host) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because the local automation store is not connected.";
             else Add(definition, ToolRuntimeKind.Automation, definitions, routes);
         }
+    }
+
+    private static void PlanMcp(IReadOnlyList<OllamaToolDefinition> source,
+        List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
+    {
+        if (RuntimeSafetyState.IsSafeMode) return;
+        foreach (var definition in source) Add(definition, ToolRuntimeKind.Mcp, definitions, routes);
+    }
+
+    private static void PlanCalendar(IReadOnlyList<OllamaToolDefinition> source,
+        List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
+    {
+        if (RuntimeSafetyState.IsSafeMode) return;
+        foreach (var definition in source) Add(definition, ToolRuntimeKind.Calendar, definitions, routes);
     }
 
     /// <summary>

@@ -22,10 +22,12 @@ using Haven.Desktop.Views.Pages.Browser;
 using Haven.Desktop.Views.Pages.Catalog;
 using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.ContainerSettings;
+using Haven.Desktop.Views.Pages.ActionGraph;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
 using Haven.Desktop.Views.Pages.Plan;
 using Haven.Desktop.Views.Pages.Play;
+using Haven.Desktop.Views.Pages.ProjectPreview;
 using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
@@ -34,6 +36,7 @@ using Haven.Desktop.Views.Pages.Terminal;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -44,6 +47,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly HavenEventBus _bus;
     private readonly IContainerRepository _containers;
     private readonly ICatalogRepository _catalog;
+    private readonly AgentTaskRuntimeService? _agentRuntime;
     private readonly IAutomationRepository _automations;
     private readonly IWorkspaceStateRepository _workspaceState;
     private readonly IWorkspaceToolService _workspaceTools;
@@ -58,6 +62,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly IGenUiTemplateRepository _genUiTemplates;
     private readonly GenerativeUiEventRouter _genUiRouter;
     private readonly GenUiInstanceStore _genUiInstances;
+    private readonly IGenUiAppRepository _genUiApps;
+    private readonly GenUiAppSessionService _genUiSessions;
     private readonly CalculatorTemplateRuntime _calculatorTemplate;
     private readonly StructuredFormTemplateRuntime _structuredFormTemplate;
     private readonly ChoicePromptTemplateRuntime _choicePromptTemplate;
@@ -166,6 +172,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IGenUiTemplateRepository genUiTemplates,
         GenerativeUiEventRouter genUiRouter,
         GenUiInstanceStore genUiInstances,
+        IGenUiAppRepository genUiApps,
+        GenUiAppSessionService genUiSessions,
         CalculatorTemplateRuntime calculatorTemplate,
         StructuredFormTemplateRuntime structuredFormTemplate,
         ChoicePromptTemplateRuntime choicePromptTemplate,
@@ -205,13 +213,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         SurfaceOrchestrationService surfaceOrchestration,
         IModeRegistry modeRegistry,
         IModeUsageRepository modeUsage,
-        IPinRepository pins)
+        IPinRepository pins,
+        AgentTaskRuntimeService? agentRuntime = null)
     {
         _eventBus = bus;
         _bus = bus;
         _conversations = conversations;
         _containers = containers;
         _catalog = catalog;
+        _agentRuntime = agentRuntime;
         _automations = automations;
         _workspaceState = workspaceState;
         _workspaceTools = workspaceTools;
@@ -226,6 +236,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _genUiTemplates = genUiTemplates;
         _genUiRouter = genUiRouter;
         _genUiInstances = genUiInstances;
+        _genUiApps = genUiApps;
+        _genUiSessions = genUiSessions;
         _calculatorTemplate = calculatorTemplate;
         _structuredFormTemplate = structuredFormTemplate;
         _choicePromptTemplate = choicePromptTemplate;
@@ -349,10 +361,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddOrSelectTab("chat-general", "General chat", _currentChat, false, HavenSurface.Chat);
 
         InitializeComponent();
+        AttachedToVisualTree += (_, _) => TrackWorkspaceWindowGeometry();
         InitialiseNativeChatSidebar();
         DataContext = this;
 
         WireShellControls();
+        SplitDivider.DragCompleted += (_, _) =>
+        {
+            if (IsSplitView) QueueWorkspaceSessionSave();
+        };
+        SplitDivider.KeyUp += (_, args) =>
+        {
+            if (IsSplitView && args.Key is Key.Left or Key.Right) QueueWorkspaceSessionSave();
+        };
         TopRail.AttachNotifications(_notifications);
         PageContent.Content = _currentPage;
         ApplyShellVisualState();
@@ -456,6 +477,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         set
         {
             if (ReferenceEquals(_selectedTab, value) || value is null) return;
+            if (ReferenceEquals(_secondaryTab, value))
+            {
+                SwapSplitPanes();
+                return;
+            }
             if (_selectedTab is not null)
             {
                 _selectedTab.IsSelected = false;
@@ -465,6 +491,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             value.IsSelected = true;
             ApplySelectedTab(value);
             RefreshTopRailTabs();
+            QueueWorkspaceSessionSave();
         }
     }
 
@@ -607,6 +634,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         HavenSurface.Browse => "Haven Browse",
         HavenSurface.Plan => "Haven Plan",
         HavenSurface.Training => "Haven Training",
+        HavenSurface.Mesh => "Haven Mesh",
         _ => "Haven"
     };
 
@@ -728,6 +756,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         StartupStatus = migration.Imported
             ? $"Imported {migration.ConversationCount} legacy conversations \u00b7 local-only"
             : "Local-only \u00b7 SQLite ready";
+    }
+
+    /// <summary>Initialises a secondary shell without starting duplicate application-wide pollers.</summary>
+    public async Task InitializeSecondaryWindowAsync(CancellationToken cancellationToken)
+    {
+        await CurrentChat.InitializeAsync(cancellationToken);
+        await RefreshRecentsAsync(cancellationToken);
+        _companionDockVm.Start();
+        StartupStatus = "Local-only Â· secondary window";
     }
 
     public void SetStartupError(string message) => StartupStatus = $"Startup problem: {message}";
@@ -1315,7 +1352,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
         if (kind == CatalogPageKind.Agents)
         {
-            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel), true);
+            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel, _agentRuntime), true);
             return;
         }
 
@@ -1332,6 +1369,30 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (existing is not null) { SelectedTab = existing; return; }
         var page = new ActivityLogPageViewModel(_conversations, id => { });
         AddOrSelectTab("activity-log", "Activity Log", page, true);
+    }
+
+    private void OpenActionGraph() => OpenActionGraphTarget(null, null);
+
+    private void OpenActionGraphTarget(Guid? executionId, Guid? actionId)
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "action-graph");
+        if (existing is not null)
+        {
+            SelectedTab = existing;
+            if (executionId is { } id && existing.Page is ActionGraphPage existingPage) _ = existingPage.OpenAsync(id, actionId);
+            return;
+        }
+        var services = App.Services ?? throw new InvalidOperationException("Haven services are not available.");
+        var page = new ActionGraphPage(
+            services.GetRequiredService<ExecutionTraceService>(),
+            services.GetRequiredService<IActionFeedbackRepository>(),
+            services.GetRequiredService<IRemediationRepository>(),
+            services.GetRequiredService<RemediationCoordinator>(),
+            services.GetService<ExecutionEventHub>(),
+            prompt => _ = OpenNewChatAsync(prompt),
+            OpenApplicationSettings);
+        AddOrSelectTab("action-graph", "Action Graph", page, true, HavenSurface.Tasks);
+        if (executionId is { } requested) _ = page.OpenAsync(requested, actionId);
     }
 
     private void OpenModeLibrary()
@@ -1522,27 +1583,27 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         }
         else if (route.Kind == HavenAppRouteKind.Go)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             await OpenGoAsync();
         }
         else if (route.Kind == HavenAppRouteKind.Dashboard)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             await OpenDashboardAsync();
         }
         else if (route.Kind == HavenAppRouteKind.Browse)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenBrowser();
         }
         else if (route.Kind == HavenAppRouteKind.Plan)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenPlan();
         }
         else if (route.Kind == HavenAppRouteKind.Training)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenTraining();
         }
         else if (route.Kind == HavenAppRouteKind.Write)
@@ -1555,12 +1616,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         }
         else if (route.Kind == HavenAppRouteKind.Play)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenPlay();
         }
         else if (route.Kind == HavenAppRouteKind.Automations)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenAutomationsDashboard();
         }
         else if (route.Kind == HavenAppRouteKind.Translate)
@@ -1570,6 +1631,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         else if (route.Kind == HavenAppRouteKind.Terminal)
         {
             OpenTerminal(openInNewTab);
+        }
+        else if (route.Kind == HavenAppRouteKind.Mesh)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenMeshDashboard();
         }
         else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
         {
@@ -1583,15 +1649,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     await OpenNewChatAsync(forceNewTab: openInNewTab);
                     break;
                 case HavenMode.Study:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Study, false);
                     break;
                 case HavenMode.Tasks:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Tasks, true);
                     break;
                 case HavenMode.Studio:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Studio, true);
                     break;
             }
@@ -1670,6 +1736,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 case HavenSurface.Translate:
                     await OpenTranslateAsync(false);
                     break;
+                case HavenSurface.Mesh:
+                    OpenMeshDashboard();
+                    break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);
                     if (registered is not null)
@@ -1726,19 +1795,52 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void AddNewTab()
     {
+        _ = AddConfiguredNewTabAsync();
+    }
+
+    private async Task AddConfiguredNewTabAsync()
+    {
+        var preferredKey = _preferences.DefaultTabAppKey;
+        if (string.IsNullOrWhiteSpace(preferredKey))
+        {
+            AddFallbackTab();
+            return;
+        }
+        var countBeforeLaunch = OpenTabs.Count;
+        try
+        {
+            var preferred = await _modeRegistry.GetModeByKeyAsync(preferredKey, CancellationToken.None);
+            if (preferred is null || !preferred.IsEnabled)
+            {
+                AddFallbackTab();
+                return;
+            }
+            await LaunchAppAsync(preferred, openInNewTab: true);
+            if (OpenTabs.Count <= countBeforeLaunch) AddFallbackTab();
+        }
+        catch
+        {
+            // Keep the standard new-tab surface and preserve the preference for when the app is available again.
+            if (OpenTabs.Count <= countBeforeLaunch) AddFallbackTab();
+        }
+    }
+
+    private WorkspaceTabViewModel AddFallbackTab()
+    {
         if (_edition == HavenShellEdition.New)
         {
             var go = CreateGoPage();
             var goKey = "go-" + Guid.NewGuid().ToString("N")[..8];
             AddOrSelectTab(goKey, "Go", go, true, HavenSurface.Go, forceNewTab: true);
             go.FocusComposer();
-            return;
+            return SelectedTab!;
         }
 
         var home = CreateHomePage();
         var key = "home-" + Guid.NewGuid().ToString("N")[..8];
         AddOrSelectTab(key, "Home", home, true, HavenSurface.Home, forceNewTab: true);
         _ = home.ActivateAsync(CancellationToken.None);
+        return SelectedTab!;
     }
 
     private GoPage CreateGoPage()
@@ -1751,6 +1853,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         page.Disposed += OnGoPageDisposed;
         page.AddRequested += OnGoAddRequested;
         page.AddCatalogItemSelected += OnGoCatalogItemSelected;
+        page.AppShortcutInvoked += async (_, app) => await LaunchAppAsync(app, false);
         _ = ConfigureAddMenuAsync(page);
         QueueGoSuggestionRefresh(
             page,
@@ -1824,6 +1927,22 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             HavenSurface.Studio);
     }
 
+    private void OpenGenUiCreationHome()
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-create");
+        if (existing is not null) { SelectedTab = existing; return; }
+        AddOrSelectTab("genui-create", "Create with Generative UI",
+            new GenUiCreationHomePage(_bus, _genUiApps, _genUiSessions, _genUiRouter, _genUiInstances, OpenGenUiGenerationAsync),
+            true, HavenSurface.Studio);
+    }
+
+    private async Task OpenGenUiGenerationAsync(string prompt)
+    {
+        var request = "Create this as a Haven Generative UI app or interactive surface. Build the complete first-turn workflow rather than describing it in text.\n\n" + prompt;
+        await OpenScopedNewChatPageAsync(HavenMode.Studio, null, $"genui-generation-{Guid.NewGuid():N}",
+            "Generative UI", HavenSurface.Studio, prompt: request);
+    }
+
     private void OpenTemplateLab()
     {
         var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-template-lab");
@@ -1841,13 +1960,45 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             HavenSurface.Studio);
     }
 
+    private Task OpenProjectPreviewAsync(StudioProjectPage project)
+    {
+        if (!project.HasRoot)
+        {
+            _notifications.Show("Project preview", "Connect an existing project folder before opening a live preview.", ToastKind.Warning);
+            return Task.CompletedTask;
+        }
+        var provider = App.Services?.GetServices<IProjectPreviewProvider>().FirstOrDefault(item => item.CanPreview(project.RootPath));
+        if (provider is null)
+        {
+            _notifications.Show("Project preview", "This project does not expose a supported package.json dev/start script or ASP.NET Core web target.", ToastKind.Warning, TimeSpan.FromSeconds(7));
+            return Task.CompletedTask;
+        }
+        var primary = SelectedTab;
+        var normalizedRoot = Path.GetFullPath(project.RootPath).ToLowerInvariant();
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalizedRoot)))[..12].ToLowerInvariant();
+        var existing = OpenTabs.FirstOrDefault(tab => tab.Key == "project-preview-" + hash);
+        if (existing is null)
+        {
+            AddOrSelectTab("project-preview-" + hash, "Live preview", new ProjectPreviewPage(provider, project.RootPath), true, HavenSurface.Studio, forceNewTab: true);
+            existing = SelectedTab;
+        }
+        if (primary is not null && existing is not null)
+        {
+            SelectedTab = primary;
+            OpenInSplitView(existing);
+        }
+        return Task.CompletedTask;
+    }
+
     private async Task ConfigureAddMenuAsync(GoPage page)
     {
         var agentsTask = _catalog.GetAgentsAsync(CancellationToken.None);
         var capabilitiesTask = _capabilityRegistry.DiscoverAsync(CurrentCapabilityPlatform, CancellationToken.None);
         var instructionsTask = _catalog.GetPromptsAsync(CancellationToken.None);
         var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
-        await Task.WhenAll(agentsTask, capabilitiesTask, instructionsTask, appsTask);
+        var pinsTask = _pins.GetPinsAsync(CancellationToken.None);
+        var usageTask = _modeUsage.GetRecentUsageAsync(30, CancellationToken.None);
+        await Task.WhenAll(agentsTask, capabilitiesTask, instructionsTask, appsTask, pinsTask, usageTask);
 #if ANDROID
         var apps = (await appsTask)
             .Concat(await GetInstalledAndroidAppDefinitionsAsync())
@@ -1857,6 +2008,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 #endif
         _availableCapabilities = await capabilitiesTask;
         page.SetAddCatalogue(await agentsTask, _availableCapabilities, await instructionsTask, apps);
+        var installed = apps.Where(app => app.IsEnabled && app.InstallState == ModeInstallState.Installed).ToArray();
+        var pinnedIds = (await pinsTask).OrderBy(pin => pin.SortOrder).Select(pin => pin.ModeId).ToArray();
+        var pinned = pinnedIds.Select(id => installed.FirstOrDefault(app => app.Id == id)).Where(app => app is not null).Cast<ModeDefinition>().ToArray();
+        var suggested = (await usageTask)
+            .Where(usage => !pinnedIds.Contains(usage.ModeId))
+            .GroupBy(usage => usage.ModeId)
+            .OrderByDescending(group => group.Sum(usage => usage.TurnCount + usage.CompletionCount))
+            .Select(group => installed.FirstOrDefault(app => app.Id == group.Key))
+            .Where(app => app is not null)
+            .Cast<ModeDefinition>()
+            .Take(Math.Max(0, 8 - pinned.Length))
+            .ToArray();
+        page.SetAppShortcuts(pinned.Select(app => new GoAppShortcut(app, true)).Concat(suggested.Select(app => new GoAppShortcut(app, false))).ToArray());
         RefreshContextualActions();
     }
 
@@ -2461,6 +2625,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         SelectedTab = tab;
         RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
         RefreshTopRailTabs();
+        QueueWorkspaceSessionSave();
     }
 
     private HavenSurface InferSurface(object page) => page switch
@@ -2491,13 +2656,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void CloseTab(WorkspaceTabViewModel? item)
     {
-        if (item is null || !item.IsCloseable || OpenTabs.Count <= 1) return;
-        var index = OpenTabs.IndexOf(item);
-        OpenTabs.Remove(item);
-        item.Dispose();
-        if (ReferenceEquals(SelectedTab, item)) SelectedTab = OpenTabs.ElementAtOrDefault(Math.Clamp(index - 1, 0, Math.Max(0, OpenTabs.Count - 1))) ?? OpenTabs.FirstOrDefault();
-        RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
-        RefreshTopRailTabs();
+        _ = TryCloseTabAsync(item);
     }
 
     private void NavigateBack()
@@ -2532,10 +2691,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
             Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
+            Command("Create with Generative UI", "Generate, reopen, pin and import persistent interactive Haven surfaces.", string.Empty, new RelayCommand(OpenGenUiCreationHome)),
             Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
             Command("Automations", "Create, test, and run reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Archive", "Restore archived chats, groups, and projects.", string.Empty, NavigateArchiveCommand),
             Command("Activity Log", "View recent conversations and tool activity across sessions.", string.Empty, NavigateActivityLogCommand),
+            Command("Action Graph", "Inspect the real execution trace in Graph or List form, including failures, recovery and action feedback.", string.Empty, new RelayCommand(OpenActionGraph)),
             Command("Haven Browse", "Open the isolated tabbed browser and side assistant.", string.Empty, NavigateBrowserCommand),
             Command("Haven Training", "Run an autonomous agent session and score the result.", string.Empty, NavigateTrainingCommand),
             Command("App Library", "Discover, pin, and create Haven apps.", string.Empty, NavigateModeLibraryCommand),
@@ -2632,8 +2793,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 new("Refresh project", "refresh", () => Invoke(project.RefreshCommand), Category: "Recommended", Description: "Refresh files, Git state, and project health."),
                 new("Build project", "build", () => Invoke(project.BuildCommand), Category: "Recommended", Description: "Build the active project."),
                 new("Run tests", "test", () => Invoke(project.TestCommand), Category: "Studio", Description: "Run the active project's tests."),
+                new("Live preview", "browse", () => _ = OpenProjectPreviewAsync(project), Category: "Studio", Description: "Open the supported running web preview beside this Project."),
                 new("Open terminal", "commands", () => Invoke(project.OpenTerminalCommand), Category: "Studio", Description: "Open a terminal at the project root."),
                 new("Project chat", "chat", () => Invoke(project.StartChatCommand), Category: "Studio", Description: "Start a chat scoped to this project."),
+                new("Create with Generative UI", "sparkles", OpenGenUiCreationHome, Category: "Studio", Description: "Generate or reopen persistent interactive Haven surfaces."),
                 new("Template Preview Lab", "sparkles", OpenTemplateLab, Category: "Studio", Description: "Inspect and exercise trusted structured GenUI templates.")
             ]);
         }
@@ -2695,6 +2858,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             ]);
         }
 
+        contextual.Add(new("Action Graph", "commands", OpenActionGraph, Category: "View", Description: "Inspect what Haven actually did for a request in Graph or List form."));
+
         var catalogue = AllCommandItems
             .Where(item => !IsConversationOnlyAction(item.Name) || hasConversation)
             .Select(item => new DynamicActionToolbar.ToolbarAction(
@@ -2717,7 +2882,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"+¾+¶ÈÃú {captured.Name}" : captured.Name,
+                attached ? $"Remove {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2738,7 +2903,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             var captured = capability;
             var attached = page.IsCapabilityAttached(captured.Id);
             actions.Add(new(
-                attached ? $"+¾+¶ÈÃú {captured.Name}" : captured.Name,
+                attached ? $"Remove {captured.Name}" : captured.Name,
                 captured.IconKey,
                 () =>
                 {
@@ -2760,7 +2925,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     };
 
     private static string CapabilityDescription(CapabilityDefinition capability, bool attached) =>
-        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} +Ú-+ {capability.RiskClass} risk +Ú-+ {capability.Availability}. Attachment does not grant permission.";
+        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} - {capability.RiskClass} risk - {capability.Availability}. Attachment does not grant permission.";
 
     private void AddModeWorkspaceActions(List<DynamicActionToolbar.ToolbarAction> actions, NewChatPage page)
     {
@@ -2817,7 +2982,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (name.Contains("Browse", StringComparison.OrdinalIgnoreCase)) return "Browser";
         if (name.Contains("Scheduled", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Reusable", StringComparison.OrdinalIgnoreCase)) return "Tasks";
-        if (name.Contains("sidebar", StringComparison.OrdinalIgnoreCase)) return "View";
+        if (name.Contains("sidebar", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Action Graph", StringComparison.OrdinalIgnoreCase)) return "View";
         if (name.Contains("New", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Archive", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Delete", StringComparison.OrdinalIgnoreCase)
@@ -2916,6 +3082,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         TopRail.TabSelected += OnTopRailTabSelected;
         TopRail.TabCloseRequested += OnTopRailTabCloseRequested;
         TopRail.TabRenameRequested += OnTopRailTabRenameRequested;
+        TopRail.TabCommandRequested += OnTopRailTabCommandRequested;
+        TopRail.NotificationOpenRequested += OnNotificationOpenRequested;
 
         GoChatButton.Click += OnGoChatClicked;
         GoDashboardButton.Click += OnGoDashboardClicked;
@@ -2943,21 +3111,31 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async void OnTopRailModelRequested(object? sender, EventArgs e) => await ShowModelSelectorAsync();
     private async void OnTopRailSearchRequested(object? sender, EventArgs e) => await ShowUniversalSearchAsync();
 
+    private void OnNotificationOpenRequested(object? sender, HavenNavigationTarget target)
+    {
+        if (target.ExecutionId is { } executionId)
+        {
+            OpenActionGraphTarget(executionId, target.ActionId);
+            return;
+        }
+        if (target.TabId is { } tabId && ResolveTab(tabId.ToString()) is { } tab) SelectedTab = tab;
+    }
+
     private void OnTopRailTabSelected(object? sender, string key)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(key);
         if (tab is not null) SelectedTab = tab;
     }
 
     private void OnTopRailTabCloseRequested(object? sender, string key)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(key);
         CloseTab(tab);
     }
 
     private void OnTopRailTabRenameRequested(object? sender, TabRenameRequestedEventArgs e)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(e.Key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(e.Key);
         if (tab is null) return;
         tab.Title = e.Title;
         RefreshTopRailTabs();
@@ -3260,12 +3438,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private void RefreshTopRailTabs()
     {
         if (TopRail is null) return;
-        TopRail.SetTabs(OpenTabs.Select(tab => new TopRailTab(
-            tab.Key,
-            tab.Title,
+        var visibleTabs = OpenTabs.Where(tab => !tab.IsGroupCollapsed || ReferenceEquals(tab, SelectedTab) ||
+            (tab.GroupId is { } groupId && ReferenceEquals(tab, OpenTabs.First(item => item.GroupId == groupId))));
+        TopRail.SetTabs(visibleTabs.Select(tab => new TopRailTab(
+            tab.SessionId.ToString(),
+            tab.IsGroupCollapsed && tab.GroupId is { } collapsedGroup
+                ? $"{tab.GroupName} ({OpenTabs.Count(item => item.GroupId == collapsedGroup)})"
+                : tab.Title,
             IconForSurface(tab.Surface),
             ReferenceEquals(tab, SelectedTab),
-            tab.IsCloseable)).ToArray());
+            tab.IsCloseable,
+            tab.GroupId,
+            tab.GroupName,
+            tab.IsGroupCollapsed)).ToArray());
         TopRail.SetNavigationAvailability(
             SelectedTab?.CanGoBack == true,
             SelectedTab?.CanGoForward == true);
@@ -3289,10 +3474,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         if (PageContent is null) return;
         PageContent.Content = CurrentPage;
-        SidebarControl.IsVisible = _edition == HavenShellEdition.Classic && HasFullSidebar;
+        SidebarControl.IsVisible = _edition == HavenShellEdition.Classic && HasFullSidebar && !IsSplitView;
         NativeSidebarHost.IsVisible = _edition == HavenShellEdition.New
                                       && CurrentSurface == HavenSurface.Chat
-                                      && IsSidebarOpen;
+                                      && IsSidebarOpen
+                                      && !IsSplitView;
         ShellContextBar.IsVisible = false;
         StoredChatDropdown.IsVisible = _edition == HavenShellEdition.New
                                        && CurrentPage is NewChatPage newChatPage
@@ -3405,6 +3591,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     public void Dispose()
     {
+        if (IsDisposed) return;
+        IsDisposed = true;
         _reminderTimer.Stop();
         lock (_goSuggestionRefreshes)
         {
@@ -3424,6 +3612,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _nativeChatSidebar?.Dispose();
         _planPage?.Dispose();
         _companionDockVm.Dispose();
+        RemoveSplitView();
+        foreach (var tab in OpenTabs.ToArray()) tab.Dispose();
+        OpenTabs.Clear();
         TopRail.Dispose();
     }
 

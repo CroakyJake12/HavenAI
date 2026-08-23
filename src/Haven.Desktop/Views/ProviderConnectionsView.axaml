@@ -17,6 +17,59 @@
   <hui:HavenAdaptiveSurface Classes="card">
     <!-- Section: Groups related controls in reading order; spacing is owned by the container instead of repeated margins. -->
     <StackPanel Spacing="11">
+      <StackPanel>
+        <TextBlock Text="SUGGESTED CONNECTIONS" Classes="eyebrow" />
+        <TextBlock Text="Connect apps and developer services" Classes="sectionHeading" Margin="0,4,0,0" />
+        <TextBlock Text="UEFN uses Haven's first-party Unreal MCP preset. Custom MCP is available for advanced servers; MCP details are optional for normal UEFN setup." Classes="muted" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0" />
+      </StackPanel>
+      <ItemsControl ItemsSource="{Binding SuggestedConnections}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="500" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <hui:HavenAdaptiveSurface Width="490" Margin="0,0,10,10" Classes="dashboardTile">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="15" />
+                <TextBlock Text="{Binding SetupMethod}" Classes="eyebrow" FontSize="9" />
+                <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                <StackPanel Spacing="3" IsVisible="{Binding IsAdvanced}">
+                  <TextBlock Text="Connection name" Classes="muted2" FontSize="9" />
+                  <hui:HavenTextInput Text="{Binding ConnectionName}" PlaceholderText="My MCP Server" />
+                </StackPanel>
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Endpoint (advanced override)" Classes="muted2" FontSize="9" />
+                  <hui:HavenTextInput Text="{Binding Endpoint}" />
+                </StackPanel>
+                <hui:HavenButton Content="{Binding ActionLabel}" Classes="accent" HorizontalAlignment="Left"
+                    Command="{Binding $parent[UserControl].DataContext.ConnectSuggestedConnectionCommand}" CommandParameter="{Binding}" IsEnabled="{Binding CanConnect}" />
+                <hui:HavenProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding IsBusy}" />
+                <TextBlock Text="{Binding Status}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel>
+            </hui:HavenAdaptiveSurface>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="YOUR MCP CONNECTIONS" Classes="eyebrow" />
+      <ItemsControl ItemsSource="{Binding ExternalConnections}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemWidth="500" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <hui:HavenAdaptiveSurface Width="490" Margin="0,0,10,10" Classes="dashboardTile">
+              <StackPanel Spacing="7">
+                <Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><TextBlock Text="{Binding ProviderLabel}" Classes="muted2" FontSize="9" /></StackPanel><hui:HavenAdaptiveSurface Grid.Column="1" Classes="statusPill"><TextBlock Text="{Binding ConnectionLabel}" FontSize="10" /></hui:HavenAdaptiveSurface></Grid>
+                <TextBlock Text="{Binding ServerLabel}" FontSize="10" />
+                <TextBlock Text="{Binding ProtocolLabel}" Classes="muted2" FontSize="10" />
+                <TextBlock Text="{Binding AuthenticationLabel}" Classes="muted2" FontSize="10" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding PluginLabel}" Classes="muted2" FontSize="10" />
+                <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="7"><hui:HavenButton Content="Refresh" Command="{Binding $parent[UserControl].DataContext.RefreshExternalConnectionCommand}" CommandParameter="{Binding}" IsEnabled="{Binding CanAct}" /><hui:HavenButton Content="Remove" Classes="danger" Command="{Binding $parent[UserControl].DataContext.RemoveExternalConnectionCommand}" CommandParameter="{Binding}" IsEnabled="{Binding CanAct}" /></StackPanel>
+              </StackPanel>
+            </hui:HavenAdaptiveSurface>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding ExternalConnectionsStatus}" Classes="muted" />
+
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel>
           <TextBlock Text="CONNECTED SERVICES" Classes="eyebrow" />
@@ -37,6 +90,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <StackPanel>
                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="15" />
+                    <TextBlock Text="{Binding SetupMethodLabel}" Classes="eyebrow" FontSize="9" Margin="0,2,0,0" />
                     <TextBlock Text="{Binding CapabilityLabel}" Classes="muted2" FontSize="9" />
                   </StackPanel>
                   <hui:HavenAdaptiveSurface Grid.Column="1" Classes="statusPill">
@@ -44,9 +98,10 @@
                   </hui:HavenAdaptiveSurface>
                 </Grid>
                 <TextBlock Text="{Binding AccountLabel}" FontSize="12" />
+                <TextBlock Text="{Binding PermissionLabel}" Classes="muted2" FontSize="10" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding LastSyncLabel}" Classes="muted2" FontSize="10" />
                 <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="7">
-                  <hui:HavenButton Content="Connect"
+                  <hui:HavenButton Content="{Binding ConnectActionLabel}"
                                   Classes="accent"
                                   Command="{Binding $parent[UserControl].DataContext.ConnectServiceCommand}"
                                   CommandParameter="{Binding}"
@@ -64,6 +119,8 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <TextBlock Text="Disconnect removes Haven's locally stored access token and stops access from this device. Provider-side authorisation can be revoked separately in your Google or Microsoft account security settings."
+                 Classes="muted" FontSize="10" TextWrapping="Wrap" />
       <TextBlock Text="{Binding ServicesStatus}" Classes="muted" />
 
       <Grid ColumnDefinitions="*,Auto">
@@ -73,8 +130,8 @@
         </StackPanel>
       </Grid>
 
-      <TextBlock Text="Configure model API providers without replacing local models. API keys are stored in Windows Credential Manager and are never written to the provider settings file."
-                 Classes="muted" FontSize="11" />
+      <TextBlock Text="Setup method: API key. Configure model API providers without replacing local models. Keys are stored in Windows Credential Manager and are never written to the provider settings file. Provider usage limits and billing still follow your provider account."
+                 Classes="muted" FontSize="11" TextWrapping="Wrap" />
 
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>

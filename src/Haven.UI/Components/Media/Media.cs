@@ -32,3 +32,9 @@ public sealed class Web : HavenElement
     public string Url { get; set; } = string.Empty;
     public override HavenComponentMetadata Metadata => new("Web", "Components/Media/Media.cs", ["Web"], [], "WebView remains a platform capability behind this Haven primitive.");
 }
+
+/// <summary>Explicit placeholder for a trusted platform control supplied by a composition root.</summary>
+public sealed class NativeHost : HavenElement
+{
+    public override HavenComponentMetadata Metadata => new("NativeHost", "Components/Media/Media.cs", ["NativeHost"], [], "Carries no executable content; a trusted native-control resolver must opt in to a concrete control.");
+}

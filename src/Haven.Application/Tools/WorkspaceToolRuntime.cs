@@ -17,7 +17,7 @@ namespace Haven.Application;
 /// <summary>
 /// Represents workspace tool result and keeps its related state and behavior together.
 /// </summary>
-public sealed record WorkspaceToolResult(ToolActivity Activity, string Output);
+public sealed record WorkspaceToolResult(ToolActivity Activity, string Output, ToolFailureDescriptor? Failure = null);
 
 /// <summary>
 /// Represents workspace tool runtime and keeps its related state and behavior together.

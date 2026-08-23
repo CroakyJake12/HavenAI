@@ -80,12 +80,14 @@ internal static class ProviderHttp
     /// <summary>
     /// Performs the convert tool schema step owned by this component.
     /// </summary>
-    public static Dictionary<string, object> ConvertToolSchema(OllamaToolDefinition tool) => new()
-    {
-        ["type"] = "object",
-        ["properties"] = tool.Properties,
-        ["required"] = tool.Required
-    };
+    public static object ConvertToolSchema(OllamaToolDefinition tool) => tool.InputSchema is { } raw
+        ? raw
+        : new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["properties"] = tool.Properties,
+            ["required"] = tool.Required
+        };
 
     /// <summary>
     /// Performs the default capabilities step owned by this component.

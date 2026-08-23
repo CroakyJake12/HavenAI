@@ -60,6 +60,48 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         Assert.Equal(2, ollama.ToolRequests);
     }
 
+    [Fact]
+    public async Task McpPermissionBlockerCreatesResumableRemediationAndRetriesOnlyAfterApproval()
+    {
+        var model = new ModelDescriptor("tools-model", 1, "test", "test", "test", new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Tools }, DateTimeOffset.UtcNow);
+        var connection = ChatMcpRepository.ReadyConnection();
+        var connectionRepository = new ChatMcpRepository(connection);
+        var mcpClient = new ChatMcpClient();
+        var mcpRuntime = new McpToolRuntime(connectionRepository, mcpClient);
+        var localToolName = McpToolRuntime.LocalToolName(connection.Id, "write_item");
+        var remediationRepository = new ChatRemediationRepository();
+        var eventSink = new ChatRecordingSink();
+        var continuations = new RemediationContinuationRegistry();
+        var coordinator = new RemediationCoordinator(remediationRepository, new ChatSecretStore(), eventSink, continuations);
+        var service = new ChatSessionService(
+            new FakeConversations(), new SingleToolOllama(model, localToolName), new CapabilityPreflightService(), new PermitSafety(),
+            new WorkspaceToolRuntime(new TestWorkspaceTools()), new ComputerToolRuntime(new TestComputerTools()),
+            mcpTools: mcpRuntime, executionEvents: eventSink, recovery: new AutonomousRecoveryService(), remediations: coordinator);
+        var now = DateTimeOffset.UtcNow;
+        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Test", null, null, false, true, now, now);
+        var active = new ActiveCapability(ExternalConnectionNaming.CapabilityKey(connection.Id), ExternalConnectionNaming.PluginName(connection.Name),
+            "connection", "Use connection", "connection.mcp", "haven.connections");
+
+        await foreach (var _ in service.SendAsync(
+                           conversation, "Update the attached MCP item", model, EffortLevel.Medium, [active], "Default", "",
+                           DuoMode.Solo, null, "", "", null, CancellationToken.None, commandPermission: PermissionMode.Ask))
+        {
+        }
+
+        Assert.Equal(0, mcpClient.InvocationCount);
+        var remediation = Assert.IsType<RemediationRequest>(remediationRepository.Value);
+        Assert.Equal(RemediationType.PermissionRequest, remediation.Type);
+        Assert.True(remediation.CanResume);
+        Assert.True(coordinator.CanResume(remediation.Id));
+        Assert.Contains(eventSink.Events, item => item.ActionId == remediation.ActionId && item.Failure?.Code == "MCP_PERMISSION_REQUIRED");
+
+        await coordinator.ApproveAndResolveAsync(remediation.Id, CancellationToken.None);
+
+        Assert.Equal(1, mcpClient.InvocationCount);
+        Assert.False(coordinator.CanResume(remediation.Id));
+        Assert.Contains(eventSink.Events, item => item.Name == "Blocked action resumed" && item.RecoveryOfActionId == remediation.ActionId);
+    }
+
     /// <summary>
     /// Performs the workspace tools are not exposed by chat mode even when a root is supplied step owned by this component.
     /// </summary>
@@ -227,6 +269,81 @@ public sealed class ChatSessionToolLoopTests : IDisposable
         public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken) =>
             Task.FromException<OllamaToolResponse>(new HttpRequestException(
                 "Ollama returned 400: model does not support tools", null, System.Net.HttpStatusCode.BadRequest));
+    }
+
+    private sealed class SingleToolOllama(ModelDescriptor model, string toolName) : IOllamaClient
+    {
+        private int _requests;
+        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<IReadOnlyList<ModelDescriptor>> GetModelsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ModelDescriptor>>([model]);
+        public async IAsyncEnumerable<string> StreamChatAsync(OllamaChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken) { await Task.CompletedTask; yield break; }
+        public Task<string> CompleteAsync(OllamaChatRequest request, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+        public Task<OllamaToolResponse> ChatWithToolsAsync(OllamaToolRequest request, CancellationToken cancellationToken)
+        {
+            _requests++;
+            if (_requests == 1)
+                return Task.FromResult(new OllamaToolResponse(string.Empty, [new OllamaToolCall(toolName, new Dictionary<string, JsonElement>())]));
+            return Task.FromResult(new OllamaToolResponse("Waiting for the required approval.", []));
+        }
+    }
+
+    private sealed class ChatMcpRepository(ExternalConnection connection) : IExternalConnectionRepository
+    {
+        private ExternalConnection? _connection = connection;
+        public Task<IReadOnlyList<ExternalConnection>> GetAllAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ExternalConnection>>(_connection is null ? [] : [_connection]);
+        public Task<ExternalConnection?> GetAsync(Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult(_connection?.Id == id ? _connection : null);
+        public Task UpsertAsync(ExternalConnection value, CancellationToken cancellationToken) { _connection = value; return Task.CompletedTask; }
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken) { if (_connection?.Id == id) _connection = null; return Task.CompletedTask; }
+
+        public static ExternalConnection ReadyConnection()
+        {
+            var now = DateTimeOffset.UtcNow;
+            return new ExternalConnection(Guid.NewGuid(), "Test MCP", "mcp.test", ExternalConnectionKind.Mcp, "custom-mcp", true, ExternalConnectionState.Ready, "Connected",
+                JsonSerializer.Serialize(new McpConnectionConfiguration(McpTransportKind.StreamableHttp, "http://127.0.0.1:8765/mcp", LocalOnly: true)),
+                "test-mcp", "1", "2026-07-28", now, now);
+        }
+    }
+
+    private sealed class ChatMcpClient : IMcpConnectionClient
+    {
+        public int InvocationCount { get; private set; }
+        public Task<(McpServerIdentity Identity, IReadOnlyList<McpExternalTool> Tools)> DiscoverAsync(ExternalConnection connection, CancellationToken cancellationToken)
+        {
+            using var document = JsonDocument.Parse("{\"type\":\"object\",\"properties\":{}}");
+            IReadOnlyList<McpExternalTool> tools = [new McpExternalTool("write_item", "Write an external item", document.RootElement.Clone())];
+            return Task.FromResult((new McpServerIdentity("test-mcp", "1", "2026-07-28", "{}"), tools));
+        }
+        public Task<McpToolInvocationResult> InvokeAsync(ExternalConnection connection, string toolName, IReadOnlyDictionary<string, JsonElement> arguments, CancellationToken cancellationToken)
+        {
+            InvocationCount++;
+            return Task.FromResult(new McpToolInvocationResult(true, "Updated external item.", null, "[]"));
+        }
+    }
+
+    private sealed class ChatRemediationRepository : IRemediationRepository
+    {
+        public RemediationRequest? Value { get; private set; }
+        public Task UpsertAsync(RemediationRequest request, CancellationToken cancellationToken) { Value = request; return Task.CompletedTask; }
+        public Task<RemediationRequest?> GetAsync(Guid remediationId, CancellationToken cancellationToken) => Task.FromResult(Value?.Id == remediationId ? Value : null);
+        public Task<IReadOnlyList<RemediationRequest>> GetWaitingAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RemediationRequest>>(Value is { State: RemediationState.Waiting or RemediationState.InProgress or RemediationState.Suspended } value ? [value] : []);
+    }
+
+    private sealed class ChatRecordingSink : IExecutionEventSink
+    {
+        public List<ExecutionEvent> Events { get; } = [];
+        public bool TryPublish(ExecutionEvent executionEvent) { Events.Add(executionEvent); return true; }
+    }
+
+    private sealed class ChatSecretStore : IProviderSecretStore
+    {
+        private readonly Dictionary<(string Provider, string Name), string> _values = [];
+        public Task SetAsync(string providerId, string secretName, string secret, CancellationToken cancellationToken) { _values[(providerId, secretName)] = secret; return Task.CompletedTask; }
+        public Task<string?> GetAsync(string providerId, string secretName, CancellationToken cancellationToken) =>
+            Task.FromResult(_values.TryGetValue((providerId, secretName), out var value) ? value : null);
+        public Task DeleteAsync(string providerId, string secretName, CancellationToken cancellationToken) { _values.Remove((providerId, secretName)); return Task.CompletedTask; }
     }
 
     /// <summary>

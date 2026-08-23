@@ -13,7 +13,13 @@ public static class AndroidServiceRegistration
         ArgumentNullException.ThrowIfNull(services);
         services.RemoveAll<IComputerToolService>();
         services.AddSingleton<IComputerToolService, AndroidComputerToolService>();
-        services.RemoveAll<IDeviceActionProvider>();
+        for (var index = services.Count - 1; index >= 0; index--)
+        {
+            var descriptor = services[index];
+            if (descriptor.ServiceType == typeof(IDeviceActionProvider)
+                && descriptor.ImplementationType == typeof(WindowsComputerDeviceActionProvider))
+                services.RemoveAt(index);
+        }
         services.AddSingleton<IDeviceActionProvider, AndroidDeviceActionProvider>();
         services.AddSingleton<AndroidEncryptedPreferenceStore>();
         services.RemoveAll<IProviderSecretStore>();

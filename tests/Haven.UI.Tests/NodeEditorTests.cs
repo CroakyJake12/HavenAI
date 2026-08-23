@@ -88,6 +88,30 @@ public sealed class NodeEditorTests
         Assert.True(editor.Undo()); Assert.Equal("Before", editor.Document.Nodes.Single().Title);
     }
 
+    [Fact]
+    public void Secondary_click_on_empty_space_requests_context_in_world_coordinates()
+    {
+        var editor = Editor(NodeEditorDocument.Empty); HavenPoint? requested = null; editor.EmptySpaceContextRequested += point => requested = point;
+        Assert.True(editor.PointerPressed(new HavenPointerInput(new HavenPoint(240, 160), new HavenPoint(240, 160), HavenPointerKind.Mouse, HavenKeyModifiers.None, HavenPointerButton.Secondary)));
+        Assert.Equal(new HavenPoint(240, 160), requested);
+    }
+
+    [Fact]
+    public void Edge_selection_can_delete_a_connection_without_deleting_nodes()
+    {
+        var first = Node(0, 0, "First"); var second = Node(320, 0, "Second"); var edge = new NodeEditorEdge(Guid.NewGuid(), first.Id, "out", second.Id, "in"); var editor = Editor(new NodeEditorDocument([first, second], [edge]));
+        editor.SelectEdge(edge.Id); Assert.Contains(edge.Id, editor.SelectedEdgeIds); editor.DeleteSelection();
+        Assert.Empty(editor.Document.Edges); Assert.Equal(2, editor.Document.Nodes.Count); Assert.True(editor.Undo()); Assert.Single(editor.Document.Edges);
+    }
+
+    [Fact]
+    public void Fit_and_keyboard_duplicate_are_first_class_editor_operations()
+    {
+        var first = Node(-500, -300, "First"); var second = Node(1200, 900, "Second"); var editor = Editor(new NodeEditorDocument([first, second], []), 900, 620);
+        Assert.True(editor.FitToDocument()); Assert.InRange(editor.Zoom, 0.2, 1);
+        editor.SelectNode(first.Id); Assert.True(editor.KeyDown(new HavenKeyInput(HavenKey.D, HavenKeyModifiers.Control))); Assert.Equal(3, editor.Document.Nodes.Count);
+    }
+
     private static NodeEditor Editor(NodeEditorDocument document, double width = 960, double height = 640)
     {
         var editor = new NodeEditor { Document = document }; editor.SetValue(HavenProperties.Width, HavenLength.Px(width)); editor.SetValue(HavenProperties.Height, HavenLength.Px(height));

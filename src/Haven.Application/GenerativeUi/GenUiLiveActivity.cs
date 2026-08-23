@@ -31,12 +31,17 @@ public interface IGenUiLiveActivitySurface
 
     /// <summary>Current status message.</summary>
     string StatusMessage { get; }
+    GenUiLiveActivityControlMode ControlMode { get; }
+    GenUiActivityPresentation Presentation { get; }
+    string? LastError { get; }
 
     /// <summary>Fires when the activity state changes.</summary>
     event EventHandler? StateChanged;
 
     /// <summary>Updates the activity with new state/progress.</summary>
     void Update(GenUiLiveActivityUpdate update);
+    void SetControlMode(GenUiLiveActivityControlMode mode);
+    void SetPresentation(GenUiActivityPresentation presentation);
 
     /// <summary>Cancels the underlying operation if supported.</summary>
     void Cancel();
@@ -55,6 +60,9 @@ public enum GenUiLiveActivityPhase
     Cancelled,
     Dismissed
 }
+
+public enum GenUiLiveActivityControlMode { Watch, Steer, TakeOver }
+public enum GenUiActivityPresentation { Compact, FullScreen }
 
 /// <summary>
 /// Structured update for a live activity surface, supporting incremental
@@ -119,6 +127,9 @@ public sealed class DefaultGenUiLiveActivitySurface : IGenUiLiveActivitySurface
     public GenUiLiveActivityPhase Phase { get; private set; } = GenUiLiveActivityPhase.Preparing;
     public double Progress { get; private set; }
     public string StatusMessage { get; private set; } = "Preparing…";
+    public GenUiLiveActivityControlMode ControlMode { get; private set; } = GenUiLiveActivityControlMode.Watch;
+    public GenUiActivityPresentation Presentation { get; private set; } = GenUiActivityPresentation.Compact;
+    public string? LastError { get; private set; }
 
     public event EventHandler? StateChanged;
 
@@ -132,13 +143,36 @@ public sealed class DefaultGenUiLiveActivitySurface : IGenUiLiveActivitySurface
 
             if (update.Patches is not null)
             {
-                foreach (var patch in update.Patches)
+                try
                 {
-                    try { _instances.ApplyPatch(patch); }
-                    catch { /* Patch target may not exist yet; surface will show error state */ }
+                    _instances.ApplyPatchesAtomically(update.Patches);
+                    LastError = null;
+                }
+                catch (Exception ex)
+                {
+                    Phase = GenUiLiveActivityPhase.Failed;
+                    LastError = ex.Message;
+                    StatusMessage = $"Activity update failed: {ex.Message}";
                 }
             }
         }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetControlMode(GenUiLiveActivityControlMode mode)
+    {
+        lock (_gate)
+        {
+            if (Phase is GenUiLiveActivityPhase.Completed or GenUiLiveActivityPhase.Cancelled or GenUiLiveActivityPhase.Dismissed)
+                throw new InvalidOperationException("A finished activity cannot change control mode.");
+            ControlMode = mode;
+        }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetPresentation(GenUiActivityPresentation presentation)
+    {
+        lock (_gate) Presentation = presentation;
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 

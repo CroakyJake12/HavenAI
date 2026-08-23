@@ -158,7 +158,7 @@ public sealed class DatabaseRestoreService(
                 TryDelete(paths.DatabasePath + "-wal");
                 TryDelete(paths.DatabasePath + "-shm");
                 if (File.Exists(paths.DatabasePath))
-                    File.Replace(staged, paths.DatabasePath, destinationBackupFileName: null, ignoreMetadataErrors: true);
+                    await ReplaceFileWithRetryAsync(staged, paths.DatabasePath, cancellationToken).ConfigureAwait(false);
                 else
                     File.Move(staged, paths.DatabasePath);
 
@@ -197,7 +197,7 @@ public sealed class DatabaseRestoreService(
                         await CopyDurablyAsync(emergencyBackup, rollback, cancellationToken).ConfigureAwait(false);
                         TryDelete(paths.DatabasePath + "-wal");
                         TryDelete(paths.DatabasePath + "-shm");
-                        if (File.Exists(paths.DatabasePath)) File.Replace(rollback, paths.DatabasePath, null, true);
+                        if (File.Exists(paths.DatabasePath)) await ReplaceFileWithRetryAsync(rollback, paths.DatabasePath, cancellationToken).ConfigureAwait(false);
                         else File.Move(rollback, paths.DatabasePath);
                     }
                     catch (Exception rollbackFailure) when (rollbackFailure is IOException or UnauthorizedAccessException or SqliteException)
@@ -536,6 +536,27 @@ public sealed class DatabaseRestoreService(
         await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
         await output.FlushAsync(cancellationToken).ConfigureAwait(false);
         output.Flush(flushToDisk: true);
+    }
+
+    private static async Task ReplaceFileWithRetryAsync(string source, string destination, CancellationToken cancellationToken)
+    {
+        const int maximumAttempts = 5;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Replace(source, destination, destinationBackupFileName: null, ignoreMetadataErrors: true);
+                return;
+            }
+            catch (IOException) when (attempt < maximumAttempts)
+            {
+                // Windows file-indexing and sync providers can briefly retain a handle after
+                // the SQLite pools are cleared. Keep the replacement atomic and retry within
+                // a small, bounded window instead of falling back to a delete-and-move cycle.
+                SqliteConnection.ClearAllPools();
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt), cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>

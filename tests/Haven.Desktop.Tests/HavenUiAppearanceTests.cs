@@ -31,6 +31,18 @@ public sealed class HavenUiAppearanceTests
         Assert.Equal("haven-ui", preferences.ThemeId);
     }
 
+    [Fact]
+    public void Default_tab_preference_round_trips_without_rewriting_an_unavailable_mode()
+    {
+        using var paths = new TemporaryPaths();
+        var preferences = new UserPreferencesService(paths);
+
+        preferences.SetDefaultTabAppKey("personal.mode.which.may.sync.later");
+
+        var reloaded = new UserPreferencesService(paths);
+        Assert.Equal("personal.mode.which.may.sync.later", reloaded.DefaultTabAppKey);
+    }
+
     [AvaloniaFact]
     public void Appearance_persists_and_updates_the_canonical_semantic_resources()
     {

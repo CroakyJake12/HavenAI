@@ -35,11 +35,11 @@ public sealed class ProductionReliabilityTests : IDisposable
         await database.InitializeAsync(CancellationToken.None);
         var maintenance = new DatabaseMaintenanceService(_paths, diagnostics);
 
-        var backup = await maintenance.PrepareForMigrationAsync(17, CancellationToken.None);
+        var backup = await maintenance.PrepareForMigrationAsync(Migrations.LatestVersion + 1, CancellationToken.None);
 
         Assert.NotNull(backup);
-        Assert.Equal(16, backup!.FromVersion);
-        Assert.Equal(17, backup.ToVersion);
+        Assert.Equal(Migrations.LatestVersion, backup!.FromVersion);
+        Assert.Equal(Migrations.LatestVersion + 1, backup.ToVersion);
         Assert.True(File.Exists(backup.DatabasePath));
         Assert.True(File.Exists(backup.ManifestPath));
         Assert.True(backup.SizeBytes > 0);
@@ -52,7 +52,7 @@ public sealed class ProductionReliabilityTests : IDisposable
         check.CommandText = "PRAGMA integrity_check;";
         Assert.Equal("ok", Convert.ToString(await check.ExecuteScalarAsync(CancellationToken.None), System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Null(await maintenance.PrepareForMigrationAsync(17, CancellationToken.None));
+        Assert.Null(await maintenance.PrepareForMigrationAsync(Migrations.LatestVersion + 1, CancellationToken.None));
     }
 
     /// <summary>

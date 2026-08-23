@@ -65,6 +65,7 @@ public sealed partial class AutomationsPage : UserControl
     private readonly TextBlock _deviceAvailability = Muted("Choose a target and action.");
     private readonly Dictionary<string, HavenTextInput> _deviceParameterInputs = new(StringComparer.OrdinalIgnoreCase);
     private readonly DeviceActionRouter? _deviceActions;
+    private readonly IAutomationGraphAiEditor? _graphAiEditor;
     private DeviceCapabilitySnapshot? _deviceSnapshot;
     private AutomationGraphDefinition _editingGraph = AutomationGraphDefinition.Empty;
     private DeviceAutomationNodeDefinition? _editingDeviceNode;
@@ -105,6 +106,7 @@ public sealed partial class AutomationsPage : UserControl
         _runTask = runTask ?? throw new ArgumentNullException(nameof(runTask));
         _graphHistorySettings = versionedSettings;
         _deviceActions = Haven.Desktop.App.Services?.GetService(typeof(DeviceActionRouter)) as DeviceActionRouter;
+        _graphAiEditor = Haven.Desktop.App.Services?.GetService(typeof(IAutomationGraphAiEditor)) as IAutomationGraphAiEditor;
         var deviceExecutor = Haven.Desktop.App.Services?.GetService(typeof(DeviceAutomationNodeExecutor)) as DeviceAutomationNodeExecutor;
         var builtInExecutor = Haven.Desktop.App.Services?.GetService(typeof(BuiltInAutomationActionNodeExecutor)) as BuiltInAutomationActionNodeExecutor;
         _deviceWorkflowRunner = deviceExecutor is null && builtInExecutor is null

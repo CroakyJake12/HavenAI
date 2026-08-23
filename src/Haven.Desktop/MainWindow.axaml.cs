@@ -1,5 +1,7 @@
 using Avalonia.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using Haven.Desktop.Controls;
+using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell;
 
 namespace Haven.Desktop;
@@ -12,6 +14,7 @@ public sealed partial class MainWindow : Window
     private readonly UserPreferencesService? _preferences;
     private MainView? _shell;
     private TidalBackground? _tidalBackground;
+    internal bool PreserveWorkspaceSessionOnClose { get; init; }
 
     public MainWindow() : this(null)
     {
@@ -63,9 +66,23 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        if (PreserveWorkspaceSessionOnClose)
+        {
+            try
+            {
+                App.Services?.GetService<WorkspaceSessionCoordinator>()
+                    ?.SaveNowAndCancelPendingAsync(CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // The last complete workspace snapshot remains available if shutdown persistence fails.
+            }
+        }
         if (_preferences is not null)
             _preferences.AppearanceChanged -= OnAppearanceChanged;
         _tidalBackground?.Dispose();
+        _shell?.Dispose();
+        _shell = null;
         base.OnClosed(e);
     }
 }

@@ -62,6 +62,7 @@ public static class GoRouteIntentPolicy
     private static readonly string[] LauncherTerms = ["open calculator", "launch calculator", "open an app", "launch an app", "open application", "launch application"];
     private static readonly string[] TaskTerms = ["delegate this task", "delegate this", "run this as a task", "one-off task", "agent task"];
     private static readonly string[] SpaceTerms = ["manage spaces", "open spaces", "show spaces", "my spaces", "space picker"];
+    private static readonly string[] MeshTerms = ["open mesh", "manage mesh", "mesh devices", "mesh device", "work mode", "ai team room"];
 
     public static GoRouteDecision Resolve(string instruction, GoRoutingContext? context = null)
     {
@@ -94,6 +95,7 @@ public static class GoRouteIntentPolicy
         }
 
         if (ContainsAny(normalized, SpaceTerms)) return App(instruction, context, "spaces");
+        if (ContainsAny(normalized, MeshTerms)) return App(instruction, context, "mesh");
         if (ContainsAny(normalized, PresentationTerms)) return App(instruction, context, "present");
         if (ContainsAny(normalized, WriteTerms)) return App(instruction, context, "write");
         if (ContainsAny(normalized, StudyTerms)) return App(instruction, context, "study");

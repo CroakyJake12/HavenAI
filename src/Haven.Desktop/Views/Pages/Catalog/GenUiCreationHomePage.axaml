@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:hui="using:Haven.Desktop.HavenUI.Components" x:Class="Haven.Desktop.Views.Pages.Catalog.GenUiCreationHomePage">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="32,26" Spacing="18" MaxWidth="1180" HorizontalAlignment="Center">
+      <StackPanel Spacing="5">
+        <TextBlock Text="Create with Generative UI" Classes="heading" FontSize="30" />
+        <TextBlock Text="Describe the app or interactive surface you need. Haven generates the first useful workflow, keeps normal actions deterministic, and saves generated apps so you can reopen them." Classes="muted" TextWrapping="Wrap" MaxWidth="860" />
+      </StackPanel>
+      <hui:HavenAdaptiveSurface Classes="card" Padding="20">
+        <StackPanel Spacing="12">
+          <TextBlock Text="What do you want to make?" FontSize="18" FontWeight="ExtraBold" />
+          <hui:HavenTextInput x:Name="PromptBox" PlaceholderText="e.g. Build me a weekly meal planner with editable meals and a shopping list" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <hui:HavenButton x:Name="GenerateButton" Content="Generate" Classes="primary" />
+            <hui:HavenButton x:Name="RefreshButton" Content="Open existing" Classes="chrome" />
+            <hui:HavenButton x:Name="ImportButton" Content="Import definition" Classes="chrome" />
+          </StackPanel>
+          <TextBlock x:Name="StatusText" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        </StackPanel>
+      </hui:HavenAdaptiveSurface>
+      <StackPanel Spacing="10">
+        <TextBlock Text="Try an example" FontSize="17" FontWeight="ExtraBold" />
+        <WrapPanel x:Name="ExamplesPanel" Orientation="Horizontal" ItemWidth="260" />
+      </StackPanel>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+        <hui:HavenAdaptiveSurface Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Pinned" FontSize="17" FontWeight="ExtraBold" />
+            <TextBlock x:Name="PinnedEmptyText" Text="Pin generated apps you want to keep close." Classes="muted" />
+            <StackPanel x:Name="PinnedPanel" Spacing="6" />
+          </StackPanel>
+        </hui:HavenAdaptiveSurface>
+        <hui:HavenAdaptiveSurface Grid.Column="1" Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Recent" FontSize="17" FontWeight="ExtraBold" />
+            <TextBlock x:Name="RecentEmptyText" Text="Generated apps you save will appear here." Classes="muted" />
+            <StackPanel x:Name="RecentPanel" Spacing="6" />
+          </StackPanel>
+        </hui:HavenAdaptiveSurface>
+      </Grid>
+      <hui:HavenAdaptiveSurface x:Name="ExistingHostCard" Classes="card" Padding="16" IsVisible="False">
+        <StackPanel Spacing="10">
+          <TextBlock x:Name="ExistingTitle" FontSize="18" FontWeight="ExtraBold" />
+          <ContentControl x:Name="ExistingHost" MinHeight="320" />
+        </StackPanel>
+      </hui:HavenAdaptiveSurface>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

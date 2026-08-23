@@ -150,6 +150,7 @@ internal sealed class TopRailFinalScene
     public event EventHandler<string>? TabSelected;
     public event EventHandler<TopRailTab>? TabRenameRequested;
     public event EventHandler<string>? TabCloseRequested;
+    public event EventHandler<TabCommandRequestedEventArgs>? TabCommandRequested;
 
     public Page Root { get; }
     public Container LogoHost { get; }
@@ -196,14 +197,40 @@ internal sealed class TopRailFinalScene
         if (index < 0 || index >= TabStrip.ItemButtons.Count) return;
 
         _activeTabMenu?.Dismiss();
+        var items = new List<PopupMenuItem>
+        {
+                new("Rename tab", () => TabRenameRequested?.Invoke(this, tab), IconKey: "edit"),
+                new("Generate name with AI", () => RaiseCommand(tab, "generate-name"), IconKey: "sparkles"),
+                new("Duplicate tab", () => RaiseCommand(tab, "duplicate"), IconKey: "copy"),
+                new("Move tab left", () => RaiseCommand(tab, "move-left"), IconKey: "chevron-left", Enabled: index > 0),
+                new("Move tab right", () => RaiseCommand(tab, "move-right"), IconKey: "chevron-right", Enabled: index < _tabs.Count - 1),
+                new("Open in Split View", () => RaiseCommand(tab, "split"), IconKey: "window"),
+                new("Open in New Window", () => RaiseCommand(tab, "new-window"), IconKey: "window"),
+                new("Open in Pop-Up", () => RaiseCommand(tab, "popup"), IconKey: "window"),
+                new("Create Group", () => RaiseCommand(tab, "create-group"), IconKey: "folder"),
+                new("Remove from Group", () => RaiseCommand(tab, "remove-group"), IconKey: "close", Enabled: tab.GroupId is not null),
+                new("Rename Group", () => RaiseCommand(tab, "rename-group"), IconKey: "edit", Enabled: tab.GroupId is not null),
+                new(tab.IsGroupCollapsed ? "Expand Group" : "Collapse Group", () => RaiseCommand(tab, "toggle-group"), IconKey: "folder", Enabled: tab.GroupId is not null),
+                new("Dissolve Group", () => RaiseCommand(tab, "dissolve-group"), IconKey: "close", Enabled: tab.GroupId is not null)
+        };
+        foreach (var group in _tabs.Where(item => item.GroupId is not null && item.GroupId != tab.GroupId)
+                     .DistinctBy(item => item.GroupId))
+        {
+            var groupId = group.GroupId!.Value;
+            items.Add(new PopupMenuItem($"Move to {group.GroupName}", () => RaiseCommand(tab, $"move-group:{groupId:D}"), IconKey: "folder"));
+        }
+        items.AddRange(
+        [
+                new PopupMenuItem("Close Other Tabs", () => RaiseCommand(tab, "close-others"), Destructive: true, IconKey: "close"),
+                new PopupMenuItem("Close Tabs to the Left", () => RaiseCommand(tab, "close-left"), Destructive: true, IconKey: "close"),
+                new PopupMenuItem("Close Tabs to the Right", () => RaiseCommand(tab, "close-right"), Destructive: true, IconKey: "close"),
+                new PopupMenuItem("Close tab", () => TabCloseRequested?.Invoke(this, tab.Key), Destructive: true, IconKey: "close", Enabled: tab.IsCloseable)
+        ]);
         var menu = new PopupMenu(
             TabStrip.ItemButtons[index],
             Root,
-            [
-                new PopupMenuItem("Rename tab", () => TabRenameRequested?.Invoke(this, tab), IconKey: "edit"),
-                new PopupMenuItem("Close tab", () => TabCloseRequested?.Invoke(this, tab.Key), Destructive: true, IconKey: "close", Enabled: tab.IsCloseable)
-            ],
-            220d,
+            items,
+            270d,
             $"Options for {tab.Title}");
         _activeTabMenu = menu;
         menu.Dismissed += (_, _) =>
@@ -212,6 +239,9 @@ internal sealed class TopRailFinalScene
         };
         Root.Add(menu);
     }
+
+    private void RaiseCommand(TopRailTab tab, string command) =>
+        TabCommandRequested?.Invoke(this, new TabCommandRequestedEventArgs(tab.Key, command));
 
     public void SetNavigationAvailability(bool back, bool forward)
     {

@@ -792,7 +792,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
         return _nativeControls.Values.Any(control => ReferenceEquals(visual, control) || visual.GetVisualAncestors().Contains(control));
     }
 
-    private static bool IsNativeElement(HavenElement element) => element is Video or Web;
+    private static bool IsNativeElement(HavenElement element) => element is Video or Web or NativeHost;
 
     private void InvalidateScene()
     {

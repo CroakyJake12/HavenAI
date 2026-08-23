@@ -38,6 +38,7 @@ public sealed partial class TopRail
             _havenOwnedScene.SearchRequested += (_, _) => InvokeSearchAction();
             _havenOwnedScene.TabSelected += (_, key) => InvokeTabSelection(key);
             _havenOwnedScene.TabRenameRequested += (_, tab) => ShowRenameFlyout(tab);
+            _havenOwnedScene.TabCommandRequested += (_, request) => TabCommandRequested?.Invoke(this, request);
             _havenOwnedScene.TabCloseRequested += (_, key) =>
             {
                 Fire("TopRail.Tabs.CloseTab");

@@ -14,6 +14,7 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HashSet<Guid> _selected = [];
+    private readonly HashSet<Guid> _selectedEdges = [];
     private readonly Stack<NodeEditorDocument> _undo = [];
     private readonly Stack<NodeEditorDocument> _redo = [];
     private NodeEditorDocument _document = NodeEditorDocument.Empty;
@@ -25,6 +26,7 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     private Guid? _connectingNodeId;
     private string? _connectingPortId;
     private NodeEditorDocument? _gestureStartDocument;
+    private IReadOnlyList<NodeEditorDiagnostic> _diagnostics = [];
 
     public NodeEditor()
     {
@@ -42,7 +44,7 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
         set
         {
             _document = value ?? NodeEditorDocument.Empty;
-            _selected.RemoveWhere(id => !_document.Nodes.Any(node => node.Id == id));
+            TrimSelection();
             _undo.Clear();
             _redo.Clear();
             Invalidate();
@@ -50,6 +52,12 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     }
 
     public IReadOnlyCollection<Guid> SelectedNodeIds => _selected;
+    public IReadOnlyCollection<Guid> SelectedEdgeIds => _selectedEdges;
+    public IReadOnlyList<NodeEditorDiagnostic> Diagnostics
+    {
+        get => _diagnostics;
+        set { _diagnostics = value?.ToArray() ?? []; Invalidate(); }
+    }
     public double PanX { get; private set; }
     public double PanY { get; private set; }
     public double Zoom { get; private set; } = 1;
@@ -59,6 +67,7 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     public bool CanRedo => _redo.Count > 0;
     public event Action<NodeEditorDocument>? DocumentChanged;
     public event Action<IReadOnlyCollection<Guid>>? SelectionChanged;
+    public event Action<HavenPoint>? EmptySpaceContextRequested;
 
     public void PanBy(double deltaX, double deltaY) { PanX += deltaX; PanY += deltaY; Invalidate(); }
 
@@ -74,31 +83,61 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
 
     public void ResetViewport() { PanX = 0; PanY = 0; Zoom = 1; Invalidate(); }
 
+    public HavenPoint ViewportCenterWorld => ScreenToWorld(new HavenPoint(Bounds.Width / 2, Bounds.Height / 2));
+
+    public bool FitToDocument(double padding = 48)
+    {
+        if (_document.Nodes.Count == 0 || Bounds.Width <= 1 || Bounds.Height <= 1) return false;
+        var minX = _document.Nodes.Min(node => node.X);
+        var minY = _document.Nodes.Min(node => node.Y);
+        var maxX = _document.Nodes.Max(node => node.X + Math.Max(40, node.Width));
+        var maxY = _document.Nodes.Max(node => node.Y + Math.Max(32, node.Height));
+        var worldWidth = Math.Max(1, maxX - minX);
+        var worldHeight = Math.Max(1, maxY - minY);
+        var availableWidth = Math.Max(1, Bounds.Width - Math.Max(0, padding) * 2);
+        var availableHeight = Math.Max(1, Bounds.Height - Math.Max(0, padding) * 2);
+        Zoom = Math.Clamp(Math.Min(availableWidth / worldWidth, availableHeight / worldHeight), MinZoom, MaxZoom);
+        PanX = (Bounds.Width - worldWidth * Zoom) / 2 - minX * Zoom;
+        PanY = (Bounds.Height - worldHeight * Zoom) / 2 - minY * Zoom;
+        Invalidate();
+        return true;
+    }
+
     public void SelectNode(Guid nodeId, bool additive = false)
     {
         if (!_document.Nodes.Any(node => node.Id == nodeId)) return;
-        if (!additive) _selected.Clear();
+        if (!additive) { _selected.Clear(); _selectedEdges.Clear(); }
         if (additive && _selected.Contains(nodeId)) _selected.Remove(nodeId); else _selected.Add(nodeId);
+        RaiseSelectionChanged();
+    }
+
+    public void SelectEdge(Guid edgeId, bool additive = false)
+    {
+        if (!_document.Edges.Any(edge => edge.Id == edgeId)) return;
+        if (!additive) { _selected.Clear(); _selectedEdges.Clear(); }
+        if (additive && _selectedEdges.Contains(edgeId)) _selectedEdges.Remove(edgeId); else _selectedEdges.Add(edgeId);
         RaiseSelectionChanged();
     }
 
     public void SelectAll()
     {
         _selected.Clear();
+        _selectedEdges.Clear();
         foreach (var node in _document.Nodes) _selected.Add(node.Id);
         RaiseSelectionChanged();
     }
 
     public void ClearSelection()
     {
-        if (_selected.Count == 0) return;
+        if (_selected.Count == 0 && _selectedEdges.Count == 0) return;
         _selected.Clear();
+        _selectedEdges.Clear();
         RaiseSelectionChanged();
     }
 
     public void SelectNodesInWorldRect(HavenRect worldRect, bool additive = false)
     {
-        if (!additive) _selected.Clear();
+        if (!additive) { _selected.Clear(); _selectedEdges.Clear(); }
         foreach (var node in _document.Nodes) if (Intersects(NodeWorldRect(node), worldRect)) _selected.Add(node.Id);
         RaiseSelectionChanged();
     }
@@ -118,7 +157,7 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
             Metadata = template.Metadata is null ? new Dictionary<string, string>(StringComparer.Ordinal) : new Dictionary<string, string>(template.Metadata, StringComparer.Ordinal)
         };
         SetDocument(new NodeEditorDocument([.. _document.Nodes, node], _document.Edges), true);
-        _selected.Clear(); _selected.Add(node.Id); RaiseSelectionChanged();
+        _selected.Clear(); _selectedEdges.Clear(); _selected.Add(node.Id); RaiseSelectionChanged();
         return node.Id;
     }
 
@@ -205,10 +244,13 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
 
     public void DeleteSelection()
     {
-        if (_selected.Count == 0) return;
-        var removed = _selected.ToHashSet();
-        SetDocument(new NodeEditorDocument(_document.Nodes.Where(node => !removed.Contains(node.Id)).ToArray(), _document.Edges.Where(edge => !removed.Contains(edge.FromNodeId) && !removed.Contains(edge.ToNodeId)).ToArray()), true);
-        _selected.Clear(); RaiseSelectionChanged();
+        if (_selected.Count == 0 && _selectedEdges.Count == 0) return;
+        var removedNodes = _selected.ToHashSet();
+        var removedEdges = _selectedEdges.ToHashSet();
+        SetDocument(new NodeEditorDocument(
+            _document.Nodes.Where(node => !removedNodes.Contains(node.Id)).ToArray(),
+            _document.Edges.Where(edge => !removedEdges.Contains(edge.Id) && !removedNodes.Contains(edge.FromNodeId) && !removedNodes.Contains(edge.ToNodeId)).ToArray()), true);
+        _selected.Clear(); _selectedEdges.Clear(); RaiseSelectionChanged();
     }
 
     public bool Undo()
@@ -245,13 +287,27 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     public bool PointerPressed(HavenPointerInput input)
     {
         _lastPointer = input.LocalPosition; _gestureStartDocument = null;
-        if (input.Button is HavenPointerButton.Middle or HavenPointerButton.Secondary) { _gesture = NodeEditorGesture.Pan; return true; }
+        if (input.Button == HavenPointerButton.Middle) { _gesture = NodeEditorGesture.Pan; return true; }
+        if (input.Button == HavenPointerButton.Secondary)
+        {
+            if (HitNode(input.LocalPosition) is null && HitEdge(input.LocalPosition) is null && !TryHitPort(input.LocalPosition, out _, out _))
+            {
+                _gesture = NodeEditorGesture.None;
+                EmptySpaceContextRequested?.Invoke(ScreenToWorld(input.LocalPosition));
+                return true;
+            }
+            return false;
+        }
         if (TryHitPort(input.LocalPosition, out var portNode, out var port) && port.Direction == NodeEditorPortDirection.Output) { _connectingNodeId = portNode.Id; _connectingPortId = port.Id; _gesture = NodeEditorGesture.Connect; Invalidate(); return true; }
+        var additive = input.Modifiers.HasFlag(HavenKeyModifiers.Shift) || input.Modifiers.HasFlag(HavenKeyModifiers.Control) || input.Modifiers.HasFlag(HavenKeyModifiers.Meta);
         if (HitNode(input.LocalPosition) is { } node)
         {
-            var additive = input.Modifiers.HasFlag(HavenKeyModifiers.Shift) || input.Modifiers.HasFlag(HavenKeyModifiers.Control) || input.Modifiers.HasFlag(HavenKeyModifiers.Meta);
             if (!_selected.Contains(node.Id) || additive) SelectNode(node.Id, additive);
             _gesture = NodeEditorGesture.Move; _gestureStartDocument = _document; return true;
+        }
+        if (HitEdge(input.LocalPosition) is { } edge)
+        {
+            SelectEdge(edge.Id, additive); _gesture = NodeEditorGesture.None; return true;
         }
         _marqueeStart = ScreenToWorld(input.LocalPosition); _marqueeEnd = _marqueeStart; _marqueeAdditive = input.Modifiers.HasFlag(HavenKeyModifiers.Shift); _gesture = NodeEditorGesture.Marquee;
         if (!_marqueeAdditive) ClearSelection(); Invalidate(); return true;
@@ -350,7 +406,12 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     {
         var from = FindNode(edge.FromNodeId); var to = FindNode(edge.ToNodeId); if (from is null || to is null) return false;
         var fromPort = FindPort(from, edge.FromPortId); var toPort = FindPort(to, edge.ToPortId); if (fromPort is null || toPort is null) return false;
-        var start = PortScreenPoint(from, fromPort); var end = PortScreenPoint(to, toPort); var midX = (start.X + end.X) / 2; var pen = new HavenPen(new HavenTokenBrush("Accent"), 2);
+        var start = PortScreenPoint(from, fromPort); var end = PortScreenPoint(to, toPort); var midX = (start.X + end.X) / 2;
+        var invalid = _diagnostics.Any(diagnostic => diagnostic.EdgeId == edge.Id);
+        var selected = _selectedEdges.Contains(edge.Id);
+        var pen = invalid
+            ? new HavenPen(new HavenSolidBrush(255, 220, 64, 72), selected ? 4 : 3)
+            : new HavenPen(new HavenTokenBrush("Accent"), selected ? 4 : 2);
         context.Add(new HavenLineCommand(start, new HavenPoint(midX, start.Y), pen, opacity));
         context.Add(new HavenLineCommand(new HavenPoint(midX, start.Y), new HavenPoint(midX, end.Y), pen, opacity));
         context.Add(new HavenLineCommand(new HavenPoint(midX, end.Y), end, pen, opacity)); return true;
@@ -359,8 +420,13 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     private void DrawNode(HavenDrawingContext context, NodeEditorNode node, double opacity)
     {
         var rect = WorldToScreen(NodeWorldRect(node));
-        context.Add(new HavenFillRoundedRectCommand(rect, new HavenTokenBrush("SurfaceElevated"), 10, opacity));
-        context.Add(new HavenStrokeRoundedRectCommand(rect, new HavenPen(new HavenTokenBrush(_selected.Contains(node.Id) ? "Accent" : "Border"), _selected.Contains(node.Id) ? 2.5 : 1), 10, opacity));
+        var invalid = _diagnostics.Any(diagnostic => diagnostic.NodeId == node.Id);
+        var selected = _selected.Contains(node.Id);
+        var borderPen = invalid
+            ? new HavenPen(new HavenSolidBrush(255, 220, 64, 72), selected ? 4 : 3)
+            : new HavenPen(new HavenTokenBrush(selected ? "Accent" : "Border"), selected ? 2.5 : 1);
+        context.Add(new HavenFillRoundedRectCommand(rect, new HavenTokenBrush("SurfaceRaised"), 10, opacity));
+        context.Add(new HavenStrokeRoundedRectCommand(rect, borderPen, 10, opacity));
         context.Add(new HavenTextCommand(new HavenRect(rect.X + 14, rect.Y + 10, Math.Max(20, rect.Width - 28), 18), new HavenTextLayout(node.Category.ToUpperInvariant(), "Segoe UI", Math.Max(9, 10 * Zoom), 600, Math.Max(20, rect.Width - 28)), new HavenTokenBrush("TextSecondary"), opacity));
         context.Add(new HavenTextCommand(new HavenRect(rect.X + 14, rect.Y + 30, Math.Max(20, rect.Width - 28), 24), new HavenTextLayout(node.Title, "Segoe UI", Math.Max(11, 15 * Zoom), 650, Math.Max(20, rect.Width - 28)), new HavenTokenBrush("TextPrimary"), opacity));
         if (!string.IsNullOrWhiteSpace(node.Subtitle)) context.Add(new HavenTextCommand(new HavenRect(rect.X + 14, rect.Y + 54, Math.Max(20, rect.Width - 28), 20), new HavenTextLayout(node.Subtitle, "Segoe UI", Math.Max(9, 11 * Zoom), 400, Math.Max(20, rect.Width - 28)), new HavenTokenBrush("TextSecondary"), opacity));
@@ -388,7 +454,11 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
         if (recordUndo) { _undo.Push(_document); _redo.Clear(); } _document = next; TrimSelection(); DocumentChanged?.Invoke(_document); Invalidate();
     }
 
-    private void TrimSelection() => _selected.RemoveWhere(id => !_document.Nodes.Any(node => node.Id == id));
+    private void TrimSelection()
+    {
+        _selected.RemoveWhere(id => !_document.Nodes.Any(node => node.Id == id));
+        _selectedEdges.RemoveWhere(id => !_document.Edges.Any(edge => edge.Id == id));
+    }
     private void RaiseSelectionChanged() { SelectionChanged?.Invoke(_selected.ToArray()); Invalidate(); }
     private NodeEditorNode? FindNode(Guid id) => _document.Nodes.FirstOrDefault(node => node.Id == id);
     private static NodeEditorPort? FindPort(NodeEditorNode node, string portId) => node.Ports.FirstOrDefault(port => string.Equals(port.Id, portId, StringComparison.Ordinal));
@@ -396,6 +466,24 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     private NodeEditorNode? HitNode(HavenPoint localPoint)
     {
         for (var index = _document.Nodes.Count - 1; index >= 0; index--) if (Contains(NodeLocalRect(_document.Nodes[index]), localPoint)) return _document.Nodes[index];
+        return null;
+    }
+
+    private NodeEditorEdge? HitEdge(HavenPoint localPoint)
+    {
+        var tolerance = Math.Max(6, 8 * Math.Sqrt(Zoom));
+        foreach (var edge in _document.Edges.Reverse())
+        {
+            var from = FindNode(edge.FromNodeId); var to = FindNode(edge.ToNodeId);
+            if (from is null || to is null) continue;
+            var fromPort = FindPort(from, edge.FromPortId); var toPort = FindPort(to, edge.ToPortId);
+            if (fromPort is null || toPort is null) continue;
+            var start = PortLocalPoint(from, fromPort); var end = PortLocalPoint(to, toPort); var midX = (start.X + end.X) / 2;
+            if (DistanceToSegment(localPoint, start, new HavenPoint(midX, start.Y)) <= tolerance
+                || DistanceToSegment(localPoint, new HavenPoint(midX, start.Y), new HavenPoint(midX, end.Y)) <= tolerance
+                || DistanceToSegment(localPoint, new HavenPoint(midX, end.Y), end) <= tolerance)
+                return edge;
+        }
         return null;
     }
 
@@ -448,6 +536,17 @@ public sealed class NodeEditor : HavenElement, IHavenDrawCommandSource, IHavenPo
     }
 
     private static HavenRect NormalizeRect(HavenPoint a, HavenPoint b) => new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+
+    private static double DistanceToSegment(HavenPoint point, HavenPoint start, HavenPoint end)
+    {
+        var dx = end.X - start.X; var dy = end.Y - start.Y;
+        var lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared <= .0001) return Math.Sqrt(Math.Pow(point.X - start.X, 2) + Math.Pow(point.Y - start.Y, 2));
+        var t = Math.Clamp(((point.X - start.X) * dx + (point.Y - start.Y) * dy) / lengthSquared, 0, 1);
+        var nearestX = start.X + t * dx; var nearestY = start.Y + t * dy;
+        return Math.Sqrt(Math.Pow(point.X - nearestX, 2) + Math.Pow(point.Y - nearestY, 2));
+    }
+
     private static bool Contains(HavenRect rect, HavenPoint point) => point.X >= rect.X && point.X <= rect.Right && point.Y >= rect.Y && point.Y <= rect.Bottom;
     private static bool Intersects(HavenRect a, HavenRect b) => a.X <= b.Right && a.Right >= b.X && a.Y <= b.Bottom && a.Bottom >= b.Y;
     private static double Mod(double value, double modulus) { var result = value % modulus; return result < 0 ? result + modulus : result; }

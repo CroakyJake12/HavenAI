@@ -88,7 +88,9 @@ public sealed partial class MainView
         if (decision.TargetKey.Equals("spaces", StringComparison.OrdinalIgnoreCase))
         {
             await OpenSpacesAsync();
+
             if (taskContext.Attachments.Files.Count > 0 || taskContext.Attachments.Apps.Count > 0 || taskContext.Attachments.Capabilities.Count > 0)
+
             {
                 page.RestorePendingTask(decision.Instruction, taskContext);
                 _notifications.Show("Go", "Opened Spaces. Your attached Go context is still available when you return.", ToastKind.Info, TimeSpan.FromSeconds(5));

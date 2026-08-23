@@ -6,12 +6,20 @@ namespace Haven.Infrastructure;
 /// <summary>Persists Haven's Agent and Prompt catalogues. Capabilities are persisted separately.</summary>
 public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatalogRepository
 {
-    public async Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken) =>
+        ReadAgentsAsync(includeDisabled: false, cancellationToken);
+
+    public Task<IReadOnlyList<AgentDefinition>> GetAllAgentsAsync(CancellationToken cancellationToken) =>
+        ReadAgentsAsync(includeDisabled: true, cancellationToken);
+
+    private async Task<IReadOnlyList<AgentDefinition>> ReadAgentsAsync(bool includeDisabled, CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM agents WHERE is_enabled=1 ORDER BY is_built_in DESC,name;";
+        command.CommandText = includeDisabled
+            ? "SELECT * FROM agents ORDER BY is_built_in DESC,name;"
+            : "SELECT * FROM agents WHERE is_enabled=1 ORDER BY is_built_in DESC,name;";
         var result = new List<AgentDefinition>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))

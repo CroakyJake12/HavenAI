@@ -17,7 +17,7 @@ namespace Haven.Infrastructure;
 /// <summary>
 /// Represents windows computer tool service and keeps its related state and behavior together.
 /// </summary>
-public sealed partial class WindowsComputerToolService(IWorkspaceToolService processes) : IComputerToolService
+public sealed partial class WindowsComputerToolService(IWorkspaceToolService processes, IProductionDiagnostics? diagnostics = null) : IComputerToolService
 {
     /// <summary>
     /// Performs snapshot asynchronously so I/O does not block the caller's thread.
@@ -68,8 +68,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     /// </summary>
     public Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken)
     {
-        var script = Utf8Variable("wanted", name) +
+        var script = GameSafetyPrelude + Utf8Variable("wanted", name) +
             """
+            Assert-HavenLaunchAllowed $wanted
             $before = @{}
             Get-Process | ForEach-Object { $before[$_.Id] = $true }
             $app = Get-StartApps | Where-Object { $_.Name -like ('*' + $wanted + '*') } | Select-Object -First 1
@@ -94,6 +95,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
               }
             }
             if (!$match) { throw 'Application launched but no visible window appeared' }
+            Assert-HavenTargetAllowed $match | Out-Null
             [pscustomobject]@{ launched=$true; processId=$match.Id; processName=$match.ProcessName; windowTitle=$match.MainWindowTitle } | ConvertTo-Json -Compress
             """;
         return RunPowerShellAsync(script, TimeSpan.FromSeconds(20), cancellationToken);
@@ -113,6 +115,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             for ($i = 0; $i -lt 8 -and !$ok; $i++) {
               [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
               Start-Sleep -Milliseconds 120
+              Assert-HavenForegroundNotProtected
               $ok = [HavenWindow]::GetForegroundWindow() -eq $target.MainWindowHandle
             }
             if (!$ok) { throw 'Could not verify the requested window as foreground' }
@@ -143,6 +146,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
               } catch {}
             }
             if (!$match) { throw 'UI element was not found inside the target window' }
+            Assert-HavenLauncherControlAllowed $target (($match.Current.Name+' '+$match.Current.AutomationId).Trim())
             $pattern = $null
             if ($match.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit) {
               $match.SetFocus()
@@ -153,6 +157,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             } else {
               $match.SetFocus()
               Add-Type -AssemblyName System.Windows.Forms
+              Assert-HavenForegroundSafe $target.MainWindowHandle
               [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
               $method = 'enter'
             }
@@ -202,13 +207,15 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             $shell.AppActivate($target.Id) | Out-Null
             [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
             Start-Sleep -Milliseconds 180
-            if ([HavenWindow]::GetForegroundWindow() -ne $target.MainWindowHandle) { throw 'Target window was not foreground' }
+            Assert-HavenForegroundSafe $target.MainWindowHandle
 
             $method = 'virtual-window-message'
             $point = New-Object Windows.Point($x, $y)
             $element = [System.Windows.Automation.AutomationElement]::FromPoint($point)
+            if ($element) { Assert-HavenLauncherControlAllowed $target (($element.Current.Name+' '+$element.Current.AutomationId).Trim()) }
             $pattern = $null
             if ($element -and $element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+              Assert-HavenForegroundSafe $target.MainWindowHandle
               ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
               $method = 'ui-automation-invoke'
             } else {
@@ -217,6 +224,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
               $client.Y = $y
               if (![HavenVirtualPointer]::ScreenToClient($target.MainWindowHandle, [ref]$client)) { throw 'Could not translate the virtual pointer into the target window' }
               $lParam = [IntPtr](($client.Y -shl 16) -bor ($client.X -band 0xFFFF))
+              Assert-HavenForegroundSafe $target.MainWindowHandle
               [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$down, [IntPtr]$keyState, $lParam) | Out-Null
               [HavenVirtualPointer]::PostMessage($target.MainWindowHandle, [uint32]$up, [IntPtr]::Zero, $lParam) | Out-Null
             }
@@ -238,8 +246,9 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             $shell.AppActivate($target.Id) | Out-Null
             [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
             Start-Sleep -Milliseconds 220
-            if ([HavenWindow]::GetForegroundWindow() -ne $target.MainWindowHandle) { throw 'Target window was not foreground' }
+            Assert-HavenForegroundSafe $target.MainWindowHandle
             Set-Clipboard -Value $inputText
+            Assert-HavenForegroundSafe $target.MainWindowHandle
             [System.Windows.Forms.SendKeys]::SendWait('^v')
             Start-Sleep -Milliseconds 150
             [pscustomobject]@{ windowTitle=$target.MainWindowTitle; characters=$inputText.Length; inputSent=$true } | ConvertTo-Json -Compress
@@ -260,7 +269,14 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             $shell.AppActivate($target.Id) | Out-Null
             [HavenWindow]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
             Start-Sleep -Milliseconds 220
-            if ([HavenWindow]::GetForegroundWindow() -ne $target.MainWindowHandle) { throw 'Target window was not foreground' }
+            Assert-HavenForegroundSafe $target.MainWindowHandle
+            if ($havenTargetClass -eq 'launcher') {
+              Add-Type -AssemblyName UIAutomationClient
+              Add-Type -AssemblyName UIAutomationTypes
+              $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+              if($focused){ Assert-HavenLauncherControlAllowed $target (($focused.Current.Name+' '+$focused.Current.AutomationId).Trim()) }
+            }
+            Assert-HavenForegroundSafe $target.MainWindowHandle
             [System.Windows.Forms.SendKeys]::SendWait($sequence)
             [pscustomobject]@{ windowTitle=$target.MainWindowTitle; keys=$keys; inputSent=$true } | ConvertTo-Json -Compress
             """;
@@ -283,6 +299,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
             /// </summary>
             public static class HavenClose { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam); }
             '@
+            Assert-HavenForegroundNotProtected
             [HavenClose]::PostMessage($target.MainWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
             Start-Sleep -Milliseconds 400
             [pscustomobject]@{ windowTitle=$target.MainWindowTitle; processName=$target.ProcessName; closeRequested=$true } | ConvertTo-Json -Compress
@@ -308,7 +325,19 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
         if (result.ExitCode != 0)
         {
             var detail = string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError;
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail) ? "The Windows desktop action failed." : CleanPowerShellError(detail));
+            var cleanDetail = string.IsNullOrWhiteSpace(detail) ? "The Windows desktop action failed." : CleanPowerShellError(detail);
+            if (cleanDetail.Contains(ComputerUseApplicationPolicy.BlockedMessage, StringComparison.OrdinalIgnoreCase) && diagnostics is not null)
+            {
+                try
+                {
+                    await diagnostics.WriteAsync(ReliabilitySeverity.Warning, "ComputerUse", "game-interaction-blocked",
+                        ComputerUseApplicationPolicy.BlockedMessage,
+                        new Dictionary<string, string> { ["policy"] = "protected-game-or-uefn" },
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception) { }
+            }
+            throw new InvalidOperationException(cleanDetail);
         }
         return result.StandardOutput.Trim();
     }
@@ -385,7 +414,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
     /// <summary>
     /// Stores target window prelude locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private const string TargetWindowPrelude = """
+    private const string TargetWindowPrelude = GameSafetyPrelude + """
         Add-Type @'
         using System;
         using System.Runtime.InteropServices;
@@ -410,6 +439,7 @@ public sealed partial class WindowsComputerToolService(IWorkspaceToolService pro
           }
         }
         if (!$target) { throw 'Target window was not found' }
+        $havenTargetClass=Assert-HavenTargetAllowed $target
         """;
 
     /// <summary>

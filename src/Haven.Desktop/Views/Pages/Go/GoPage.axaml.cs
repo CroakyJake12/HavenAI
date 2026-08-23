@@ -41,12 +41,15 @@ public sealed partial class GoPage : UserControl, IDisposable
     public event EventHandler? RefreshSuggestionsRequested;
     public event EventHandler<AddMenu.AddMenuAction>? AddRequested;
     public event EventHandler<AddMenuSelection>? AddCatalogItemSelected;
+    public event EventHandler<ModeDefinition>? AppShortcutInvoked;
     public event EventHandler? Disposed;
 
     internal HavenSceneControl SceneHost => Scene;
     internal GoHavenScene Route => _route;
     internal HavenElement SceneRoot => _route.Root;
     internal IReadOnlyList<GoSuggestion> Suggestions => _suggestions;
+
+    internal void SetAppShortcuts(IReadOnlyList<GoAppShortcut> shortcuts) => _route.SetAppShortcuts(shortcuts);
 
     public void AttachFiles(IEnumerable<string> paths)
     {
@@ -99,6 +102,11 @@ public sealed partial class GoPage : UserControl, IDisposable
         return snapshot;
     }
 
+    internal (string Instruction, GoTaskSnapshot Snapshot) CloneTaskState() =>
+        (_route.Instruction.Text ?? string.Empty, new GoTaskSnapshot(
+            _attachments.Snapshot(), _activeAgent, _activeInstructions.ToArray(),
+            _actionModeOverride, _visualResponseModeOverride));
+
     public void RestorePendingTask(string instruction, TaskAttachmentSnapshot snapshot) =>
         RestorePendingTask(instruction, new GoTaskSnapshot(snapshot, null, [], null, null));
 
@@ -128,6 +136,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         Submit();
         return Task.CompletedTask;
     }
+
     internal void ApplyTaskSelection(AddMenuSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
@@ -206,6 +215,7 @@ public sealed partial class GoPage : UserControl, IDisposable
         Scene.PointerPressedOutside += OnPointerPressedOutside;
 
         _route.AddActionSelected += (_, action) => AddRequested?.Invoke(this, action);
+        _route.AppShortcutInvoked += (_, app) => AppShortcutInvoked?.Invoke(this, app);
         _route.CatalogItemSelected += (_, selection) =>
         {
             ApplyTaskSelection(selection);

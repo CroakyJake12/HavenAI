@@ -30,7 +30,7 @@ public sealed class ModeIdentityTests
         string[] expectedKeys =
         [
             "chat", "study", "automations", "terminal", "tasks", "studio", "browse", "plan", "training",
-            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write"
+            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write", "mesh"
         ];
 
         Assert.Equal(expectedKeys, BuiltInModeSeed.Modes.Select(mode => mode.Key));
@@ -42,6 +42,8 @@ public sealed class ModeIdentityTests
         Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000020"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "terminal").Id);
         Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").BaseMode);
         Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000019"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").Id);
+        Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "mesh").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000021"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "mesh").Id);
         Assert.NotEqual(SurfaceKind.Tasks, SurfaceKind.Go);
     }
 }

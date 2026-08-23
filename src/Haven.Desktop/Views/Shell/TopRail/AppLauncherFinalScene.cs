@@ -119,19 +119,10 @@ internal sealed class AppLauncherFinalScene
                            || item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                            || item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        var pinned = filtered.Where(item => _pinnedIds.Contains(item.Id)).ToArray();
-        var unpinned = filtered.Where(item => !_pinnedIds.Contains(item.Id)).ToArray();
-        var recommended = unpinned.Take(6).ToArray();
-        var remaining = unpinned.Skip(recommended.Length).ToArray();
-
-        AddSection("Pinned", string.IsNullOrWhiteSpace(query) ? pinned.Take(6).ToArray() : pinned);
-        if (string.IsNullOrWhiteSpace(query) && pinned.Length > 6)
-            AddInlineAction("View all pinned", "pin", () => ManageRequested?.Invoke());
-        AddSection("Recommended", recommended);
-        AddSection("General", remaining.Where(item => AppLauncherControl.CategoryFor(item) == "General").ToArray());
-        AddSection("Productivity", remaining.Where(item => AppLauncherControl.CategoryFor(item) == "Productivity").ToArray());
-        AddSection("Media & creativity", remaining.Where(item => AppLauncherControl.CategoryFor(item) == "Media & creativity").ToArray());
-        AddSection("More", remaining.Where(item => AppLauncherControl.CategoryFor(item) == "More").ToArray());
+        AddSection("General", filtered.Where(item => AppLauncherControl.CategoryFor(item) == "General").ToArray());
+        AddSection("Productivity", filtered.Where(item => AppLauncherControl.CategoryFor(item) == "Productivity").ToArray());
+        AddSection("Media & creativity", filtered.Where(item => AppLauncherControl.CategoryFor(item) == "Media & creativity").ToArray());
+        AddSection("More", filtered.Where(item => AppLauncherControl.CategoryFor(item) == "More").ToArray());
 
         if (_appButtons.Count == 0)
         {

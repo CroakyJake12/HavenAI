@@ -38,7 +38,7 @@ public sealed class HistoricalSchemaUpgradeTests : IDisposable
             CancellationToken.None);
 
         await using var connection = await database.OpenAsync(CancellationToken.None);
-        Assert.Equal(16L, await ScalarInt64Async(connection, "SELECT MAX(version) FROM schema_migrations;"));
+        Assert.Equal((long)Migrations.LatestVersion, await ScalarInt64Async(connection, "SELECT MAX(version) FROM schema_migrations;"));
         Assert.Equal("Preserved conversation", await ScalarStringAsync(connection, $"SELECT title FROM conversations WHERE id='{ConversationId}';"));
         Assert.Equal("Preserved message", await ScalarStringAsync(connection, "SELECT content FROM messages WHERE id='44444444-4444-4444-8444-444444444444';"));
         Assert.Equal("Preserved project", await ScalarStringAsync(connection, $"SELECT name FROM containers WHERE id='{ContainerId}';"));

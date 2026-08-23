@@ -8,6 +8,10 @@ public sealed class GoRouteIntentPolicyTests
     {
         { "manage spaces", GoRouteDestination.App, "spaces" },
         { "open my spaces", GoRouteDestination.App, "spaces" },
+        { "open mesh", GoRouteDestination.App, "mesh" },
+        { "show mesh devices", GoRouteDestination.App, "mesh" },
+        { "open Work Mode", GoRouteDestination.App, "mesh" },
+        { "open the AI team room", GoRouteDestination.App, "mesh" },
         { "make me a presentation", GoRouteDestination.App, "present" },
         { "build a slide deck for results day", GoRouteDestination.App, "present" },
         { "write a letter to my teacher", GoRouteDestination.App, "write" },

@@ -40,12 +40,14 @@ public sealed partial class ProviderConnectionsViewModel : ObservableObject
         IProviderConfigurationStore configurations,
         IProviderSecretStore secrets,
         ICalendarSyncProviderRegistry calendarProviders,
-        IPlannerRepository planner)
+        IPlannerRepository planner,
+        ExternalConnectionRegistryService? externalConnections = null)
     {
         _providers = providers;
         _configurations = configurations;
         _secrets = secrets;
         InitializeServiceConnections(calendarProviders, planner);
+        InitializeExternalConnections(externalConnections);
 
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         ConnectCommand = new AsyncRelayCommand<ProviderConnectionItemViewModel>(ConnectAsync);
@@ -125,6 +127,7 @@ public sealed partial class ProviderConnectionsViewModel : ObservableObject
                 Items.Add(item);
 
             await RefreshServicesAsync();
+            await RefreshExternalConnectionsAsync();
             Status = Items.Count == 0 ? "No cloud model providers are registered." : $"{Items.Count} cloud model providers available.";
         }
         catch (Exception ex)

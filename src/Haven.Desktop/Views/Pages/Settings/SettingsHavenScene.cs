@@ -17,10 +17,11 @@ internal sealed partial class SettingsHavenScene : IDisposable
     [
         new("home", "Settings", "Search Haven settings or choose a category.", ["settings", "home"]),
         new("models", "AI & Models", "Local models, defaults, residency, installation and removal.", ["ai", "model", "models", "ollama", "install", "download", "residency", "effort"]),
-        new("appearance", "Appearance & Accessibility", "Colour appearance and motion preferences.", ["appearance", "theme", "dark", "bright", "motion", "animation", "accessibility"]),
+        new("appearance", "Personalisation", "Default tab, colour appearance and accessibility preferences.", ["personalisation", "default", "tab", "appearance", "theme", "dark", "bright", "motion", "animation", "accessibility"]),
         new("apps", "Chat & Apps", "Chat behaviour, context management and app assistance preferences.", ["chat", "apps", "agentic", "confidence", "compact", "browser", "auto"]),
         new("permissions", "Permissions & Sandboxing", "File, command, browser and device-use permission defaults.", ["permission", "permissions", "sandbox", "file", "command", "browser", "device", "computer", "tool"]),
         new("integrations", "Integrations", "Provider connections and external model integrations.", ["integration", "provider", "connection", "api", "key", "cloud"]),
+        new("extensions", "Plugins & Skills", "Browse, install and manage native Plugins, Skills, bundles and repository sources.", ["plugin", "plugins", "skill", "skills", "extension", "github", "repository", "source", "update"]),
         new("voice", "Voice", "Voice profiles and voice-related configuration.", ["voice", "speech", "microphone", "call", "profile"]),
         new("privacy", "Privacy & Memory", "Local-data boundaries, memory and background-learning status.", ["privacy", "memory", "knowledge", "background", "learning", "data"]),
         new("advanced", "Advanced", "Generation parameters and bounded tool-action limits.", ["advanced", "temperature", "context", "action", "limit", "generation"]),
@@ -88,6 +89,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
         _sections["apps"] = BuildApps();
         _sections["permissions"] = BuildPermissions();
         _sections["integrations"] = BuildIntegrations();
+        _sections["extensions"] = BuildExtensions();
         _sections["voice"] = BuildVoice();
         _sections["privacy"] = BuildPrivacy();
         _sections["advanced"] = BuildAdvanced();
@@ -132,6 +134,7 @@ internal sealed partial class SettingsHavenScene : IDisposable
     public HavenButton CancelDeleteButton { get; private set; } = null!;
 
     public Select AppearanceSelect { get; private set; } = null!;
+    public Select DefaultTabSelect { get; private set; } = null!;
     public Toggle ReduceMotionToggle { get; private set; } = null!;
 
     public Toggle AutoSwitchToggle { get; private set; } = null!;
@@ -152,6 +155,24 @@ internal sealed partial class SettingsHavenScene : IDisposable
     public HavenButton SavePermissionsButton { get; private set; } = null!;
 
     public HavenText VoiceProfileStatus { get; private set; } = null!;
+
+    public Input ExtensionSourceUriInput { get; private set; } = null!;
+    public Input ExtensionSourceNameInput { get; private set; } = null!;
+    public Input ExtensionConnectedAccountInput { get; private set; } = null!;
+    public Toggle ExtensionPrivateToggle { get; private set; } = null!;
+    public Select ExtensionUpdateModeSelect { get; private set; } = null!;
+    public HavenButton ExtensionAddSourceButton { get; private set; } = null!;
+    public Select ExtensionSourceSelect { get; private set; } = null!;
+    public HavenButton ExtensionRefreshButton { get; private set; } = null!;
+    public HavenButton ExtensionRemoveSourceButton { get; private set; } = null!;
+    public Select AvailableExtensionSelect { get; private set; } = null!;
+    public HavenText AvailableExtensionDetails { get; private set; } = null!;
+    public HavenButton ExtensionInstallButton { get; private set; } = null!;
+    public Select InstalledExtensionSelect { get; private set; } = null!;
+    public HavenText InstalledExtensionDetails { get; private set; } = null!;
+    public HavenButton ExtensionToggleButton { get; private set; } = null!;
+    public HavenButton ExtensionUninstallButton { get; private set; } = null!;
+    public HavenText ExtensionStatusText { get; private set; } = null!;
 
     public Toggle LocalOnlyToggle { get; private set; } = null!;
     public Toggle BackgroundLearningToggle { get; private set; } = null!;
@@ -454,12 +475,22 @@ internal sealed partial class SettingsHavenScene : IDisposable
     {
         var section = Section("Settings.Appearance");
         var card = Card("Settings.Appearance.Card");
+        DefaultTabSelect = NewSelect("Settings.Personalisation.DefaultTab", []);
         AppearanceSelect = NewSelect("Settings.Appearance.Mode", ["Super Bright", "Bright", "Dark", "Super Dark"]);
         ReduceMotionToggle = new Toggle { Name = "Settings.Appearance.ReduceMotion" };
+        card.Add(SettingRow("Default Tab", "Normal new tabs open the selected installed Haven app. If it is temporarily unavailable, Haven uses the standard new-tab experience without deleting this preference.", DefaultTabSelect));
         card.Add(SettingRow("Colour appearance", "Choose one of Haven's four canonical light/dark appearances.", AppearanceSelect));
         card.Add(SettingRow("Reduce animations", "Reduces decorative and transition motion throughout Haven.", ReduceMotionToggle));
         section.Add(card);
         return section;
+    }
+
+    public void SetDefaultTabModes(IReadOnlyList<string> displayNames, int selectedIndex)
+    {
+        DefaultTabSelect.Items = displayNames;
+        DefaultTabSelect.SelectedIndex = selectedIndex >= 0 && selectedIndex < displayNames.Count
+            ? selectedIndex
+            : -1;
     }
 
     private Container BuildApps()
@@ -510,6 +541,77 @@ internal sealed partial class SettingsHavenScene : IDisposable
     }
 
     private Container BuildIntegrations() => BuildConnectionsSection();
+
+    private Container BuildExtensions()
+    {
+        var section = Section("Settings.Extensions");
+        var source = Card("Settings.Extensions.Sources");
+        source.Add(Heading("Settings.Extensions.Sources.Heading", "Sources / Repositories", 18));
+        source.Add(Muted("Settings.Extensions.Sources.Description", "A GitHub repository may publish multiple Plugins, multiple Skills, or combined bundles. Private sources use an existing connected-account reference; Haven never requests a GitHub password."));
+        ExtensionSourceNameInput = new Input { Name = "Settings.Extensions.SourceName", Placeholder = "Source name" };
+        ExtensionSourceUriInput = new Input { Name = "Settings.Extensions.SourceUri", Placeholder = "https://github.com/owner/repository" };
+        ExtensionPrivateToggle = new Toggle { Name = "Settings.Extensions.Private" };
+        ExtensionConnectedAccountInput = new Input { Name = "Settings.Extensions.ConnectedAccount", Placeholder = "Connected GitHub account reference" };
+        ExtensionUpdateModeSelect = NewSelect("Settings.Extensions.UpdateMode", Enum.GetNames<ExtensionUpdateMode>());
+        ExtensionUpdateModeSelect.SelectedIndex = 1;
+        ExtensionAddSourceButton = new HavenButton { Name = "Settings.Extensions.AddSource", Content = "Add GitHub Repository", Variant = ButtonVariant.Primary };
+        ExtensionSourceSelect = NewSelect("Settings.Extensions.Source", []);
+        ExtensionRefreshButton = new HavenButton { Name = "Settings.Extensions.Refresh", Content = "Refresh selected source", Variant = ButtonVariant.Secondary };
+        ExtensionRemoveSourceButton = new HavenButton { Name = "Settings.Extensions.RemoveSource", Content = "Remove selected source", Variant = ButtonVariant.Danger };
+        source.Add(ExtensionSourceNameInput);
+        source.Add(ExtensionSourceUriInput);
+        source.Add(SettingRow("Private repository", "Requires an authorised connected GitHub account reference. Authentication stays in Haven's credential infrastructure.", ExtensionPrivateToggle));
+        source.Add(ExtensionConnectedAccountInput);
+        source.Add(SettingRow("Update mode", "Manual, Notify, or Automatic. Permission expansion always requires a separate review.", ExtensionUpdateModeSelect));
+        source.Add(ExtensionAddSourceButton);
+        source.Add(ExtensionSourceSelect);
+        source.Add(ExtensionRefreshButton);
+        source.Add(ExtensionRemoveSourceButton);
+        section.Add(source);
+
+        var available = Card("Settings.Extensions.Available");
+        available.Add(Heading("Settings.Extensions.Available.Heading", "Available Plugins & Skills", 18));
+        AvailableExtensionSelect = NewSelect("Settings.Extensions.AvailableSelect", []);
+        AvailableExtensionDetails = Muted("Settings.Extensions.AvailableDetails", "Refresh a source to discover validated packages.");
+        ExtensionInstallButton = new HavenButton { Name = "Settings.Extensions.Install", Content = "Review permissions", Variant = ButtonVariant.Primary };
+        available.Add(AvailableExtensionSelect);
+        available.Add(AvailableExtensionDetails);
+        available.Add(ExtensionInstallButton);
+        section.Add(available);
+
+        var installed = Card("Settings.Extensions.Installed");
+        installed.Add(Heading("Settings.Extensions.Installed.Heading", "Installed Plugins & Skills", 18));
+        InstalledExtensionSelect = NewSelect("Settings.Extensions.InstalledSelect", []);
+        InstalledExtensionDetails = Muted("Settings.Extensions.InstalledDetails", "No installed packages loaded.");
+        ExtensionToggleButton = new HavenButton { Name = "Settings.Extensions.Toggle", Content = "Enable / disable", Variant = ButtonVariant.Secondary };
+        ExtensionUninstallButton = new HavenButton { Name = "Settings.Extensions.Uninstall", Content = "Uninstall", Variant = ButtonVariant.Danger };
+        installed.Add(InstalledExtensionSelect);
+        installed.Add(InstalledExtensionDetails);
+        installed.Add(ExtensionToggleButton);
+        installed.Add(ExtensionUninstallButton);
+        section.Add(installed);
+        ExtensionStatusText = Muted("Settings.Extensions.Status", string.Empty);
+        section.Add(ExtensionStatusText);
+        return section;
+    }
+
+    public void SetExtensionSources(IReadOnlyList<string> values, int selectedIndex)
+    {
+        ExtensionSourceSelect.Items = values;
+        ExtensionSourceSelect.SelectedIndex = values.Count == 0 ? -1 : Math.Clamp(selectedIndex, 0, values.Count - 1);
+    }
+
+    public void SetAvailableExtensions(IReadOnlyList<string> values, int selectedIndex)
+    {
+        AvailableExtensionSelect.Items = values;
+        AvailableExtensionSelect.SelectedIndex = values.Count == 0 ? -1 : Math.Clamp(selectedIndex, 0, values.Count - 1);
+    }
+
+    public void SetInstalledExtensions(IReadOnlyList<string> values, int selectedIndex)
+    {
+        InstalledExtensionSelect.Items = values;
+        InstalledExtensionSelect.SelectedIndex = values.Count == 0 ? -1 : Math.Clamp(selectedIndex, 0, values.Count - 1);
+    }
 
     private Container BuildVoice()
     {
