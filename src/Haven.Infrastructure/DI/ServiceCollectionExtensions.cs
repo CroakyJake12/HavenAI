@@ -157,6 +157,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICallCoordinator>(provider => provider.GetRequiredService<ResponsiveCallCoordinator>());
         services.AddSingleton<ILegacyStateMigrator, LegacyStateMigrator>();
         services.AddSingleton<IWorkspaceToolService, WorkspaceToolService>();
+        services.AddSingleton<ITerminalSessionFactory, PowerShellTerminalSessionFactory>();
         services.AddSingleton<IWorkspaceTransactionService, WorkspaceTransactionService>();
         services.AddSingleton<ILanguageServerConfigurationStore, LanguageServerConfigurationStore>();
         services.AddSingleton<ILanguageServerClientFactory, LanguageServerClientFactory>();

@@ -1,4 +1,4 @@
-using System.Text;
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -11,9 +11,10 @@ using Haven.Desktop.Services;
 
 namespace Haven.Desktop.Views.Pages.Terminal;
 
-public sealed partial class TerminalPage : UserControl
+public sealed partial class TerminalPage : UserControl, IDisposable
 {
-    private readonly IWorkspaceToolService _tools;
+    private readonly ITerminalSessionFactory _sessionFactory;
+    private ITerminalSession _session;
     private readonly UserPreferencesService _prefs;
     private readonly TerminalCommandActivityHub _hub;
     private readonly StackPanel _lines = new() { Spacing = 2 };
@@ -26,33 +27,43 @@ public sealed partial class TerminalPage : UserControl
     private readonly Button _stop = Btn("Stop");
     private readonly List<string> _history = [];
     private readonly string _home;
-    private string _cwd;
     private string? _pending;
     private int _historyIndex;
     private bool _running;
     private bool _attached;
-    private CancellationTokenSource? _cancel;
+    private bool _disposed;
+    private CancellationTokenSource? _commandCancellation;
 
-    public TerminalPage(IWorkspaceToolService tools, UserPreferencesService prefs, TerminalCommandActivityHub hub, string? initialDirectory = null)
+    public TerminalPage(ITerminalSessionFactory sessionFactory, UserPreferencesService prefs, TerminalCommandActivityHub hub, string? initialDirectory = null, Guid? restoredFromSessionId = null)
     {
-        _tools = tools; _prefs = prefs; _hub = hub;
-        _home = StartDirectory(initialDirectory); _cwd = _home;
+        _sessionFactory = sessionFactory; _prefs = prefs; _hub = hub;
+        _home = StartDirectory(initialDirectory);
+        _session = CreateSession(_home);
         InitializeComponent();
         (this.FindControl<Grid>("CodeBehindHost") ?? throw new InvalidOperationException("Terminal host missing.")).Children.Add(Build());
         _input.KeyDown += InputKeyDown; _stop.Click += (_, _) => CancelRunningCommand();
         AttachedToVisualTree += Attached; DetachedFromVisualTree += Detached;
         UpdatePrompt();
-        SystemLine("Haven Terminal · genuine PowerShell execution");
-        SystemLine("cwd persists in this tab; each command is a fresh process, so process environment changes do not persist.");
-        SystemLine("Visible history is memory-only and secret-redacted. Full Access commands retain your Windows-account permissions.");
+        SystemLine($"Haven Terminal · session {_session.Metadata.SessionId:N} · persistent {_session.Metadata.ShellRuntime} · PID {_session.ProcessId?.ToString() ?? "starting"}");
+        if (restoredFromSessionId is { } previousSessionId)
+            SystemLine($"Restored Terminal tab from Haven session {previousSessionId:N}; the prior OS shell did not survive. This is a new shell session/process.");
+        SystemLine("cwd, environment variables, functions and shell variables persist inside this tab's live shell process.");
+        SystemLine("Shell processes are runtime-only: reopening Haven creates a fresh shell even when the Terminal tab is restored.");
+        SystemLine("Visible history is memory-only and secret-redacted. Every submitted command still uses Haven's command permission policy.");
     }
 
     public bool IsRunning => _running;
-    public string WorkingDirectory => _cwd;
+    public string WorkingDirectory => _session.Metadata.CurrentWorkingDirectory ?? _home;
+    public TerminalSessionMetadata SessionMetadata => _session.Metadata;
     public void FocusCommandLine() => _input.Focus();
-    public void CancelRunningCommand() { if (_running) { _cancel?.Cancel(); Status("Cancelling…"); } }
+    public void CancelRunningCommand()
+    {
+        if (!_running) return;
+        Status("Interrupting…");
+        _commandCancellation?.Cancel();
+    }
     public void ClearTranscript() { _lines.Children.Clear(); SystemLine("Transcript cleared."); }
-    public void NewSession() { CancelRunningCommand(); _pending = null; _approval.IsVisible = false; _cwd = _home; _history.Clear(); _historyIndex = 0; _lines.Children.Clear(); SystemLine("New session · cwd and history reset."); UpdatePrompt(); }
+    public void NewSession() => _ = NewSessionAsync();
 
     private Control Build()
     {
@@ -71,7 +82,7 @@ public sealed partial class TerminalPage : UserControl
         var composer = new Border { Background = B("#10151E"), BorderBrush = B("#343A46"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(10,4),
             Child = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, Children = { _prompt, Col(_input,1) } } };
         var footer = new StackPanel { Spacing = 8, Margin = new Thickness(18,0,18,16), Children = { _approval, composer,
-            new TextBlock { Text = "Enter run · ↑/↓ history · Ctrl+C cancel · cd/pwd/clear are session commands", FontSize = 11, Foreground = B("#7D8590") } } };
+            new TextBlock { Text = "Enter run · ↑/↓ history · Ctrl+C interrupt · cd/pwd run in the live shell · clear clears this transcript", FontSize = 11, Foreground = B("#7D8590") } } };
         return new Grid { RowDefinitions = new("Auto,*,Auto"), Children = { header, Row(body,1), Row(footer,2) } };
     }
 
@@ -113,37 +124,34 @@ public sealed partial class TerminalPage : UserControl
     {
         if (_running) return;
         CommandLine(SensitiveTextRedactor.Redact(command, 8_000));
-        Running(true); Status("Running…"); _cancel = new CancellationTokenSource();
+        Running(true); Status("Running…"); _commandCancellation = new CancellationTokenSource();
         try
         {
-            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
-            var shell = OperatingSystem.IsWindows() ? "powershell.exe" : "pwsh";
-            var result = await _tools.RunProcessAsync(new ProcessRequest(shell, $"-NoProfile -NonInteractive -EncodedCommand {encoded}", _cwd, TimeSpan.FromMinutes(15)), _cancel.Token);
-            if (!string.IsNullOrWhiteSpace(result.StandardOutput)) OutputLine(SensitiveTextRedactor.Redact(result.StandardOutput, 120_000));
-            if (!string.IsNullOrWhiteSpace(result.StandardError)) ErrorLine(SensitiveTextRedactor.Redact(result.StandardError, 120_000));
-            if (result.TimedOut) { ErrorLine("Timed out · process tree stopped."); Status("Timed out"); }
-            else { SystemLine($"Exit {result.ExitCode} · {result.Duration.TotalSeconds:0.0}s"); Status($"{(result.ExitCode == 0 ? "Succeeded" : "Failed")} · exit {result.ExitCode}"); }
+            var result = await _session.ExecuteAsync(Guid.NewGuid(), command, _commandCancellation.Token);
+            UpdatePrompt();
+            if (result.Cancelled)
+            {
+                SystemLine("Interrupted · this shell process ended and a fresh shell was started. Process-local shell state was reset.");
+                Status("Interrupted · shell restarted");
+            }
+            else
+            {
+                var exit = result.ExitCode?.ToString() ?? "unknown";
+                SystemLine($"Exit {exit} · {result.Duration.TotalSeconds:0.0}s");
+                Status(result.ShellAlive ? $"{(result.ExitCode == 0 ? "Succeeded" : "Failed")} · exit {exit}" : "Session ended");
+            }
         }
-        catch (OperationCanceledException) { SystemLine("Cancelled · process tree stopped."); Status("Cancelled"); }
-        catch (Exception ex) { ErrorLine(SensitiveTextRedactor.Redact(ex.Message)); Status("Failed to start"); }
-        finally { _cancel?.Dispose(); _cancel = null; Running(false); _input.Focus(); }
+        catch (OperationCanceledException) { Status("Interrupted"); }
+        catch (Exception ex) { ErrorLine(SensitiveTextRedactor.Redact(ex.Message)); Status("Session unavailable"); }
+        finally { _commandCancellation?.Dispose(); _commandCancellation = null; Running(false); UpdatePrompt(); _input.Focus(); }
     }
 
     private bool SessionCommand(string command)
     {
         var value = command.Trim();
-        if (value.Equals("clear", StringComparison.OrdinalIgnoreCase) || value.Equals("cls", StringComparison.OrdinalIgnoreCase)) { Remember("clear"); ClearTranscript(); return true; }
-        if (value.Equals("pwd", StringComparison.OrdinalIgnoreCase) || value.Equals("Get-Location", StringComparison.OrdinalIgnoreCase)) { Remember(value); CommandLine(value); OutputLine(SensitiveTextRedactor.Redact(_cwd)); return true; }
-        if (!value.Equals("cd", StringComparison.OrdinalIgnoreCase) && !value.StartsWith("cd ", StringComparison.OrdinalIgnoreCase) && !value.StartsWith("Set-Location ", StringComparison.OrdinalIgnoreCase)) return false;
-        Remember(SensitiveTextRedactor.Redact(value)); CommandLine(SensitiveTextRedactor.Redact(value));
-        var target = value.Equals("cd", StringComparison.OrdinalIgnoreCase) ? _home : value.StartsWith("cd ", StringComparison.OrdinalIgnoreCase) ? value[3..].Trim() : value[13..].Trim();
-        try
-        {
-            target = Environment.ExpandEnvironmentVariables(target.Trim().Trim('"'));
-            var resolved = Path.IsPathRooted(target) ? Path.GetFullPath(target) : Path.GetFullPath(Path.Combine(_cwd, target));
-            if (!Directory.Exists(resolved)) ErrorLine("Directory not found: " + SensitiveTextRedactor.Redact(resolved)); else { _cwd = resolved; UpdatePrompt(); Status("Ready"); }
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException) { ErrorLine(SensitiveTextRedactor.Redact(ex.Message)); }
+        if (!value.Equals("clear", StringComparison.OrdinalIgnoreCase) && !value.Equals("cls", StringComparison.OrdinalIgnoreCase)) return false;
+        Remember("clear");
+        ClearTranscript();
         return true;
     }
 
@@ -152,7 +160,12 @@ public sealed partial class TerminalPage : UserControl
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider; if (storage is null) return;
         var selected = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Choose Terminal working folder", AllowMultiple = false });
         var path = selected.FirstOrDefault()?.TryGetLocalPath(); if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
-        _cwd = Path.GetFullPath(path); UpdatePrompt(); SystemLine("Working folder: " + SensitiveTextRedactor.Redact(_cwd)); Status("Ready");
+        try
+        {
+            await _session.SetWorkingDirectoryAsync(path, CancellationToken.None);
+            UpdatePrompt(); SystemLine("Working folder: " + SensitiveTextRedactor.Redact(WorkingDirectory)); Status("Ready");
+        }
+        catch (Exception ex) { ErrorLine(SensitiveTextRedactor.Redact(ex.Message)); Status("Working folder unchanged"); }
     }
 
     private void Attached(object? _, Avalonia.VisualTreeAttachmentEventArgs e) { if (_attached) return; _attached = true; _hub.ActivityPublished += AgentActivity; }
@@ -176,12 +189,74 @@ public sealed partial class TerminalPage : UserControl
         });
     }
 
+    private ITerminalSession CreateSession(string directory)
+    {
+        var session = _sessionFactory.Create(directory, "Terminal");
+        session.OutputReceived += SessionOutputReceived;
+        session.MetadataChanged += SessionMetadataChanged;
+        return session;
+    }
+
+    private Task NewSessionAsync()
+    {
+        _pending = null;
+        _approval.IsVisible = false;
+        var old = _session;
+        old.OutputReceived -= SessionOutputReceived;
+        old.MetadataChanged -= SessionMetadataChanged;
+        old.Dispose();
+        _session = CreateSession(_home);
+        _history.Clear();
+        _historyIndex = 0;
+        _lines.Children.Clear();
+        Running(false);
+        UpdatePrompt();
+        SystemLine($"New persistent shell session · PID {_session.ProcessId?.ToString() ?? "starting"} · cwd {SensitiveTextRedactor.Redact(WorkingDirectory)}");
+        SystemLine("Previous process-local cwd/environment/functions/variables were discarded with the old shell.");
+        Status("Ready");
+        return Task.CompletedTask;
+    }
+
+    private void SessionOutputReceived(object? sender, TerminalSessionOutput output)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+            if (output.Stream == TerminalOutputStream.StandardError) ErrorLine(output.Text);
+            else if (output.Stream == TerminalOutputStream.StandardOutput) OutputLine(output.Text);
+            else SystemLine(output.Text);
+        });
+    }
+
+    private void SessionMetadataChanged(object? sender, TerminalSessionMetadata metadata)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+            UpdatePrompt();
+            if (metadata.State == TerminalSessionLifecycleState.Ended) Status("Session ended");
+            else if (metadata.State == TerminalSessionLifecycleState.Faulted) Status("Session faulted");
+        });
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _commandCancellation?.Dispose();
+        _commandCancellation = null;
+        if (_attached) { _hub.ActivityPublished -= AgentActivity; _attached = false; }
+        _session.OutputReceived -= SessionOutputReceived;
+        _session.MetadataChanged -= SessionMetadataChanged;
+        _session.Dispose();
+    }
+
     private void Remember(string value) { _history.Add(value); _historyIndex = _history.Count; }
     private void History(int delta) { if (_history.Count == 0) return; _historyIndex = Math.Clamp(_historyIndex + delta, 0, _history.Count); _input.Text = _historyIndex == _history.Count ? "" : _history[_historyIndex]; _input.CaretIndex = _input.Text?.Length ?? 0; }
     private void Running(bool value) { _running = value; _stop.IsEnabled = value; _input.IsEnabled = !value && _pending is null; }
-    private void UpdatePrompt() => _prompt.Text = $"PS {SensitiveTextRedactor.Redact(_cwd)}> ";
+    private void UpdatePrompt() => _prompt.Text = $"PS {SensitiveTextRedactor.Redact(WorkingDirectory)}> ";
     private void Status(string value) => _status.Text = $"{value} · command permission: {_prefs.CommandPermission}";
-    private void CommandLine(string value) => Line($"PS {SensitiveTextRedactor.Redact(_cwd)}> {value}", "#7EE787");
+    private void CommandLine(string value) => Line($"PS {SensitiveTextRedactor.Redact(WorkingDirectory)}> {value}", "#7EE787");
     private void OutputLine(string value) => Multiline(value, "#E6EDF3");
     private void ErrorLine(string value) => Multiline(value, "#FF7B72");
     private void SystemLine(string value) => Multiline(value, "#8B949E");
