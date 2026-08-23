@@ -129,6 +129,50 @@ public sealed class UnifiedExecutionPersistenceTests : IDisposable
         Assert.False(provider.CanPreview(unsupported));
     }
 
+    [Fact]
+    public async Task Project_preview_provider_starts_serves_and_stops_a_real_loopback_site()
+    {
+        var sink = new RecordingSink();
+        var provider = new WebProjectPreviewProvider(sink);
+        var root = Path.Combine(_paths.DataDirectory, "running-preview");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "RunningPreview.csproj"),
+            "<Project Sdk=\"Microsoft.NET.Sdk.Web\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>");
+        File.WriteAllText(Path.Combine(root, "Program.cs"),
+            "var app = WebApplication.CreateBuilder(args).Build(); app.MapGet(\"/\", () => \"haven-preview-ok\"); app.Run();");
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        var session = await provider.StartAsync(root, timeout.Token);
+        var uri = session.PreviewUri;
+        try
+        {
+            Assert.True(uri.IsLoopback);
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            Assert.Equal("haven-preview-ok", await client.GetStringAsync(uri, timeout.Token));
+            Assert.Contains(sink.Events, item => item.ActionType == ExecutionActionType.Preview && item.Status == ExecutionActionStatus.Completed);
+        }
+        finally
+        {
+            await session.DisposeAsync();
+        }
+
+        var stopped = false;
+        using (var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(500) })
+        {
+            for (var attempt = 0; attempt < 10 && !stopped; attempt++)
+            {
+                try
+                {
+                    using var response = await client.GetAsync(uri);
+                    await Task.Delay(100);
+                }
+                catch (HttpRequestException) { stopped = true; }
+                catch (TaskCanceledException) { stopped = true; }
+            }
+        }
+        Assert.True(stopped);
+    }
+
     public void Dispose() => _paths.Dispose();
 
     private sealed class RecordingSink : IExecutionEventSink

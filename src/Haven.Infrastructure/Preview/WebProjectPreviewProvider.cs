@@ -50,6 +50,11 @@ public sealed class WebProjectPreviewProvider(IExecutionEventSink events) : IPro
                 DateTimeOffset.UtcNow, session.StartedAt, DateTimeOffset.UtcNow));
             return session;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await session.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
         catch (Exception ex)
         {
             await session.DisposeAsync().ConfigureAwait(false);
@@ -181,9 +186,9 @@ public sealed class WebProjectPreviewProvider(IExecutionEventSink events) : IPro
             SourceChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
             _watcher.EnableRaisingEvents = false;
             _watcher.Changed -= OnChanged;
             _watcher.Created -= OnChanged;
@@ -196,9 +201,15 @@ public sealed class WebProjectPreviewProvider(IExecutionEventSink events) : IPro
             {
                 try { _process.Kill(entireProcessTree: true); }
                 catch (InvalidOperationException) { }
+                try
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await _process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { }
+                catch (InvalidOperationException) { }
             }
             _process.Dispose();
-            return ValueTask.CompletedTask;
         }
     }
 }
