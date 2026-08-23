@@ -365,6 +365,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         DataContext = this;
 
         WireShellControls();
+        SplitDivider.DragCompleted += (_, _) =>
+        {
+            if (IsSplitView) QueueWorkspaceSessionSave();
+        };
+        SplitDivider.KeyUp += (_, args) =>
+        {
+            if (IsSplitView && args.Key is Key.Left or Key.Right) QueueWorkspaceSessionSave();
+        };
         TopRail.AttachNotifications(_notifications);
         PageContent.Content = _currentPage;
         ApplyShellVisualState();
