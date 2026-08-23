@@ -1,6 +1,3 @@
-using System.Buffers.Binary;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Haven.Core;
 
@@ -51,7 +48,7 @@ public sealed class ExtensionManager(
         {
             var packageRoot = ResolveInside(materialized, package.PackagePath);
             if (!Directory.Exists(packageRoot)) throw new InvalidDataException($"Package directory '{package.PackagePath}' does not exist.");
-            var hash = await HashDirectoryAsync(packageRoot, cancellationToken).ConfigureAwait(false);
+            var hash = await ExtensionPackageIntegrity.ComputeHashAsync(packageRoot, cancellationToken).ConfigureAwait(false);
             var current = installed.FirstOrDefault(item => item.Manifest.PackageId.Equals(package.PackageId, StringComparison.OrdinalIgnoreCase));
             var state = current is null ? ExtensionInstallState.Available
                 : Version.TryParse(package.Version, out var available) && Version.TryParse(current.Manifest.Version, out var present) && available > present
@@ -75,7 +72,7 @@ public sealed class ExtensionManager(
         if (existing is not null)
         {
             var currentHash = Directory.Exists(existing.InstallPath)
-                ? await HashDirectoryAsync(existing.InstallPath, cancellationToken).ConfigureAwait(false) : string.Empty;
+                ? await ExtensionPackageIntegrity.ComputeHashAsync(existing.InstallPath, cancellationToken).ConfigureAwait(false) : string.Empty;
             if (existing.HasLocalModifications || !string.Equals(currentHash, existing.ContentHash, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Installed package has local modifications and will not be overwritten.");
             var broader = discovered.Manifest.RequestedPermissions & ~existing.GrantedPermissions;
@@ -92,7 +89,7 @@ public sealed class ExtensionManager(
         try
         {
             CopyDirectory(packageSource, staging);
-            var stagedHash = await HashDirectoryAsync(staging, cancellationToken).ConfigureAwait(false);
+            var stagedHash = await ExtensionPackageIntegrity.ComputeHashAsync(staging, cancellationToken).ConfigureAwait(false);
             if (!stagedHash.Equals(discovered.ContentHash, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Package contents changed during installation.");
             if (Directory.Exists(destination)) throw new IOException("This package version is already installed.");
@@ -216,31 +213,4 @@ public sealed class ExtensionManager(
         }
     }
 
-    private static async Task<string> HashDirectoryAsync(string root, CancellationToken cancellationToken)
-    {
-        if (File.GetAttributes(root).HasFlag(FileAttributes.ReparsePoint))
-            throw new InvalidDataException("Extension package roots cannot be linked directories.");
-        foreach (var directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
-            if (File.GetAttributes(directory).HasFlag(FileAttributes.ReparsePoint))
-                throw new InvalidDataException("Extension packages cannot contain linked directories.");
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var frame = new byte[12];
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-                     .Where(file => !Path.GetRelativePath(root, file).Split(Path.DirectorySeparatorChar).Any(part => part.Equals(".git", StringComparison.OrdinalIgnoreCase)))
-                     .OrderBy(file => Path.GetRelativePath(root, file), StringComparer.Ordinal))
-        {
-            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
-                throw new InvalidDataException("Extension packages cannot contain linked files.");
-            var relative = Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/'));
-            BinaryPrimitives.WriteInt32LittleEndian(frame, relative.Length);
-            BinaryPrimitives.WriteInt64LittleEndian(frame.AsSpan(4), new FileInfo(file).Length);
-            hash.AppendData(frame);
-            hash.AppendData(relative);
-            await using var stream = File.OpenRead(file);
-            var buffer = new byte[81920];
-            int read;
-            while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0) hash.AppendData(buffer.AsSpan(0, read));
-        }
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
-    }
 }
