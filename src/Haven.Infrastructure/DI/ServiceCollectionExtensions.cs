@@ -74,6 +74,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExecutionEventSink>(provider => provider.GetRequiredService<ExecutionEventHub>());
         services.AddSingleton<ExecutionTraceService>();
         services.AddSingleton<AutonomousRecoveryService>();
+        services.AddSingleton<RemediationContinuationRegistry>();
         services.AddSingleton<ExternalAgentTaskService>();
         services.AddSingleton<HavenNotificationService>();
         services.AddSingleton<ConversationSafetyService>();

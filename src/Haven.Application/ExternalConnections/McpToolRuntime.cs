@@ -44,18 +44,31 @@ public sealed class McpToolRuntime(IExternalConnectionRepository connections, IM
         lock (_routes) _routes.TryGetValue(call.Name, out route);
         if (route is null) return Failure(call.Name, "MCP tool route is stale. Refresh the attached connection.", started);
         if (!ParseActiveConnectionIds(activeCapabilities).Contains(route.ConnectionId)) return Failure(call.Name, "The MCP connection is not attached to this conversation.", started);
-        if (route.Risk != McpActionRisk.ReadOnly && mutationPermission == PermissionMode.Ask) return Failure(call.Name, "This MCP action can change external state and requires approval before execution.", started);
-        if (route.Risk == McpActionRisk.Destructive && mutationPermission != PermissionMode.FullAccess) return Failure(call.Name, "This destructive MCP action requires Full Access permission.", started);
         var connection = await connections.GetAsync(route.ConnectionId, cancellationToken).ConfigureAwait(false);
         if (connection is null || !connection.IsEnabled || connection.State != ExternalConnectionState.Ready) return Failure(call.Name, "The MCP connection is disabled or unavailable.", started);
+        if (route.Risk != McpActionRisk.ReadOnly && mutationPermission == PermissionMode.Ask)
+        {
+            const string detail = "This MCP action can change external state and requires approval before execution.";
+            return Failure(call.Name, detail, started, PermissionFailure(connection, route.Risk, detail));
+        }
+        if (route.Risk == McpActionRisk.Destructive && mutationPermission != PermissionMode.FullAccess)
+        {
+            const string detail = "This destructive MCP action requires one-action approval or Full Access permission.";
+            return Failure(call.Name, detail, started, PermissionFailure(connection, route.Risk, detail));
+        }
         try
         {
             var result = await client.InvokeAsync(connection, route.RemoteToolName, call.Arguments, cancellationToken).ConfigureAwait(false);
             var detail = result.Succeeded ? $"{SafeName(connection.Name)} MCP action completed." : $"{SafeName(connection.Name)} MCP action failed.";
-            return new WorkspaceToolResult(new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, result.Succeeded, DateTimeOffset.UtcNow - started, DateTimeOffset.UtcNow), BuildOutput(result));
+            var failure = result.Succeeded ? null : RuntimeFailure(connection, route.Risk, detail);
+            return new WorkspaceToolResult(new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, result.Succeeded, DateTimeOffset.UtcNow - started, DateTimeOffset.UtcNow), BuildOutput(result), failure);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception ex) { return Failure(call.Name, "MCP invocation failed: " + Bound(ex.Message, 1000), started); }
+        catch (Exception ex)
+        {
+            var detail = "MCP invocation failed: " + Bound(ex.Message, 1000);
+            return Failure(call.Name, detail, started, RuntimeFailure(connection, route.Risk, detail));
+        }
     }
 
     public static string LocalToolName(Guid connectionId, string remoteName)
@@ -96,7 +109,29 @@ public sealed class McpToolRuntime(IExternalConnectionRepository connections, IM
         return McpActionRisk.ReadOnly;
     }
 
-    private static WorkspaceToolResult Failure(string name, string detail, DateTimeOffset started) => new(new ToolActivity(Guid.NewGuid(), name.Replace('_', ' '), detail, false, DateTimeOffset.UtcNow - started, DateTimeOffset.UtcNow), "Tool error: " + detail);
+    private static WorkspaceToolResult Failure(string name, string detail, DateTimeOffset started, ToolFailureDescriptor? failure = null) =>
+        new(new ToolActivity(Guid.NewGuid(), name.Replace('_', ' '), detail, false, DateTimeOffset.UtcNow - started, DateTimeOffset.UtcNow), "Tool error: " + detail, failure);
+
+    private static ToolFailureDescriptor PermissionFailure(ExternalConnection connection, McpActionRisk risk, string detail) => new(
+        "MCP_PERMISSION_REQUIRED", ToolFailureKind.PermissionRequired, detail,
+        ExternalConnectionNaming.CapabilityKey(connection.Id), ExternalConnectionNaming.PluginName(connection.Name),
+        RiskFor(risk, permissionExpansion: true), true, RemediationType.PermissionRequest, connection.Name);
+
+    private static ToolFailureDescriptor RuntimeFailure(ExternalConnection connection, McpActionRisk risk, string detail) => new(
+        "MCP_INVOCATION_FAILED", risk == McpActionRisk.ReadOnly ? ToolFailureKind.Transient : ToolFailureKind.ExternalFailure, detail,
+        ExternalConnectionNaming.CapabilityKey(connection.Id), ExternalConnectionNaming.PluginName(connection.Name),
+        RiskFor(risk), risk == McpActionRisk.ReadOnly, ProviderName: connection.Name);
+
+    private static RecoveryRiskAssessment RiskFor(McpActionRisk risk, bool permissionExpansion = false) => new(
+        InsideAuthorisedScope: true,
+        Reversible: risk != McpActionRisk.Destructive,
+        AltersUserData: risk != McpActionRisk.ReadOnly,
+        HasExternalImpact: risk != McpActionRisk.ReadOnly,
+        ExpandsPermissions: permissionExpansion,
+        RequiresUnknownCredential: false,
+        Destructive: risk == McpActionRisk.Destructive,
+        Confidence: .95);
+
     private static string BuildOutput(McpToolInvocationResult result) => result.StructuredContent is { } structured ? JsonSerializer.Serialize(new { result.Succeeded, text = result.Text, structured }) : result.Text;
     private static string SafeName(string value) => Bound(value.Replace('\r', ' ').Replace('\n', ' ').Trim(), 120);
     private static string Bound(string value, int max) => value.Length <= max ? value : value[..max] + "...";

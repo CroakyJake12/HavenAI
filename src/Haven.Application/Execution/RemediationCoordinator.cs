@@ -10,16 +10,26 @@ public sealed class RemediationCoordinator(
     IRemediationRepository repository,
     IProviderSecretStore secrets,
     IExecutionEventSink events,
+    RemediationContinuationRegistry? continuations = null,
     TimeProvider? timeProvider = null) : IDisposable
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly RemediationContinuationRegistry _continuations = continuations ?? new RemediationContinuationRegistry();
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _waiters = new();
     private int _disposed;
 
-    public async Task<RemediationRequest> RequestAsync(RemediationRequest request, CancellationToken cancellationToken)
+    public Task<RemediationRequest> RequestAsync(RemediationRequest request, CancellationToken cancellationToken) =>
+        RequestAsync(request, null, cancellationToken);
+
+    public async Task<RemediationRequest> RequestAsync(
+        RemediationRequest request,
+        Func<RemediationResolution, CancellationToken, Task<RemediationContinuationResult>>? continuation,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
         Validate(request);
+        if (continuation is not null && !request.CanResume)
+            throw new InvalidOperationException("A continuation requires CanResume=true.");
         var now = _time.GetUtcNow();
         var waiting = request with
         {
@@ -28,7 +38,16 @@ public sealed class RemediationCoordinator(
             ExpiresAt = now + request.IdleTimeout,
             CredentialReference = null
         };
-        await repository.UpsertAsync(waiting, cancellationToken).ConfigureAwait(false);
+        if (continuation is not null) _continuations.Register(waiting.Id, continuation);
+        try
+        {
+            await repository.UpsertAsync(waiting, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (continuation is not null) _continuations.Remove(waiting.Id);
+            throw;
+        }
         events.TryPublish(new ExecutionEvent(
             Guid.NewGuid(), waiting.ExecutionId, Guid.NewGuid(), waiting.ActionId, ExecutionOrigin.Haven,
             ExecutionActionType.UserActionRequired, ExecutionActionStatus.UserActionRequired,
@@ -37,6 +56,8 @@ public sealed class RemediationCoordinator(
         StartIdleWatch(waiting);
         return waiting;
     }
+
+    public bool CanResume(Guid remediationId) => _continuations.Contains(remediationId);
 
     public async Task RecordInteractionAsync(Guid remediationId, CancellationToken cancellationToken)
     {
@@ -60,16 +81,24 @@ public sealed class RemediationCoordinator(
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
         var request = await RequireAsync(remediationId, cancellationToken).ConfigureAwait(false);
+        if (request.State == RemediationState.Completed)
+        {
+            if (CanResume(request.Id))
+                await ResumeContinuationAsync(request, new RemediationResolution(CredentialReference: request.CredentialReference), cancellationToken).ConfigureAwait(false);
+            return request;
+        }
+        EnsureResolvable(request);
         if (request.Type != RemediationType.SecretInput || request.Sensitivity != RemediationSensitivity.Secret)
             throw new InvalidOperationException("This remediation is not a host-owned secret request.");
         if (string.IsNullOrWhiteSpace(secretValue)) throw new ArgumentException("A secret value is required.", nameof(secretValue));
         if (!request.RequiredInputs.Any(input => input.Key.Equals(secretName, StringComparison.Ordinal)
                                                   && input.Sensitivity == RemediationSensitivity.Secret))
             throw new UnauthorizedAccessException("The requested secret field was not declared by this remediation.");
-        var providerKey = $"extension:{request.RequestingComponentId}";
-        var previous = await secrets.GetAsync(providerKey, secretName, cancellationToken).ConfigureAwait(false);
-        await secrets.SetAsync(providerKey, secretName, secretValue, cancellationToken).ConfigureAwait(false);
-        var credentialReference = CreateCredentialReference(providerKey, secretName);
+        var providerKey = request.SecretProviderId ?? $"extension:{request.RequestingComponentId}";
+        var storageSecretName = request.SecretName ?? secretName;
+        var previous = await secrets.GetAsync(providerKey, storageSecretName, cancellationToken).ConfigureAwait(false);
+        await secrets.SetAsync(providerKey, storageSecretName, secretValue, cancellationToken).ConfigureAwait(false);
+        var credentialReference = CreateCredentialReference(providerKey, storageSecretName);
         var now = _time.GetUtcNow();
         var completed = request with
         {
@@ -81,8 +110,8 @@ public sealed class RemediationCoordinator(
         try { await repository.UpsertAsync(completed, cancellationToken).ConfigureAwait(false); }
         catch
         {
-            if (previous is null) await secrets.DeleteAsync(providerKey, secretName, CancellationToken.None).ConfigureAwait(false);
-            else await secrets.SetAsync(providerKey, secretName, previous, CancellationToken.None).ConfigureAwait(false);
+            if (previous is null) await secrets.DeleteAsync(providerKey, storageSecretName, CancellationToken.None).ConfigureAwait(false);
+            else await secrets.SetAsync(providerKey, storageSecretName, previous, CancellationToken.None).ConfigureAwait(false);
             throw;
         }
         StopWaiter(remediationId);
@@ -92,7 +121,88 @@ public sealed class RemediationCoordinator(
             "The required credential was stored by Haven's secure credential service.", null,
             request.RequestingComponentId, now, now, now, RecoveryOfActionId: request.ActionId,
             RemediationId: request.Id));
+        await ResumeContinuationAsync(completed, new RemediationResolution(CredentialReference: credentialReference), cancellationToken).ConfigureAwait(false);
         return completed;
+    }
+
+    public async Task<RemediationRequest> ApproveAndResolveAsync(Guid remediationId, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
+        var request = await RequireAsync(remediationId, cancellationToken).ConfigureAwait(false);
+        if (request.State == RemediationState.Completed)
+        {
+            if (CanResume(request.Id))
+                await ResumeContinuationAsync(request, new RemediationResolution(Approved: true), cancellationToken).ConfigureAwait(false);
+            return request;
+        }
+        EnsureResolvable(request);
+        if (request.Type is not (RemediationType.PermissionRequest or RemediationType.Confirmation))
+            throw new InvalidOperationException("This remediation does not support one-action approval.");
+        var now = _time.GetUtcNow();
+        var completed = request with { State = RemediationState.Completed, LastActivityAt = now, ExpiresAt = null };
+        await repository.UpsertAsync(completed, cancellationToken).ConfigureAwait(false);
+        StopWaiter(remediationId);
+        events.TryPublish(new ExecutionEvent(
+            Guid.NewGuid(), request.ExecutionId, Guid.NewGuid(), request.ActionId, ExecutionOrigin.Haven,
+            ExecutionActionType.UserActionRequired, ExecutionActionStatus.Completed, "Action approved once",
+            "The user approved only this blocked action; global permissions were not changed.", null,
+            request.RequestingComponentId, now, now, now, RecoveryOfActionId: request.ActionId, RemediationId: request.Id));
+        await ResumeContinuationAsync(completed, new RemediationResolution(Approved: true), cancellationToken).ConfigureAwait(false);
+        return completed;
+    }
+
+    public async Task<RemediationRequest> RetryResolvedAsync(Guid remediationId, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
+        var request = await RequireAsync(remediationId, cancellationToken).ConfigureAwait(false);
+        if (!request.CanRetry || !request.CanResume)
+            throw new InvalidOperationException("This remediation does not expose a resumable retry.");
+        if (request.Type is RemediationType.PermissionRequest or RemediationType.Confirmation)
+            throw new InvalidOperationException("Permission remediations require explicit one-action approval.");
+        if (request.Type == RemediationType.SecretInput)
+            throw new InvalidOperationException("Secret remediations must save the declared secret before retrying.");
+        if (request.State != RemediationState.Completed) EnsureResolvable(request);
+        var now = _time.GetUtcNow();
+        var completed = request.State == RemediationState.Completed
+            ? request
+            : request with { State = RemediationState.Completed, LastActivityAt = now, ExpiresAt = null };
+        if (request.State != RemediationState.Completed)
+        {
+            await repository.UpsertAsync(completed, cancellationToken).ConfigureAwait(false);
+            StopWaiter(remediationId);
+        }
+        await ResumeContinuationAsync(completed, new RemediationResolution(), cancellationToken).ConfigureAwait(false);
+        return completed;
+    }
+
+    private async Task ResumeContinuationAsync(RemediationRequest request, RemediationResolution resolution, CancellationToken cancellationToken)
+    {
+        if (!request.CanResume) return;
+        var result = await _continuations.TryResumeAsync(request.Id, resolution, cancellationToken).ConfigureAwait(false);
+        var now = _time.GetUtcNow();
+        if (result is null)
+        {
+            events.TryPublish(new ExecutionEvent(
+                Guid.NewGuid(), request.ExecutionId, Guid.NewGuid(), request.ActionId, ExecutionOrigin.Haven,
+                ExecutionActionType.Warning, ExecutionActionStatus.Suspended, "Automatic resume unavailable", null,
+                "The blocker was resolved, but the original in-memory action is no longer available. Retry it from the task.",
+                request.RequestingComponentId, now, RecoveryOfActionId: request.ActionId, RemediationId: request.Id));
+            return;
+        }
+        var status = result.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed;
+        var failure = result.Succeeded ? null : new ExecutionFailure(
+            "REMEDIATION_RETRY_FAILED", "Retry failed", result.SafeError ?? result.SafeSummary, AffectedComponent: request.RequestingComponentId);
+        events.TryPublish(new ExecutionEvent(
+            Guid.NewGuid(), request.ExecutionId, Guid.NewGuid(), request.ActionId, ExecutionOrigin.Haven,
+            ExecutionActionType.AutomaticRepair, status, result.Succeeded ? "Blocked action resumed" : "Retry failed",
+            result.SafeSummary, result.SafeError, request.RequestingComponentId, now, now, now,
+            RecoveryOfActionId: request.ActionId, RemediationId: request.Id, Failure: failure));
+    }
+
+    private static void EnsureResolvable(RemediationRequest request)
+    {
+        if (request.State is not (RemediationState.Waiting or RemediationState.InProgress or RemediationState.Suspended))
+            throw new InvalidOperationException($"Remediation in state {request.State} cannot be resolved.");
     }
 
     private void StartIdleWatch(RemediationRequest request)

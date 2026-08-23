@@ -345,18 +345,31 @@ public sealed partial class ActionGraphPage : UserControl, IDisposable
     private void RenderRemediation(RemediationRequest request)
     {
         RemediationPanel.Children.Clear();
-        RemediationPanel.Children.Add(new TextBlock { Text = request.State == RemediationState.Suspended ? "Action paused" : "User Action Required", FontWeight = FontWeight.ExtraBold, FontSize = 16 });
+        var heading = request.State switch
+        {
+            RemediationState.Suspended => "Action paused",
+            RemediationState.Completed => "Action resolved",
+            RemediationState.Cancelled => "Action cancelled",
+            RemediationState.Expired => "Action expired",
+            RemediationState.Failed => "Resolution failed",
+            _ => "User Action Required"
+        };
+        RemediationPanel.Children.Add(new TextBlock { Text = heading, FontWeight = FontWeight.ExtraBold, FontSize = 16 });
         RemediationPanel.Children.Add(new TextBlock { Text = request.RequestingComponentName + (request.ProviderName is null ? string.Empty : " · " + request.ProviderName), FontWeight = FontWeight.Bold });
         RemediationPanel.Children.Add(Muted(request.Explanation + "\nStored securely by Haven where applicable."));
+
+        if (request.State is RemediationState.Completed or RemediationState.Cancelled or RemediationState.Expired or RemediationState.Failed) return;
+
+        var canResumeNow = request.CanResume && _remediationCoordinator.CanResume(request.Id);
+        if (request.CanResume && !canResumeNow)
+            RemediationPanel.Children.Add(Muted("Automatic resume is no longer available for this saved blocker, usually because Haven restarted. Resolve the setup issue, then retry the action from its task."));
+
         if (request.Type == RemediationType.SecretInput)
         {
             var input = request.RequiredInputs.FirstOrDefault();
             var secret = new TextBox { PasswordChar = '•', PlaceholderText = input?.Label ?? "Required secret" };
             secret.TextChanged += async (_, _) => await _remediationCoordinator.RecordInteractionAsync(request.Id, _lifetime.Token);
-            // Saving the host-owned credential resolves the structured blocker. The blocked
-            // action remains responsible for exposing a real resumable/retry continuation;
-            // do not claim that retry occurred when no such continuation is registered.
-            var save = new HavenPrimaryButton { Content = "Save Securely" };
+            var save = new HavenPrimaryButton { Content = canResumeNow ? "Save Securely & Retry" : "Save Securely" };
             save.Click += async (_, _) =>
             {
                 if (string.IsNullOrWhiteSpace(secret.Text)) return;
@@ -366,12 +379,45 @@ public sealed partial class ActionGraphPage : UserControl, IDisposable
             };
             RemediationPanel.Children.Add(secret);
             RemediationPanel.Children.Add(save);
+            return;
         }
-        else
+
+        if (request.Type is RemediationType.PermissionRequest or RemediationType.Confirmation)
         {
-            var open = new HavenButton { Content = request.Type switch { RemediationType.OAuthReconnect => "Reconnect Account", RemediationType.PermissionRequest => "Review Permission", RemediationType.ResourceSelection => "Select Resource", _ => "Open Settings" } };
-            open.Click += (_, _) => _openSettings();
-            RemediationPanel.Children.Add(open);
+            if (canResumeNow)
+            {
+                var approve = new HavenPrimaryButton { Content = "Approve & Retry" };
+                approve.Click += async (_, _) =>
+                {
+                    await _remediationCoordinator.ApproveAndResolveAsync(request.Id, _lifetime.Token);
+                    await RenderDetailsAsync();
+                };
+                RemediationPanel.Children.Add(approve);
+            }
+            return;
+        }
+
+        var open = new HavenButton
+        {
+            Content = request.Type switch
+            {
+                RemediationType.OAuthReconnect => "Reconnect Account",
+                RemediationType.ResourceSelection => "Select Resource",
+                _ => "Open Settings"
+            }
+        };
+        open.Click += (_, _) => _openSettings();
+        RemediationPanel.Children.Add(open);
+
+        if (canResumeNow && request.CanRetry)
+        {
+            var retry = new HavenPrimaryButton { Content = "Retry" };
+            retry.Click += async (_, _) =>
+            {
+                await _remediationCoordinator.RetryResolvedAsync(request.Id, _lifetime.Token);
+                await RenderDetailsAsync();
+            };
+            RemediationPanel.Children.Add(retry);
         }
     }
 

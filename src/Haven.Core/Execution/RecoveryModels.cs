@@ -54,6 +54,32 @@ public static class RecoveryPolicyDefaults
     public static readonly TimeSpan MaximumInteractiveWait = TimeSpan.FromMinutes(5);
 }
 
+public enum ToolFailureKind
+{
+    Unknown = 0,
+    Transient = 1,
+    PermissionRequired = 2,
+    CredentialRequired = 3,
+    ResourceUnavailable = 4,
+    InvalidInput = 5,
+    ExternalFailure = 6
+}
+
+/// <summary>Structured, safe failure metadata supplied by a tool runtime. Raw tool arguments and secrets never belong here.</summary>
+public sealed record ToolFailureDescriptor(
+    string Code,
+    ToolFailureKind Kind,
+    string SafeMessage,
+    string ComponentId,
+    string ComponentName,
+    RecoveryRiskAssessment Risk,
+    bool Retryable,
+    RemediationType? SuggestedRemediation = null,
+    string? ProviderName = null,
+    IReadOnlyList<RemediationInput>? RequiredInputs = null,
+    string? SecretProviderId = null,
+    string? SecretName = null);
+
 public enum RemediationType
 {
     SecretInput = 0,
@@ -99,4 +125,6 @@ public sealed record RemediationRequest(
     DateTimeOffset CreatedAt,
     DateTimeOffset LastActivityAt,
     DateTimeOffset? ExpiresAt = null,
-    string? CredentialReference = null);
+    string? CredentialReference = null,
+    string? SecretProviderId = null,
+    string? SecretName = null);

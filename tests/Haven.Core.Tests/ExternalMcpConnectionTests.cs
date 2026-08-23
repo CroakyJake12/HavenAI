@@ -92,6 +92,12 @@ public sealed class ExternalMcpConnectionTests
 
         Assert.False(result.Activity.Succeeded);
         Assert.Contains("requires approval", result.Output, StringComparison.OrdinalIgnoreCase);
+        var failure = Assert.IsType<ToolFailureDescriptor>(result.Failure);
+        Assert.Equal(ToolFailureKind.PermissionRequired, failure.Kind);
+        Assert.Equal(RemediationType.PermissionRequest, failure.SuggestedRemediation);
+        Assert.True(failure.Retryable);
+        Assert.True(failure.Risk.ExpandsPermissions);
+        Assert.Equal(ExternalConnectionNaming.CapabilityKey(connection.Id), failure.ComponentId);
         Assert.Equal(0, client.InvocationCount);
     }
 

@@ -29,7 +29,9 @@ public sealed class ChatSessionService(
     ChatModelInventoryCache? modelInventory = null,
     McpToolRuntime? mcpTools = null,
     CalendarConnectionToolRuntime? calendarTools = null,
-    IExecutionEventSink? executionEvents = null)
+    IExecutionEventSink? executionEvents = null,
+    AutonomousRecoveryService? recovery = null,
+    RemediationCoordinator? remediations = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -375,65 +377,174 @@ public sealed class ChatSessionService(
             WorkspaceToolResult? lastToolResult = null;
             OllamaToolCall? lastToolCall = null;
 
+            async Task<WorkspaceToolResult> ExecuteRuntimeAsync(
+                OllamaToolCall call,
+                ToolRuntimeKind runtime,
+                PermissionMode permission,
+                CancellationToken token)
+            {
+                if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+                    return await computerPass.ExecuteAsync(call, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+                    return await browserTools.ExecuteAsync(call, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+                    return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
+                    return await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
+                    return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+                    return await workspaceTools.ExecuteAsync(workspaceRoot, call, token, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                return new WorkspaceToolResult(
+                    new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                    "Tool error: registered runtime is unavailable.");
+            }
+
             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
             {
                 await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.{call.Name}", cancellationToken).ConfigureAwait(false);
                 var toolActionId = Guid.NewGuid();
                 var toolStartedAt = DateTimeOffset.UtcNow;
+                var actionParentId = activeActionId ?? parentActionId;
                 executionEvents?.TryPublish(new ExecutionEvent(
-                    Guid.NewGuid(), execution.OperationId, toolActionId, activeActionId ?? parentActionId, ExecutionOrigin.Haven,
+                    Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
                     ExecutionActionType.ToolCall, ExecutionActionStatus.Running, StatusForTool(call.Name),
                     "The registered tool matched the requested operation and current permissions.", DescribeTool(call),
                     call.Name, toolStartedAt, toolStartedAt));
-                WorkspaceToolResult result;
+
+                WorkspaceToolResult originalResult;
+                ToolRuntimeKind? runtimeKind = null;
                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
                 {
-                    execution.Update(
-                        StageForTool(call.Name, runtime),
-                        StatusForTool(call.Name),
-                        DescribeTool(call));
-                    if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
-                        result = await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    else if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
-                        result = await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    else if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
-                        result = await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
-                    else if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
-                        result = await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
-                    else if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
-                        result = await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, commandPermission, cancellationToken).ConfigureAwait(false);
-                    else if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
-                        result = await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
-                    else
-                        result = new WorkspaceToolResult(
-                            new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
-                            "Tool error: registered runtime is unavailable.");
+                    runtimeKind = runtime;
+                    execution.Update(StageForTool(call.Name, runtime), StatusForTool(call.Name), DescribeTool(call));
+                    originalResult = await ExecuteRuntimeAsync(call, runtime, commandPermission, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
                     var detail = modelPlan.GetUnavailableReason(call.Name);
-                    result = new WorkspaceToolResult(
+                    originalResult = new WorkspaceToolResult(
                         new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
                         "Tool error: " + detail);
                 }
-                var endedAt = DateTimeOffset.UtcNow;
-                var status = result.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed;
-                var unavailable = !modelPlan.TryGetRuntime(call.Name, out _);
-                var failure = result.Activity.Succeeded ? null : new ExecutionFailure(
-                    unavailable ? "TOOL_UNAVAILABLE" : "TOOL_EXECUTION_FAILED",
-                    unavailable ? "Tool unavailable" : "Tool execution failed",
-                    result.Activity.Detail, AffectedComponent: call.Name);
+
+                var firstEndedAt = DateTimeOffset.UtcNow;
+                var result = originalResult;
+                var descriptor = originalResult.Failure;
+                RecoveryAttempt? plannedRecovery = null;
+                RemediationRequest? remediationRequest = null;
+                Func<RemediationResolution, CancellationToken, Task<RemediationContinuationResult>>? continuation = null;
+                Guid? remediationId = null;
+                WorkspaceToolResult? automaticRetryResult = null;
+                Guid? automaticRetryActionId = null;
+                DateTimeOffset? automaticRetryStartedAt = null;
+                DateTimeOffset? automaticRetryEndedAt = null;
+
+                if (!originalResult.Activity.Succeeded && descriptor is not null && recovery is not null &&
+                    (descriptor.Retryable || descriptor.SuggestedRemediation is not null))
+                {
+                    plannedRecovery = recovery.Plan(
+                        execution.OperationId, toolActionId, $"{descriptor.Code}:{descriptor.ComponentId}",
+                        descriptor.Risk, descriptor.SafeMessage);
+
+                    if (descriptor.Retryable && runtimeKind is { } retryRuntime && plannedRecovery.Stage == RecoveryStage.SafeAutomaticRetry)
+                    {
+                        automaticRetryActionId = Guid.NewGuid();
+                        automaticRetryStartedAt = DateTimeOffset.UtcNow;
+                        await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.retry.{call.Name}", cancellationToken).ConfigureAwait(false);
+                        automaticRetryResult = await ExecuteRuntimeAsync(call, retryRuntime, commandPermission, cancellationToken).ConfigureAwait(false);
+                        automaticRetryEndedAt = DateTimeOffset.UtcNow;
+                        result = automaticRetryResult;
+                    }
+                    else if (descriptor.SuggestedRemediation is { } remediationType && remediations is not null)
+                    {
+                        remediationId = Guid.NewGuid();
+                        var canResume = descriptor.Retryable && runtimeKind is ToolRuntimeKind.Mcp or ToolRuntimeKind.Calendar;
+                        var now = DateTimeOffset.UtcNow;
+                        var requiredInputs = descriptor.RequiredInputs ?? [];
+                        var sensitivity = requiredInputs.Any(input => input.Sensitivity == RemediationSensitivity.Secret)
+                            ? RemediationSensitivity.Secret
+                            : RemediationSensitivity.Normal;
+                        IReadOnlyList<string> allowedActions = remediationType switch
+                        {
+                            RemediationType.SecretInput => ["Save Securely & Retry", "Cancel"],
+                            RemediationType.PermissionRequest => ["Approve & Retry", "Cancel"],
+                            RemediationType.OAuthReconnect => ["Reconnect Account", "Retry", "Cancel"],
+                            RemediationType.ResourceSelection => ["Select Resource", "Cancel"],
+                            _ => descriptor.Retryable ? ["Retry", "Cancel"] : ["Open Settings", "Cancel"]
+                        };
+                        remediationRequest = new RemediationRequest(
+                            remediationId.Value, execution.OperationId, toolActionId, remediationType,
+                            descriptor.ComponentName + " needs attention", descriptor.SafeMessage,
+                            descriptor.ComponentId, descriptor.ComponentName, descriptor.ProviderName, requiredInputs, allowedActions,
+                            sensitivity, descriptor.Retryable, canResume, RecoveryPolicyDefaults.InitialUserInteractionTimeout,
+                            RecoveryPolicyDefaults.MaximumInteractiveWait, RemediationState.Waiting, now, now,
+                            SecretProviderId: descriptor.SecretProviderId, SecretName: descriptor.SecretName);
+
+                        if (canResume && runtimeKind is { } resumableRuntime)
+                        {
+                            continuation = async (resolution, token) =>
+                            {
+                                await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.resume.{call.Name}", token).ConfigureAwait(false);
+                                var retryPermission = resolution.Approved ? PermissionMode.FullAccess : commandPermission;
+                                var retryResult = await ExecuteRuntimeAsync(call, resumableRuntime, retryPermission, token).ConfigureAwait(false);
+                                return new RemediationContinuationResult(
+                                    retryResult.Activity.Succeeded,
+                                    retryResult.Activity.Succeeded ? retryResult.Activity.Detail : "The blocked action was retried but did not complete.",
+                                    retryResult.Activity.Succeeded ? null : retryResult.Activity.Detail);
+                            };
+                        }
+                    }
+                }
+
+                var originalStatus = originalResult.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed;
+                var unavailable = runtimeKind is null;
+                var recovered = automaticRetryResult?.Activity.Succeeded == true;
+                var failure = originalResult.Activity.Succeeded ? null : new ExecutionFailure(
+                    descriptor?.Code ?? (unavailable ? "TOOL_UNAVAILABLE" : "TOOL_EXECUTION_FAILED"),
+                    descriptor?.Kind switch
+                    {
+                        ToolFailureKind.PermissionRequired => "Permission required",
+                        ToolFailureKind.CredentialRequired => "Connection requires attention",
+                        ToolFailureKind.InvalidInput => "Tool input is invalid",
+                        ToolFailureKind.ResourceUnavailable => "Required resource unavailable",
+                        _ => unavailable ? "Tool unavailable" : "Tool execution failed"
+                    },
+                    descriptor?.SafeMessage ?? originalResult.Activity.Detail,
+                    Attempt: plannedRecovery?.Attempt ?? 1, AffectedComponent: descriptor?.ComponentId ?? call.Name, Recovered: recovered);
                 executionEvents?.TryPublish(new ExecutionEvent(
-                    Guid.NewGuid(), execution.OperationId, toolActionId, activeActionId ?? parentActionId, ExecutionOrigin.Haven,
-                    ExecutionActionType.ToolCall, status, StatusForTool(call.Name), null, result.Activity.Detail,
-                    call.Name, endedAt, toolStartedAt, endedAt, Failure: failure));
+                    Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolCall, originalStatus, StatusForTool(call.Name), null, originalResult.Activity.Detail,
+                    descriptor?.ComponentId ?? call.Name, firstEndedAt, toolStartedAt, firstEndedAt, RemediationId: remediationId, Failure: failure));
                 var resultActionId = Guid.NewGuid();
                 executionEvents?.TryPublish(new ExecutionEvent(
                     Guid.NewGuid(), execution.OperationId, resultActionId, toolActionId, ExecutionOrigin.Haven,
-                    ExecutionActionType.ToolResult, status, result.Activity.Title + " result", null,
-                    SensitiveTextRedactor.Redact(result.Output, 8_000), call.Name, endedAt, toolStartedAt, endedAt,
-                    Failure: failure));
+                    ExecutionActionType.ToolResult, originalStatus, originalResult.Activity.Title + " result", null,
+                    SensitiveTextRedactor.Redact(originalResult.Output, 8_000), descriptor?.ComponentId ?? call.Name, firstEndedAt, toolStartedAt, firstEndedAt,
+                    RemediationId: remediationId, Failure: failure));
                 parentActionId = resultActionId;
+
+                if (automaticRetryResult is not null && automaticRetryActionId is { } retryId &&
+                    automaticRetryStartedAt is { } retryStart && automaticRetryEndedAt is { } retryEnd)
+                {
+                    var retryFailure = automaticRetryResult.Activity.Succeeded ? null : new ExecutionFailure(
+                        automaticRetryResult.Failure?.Code ?? "TOOL_RETRY_FAILED", "Automatic retry failed",
+                        automaticRetryResult.Failure?.SafeMessage ?? automaticRetryResult.Activity.Detail, Attempt: (plannedRecovery?.Attempt ?? 1) + 1,
+                        AffectedComponent: automaticRetryResult.Failure?.ComponentId ?? call.Name);
+                    executionEvents?.TryPublish(new ExecutionEvent(
+                        Guid.NewGuid(), execution.OperationId, retryId, resultActionId, ExecutionOrigin.Haven,
+                        ExecutionActionType.AutomaticRepair,
+                        automaticRetryResult.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed,
+                        automaticRetryResult.Activity.Succeeded ? "Safe automatic retry completed" : "Safe automatic retry failed",
+                        "A bounded retry was permitted because the failure was classified as reversible, in-scope, and low risk.",
+                        automaticRetryResult.Activity.Detail, automaticRetryResult.Failure?.ComponentId ?? call.Name, retryEnd, retryStart, retryEnd,
+                        RetryOfActionId: toolActionId, RecoveryOfActionId: toolActionId, Failure: retryFailure));
+                    parentActionId = retryId;
+                }
+
+                if (remediationRequest is not null && remediations is not null)
+                    await remediations.RequestAsync(remediationRequest, continuation, cancellationToken).ConfigureAwait(false);
+
                 return result;
             }
 

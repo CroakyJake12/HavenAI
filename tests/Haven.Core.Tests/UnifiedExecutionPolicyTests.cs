@@ -63,12 +63,13 @@ public sealed class UnifiedExecutionPolicyTests
     }
 
     [Fact]
-    public async Task Host_owned_secret_remediation_preserves_the_failed_node_and_never_emits_the_secret()
+    public async Task Host_owned_secret_remediation_preserves_the_failed_node_never_emits_the_secret_and_resumes_once()
     {
         var repository = new MemoryRemediationRepository();
         var secrets = new MemorySecretStore();
         var sink = new RecordingSink();
-        var coordinator = new RemediationCoordinator(repository, secrets, sink);
+        var continuations = new RemediationContinuationRegistry();
+        var coordinator = new RemediationCoordinator(repository, secrets, sink, continuations);
         var executionId = Guid.NewGuid();
         var failedActionId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
@@ -78,12 +79,20 @@ public sealed class UnifiedExecutionPolicyTests
             [new RemediationInput("apiKey", "API key", "password", true, RemediationSensitivity.Secret)],
             ["Save Securely & Retry", "Cancel"], RemediationSensitivity.Secret, true, true,
             RecoveryPolicyDefaults.InitialUserInteractionTimeout, RecoveryPolicyDefaults.MaximumInteractiveWait,
-            RemediationState.Waiting, now, now);
+            RemediationState.Waiting, now, now, SecretProviderId: "mcp.weather", SecretName: "api-key");
+        var resumeCount = 0;
+        RemediationResolution? resolution = null;
 
-        await coordinator.RequestAsync(request, CancellationToken.None);
+        await coordinator.RequestAsync(request, (value, _) =>
+        {
+            resumeCount++;
+            resolution = value;
+            return Task.FromResult(new RemediationContinuationResult(true, "Weather request resumed."));
+        }, CancellationToken.None);
         var blocker = Assert.Single(sink.Events);
         Assert.NotEqual(failedActionId, blocker.ActionId);
         Assert.Equal(failedActionId, blocker.ParentActionId);
+        Assert.True(coordinator.CanResume(request.Id));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             coordinator.SaveSecretAndResolveAsync(request.Id, "unrequested-secret", "must-not-store", CancellationToken.None));
         Assert.Null(secrets.Value);
@@ -92,8 +101,48 @@ public sealed class UnifiedExecutionPolicyTests
         var completed = await coordinator.SaveSecretAndResolveAsync(request.Id, "apiKey", secret, CancellationToken.None);
         Assert.StartsWith("credential-ref:", completed.CredentialReference, StringComparison.Ordinal);
         Assert.Equal(secret, secrets.Value);
+        Assert.Equal("mcp.weather", secrets.ProviderId);
+        Assert.Equal("api-key", secrets.SecretName);
+        Assert.Equal(1, resumeCount);
+        Assert.Equal(completed.CredentialReference, resolution?.CredentialReference);
+        Assert.False(coordinator.CanResume(request.Id));
         Assert.DoesNotContain(secret, System.Text.Json.JsonSerializer.Serialize(sink.Events), StringComparison.Ordinal);
         Assert.DoesNotContain(secret, System.Text.Json.JsonSerializer.Serialize(repository.Value), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Permission_remediation_approves_only_the_blocked_action_and_continuation_runs_once()
+    {
+        var repository = new MemoryRemediationRepository();
+        var sink = new RecordingSink();
+        var continuations = new RemediationContinuationRegistry();
+        var coordinator = new RemediationCoordinator(repository, new MemorySecretStore(), sink, continuations);
+        var now = DateTimeOffset.UtcNow;
+        var request = new RemediationRequest(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), RemediationType.PermissionRequest,
+            "Calendar sync", "This sync needs one-action approval.", "calendar:test", "Google Connection", "Google",
+            [], ["Approve & Retry", "Cancel"], RemediationSensitivity.Normal, true, true,
+            RecoveryPolicyDefaults.InitialUserInteractionTimeout, RecoveryPolicyDefaults.MaximumInteractiveWait,
+            RemediationState.Waiting, now, now);
+        var resumeCount = 0;
+        var approved = false;
+
+        await coordinator.RequestAsync(request, (resolution, _) =>
+        {
+            resumeCount++;
+            approved = resolution.Approved;
+            return Task.FromResult(new RemediationContinuationResult(true, "Calendar sync resumed."));
+        }, CancellationToken.None);
+
+        var completed = await coordinator.ApproveAndResolveAsync(request.Id, CancellationToken.None);
+        Assert.Equal(RemediationState.Completed, completed.State);
+        Assert.True(approved);
+        Assert.Equal(1, resumeCount);
+        Assert.False(coordinator.CanResume(request.Id));
+        Assert.Contains(sink.Events, item => item.Name == "Action approved once" && item.SafeReasoningSummary!.Contains("global permissions were not changed", StringComparison.Ordinal));
+
+        await coordinator.ApproveAndResolveAsync(request.Id, CancellationToken.None);
+        Assert.Equal(1, resumeCount);
     }
 
     [Fact]
@@ -130,7 +179,15 @@ public sealed class UnifiedExecutionPolicyTests
     private sealed class MemorySecretStore : IProviderSecretStore
     {
         public string? Value { get; private set; }
-        public Task SetAsync(string providerId, string secretName, string secret, CancellationToken cancellationToken) { Value = secret; return Task.CompletedTask; }
+        public string? ProviderId { get; private set; }
+        public string? SecretName { get; private set; }
+        public Task SetAsync(string providerId, string secretName, string secret, CancellationToken cancellationToken)
+        {
+            ProviderId = providerId;
+            SecretName = secretName;
+            Value = secret;
+            return Task.CompletedTask;
+        }
         public Task<string?> GetAsync(string providerId, string secretName, CancellationToken cancellationToken) => Task.FromResult(Value);
         public Task DeleteAsync(string providerId, string secretName, CancellationToken cancellationToken) { Value = null; return Task.CompletedTask; }
     }

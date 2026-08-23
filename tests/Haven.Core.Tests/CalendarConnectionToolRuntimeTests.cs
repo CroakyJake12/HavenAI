@@ -46,6 +46,12 @@ public sealed class CalendarConnectionToolRuntimeTests
 
         var denied = await runtime.ExecuteAsync(call, [active], PermissionMode.Ask, CancellationToken.None);
         Assert.False(denied.Activity.Succeeded);
+        var blocker = Assert.IsType<ToolFailureDescriptor>(denied.Failure);
+        Assert.Equal(ToolFailureKind.PermissionRequired, blocker.Kind);
+        Assert.Equal(RemediationType.PermissionRequest, blocker.SuggestedRemediation);
+        Assert.True(blocker.Retryable);
+        Assert.True(blocker.Risk.HasExternalImpact);
+        Assert.True(blocker.Risk.ExpandsPermissions);
         Assert.Equal(0, fixture.Provider.SyncCalls);
 
         var allowed = await runtime.ExecuteAsync(call, [active], PermissionMode.AutoSafe, CancellationToken.None);
