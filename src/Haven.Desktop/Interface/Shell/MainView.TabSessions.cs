@@ -24,11 +24,20 @@ public sealed partial class MainView
 {
     private readonly Guid _windowSessionId = Guid.NewGuid();
     private WorkspaceTabViewModel? _secondaryTab;
+    private Window? _trackedWorkspaceWindow;
 
     public WorkspaceTabViewModel? SecondaryTab => _secondaryTab;
     public bool IsSplitView => _secondaryTab is not null;
     internal bool IsDisposed { get; private set; }
     internal Guid WindowSessionId => _windowSessionId;
+
+    private void TrackWorkspaceWindowGeometry()
+    {
+        if (TopLevel.GetTopLevel(this) is not Window window || ReferenceEquals(_trackedWorkspaceWindow, window)) return;
+        _trackedWorkspaceWindow = window;
+        window.PositionChanged += (_, _) => QueueWorkspaceSessionSave();
+        window.SizeChanged += (_, _) => QueueWorkspaceSessionSave();
+    }
 
     private WorkspaceTabViewModel? ResolveTab(string identity) =>
         Guid.TryParse(identity, out var id)
@@ -452,10 +461,21 @@ public sealed partial class MainView
         return new WorkspaceWindowSnapshot(_windowSessionId, kind,
             new WorkspaceLayoutSnapshot(Guid.NewGuid(), _secondaryTab is null ? WorkspaceLayoutKind.Single : WorkspaceLayoutKind.Split,
                 SplitOrientation.Vertical, ratio, panes), OpenTabs.Select(tab => tab.SessionId).ToArray(), SelectedTab?.SessionId,
-            null, DateTimeOffset.UtcNow);
+            CreateWindowBoundsJson(), DateTimeOffset.UtcNow);
     }
 
-    internal TabSessionSnapshot CreateTabSnapshot(WorkspaceTabViewModel tab) => new(
+    private string? CreateWindowBoundsJson()
+    {
+        if (TopLevel.GetTopLevel(this) is not Window window) return null;
+        return JsonSerializer.Serialize(new WorkspaceWindowBoundsState(
+            window.Position.X, window.Position.Y, window.Width, window.Height));
+    }
+
+    private sealed record WorkspaceWindowBoundsState(int X, int Y, double Width, double Height);
+
+    internal TabSessionSnapshot CreateTabSnapshot(WorkspaceTabViewModel tab) => CreateDetachedTabSnapshot(tab);
+
+    internal static TabSessionSnapshot CreateDetachedTabSnapshot(WorkspaceTabViewModel tab) => new(
         tab.SessionId, tab.AppKey, tab.Title,
         CreateTabStateJson(tab), null, null,
         tab.GroupId, tab.IsPinned, tab.IsProtected, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
@@ -490,8 +510,17 @@ public sealed partial class MainView
         if (snapshot is null || snapshot.SchemaVersion > WorkspaceSessionSnapshot.CurrentSchemaVersion) { coordinator.QueueSave(); return; }
         var window = snapshot.Windows.FirstOrDefault(item => item.Kind == WorkspaceWindowKind.Main) ?? snapshot.Windows.FirstOrDefault();
         if (window is null || window.OrderedTabIds.Count == 0) { coordinator.QueueSave(); return; }
+
+        await RestoreWorkspaceWindowAsync(snapshot, window, cancellationToken);
+        if (App.Services?.GetService<WorkspaceWindowService>() is { } windows)
+            await windows.RestoreAdditionalWindowsAsync(snapshot, Edition, cancellationToken);
+        coordinator.QueueSave();
+    }
+
+    internal async Task RestoreWorkspaceWindowAsync(WorkspaceSessionSnapshot snapshot, WorkspaceWindowSnapshot window, CancellationToken cancellationToken)
+    {
         var ordered = window.OrderedTabIds.Select(id => snapshot.Tabs.FirstOrDefault(tab => tab.Id == id)).Where(tab => tab is not null).Cast<TabSessionSnapshot>().ToArray();
-        if (ordered.Length == 0) { coordinator.QueueSave(); return; }
+        if (ordered.Length == 0) return;
 
         RemoveSplitView();
         PageContent.Content = null;
@@ -579,8 +608,9 @@ public sealed partial class MainView
             PaneHost.ColumnDefinitions[0].Width = new GridLength(ratio, GridUnitType.Star);
             PaneHost.ColumnDefinitions[2].Width = new GridLength(1 - ratio, GridUnitType.Star);
         }
+        if (TopLevel.GetTopLevel(this) is Window hostWindow)
+            WorkspaceWindowService.ApplyWindowBounds(hostWindow, window.BoundsJson);
         RefreshTopRailTabs();
-        coordinator.QueueSave();
     }
 
     private static (string? Key, Guid? ConversationId) ReadTabState(string json)

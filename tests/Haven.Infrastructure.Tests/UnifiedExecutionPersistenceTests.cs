@@ -51,13 +51,16 @@ public sealed class UnifiedExecutionPersistenceTests : IDisposable
         Assert.Equal(feedbackValue.Comment, (await feedback.GetAsync(executionId, actionId, CancellationToken.None))?.Comment);
 
         var tabId = Guid.NewGuid();
+        var boundsJson = """{"X":120,"Y":80,"Width":1024,"Height":768}""";
         var session = new WorkspaceSessionSnapshot(WorkspaceSessionSnapshot.CurrentSchemaVersion,
             [new TabSessionSnapshot(tabId, "chat", "Chat", "{}", null, null, null, false, false, now, now)], [],
             [new WorkspaceWindowSnapshot(Guid.NewGuid(), WorkspaceWindowKind.Main,
                 new WorkspaceLayoutSnapshot(Guid.NewGuid(), WorkspaceLayoutKind.Single, SplitOrientation.Horizontal, .5,
-                    [new WorkspacePaneSnapshot(Guid.NewGuid(), tabId, 0)]), [tabId], tabId, null, now)], now);
+                    [new WorkspacePaneSnapshot(Guid.NewGuid(), tabId, 0)]), [tabId], tabId, boundsJson, now)], now);
         await sessions.SaveAsync(session, CancellationToken.None);
-        Assert.Equal(tabId, (await sessions.LoadAsync(CancellationToken.None))!.Tabs[0].Id);
+        var restoredSession = (await sessions.LoadAsync(CancellationToken.None))!;
+        Assert.Equal(tabId, restoredSession.Tabs[0].Id);
+        Assert.Equal(boundsJson, Assert.Single(restoredSession.Windows).BoundsJson);
 
         var target = new HavenNavigationTarget(ActionId: actionId, ExecutionId: executionId);
         var notification = new HavenNotification(Guid.NewGuid(), HavenNotificationKind.Failure, HavenNotificationPriority.Error, "haven", "Haven", "Build failed", "Review the failure", false, false, false, false, null, target, [], now, now, now);

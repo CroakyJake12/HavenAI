@@ -361,6 +361,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddOrSelectTab("chat-general", "General chat", _currentChat, false, HavenSurface.Chat);
 
         InitializeComponent();
+        AttachedToVisualTree += (_, _) => TrackWorkspaceWindowGeometry();
         InitialiseNativeChatSidebar();
         DataContext = this;
 
