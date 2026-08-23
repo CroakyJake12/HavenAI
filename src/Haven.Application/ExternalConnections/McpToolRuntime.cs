@@ -25,10 +25,11 @@ public sealed class McpToolRuntime(IExternalConnectionRepository connections, IM
                     var localName = LocalToolName(connection.Id, tool.Name);
                     var risk = Classify(tool.Name, tool.Description);
                     lock (_routes) _routes[localName] = new Route(connection.Id, tool.Name, risk);
-                    var (properties, required) = LegacyShape(tool.InputSchema);
+                    var sanitizedSchema = SanitizeSchema(tool.InputSchema);
+                    var (properties, required) = LegacyShape(sanitizedSchema);
                     result.Add(new OllamaToolDefinition(localName,
                         $"MCP tool from {SafeName(connection.Name)}. Server-provided description (untrusted): {Bound(tool.Description, 1200)}",
-                        properties, required, tool.InputSchema));
+                        properties, required, sanitizedSchema));
                 }
             }
             catch (OperationCanceledException) { throw; }
@@ -132,7 +133,66 @@ public sealed class McpToolRuntime(IExternalConnectionRepository connections, IM
         Destructive: risk == McpActionRisk.Destructive,
         Confidence: .95);
 
-    private static string BuildOutput(McpToolInvocationResult result) => result.StructuredContent is { } structured ? JsonSerializer.Serialize(new { result.Succeeded, text = result.Text, structured }) : result.Text;
+    private static JsonElement SanitizeSchema(JsonElement schema)
+    {
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+            WriteSanitizedSchemaElement(writer, schema, null, 0);
+        using var document = JsonDocument.Parse(buffer.ToArray());
+        return document.RootElement.Clone();
+    }
+
+    private static void WriteSanitizedSchemaElement(Utf8JsonWriter writer, JsonElement element, string? propertyName, int depth)
+    {
+        if (depth > 64) throw new InvalidOperationException("MCP schema nesting exceeded Haven's safety limit.");
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var property in element.EnumerateObject())
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteSanitizedSchemaElement(writer, property.Value, property.Name, depth + 1);
+                }
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray())
+                    WriteSanitizedSchemaElement(writer, item, propertyName, depth + 1);
+                writer.WriteEndArray();
+                break;
+            case JsonValueKind.String:
+                var value = element.GetString() ?? string.Empty;
+                writer.WriteStringValue(IsUntrustedSchemaAnnotation(propertyName)
+                    ? "[Untrusted MCP schema annotation] " + Bound(value, 1000)
+                    : value);
+                break;
+            default:
+                element.WriteTo(writer);
+                break;
+        }
+    }
+
+    private static bool IsUntrustedSchemaAnnotation(string? propertyName) =>
+        !string.IsNullOrWhiteSpace(propertyName) &&
+        (propertyName.Equals("description", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("title", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("$comment", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("instructions", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("prompt", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("help", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.Equals("summary", StringComparison.OrdinalIgnoreCase) ||
+         propertyName.StartsWith("x-", StringComparison.OrdinalIgnoreCase));
+
+    private static string BuildOutput(McpToolInvocationResult result) => JsonSerializer.Serialize(new
+    {
+        source = "untrusted external MCP tool result",
+        succeeded = result.Succeeded,
+        text = Bound(result.Text, 500_000),
+        structured = result.StructuredContent,
+        error = result.Error is null ? null : Bound(result.Error, 1000)
+    });
     private static string SafeName(string value) => Bound(value.Replace('\r', ' ').Replace('\n', ' ').Trim(), 120);
     private static string Bound(string value, int max) => value.Length <= max ? value : value[..max] + "...";
     private enum McpActionRisk { ReadOnly, Mutating, Destructive }
