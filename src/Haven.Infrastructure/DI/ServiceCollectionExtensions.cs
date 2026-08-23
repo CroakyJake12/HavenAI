@@ -113,6 +113,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IGenUiAppRepository, GenUiAppRepository>();
         services.AddSingleton<GenUiAppSessionService>();
         services.AddSingleton<GenUiInstanceStore>();
+        services.AddSingleton<GenUiLiveActivityTracker>();
         services.AddSingleton<GenUiLocalActionRegistry>();
         services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());
         services.AddSingleton<GenUiAppEventHandler>();

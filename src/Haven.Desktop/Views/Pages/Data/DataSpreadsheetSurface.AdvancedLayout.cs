@@ -353,11 +353,9 @@ internal sealed partial class DataSpreadsheetSurface
                 var width = ColumnWidthAt(column);
                 var rect = new HavenRect(x, y, width, height);
                 var isSelected = row >= selected.StartRow && row <= selected.EndRow && column >= selected.StartColumn && column <= selected.EndColumn;
-                if (isSelected) context.Add(new HavenFillRoundedRectCommand(rect, new HavenSolidBrush(34, 86, 153, 255), 0, opacity));
-                context.Add(new HavenStrokeRoundedRectCommand(rect, new HavenPen(new HavenTokenBrush(row == _activeRow && column == _activeColumn ? "Accent" : "Border"), row == _activeRow && column == _activeColumn ? 2 : 1), 0, opacity));
                 var cell = _sheet?.GetCell(row, column);
                 var value = row == _activeRow && column == _activeColumn && _editing ? _editBuffer : cell?.Value ?? string.Empty;
-                if (!string.IsNullOrEmpty(value)) DrawText(context, value, new HavenRect(x + 7, y + 8, Math.Max(8, width - 14), Math.Max(8, height - 8)), 11, 450, "TextPrimary", opacity);
+                DrawFormattedCell(context, cell, rect, value, isSelected, row == _activeRow && column == _activeColumn, opacity);
             }
         }
 

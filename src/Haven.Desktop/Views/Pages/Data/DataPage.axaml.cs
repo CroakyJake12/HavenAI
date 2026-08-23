@@ -15,6 +15,8 @@ public sealed partial class DataPage : UserControl, IDisposable
     private readonly IDataWorkbookRepository _repository;
     private readonly IDataWorkbookFormatService _formats;
     private readonly IDataWorkbookQueryService _queries;
+    private readonly GenUiLiveActivityTracker _activities;
+    private readonly GenUiInstanceStore _genUiInstances;
     private readonly DataHavenScene _route;
     private readonly DispatcherTimer _autosaveTimer;
     private IReadOnlyList<DataWorkbookSummary> _workbooks = [];
@@ -33,14 +35,16 @@ public sealed partial class DataPage : UserControl, IDisposable
     private bool _dirty;
     private bool _disposed;
 
-    public DataPage(HavenEventBus bus, IDataWorkbookRepository repository, IDataWorkbookFormatService formats, IDataWorkbookQueryService queries)
+    public DataPage(HavenEventBus bus, IDataWorkbookRepository repository, IDataWorkbookFormatService formats, IDataWorkbookQueryService queries, GenUiLiveActivityTracker? activities = null, GenUiInstanceStore? genUiInstances = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _formats = formats ?? throw new ArgumentNullException(nameof(formats));
         _queries = queries ?? throw new ArgumentNullException(nameof(queries));
+        _activities = activities ?? new GenUiLiveActivityTracker();
+        _genUiInstances = genUiInstances ?? new GenUiInstanceStore();
         InitializeComponent();
-        _route = new DataHavenScene(); Scene.Root = _route.Root; _ = VisualQueryGraph; _ = SpreadsheetChrome; InitializeSpreadsheetEditingTools();
+        _route = new DataHavenScene(); Scene.Root = _route.Root; _ = VisualQueryGraph; _ = SpreadsheetChrome; InitializeSpreadsheetEditingTools(); InitializeRecoveredDataUi();
         _route.PreviousWorkbookRequested += OnPreviousWorkbookRequested; _route.NextWorkbookRequested += OnNextWorkbookRequested; _route.NewWorkbookRequested += OnNewWorkbookRequested; _route.SaveRequested += OnSaveRequested; _route.ImportRequested += OnImportRequested; _route.ExportRequested += OnExportRequested;
         _route.AddSheetRequested += OnAddSheetRequested; _route.DeleteSheetRequested += OnDeleteSheetRequested; _route.AddQueryRequested += OnAddQueryRequested; _route.DeleteQueryRequested += OnDeleteQueryRequested; _route.BuildSqlRequested += OnBuildSqlRequested; _route.RunQueryRequested += OnRunQueryRequested;
         _route.AddShapeRequested += OnAddShapeRequested; _route.PreviousDrawingRequested += OnPreviousDrawingRequested; _route.NextDrawingRequested += OnNextDrawingRequested; _route.RotateDrawingRequested += OnRotateDrawingRequested; _route.DeleteDrawingRequested += OnDeleteDrawingRequested;
@@ -137,7 +141,10 @@ public sealed partial class DataPage : UserControl, IDisposable
     {
         var sheet = CurrentSheet; if (sheet is null) return; var existing = sheet.GetCell(_selectedRow, _selectedColumn);
         if (!string.IsNullOrWhiteSpace(existing?.Formula)) { RenderCurrent(); return; }
-        if (string.Equals(existing?.Value ?? string.Empty, value, StringComparison.Ordinal)) return; CaptureSpreadsheetUndo();
+        if (string.Equals(existing?.Value ?? string.Empty, value, StringComparison.Ordinal)) return;
+        var validation = ValidateCellValue(sheet, _selectedRow, _selectedColumn, value);
+        if (!validation.IsValid) { _route.SetStatus("Validation blocked the edit: " + validation.Message); RenderCurrent(); return; }
+        CaptureSpreadsheetUndo();
         sheet.SetCell(_selectedRow, _selectedColumn, value, null, DataCell.InferKind(value)); RecalculateFrom(sheet, _selectedRow, _selectedColumn); _lastQueryResult = null; MarkDirty(); RenderCurrent();
     }
     private void OnCellFormulaChanged(string value)
@@ -160,7 +167,7 @@ public sealed partial class DataPage : UserControl, IDisposable
     private void OnGridWindowRequested(int rowDelta, int columnDelta) { _rowOffset = Math.Max(0, _rowOffset + rowDelta); _columnOffset = Math.Max(0, _columnOffset + columnDelta); _selectedRow = Math.Max(_rowOffset, _selectedRow); _selectedColumn = Math.Max(_columnOffset, _selectedColumn); RenderCurrent(); }
 
     private void AddSheet() { if (Workbook is null) return; var baseName = "Sheet " + (Workbook.Sheets.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture); var name = baseName; var suffix = 2; while (Workbook.Sheets.Any(sheet => sheet.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = baseName + " " + suffix++; Workbook.Sheets.Add(DataSheet.Create(Workbook.Sheets.Count, name)); _sheetIndex = Workbook.Sheets.Count - 1; ResetGridState(); MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Added"); }
-    private void DeleteSheet() { if (Workbook is null) return; if (Workbook.Sheets.Count == 1) { Workbook.Sheets[0] = DataSheet.Create(0, "Sheet 1"); } else Workbook.Sheets.RemoveAt(Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1)); for (var i = 0; i < Workbook.Sheets.Count; i++) Workbook.Sheets[i].Order = i; _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); ResetGridState(); RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Deleted"); }
+    private void DeleteSheet() { if (Workbook is null) return; var index = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); var removedSheetId = Workbook.Sheets[index].Id; if (Workbook.Sheets.Count == 1) { Workbook.Sheets[0] = DataSheet.Create(0, "Sheet 1"); } else Workbook.Sheets.RemoveAt(index); Workbook.Tables.RemoveAll(value => value.SheetId == removedSheetId); Workbook.Validations.RemoveAll(value => value.SheetId == removedSheetId); Workbook.Charts.RemoveAll(value => value.SheetId == removedSheetId); for (var i = 0; i < Workbook.Sheets.Count; i++) Workbook.Sheets[i].Order = i; _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); ResetGridState(); RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Sheet.Deleted"); }
     private void AddQuery() { if (Workbook is null) return; var query = DataQuery.Create($"Query {Workbook.Queries.Count + 1}"); query.Visual.Source = CurrentSheet?.Name ?? "Sheet 1"; query.Sql = query.Visual.BuildSql(); Workbook.Queries.Add(query); _queryIndex = Workbook.Queries.Count - 1; _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Query.Added"); }
     private void DeleteQuery() { if (Workbook is null) return; if (Workbook.Queries.Count == 1) Workbook.Queries[0] = DataQuery.Create("Query 1"); else Workbook.Queries.RemoveAt(Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1)); for (var i = 0; i < Workbook.Queries.Count; i++) Workbook.Queries[i].Order = i; _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _bus.Fire("Data.Query.Deleted"); }
 
@@ -195,7 +202,7 @@ public sealed partial class DataPage : UserControl, IDisposable
     }
 
     private void MarkDirty() { if (Workbook is null) return; Workbook.UpdatedAt = DateTimeOffset.UtcNow; _dirty = true; _route.SetStatus("Unsaved changes · autosave is on"); }
-    private void RenderCurrent() { if (Workbook is null) return; Workbook.Normalize(); _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); var sheet = CurrentSheet; if (sheet is not null) _drawingIndex = Math.Clamp(_drawingIndex, 0, Math.Max(0, sheet.Drawings.Count - 1)); _route.SetWorkbook(Workbook, _workbookIndex, _workbooks.Count, _sheetIndex, _queryIndex, _selectedRow, _selectedColumn, _rowOffset, _columnOffset, _lastQueryResult); if (sheet is not null) _route.SetDrawingState(sheet, _drawingIndex); RenderFormulaState(); SyncSpreadsheetEditingUi(); }
+    private void RenderCurrent() { if (Workbook is null) return; Workbook.Normalize(); _sheetIndex = Math.Clamp(_sheetIndex, 0, Workbook.Sheets.Count - 1); _queryIndex = Math.Clamp(_queryIndex, 0, Workbook.Queries.Count - 1); var sheet = CurrentSheet; if (sheet is not null) _drawingIndex = Math.Clamp(_drawingIndex, 0, Math.Max(0, sheet.Drawings.Count - 1)); _route.SetWorkbook(Workbook, _workbookIndex, _workbooks.Count, _sheetIndex, _queryIndex, _selectedRow, _selectedColumn, _rowOffset, _columnOffset, _lastQueryResult); if (sheet is not null) _route.SetDrawingState(sheet, _drawingIndex); RenderFormulaState(); SyncSpreadsheetEditingUi(); SyncRecoveredDataUi(); }
     private void ResetViewState() { _sheetIndex = _queryIndex = _selectedRow = _selectedColumn = _drawingIndex = _rowOffset = _columnOffset = 0; _lastQueryResult = null; ResetSpreadsheetHistory(); }
     private void ResetGridState() { _selectedRow = _selectedColumn = _drawingIndex = _rowOffset = _columnOffset = 0; }
     private async Task RefreshWorkbooksAsync(CancellationToken cancellationToken) => _workbooks = await _repository.ListAsync(cancellationToken);

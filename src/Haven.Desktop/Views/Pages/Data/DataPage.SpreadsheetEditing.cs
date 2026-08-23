@@ -44,7 +44,7 @@ public sealed partial class DataPage
     private void CaptureSpreadsheetUndo()
     {
         if (_restoringSpreadsheetEdit || Workbook is null || CurrentSheet is null) return;
-        _spreadsheetUndo.Push(CaptureSheetSnapshot(Workbook.Id, CurrentSheet));
+        _spreadsheetUndo.Push(CaptureSheetSnapshot(Workbook, CurrentSheet));
         while (_spreadsheetUndo.Count > SpreadsheetHistoryLimit) TrimOldest(_spreadsheetUndo);
         _spreadsheetRedo.Clear(); UpdateSpreadsheetHistoryButtons();
     }
@@ -54,7 +54,7 @@ public sealed partial class DataPage
         if (Workbook is null || _spreadsheetUndo.Count == 0) return;
         var snapshot = _spreadsheetUndo.Pop(); if (snapshot.WorkbookId != Workbook.Id) { _spreadsheetUndo.Clear(); UpdateSpreadsheetHistoryButtons(); return; }
         var sheet = Workbook.Sheets.FirstOrDefault(item => item.Id == snapshot.SheetId); if (sheet is null) return;
-        _spreadsheetRedo.Push(CaptureSheetSnapshot(Workbook.Id, sheet)); RestoreSheetSnapshot(sheet, snapshot); _sheetIndex = Workbook.Sheets.IndexOf(sheet); FinishSpreadsheetRestore("Undid spreadsheet change.");
+        _spreadsheetRedo.Push(CaptureSheetSnapshot(Workbook, sheet)); RestoreSheetSnapshot(Workbook, sheet, snapshot); _sheetIndex = Workbook.Sheets.IndexOf(sheet); FinishSpreadsheetRestore("Undid spreadsheet change.");
     }
 
     private void RedoSpreadsheetEdit()
@@ -62,7 +62,7 @@ public sealed partial class DataPage
         if (Workbook is null || _spreadsheetRedo.Count == 0) return;
         var snapshot = _spreadsheetRedo.Pop(); if (snapshot.WorkbookId != Workbook.Id) { _spreadsheetRedo.Clear(); UpdateSpreadsheetHistoryButtons(); return; }
         var sheet = Workbook.Sheets.FirstOrDefault(item => item.Id == snapshot.SheetId); if (sheet is null) return;
-        _spreadsheetUndo.Push(CaptureSheetSnapshot(Workbook.Id, sheet)); RestoreSheetSnapshot(sheet, snapshot); _sheetIndex = Workbook.Sheets.IndexOf(sheet); FinishSpreadsheetRestore("Redid spreadsheet change.");
+        _spreadsheetUndo.Push(CaptureSheetSnapshot(Workbook, sheet)); RestoreSheetSnapshot(Workbook, sheet, snapshot); _sheetIndex = Workbook.Sheets.IndexOf(sheet); FinishSpreadsheetRestore("Redid spreadsheet change.");
     }
 
     private void FinishSpreadsheetRestore(string status)
@@ -74,53 +74,59 @@ public sealed partial class DataPage
 
     private void CreateSpreadsheetTable()
     {
-        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (sheet is null || surface is null) return;
+        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (Workbook is null || sheet is null || surface is null) return;
         var range = EffectiveSpreadsheetRange(sheet, surface); if (!ValidateCommandRange(range, "create a table")) return;
-        CaptureSpreadsheetUndo(); var table = new DataSpreadsheetTableState(DataSpreadsheetTableState.CurrentVersion, range.StartRow, range.StartColumn, range.EndRow, range.EndColumn, range.RowCount > 1, null, string.Empty).Normalize();
-        DataSpreadsheetTableMetadata.Write(sheet.Metadata, table); MarkDirty(); RenderCurrent(); _route.SetStatus($"Table created · {Address(range.StartRow, range.StartColumn)}:{Address(range.EndRow, range.EndColumn)}.");
+        CaptureSpreadsheetUndo();
+        Workbook.Tables.RemoveAll(table => table.SheetId == sheet.Id && RangesOverlap(table.Range, range));
+        var suffix = Workbook.Tables.Count + 1; var name = $"Table{suffix}"; while (Workbook.Tables.Any(table => table.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = $"Table{++suffix}";
+        Workbook.Tables.Add(new DataTableDefinition { SheetId = sheet.Id, Name = name, Range = ToCoreRange(range), HasHeaders = range.RowCount > 1 });
+        DataSpreadsheetTableMetadata.Write(sheet.Metadata, null);
+        MarkDirty(); RenderCurrent(); _route.SetStatus($"Table {name} created · {Address(range.StartRow, range.StartColumn)}:{Address(range.EndRow, range.EndColumn)}.");
     }
 
     private void RemoveSpreadsheetTable()
     {
-        var sheet = CurrentSheet; if (sheet is null || DataSpreadsheetTableMetadata.Read(sheet.Metadata) is null) return; CaptureSpreadsheetUndo(); DataSpreadsheetTableMetadata.Write(sheet.Metadata, null); MarkDirty(); RenderCurrent(); _route.SetStatus("Removed the table view. Cell data is unchanged.");
+        var sheet = CurrentSheet; if (Workbook is null || sheet is null) return;
+        var table = CurrentTableDefinition(sheet); var legacy = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (table is null && legacy is null) return;
+        CaptureSpreadsheetUndo(); if (table is not null) Workbook.Tables.Remove(table); DataSpreadsheetTableMetadata.Write(sheet.Metadata, null); MarkDirty(); RenderCurrent(); _route.SetStatus("Removed the table definition. Cell data is unchanged.");
     }
 
     private void ApplySpreadsheetFilter()
     {
-        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (sheet is null || surface is null) return;
-        var table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (table is null) { CreateSpreadsheetTable(); table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (table is null) return; }
-        var column = table.Contains(surface.ActiveRow, surface.ActiveColumn) ? surface.ActiveColumn : table.StartColumn; var text = (_spreadsheetFilterInput?.Text ?? string.Empty).Trim();
-        CaptureSpreadsheetUndo(); DataSpreadsheetTableMetadata.Write(sheet.Metadata, table with { FilterColumn = string.IsNullOrEmpty(text) ? null : column, FilterText = text }); MarkDirty(); RenderCurrent();
-        _route.SetStatus(string.IsNullOrEmpty(text) ? "Table filter cleared." : $"Filtered table by {ColumnNameForTools(column)} containing ‘{text}’.");
+        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (Workbook is null || sheet is null || surface is null) return;
+        var table = CurrentTableDefinition(sheet, surface); if (table is null) { CreateSpreadsheetTable(); table = CurrentTableDefinition(sheet, surface); if (table is null) return; }
+        var column = table.Range.Contains(surface.ActiveRow, surface.ActiveColumn) ? surface.ActiveColumn : table.Range.StartColumn; var text = (_spreadsheetFilterInput?.Text ?? string.Empty).Trim();
+        CaptureSpreadsheetUndo();
+        table.Filters.RemoveAll(filter => filter.Column == column && filter.Operator == DataFilterOperator.Contains);
+        if (!string.IsNullOrEmpty(text)) table.Filters.Add(new DataTableFilter { Column = column, Operator = DataFilterOperator.Contains, Value = text });
+        table.Filters = table.Filters.OrderBy(filter => filter.Column).ThenBy(filter => filter.Operator).ThenBy(filter => filter.Value, StringComparer.OrdinalIgnoreCase).ToList();
+        DataSpreadsheetTableMetadata.Write(sheet.Metadata, null); MarkDirty(); RenderCurrent();
+        _route.SetStatus(string.IsNullOrEmpty(text) ? $"Contains filter cleared for {ColumnNameForTools(column)}." : $"Filtered table by {ColumnNameForTools(column)} containing ‘{text}’. Existing predicates still compose with it.");
     }
 
     private void ClearSpreadsheetFilter()
     {
-        var sheet = CurrentSheet; if (sheet is null) return; var table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (table is null || (table.FilterColumn is null && string.IsNullOrWhiteSpace(table.FilterText))) return;
-        CaptureSpreadsheetUndo(); DataSpreadsheetTableMetadata.Write(sheet.Metadata, table with { FilterColumn = null, FilterText = string.Empty }); MarkDirty(); RenderCurrent(); _route.SetStatus("Table filter cleared.");
+        var sheet = CurrentSheet; if (Workbook is null || sheet is null) return; var table = CurrentTableDefinition(sheet); var legacy = DataSpreadsheetTableMetadata.Read(sheet.Metadata);
+        if ((table is null || table.Filters.Count == 0) && (legacy is null || (legacy.FilterColumn is null && string.IsNullOrWhiteSpace(legacy.FilterText)))) return;
+        CaptureSpreadsheetUndo(); if (table is not null) table.Filters.Clear(); DataSpreadsheetTableMetadata.Write(sheet.Metadata, null); MarkDirty(); RenderCurrent(); _route.SetStatus("Table filters cleared. Underlying cell data is unchanged.");
     }
 
     private void SortSpreadsheet(bool ascending)
     {
-        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (sheet is null || surface is null) return; var range = EffectiveSpreadsheetRange(sheet, surface); if (!ValidateCommandRange(range, "sort this range")) return;
-        var table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); var tableRange = table is not null && table.Contains(surface.ActiveRow, surface.ActiveColumn) && table.StartRow == range.StartRow && table.EndRow == range.EndRow && table.StartColumn == range.StartColumn && table.EndColumn == range.EndColumn;
-        var firstDataRow = tableRange && table!.HasHeaders ? range.StartRow + 1 : range.StartRow; if (firstDataRow >= range.EndRow) { _route.SetStatus("The selected range needs at least two data rows to sort."); return; }
+        var sheet = CurrentSheet; var surface = SpreadsheetSurface(); if (Workbook is null || sheet is null || surface is null) return; var range = EffectiveSpreadsheetRange(sheet, surface); if (!ValidateCommandRange(range, "sort this range")) return;
+        var table = CurrentTableDefinition(sheet, surface); var tableRange = table is not null && table.Range.StartRow == range.StartRow && table.Range.EndRow == range.EndRow && table.Range.StartColumn == range.StartColumn && table.Range.EndColumn == range.EndColumn;
+        var hasHeaders = tableRange && table!.HasHeaders; var firstDataRow = range.StartRow + (hasHeaders ? 1 : 0); if (firstDataRow >= range.EndRow) { _route.SetStatus("The selected range needs at least two data rows to sort."); return; }
         var sortColumn = Math.Clamp(surface.ActiveColumn, range.StartColumn, range.EndColumn);
-        if (sheet.Cells.Any(cell => cell.Row >= firstDataRow && cell.Row <= range.EndRow && cell.Column >= range.StartColumn && cell.Column <= range.EndColumn && !string.IsNullOrWhiteSpace(cell.Formula))) { _route.SetStatus("Sort was not applied because this range contains formulas. Sort value-only rows to avoid changing formula references."); return; }
-        CaptureSpreadsheetUndo();
-        var sourceRows = Enumerable.Range(firstDataRow, range.EndRow - firstDataRow + 1).Select(row => new SpreadsheetSortRow(row, sheet.GetCell(row, sortColumn))).ToList(); sourceRows.Sort((left, right) => CompareSortRows(left, right, ascending));
-        var outside = sheet.Cells.Where(cell => cell.Row < firstDataRow || cell.Row > range.EndRow || cell.Column < range.StartColumn || cell.Column > range.EndColumn).Select(CloneCell).ToList();
-        for (var targetOffset = 0; targetOffset < sourceRows.Count; targetOffset++)
-        {
-            var sourceRow = sourceRows[targetOffset].Row; var targetRow = firstDataRow + targetOffset;
-            foreach (var cell in sheet.Cells.Where(cell => cell.Row == sourceRow && cell.Column >= range.StartColumn && cell.Column <= range.EndColumn)) { var clone = CloneCell(cell); clone.Row = targetRow; outside.Add(clone); }
-        }
-        sheet.Cells = outside; sheet.Normalize(sheet.Order); RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); _route.SetStatus($"Sorted {Address(firstDataRow, range.StartColumn)}:{Address(range.EndRow, range.EndColumn)} by {ColumnNameForTools(sortColumn)} {(ascending ? "ascending" : "descending")}.");
+        var activity = BeginDataActivity("Sort spreadsheet range", $"Sorting {Address(range.StartRow, range.StartColumn)}:{Address(range.EndRow, range.EndColumn)} by {ColumnNameForTools(sortColumn)}.");
+        CaptureSpreadsheetUndo(); DataSpreadsheetOperations.SortRange(sheet, ToCoreRange(range), sortColumn, descending: !ascending, hasHeader: hasHeaders);
+        if (tableRange) { table!.SortColumn = sortColumn; table.SortDescending = !ascending; }
+        DataSpreadsheetTableMetadata.Write(sheet.Metadata, null); RecalculateWorkbook(); _lastQueryResult = null; MarkDirty(); RenderCurrent(); var status = $"Sorted {Address(firstDataRow, range.StartColumn)}:{Address(range.EndRow, range.EndColumn)} by {ColumnNameForTools(sortColumn)} {(ascending ? "ascending" : "descending")}."; _route.SetStatus(status); CompleteDataActivity(activity, status);
     }
 
     private DataSpreadsheetRange EffectiveSpreadsheetRange(DataSheet sheet, DataSpreadsheetSurface surface)
     {
-        var table = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (table is not null && table.Contains(surface.ActiveRow, surface.ActiveColumn)) return new DataSpreadsheetRange(table.StartRow, table.StartColumn, table.EndRow, table.EndColumn);
+        var table = CurrentTableDefinition(sheet, surface); if (table is not null && table.Range.Contains(surface.ActiveRow, surface.ActiveColumn)) return new DataSpreadsheetRange(table.Range.StartRow, table.Range.StartColumn, table.Range.EndRow, table.Range.EndColumn);
+        var legacy = DataSpreadsheetTableMetadata.Read(sheet.Metadata); if (legacy is not null && legacy.Contains(surface.ActiveRow, surface.ActiveColumn)) return new DataSpreadsheetRange(legacy.StartRow, legacy.StartColumn, legacy.EndRow, legacy.EndColumn);
         var selection = surface.Selection; if (selection.RowCount > 1 || selection.ColumnCount > 1) return selection; if (sheet.Cells.Count == 0) return selection;
         return new DataSpreadsheetRange(sheet.Cells.Min(cell => cell.Row), sheet.Cells.Min(cell => cell.Column), sheet.Cells.Max(cell => cell.Row), sheet.Cells.Max(cell => cell.Column));
     }
@@ -133,7 +139,12 @@ public sealed partial class DataPage
     private void SyncSpreadsheetEditingUi()
     {
         if (_syncingSpreadsheetTools) return; _syncingSpreadsheetTools = true;
-        try { var table = CurrentSheet is null ? null : DataSpreadsheetTableMetadata.Read(CurrentSheet.Metadata); if (_spreadsheetFilterInput is not null) _spreadsheetFilterInput.Text = table?.FilterText ?? string.Empty; UpdateSpreadsheetHistoryButtons(); }
+        try
+        {
+            var table = CurrentSheet is null ? null : CurrentTableDefinition(CurrentSheet); var activeColumn = SpreadsheetSurface()?.ActiveColumn;
+            var filter = table?.Filters.FirstOrDefault(value => value.Operator == DataFilterOperator.Contains && (!activeColumn.HasValue || value.Column == activeColumn.Value)) ?? table?.Filters.FirstOrDefault(value => value.Operator == DataFilterOperator.Contains);
+            var legacy = CurrentSheet is null ? null : DataSpreadsheetTableMetadata.Read(CurrentSheet.Metadata); if (_spreadsheetFilterInput is not null) _spreadsheetFilterInput.Text = filter?.Value ?? legacy?.FilterText ?? string.Empty; UpdateSpreadsheetHistoryButtons();
+        }
         finally { _syncingSpreadsheetTools = false; }
     }
 
@@ -157,13 +168,28 @@ public sealed partial class DataPage
         if (bool.TryParse(leftText, out var leftBool) && bool.TryParse(rightText, out var rightBool)) return leftBool.CompareTo(rightBool); return StringComparer.CurrentCultureIgnoreCase.Compare(leftText, rightText);
     }
 
-    private static DataSheetEditSnapshot CaptureSheetSnapshot(Guid workbookId, DataSheet sheet) => new(workbookId, sheet.Id, sheet.Cells.Select(CloneCell).ToList(), new Dictionary<string, string>(sheet.Metadata, StringComparer.Ordinal));
-    private static void RestoreSheetSnapshot(DataSheet sheet, DataSheetEditSnapshot snapshot) { sheet.Cells = snapshot.Cells.Select(CloneCell).ToList(); sheet.Metadata = new Dictionary<string, string>(snapshot.Metadata, StringComparer.Ordinal); sheet.Normalize(sheet.Order); }
+    private static DataSheetEditSnapshot CaptureSheetSnapshot(DataWorkbook workbook, DataSheet sheet) => new(
+        workbook.Id, sheet.Id, sheet.Cells.Select(CloneCell).ToList(), new Dictionary<string, string>(sheet.Metadata, StringComparer.Ordinal),
+        workbook.Tables.Where(value => value.SheetId == sheet.Id).Select(CloneTableDefinition).ToList(),
+        workbook.Validations.Where(value => value.SheetId == sheet.Id).Select(CloneValidationRule).ToList(),
+        workbook.Charts.Where(value => value.SheetId == sheet.Id).Select(CloneChartDefinition).ToList());
+
+    private static void RestoreSheetSnapshot(DataWorkbook workbook, DataSheet sheet, DataSheetEditSnapshot snapshot)
+    {
+        sheet.Cells = snapshot.Cells.Select(CloneCell).ToList(); sheet.Metadata = new Dictionary<string, string>(snapshot.Metadata, StringComparer.Ordinal); sheet.Normalize(sheet.Order);
+        workbook.Tables.RemoveAll(value => value.SheetId == sheet.Id); workbook.Tables.AddRange(snapshot.Tables.Select(CloneTableDefinition));
+        workbook.Validations.RemoveAll(value => value.SheetId == sheet.Id); workbook.Validations.AddRange(snapshot.Validations.Select(CloneValidationRule));
+        workbook.Charts.RemoveAll(value => value.SheetId == sheet.Id); workbook.Charts.AddRange(snapshot.Charts.Select(CloneChartDefinition));
+    }
+
     private static DataCell CloneCell(DataCell cell) => new() { Row = cell.Row, Column = cell.Column, Kind = cell.Kind, Value = cell.Value, Formula = cell.Formula, Metadata = new Dictionary<string, string>(cell.Metadata, StringComparer.Ordinal) };
+    private static DataTableDefinition CloneTableDefinition(DataTableDefinition value) => new() { Id = value.Id, SheetId = value.SheetId, Name = value.Name, Range = value.Range.Clone(), HasHeaders = value.HasHeaders, SortColumn = value.SortColumn, SortDescending = value.SortDescending, Filters = value.Filters.Select(filter => new DataTableFilter { Column = filter.Column, Operator = filter.Operator, Value = filter.Value }).ToList(), Metadata = new Dictionary<string, string>(value.Metadata, StringComparer.Ordinal) };
+    private static DataValidationRule CloneValidationRule(DataValidationRule value) => new() { Id = value.Id, SheetId = value.SheetId, Range = value.Range.Clone(), Kind = value.Kind, AllowBlank = value.AllowBlank, AllowedValues = value.AllowedValues.ToList(), Minimum = value.Minimum, Maximum = value.Maximum, InputMessage = value.InputMessage, ErrorMessage = value.ErrorMessage };
+    private static DataChartDefinition CloneChartDefinition(DataChartDefinition value) => new() { Id = value.Id, SheetId = value.SheetId, Type = value.Type, SourceRange = value.SourceRange.Clone(), Title = value.Title, XAxisTitle = value.XAxisTitle, YAxisTitle = value.YAxisTitle, ShowLegend = value.ShowLegend, FirstRowIsHeaders = value.FirstRowIsHeaders, CategoryColumn = value.CategoryColumn, SeriesColumns = value.SeriesColumns.ToList(), Metadata = new Dictionary<string, string>(value.Metadata, StringComparer.Ordinal) };
     private static void TrimOldest(Stack<DataSheetEditSnapshot> stack) { var keep = stack.Reverse().Skip(1).ToArray(); stack.Clear(); foreach (var item in keep) stack.Push(item); }
     private static string Address(int row, int column) => ColumnNameForTools(column) + (row + 1).ToString(CultureInfo.InvariantCulture);
     private static string ColumnNameForTools(int column) { var value = column + 1; var result = string.Empty; while (value > 0) { value--; result = (char)('A' + value % 26) + result; value /= 26; } return result; }
 
-    private sealed record DataSheetEditSnapshot(Guid WorkbookId, Guid SheetId, List<DataCell> Cells, Dictionary<string, string> Metadata);
+    private sealed record DataSheetEditSnapshot(Guid WorkbookId, Guid SheetId, List<DataCell> Cells, Dictionary<string, string> Metadata, List<DataTableDefinition> Tables, List<DataValidationRule> Validations, List<DataChartDefinition> Charts);
     private sealed record SpreadsheetSortRow(int Row, DataCell? Cell);
 }
