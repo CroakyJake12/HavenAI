@@ -1,3 +1,5 @@
+using Haven.Core;
+
 namespace Haven.Application;
 
 public interface IProjectorExperienceCatalog
@@ -48,19 +50,21 @@ public sealed class ProjectorExperienceCatalog : IProjectorExperienceCatalog
 
 public sealed class BuiltInProjectorExperienceProvider : IProjectorExperienceProvider
 {
+    // Built-ins are advertised only when a production Projector host exists.
+    // Desktop is currently the only shared HavenSurface with a real Android host.
     private static readonly IReadOnlyList<ProjectorExperience> Experiences =
     [
-        BuiltIn("desktop", "Desktop", "A focused workspace with apps, Haven, status and task switching.", "studio", ProjectorInteractionProfile.Desktop),
-        BuiltIn("videos", "Videos", "A lean-back video experience using Haven-supported media and provider integrations.", "browse", ProjectorInteractionProfile.LeanBack),
-        BuiltIn("games", "Games", "A controller-friendly launch surface for supported games and interactive experiences.", "rocket", ProjectorInteractionProfile.Controller),
-        BuiltIn("music", "Music", "A focused playback surface for supported music providers and media sessions.", "bolt", ProjectorInteractionProfile.LeanBack),
-        BuiltIn("tv", "TV", "A television-style surface for supported live and on-demand provider experiences.", "browse", ProjectorInteractionProfile.LeanBack),
-        BuiltIn("haven", "Haven", "A large-screen Haven experience for conversations, tasks and contextual work.", "chat", ProjectorInteractionProfile.Mixed),
-        BuiltIn("photos", "Photos", "A large-screen photo experience that keeps private library selection under user control.", "file", ProjectorInteractionProfile.Mixed),
-        BuiltIn("browser", "Browser", "A large-screen Haven browser surface for deliberate web viewing and navigation.", "browse", ProjectorInteractionProfile.Mixed),
-        BuiltIn("study", "Study", "A focused study surface for lessons, revision material and Haven-guided work.", "file", ProjectorInteractionProfile.Mixed),
-        BuiltIn("development", "Development", "A development surface for code, documentation and project context.", "studio", ProjectorInteractionProfile.Desktop),
-        BuiltIn("presentation", "Presentation", "A privacy-aware presentation surface that keeps private controls on the phone.", "file", ProjectorInteractionProfile.Presentation) with { Sensitivity = ProjectorContentSensitivity.Public }
+        new ProjectorExperience(
+            "desktop",
+            "Desktop",
+            "A focused workspace with apps, Haven, status and task switching.",
+            "studio",
+            ArtworkKey: null,
+            ProjectorExperienceSource.BuiltIn,
+            ProjectorLaunchStrategy.HavenSurface,
+            ProjectorInteractionProfile.Desktop,
+            ProjectorExperiencePersistence.Persistent,
+            [ProjectorCapability.RenderHavenSurface])
     ];
 
     public ValueTask<IReadOnlyList<ProjectorExperience>> GetExperiencesAsync(
@@ -70,21 +74,68 @@ public sealed class BuiltInProjectorExperienceProvider : IProjectorExperiencePro
         cancellationToken.ThrowIfCancellationRequested();
         return new ValueTask<IReadOnlyList<ProjectorExperience>>(Experiences);
     }
+}
 
-    private static ProjectorExperience BuiltIn(
-        string id,
-        string name,
-        string description,
-        string iconKey,
-        ProjectorInteractionProfile interactionProfile) => new(
-            id,
-            name,
-            description,
-            iconKey,
-            ArtworkKey: null,
-            ProjectorExperienceSource.BuiltIn,
-            ProjectorLaunchStrategy.HavenSurface,
-            interactionProfile,
-            ProjectorExperiencePersistence.Persistent,
-            [ProjectorCapability.RenderHavenSurface]);
+public sealed class GeneratedProjectorExperienceProvider(IGenUiAppRepository repository) : IProjectorExperienceProvider
+{
+    public const string ExperiencePrefix = "genui:";
+    private const int MaximumAdvertised = 24;
+
+    public async ValueTask<IReadOnlyList<ProjectorExperience>> GetExperiencesAsync(
+        ProjectorSessionSnapshot? session,
+        CancellationToken cancellationToken)
+    {
+        var pinnedTask = repository.GetPinnedAsync(MaximumAdvertised, cancellationToken);
+        var recentTask = repository.GetRecentAsync(MaximumAdvertised, cancellationToken);
+        await Task.WhenAll(pinnedTask, recentTask).ConfigureAwait(false);
+
+        var seen = new HashSet<Guid>();
+        var experiences = new List<ProjectorExperience>();
+        foreach (var definition in pinnedTask.Result.Concat(recentTask.Result))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var instanceId = definition.Document.Origin.InstanceId;
+            if (instanceId == Guid.Empty || !seen.Add(instanceId))
+                continue;
+
+            var semantic = GenUiSemanticValidator.ValidateAndRepair(definition);
+            if (!semantic.IsValid || semantic.Definition.Rendering.AllowsExecutableCode)
+                continue;
+            if (GenerativeUiContractValidator.Validate(semantic.Definition.Document).Count != 0)
+                continue;
+
+            var title = string.IsNullOrWhiteSpace(semantic.Definition.Document.Title)
+                ? semantic.Definition.AppId
+                : semantic.Definition.Document.Title.Trim();
+            if (string.IsNullOrWhiteSpace(title))
+                title = "Generated experience";
+
+            experiences.Add(new ProjectorExperience(
+                ExperienceId(instanceId),
+                title,
+                "A saved Haven generated experience, rendered through the current GenUI runtime.",
+                "apps",
+                ArtworkKey: null,
+                ProjectorExperienceSource.GeneratedUi,
+                ProjectorLaunchStrategy.GeneratedUi,
+                ProjectorInteractionProfile.Mixed,
+                ProjectorExperiencePersistence.Persistent,
+                [ProjectorCapability.RenderHavenSurface]));
+
+            if (experiences.Count >= MaximumAdvertised)
+                break;
+        }
+
+        return experiences;
+    }
+
+    public static string ExperienceId(Guid instanceId) => ExperiencePrefix + instanceId.ToString("N");
+
+    public static bool TryGetInstanceId(string experienceId, out Guid instanceId)
+    {
+        instanceId = Guid.Empty;
+        return !string.IsNullOrWhiteSpace(experienceId)
+            && experienceId.StartsWith(ExperiencePrefix, StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParseExact(experienceId.AsSpan(ExperiencePrefix.Length), "N", out instanceId);
+    }
 }

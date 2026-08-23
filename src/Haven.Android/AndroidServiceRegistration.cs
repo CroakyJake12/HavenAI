@@ -32,9 +32,13 @@ public static class AndroidServiceRegistration
         services.AddSingleton<AndroidNotificationBridge>();
         services.AddSingleton<AndroidAssistantOverlayCoordinator>();
         services.AddSingleton<IProjectorExperienceProvider, BuiltInProjectorExperienceProvider>();
+        services.AddSingleton<IProjectorExperienceProvider, GeneratedProjectorExperienceProvider>();
         services.AddSingleton<AndroidProjectorApplicationService>();
         services.AddSingleton<IProjectorExperienceProvider>(provider =>
             provider.GetRequiredService<AndroidProjectorApplicationService>());
+        services.AddSingleton<AndroidProjectorRemoteExperienceService>();
+        services.AddSingleton<IProjectorExperienceProvider>(provider =>
+            provider.GetRequiredService<AndroidProjectorRemoteExperienceService>());
         services.AddSingleton<IProjectorExperienceCatalog, ProjectorExperienceCatalog>();
         services.AddSingleton<IProjectorActionPlanner, ProjectorActionPlanner>();
         services.AddSingleton<IProjectorDisplayRegistry, ProjectorDisplayRegistry>();

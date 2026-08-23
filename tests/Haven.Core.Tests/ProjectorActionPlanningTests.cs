@@ -5,7 +5,7 @@ namespace Haven.Core.Tests;
 public sealed class ProjectorActionPlanningTests
 {
     [Fact]
-    public async Task PublicDisplayOnlyPublishesPublicSafeBuiltInExperience()
+    public async Task PublicDisplayDoesNotAdvertisePrivateBuiltInWithoutPublicHost()
     {
         IProjectorExperienceProvider[] providers = [new BuiltInProjectorExperienceProvider()];
         var catalog = new ProjectorExperienceCatalog(providers);
@@ -13,13 +13,11 @@ public sealed class ProjectorActionPlanningTests
 
         var available = await catalog.GetExperiencesAsync(session, CancellationToken.None);
 
-        var presentation = Assert.Single(available);
-        Assert.Equal("presentation", presentation.Id);
-        Assert.Equal(ProjectorContentSensitivity.Public, presentation.Sensitivity);
+        Assert.Empty(available);
     }
 
     [Fact]
-    public async Task ExplicitPhoneSideTrustChangeMakesPrivateExperiencesAvailable()
+    public async Task ExplicitPhoneSideTrustChangeAdvertisesOnlyHostedBuiltIn()
     {
         var registry = new ProjectorDisplayRegistry();
         using var sessions = new ProjectorSessionCoordinator(registry);
@@ -33,26 +31,41 @@ public sealed class ProjectorActionPlanningTests
 
         Assert.Equal(ProjectorDisplayTrust.Private, updated.TargetDisplay.Trust);
         Assert.Equal(ProjectorDisplayTrust.Private, registry.Get(display.RuntimeId)?.Trust);
-        Assert.Equal(11, available.Count);
-        Assert.Contains(available, experience => experience.Id == "desktop");
-        Assert.Contains(available, experience => experience.Id == "browser");
+        var desktop = Assert.Single(available);
+        Assert.Equal("desktop", desktop.Id);
+        Assert.DoesNotContain(available, experience => experience.Id == "browser");
+        Assert.DoesNotContain(available, experience => experience.Id == "study");
+        Assert.DoesNotContain(available, experience => experience.Id == "presentation");
     }
 
     [Fact]
-    public async Task PlannerRoutesNaturalLanguageToDeclaredBuiltInExperience()
+    public async Task PlannerRoutesNaturalLanguageToHostedDesktopExperience()
+    {
+        var planner = Planner(out _, out var session);
+
+        var plan = await planner.PlanAsync("Please turn this screen into desktop", session, CancellationToken.None);
+
+        Assert.True(plan.CanExecute);
+        Assert.Equal(ProjectorActionPlanStatus.Ready, plan.Status);
+        Assert.Equal(ProjectorActionKind.OpenExperience, plan.Action);
+        Assert.Equal("desktop", plan.TargetExperienceId);
+    }
+
+    [Fact]
+    public async Task PlannerDoesNotRouteRemovedUnhostedBuiltInExperience()
     {
         var planner = Planner(out _, out var session);
 
         var plan = await planner.PlanAsync("Please turn this screen into study", session, CancellationToken.None);
 
-        Assert.True(plan.CanExecute);
-        Assert.Equal(ProjectorActionPlanStatus.Ready, plan.Status);
-        Assert.Equal(ProjectorActionKind.OpenExperience, plan.Action);
-        Assert.Equal("study", plan.TargetExperienceId);
+        Assert.False(plan.CanExecute);
+        Assert.Equal(ProjectorActionPlanStatus.Unsupported, plan.Status);
+        Assert.Null(plan.Action);
+        Assert.Null(plan.TargetExperienceId);
     }
 
     [Fact]
-    public async Task PlannerBlocksPrivateTargetOnPublicDisplayAndOffersPublicFallback()
+    public async Task PlannerBlocksPrivateDesktopOnPublicDisplayWithoutFakeFallback()
     {
         IProjectorExperienceProvider[] providers = [new BuiltInProjectorExperienceProvider()];
         var catalog = new ProjectorExperienceCatalog(providers);
@@ -64,7 +77,7 @@ public sealed class ProjectorActionPlanningTests
         Assert.False(plan.CanExecute);
         Assert.Equal(ProjectorActionPlanStatus.BlockedByTrust, plan.Status);
         Assert.Equal("desktop", plan.TargetExperienceId);
-        Assert.Equal("presentation", plan.FallbackExperienceId);
+        Assert.Null(plan.FallbackExperienceId);
         Assert.Null(plan.Action);
     }
 
@@ -79,6 +92,56 @@ public sealed class ProjectorActionPlanningTests
         Assert.Equal(ProjectorActionPlanStatus.Unsupported, plan.Status);
         Assert.Null(plan.Action);
         Assert.Null(plan.TargetExperienceId);
+    }
+
+    [Fact]
+    public async Task PlannerMapsGeneratedExperienceToGeneratedExecutor()
+    {
+        var generated = new ProjectorExperience(
+            "genui:0123456789abcdef0123456789abcdef",
+            "Generated Brief",
+            "Saved generated experience",
+            "apps",
+            null,
+            ProjectorExperienceSource.GeneratedUi,
+            ProjectorLaunchStrategy.GeneratedUi,
+            ProjectorInteractionProfile.Mixed,
+            ProjectorExperiencePersistence.Persistent,
+            [ProjectorCapability.RenderHavenSurface]);
+        IProjectorExperienceProvider[] providers = [new FixedExperienceProvider([generated])];
+        var catalog = new ProjectorExperienceCatalog(providers);
+        var planner = new ProjectorActionPlanner(catalog, providers);
+
+        var plan = await planner.PlanAsync("open Generated Brief", Session(Display(ProjectorDisplayTrust.Private, render: true)), CancellationToken.None);
+
+        Assert.True(plan.CanExecute);
+        Assert.Equal(ProjectorActionKind.OpenGeneratedExperience, plan.Action);
+        Assert.Equal(generated.Id, plan.TargetExperienceId);
+    }
+
+    [Fact]
+    public async Task PlannerMapsRemoteExperienceToRemoteExecutor()
+    {
+        var remote = new ProjectorExperience(
+            "remote-projector:0123456789abcdef0123456789abcdef:616e64726f69642d646973706c61793a32",
+            "Living Room Projector",
+            "Acknowledged remote Projector destination",
+            "studio",
+            null,
+            ProjectorExperienceSource.RemoteDevice,
+            ProjectorLaunchStrategy.RemoteDevice,
+            ProjectorInteractionProfile.Desktop,
+            ProjectorExperiencePersistence.Session,
+            []);
+        IProjectorExperienceProvider[] providers = [new FixedExperienceProvider([remote])];
+        var catalog = new ProjectorExperienceCatalog(providers);
+        var planner = new ProjectorActionPlanner(catalog, providers);
+
+        var plan = await planner.PlanAsync("route Living Room Projector", Session(Display(ProjectorDisplayTrust.Private, render: true)), CancellationToken.None);
+
+        Assert.True(plan.CanExecute);
+        Assert.Equal(ProjectorActionKind.RouteRemoteExperience, plan.Action);
+        Assert.Equal(remote.Id, plan.TargetExperienceId);
     }
 
     [Fact]
