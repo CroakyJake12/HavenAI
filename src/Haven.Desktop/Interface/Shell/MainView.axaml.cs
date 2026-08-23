@@ -819,22 +819,25 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private void OpenTerminal(bool forceNewTab = false, string? initialDirectory = null)
     {
         var hub = Haven.Desktop.App.Services?.GetService(typeof(TerminalCommandActivityHub)) as TerminalCommandActivityHub;
-        if (hub is null)
+        var sessionFactory = Haven.Desktop.App.Services?.GetService(typeof(ITerminalSessionFactory)) as ITerminalSessionFactory;
+        if (hub is null || sessionFactory is null)
         {
-            _notifications.Show("Terminal unavailable", "The Terminal activity service is not available.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+            _notifications.Show("Terminal unavailable", "The Terminal session runtime is not available.", ToastKind.Warning, TimeSpan.FromSeconds(5));
             return;
         }
+
+        var terminalFactory = sessionFactory;
 
         TerminalPage page;
         string key;
         if (forceNewTab)
         {
-            page = new TerminalPage(_workspaceTools, _preferences, hub, initialDirectory);
+            page = new TerminalPage(terminalFactory, _preferences, hub, initialDirectory);
             key = "terminal-" + Guid.NewGuid().ToString("N")[..8];
         }
         else
         {
-            _terminalPage ??= new TerminalPage(_workspaceTools, _preferences, hub, initialDirectory);
+            _terminalPage ??= new TerminalPage(terminalFactory, _preferences, hub, initialDirectory);
             page = _terminalPage;
             key = "terminal";
         }

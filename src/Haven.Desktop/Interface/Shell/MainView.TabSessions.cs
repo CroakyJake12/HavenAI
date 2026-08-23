@@ -13,6 +13,7 @@ using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Notes;
 using Haven.Desktop.Views.Pages.Present;
+using Haven.Desktop.Views.Pages.Terminal;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
 using Haven.Desktop.Views.Pages.Write;
 using Haven.Desktop.Views.Shell.TopRail;
@@ -492,7 +493,14 @@ public sealed partial class MainView
             NewChatPage chat => chat.ConversationId,
             ChatPage chat => chat.ConversationId,
             _ => (Guid?)null
-        }
+        },
+        TerminalSessionId = tab.Page is TerminalPage terminal ? terminal.SessionMetadata.SessionId : (Guid?)null,
+        TerminalShellRuntime = tab.Page is TerminalPage terminalRuntime ? terminalRuntime.SessionMetadata.ShellRuntime : null,
+        TerminalDisplayName = tab.Page is TerminalPage terminalName ? terminalName.SessionMetadata.DisplayName : null,
+        TerminalInitialWorkingDirectory = tab.Page is TerminalPage terminalInitial ? terminalInitial.SessionMetadata.InitialWorkingDirectory : null,
+        TerminalCurrentWorkingDirectory = tab.Page is TerminalPage terminalCurrent ? terminalCurrent.SessionMetadata.CurrentWorkingDirectory : null,
+        TerminalGeneration = tab.Page is TerminalPage terminalGeneration ? terminalGeneration.SessionMetadata.Generation : (int?)null,
+        TerminalLifecycleState = tab.Page is TerminalPage terminalState ? terminalState.SessionMetadata.State.ToString() : null
     });
 
     internal IReadOnlyList<TabGroupSnapshot> CreateGroupSnapshots() => OpenTabs.Where(tab => tab.GroupId is not null)
@@ -551,6 +559,19 @@ public sealed partial class MainView
                     var page = CreateHomePage();
                     AddOrSelectTab(state.Key ?? "home-" + Guid.NewGuid().ToString("N")[..8], saved.Title, page, true, HavenSurface.Home, forceNewTab: true);
                     restored = SelectedTab;
+                }
+                else if (saved.AppKey.Equals("terminal", StringComparison.OrdinalIgnoreCase))
+                {
+                    var hub = App.Services?.GetService<TerminalCommandActivityHub>();
+                    var terminalFactory = App.Services?.GetService<ITerminalSessionFactory>();
+                    if (hub is not null && terminalFactory is not null)
+                    {
+                        var page = new TerminalPage(terminalFactory, _preferences, hub, state.TerminalWorkingDirectory, state.TerminalSessionId);
+                        var terminalKey = state.Key ?? "terminal-" + Guid.NewGuid().ToString("N")[..8];
+                        AddOrSelectTab(terminalKey, saved.Title, page, true, HavenSurface.Terminal, forceNewTab: true);
+                        if (terminalKey.Equals("terminal", StringComparison.OrdinalIgnoreCase)) _terminalPage = page;
+                        restored = SelectedTab;
+                    }
                 }
                 else if (saved.AppKey is "chat" or "new" or "new-chat")
                 {
@@ -613,7 +634,7 @@ public sealed partial class MainView
         RefreshTopRailTabs();
     }
 
-    private static (string? Key, Guid? ConversationId) ReadTabState(string json)
+    private static (string? Key, Guid? ConversationId, string? TerminalWorkingDirectory, Guid? TerminalSessionId) ReadTabState(string json)
     {
         try
         {
@@ -624,8 +645,14 @@ public sealed partial class MainView
             Guid? conversationId = null;
             if ((root.TryGetProperty("conversationId", out var conversationElement) || root.TryGetProperty("ConversationId", out conversationElement)) &&
                 conversationElement.ValueKind == JsonValueKind.String && Guid.TryParse(conversationElement.GetString(), out var parsed)) conversationId = parsed;
-            return (key, conversationId);
+            var terminalWorkingDirectory = root.TryGetProperty("TerminalCurrentWorkingDirectory", out var terminalDirectoryElement) && terminalDirectoryElement.ValueKind == JsonValueKind.String
+                ? terminalDirectoryElement.GetString()
+                : null;
+            Guid? terminalSessionId = null;
+            if (root.TryGetProperty("TerminalSessionId", out var terminalSessionElement) && terminalSessionElement.ValueKind == JsonValueKind.String &&
+                Guid.TryParse(terminalSessionElement.GetString(), out var parsedTerminalSessionId)) terminalSessionId = parsedTerminalSessionId;
+            return (key, conversationId, terminalWorkingDirectory, terminalSessionId);
         }
-        catch (JsonException) { return (null, null); }
+        catch (JsonException) { return (null, null, null, null); }
     }
 }
