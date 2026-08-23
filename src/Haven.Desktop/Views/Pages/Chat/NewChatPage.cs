@@ -417,9 +417,9 @@ public sealed class NewChatPage : UserControl, IDisposable
         NotifyFreshConversationReady();
     }
 
-    public async Task StartFreshConversationAsync(HavenMode mode, Guid? containerId, Guid? lessonId = null)
+    public async Task StartFreshConversationAsync(HavenMode mode, Guid? containerId, Guid? lessonId = null, Guid? spaceId = null)
     {
-        ResetToFreshConversation(mode, containerId, lessonId);
+        ResetToFreshConversation(mode, containerId, lessonId, spaceId);
         await _conversations.UpsertConversationAsync(_conversation, CancellationToken.None);
         NotifyFreshConversationReady();
     }
@@ -1421,10 +1421,10 @@ public sealed class NewChatPage : UserControl, IDisposable
         }
     }
 
-    private void ResetToFreshConversation(HavenMode mode, Guid? containerId, Guid? lessonId)
+    private void ResetToFreshConversation(HavenMode mode, Guid? containerId, Guid? lessonId, Guid? spaceId = null)
     {
         _sendCancellation?.Cancel();
-        _conversation = CreateConversation(mode, containerId, lessonId);
+        _conversation = CreateConversation(mode, containerId, lessonId, spaceId);
         _activeAgent = null;
         _activeInstructions.Clear();
         _chatActionModeOverride = null;
@@ -1568,7 +1568,7 @@ public sealed class NewChatPage : UserControl, IDisposable
         _ => "Auto"
     };
 
-    private static Conversation CreateConversation(HavenMode mode, Guid? containerId = null, Guid? lessonId = null)
+    private static Conversation CreateConversation(HavenMode mode, Guid? containerId = null, Guid? lessonId = null, Guid? spaceId = null)
     {
         var now = DateTimeOffset.UtcNow;
         var kind = mode switch
@@ -1590,7 +1590,8 @@ public sealed class NewChatPage : UserControl, IDisposable
             false,
             false,
             now,
-            now);
+            now,
+            SpaceId: spaceId);
     }
 
     public void Dispose()

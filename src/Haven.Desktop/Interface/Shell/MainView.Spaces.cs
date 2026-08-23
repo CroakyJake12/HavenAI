@@ -28,7 +28,9 @@ public sealed partial class MainView
                 _customTemplate),
             new SpaceEditPlanner(_ollama, () => _preferences.DefaultModel),
             LaunchSpaceAsync,
-            OpenSpaceLayoutAsync);
+            OpenSpaceLayoutAsync,
+            _conversations,
+            OpenSpaceConversationAsync);
 
         AddOrSelectTab("spaces", "Spaces", _spacesPage, false, HavenSurface.Spaces);
         await _spacesPage.ActivateAsync(CancellationToken.None);
@@ -46,7 +48,7 @@ public sealed partial class MainView
 
         var page = CreateNewChatPage();
         await ConfigureAddMenuAsync(page);
-        await page.StartFreshConversationAsync(HavenMode.Chat, null);
+        await page.StartFreshConversationAsync(HavenMode.Chat, null, null, space.Id);
         page.ConfigureRegisteredContext(plan.RegisteredContext, plan.EffortOverride);
 
         if (plan.Files.Count > 0)
@@ -77,6 +79,21 @@ public sealed partial class MainView
         ApplyShellVisualState();
     }
 
+    private async Task OpenSpaceConversationAsync(Conversation conversation)
+    {
+        var page = CreateNewChatPage();
+        await ConfigureAddMenuAsync(page);
+        await page.LoadConversationAsync(conversation);
+        AddOrSelectTab(
+            $"space-chat-{conversation.Id:N}",
+            conversation.Title,
+            page,
+            false,
+            HavenSurface.Spaces,
+            forceNewTab: true);
+        page.FocusComposer();
+        ApplyShellVisualState();
+    }
     private Task OpenSpaceLayoutAsync(SpaceDefinition space)
     {
         var page = new SpaceLayoutEditorPage(SpacesRegistry, space);

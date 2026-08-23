@@ -882,6 +882,10 @@ internal static class Migrations
                 updated_at TEXT NOT NULL
             );
             CREATE INDEX ix_extension_packages_source ON extension_packages(source_id,package_type,is_enabled);
+        """),
+        new(23, """
+            ALTER TABLE conversations ADD COLUMN space_id TEXT NULL;
+            CREATE INDEX ix_conversations_space_updated ON conversations(space_id,updated_at DESC);
         """)
     ];
 }

@@ -61,6 +61,25 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
     /// <summary>
     /// Performs the kind for scope step owned by this component.
     /// </summary>
+    public async Task<IReadOnlyList<Conversation>> GetBySpaceAsync(Guid spaceId, int limit, CancellationToken cancellationToken)
+    {
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM conversations WHERE space_id=$spaceId AND is_temporary=0 AND is_archived=0 ORDER BY updated_at DESC LIMIT $limit;";
+        command.Parameters.AddWithValue("$spaceId", spaceId.ToString());
+        command.Parameters.AddWithValue("$limit", Math.Max(0, limit));
+        return await ReadConversationsAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task DetachSpaceAsync(Guid spaceId, CancellationToken cancellationToken)
+    {
+        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE conversations SET space_id=NULL WHERE space_id=$spaceId;";
+        command.Parameters.AddWithValue("$spaceId", spaceId.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private static ConversationKind KindForScope(ConversationScopeKind kind) => kind switch
     {
         ConversationScopeKind.GeneralChat or ConversationScopeKind.ChatGroup => ConversationKind.Chat,
@@ -177,12 +196,12 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO conversations(id, mode, kind, title, container_id, lesson_id, is_pinned, is_temporary, created_at, updated_at,is_archived,parent_conversation_id,compacted_at)
-            VALUES($id,$mode,$kind,$title,$containerId,$lessonId,$isPinned,$isTemporary,$createdAt,$updatedAt,$isArchived,$parentConversationId,$compactedAt)
+            INSERT INTO conversations(id, mode, kind, title, container_id, lesson_id, is_pinned, is_temporary, created_at, updated_at,is_archived,parent_conversation_id,compacted_at,space_id)
+            VALUES($id,$mode,$kind,$title,$containerId,$lessonId,$isPinned,$isTemporary,$createdAt,$updatedAt,$isArchived,$parentConversationId,$compactedAt,$spaceId)
             ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, title=excluded.title,
               container_id=excluded.container_id, lesson_id=excluded.lesson_id, is_pinned=excluded.is_pinned,
               is_temporary=excluded.is_temporary, updated_at=excluded.updated_at,is_archived=excluded.is_archived,
-              parent_conversation_id=excluded.parent_conversation_id,compacted_at=excluded.compacted_at;
+              parent_conversation_id=excluded.parent_conversation_id,compacted_at=excluded.compacted_at,space_id=excluded.space_id;
             """;
         command.Parameters.AddWithValue("$id", conversation.Id.ToString());
         command.Parameters.AddWithValue("$mode", (int)conversation.Mode);
@@ -197,6 +216,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
         command.Parameters.AddWithValue("$isArchived", conversation.IsArchived ? 1 : 0);
         command.Parameters.AddWithValue("$parentConversationId", (object?)conversation.ParentConversationId?.ToString() ?? DBNull.Value);
         command.Parameters.AddWithValue("$compactedAt", (object?)conversation.CompactedAt?.ToString("O") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$spaceId", (object?)conversation.SpaceId?.ToString() ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -488,7 +508,7 @@ public sealed class ConversationRepository(ISqliteConnectionFactory factory) : I
                 reader.Guid("id"), (HavenMode)reader.Int32("mode"), (ConversationKind)reader.Int32("kind"), reader.String("title"),
                 reader.NullableGuid("container_id"), reader.NullableGuid("lesson_id"), reader.Boolean("is_pinned"), reader.Boolean("is_temporary"),
                 reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.Boolean("is_archived"),
-                reader.NullableGuid("parent_conversation_id"), reader.NullableString("compacted_at") is { } compacted ? DateTimeOffset.Parse(compacted, System.Globalization.CultureInfo.InvariantCulture) : null));
+                reader.NullableGuid("parent_conversation_id"), reader.NullableString("compacted_at") is { } compacted ? DateTimeOffset.Parse(compacted, System.Globalization.CultureInfo.InvariantCulture) : null, reader.NullableGuid("space_id")));
         }
         return result;
     }

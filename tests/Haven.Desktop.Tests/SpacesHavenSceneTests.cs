@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Pages.Spaces;
@@ -69,6 +70,19 @@ public sealed class SpacesHavenSceneTests
         Assert.Equal("Built-in Space", scene.Delete.Content);
     }
 
+    [AvaloniaFact]
+    public void Conversations_render_real_navigation_rows()
+    {
+        using var scene = new SpacesHavenScene();
+        var now = DateTimeOffset.UtcNow;
+        var conversation = new Conversation(Guid.NewGuid(), HavenMode.Chat, ConversationKind.Chat, "Space chat", null, null, false, false, now, now, SpaceId: Guid.NewGuid());
+
+        scene.SetConversations([conversation]);
+
+        var button = Assert.Single(scene.Conversations.DescendantsAndSelf().OfType<HavenButton>());
+        Assert.Equal("Space chat", button.Content);
+        Assert.Equal("Open chat Space chat", button.Accessibility.AccessibleName);
+    }
     [AvaloniaFact]
     public void Compact_layout_stacks_picker_and_editor_and_can_restore_desktop_layout()
     {

@@ -18,7 +18,8 @@ public sealed record Conversation(
     DateTimeOffset UpdatedAt,
     bool IsArchived = false,
     Guid? ParentConversationId = null,
-    DateTimeOffset? CompactedAt = null);
+    DateTimeOffset? CompactedAt = null,
+    Guid? SpaceId = null);
 
 /// <summary>
 /// Identifies one independently navigable Chat or Study history. Sidebar selection and
