@@ -25,6 +25,7 @@ using Haven.Desktop.Views.Pages.ContainerSettings;
 using Haven.Desktop.Views.Pages.ActionGraph;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
+using Haven.Desktop.Views.Pages.Mail;
 using Haven.Desktop.Views.Pages.Plan;
 using Haven.Desktop.Views.Pages.Play;
 using Haven.Desktop.Views.Pages.ProjectPreview;
@@ -120,6 +121,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
     private TerminalPage? _terminalPage;
+    private MailPage? _mailPage;
     private PlayPage? _playPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
@@ -635,6 +637,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         HavenSurface.Plan => "Haven Plan",
         HavenSurface.Training => "Haven Training",
         HavenSurface.Mesh => "Haven Mesh",
+        HavenSurface.Mail => "Haven Mail",
         _ => "Haven"
     };
 
@@ -816,6 +819,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         return Task.CompletedTask;
     }
 
+    private void OpenMail()
+    {
+        _mailPage ??= new MailPage();
+        AddOrSelectTab("mail", "Mail", _mailPage, false, HavenSurface.Mail);
+        ApplyShellVisualState();
+    }
     private void OpenTerminal(bool forceNewTab = false, string? initialDirectory = null)
     {
         var hub = Haven.Desktop.App.Services?.GetService(typeof(TerminalCommandActivityHub)) as TerminalCommandActivityHub;
@@ -1735,6 +1744,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     break;
                 case HavenSurface.Translate:
                     await OpenTranslateAsync(false);
+                    break;
+                case HavenSurface.Mail:
+                    OpenMail();
                     break;
                 case HavenSurface.Mesh:
                     OpenMeshDashboard();

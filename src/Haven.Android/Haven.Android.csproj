@@ -24,8 +24,12 @@
     <!-- DI-constructed Avalonia controls intentionally have no public parameterless
          constructor; they are reached statically from Haven's control graph. -->
     <NoWarn>$(NoWarn);CA2255;AVLN3001</NoWarn>
+    <HavenGoogleCalendarClientId Condition="'$(HavenGoogleCalendarClientId)' == ''">$(HAVEN_GOOGLE_CALENDAR_CLIENT_ID)</HavenGoogleCalendarClientId>
+    <HavenMicrosoftCalendarClientId Condition="'$(HavenMicrosoftCalendarClientId)' == ''">$(HAVEN_MICROSOFT_CALENDAR_CLIENT_ID)</HavenMicrosoftCalendarClientId>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyMetadata Include="HavenGoogleCalendarClientId" Value="$(HavenGoogleCalendarClientId)" Condition="'$(HavenGoogleCalendarClientId)' != ''" />
+    <AssemblyMetadata Include="HavenMicrosoftCalendarClientId" Value="$(HavenMicrosoftCalendarClientId)" Condition="'$(HavenMicrosoftCalendarClientId)' != ''" />
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />
     <Using Include="System.IO" />
