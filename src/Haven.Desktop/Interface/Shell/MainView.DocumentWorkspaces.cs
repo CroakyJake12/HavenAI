@@ -33,7 +33,8 @@ public sealed partial class MainView
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
                 services.GetRequiredService<IPresentExportService>(), services.GetRequiredService<IPresentImportService>()),
             "data" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
-                services.GetRequiredService<IDataWorkbookFormatService>(), services.GetRequiredService<IDataWorkbookQueryService>()),
+                services.GetRequiredService<IDataWorkbookFormatService>(), services.GetRequiredService<IDataWorkbookQueryService>(),
+                services.GetRequiredService<GenUiLiveActivityTracker>(), services.GetRequiredService<GenUiInstanceStore>()),
             _ => throw new InvalidOperationException($"{key} is not a direct document workspace.")
         };
     }

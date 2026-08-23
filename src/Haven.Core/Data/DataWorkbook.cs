@@ -50,7 +50,7 @@ public static class DataSqlSafety
 
 public sealed class DataWorkbook
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "Untitled workbook";
@@ -60,6 +60,9 @@ public sealed class DataWorkbook
     public List<DataSheet> Sheets { get; set; } = [];
     public List<DataQuery> Queries { get; set; } = [];
     public List<DataNamedRange> NamedRanges { get; set; } = [];
+    public List<DataTableDefinition> Tables { get; set; } = [];
+    public List<DataValidationRule> Validations { get; set; } = [];
+    public List<DataChartDefinition> Charts { get; set; } = [];
     public DataSchemaSnapshot Schema { get; set; } = new();
     public DataRecoveryState Recovery { get; set; } = new();
     public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
@@ -72,11 +75,14 @@ public sealed class DataWorkbook
 
     public void Normalize()
     {
-        SchemaVersion = CurrentSchemaVersion; Title = string.IsNullOrWhiteSpace(Title) ? "Untitled workbook" : Title.Trim(); Sheets ??= []; Queries ??= []; NamedRanges ??= []; Schema ??= new(); Recovery ??= new(); Metadata ??= new(StringComparer.Ordinal);
+        SchemaVersion = CurrentSchemaVersion; Title = string.IsNullOrWhiteSpace(Title) ? "Untitled workbook" : Title.Trim(); Sheets ??= []; Queries ??= []; NamedRanges ??= []; Tables ??= []; Validations ??= []; Charts ??= []; Schema ??= new(); Recovery ??= new(); Metadata ??= new(StringComparer.Ordinal);
         if (Sheets.Count == 0) Sheets.Add(DataSheet.Create(0, "Sheet 1")); if (Queries.Count == 0) Queries.Add(DataQuery.Create("Query 1"));
         for (var i = 0; i < Sheets.Count; i++) { Sheets[i] ??= DataSheet.Create(i, $"Sheet {i + 1}"); Sheets[i].Normalize(i); }
         for (var i = 0; i < Queries.Count; i++) { Queries[i] ??= DataQuery.Create($"Query {i + 1}"); Queries[i].Normalize(i); }
         var rangeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase); for (var i = NamedRanges.Count - 1; i >= 0; i--) { var range = NamedRanges[i]; if (range is null) { NamedRanges.RemoveAt(i); continue; } range.Normalize(); if (!rangeNames.Add(range.Name)) NamedRanges.RemoveAt(i); }
+        var tableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase); for (var i = Tables.Count - 1; i >= 0; i--) { var table = Tables[i]; if (table is null) { Tables.RemoveAt(i); continue; } table.Normalize(); if (!tableNames.Add(table.Name)) Tables.RemoveAt(i); }
+        foreach (var validation in Validations.Where(value => value is not null)) validation.Normalize(); Validations = Validations.Where(value => value is not null).ToList();
+        foreach (var chart in Charts.Where(value => value is not null)) chart.Normalize(); Charts = Charts.Where(value => value is not null).ToList();
         Schema.Normalize();
     }
 }
