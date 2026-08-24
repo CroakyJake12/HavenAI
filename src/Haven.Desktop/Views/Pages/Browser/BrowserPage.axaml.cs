@@ -601,6 +601,7 @@ public sealed partial class BrowserPage : UserControl, IDisposable
         _browser.StateChanged -= OnStateChanged;
         _bus.UnregisterElement("Browser.View");
         _ = SaveTabsAsync();
+        _ = SaveResearchCheckpointAsync();
         GC.SuppressFinalize(this);
     }
 }

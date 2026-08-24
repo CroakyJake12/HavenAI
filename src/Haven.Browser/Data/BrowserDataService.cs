@@ -28,6 +28,18 @@ public sealed record BrowserHistoryEntry(Guid Id, string Title, string Address, 
 /// </summary>
 public sealed record BrowserTabState(Guid Id, string Title, string Address, BrowserTabPrivacy Privacy, string Group, DateTimeOffset UpdatedAt);
 /// <summary>
+/// Represents the durable, non-private Browse Research checkpoint restored across restarts.
+/// Mixed sessions containing private sources are intentionally never written to disk.
+/// </summary>
+public sealed record BrowserResearchSessionState(
+    string Query,
+    string Output,
+    IReadOnlyList<BrowserResearchSource> Sources,
+    DateTimeOffset UpdatedAt)
+{
+    public static BrowserResearchSessionState Empty { get; } = new(string.Empty, string.Empty, [], DateTimeOffset.MinValue);
+}
+/// <summary>
 /// Represents saved login and keeps its related state and behavior together.
 /// </summary>
 public sealed record SavedLogin(Guid Id, string Origin, string Username, DateTimeOffset UpdatedAt);
@@ -56,7 +68,7 @@ public sealed class BrowserDataService : IDisposable
     /// <summary>
     /// Stores current schema version locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
     /// <summary>
     /// Stores json options locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -113,6 +125,10 @@ public sealed class BrowserDataService : IDisposable
     /// Gets or updates settings, the bindable or domain state represented by this property.
     /// </summary>
     public BrowserSettings Settings => _data.Settings;
+    /// <summary>
+    /// Gets the last durable non-private Research checkpoint.
+    /// </summary>
+    public BrowserResearchSessionState Research => _data.Research ?? BrowserResearchSessionState.Empty;
 
     /// <summary>
     /// Performs add bookmark asynchronously so I/O does not block the caller's thread.
@@ -193,6 +209,25 @@ public sealed class BrowserDataService : IDisposable
             .ToArray();
         return MutateAndSaveAsync(data => data with { Tabs = safeTabs }, cancellationToken);
     }
+
+    /// <summary>
+    /// Persists a restart-safe Research checkpoint only when every captured source is non-private.
+    /// </summary>
+    public Task SaveResearchAsync(BrowserResearchSessionState research, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(research);
+        if (research.Sources.Any(item => item.IsPrivate))
+            return Task.CompletedTask;
+
+        var safeResearch = NormalizeResearch(research with { UpdatedAt = DateTimeOffset.UtcNow });
+        return MutateAndSaveAsync(data => data with { Research = safeResearch }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes the durable Research checkpoint.
+    /// </summary>
+    public Task ClearResearchAsync(CancellationToken cancellationToken) =>
+        MutateAndSaveAsync(data => data with { Research = BrowserResearchSessionState.Empty }, cancellationToken);
 
     /// <summary>
     /// Performs save settings asynchronously so I/O does not block the caller's thread.
@@ -375,8 +410,29 @@ public sealed class BrowserDataService : IDisposable
             Tabs = (data.Tabs ?? []).Where(item => item.Privacy != BrowserTabPrivacy.Private).Take(60).ToArray(),
             Logins = data.Logins ?? [],
             Extensions = data.Extensions ?? [],
-            Settings = data.Settings ?? BrowserSettings.Default
+            Settings = data.Settings ?? BrowserSettings.Default,
+            Research = NormalizeResearch(data.Research ?? BrowserResearchSessionState.Empty)
         };
+    }
+
+    private static BrowserResearchSessionState NormalizeResearch(BrowserResearchSessionState research)
+    {
+        if ((research.Sources ?? []).Any(item => item.IsPrivate))
+            return BrowserResearchSessionState.Empty;
+
+        var sources = (research.Sources ?? [])
+            .TakeLast(BrowserResearchCoordinator.MaxSources)
+            .ToArray();
+        if (sources.Length == 0)
+            return BrowserResearchSessionState.Empty;
+
+        var query = (research.Query ?? string.Empty).Trim();
+        if (query.Length > BrowserResearchCoordinator.MaxQueryCharacters)
+            query = query[..BrowserResearchCoordinator.MaxQueryCharacters];
+        var output = research.Output ?? string.Empty;
+        if (output.Length > BrowserResearchCoordinator.MaxTotalEvidenceCharacters)
+            output = output[..BrowserResearchCoordinator.MaxTotalEvidenceCharacters];
+        return new BrowserResearchSessionState(query, output, sources, research.UpdatedAt);
     }
 
     /// <summary>
@@ -526,12 +582,12 @@ public sealed class BrowserDataService : IDisposable
     /// </summary>
     private sealed record BrowserData(IReadOnlyList<BrowserBookmark> Bookmarks, IReadOnlyList<BrowserHistoryEntry> History,
         IReadOnlyList<BrowserTabState> Tabs, IReadOnlyList<SavedLogin> Logins, IReadOnlyList<BrowserExtensionDefinition> Extensions,
-        BrowserSettings Settings, int SchemaVersion = CurrentSchemaVersion)
+        BrowserSettings Settings, BrowserResearchSessionState? Research = null, int SchemaVersion = CurrentSchemaVersion)
     {
         /// <summary>
         /// Gets or updates empty, the bindable or domain state represented by this property.
         /// </summary>
-        public static BrowserData Empty { get; } = new([], [], [], [], [], BrowserSettings.Default, CurrentSchemaVersion);
+        public static BrowserData Empty { get; } = new([], [], [], [], [], BrowserSettings.Default, BrowserResearchSessionState.Empty, CurrentSchemaVersion);
     }
 }
 
