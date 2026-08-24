@@ -106,6 +106,49 @@
             </StackPanel>
           </hui:HavenAdaptiveSurface>
 
+          <hui:HavenAdaptiveSurface Classes="card">
+            <StackPanel Spacing="7">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                <TextBlock Text="Language server" Classes="sectionHeading" />
+                <TextBlock Grid.Column="1" Text="{Binding CaretLocation}" Classes="muted2" FontSize="10" />
+              </Grid>
+              <TextBlock Text="{Binding LanguageCapabilitySummary}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <hui:HavenButton Content="Definition" Command="{Binding GoToDefinitionCommand}" />
+                <hui:HavenButton Content="References" Command="{Binding FindReferencesCommand}" />
+                <hui:HavenButton Content="Complete" Command="{Binding LoadCompletionsCommand}" />
+                <hui:HavenButton Content="Code actions" Command="{Binding LoadCodeActionsCommand}" />
+                <hui:HavenButton Content="Semantic tokens" Command="{Binding RefreshSemanticTokensCommand}" />
+              </StackPanel>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <hui:HavenTextInput Text="{Binding RenameDraft}" PlaceholderText="New symbol name" />
+                <hui:HavenButton Grid.Column="1" Content="Rename symbol" Command="{Binding RenameSymbolCommand}" Classes="accent" />
+              </Grid>
+              <TextBlock Text="{Binding LanguageFeatureStatus}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+
+              <TextBlock Text="Definitions" Classes="eyebrow" />
+              <ItemsControl ItemsSource="{Binding Definitions}" MaxHeight="120">
+                <ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,2"><TextBlock Text="{Binding Location}" FontFamily="Cascadia Code, Consolas" FontSize="9" TextTrimming="CharacterEllipsis"/><hui:HavenButton Grid.Column="1" Content="Open" Command="{Binding OpenCommand}" Padding="6,2" FontSize="9"/></Grid></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="References" Classes="eyebrow" />
+              <ItemsControl ItemsSource="{Binding References}" MaxHeight="150">
+                <ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,2"><TextBlock Text="{Binding Location}" FontFamily="Cascadia Code, Consolas" FontSize="9" TextTrimming="CharacterEllipsis"/><hui:HavenButton Grid.Column="1" Content="Open" Command="{Binding OpenCommand}" Padding="6,2" FontSize="9"/></Grid></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Completions" Classes="eyebrow" />
+              <ItemsControl ItemsSource="{Binding Completions}" MaxHeight="160">
+                <ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,2"><StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="10"/><TextBlock Text="{Binding Detail}" Classes="muted" FontSize="9" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding RangeMode}" Classes="muted2" FontSize="9"/></StackPanel><hui:HavenButton Grid.Column="1" Content="Insert" Command="{Binding ApplyCommand}" Padding="6,2" FontSize="9"/></Grid></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Code actions" Classes="eyebrow" />
+              <ItemsControl ItemsSource="{Binding CodeActions}" MaxHeight="160">
+                <ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,2"><StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="10"/><TextBlock Text="{Binding Detail}" Classes="muted" FontSize="9" TextWrapping="Wrap"/></StackPanel><hui:HavenButton Grid.Column="1" Content="Apply" Command="{Binding ApplyCommand}" Padding="6,2" FontSize="9"/></Grid></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding SemanticTokenSummary}" Classes="muted" FontSize="9" TextWrapping="Wrap" />
+              <ItemsControl ItemsSource="{Binding SemanticTokens}" MaxHeight="100">
+                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Display}" Classes="muted2" FontFamily="Cascadia Code, Consolas" FontSize="9" Margin="0,1"/></DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </hui:HavenAdaptiveSurface>
+
           <!-- Inline project comment — select text in the editor, then register
                it as a context comment for the chat agent to reference -->
           <hui:HavenAdaptiveSurface Classes="card">

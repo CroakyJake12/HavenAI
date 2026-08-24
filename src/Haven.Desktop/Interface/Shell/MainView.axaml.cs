@@ -2291,13 +2291,23 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         await RefreshRecentsAsync(CancellationToken.None);
     }
 
-    private Task OpenFileAsync(ContainerDefinition container, WorkspaceFileItemViewModel file)
+    private Task OpenFileAsync(ContainerDefinition container, WorkspaceFileItemViewModel file) => OpenFileAtAsync(container, file, null);
+
+    private Task OpenFileAtAsync(ContainerDefinition container, WorkspaceFileItemViewModel file, CodeRange? range)
     {
         ActivateProject(container);
         var page = new WorkspaceEditorPage(container, CurrentChat.ConversationId, file, _workspaceTools, _workspaceState, _conversations,
-            () => CurrentChat.BranchCurrentAsync(), () => CurrentChat.StopCommand.Execute(null));
+            () => CurrentChat.BranchCurrentAsync(), () => CurrentChat.StopCommand.Execute(null), location => OpenCodeLocationAsync(container, location));
+        if (range is not null) page.NavigateTo(range);
         AddOrSelectTab("file-" + container.Id.ToString("N") + "-" + file.RelativePath.ToLowerInvariant(), file.Name, page, true);
         return Task.CompletedTask;
+    }
+
+    private Task OpenCodeLocationAsync(ContainerDefinition container, CodeLocation location)
+    {
+        if (!location.IsInWorkspace || string.IsNullOrWhiteSpace(container.RootPath)) return Task.CompletedTask;
+        var file = new WorkspaceFileItemViewModel(container.RootPath, location.DisplayPath);
+        return OpenFileAtAsync(container, file, location.Range);
     }
 
     private void OpenContainerSettings()
