@@ -14,15 +14,11 @@
   </Application.Styles>
 
   <Application.DataTemplates>
-    <DataTemplate DataType="{x:Type vm:ChatPageViewModel}"><views:ChatView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ChatGroupPageViewModel}"><views:ChatGroupView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:HomePageViewModel}"><views:HomeView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:CallPageViewModel}"><views:CallView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PlanPageViewModel}"><views:PlanView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:CatalogPageViewModel}"><views:CatalogView /></DataTemplate>
-    
+
     <DataTemplate DataType="{x:Type vm:TrainingPageViewModel}"><views:TrainingView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:SettingsPageViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:LessonSettingsPageViewModel}"><views:LessonSettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:WorkspaceHomePageViewModel}"><views:WorkspaceHomeView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ProjectCreatorPageViewModel}"><views:ProjectCreatorView /></DataTemplate>

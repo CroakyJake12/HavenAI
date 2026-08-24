@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Haven.Core;
 using Haven.Desktop.Controls;
 
 namespace Haven.Desktop.HavenUI.Tokens;
@@ -30,7 +32,9 @@ internal static class HavenUiResourceApplier
         var input = palette.Button;
         var success = Color.Parse(isDark ? "#FF76D7A0" : "#FF147A48");
         var information = palette.AccentSecondary;
-        var shadow = Color.Parse(isDark ? "#B8000000" : "#52000000");
+        var expression = HavenThemeCatalog.Resolve(palette.Theme);
+        var shadowBase = Color.Parse(isDark ? "#B8000000" : "#52000000");
+        var shadow = WithAlpha(shadowBase, (byte)Math.Clamp(Math.Round(shadowBase.A * expression.ShadowOpacityScale), 0, 255));
 
         SetBrush("HavenBackgroundBrush", palette.TideBase);
         SetBrush("HavenTextBrush", palette.Text);
@@ -83,7 +87,23 @@ internal static class HavenUiResourceApplier
         SetBrush("StrokeBrush", palette.LineStrong);
         SetBrush("SurfaceCardBrush", palette.Panel);
         SetBrush("TextPrimaryBrush", palette.Text);
+
+        // Theme personality: shared structural tokens stay semantic while each
+        // theme scales how geometry and motion express themselves. Glow writes
+        // the baseline values exactly.
+        SetCornerRadius("HavenControlRadius", HavenThemeExpression.BaseControlRadius * expression.ControlRadiusScale);
+        SetCornerRadius("HavenCardRadius", HavenThemeExpression.BaseCardRadius * expression.CardRadiusScale);
+        SetCornerRadius("HavenPopupRadius", HavenThemeExpression.BasePopupRadius * expression.PopupRadiusScale);
+        var resources = Avalonia.Application.Current?.Resources;
+        if (resources is not null) resources["HavenMotionDurationScale"] = expression.MotionDurationScale;
         PaletteChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    private static void SetCornerRadius(string key, double radius)
+    {
+        var resources = Avalonia.Application.Current?.Resources;
+        if (resources is null) return;
+        resources[key] = new CornerRadius(Math.Max(0d, Math.Round(radius)));
     }
 
     /// <summary>

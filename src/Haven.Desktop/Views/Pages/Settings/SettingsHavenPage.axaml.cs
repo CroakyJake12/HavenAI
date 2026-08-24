@@ -3,6 +3,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Backend;
+using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Services;
 using Haven.UI;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,6 +70,7 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
         InitializeComponent();
         _route = new SettingsHavenScene();
         Scene.Root = _route.Root;
+        LoadFonts();
         _route.LoadPreferences(_preferences, _motionPreferences);
         _route.LoadPrivacyPreferences(_privacy.Current);
         WireEvents();
@@ -98,12 +100,24 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
 
         _route.AppearanceSelect.SelectionChanged += (_, _) => ApplyAppearance();
         _route.DefaultTabSelect.SelectionChanged += (_, _) => SaveDefaultTab();
-        _route.ReduceMotionToggle.CheckedChanged += (_, _) =>
+        _route.ThemeSelect.SelectionChanged += (_, _) => ApplyThemeChoice();
+        _route.AccentOverrideToggle.CheckedChanged += (_, _) => ApplyAccentOverrideToggle();
+        foreach (var swatch in _route.AccentSwatchButtons)
+        {
+            var captured = swatch;
+            captured.Invoked += (_, _) => ApplyAccentSwatch(captured);
+        }        _route.ReduceMotionToggle.CheckedChanged += (_, _) =>
         {
             _motionPreferences.SetReduceAnimations(_route.ReduceMotionToggle.IsChecked);
             _route.SetStatus(_route.ReduceMotionToggle.IsChecked ? "Reduced motion is on." : "Reduced motion is off.");
             _bus.Fire("Settings.Appearance.MotionChanged");
         };
+        _route.UserAvatarToggle.CheckedChanged += (_, _) => ApplyAvatarToggle(HavenAvatarKind.User);
+        _route.UserAvatarChooseButton.Invoked += async (_, _) => await ChooseAvatarAsync(HavenAvatarKind.User);
+        _route.UserAvatarRemoveButton.Invoked += (_, _) => RemoveAvatar(HavenAvatarKind.User);
+        _route.HavenAvatarToggle.CheckedChanged += (_, _) => ApplyAvatarToggle(HavenAvatarKind.Haven);
+        _route.HavenAvatarChooseButton.Invoked += async (_, _) => await ChooseAvatarAsync(HavenAvatarKind.Haven);
+        _route.HavenAvatarRemoveButton.Invoked += (_, _) => RemoveAvatar(HavenAvatarKind.Haven);
 
         _route.SaveFeaturesButton.Invoked += (_, _) => SaveFeatures();
         _route.SavePermissionsButton.Invoked += (_, _) => SavePermissions();
@@ -200,8 +214,174 @@ public sealed partial class SettingsHavenPage : UserControl, IDisposable
             _ => HavenUiAppearance.SuperDark
         };
         _preferences.ApplyAppearance(appearance);
+        _route.ApplyAccentSwatchColours(appearance);
         _route.SetStatus($"Appearance changed to {_route.AppearanceSelect.SelectedItem}.");
         _bus.Fire("Settings.Appearance.Changed");
+    }
+
+    private void ApplyThemeChoice()
+    {
+        var name = _route.ThemeSelect.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(name)) return;
+        _preferences.ApplyThemeChoice(name);
+        SyncAccentSelectionLabel();
+        _route.SetStatus($"Theme changed to {name}.");
+        _bus.Fire("Settings.Personalisation.ThemeChanged");
+    }
+
+    private void ApplyAccentOverrideToggle()
+    {
+        _preferences.ApplyAccentOverride(_route.AccentOverrideToggle.IsChecked, _preferences.AccentColourSelection);
+        SyncAccentSelectionLabel();
+        _route.SetStatus(_route.AccentOverrideToggle.IsChecked
+            ? "Accent override is on."
+            : "Accent override is off; apps use their own surface accents.");
+        _bus.Fire("Settings.Personalisation.AccentChanged");
+    }
+
+    private void ApplyAccentSwatch(Haven.UI.Components.Button swatch)
+    {
+        var index = -1;
+        for (var position = 0; position < _route.AccentSwatchButtons.Count; position++)
+            if (ReferenceEquals(_route.AccentSwatchButtons[position], swatch)) { index = position; break; }
+        if (index < 0 || index >= AccentColourCatalog.Colours.Count) return;
+        var name = AccentColourCatalog.Name(AccentColourCatalog.Colours[index]);
+        _preferences.ApplyAccentOverride(true, name);
+        for (var position = 0; position < _route.AccentSwatchButtons.Count; position++)
+            _route.AccentSwatchButtons[position].Content = position == index ? "✓" : string.Empty;
+        SyncAccentSelectionLabel();
+        _route.SetStatus($"Accent colour changed to {name}.");
+        _bus.Fire("Settings.Personalisation.AccentChanged");
+    }
+
+    private void ApplyFontChoice()
+    {
+        var family = _route.FontSelect.SelectedItem as string;
+        if (_refreshingFonts) return;
+        _preferences.SetFontPreference(string.IsNullOrWhiteSpace(family) ? null : family);
+        _route.SetStatus($"Font changed to {family ?? HavenUiFont.DefaultFamily}.");
+        _bus.Fire("Settings.Personalisation.FontChanged");
+    }
+
+    private void SyncAccentSelectionLabel() =>
+        _route.AccentSelectionText.Content = _preferences.OverrideAccentColour && _preferences.AccentColourSelection is { } accentName
+            ? $"Accent: {accentName}"
+            : "Accent: surface colours";
+
+    private void ApplyAvatarToggle(HavenAvatarKind kind)
+    {
+        var enabled = kind == HavenAvatarKind.User
+            ? _route.UserAvatarToggle.IsChecked
+            : _route.HavenAvatarToggle.IsChecked;
+        if (kind == HavenAvatarKind.User) _preferences.SetUserAvatarEnabled(enabled);
+        else _preferences.SetHavenAvatarEnabled(enabled);
+        var label = kind == HavenAvatarKind.User ? "User" : "Haven";
+        if (enabled && AvatarStore.Current?.Has(kind) != true)
+        {
+            _route.SetStatus($"Select an image first to use the {label} profile picture.");
+        }
+        else
+        {
+            _route.SetStatus($"{label} profile picture {(enabled ? "shown" : "hidden")}.");
+            _bus.Fire("Settings.Personalisation.AvatarChanged");
+        }
+    }
+
+    private async Task ChooseAvatarAsync(HavenAvatarKind kind)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is null)
+        {
+            _route.SetStatus("Image selection is unavailable in this host.");
+            return;
+        }
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = kind == HavenAvatarKind.User ? "Choose your profile picture" : "Choose the Haven profile picture",
+            FileTypeFilter =
+            [
+                new("Images")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"]
+                }
+            ]
+        });
+        var file = files.FirstOrDefault();
+        if (file is null) return;
+        var path = file.Path.LocalPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            _route.SetStatus("That image could not be opened from its location.");
+            return;
+        }
+
+        try
+        {
+            AvatarStore.Current?.SetFromFile(kind, path);
+        }
+        catch (Exception exception) when (exception is ArgumentException or FileNotFoundException or IOException)
+        {
+            _route.SetStatus($"Couldn't use that image: {exception.Message}");
+            return;
+        }
+
+        if (kind == HavenAvatarKind.User) _preferences.SetUserAvatarEnabled(true);
+        else _preferences.SetHavenAvatarEnabled(true);
+        SyncAvatarControls();
+        _route.SetStatus($"{(kind == HavenAvatarKind.User ? "Your" : "The Haven")} profile picture was updated and is now shown.");
+        _bus.Fire("Settings.Personalisation.AvatarChanged");
+    }
+
+    private void RemoveAvatar(HavenAvatarKind kind)
+    {
+        var removed = AvatarStore.Current?.Remove(kind) == true;
+        if (kind == HavenAvatarKind.User) _preferences.SetUserAvatarEnabled(false);
+        else _preferences.SetHavenAvatarEnabled(false);
+        SyncAvatarControls();
+        _route.SetStatus(removed
+            ? $"{(kind == HavenAvatarKind.User ? "Your" : "The Haven")} profile picture was removed."
+            : "No profile picture was stored.");
+        _bus.Fire("Settings.Personalisation.AvatarChanged");
+    }
+
+    private void SyncAvatarControls()
+    {
+        _route.UserAvatarToggle.IsChecked = _preferences.UserAvatarEnabled;
+        _route.HavenAvatarToggle.IsChecked = _preferences.HavenAvatarEnabled;
+        _route.UserAvatarRemoveButton.SetValue(HavenProperties.Enabled, AvatarStore.Current?.Has(HavenAvatarKind.User) == true);
+        _route.HavenAvatarRemoveButton.SetValue(HavenProperties.Enabled, AvatarStore.Current?.Has(HavenAvatarKind.Haven) == true);
+    }
+
+    private bool _refreshingFonts;
+
+    private void LoadFonts()
+    {
+        _refreshingFonts = true;
+        try
+        {
+            var families = new List<string> { HavenUiFont.DefaultFamily };
+            try
+            {
+                families.AddRange(Avalonia.Media.FontManager.Current.SystemFonts
+                    .Select(font => font.Name)
+                    .Where(name => !name.Equals(HavenUiFont.DefaultFamily, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                    .Take(80));
+            }
+            catch (InvalidOperationException)
+            {
+                // Font enumeration unavailable; Montserrat remains the safe default.
+            }
+            _route.FontSelect.Items = families;
+            var selected = _preferences.FontPreference;
+            var index = selected is null ? 0 : families.FindIndex(name => name.Equals(selected, StringComparison.OrdinalIgnoreCase));
+            _route.FontSelect.SelectedIndex = index;
+        }
+        finally
+        {
+            _refreshingFonts = false;
+        }
     }
 
     private async Task RefreshDefaultTabsAsync()

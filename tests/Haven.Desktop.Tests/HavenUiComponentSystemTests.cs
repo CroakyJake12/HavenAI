@@ -183,33 +183,33 @@ public sealed class HavenUiComponentSystemTests
     }
 
     [AvaloniaFact]
-    public void Chat_message_bubble_renders_message_text_instead_of_control_type_names()
+    public void Chat_user_message_template_renders_message_text_instead_of_control_type_names()
     {
         const string content = "Can you generate an interactive study surface?";
-        var bubble = new MessageBubble
-        {
-            Role = MessageRole.User,
-            MessageContent = content
-        };
-        var window = new Window { Width = 820, Height = 240, Content = bubble };
-        window.Show();
+        var templates = Haven.UI.Components.HavenDynamicUITemplateCatalog.FromAssembly(typeof(Haven.Desktop.Views.Pages.Chat.ChatHavenScene).Assembly);
+        var sceneRoot = new Haven.UI.Components.Container { Name = "ChatRoot" };
+        sceneRoot.Add(new Haven.UI.Components.DynamicUIRuntime { Name = "Messages" });
+        var runtime = new Haven.UI.Components.DynamicUI(sceneRoot, templates);
 
-        var rendered = bubble.GetVisualDescendants()
-            .OfType<TextBlock>()
-            .SelectMany(block => block.Inlines?.OfType<Run>().Select(run => run.Text) ?? [])
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .ToArray();
-        var literalText = bubble.GetVisualDescendants()
-            .OfType<TextBlock>()
-            .Select(block => block.Text)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .ToArray();
+        var item = runtime.CreateItem(
+            "ChatUserMessage",
+            "Messages",
+            Guid.NewGuid().ToString("N"),
+            new Dictionary<string, object?>
+            {
+                ["CONTENT"] = content,
+                ["AVATAR"] = "avatar://user",
+                ["AVATARVISIBILITY"] = "Collapsed"
+            });
 
-        Assert.DoesNotContain(rendered.Concat(literalText), value =>
-            value!.Contains("Avalonia.Controls.", StringComparison.Ordinal));
-        Assert.Contains(rendered.Concat(literalText), value =>
-            value!.Contains(content, StringComparison.Ordinal));
-        window.Close();
+        var body = item.GetComponent<Haven.UI.Components.Markdown>("Body");
+        Assert.NotNull(body);
+        Assert.Equal(content, body.Content);
+        var roleLabel = item.GetComponent<Haven.UI.Components.Text>("Role");
+        Assert.Equal("You", roleLabel.Content);
+        Assert.DoesNotContain(
+            item.DescendantsAndSelf(),
+            element => element.Name?.Contains("Avalonia.Controls.", StringComparison.Ordinal) == true);
     }
 
     [Fact]

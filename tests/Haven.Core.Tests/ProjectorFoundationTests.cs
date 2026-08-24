@@ -87,14 +87,15 @@ public sealed class ProjectorFoundationTests
     }
 
     [Fact]
-    public async Task BuiltInProviderPublishesRequiredProjectorExperienceFamily()
+    public async Task BuiltInProviderOnlyPublishesHostBackedProjectorExperiences()
     {
         var provider = new BuiltInProjectorExperienceProvider();
         var experiences = await provider.GetExperiencesAsync(null, CancellationToken.None);
 
-        Assert.Equal(
-            new[] { "browser", "desktop", "development", "games", "haven", "music", "photos", "presentation", "study", "tv", "videos" },
-            experiences.Select(experience => experience.Id).OrderBy(id => id, StringComparer.Ordinal));
+        // Execution parity: built-ins are advertised only when a production
+        // Projector host exists, so the shared HavenSurface experience must be
+        // the sole built-in until additional real executors ship.
+        Assert.Equal(new[] { "desktop" }, experiences.Select(experience => experience.Id).OrderBy(id => id, StringComparer.Ordinal));
         Assert.All(experiences, experience => Assert.Contains(ProjectorCapability.RenderHavenSurface, experience.RequiredCapabilities));
     }
 
@@ -121,7 +122,7 @@ public sealed class ProjectorFoundationTests
         };
         var available = await catalog.GetExperiencesAsync(Session(availableDisplay), CancellationToken.None);
 
-        Assert.Equal(11, available.Count);
+        Assert.Single(available);
         Assert.Equal("Desktop", Assert.Single(available, experience => experience.Id == "desktop").Name);
     }
 

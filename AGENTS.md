@@ -41,9 +41,9 @@ Delegation and generated code do not relax these requirements. The parent agent 
 
 ## Haven apps and surfaces
 
-- Persisted conversation capability is `HavenMode`: Chat, Study, Tasks, and Studio. The old Teach and Do names are compatibility aliases only and must not appear in new code or UI.
+- Persisted conversation capability is `HavenMode`: Chat, Study, Tasks, and Studio.
 - Visible navigation is `HavenSurface`. A surface may use Chat or Tasks storage without pretending to be the Chat or Tasks UI.
-- Built-in Apps are defined by stable IDs in `src/Haven.Application/Modes/BuiltInModeSeed.cs`. Startup reconciles these records into existing profiles, so change metadata by stable ID and never recycle one.
+- Built-in Apps are defined by stable IDs in `src/Haven.Application/Modes/BuiltInModeSeed.cs` and cover Chat, Study, Tasks, Studio, Browse, Plan, Training, Imagine and many more. Startup reconciles these records into existing profiles, so change metadata by stable ID and never recycle one.
 - Launch routing lives in `MainView.LaunchAppAsync`. Every enabled App entry must lead to a working surface or an honest setup-required state.
 - App-specific chat workspaces use `NewChatPage.ConfigureMode`, which carries their instructions into the model context while preserving the compatible base mode.
 - The window background follows `HavenSurface`, not `HavenMode`, through `TidalBackground`.
@@ -75,3 +75,44 @@ Delegation and generated code do not relax these requirements. The parent agent 
 - After meaningful edits run the closest tests, then a clean Release restore/build/full test pass before production handoff.
 - A green build proves compilation, not that a route rendered. Add or run Avalonia headless route tests and perform relevant Windows smoke tests for browser, microphone, screen capture, shell, and icon changes.
 - Preserve unrelated user changes. Clean task-created staging, temporary files, and stale `bin`/`obj`; do not delete user archives or downloads.
+
+## Canonical documentation
+
+- The single entry point is `docs/README.md`. Sub-indices live at `docs/architecture/README.md`, `docs/ui/README.md`, and `docs/development/README.md`.
+- Architecture is documented in `docs/architecture/` (repository structure, system map, state and persistence).
+- UI is documented in `docs/ui/` (HavenUI framework, building UI, design/philosophy embedded via `HAVEN_UI_RULES.md`, theming and personalisation).
+- Development workflows are documented in `docs/development/` (adding a feature/app, testing, common mistakes).
+- Before any substantial change that touches documented architecture, UI, shared systems, state/persistence, navigation, integrations or platform behaviour, read the relevant canonical page. A trivial unrelated edit does not require reading the entire tree — relevant docs only.
+
+## Before substantial work
+
+For changes affecting the areas above, follow this contract and treat it as blocking:
+
+```text
+Understand request
+      ↓
+Find the owning system          (docs/architecture/system-map.md + current code)
+      ↓
+Inspect the current implementation
+      ↓
+Read the relevant canonical doc page(s)
+      ↓
+Search for reusable existing infrastructure (system map + grep)
+      ↓
+Check architecture / UI fit      (ownership, dependency direction, HAVEN_UI_RULES)
+      ↓
+Implement
+      ↓
+Validate                         (docs/development/testing.md + VALIDATION_RULES)
+      ↓
+If the documented contract changed, update the affected doc in the same pass
+```
+
+Do not create a parallel shared subsystem when the map already names an owner. Cite the doc page you consulted in the PR or pass report when the change is non-trivial.
+
+## When code and docs disagree
+
+1. Inspect context and history; decide whether docs are stale, code is transitional, or your task intentionally changes the contract.
+2. Preserve working behaviour unless your task requires a change.
+3. Correct stale canonical docs in the same pass — do not silently pick whichever is convenient.
+4. When intentionally changing documented architecture, update the relevant doc in the same pass so the next agent sees one obvious current truth. Docs guide without fossilising mistakes.

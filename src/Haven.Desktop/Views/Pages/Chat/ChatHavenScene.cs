@@ -1,5 +1,7 @@
 ﻿using Haven.Core;
+using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Prefabs;
+using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.UI;
 using Haven.UI.Components;
@@ -436,14 +438,31 @@ internal sealed class ChatHavenScene : IDisposable
     private static Dictionary<string, object?> ValuesFor(ChatSceneMessage message)
     {
         if (message.Role != MessageRole.Assistant)
-            return new Dictionary<string, object?> { ["CONTENT"] = message.Content };
-        return new Dictionary<string, object?>
+        {
+            var userValues = new Dictionary<string, object?> { ["CONTENT"] = message.Content };
+            ApplyAvatarValues(userValues, MessageRole.User);
+            return userValues;
+        }
+        var values = new Dictionary<string, object?>
         {
             ["CONTENT"] = message.Content,
             ["AGENT"] = string.IsNullOrWhiteSpace(message.AgentName) ? "Haven" : message.AgentName,
             ["THINKING"] = message.Thinking,
             ["THINKINGVISIBILITY"] = string.IsNullOrWhiteSpace(message.Thinking) ? "Collapsed" : "Visible"
         };
+        ApplyAvatarValues(values, MessageRole.Assistant);
+        return values;
+    }
+
+    private static void ApplyAvatarValues(Dictionary<string, object?> values, MessageRole role)
+    {
+        var havenSide = role == MessageRole.Assistant;
+        var enabled = havenSide ? HavenPersonalisation.HavenAvatarEnabled : HavenPersonalisation.UserAvatarEnabled;
+        var available = AvatarStore.Current?.Has(havenSide ? HavenAvatarKind.Haven : HavenAvatarKind.User) == true;
+        values["AVATAR"] = havenSide
+            ? Haven.Desktop.HavenUI.Backend.HavenDesktopImageResolver.HavenAvatarSource
+            : Haven.Desktop.HavenUI.Backend.HavenDesktopImageResolver.UserAvatarSource;
+        values["AVATARVISIBILITY"] = enabled && available ? "Visible" : "Collapsed";
     }
 
     private void WireMessageActions(DynamicUIItem item, Guid messageId, MessageRole role)

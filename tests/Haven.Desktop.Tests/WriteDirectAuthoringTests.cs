@@ -207,8 +207,10 @@ public sealed class WriteDirectAuthoringTests
 
             Assert.True(scene.DocumentSurface.LaidOutPageCount >= 30, $"Expected at least 30 retained pages, got {scene.DocumentSurface.LaidOutPageCount}.");
             Assert.Empty(scene.BlockInputs);
-            Assert.Single(scene.DocumentHost.Children);
-            Assert.Same(scene.DocumentSurface, scene.DocumentHost.Children[0]);
+            // The document actions pill (Library/Save) shares the host with the
+            // retained surface; the surface must remain the final child.
+            Assert.Contains(scene.DocumentSurface, scene.DocumentHost.Children);
+            Assert.Same(scene.DocumentSurface, scene.DocumentHost.Children[^1]);
         }
         finally
         {

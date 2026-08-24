@@ -5,6 +5,7 @@ using Android.OS;
 using Avalonia.Android;
 using Avalonia.Threading;
 using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.HavenUI.GenerativeUi;
 using Haven.UI;
@@ -506,7 +507,7 @@ public sealed class AndroidProjectorPresentationHostService : IDisposable
         {
             mounted = await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (System.OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             await CloseGeneratedInstanceSafelyAsync(instanceId, persist: false).ConfigureAwait(false);
             throw;

@@ -184,7 +184,7 @@ public sealed class VisualSystemHeadlessTests
     [AvaloniaFact]
     public void FirstClassSurfaceViewsConstructUnderHeadlessAvalonia()
     {
-        Control[] pages = [new HomeView(), new CallView(), new PlanView(), new ChatGroupView()];
+        Control[] pages = [new PlanView(), new ChatGroupView(), new ArchiveView(), new ModeLibraryView()];
         var window = new Window { Width = 1280, Height = 800, Content = new StackPanel { Children = { pages[0], pages[1], pages[2], pages[3] } } };
 
         window.Show();

@@ -98,6 +98,7 @@ public sealed partial class App : Avalonia.Application
             recovery: provider.GetRequiredService<AutonomousRecoveryService>(),
             remediations: provider.GetRequiredService<RemediationCoordinator>()));
         collection.AddSingleton<UserPreferencesService>();
+        collection.AddSingleton<Services.AvatarStore>();
         collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();

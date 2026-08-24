@@ -45,7 +45,8 @@ internal static class SurfacePaletteCatalog
         Color Focus,
         Color AccentBorder,
         Color Attention,
-        Color AttentionBorder)
+        Color AttentionBorder,
+        HavenUiTheme Theme = HavenUiTheme.Glow)
     {
         /// <summary>The live three-tier gradient palette for the active page.</summary>
         internal HavenAccentPalette AccentPalette => HavenAccentPalette.FromAnchors(
@@ -94,12 +95,38 @@ internal static class SurfacePaletteCatalog
     internal static Palette For(HavenSurface surface, HavenUiAppearance appearance)
     {
         var hue = Hues.TryGetValue(surface, out var configured) ? configured : Hues[HavenSurface.Home];
+        var theme = HavenPersonalisation.Theme;
         var accent = Parse(hue.Accent);
         var secondary = Parse(hue.Secondary);
         var strong = Parse(hue.Strong);
         var soft = Parse(hue.Soft);
 
-        if (appearance == HavenUiAppearance.SuperBright)
+        // Accent precedence: an explicit personalisation palette replaces the
+        // surface hue anchors; the appearance branch and theme interpretation
+        // still adapt them, so apps only ever consume semantic accent values.
+        if (HavenPersonalisation.OverrideAccent && HavenPersonalisation.Accent is { } overrideColour)
+        {
+            var anchors = AccentColourCatalog.Resolve(overrideColour, appearance);
+            accent = Parse(anchors.Primary);
+            secondary = Parse(anchors.Secondary);
+            strong = Parse(anchors.Strong);
+            soft = Parse(anchors.Soft);
+        }
+
+        var palette = Assemble(surface, hue, appearance, theme, accent, secondary, strong, soft);
+        return theme == HavenUiTheme.Glow ? palette : Express(palette, appearance);
+    }
+
+    private static Palette Assemble(
+        HavenSurface surface,
+        SurfaceHue hue,
+        HavenUiAppearance appearance,
+        HavenUiTheme theme,
+        Color accent,
+        Color secondary,
+        Color strong,
+        Color soft)
+    {        if (appearance == HavenUiAppearance.SuperBright)
         {
             var superBrightTide = Blend(Colors.White, Parse(hue.Tide), 0.62);
             var superBrightSoft = Blend(Colors.White, soft, 0.70);
@@ -109,7 +136,7 @@ internal static class SurfacePaletteCatalog
                 Parse("#FFFFFFFF"), Parse("#FFF8FAF8"), Parse("#FFF1F5F2"), Parse("#FFE9F0EB"),
                 Parse("#FFC8D2CA"), Parse("#FFA9B7AC"), superBrightSoft, Blend(superBrightSoft, secondary, 0.28),
                 Blend(superBrightSoft, secondary, 0.48), WithAlpha(accent, 0xB8), WithAlpha(accent, 0x94),
-                Parse("#FFFFF59B"), Parse("#FFD7C92B"));
+                Parse("#FFFFF59B"), Parse("#FFD7C92B"), theme);
         }
 
         if (appearance == HavenUiAppearance.Bright)
@@ -120,7 +147,7 @@ internal static class SurfacePaletteCatalog
                 Parse("#F5FFFFFF"), Parse("#EBFFFFFF"), Parse("#FFF5F7F5"), Parse("#FFF0F4F1"),
                 Parse("#FFDDE4DE"), Parse("#FFBFCAC1"), soft, Blend(soft, secondary, 0.24),
                 Blend(soft, secondary, 0.42), WithAlpha(accent, 0x99), WithAlpha(accent, 0x80),
-                Parse("#FFFFF9A8"), Parse("#FFE4DF52"));
+                Parse("#FFFFF9A8"), Parse("#FFE4DF52"), theme);
         }
 
         if (appearance == HavenUiAppearance.Dark)
@@ -137,7 +164,7 @@ internal static class SurfacePaletteCatalog
                 WithAlpha(darkPanel, 0xF5), WithAlpha(darkPanel2, 0xF0), darkPanel3, darkHover,
                 Parse("#FF323B5E"), Parse("#FF505B82"), darkSoft, Blend(darkSoft, accent, 0.25),
                 Blend(darkSoft, accent, 0.45), WithAlpha(secondary, 0xCC), WithAlpha(secondary, 0xA0),
-                Parse("#FF45451E"), Parse("#FFB9B54C"));
+                Parse("#FF45451E"), Parse("#FFB9B54C"), theme);
         }
 
         var superDarkBase = Parse("#FF06090D");
@@ -153,7 +180,59 @@ internal static class SurfacePaletteCatalog
             WithAlpha(superDarkPanel, 0xF5), WithAlpha(superDarkPanel2, 0xF5), superDarkPanel3, superDarkHover,
             Parse("#FF2D3551"), Parse("#FF4A5577"), superDarkSoft, Blend(superDarkSoft, accent, 0.22),
             Blend(superDarkSoft, accent, 0.40), WithAlpha(secondary, 0xD8), WithAlpha(secondary, 0xA8),
-            Parse("#FF363611"), Parse("#FFC9C343"));
+            Parse("#FF363611"), Parse("#FFC9C343"), theme);
+    }
+
+    /// <summary>
+    /// Applies one non-Glow theme's interaction language to an assembled
+    /// palette: how hover, press and selection react, how glassy surfaces are,
+    /// and how strongly borders read. Glow never passes through here so the
+    /// default appearance stays byte-identical to its baseline.
+    /// </summary>
+    private static Palette Express(Palette palette, HavenUiAppearance appearance)
+    {
+        var isDark = appearance is HavenUiAppearance.Dark or HavenUiAppearance.SuperDark;
+        return palette.Theme switch
+        {
+            HavenUiTheme.Bubble => palette with
+            {
+                Panel = WithAlpha(palette.Panel, isDark ? (byte)0xE8 : (byte)0xE4),
+                Panel2 = WithAlpha(palette.Panel2, isDark ? (byte)0xDE : (byte)0xDA),
+                Line = Blend(palette.Line, palette.Panel2, 0.30),
+                ButtonHover = Blend(palette.ButtonHover, palette.AccentSoft, 0.45),
+                ButtonPressed = Blend(palette.ButtonPressed, palette.AccentStrong, 0.25),
+                Focus = WithAlpha(palette.Focus, 0xD8)
+            },
+            HavenUiTheme.Retro => palette with
+            {
+                Line = Blend(palette.LineStrong, palette.Accent, 0.38),
+                LineStrong = Blend(palette.LineStrong, palette.Accent, 0.55),
+                Button = Blend(palette.Button, palette.TideBase, isDark ? 0.42 : 0.30),
+                ButtonHover = WithAlpha(palette.Accent, isDark ? (byte)0x30 : (byte)0x24),
+                ButtonPressed = WithAlpha(palette.AccentStrong, (byte)0x40),
+                Focus = WithAlpha(palette.AccentSecondary, 0xEE)
+            },
+            HavenUiTheme.Playful => palette with
+            {
+                Panel = WithAlpha(palette.Panel, 0xFF),
+                Panel2 = WithAlpha(palette.Panel2, 0xFF),
+                Line = Blend(palette.Line, palette.Panel3, 0.35),
+                ButtonHover = WithAlpha(Blend(palette.AccentSoft, palette.Accent, 0.40), 0xFF),
+                ButtonPressed = WithAlpha(Blend(palette.AccentSoft, palette.AccentStrong, 0.55), 0xFF),
+                Focus = WithAlpha(palette.AccentSecondary, 0xE6)
+            },
+            HavenUiTheme.Cinematic => palette with
+            {
+                Panel = WithAlpha(Blend(palette.Panel, palette.TideColour, isDark ? 0.18 : 0.10), isDark ? (byte)0xEC : (byte)0xF0),
+                Panel2 = WithAlpha(Blend(palette.Panel2, palette.TideColour, 0.14), isDark ? (byte)0xE6 : (byte)0xEA),
+                Panel3 = Blend(palette.Panel3, palette.TideBase, 0.12),
+                Line = Blend(palette.Line, palette.TideColour, 0.22),
+                ButtonHover = Blend(palette.ButtonHover, palette.Accent, 0.20),
+                ButtonPressed = Blend(palette.ButtonPressed, palette.Panel3, 0.30),
+                Focus = WithAlpha(palette.Accent, 0xCC)
+            },
+            _ => palette
+        };
     }
 
     private static SurfaceHue Hue(string tide, string accent, string secondary, string strong, string soft) =>

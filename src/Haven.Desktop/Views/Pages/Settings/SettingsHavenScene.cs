@@ -1,5 +1,6 @@
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.HavenUI.Tokens;
 using Haven.Desktop.Services;
 using Haven.UI;
 using Haven.UI.Components;
@@ -136,6 +137,20 @@ internal sealed partial class SettingsHavenScene : IDisposable
     public Select AppearanceSelect { get; private set; } = null!;
     public Select DefaultTabSelect { get; private set; } = null!;
     public Toggle ReduceMotionToggle { get; private set; } = null!;
+    public Select ThemeSelect { get; private set; } = null!;
+    public Toggle AccentOverrideToggle { get; private set; } = null!;
+    public Container AccentSwatches { get; private set; } = null!;
+    public HavenText AccentSelectionText { get; private set; } = null!;
+    public Select FontSelect { get; private set; } = null!;
+    public Toggle UserAvatarToggle { get; private set; } = null!;
+    public HavenButton UserAvatarChooseButton { get; private set; } = null!;
+    public HavenButton UserAvatarRemoveButton { get; private set; } = null!;
+    public Toggle HavenAvatarToggle { get; private set; } = null!;
+    public HavenButton HavenAvatarChooseButton { get; private set; } = null!;
+    public HavenButton HavenAvatarRemoveButton { get; private set; } = null!;
+    public IReadOnlyList<HavenButton> AccentSwatchButtons => _accentSwatchButtons;
+
+    private readonly List<HavenButton> _accentSwatchButtons = [];
 
     public Toggle AutoSwitchToggle { get; private set; } = null!;
     public Toggle AgenticInChatToggle { get; private set; } = null!;
@@ -220,6 +235,16 @@ internal sealed partial class SettingsHavenScene : IDisposable
             HavenUiAppearance.Dark => 2,
             _ => 3
         };
+        ThemeSelect.SelectedIndex = Math.Max(0, HavenThemeCatalog.All.ToList().FindIndex(expression => expression.Theme == preferences.Theme));
+        AccentOverrideToggle.IsChecked = preferences.OverrideAccentColour;
+        ApplyAccentSwatchColours(preferences.Appearance);
+        AccentSelectionText.Content = preferences.OverrideAccentColour && preferences.AccentColourSelection is { } accentName
+            ? $"Accent: {accentName}"
+            : "Accent: surface colours";
+        UserAvatarToggle.IsChecked = preferences.UserAvatarEnabled;
+        UserAvatarRemoveButton.SetValue(HavenProperties.Enabled, preferences.UserAvatarEnabled || AvatarStore.Current?.Has(HavenAvatarKind.User) == true);
+        HavenAvatarToggle.IsChecked = preferences.HavenAvatarEnabled;
+        HavenAvatarRemoveButton.SetValue(HavenProperties.Enabled, preferences.HavenAvatarEnabled || AvatarStore.Current?.Has(HavenAvatarKind.Haven) == true);
         ReduceMotionToggle.IsChecked = motionPreferences.ReduceAnimations;
 
         AutoSwitchToggle.IsChecked = preferences.AutoSwitchCompatibleModels;
@@ -478,11 +503,69 @@ internal sealed partial class SettingsHavenScene : IDisposable
         DefaultTabSelect = NewSelect("Settings.Personalisation.DefaultTab", []);
         AppearanceSelect = NewSelect("Settings.Appearance.Mode", ["Super Bright", "Bright", "Dark", "Super Dark"]);
         ReduceMotionToggle = new Toggle { Name = "Settings.Appearance.ReduceMotion" };
+        ThemeSelect = NewSelect("Settings.Personalisation.Theme", HavenThemeCatalog.All.Select(expression => expression.DisplayName).ToArray());
+        AccentOverrideToggle = new Toggle { Name = "Settings.Personalisation.AccentOverride" };
+        AccentSwatches = new Container { Name = "Settings.Personalisation.AccentSwatches", Layout = HavenLayout.Wrap };
+        AccentSwatches.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        foreach (var colour in AccentColourCatalog.Colours)
+        {
+            var name = AccentColourCatalog.Name(colour);
+            var swatch = new HavenButton
+            {
+                Name = $"Settings.Personalisation.Accent.{name}",
+                Content = string.Empty,
+                Variant = ButtonVariant.Icon
+            };
+            swatch.Accessibility.AccessibleName = $"{name} accent colour";
+            swatch.SetValue(HavenProperties.Width, HavenLength.Px(34));
+            swatch.SetValue(HavenProperties.Height, HavenLength.Px(34));
+            swatch.SetValue(HavenProperties.MinHeight, HavenLength.Px(34));
+            swatch.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(17)));
+            AccentSwatches.Add(swatch);
+            _accentSwatchButtons.Add(swatch);
+        }
+
+        AccentSelectionText = Muted("Settings.Personalisation.AccentSelection", "Accent: surface colours");
+        FontSelect = NewSelect("Settings.Personalisation.Font", []);
+        UserAvatarToggle = new Toggle { Name = "Settings.Personalisation.UserAvatar" };
+        UserAvatarChooseButton = new HavenButton { Name = "Settings.Personalisation.UserAvatar.Choose", Content = "Choose image", Variant = ButtonVariant.Secondary };
+        UserAvatarRemoveButton = new HavenButton { Name = "Settings.Personalisation.UserAvatar.Remove", Content = "Remove", Variant = ButtonVariant.Ghost };
+        HavenAvatarToggle = new Toggle { Name = "Settings.Personalisation.HavenAvatar" };
+        HavenAvatarChooseButton = new HavenButton { Name = "Settings.Personalisation.HavenAvatar.Choose", Content = "Choose image", Variant = ButtonVariant.Secondary };
+        HavenAvatarRemoveButton = new HavenButton { Name = "Settings.Personalisation.HavenAvatar.Remove", Content = "Remove", Variant = ButtonVariant.Ghost };
         card.Add(SettingRow("Default Tab", "Normal new tabs open the selected installed Haven app. If it is temporarily unavailable, Haven uses the standard new-tab experience without deleting this preference.", DefaultTabSelect));
+        card.Add(SettingRow("Theme", "Choose how Haven looks and reacts. Themes change visual expression only; layouts, navigation and workflows stay the same.", ThemeSelect));
         card.Add(SettingRow("Colour appearance", "Choose one of Haven's four canonical light/dark appearances.", AppearanceSelect));
         card.Add(SettingRow("Reduce animations", "Reduces decorative and transition motion throughout Haven.", ReduceMotionToggle));
+        card.Add(SettingRow("Override accent colour", "Replace each app's own accent with one global colour family from the palette below.", AccentOverrideToggle));
+        card.Add(AccentSwatches);
+        card.Add(AccentSelectionText);
+        card.Add(SettingRow("Font", "Applies the selected installed font across every theme. Montserrat is Haven's bundled default and final fallback.", FontSelect));
+        card.Add(SettingRow("User profile picture", "Show your own picture beside your chat messages. Images are processed and stored locally only.", UserAvatarToggle));
+        card.Add(AvatarActionRow("Settings.Personalisation.UserAvatar.Actions", UserAvatarChooseButton, UserAvatarRemoveButton));
+        card.Add(SettingRow("Haven profile picture", "Show a separate Haven picture beside Haven chat messages. Works independently from your own picture.", HavenAvatarToggle));
+        card.Add(AvatarActionRow("Settings.Personalisation.HavenAvatar.Actions", HavenAvatarChooseButton, HavenAvatarRemoveButton));
         section.Add(card);
         return section;
+    }
+
+    private static Container AvatarActionRow(string name, HavenButton choose, HavenButton remove)
+    {
+        var actions = new Container { Name = name, Layout = HavenLayout.Horizontal };
+        actions.SetValue(HavenProperties.Gap, HavenLength.Px(8));
+        actions.Add(choose);
+        actions.Add(remove);
+        return actions;
+    }
+
+    /// <summary>Refreshes accent swatch fills for the current appearance family.</summary>
+    internal void ApplyAccentSwatchColours(HavenUiAppearance appearance)
+    {
+        for (var index = 0; index < _accentSwatchButtons.Count && index < AccentColourCatalog.Colours.Count; index++)
+        {
+            var anchors = AccentColourCatalog.Resolve(AccentColourCatalog.Colours[index], appearance);
+            _accentSwatchButtons[index].SetValue(HavenProperties.Background, anchors.Primary);
+        }
     }
 
     public void SetDefaultTabModes(IReadOnlyList<string> displayNames, int selectedIndex)

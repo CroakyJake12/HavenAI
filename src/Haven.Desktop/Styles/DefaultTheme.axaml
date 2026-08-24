@@ -232,17 +232,17 @@
   <Style Selector="Window">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
-    <Setter Property="FontFamily" Value="{StaticResource HavenFontFamily}" />
+    <Setter Property="FontFamily" Value="{DynamicResource HavenFontFamily}" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="TemplatedControl">
-    <Setter Property="FontFamily" Value="{StaticResource HavenFontFamily}" />
+    <Setter Property="FontFamily" Value="{DynamicResource HavenFontFamily}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="UserControl"><Setter Property="Background" Value="Transparent" /></Style>
   <Style Selector="TextBlock">
-    <Setter Property="FontFamily" Value="{StaticResource HavenFontFamily}" />
+    <Setter Property="FontFamily" Value="{DynamicResource HavenFontFamily}" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
@@ -266,7 +266,7 @@
        ============================================================ -->
   <Style Selector="Button">
     <Setter Property="MinHeight" Value="36" />
-    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="CornerRadius" Value="{DynamicResource HavenControlRadius}" />
     <Setter Property="Padding" Value="14,8" />
     <Setter Property="Background" Value="{DynamicResource HavenButtonBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource HavenTextBrush}" />

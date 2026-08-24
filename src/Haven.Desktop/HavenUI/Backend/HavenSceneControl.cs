@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Haven.Desktop.HavenUI.Tokens;
 using Haven.UI;
 using Haven.UI.Components;
 
@@ -33,7 +34,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private bool _processingMotion;
     private TopLevel? _topLevel;
 
-    public HavenSceneControl() : this(new HavenAvaloniaImageResolver(), new HavenAvaloniaNativeControlResolver()) { }
+    public HavenSceneControl() : this(new HavenDesktopImageResolver(), new HavenAvaloniaNativeControlResolver()) { }
 
     public HavenSceneControl(IHavenAvaloniaImageResolver images) : this(images, new HavenAvaloniaNativeControlResolver()) { }
 
@@ -515,9 +516,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private static Avalonia.Media.TextFormatting.TextLayout CreateEditableTextLayout(HavenTextLayout layout)
     {
         var family = layout.FontFamily;
-        var fontFamily = family.Equals("Montserrat", StringComparison.OrdinalIgnoreCase)
-            ? new FontFamily("avares://Haven/Assets/Fonts/MontserratStatic#Montserrat")
-            : new FontFamily(family);
+        var fontFamily = HavenUiFont.Resolve(family);
         var typeface = new Typeface(fontFamily, FontStyle.Normal, Weight(layout.FontWeight), FontStretch.Normal);
         return new Avalonia.Media.TextFormatting.TextLayout(
             layout.Text,
@@ -714,7 +713,7 @@ public sealed class HavenSceneControl : Panel, IHavenMeasureContext
     private static FormattedText CreateText(string text, HavenElement element, double maxWidth) => CreateText(text, element.GetValue(HavenProperties.FontFamily), element.GetValue(HavenProperties.FontSize), element.GetValue(HavenProperties.FontWeight), maxWidth, HavenAvaloniaThemeResolver.Resolve(element.GetValue(HavenProperties.Foreground)));
     private static FormattedText CreateText(string text, string family, double size, int weight, double maxWidth, IBrush foreground, bool italic = false)
     {
-        var fontFamily = family.Equals("Montserrat", StringComparison.OrdinalIgnoreCase) ? new FontFamily("avares://Haven/Assets/Fonts/MontserratStatic#Montserrat") : new FontFamily(family);
+        var fontFamily = HavenUiFont.Resolve(family);
         return new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(fontFamily, italic ? FontStyle.Italic : FontStyle.Normal, Weight(weight), FontStretch.Normal), size, foreground) { MaxTextWidth = Math.Max(1, maxWidth) };
     }
     private static FontWeight Weight(int weight) => weight switch { >= 800 => FontWeight.ExtraBold, >= 700 => FontWeight.Bold, >= 600 => FontWeight.SemiBold, >= 500 => FontWeight.Medium, _ => FontWeight.Normal };

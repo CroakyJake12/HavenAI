@@ -4,15 +4,15 @@ Haven is a local-first Windows desktop assistant built with Avalonia and .NET 10
 
 ## Current application
 
-- Four connected modes: Chat, Teach, Do, and Studio.
+- Built-in apps including Chat, Study, Tasks (with scheduled Automations), Studio, Browse, Plan, Training, Imagine, Canvas, Present, Data, Vision, Play, Translate, Terminal, Write and more — each with a stable ID in `BuiltInModeSeed.cs`.
 - A compact desktop shell with a top menu, horizontal workspace tabs, command palette, and context-aware sidebar.
 - Local Ollama model discovery, streaming responses, image capability checks, temporary chats, branching, compaction, attachments, agents, plugins, and reusable prompts.
 - Native Markdown rendering for headings, emphasis, lists, task lists, quotes, fenced code, tables, link labels/URLs, and labelled image references.
 - Local inline and display LaTeX formatting for common fractions, roots, scripts, Greek letters, operators, sums, integrals, arrows, comparisons, and sets.
-- Teach subjects and lessons, Do task groups, and persistent Studio projects.
+- Study subjects and lessons, Tasks and Automations, Training agents, and persistent Studio projects.
 - Focused Studio project creation for a new .NET project, a package-ready NuGet class library, an existing project/solution file, or an existing folder.
 - Project-specific chats and sidebar content, local file browsing/editing, atomic saves, edit history, rollback/rollforward, build and detected-test actions, local server and terminal launchers, Git initialization, and origin connection.
-- Contextual tool planning gives the model only definitions supported by the current mode, project root, permission level, platform, and attached runtime; the picker hides functional plugins with no runnable or approvable path.
+- Contextual tool planning gives the model only definitions supported by the current app context, project root, permission level, platform, and attached runtime; the picker hides functional plugins with no runnable or approvable path.
 - Target-bound Windows Computer Use, workspace-confined file tools, cancellable process execution, explicit activity, timings, command output, and edit counts.
 - Haven Browse with one stable native WebView host, horizontal or vertical browser tabs, private tabs, groups, bookmark bar and manager, history, secure Windows Credential Manager logins, bounded extensions, printing, developer tools, and a page assistant.
 - SQLite persistence with ordered migrations and best-effort one-time import from `%APPDATA%\LocalCode\state.json`.
@@ -25,14 +25,16 @@ Haven exposes streamed replies and verifiable activity. It does not claim to exp
 ```text
 Haven.sln
 |- src/Haven.Core              Domain records, enums, built-in agents/plugins/prompts
-|- src/Haven.Application       Use cases, contracts, chat/tool orchestration and availability
+|- src/Haven.Application       Use cases, contracts, chat/tool orchestration, scheduling and automation graph
 |- src/Haven.Infrastructure    SQLite, Ollama, filesystem, processes, Git and Computer Use
 |- src/Haven.Browser           Browser session, persistence and browser-use operations
-|- src/Haven.Automations       Scheduling, leases, worker registration and execution
-|- src/Haven.AutomationWorker  Closed-app scheduled-action entry point
-|- src/Haven.Desktop           Avalonia views, controls and view-models
-`- tests                       Core and infrastructure tests
+|- src/Haven.UI                HavenUI (HUI) framework: parser, scene, layout, renderer, prefabs, DynamicUI
+|- src/Haven.Desktop           Desktop shell, pages and themes; hosts shared presentation for Desktop and Android
+|- src/Haven.Android           Android lifetime/host glue; reuses Desktop's shared UI
+`- tests                       Core, Infrastructure, Desktop (headless Avalonia) and HUI framework tests
 ```
+
+Canonical documentation lives at [`docs/README.md`](docs/README.md).
 
 ## Requirements
 
@@ -42,7 +44,7 @@ Haven.sln
 - Microsoft Edge WebView2 Runtime for the native Browse surface.
 - Git for Studio Git actions.
 
-Montserrat is requested as the primary UI family and falls back to Segoe UI when it is not installed. Font files are not bundled.
+Montserrat is Haven's bundled primary UI family (under `src/Haven.Desktop/Assets/Fonts`) and falls back to the OS collection for user-selected fonts. The selected family applies across every theme.
 
 ## Build, test, and run
 
