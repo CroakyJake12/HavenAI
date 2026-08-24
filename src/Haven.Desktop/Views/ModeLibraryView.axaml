@@ -11,6 +11,7 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              x:Class="Haven.Desktop.Views.ModeLibraryView"
              x:DataType="vm:ModeLibraryPageViewModel">
@@ -27,11 +28,11 @@
     <!-- Toolbar -->
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
-      <Border Grid.Column="0" CornerRadius="6" Background="{DynamicResource HavenPanelBrush}" Padding="8,0" MaxWidth="300">
-        <TextBox Text="{Binding SearchQuery}" PlaceholderText="Search apps..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
-      </Border>
-      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="ghost" Margin="8,0" />
-      <Button Grid.Column="2" Content="+ Create in Studio" Command="{Binding CreateInStudioCommand}" Classes="accent" />
+      <hui:HavenAdaptiveSurface Grid.Column="0" CornerRadius="6" Background="{DynamicResource HavenPanelBrush}" Padding="8,0" MaxWidth="300">
+        <hui:HavenTextInput Text="{Binding SearchQuery}" PlaceholderText="Search apps..." Background="Transparent" BorderThickness="0" Foreground="{DynamicResource HavenTextBrush}" />
+      </hui:HavenAdaptiveSurface>
+      <hui:HavenButton Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Classes="ghost" Margin="8,0" />
+      <hui:HavenButton Grid.Column="2" Content="+ Create in Studio" Command="{Binding CreateInStudioCommand}" Classes="accent" />
     </Grid>
 
     <!-- Mode Cards -->
@@ -40,33 +41,33 @@
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ModeCardViewModel">
-            <Border CornerRadius="8" Background="{DynamicResource HavenPanelBrush}" Padding="14" Margin="0,0,0,8">
+            <hui:HavenAdaptiveSurface CornerRadius="8" Background="{DynamicResource HavenPanelBrush}" Padding="14" Margin="0,0,0,8">
               <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                 <!-- Icon -->
-                <Border Grid.Row="0" Grid.Column="0" Width="36" Height="36" CornerRadius="8"
+                <hui:HavenAdaptiveSurface Grid.Row="0" Grid.Column="0" Width="36" Height="36" CornerRadius="8"
                         Background="{DynamicResource HavenAccentSoftBrush}" VerticalAlignment="Top">
                   <TextBlock Text="{Binding IconKey}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
                              Foreground="{DynamicResource HavenAccentBrush}" />
-                </Border>
+                </hui:HavenAdaptiveSurface>
                 <!-- Name + Description -->
                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}" />
-                    <Border CornerRadius="4" Background="{DynamicResource HavenAccentSoftBrush}" Padding="6,2" IsVisible="{Binding IsPinned}">
+                    <hui:HavenAdaptiveSurface CornerRadius="4" Background="{DynamicResource HavenAccentSoftBrush}" Padding="6,2" IsVisible="{Binding IsPinned}">
                       <TextBlock Text="Pinned" FontSize="9" Foreground="{DynamicResource HavenAccentBrush}" FontWeight="SemiBold" />
-                    </Border>
-                    <Border CornerRadius="4" Background="#20FFFFFF" Padding="6,2">
+                    </hui:HavenAdaptiveSurface>
+                    <hui:HavenAdaptiveSurface CornerRadius="4" Background="#20FFFFFF" Padding="6,2">
                       <TextBlock Text="{Binding SourceLabel}" FontSize="9" Foreground="{DynamicResource HavenMutedBrush}" />
-                    </Border>
+                    </hui:HavenAdaptiveSurface>
                   </StackPanel>
                   <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource HavenTextSoftBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <!-- Actions -->
                 <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
-                  <Button Command="{Binding $parent[ItemsControl].DataContext.PinCommand}" CommandParameter="{Binding}"
+                  <hui:HavenButton Command="{Binding $parent[ItemsControl].DataContext.PinCommand}" CommandParameter="{Binding}"
                           Classes="ghost" Padding="6" ToolTip.Tip="{Binding PinLabel}">
                     <TextBlock Text="{Binding PinLabel}" FontSize="12" />
-                  </Button>
+                  </hui:HavenButton>
                 </StackPanel>
                 <!-- Meta -->
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
@@ -81,7 +82,7 @@
                   </TextBlock>
                 </StackPanel>
               </Grid>
-            </Border>
+            </hui:HavenAdaptiveSurface>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

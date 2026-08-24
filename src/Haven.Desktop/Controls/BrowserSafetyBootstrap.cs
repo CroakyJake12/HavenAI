@@ -120,7 +120,7 @@ internal static class BrowserSafetyBootstrap
             if (Attached.TryGetValue(browserView, out _)) continue;
             if (browserView.Content is not Grid grid) continue;
 
-            var button = new Button
+            var button = new HavenButton
             {
                 Content = "Browser safety",
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -128,7 +128,7 @@ internal static class BrowserSafetyBootstrap
                 Margin = new Thickness(0, 0, 470, 0),
                 Padding = new Thickness(9, 4),
                 FontSize = 10,
-                Flyout = new Flyout { Content = new BrowserSafetyView() },
+                Flyout = new HavenAdaptivePopup { Content = new BrowserSafetyView() },
                 ZIndex = 20
             };
             ToolTip.SetTip(button, "Review model-requested form submissions and downloads");

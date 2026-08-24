@@ -17,12 +17,15 @@ namespace Haven.Application;
 /// <summary>
 /// Represents workspace tool result and keeps its related state and behavior together.
 /// </summary>
-public sealed record WorkspaceToolResult(ToolActivity Activity, string Output);
+public sealed record WorkspaceToolResult(ToolActivity Activity, string Output, ToolFailureDescriptor? Failure = null);
 
 /// <summary>
 /// Represents workspace tool runtime and keeps its related state and behavior together.
 /// </summary>
-public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspaceStateRepository? history = null)
+public sealed class WorkspaceToolRuntime(
+    IWorkspaceToolService tools,
+    IWorkspaceStateRepository? history = null,
+    TerminalCommandActivityHub? commandActivity = null)
 {
     /// <summary>
     /// Stores max file characters locally so this component can preserve the dependency, cache, or state between member calls.
@@ -281,10 +284,28 @@ public sealed class WorkspaceToolRuntime(IWorkspaceToolService tools, IWorkspace
     private async Task<string> RunCommandAsync(string root, string command, int timeoutSeconds, CancellationToken cancellationToken)
     {
         timeoutSeconds = Math.Clamp(timeoutSeconds, 1, 900);
-        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
-        var result = await tools.RunProcessAsync(new ProcessRequest(
-            "powershell.exe", $"-NoProfile -NonInteractive -EncodedCommand {encoded}", root, TimeSpan.FromSeconds(timeoutSeconds)), cancellationToken).ConfigureAwait(false);
-        return FormatProcess(result);
+        var executionId = Guid.NewGuid();
+        commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, TerminalExecutionState.Requested, command, root, null, null, DateTimeOffset.UtcNow));
+        commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, TerminalExecutionState.Running, command, root, null, null, DateTimeOffset.UtcNow));
+        try
+        {
+            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
+            var result = await tools.RunProcessAsync(new ProcessRequest(
+                "powershell.exe", $"-NoProfile -NonInteractive -EncodedCommand {encoded}", root, TimeSpan.FromSeconds(timeoutSeconds)), cancellationToken).ConfigureAwait(false);
+            var state = result.TimedOut ? TerminalExecutionState.Cancelled : result.ExitCode == 0 ? TerminalExecutionState.Succeeded : TerminalExecutionState.Failed;
+            commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, state, command, root, result, result.TimedOut ? "Command timed out." : null, DateTimeOffset.UtcNow));
+            return FormatProcess(result);
+        }
+        catch (OperationCanceledException)
+        {
+            commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, TerminalExecutionState.Cancelled, command, root, null, "Command cancelled.", DateTimeOffset.UtcNow));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            commandActivity?.Publish(new TerminalCommandActivity(executionId, TerminalCommandOrigin.Agent, TerminalExecutionState.Failed, command, root, null, ex.Message, DateTimeOffset.UtcNow));
+            throw;
+        }
     }
 
     /// <summary>

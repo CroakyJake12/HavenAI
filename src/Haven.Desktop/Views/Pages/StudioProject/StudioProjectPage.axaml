@@ -4,6 +4,6 @@
              x:Class="Haven.Desktop.Views.Pages.StudioProject.StudioProjectPage"
              Loaded="OnLoaded">
 
-  <views:StudioProjectView x:Name="InnerView" />
+  <views:StudioProjectHavenView x:Name="InnerView" />
 
 </UserControl>

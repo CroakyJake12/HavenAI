@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Controls;
 
@@ -78,21 +79,9 @@ public sealed partial class ActionButton : UserControl
         Description.IsVisible = hasDescription;
         Description.Text = DescriptionText ?? string.Empty;
 
-        if (IsDangerous)
-        {
-            var dangerBrush = ResourceBrush("HavenDangerBrush", Color.Parse("#FFD32F2F"));
-            Icon.Foreground = dangerBrush;
-            Label.Foreground = dangerBrush;
-            Button.Classes.Add("danger");
-        }
-        else
-        {
-            Icon.Foreground = ResourceBrush("HavenTextBrush", Colors.Black);
-            Label.Foreground = ResourceBrush("HavenTextBrush", Colors.Black);
-            Button.Classes.Remove("danger");
-        }
-
-        Button.Classes.Add("sidebar");
+        Icon.ClearValue(ForegroundProperty);
+        Label.ClearValue(ForegroundProperty);
+        Button.Role = IsDangerous ? HavenDropdownItemRole.Negative : HavenDropdownItemRole.Main;
     }
 
     private static IBrush ResourceBrush(string key, Color fallback) =>

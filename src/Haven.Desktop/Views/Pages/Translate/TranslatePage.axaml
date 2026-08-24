@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Haven.Desktop.Views.Pages.Translate.TranslatePage">
+  <Grid RowDefinitions="Auto,*" Margin="30,24,30,28">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,18">
+      <StackPanel Spacing="3">
+        <TextBlock Text="Translate" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
+        <TextBlock Text="Translate text and extracted document content with your selected Haven model." Foreground="{DynamicResource HavenMutedBrush}"/>
+      </StackPanel>
+      <Button Grid.Column="1" Content="Open file" Click="OnFileClick" VerticalAlignment="Center"/>
+    </Grid>
+
+    <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto">
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+        <StackPanel Grid.Column="0" Spacing="5">
+          <TextBlock Text="From" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
+          <ComboBox x:Name="SourceLanguage" MinWidth="190" SelectionChanged="OnPreferenceChanged"/>
+        </StackPanel>
+        <Button Grid.Column="1" x:Name="SwapButton" Content="⇄" Width="42" Height="36" Margin="0,24,0,0" Click="OnSwapClick" ToolTip.Tip="Swap languages and text"/>
+        <StackPanel Grid.Column="2" Spacing="5">
+          <TextBlock Text="To" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
+          <ComboBox x:Name="TargetLanguage" MinWidth="190" SelectionChanged="OnPreferenceChanged"/>
+        </StackPanel>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+          <Button Content="Clear" Click="OnClearClick"/>
+          <Button x:Name="TranslateButton" Classes="primary" Content="Translate" Click="OnTranslateClick"/>
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,16,*">
+        <Border Grid.Column="0" Background="{DynamicResource HavenPanelBrush}" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="18" Padding="16">
+          <Grid RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+              <TextBlock Text="Source" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
+              <TextBlock Grid.Column="1" x:Name="DetectedLanguageText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="12"/>
+            </Grid>
+            <TextBox Grid.Row="1" x:Name="SourceText" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter or paste text to translate…" MinHeight="300" VerticalContentAlignment="Top"/>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="2" Background="{DynamicResource HavenPanelBrush}" BorderBrush="{DynamicResource HavenLineBrush}" BorderThickness="1" CornerRadius="18" Padding="16">
+          <Grid RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Translation" FontWeight="SemiBold" Foreground="{DynamicResource HavenTextBrush}"/>
+                <TextBlock x:Name="ModelText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button Grid.Column="1" Content="Copy" Click="OnCopyClick"/>
+            </Grid>
+            <TextBox Grid.Row="1" x:Name="OutputText" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" PlaceholderText="Your translation will appear here." MinHeight="300" VerticalContentAlignment="Top"/>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <Expander Grid.Row="2" Header="Tone and context" Margin="0,12,0,0">
+        <Grid ColumnDefinitions="220,*" ColumnSpacing="12" Margin="0,8,0,0">
+          <StackPanel Spacing="5">
+            <TextBlock Text="Tone" Foreground="{DynamicResource HavenMutedBrush}"/>
+            <ComboBox x:Name="Tone" SelectionChanged="OnPreferenceChanged"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="5">
+            <TextBlock Text="Context or terminology" Foreground="{DynamicResource HavenMutedBrush}"/>
+            <TextBox x:Name="ContextText" PlaceholderText="Optional: audience, domain, preferred terminology…" TextChanged="OnContextChanged"/>
+          </StackPanel>
+        </Grid>
+      </Expander>
+
+      <Border Grid.Row="3" Margin="0,12,0,0" Padding="12,9" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="12">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+          <ProgressBar x:Name="BusyIndicator" Width="72" IsIndeterminate="True" IsVisible="False" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="1" Spacing="2">
+            <TextBlock x:Name="StatusText" Text="Ready." Foreground="{DynamicResource HavenTextBrush}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="FileNoticeText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
+            <TextBlock x:Name="AmbiguityText" Foreground="{DynamicResource HavenMutedBrush}" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

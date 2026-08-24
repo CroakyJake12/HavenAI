@@ -51,7 +51,6 @@ internal static class MarkdownRendererUpgradeBootstrap
                 MaxWidth = legacy.MaxWidth
             };
             replacement.Bind(ProductionMarkdownView.TextProperty, new Binding("Content"));
-            replacement.CodeActionRequested += request => HandleCodeAction(replacement, request);
             if (!Replace(legacy, replacement)) continue;
             Upgraded.Add(legacy, new Marker());
         }
@@ -81,22 +80,6 @@ internal static class MarkdownRendererUpgradeBootstrap
             default:
                 return false;
         }
-    }
-
-    /// <summary>
-    /// Performs the handle code action step owned by this component.
-    /// </summary>
-    private static void HandleCodeAction(Control source, MarkdownCodeActionRequest request)
-    {
-        if (request.Action == MarkdownCodeAction.Copy) return;
-        if (source.FindAncestorOfType<ChatView>()?.DataContext is not ChatPageViewModel chat) return;
-        var language = string.IsNullOrWhiteSpace(request.Language) ? "code" : request.Language;
-        var instruction = request.Action == MarkdownCodeAction.AskToRun
-            ? $"Run this {language} code using the appropriate permission-gated Haven tool. Explain the command before execution and report the real exit code and output:\n\n```{request.Language}\n{request.Code}\n```"
-            : $"Apply this {language} code to the currently selected project only after checking the target file and asking for approval where required. Show the exact proposed edit first:\n\n```{request.Language}\n{request.Code}\n```";
-        chat.Composer = string.IsNullOrWhiteSpace(chat.Composer)
-            ? instruction
-            : chat.Composer.TrimEnd() + "\n\n" + instruction;
     }
 
     /// <summary>

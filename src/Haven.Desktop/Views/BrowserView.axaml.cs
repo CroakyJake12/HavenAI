@@ -9,6 +9,7 @@
 
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -81,6 +82,8 @@ public sealed partial class BrowserView : UserControl
     {
         InitializeComponent();
         _nativeBrowser = NativeBrowser;
+        WireBrowserShortcuts();
+        WireSidePanels();
         ConfigureEnvironmentForCurrentTab(_nativeBrowser);
         DataContextChanged += (_, _) => ChangeViewModel(DataContext as BrowserPage);
         AttachedToVisualTree += (_, _) =>
@@ -98,6 +101,48 @@ public sealed partial class BrowserView : UserControl
         _cleanupTimer = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background,
             (_, _) => CleanupInactiveTabs());
         _cleanupTimer.Start();
+    }
+
+    private void WireSidePanels()
+    {
+        BookmarksMenuItem.Click += (_, _) => ShowSidePanel(BookmarksPanel);
+        HistoryMenuItem.Click += (_, _) => ShowSidePanel(HistoryPanel);
+        LoginsMenuItem.Click += (_, _) => ShowSidePanel(LoginsPanel);
+        ExtensionsMenuItem.Click += (_, _) => ShowSidePanel(ExtensionsPanel);
+        AssistantMenuItem.Click += (_, _) => ShowSidePanel(AssistantPanel);
+        SettingsMenuItem.Click += (_, _) => ShowSidePanel(SettingsPanel);
+        CloseBookmarksButton.Click += (_, _) => HideSidePanels();
+    }
+
+    private void ShowSidePanel(Control panel)
+    {
+        if (SidePanel.IsVisible && panel.IsVisible)
+        {
+            HideSidePanels();
+            return;
+        }
+        var panels = new Control[]
+        {
+            BookmarksPanel,
+            HistoryPanel,
+            LoginsPanel,
+            ExtensionsPanel,
+            AssistantPanel,
+            SettingsPanel
+        };
+        foreach (var candidate in panels) candidate.IsVisible = ReferenceEquals(candidate, panel);
+        SidePanel.IsVisible = true;
+    }
+
+    private void HideSidePanels()
+    {
+        BookmarksPanel.IsVisible = false;
+        HistoryPanel.IsVisible = false;
+        LoginsPanel.IsVisible = false;
+        ExtensionsPanel.IsVisible = false;
+        AssistantPanel.IsVisible = false;
+        SettingsPanel.IsVisible = false;
+        SidePanel.IsVisible = false;
     }
 
     /// <summary>
@@ -352,7 +397,7 @@ public sealed partial class BrowserView : UserControl
         {
             var services = App.Services ?? throw new InvalidOperationException("Haven services are unavailable.");
             var permissions = BrowserSitePermissionStoreProvider.Get(services.GetRequiredService<IAppPaths>());
-            _host = new NativeWebViewHost(_nativeBrowser, permissions);
+            _host = new NativeWebViewHost(_nativeBrowser, permissions, vm.OpenPopupInNewTabAsync);
             vm.Browser.Attach(_host);
             // Only navigate if this is a new tab, not when switching to an already-loaded cached tab
             if (!skipNavigation)
@@ -425,6 +470,10 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     /// </summary>
     private readonly BrowserSitePermissionStore _permissions;
     /// <summary>
+    /// Opens an approved native popup in a real Haven browser tab.
+    /// </summary>
+    private readonly Func<Uri, Task> _openInNewTab;
+    /// <summary>
     /// Stores recovery limiter locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly BrowserRecoveryLimiter _recoveryLimiter = new(2, TimeSpan.FromMinutes(1));
@@ -436,6 +485,8 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     /// Stores last committed address locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private Uri? _lastCommittedAddress;
+    private string? _documentTitle;
+    private string? _favicon;
     /// <summary>
     /// Stores adapter lost locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -445,10 +496,11 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     /// </summary>
     private bool _disposed;
 
-    public NativeWebViewHost(NativeWebView webView, BrowserSitePermissionStore permissions)
+    public NativeWebViewHost(NativeWebView webView, BrowserSitePermissionStore permissions, Func<Uri, Task> openInNewTab)
     {
-        _webView = webView;
-        _permissions = permissions;
+        _webView = webView ?? throw new ArgumentNullException(nameof(webView));
+        _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
+        _openInNewTab = openInNewTab ?? throw new ArgumentNullException(nameof(openInNewTab));
         _state = Snapshot("Native browser ready");
         _webView.AdapterCreated += OnAdapterCreated;
         _webView.AdapterDestroyed += OnAdapterDestroyed;
@@ -557,42 +609,74 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     private void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs args)
     {
         if (_disposed) return;
-        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(args.Request);
-        if (!assessment.IsAllowed)
+        var request = args.Request;
+        var assessment = BrowserNativeRequestPolicy.AssessTopLevel(request);
+        if (request is null || !assessment.IsAllowed)
         {
             args.Cancel = true;
             Publish(_state with { IsLoading = false, Status = "Navigation blocked: " + assessment.Reason });
             return;
         }
-        Publish(_state with { Address = args.Request, IsLoading = true, Status = "Loading…" });
+        _documentTitle = string.IsNullOrWhiteSpace(request.Host) ? "Browser" : request.Host;
+        _favicon = null;
+        Publish(_state with { Address = request, Title = _documentTitle, Favicon = null, IsLoading = true, Status = "Loading…" });
     }
 
     /// <summary>
     /// Handles the navigation completed event raised by the UI or runtime.
     /// </summary>
-    private void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs args)
+    private async void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs args)
     {
         if (_disposed) return;
         var request = args.Request;
         if (request is null)
         {
-            Publish(_state with
-            {
-                IsLoading = false,
-                Status = "Navigation completed without a request URI."
-            });
+            Publish(_state with { IsLoading = false, Status = "Navigation completed without a request URI." });
             return;
         }
         var assessment = BrowserNativeRequestPolicy.AssessTopLevel(request);
-        if (args.IsSuccess && assessment.IsAllowed && request.Scheme is "http" or "https")
-            _lastCommittedAddress = request;
-        Publish(Snapshot(args.IsSuccess ? request.Host : "Navigation failed"));
+        if (!args.IsSuccess || !assessment.IsAllowed || request.Scheme is not ("http" or "https"))
+        {
+            _documentTitle = null;
+            _favicon = null;
+            Publish(Snapshot("Navigation failed"));
+            return;
+        }
+        _lastCommittedAddress = request;
+        try
+        {
+            var metadata = await ReadPageMetadataAsync(request).ConfigureAwait(false);
+            if (_disposed || !Equals(_webView.Source, request)) return;
+            _documentTitle = metadata.Title;
+            _favicon = metadata.Favicon;
+        }
+        catch (Exception)
+        {
+            if (_disposed) return;
+            _documentTitle = request.Host;
+            _favicon = null;
+        }
+        Publish(Snapshot(request.Host));
+    }
+
+    private async Task<BrowserPageMetadata> ReadPageMetadataAsync(Uri address)
+    {
+        const string script = "(() => [document.title || location.hostname, document.querySelector('link[rel~=icon],link[rel=apple-touch-icon]')?.href || ''].join('\\u001f'))()";
+        var raw = await _webView.InvokeScript(script).ConfigureAwait(false);
+        var value = raw ?? string.Empty;
+        if (!string.IsNullOrEmpty(value))
+        {
+            try { value = JsonSerializer.Deserialize<string>(value) ?? value; }
+            catch (JsonException) { }
+        }
+        var parts = value.Split('', 2);
+        return BrowserNativeRequestPolicy.NormalizePageMetadata(address, parts[0], parts.Length > 1 ? parts[1] : null);
     }
 
     /// <summary>
     /// Handles the new window requested event raised by the UI or runtime.
     /// </summary>
-    private void OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs args)
+    private async void OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs args)
     {
         args.Handled = true;
         if (_disposed) return;
@@ -613,13 +697,16 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
             Publish(_state with { Status = assessment.Reason });
             return;
         }
-        Publish(_state with
+
+        try
         {
-            Address = requested,
-            IsLoading = true,
-            Status = "Opening approved popup in the current tab…"
-        });
-        _webView.Navigate(requested);
+            await _openInNewTab(requested).ConfigureAwait(false);
+            Publish(_state with { Status = $"Opened {requested.Host} in a new tab." });
+        }
+        catch (Exception ex)
+        {
+            Publish(_state with { Status = $"Popup could not open in a new tab: {ex.Message}" });
+        }
     }
 
     /// <summary>
@@ -654,7 +741,14 @@ internal sealed class NativeWebViewHost : IEmbeddedBrowserHost, IDisposable
     /// <summary>
     /// Performs the snapshot step owned by this component.
     /// </summary>
-    private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(_webView.Source, _webView.Source?.Host ?? "Browser", _webView.CanGoBack, _webView.CanGoForward, isLoading, status);
+    private BrowserSnapshot Snapshot(string status, bool isLoading = false) => new(
+        _webView.Source,
+        string.IsNullOrWhiteSpace(_documentTitle) ? _webView.Source?.Host ?? "Browser" : _documentTitle,
+        _webView.CanGoBack,
+        _webView.CanGoForward,
+        isLoading,
+        status,
+        _favicon);
 
     /// <summary>
     /// Performs the publish step owned by this component.

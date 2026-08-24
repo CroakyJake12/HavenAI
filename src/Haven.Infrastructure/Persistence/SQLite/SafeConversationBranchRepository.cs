@@ -165,6 +165,10 @@ public sealed class SafeConversationProductionRepository(
     /// </summary>
     public Task<IReadOnlyList<MessageAttachment>> GetAttachmentsAsync(Guid conversationId, Guid? messageId, CancellationToken cancellationToken) => inner.GetAttachmentsAsync(conversationId, messageId, cancellationToken);
     /// <summary>
+    /// Retrieves the most recently updated persisted attachments across conversations.
+    /// </summary>
+    public Task<IReadOnlyList<MessageAttachment>> GetRecentAttachmentsAsync(int limit, CancellationToken cancellationToken) => inner.GetRecentAttachmentsAsync(limit, cancellationToken);
+    /// <summary>
     /// Performs upsert attachment asynchronously so I/O does not block the caller's thread.
     /// </summary>
     public Task<MessageAttachment> UpsertAttachmentAsync(MessageAttachment attachment, CancellationToken cancellationToken) => inner.UpsertAttachmentAsync(attachment, cancellationToken);

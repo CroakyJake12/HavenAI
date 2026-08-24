@@ -128,7 +128,11 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
             command.Parameters.AddWithValue("$completed", (int)PlannerTaskStatus.Completed);
             command.Parameters.AddWithValue("$cancelled", (int)PlannerTaskStatus.Cancelled);
         }
-        if (query.RangeStart is not null) { clauses.Add("COALESCE(due_at,starts_at) >= $rangeStart"); command.Parameters.AddWithValue("$rangeStart", Timestamp(query.RangeStart.Value)); }
+        if (query.RangeStart is not null)
+        {
+            clauses.Add("(COALESCE(due_at,starts_at) >= $rangeStart OR (starts_at IS NOT NULL AND estimated_minutes > 0 AND julianday(starts_at) + (estimated_minutes / 1440.0) > julianday($rangeStart)))");
+            command.Parameters.AddWithValue("$rangeStart", Timestamp(query.RangeStart.Value));
+        }
         if (query.RangeEnd is not null) { clauses.Add("COALESCE(starts_at,due_at) < $rangeEnd"); command.Parameters.AddWithValue("$rangeEnd", Timestamp(query.RangeEnd.Value)); }
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -709,7 +713,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
         {
             case PlannerChangeKind.CreateTask:
             {
-                var task = NewTask(payload, now);
+                if (await GetTaskAsync(connection, transaction, change.Id, cancellationToken).ConfigureAwait(false) is not null) break;
+                var task = NewTask(change.Id, payload, now);
                 ValidateTask(task);
                 await ValidateTaskHierarchyAsync(connection, transaction, task, cancellationToken).ConfigureAwait(false);
                 await UpsertTaskAsync(connection, transaction, task, cancellationToken).ConfigureAwait(false);
@@ -738,7 +743,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
                 break;
             case PlannerChangeKind.CreateEvent:
             {
-                var plannerEvent = NewEvent(payload, now);
+                if (await GetEventAsync(connection, transaction, change.Id, cancellationToken).ConfigureAwait(false) is not null) break;
+                var plannerEvent = NewEvent(change.Id, payload, now);
                 ValidateEvent(plannerEvent);
                 await EnsureCalendarWritableAsync(connection, transaction, plannerEvent.CalendarId, cancellationToken).ConfigureAwait(false);
                 await UpsertEventAsync(connection, transaction, plannerEvent, cancellationToken).ConfigureAwait(false);
@@ -775,8 +781,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     /// <summary>
     /// Performs the new task step owned by this component.
     /// </summary>
-    private static PlannerTask NewTask(JsonElement value, DateTimeOffset now) => new(
-        Guid.NewGuid(), RequiredGuid(value, "collectionId"), OptionalGuid(value, "parentTaskId"), RequiredString(value, "title"),
+    private static PlannerTask NewTask(Guid id, JsonElement value, DateTimeOffset now) => new(
+        id, RequiredGuid(value, "collectionId"), OptionalGuid(value, "parentTaskId"), RequiredString(value, "title"),
         OptionalString(value, "notes") ?? string.Empty, OptionalEnum(value, "priority", PlannerPriority.None),
         OptionalEnum(value, "status", PlannerTaskStatus.Inbox), JsonValue(value, "tags", "[]"), OptionalInt(value, "estimatedMinutes"),
         OptionalDate(value, "startsAt"), OptionalDate(value, "dueAt"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"),
@@ -807,8 +813,8 @@ public sealed class PlannerRepository(ISqliteConnectionFactory factory) : IPlann
     /// <summary>
     /// Performs the new event step owned by this component.
     /// </summary>
-    private static PlannerEvent NewEvent(JsonElement value, DateTimeOffset now) => new(
-        Guid.NewGuid(), RequiredGuid(value, "calendarId"), RequiredString(value, "title"), OptionalString(value, "notes") ?? string.Empty,
+    private static PlannerEvent NewEvent(Guid id, JsonElement value, DateTimeOffset now) => new(
+        id, RequiredGuid(value, "calendarId"), RequiredString(value, "title"), OptionalString(value, "notes") ?? string.Empty,
         OptionalString(value, "location") ?? string.Empty, RequiredDate(value, "startsAt"), RequiredDate(value, "endsAt"),
         OptionalBool(value, "isAllDay"), OptionalString(value, "recurrenceRule"), OptionalDate(value, "reminderAt"), false, null, null,
         now, now, null, OptionalString(value, "timeZoneId") ?? "UTC");

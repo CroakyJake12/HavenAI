@@ -6,6 +6,15 @@ public sealed partial class MainView
 {
     private async Task SwitchNativeChatModeAsync(HavenMode mode)
     {
+        if (mode == HavenMode.Study)
+        {
+            _nativeChatSidebar?.SetMode(mode);
+            await OpenStudyHomeAsync();
+            await RefreshNativeChatSidebarAsync();
+            ApplyShellVisualState();
+            return;
+        }
+
         if (mode == HavenMode.Studio)
         {
             await NavigateModeAsync(HavenMode.Studio, true);

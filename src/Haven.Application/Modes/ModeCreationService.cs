@@ -63,7 +63,7 @@ public sealed class ModeCreationService
             Return a JSON object with these fields:
             - "systemPromptSuffix": System instructions for this mode (string)
             - "surfaces": Array of surface names this mode can use (e.g., ["Tasks"], ["Studio", "Tasks"])
-            - "plugins": Array of plugin names to activate (e.g., ["BrowserUse"], ["Automate"])
+            - "capabilities": Array of capability keys to activate (e.g., ["browser-use"], ["create-automation"])
             - "toolAllowlist": Array of tool names to allow (e.g., ["write_file", "run_tests"])
             - "toolDenylist": Array of tool names to deny
             
@@ -88,7 +88,7 @@ public sealed class ModeCreationService
 
             var systemPromptSuffix = root.TryGetProperty("systemPromptSuffix", out var sp) ? sp.GetString() ?? "" : "";
             var surfaces = root.TryGetProperty("surfaces", out var s) ? s.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : [];
-            var plugins = root.TryGetProperty("plugins", out var p) ? p.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : [];
+            var capabilities = root.TryGetProperty("capabilities", out var p) ? p.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : [];
             var toolAllowlist = root.TryGetProperty("toolAllowlist", out var ta) ? ta.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : [];
             var toolDenylist = root.TryGetProperty("toolDenylist", out var td) ? td.EnumerateArray().Select(x => x.GetString() ?? "").ToList() : [];
 
@@ -104,7 +104,7 @@ public sealed class ModeCreationService
                 System.Text.Json.JsonSerializer.Serialize(surfaces),
                 System.Text.Json.JsonSerializer.Serialize(toolAllowlist),
                 System.Text.Json.JsonSerializer.Serialize(toolDenylist),
-                System.Text.Json.JsonSerializer.Serialize(plugins),
+                System.Text.Json.JsonSerializer.Serialize(capabilities),
                 systemPromptSuffix,
                 ModeSource.Created,
                 ModeInstallState.InstalledByUser,

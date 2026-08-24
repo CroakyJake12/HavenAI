@@ -14,7 +14,7 @@ namespace Haven.Application;
 /// <summary>
 /// Lists the supported tool runtime kind values used to make state explicit and type-safe.
 /// </summary>
-public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation }
+public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation, Mcp, Calendar }
 
 /// <summary>
 /// Represents tool availability context and keeps its related state and behavior together.
@@ -22,7 +22,7 @@ public enum ToolRuntimeKind { Workspace, Computer, Browser, Automation }
 public sealed record ToolAvailabilityContext(
     HavenMode Mode,
     string? WorkspaceRoot,
-    IReadOnlyCollection<ActivePlugin> Plugins,
+    IReadOnlyCollection<ActiveCapability> Capabilities,
     PermissionMode FilePermission,
     PermissionMode CommandPermission,
     PermissionMode BrowserPermission,
@@ -36,9 +36,10 @@ public sealed record ToolAvailabilityContext(
     /// </summary>
     public bool HasExistingWorkspace => !string.IsNullOrWhiteSpace(WorkspaceRoot) && Directory.Exists(WorkspaceRoot);
     /// <summary>
-    /// Reports whether plugin active applies to the current state.
+    /// Reports whether a capability is registered for this turn.
     /// </summary>
-    public bool IsPluginActive(string name) => Plugins.Any(plugin => plugin.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    public bool IsCapabilityActive(string key) =>
+        Capabilities.Any(capability => capability.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>
@@ -50,7 +51,9 @@ public sealed record ToolDefinitionSources(
     IReadOnlyList<OllamaToolDefinition> BrowserBackground,
     IReadOnlyList<OllamaToolDefinition> BrowserInteractive,
     IReadOnlyList<OllamaToolDefinition> Automation,
-    IReadOnlyList<OllamaToolDefinition> ReusableTasks);
+    IReadOnlyList<OllamaToolDefinition> ReusableTasks,
+    IReadOnlyList<OllamaToolDefinition>? Mcp = null,
+    IReadOnlyList<OllamaToolDefinition>? Calendar = null);
 
 /// <summary>
 /// Represents tool availability plan and keeps its related state and behavior together.
@@ -58,10 +61,10 @@ public sealed record ToolDefinitionSources(
 public sealed class ToolAvailabilityPlan
 {
     /// <summary>
-    /// Stores contextual plugin names locally so this component can preserve the dependency, cache, or state between member calls.
+    /// Stores capability keys whose availability depends on a concrete runtime.
     /// </summary>
-    private static readonly HashSet<string> ContextualPluginNames = new(StringComparer.OrdinalIgnoreCase)
-    { "Automate", "BrowserUse", "ComputerUse", "Test", "WebSearch" };
+    private static readonly HashSet<string> ContextualCapabilityKeys = new(StringComparer.OrdinalIgnoreCase)
+    { "create-automation", "run-task", "edit-task", "browser-use", "computer-device-use", "run-tests", "web-search" };
     /// <summary>
     /// Stores routes locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -71,19 +74,19 @@ public sealed class ToolAvailabilityPlan
     /// </summary>
     private readonly IReadOnlyDictionary<string, string> _unavailableReasons;
     /// <summary>
-    /// Stores available contextual plugins locally so this component can preserve the dependency, cache, or state between member calls.
+    /// Stores available contextual capability keys locally.
     /// </summary>
-    private readonly IReadOnlySet<string> _availableContextualPlugins;
+    private readonly IReadOnlySet<string> _availableContextualCapabilities;
 
     internal ToolAvailabilityPlan(IReadOnlyList<OllamaToolDefinition> definitions,
         IReadOnlyDictionary<string, ToolRuntimeKind> routes,
         IReadOnlyDictionary<string, string> unavailableReasons,
-        IReadOnlySet<string> availableContextualPlugins)
+        IReadOnlySet<string> availableContextualCapabilities)
     {
         Definitions = definitions;
         _routes = routes;
         _unavailableReasons = unavailableReasons;
-        _availableContextualPlugins = availableContextualPlugins;
+        _availableContextualCapabilities = availableContextualCapabilities;
     }
 
     /// <summary>
@@ -99,13 +102,15 @@ public sealed class ToolAvailabilityPlan
     /// </summary>
     public bool TryGetRuntime(string toolName, out ToolRuntimeKind runtime) => _routes.TryGetValue(toolName, out runtime);
     /// <summary>
-    /// Reports whether plugin available applies to the current state.
+    /// Reports whether a registered capability has a concrete usable runtime.
     /// </summary>
-    public bool IsPluginAvailable(string pluginName) => !ContextualPluginNames.Contains(pluginName) || _availableContextualPlugins.Contains(pluginName);
+    public bool IsCapabilityAvailable(string capabilityKey) =>
+        !ContextualCapabilityKeys.Contains(capabilityKey) || _availableContextualCapabilities.Contains(capabilityKey);
     /// <summary>
-    /// Performs the filter plugins step owned by this component.
+    /// Removes registered capabilities whose concrete runtimes are unavailable.
     /// </summary>
-    public IReadOnlyCollection<ActivePlugin> FilterPlugins(IReadOnlyCollection<ActivePlugin> plugins) => plugins.Where(plugin => IsPluginAvailable(plugin.Name)).ToArray();
+    public IReadOnlyCollection<ActiveCapability> FilterCapabilities(IReadOnlyCollection<ActiveCapability> capabilities) =>
+        capabilities.Where(capability => IsCapabilityAvailable(capability.Key)).ToArray();
     /// <summary>
     /// Retrieves unavailable reason for the current operation.
     /// </summary>
@@ -136,12 +141,17 @@ public sealed class ToolAvailabilityPlan
             }
             else reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because model '{model.Name}' lacks the required tool capability.";
         }
-        var plugins = new HashSet<string>(_availableContextualPlugins, StringComparer.OrdinalIgnoreCase);
-        if (!routes.Values.Contains(ToolRuntimeKind.Computer)) plugins.Remove("ComputerUse");
-        if (!routes.Values.Contains(ToolRuntimeKind.Browser)) { plugins.Remove("BrowserUse"); plugins.Remove("WebSearch"); }
-        if (!routes.ContainsKey("run_tests")) plugins.Remove("Test");
-        if (!routes.Values.Contains(ToolRuntimeKind.Automation)) plugins.Remove("Automate");
-        return new ToolAvailabilityPlan(definitions, routes, reasons, plugins);
+        var capabilities = new HashSet<string>(_availableContextualCapabilities, StringComparer.OrdinalIgnoreCase);
+        if (!routes.Values.Contains(ToolRuntimeKind.Computer)) capabilities.Remove("computer-device-use");
+        if (!routes.Values.Contains(ToolRuntimeKind.Browser)) { capabilities.Remove("browser-use"); capabilities.Remove("web-search"); }
+        if (!routes.ContainsKey("run_tests")) capabilities.Remove("run-tests");
+        if (!routes.Values.Contains(ToolRuntimeKind.Automation))
+        {
+            capabilities.Remove("create-automation");
+            capabilities.Remove("run-task");
+            capabilities.Remove("edit-task");
+        }
+        return new ToolAvailabilityPlan(definitions, routes, reasons, capabilities);
     }
 }
 
@@ -175,12 +185,14 @@ public sealed class ToolAvailabilityPlanner
         var definitions = new List<OllamaToolDefinition>();
         var routes = new Dictionary<string, ToolRuntimeKind>(StringComparer.Ordinal);
         var reasons = new Dictionary<string, string>(StringComparer.Ordinal);
-        var plugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        PlanWorkspace(context, sources.Workspace, definitions, routes, reasons, plugins);
-        PlanComputer(context, sources.Computer, definitions, routes, reasons, plugins);
-        PlanBrowser(context, sources.BrowserBackground, sources.BrowserInteractive, definitions, routes, reasons, plugins);
-        PlanAutomations(context, sources.Automation, sources.ReusableTasks, definitions, routes, reasons, plugins);
-        return new ToolAvailabilityPlan(definitions, routes, reasons, plugins);
+        var capabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        PlanWorkspace(context, sources.Workspace, definitions, routes, reasons, capabilities);
+        PlanComputer(context, sources.Computer, definitions, routes, reasons, capabilities);
+        PlanBrowser(context, sources.BrowserBackground, sources.BrowserInteractive, definitions, routes, reasons, capabilities);
+        PlanAutomations(context, sources.Automation, sources.ReusableTasks, definitions, routes, reasons, capabilities);
+        PlanMcp(sources.Mcp ?? [], definitions, routes);
+        PlanCalendar(sources.Calendar ?? [], definitions, routes);
+        return new ToolAvailabilityPlan(definitions, routes, reasons, capabilities);
     }
 
     /// <summary>
@@ -188,7 +200,7 @@ public sealed class ToolAvailabilityPlanner
     /// </summary>
     private static void PlanWorkspace(ToolAvailabilityContext context, IReadOnlyList<OllamaToolDefinition> source,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
-        Dictionary<string, string> reasons, HashSet<string> plugins)
+        Dictionary<string, string> reasons, HashSet<string> capabilities)
     {
         var modeAllowed = context.Mode is HavenMode.Tasks or HavenMode.Studio;
         foreach (var definition in source)
@@ -207,7 +219,17 @@ public sealed class ToolAvailabilityPlanner
             if (allowed)
             {
                 Add(definition, ToolRuntimeKind.Workspace, definitions, routes);
-                if (definition.Name == "run_tests") plugins.Add("Test");
+                if (definition.Name == "run_tests") capabilities.Add("run-tests");
+                if (WorkspaceReadTools.Contains(definition.Name))
+                    capabilities.Add("read-file");
+                if (WorkspaceMutationTools.Contains(definition.Name))
+                    capabilities.Add("write-file");
+                if (definition.Name == "run_command")
+                {
+                    capabilities.Add("run-command");
+                    capabilities.Add("run-script");
+                    capabilities.Add("powershell");
+                }
             }
             else reasons[definition.Name] = definition.Name switch
             {
@@ -224,17 +246,17 @@ public sealed class ToolAvailabilityPlanner
     /// </summary>
     private static void PlanComputer(ToolAvailabilityContext context, IReadOnlyList<OllamaToolDefinition> source,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
-        Dictionary<string, string> reasons, HashSet<string> plugins)
+        Dictionary<string, string> reasons, HashSet<string> capabilities)
     {
-        var enabled = context.IsPluginActive("ComputerUse");
+        var enabled = context.IsCapabilityActive("computer-device-use");
         foreach (var definition in source)
         {
             if (RuntimeSafetyState.IsSafeMode) reasons[definition.Name] = SafeModeReason(definition.Name);
-            else if (!enabled) reasons[definition.Name] = $"Tool '{definition.Name}' requires explicit @ComputerUse approval for this pass.";
+            else if (!enabled) reasons[definition.Name] = $"Tool '{definition.Name}' requires the Computer / Device Use capability for this pass.";
             else if (!context.IsWindowsHost) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because Computer Use currently requires Windows.";
             else Add(definition, ToolRuntimeKind.Computer, definitions, routes);
         }
-        if (!RuntimeSafetyState.IsSafeMode && enabled && context.IsWindowsHost && source.Count > 0) plugins.Add("ComputerUse");
+        if (!RuntimeSafetyState.IsSafeMode && enabled && context.IsWindowsHost && source.Count > 0) capabilities.Add("computer-device-use");
     }
 
     /// <summary>
@@ -243,15 +265,15 @@ public sealed class ToolAvailabilityPlanner
     private static void PlanBrowser(ToolAvailabilityContext context,
         IReadOnlyList<OllamaToolDefinition> background, IReadOnlyList<OllamaToolDefinition> interactive,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
-        Dictionary<string, string> reasons, HashSet<string> plugins)
+        Dictionary<string, string> reasons, HashSet<string> capabilities)
     {
         if (RuntimeSafetyState.IsSafeMode)
         {
             foreach (var definition in background.Concat(interactive)) reasons[definition.Name] = SafeModeReason(definition.Name);
             return;
         }
-        var browserUse = context.IsPluginActive("BrowserUse");
-        var webSearch = context.IsPluginActive("WebSearch");
+        var browserUse = context.IsCapabilityActive("browser-use");
+        var webSearch = context.IsCapabilityActive("web-search");
         var any = browserUse || webSearch;
         var backgroundAllowed = (webSearch || browserUse && context.BrowserInteractiveHostAvailable) && context.BrowserHostAvailable && context.BrowserPermission != PermissionMode.Ask;
         var interactiveAllowed = browserUse && context.BrowserHostAvailable && context.BrowserInteractiveHostAvailable && context.BrowserPermission == PermissionMode.FullAccess;
@@ -263,13 +285,13 @@ public sealed class ToolAvailabilityPlanner
         foreach (var definition in interactive)
         {
             if (interactiveAllowed) Add(definition, ToolRuntimeKind.Browser, definitions, routes);
-            else if (!browserUse) reasons[definition.Name] = $"Tool '{definition.Name}' requires the interactive @BrowserUse plugin; @WebSearch is read-only.";
+            else if (!browserUse) reasons[definition.Name] = $"Tool '{definition.Name}' requires Browser Use; Web Search is read-only.";
             else if (!context.BrowserHostAvailable) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because no browser host is connected.";
             else if (!context.BrowserInteractiveHostAvailable) reasons[definition.Name] = $"Tool '{definition.Name}' requires the native Browse view to be open and attached.";
             else reasons[definition.Name] = $"Tool '{definition.Name}' requires Full Access browser permission or approval for this message.";
         }
-        if (backgroundAllowed && browserUse && context.BrowserInteractiveHostAvailable) plugins.Add("BrowserUse");
-        if (backgroundAllowed && webSearch) plugins.Add("WebSearch");
+        if (backgroundAllowed && browserUse && context.BrowserInteractiveHostAvailable) capabilities.Add("browser-use");
+        if (backgroundAllowed && webSearch) capabilities.Add("web-search");
     }
 
     /// <summary>
@@ -278,7 +300,7 @@ public sealed class ToolAvailabilityPlanner
     private static void PlanAutomations(ToolAvailabilityContext context,
         IReadOnlyList<OllamaToolDefinition> automation, IReadOnlyList<OllamaToolDefinition> reusableTasks,
         List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes,
-        Dictionary<string, string> reasons, HashSet<string> plugins)
+        Dictionary<string, string> reasons, HashSet<string> capabilities)
     {
         if (RuntimeSafetyState.IsSafeMode)
         {
@@ -286,25 +308,47 @@ public sealed class ToolAvailabilityPlanner
             return;
         }
         var modeAllowed = context.Mode is HavenMode.Tasks or HavenMode.Studio;
-        PlanAutomationGroup("Automate", context.IsPluginActive("Automate"), modeAllowed, context.AutomationHostAvailable,
-            automation.Concat(reusableTasks).ToArray(), definitions, routes, reasons, plugins);
+        var taskCapabilityActive = context.IsCapabilityActive("create-automation")
+                                   || context.IsCapabilityActive("run-task")
+                                   || context.IsCapabilityActive("edit-task");
+        PlanAutomationGroup(taskCapabilityActive, modeAllowed, context.AutomationHostAvailable,
+            automation.Concat(reusableTasks).ToArray(), definitions, routes, reasons, capabilities);
+        if (taskCapabilityActive && modeAllowed && context.AutomationHostAvailable
+            && automation.Count + reusableTasks.Count > 0)
+        {
+            foreach (var key in new[] { "create-automation", "run-task", "edit-task" })
+                if (context.IsCapabilityActive(key)) capabilities.Add(key);
+        }
     }
 
     /// <summary>
     /// Performs the plan automation group step owned by this component.
     /// </summary>
-    private static void PlanAutomationGroup(string plugin, bool active, bool modeAllowed, bool host,
+    private static void PlanAutomationGroup(bool active, bool modeAllowed, bool host,
         IReadOnlyList<OllamaToolDefinition> source, List<OllamaToolDefinition> definitions,
-        Dictionary<string, ToolRuntimeKind> routes, Dictionary<string, string> reasons, HashSet<string> plugins)
+        Dictionary<string, ToolRuntimeKind> routes, Dictionary<string, string> reasons, HashSet<string> capabilities)
     {
         foreach (var definition in source)
         {
-            if (!active) reasons[definition.Name] = $"Tool '{definition.Name}' requires @{plugin}.";
+            if (!active) reasons[definition.Name] = $"Tool '{definition.Name}' requires a registered Tasks capability.";
             else if (!modeAllowed) reasons[definition.Name] = $"Tool '{definition.Name}' is available only in Haven Tasks or Haven Studio.";
             else if (!host) reasons[definition.Name] = $"Tool '{definition.Name}' is unavailable because the local automation store is not connected.";
             else Add(definition, ToolRuntimeKind.Automation, definitions, routes);
         }
-        if (active && modeAllowed && host && source.Count > 0) plugins.Add(plugin);
+    }
+
+    private static void PlanMcp(IReadOnlyList<OllamaToolDefinition> source,
+        List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
+    {
+        if (RuntimeSafetyState.IsSafeMode) return;
+        foreach (var definition in source) Add(definition, ToolRuntimeKind.Mcp, definitions, routes);
+    }
+
+    private static void PlanCalendar(IReadOnlyList<OllamaToolDefinition> source,
+        List<OllamaToolDefinition> definitions, Dictionary<string, ToolRuntimeKind> routes)
+    {
+        if (RuntimeSafetyState.IsSafeMode) return;
+        foreach (var definition in source) Add(definition, ToolRuntimeKind.Calendar, definitions, routes);
     }
 
     /// <summary>
@@ -312,10 +356,10 @@ public sealed class ToolAvailabilityPlanner
     /// </summary>
     private static string BrowserReason(string tool, bool any, ToolAvailabilityContext context)
     {
-        if (!any) return $"Tool '{tool}' requires @WebSearch or @BrowserUse.";
+        if (!any) return $"Tool '{tool}' requires Web Search or Browser Use.";
         if (!context.BrowserHostAvailable) return $"Tool '{tool}' is unavailable because no browser host is connected.";
-        if (context.IsPluginActive("BrowserUse") && !context.IsPluginActive("WebSearch") && !context.BrowserInteractiveHostAvailable)
-            return $"Tool '{tool}' requires the native Browse view to be open when using @BrowserUse.";
+        if (context.IsCapabilityActive("browser-use") && !context.IsCapabilityActive("web-search") && !context.BrowserInteractiveHostAvailable)
+            return $"Tool '{tool}' requires the native Browse view to be open when using Browser Use.";
         return $"Tool '{tool}' requires Auto Safe or Full Access browser permission, or approval for this message.";
     }
 

@@ -60,7 +60,7 @@ public sealed partial class ProjectCreatorView : UserControl
         _rootHost = this.FindControl<Grid>("CodeBehindHost")
             ?? throw new InvalidOperationException("Project creator host was not initialized.");
 
-        _promptBox = new TextBox
+        _promptBox = new HavenTextInput
         {
             PlaceholderText = "Describe what you want to build…",
             AcceptsReturn = true,
@@ -73,7 +73,7 @@ public sealed partial class ProjectCreatorView : UserControl
         _promptBox.PlaceholderText = "Describe Your Project";
         AutomationProperties.SetName(_promptBox, "Project request");
 
-        _templateSearchBox = new TextBox
+        _templateSearchBox = new HavenTextInput
         {
             PlaceholderText = "Search Templates",
             MinHeight = 58,
@@ -86,7 +86,7 @@ public sealed partial class ProjectCreatorView : UserControl
         _projectNameBox = FieldTextBox("Project name");
         _destinationBox = FieldTextBox("Destination folder");
 
-        _packageDescriptionBox = new TextBox
+        _packageDescriptionBox = new HavenTextInput
         {
             PlaceholderText = "Short package description",
             AcceptsReturn = true,
@@ -161,6 +161,7 @@ public sealed partial class ProjectCreatorView : UserControl
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
         Dispatcher.UIThread.Post(AttachCurrentViewModel);
+        ActivateHavenScene();
     }
 
     private Control BuildLayout()
@@ -306,7 +307,7 @@ public sealed partial class ProjectCreatorView : UserControl
                 }
             }
         };
-        var footer = new Border
+        var footer = new HavenAdaptiveSurface
         {
             Padding = new Thickness(32, 10, 32, 26),
             Child = new StackPanel
@@ -324,7 +325,7 @@ public sealed partial class ProjectCreatorView : UserControl
 
     private Border BuildProposalCard()
     {
-        var warning = new Border
+        var warning = new HavenAdaptiveSurface
         {
             Background = WarningBrush,
             CornerRadius = new CornerRadius(10),
@@ -447,7 +448,7 @@ public sealed partial class ProjectCreatorView : UserControl
 
     private static Button TemplateTile(string title, string icon, string description)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             Width = 290,
             Height = 210,

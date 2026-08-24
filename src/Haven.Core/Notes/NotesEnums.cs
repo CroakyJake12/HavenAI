@@ -26,7 +26,8 @@ public enum NotesBlockKind
     HtmlWidget = 10,
     Canvas = 11,
     Flashcard = 12,
-    Divider = 13
+    Divider = 13,
+    Shape = 14
 }
 /// <summary>
 /// Supported notes text alignments.

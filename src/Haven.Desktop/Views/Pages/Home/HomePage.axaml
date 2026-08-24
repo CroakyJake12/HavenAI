@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Home.HomePage">
 
@@ -12,17 +13,17 @@
           <TextBlock x:Name="GreetingText" Classes="heading" />
           <TextBlock x:Name="DateText" Classes="soft" FontSize="15" />
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-            <Border Classes="statusPill"><TextBlock x:Name="ModelStatusText" FontSize="11" /></Border>
-            <Border Classes="statusPill"><TextBlock x:Name="LastUpdatedText" Classes="muted" FontSize="11" /></Border>
+            <hui:HavenAdaptiveSurface Classes="statusPill"><TextBlock x:Name="ModelStatusText" FontSize="11" /></hui:HavenAdaptiveSurface>
+            <hui:HavenAdaptiveSurface Classes="statusPill"><TextBlock x:Name="LastUpdatedText" Classes="muted" FontSize="11" /></hui:HavenAdaptiveSurface>
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-          <Button Classes="subtle" x:Name="CustomizeButton">
+          <hui:HavenButton Classes="subtle" x:Name="CustomizeButton">
             <StackPanel Orientation="Horizontal" Spacing="7"><controls:HavenIcon IconKey="settings" Width="16" Height="16" /><TextBlock Text="Customise" /></StackPanel>
-          </Button>
-          <Button Classes="icon" x:Name="RefreshButton" ToolTip.Tip="Refresh dashboard">
+          </hui:HavenButton>
+          <hui:HavenButton Classes="icon" x:Name="RefreshButton" ToolTip.Tip="Refresh dashboard">
             <controls:HavenIcon IconKey="refresh" Width="18" Height="18" />
-          </Button>
+          </hui:HavenButton>
         </StackPanel>
       </Grid>
 
@@ -35,32 +36,32 @@
         <WrapPanel x:Name="TilesPanel" />
 
         <!-- Customize panel (hidden tiles) -->
-        <Border x:Name="CustomizePanel" Classes="card" IsVisible="False" Padding="16">
+        <hui:HavenAdaptiveSurface x:Name="CustomizePanel" Classes="card" IsVisible="False" Padding="16">
           <StackPanel Spacing="10">
             <TextBlock Text="Hidden tiles" FontWeight="SemiBold" />
             <TextBlock Text="Choose a tile to return it to Home. Tile order is saved locally." Classes="muted" FontSize="11" />
             <WrapPanel x:Name="HiddenTilesPanel" />
             <TextBlock x:Name="NoHiddenTilesText" Text="No tiles are hidden." Classes="muted" />
           </StackPanel>
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </StackPanel>
 
       <!-- Row 2: Agenda + Recent Work -->
       <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="18">
-        <Border Classes="card" Padding="20">
+        <hui:HavenAdaptiveSurface Classes="card" Padding="20">
           <StackPanel Spacing="12">
             <TextBlock Text="Today" Classes="sectionHeading" />
             <StackPanel x:Name="AgendaPanel" Spacing="4" />
             <TextBlock x:Name="NoAgendaText" Text="Nothing scheduled. Your day is clear." Classes="muted" />
           </StackPanel>
-        </Border>
-        <Border Grid.Column="1" Classes="card" Padding="20">
+        </hui:HavenAdaptiveSurface>
+        <hui:HavenAdaptiveSurface Grid.Column="1" Classes="card" Padding="20">
           <StackPanel Spacing="12">
             <TextBlock Text="Recent work" Classes="sectionHeading" />
             <StackPanel x:Name="RecentWorkPanel" Spacing="4" />
             <TextBlock x:Name="NoRecentWorkText" Text="No recent activity." Classes="muted" />
           </StackPanel>
-        </Border>
+        </hui:HavenAdaptiveSurface>
       </Grid>
 
     </Grid>

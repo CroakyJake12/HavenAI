@@ -1,10 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
+             xmlns:havenUi="using:Haven.Desktop.HavenUI.Components.Buttons"
              x:Class="Haven.Desktop.Views.Shell.Sidebar.Sidebar"
              x:Name="SidebarRoot">
 
-    <Border Background="{DynamicResource HavenPanelBrush}"
+    <hui:HavenAdaptiveSurface Background="{DynamicResource HavenPanelBrush}"
             BorderBrush="Transparent"
             BorderThickness="0"
             CornerRadius="12">
@@ -14,7 +16,7 @@
                   ColumnSpacing="6"
                   Margin="0,0,0,9"
                   IsVisible="{Binding !IsProjectOpen}">
-                <Button Classes="product"
+                <hui:HavenButton Classes="product"
                         x:Name="ChatTypeButton"
                         IsVisible="{Binding IsChatProduct}"
                         HorizontalContentAlignment="Stretch">
@@ -37,10 +39,10 @@
                                             Foreground="{DynamicResource HavenMutedBrush}"
                                             VerticalAlignment="Center" />
                     </Grid>
-                    <Button.Flyout>
-                        <Flyout FlyoutPresenterTheme="{StaticResource HavenAcrylicFlyoutPresenterTheme}">
+                    <hui:HavenButton.Flyout>
+                        <hui:HavenAdaptivePopup FlyoutPresenterTheme="{StaticResource HavenAcrylicFlyoutPresenterTheme}">
                             <StackPanel Spacing="2">
-                                <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                <hui:HavenButton Classes="sidebar" HorizontalAlignment="Stretch"
                                         Command="{Binding NavigateChatCommand}">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
                                         <controls:HavenIcon IconKey="chat" Width="18" Height="18"
@@ -50,27 +52,27 @@
                                             <TextBlock Text="Chat with Haven" Classes="muted" FontSize="10" />
                                         </StackPanel>
                                     </Grid>
-                                </Button>
+                                </hui:HavenButton>
 
                             </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-                <Button Grid.Column="1"
+                        </hui:HavenAdaptivePopup>
+                    </hui:HavenButton.Flyout>
+                </hui:HavenButton>
+                <hui:HavenButton Grid.Column="1"
                         Classes="chrome"
                         Command="{Binding ToggleSidebarCommand}"
                         ToolTip.Tip="Collapse sidebar">
                     <controls:HavenIcon IconKey="chevron-left"
                                         Width="14"
                                         Height="14" />
-                </Button>
+                </hui:HavenButton>
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto"
                   ColumnSpacing="6"
                   Margin="0,0,0,9"
                   IsVisible="{Binding IsProjectOpen}">
-                <Button Classes="projectIdentity"
+                <hui:HavenButton Classes="projectIdentity"
                         x:Name="ProjectIdentityButton"
                         Command="{Binding NavigateProjectHomeCommand}"
                         HorizontalContentAlignment="Stretch">
@@ -95,22 +97,22 @@
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Grid>
-                </Button>
-                <Button Grid.Column="1"
+                </hui:HavenButton>
+                <hui:HavenButton Grid.Column="1"
                         Classes="chrome"
                         Command="{Binding ToggleSidebarCommand}"
                         ToolTip.Tip="Collapse sidebar">
                     <controls:HavenIcon IconKey="chevron-left"
                                         Width="14"
                                         Height="14" />
-                </Button>
+                </hui:HavenButton>
             </Grid>
 
             <Grid Grid.Row="1"
                   ColumnDefinitions="*,Auto"
                   ColumnSpacing="7"
                   IsVisible="{Binding !IsProjectOpen}">
-                <Button Classes="primary"
+                <hui:HavenButton Classes="primary"
                         x:Name="NewChatFullButton"
                         Command="{Binding NewChatCommand}"
                         HorizontalAlignment="Stretch">
@@ -124,14 +126,14 @@
                         <TextBlock Text="{Binding NewItemLabel}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                </Button>
+                </hui:HavenButton>
             </Grid>
 
             <Grid Grid.Row="1"
                   ColumnDefinitions="*,Auto"
                   ColumnSpacing="7"
                   IsVisible="{Binding IsProjectOpen}">
-                <Button Classes="primary"
+                <hui:HavenButton Classes="primary"
                         x:Name="NewProjectChatButton"
                         Command="{Binding NewProjectChatCommand}"
                         HorizontalAlignment="Stretch">
@@ -145,8 +147,8 @@
                         <TextBlock Text="New project chat"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                </Button>
-                <Button Grid.Column="1"
+                </hui:HavenButton>
+                <hui:HavenButton Grid.Column="1"
                         Classes="icon"
                         x:Name="ProjectHomeButton"
                         Command="{Binding NavigateProjectHomeCommand}"
@@ -154,12 +156,12 @@
                     <controls:HavenIcon IconKey="home"
                                         Width="17"
                                         Height="17" />
-                </Button>
+                </hui:HavenButton>
             </Grid>
 
             <Grid Grid.Row="2"
                   Margin="0,8">
-                <TextBox Text="{Binding SearchQuery}"
+                <hui:HavenTextInput Text="{Binding SearchQuery}"
                          Classes="sidebarSearch"
                          x:Name="SearchBox"
                          PlaceholderText="Search chats" />
@@ -179,7 +181,7 @@
 
                     <StackPanel IsVisible="{Binding !IsProjectOpen}">
                         <StackPanel Margin="0,0,0,12">
-                            <Button Classes="sidebar"
+                            <hui:HavenButton Classes="sidebar"
                                     x:Name="QuickChatsButton"
                                     HorizontalAlignment="Stretch"
                                     IsVisible="{Binding IsStudy}"
@@ -188,11 +190,11 @@
                                     <controls:HavenIcon IconKey="chat" Width="17" Height="17" />
                                     <TextBlock Text="Quick Chats" />
                                 </StackPanel>
-                            </Button>
+                            </hui:HavenButton>
 
                             <Grid ColumnDefinitions="*,Auto" Margin="9,0,3,5">
                                 <TextBlock Text="{Binding ContainerHeading}" FontSize="10" Classes="eyebrow" />
-                                <Button Grid.Column="1"
+                                <hui:HavenButton Grid.Column="1"
                                         Classes="chrome"
                                         x:Name="NewContainerButton"
                                         Command="{Binding NewContainerCommand}"
@@ -200,33 +202,33 @@
                                     <controls:HavenIcon IconKey="plus"
                                                         Width="14"
                                                         Height="14" />
-                                </Button>
+                                </hui:HavenButton>
                             </Grid>
 
-                            <ListBox ItemsSource="{Binding CurrentChat.Containers}"
+                            <hui:HavenListBox ItemsSource="{Binding CurrentChat.Containers}"
                                      BorderThickness="0" Background="Transparent">
-                                <ListBox.ItemTemplate>
+                                <hui:HavenListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Classes="sidebar"
+                                        <hui:HavenButton Classes="sidebar"
                                                 HorizontalAlignment="Stretch"
                                                 Command="{Binding $parent[ListBox].DataContext.SelectContainerCommand}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="{Binding Name}" />
-                                            <Button.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Open"
+                                            <hui:HavenButton.ContextMenu>
+                                                <hui:HavenContextMenu>
+                                                    <hui:HavenMenuItem Header="Open"
                                                               Command="{Binding $parent[ListBox].DataContext.SelectContainerCommand}"
                                                               CommandParameter="{Binding}" />
                                                     <Separator />
-                                                    <MenuItem Header="Archive"
+                                                    <hui:HavenMenuItem Header="Archive"
                                                               Command="{Binding $parent[ListBox].DataContext.DeleteContainerCommand}"
                                                               CommandParameter="{Binding}" />
-                                                </ContextMenu>
-                                            </Button.ContextMenu>
-                                        </Button>
+                                                </hui:HavenContextMenu>
+                                            </hui:HavenButton.ContextMenu>
+                                        </hui:HavenButton>
                                     </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                                </hui:HavenListBox.ItemTemplate>
+                            </hui:HavenListBox>
                         </StackPanel>
                     </StackPanel>
 
@@ -234,19 +236,19 @@
                                Classes="eyebrow"
                                Margin="9,0,0,5"
                                IsVisible="{Binding HasPinnedConversations}" />
-                    <ListBox ItemsSource="{Binding PinnedConversations}"
+                    <hui:HavenListBox ItemsSource="{Binding PinnedConversations}"
                              BorderThickness="0" Background="Transparent">
-                        <ListBox.ItemTemplate>
+                        <hui:HavenListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,1">
+                                <hui:HavenAdaptiveSurface Margin="0,1">
                                     <Grid>
-                                        <Button Classes="sidebar"
+                                        <hui:HavenButton Classes="sidebar"
                                                 Classes.sidebarActive="{Binding IsActive}"
                                                 Command="{Binding OpenCommand}"
                                                 HorizontalAlignment="Stretch"
                                                 IsVisible="{Binding IsNormal}">
                                             <Grid ColumnDefinitions="3,8,*">
-                                                <Border Background="{DynamicResource HavenNubBrush}"
+                                                <hui:HavenAdaptiveSurface Background="{DynamicResource HavenNubBrush}"
                                                         CornerRadius="2"
                                                         IsVisible="{Binding IsActive}"
                                                         Margin="0,2,0,2" />
@@ -259,54 +261,54 @@
                                                                FontSize="9" />
                                                 </StackPanel>
                                             </Grid>
-                                            <Button.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Open" Command="{Binding OpenCommand}" />
-                                                    <MenuItem Header="Unpin" Command="{Binding TogglePinCommand}" />
-                                                    <MenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
-                                                    <MenuItem Header="Branch" Command="{Binding BranchCommand}" />
-                                                    <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+                                            <hui:HavenButton.ContextMenu>
+                                                <hui:HavenContextMenu>
+                                                    <hui:HavenMenuItem Header="Open" Command="{Binding OpenCommand}" />
+                                                    <hui:HavenMenuItem Header="Unpin" Command="{Binding TogglePinCommand}" />
+                                                    <hui:HavenMenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
+                                                    <hui:HavenMenuItem Header="Branch" Command="{Binding BranchCommand}" />
+                                                    <hui:HavenMenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
                                                     <Separator />
-                                                    <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
-                                                </ContextMenu>
-                                            </Button.ContextMenu>
-                                        </Button>
+                                                    <hui:HavenMenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                                </hui:HavenContextMenu>
+                                            </hui:HavenButton.ContextMenu>
+                                        </hui:HavenButton>
                                         <Grid ColumnDefinitions="*,Auto,Auto"
                                               IsVisible="{Binding IsRenaming}"
                                               ColumnSpacing="4">
-                                            <TextBox Text="{Binding DraftTitle}" />
-                                            <Button Grid.Column="1"
+                                            <hui:HavenTextInput Text="{Binding DraftTitle}" />
+                                            <hui:HavenButton Grid.Column="1"
                                                     Classes="icon"
                                                     Command="{Binding SaveRenameCommand}"
                                                     ToolTip.Tip="Save name">
                                                 <controls:HavenIcon IconKey="check"
                                                                     Width="14"
                                                                     Height="14" />
-                                            </Button>
-                                            <Button Grid.Column="2"
+                                            </hui:HavenButton>
+                                            <hui:HavenButton Grid.Column="2"
                                                     Classes="icon"
                                                     Command="{Binding CancelRenameCommand}"
                                                     ToolTip.Tip="Cancel rename">
                                                 <controls:HavenIcon IconKey="close"
                                                                     Width="14"
                                                                     Height="14" />
-                                            </Button>
+                                            </hui:HavenButton>
                                         </Grid>
-                                        <Border Classes="permission"
+                                        <hui:HavenAdaptiveSurface Classes="permission"
                                                 IsVisible="{Binding IsDeleteConfirming}">
                                             <StackPanel Spacing="5">
                                                 <TextBlock Text="Delete this chat permanently?" FontSize="11" />
                                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                                    <Button Content="Cancel" Command="{Binding CancelDeleteCommand}" />
-                                                    <Button Content="Delete" Classes="danger" Command="{Binding ConfirmDeleteCommand}" />
+                                                    <hui:HavenButton Content="Cancel" Command="{Binding CancelDeleteCommand}" />
+                                                    <havenUi:HoldToConfirmButton Content="Delete" Command="{Binding ConfirmDeleteCommand}" />
                                                 </StackPanel>
                                             </StackPanel>
-                                        </Border>
+                                        </hui:HavenAdaptiveSurface>
                                     </Grid>
-                                </Border>
+                                </hui:HavenAdaptiveSurface>
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        </hui:HavenListBox.ItemTemplate>
+                    </hui:HavenListBox>
 
                     <TextBlock Text="{Binding RecentHeading}"
                                Classes="eyebrow"
@@ -317,19 +319,19 @@
                                FontSize="10"
                                Margin="9,0,4,7"
                                IsVisible="{Binding ShowNoProjectChats}" />
-                    <ListBox ItemsSource="{Binding RecentConversations}"
+                    <hui:HavenListBox ItemsSource="{Binding RecentConversations}"
                              BorderThickness="0" Background="Transparent">
-                        <ListBox.ItemTemplate>
+                        <hui:HavenListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,1">
+                                <hui:HavenAdaptiveSurface Margin="0,1">
                                     <Grid>
-                                        <Button Classes="sidebar"
+                                        <hui:HavenButton Classes="sidebar"
                                                 Classes.sidebarActive="{Binding IsActive}"
                                                 Command="{Binding OpenCommand}"
                                                 HorizontalAlignment="Stretch"
                                                 IsVisible="{Binding IsNormal}">
                                             <Grid ColumnDefinitions="3,8,*">
-                                                <Border Background="{DynamicResource HavenNubBrush}"
+                                                <hui:HavenAdaptiveSurface Background="{DynamicResource HavenNubBrush}"
                                                         CornerRadius="2"
                                                         IsVisible="{Binding IsActive}"
                                                         Margin="0,2,0,2" />
@@ -342,54 +344,54 @@
                                                                FontSize="9" />
                                                 </StackPanel>
                                             </Grid>
-                                            <Button.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Open" Command="{Binding OpenCommand}" />
-                                                    <MenuItem Header="{Binding PinLabel}" Command="{Binding TogglePinCommand}" />
-                                                    <MenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
-                                                    <MenuItem Header="Branch" Command="{Binding BranchCommand}" />
-                                                    <MenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
+                                            <hui:HavenButton.ContextMenu>
+                                                <hui:HavenContextMenu>
+                                                    <hui:HavenMenuItem Header="Open" Command="{Binding OpenCommand}" />
+                                                    <hui:HavenMenuItem Header="{Binding PinLabel}" Command="{Binding TogglePinCommand}" />
+                                                    <hui:HavenMenuItem Header="Rename" Command="{Binding BeginRenameCommand}" />
+                                                    <hui:HavenMenuItem Header="Branch" Command="{Binding BranchCommand}" />
+                                                    <hui:HavenMenuItem Header="Archive" Command="{Binding ArchiveCommand}" />
                                                     <Separator />
-                                                    <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
-                                                </ContextMenu>
-                                            </Button.ContextMenu>
-                                        </Button>
+                                                    <hui:HavenMenuItem Header="Delete" Command="{Binding DeleteCommand}" />
+                                                </hui:HavenContextMenu>
+                                            </hui:HavenButton.ContextMenu>
+                                        </hui:HavenButton>
                                         <Grid ColumnDefinitions="*,Auto,Auto"
                                               IsVisible="{Binding IsRenaming}"
                                               ColumnSpacing="4">
-                                            <TextBox Text="{Binding DraftTitle}" />
-                                            <Button Grid.Column="1"
+                                            <hui:HavenTextInput Text="{Binding DraftTitle}" />
+                                            <hui:HavenButton Grid.Column="1"
                                                     Classes="icon"
                                                     Command="{Binding SaveRenameCommand}"
                                                     ToolTip.Tip="Save name">
                                                 <controls:HavenIcon IconKey="check"
                                                                     Width="14"
                                                                     Height="14" />
-                                            </Button>
-                                            <Button Grid.Column="2"
+                                            </hui:HavenButton>
+                                            <hui:HavenButton Grid.Column="2"
                                                     Classes="icon"
                                                     Command="{Binding CancelRenameCommand}"
                                                     ToolTip.Tip="Cancel rename">
                                                 <controls:HavenIcon IconKey="close"
                                                                     Width="14"
                                                                     Height="14" />
-                                            </Button>
+                                            </hui:HavenButton>
                                         </Grid>
-                                        <Border Classes="permission"
+                                        <hui:HavenAdaptiveSurface Classes="permission"
                                                 IsVisible="{Binding IsDeleteConfirming}">
                                             <StackPanel Spacing="5">
                                                 <TextBlock Text="Delete this chat permanently?" FontSize="11" />
                                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                                    <Button Content="Cancel" Command="{Binding CancelDeleteCommand}" />
-                                                    <Button Content="Delete" Classes="danger" Command="{Binding ConfirmDeleteCommand}" />
+                                                    <hui:HavenButton Content="Cancel" Command="{Binding CancelDeleteCommand}" />
+                                                    <havenUi:HoldToConfirmButton Content="Delete" Command="{Binding ConfirmDeleteCommand}" />
                                                 </StackPanel>
                                             </StackPanel>
-                                        </Border>
+                                        </hui:HavenAdaptiveSurface>
                                     </Grid>
-                                </Border>
+                                </hui:HavenAdaptiveSurface>
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        </hui:HavenListBox.ItemTemplate>
+                    </hui:HavenListBox>
 
                     <StackPanel IsVisible="{Binding IsProjectOpen}" Margin="0,12,0,0">
                         <Grid ColumnDefinitions="*,Auto"
@@ -397,7 +399,7 @@
                             <TextBlock Text="Project files"
                                        Classes="eyebrow"
                                        VerticalAlignment="Center" />
-                            <Button Grid.Column="1"
+                            <hui:HavenButton Grid.Column="1"
                                     Classes="chrome"
                                     x:Name="RefreshFilesButton"
                                     Command="{Binding ActiveProjectRefreshCommand}"
@@ -412,26 +414,26 @@
                                                FontSize="10"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
-                            </Button>
+                            </hui:HavenButton>
                         </Grid>
-                        <ListBox ItemsSource="{Binding ActiveProjectFiles}"
+                        <hui:HavenListBox ItemsSource="{Binding ActiveProjectFiles}"
                                  BorderThickness="0" Background="Transparent">
-                            <ListBox.ItemTemplate>
+                            <hui:HavenListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Classes="sidebar"
+                                    <hui:HavenButton Classes="sidebar"
                                             HorizontalAlignment="Stretch"
                                             Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.OpenFileCommand}"
                                             CommandParameter="{Binding}">
-                                        <Button.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="Ask AI about this file"
+                                        <hui:HavenButton.ContextMenu>
+                                            <hui:HavenContextMenu>
+                                                <hui:HavenMenuItem Header="Ask AI about this file"
                                                           Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.AskAiAboutFileCommand}"
                                                           CommandParameter="{Binding}" />
-                                                <MenuItem Header="Reveal in Explorer"
+                                                <hui:HavenMenuItem Header="Reveal in Explorer"
                                                           Command="{Binding $parent[ListBox].DataContext.ActiveProjectPage.RevealInExplorerCommand}"
                                                           CommandParameter="{Binding}" />
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
+                                            </hui:HavenContextMenu>
+                                        </hui:HavenButton.ContextMenu>
                                         <Grid ColumnDefinitions="Auto,*"
                                               ColumnSpacing="10">
                                             <controls:HavenIcon IconKey="file"
@@ -452,10 +454,10 @@
                                                            TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                         </Grid>
-                                    </Button>
+                                    </hui:HavenButton>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            </hui:HavenListBox.ItemTemplate>
+                        </hui:HavenListBox>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -464,12 +466,12 @@
                         Spacing="6"
                         Margin="0,9,0,0"
                         IsVisible="{Binding IsProjectOpen}">
-                <Border Height="1"
+                <hui:HavenAdaptiveSurface Height="1"
                         Background="{DynamicResource HavenLineBrush}"
                         Margin="7,0,7,3" />
                 <Grid ColumnDefinitions="*,*"
                       ColumnSpacing="6">
-                    <Button Classes="sidebarUtility"
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="BuildButton"
                             Command="{Binding ActiveProjectBuildCommand}">
                         <StackPanel Orientation="Horizontal"
@@ -482,8 +484,8 @@
                             <TextBlock Text="Build"
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                    </Button>
-                    <Button Grid.Column="1"
+                    </hui:HavenButton>
+                    <hui:HavenButton Grid.Column="1"
                             Classes="sidebarUtility"
                             x:Name="TestButton"
                             Command="{Binding ActiveProjectTestCommand}">
@@ -497,9 +499,9 @@
                             <TextBlock Text="Test"
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                    </Button>
+                    </hui:HavenButton>
                 </Grid>
-                <Button Classes="sidebarUtility"
+                <hui:HavenButton Classes="sidebarUtility"
                         x:Name="ProjectSettingsButton"
                         Command="{Binding NavigateContainerSettingsCommand}"
                         HorizontalAlignment="Stretch">
@@ -513,8 +515,8 @@
                         <TextBlock Text="Project settings"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                </Button>
-                <Button Classes="sidebarUtility"
+                </hui:HavenButton>
+                <hui:HavenButton Classes="sidebarUtility"
                         x:Name="StudioHomeButton"
                         Command="{Binding NavigateHomeCommand}"
                         HorizontalAlignment="Stretch">
@@ -528,18 +530,18 @@
                         <TextBlock Text="Studio Home"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                </Button>
+                </hui:HavenButton>
             </StackPanel>
 
             <StackPanel Grid.Row="4"
                         Spacing="6"
                         Margin="0,9,0,0"
                         IsVisible="{Binding !IsProjectOpen}">
-                <Border Height="1"
+                <hui:HavenAdaptiveSurface Height="1"
                         Background="{DynamicResource HavenLineBrush}"
                         Margin="7,0,7,3" />
                 <UniformGrid Columns="2">
-                    <Button Classes="sidebarUtility"
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="AgentsFullButton"
                             Margin="0,0,3,3">
                         <StackPanel Orientation="Horizontal"
@@ -550,41 +552,41 @@
                                                 Height="15" />
                             <TextBlock Text="Agent" />
                         </StackPanel>
-                        <Button.Flyout>
-                            <Flyout Placement="RightEdgeAlignedTop">
+                        <hui:HavenButton.Flyout>
+                            <hui:HavenAdaptivePopup Placement="RightEdgeAlignedTop">
                                 <StackPanel Spacing="2">
-                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                    <hui:HavenButton Classes="sidebar" HorizontalAlignment="Stretch"
                                             Command="{Binding NavigateAgentsCommand}">
                                         <TextBlock Text="Search" />
-                                    </Button>
-                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                    </hui:HavenButton>
+                                    <hui:HavenButton Classes="sidebar" HorizontalAlignment="Stretch"
                                             Command="{Binding NavigateAgentsCommand}">
                                         <TextBlock Text="Personalities" />
-                                    </Button>
-                                    <Button Classes="sidebar" HorizontalAlignment="Stretch"
+                                    </hui:HavenButton>
+                                    <hui:HavenButton Classes="sidebar" HorizontalAlignment="Stretch"
                                             Command="{Binding NavigateAgentsCommand}">
                                         <TextBlock Text="Tools" />
-                                    </Button>
+                                    </hui:HavenButton>
                                     <Separator />
                                     <TextBlock Text="Create new Agents in Studio" Classes="muted" FontSize="10" Margin="8,4,8,4" />
                                 </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-                    <Button Classes="sidebarUtility"
-                            x:Name="PluginsButton"
-                            Command="{Binding NavigatePluginsCommand}"
+                            </hui:HavenAdaptivePopup>
+                        </hui:HavenButton.Flyout>
+                    </hui:HavenButton>
+                    <hui:HavenButton Classes="sidebarUtility"
+                            x:Name="CapabilitiesButton"
+                            Command="{Binding NavigateCapabilitiesCommand}"
                             Margin="3,0,0,3">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="7"
                                     HorizontalAlignment="Center">
-                            <controls:HavenIcon IconKey="plugin"
+                            <controls:HavenIcon IconKey="bolt"
                                                 Width="15"
                                                 Height="15" />
-                            <TextBlock Text="Plugin" />
+                            <TextBlock Text="Capabilities" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="sidebarUtility"
+                    </hui:HavenButton>
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="PromptsButton"
                             Command="{Binding NavigatePromptsCommand}"
                             Margin="0,0,3,3">
@@ -596,8 +598,8 @@
                                                 Height="15" />
                             <TextBlock Text="Instructions" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="sidebarUtility"
+                    </hui:HavenButton>
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="MoreToolsButton"
                             Command="{Binding OpenCommandPaletteCommand}"
                             Margin="3,0,0,3">
@@ -609,8 +611,8 @@
                                                 Height="15" />
                             <TextBlock Text="More tools" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="sidebarUtility"
+                    </hui:HavenButton>
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="ArchiveButton"
                             Command="{Binding NavigateArchiveCommand}"
                             Margin="0,0,3,0">
@@ -622,8 +624,8 @@
                                                 Height="15" />
                             <TextBlock Text="Archive" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="sidebarUtility"
+                    </hui:HavenButton>
+                    <hui:HavenButton Classes="sidebarUtility"
                             x:Name="SettingsFullButton"
                             Command="{Binding NavigateSettingsCommand}"
                             Margin="3,0,0,0">
@@ -635,9 +637,9 @@
                                                 Height="15" />
                             <TextBlock Text="Settings" />
                         </StackPanel>
-                    </Button>
+                    </hui:HavenButton>
                 </UniformGrid>
             </StackPanel>
         </Grid>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 </UserControl>

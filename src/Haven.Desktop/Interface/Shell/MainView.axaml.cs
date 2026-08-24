@@ -10,7 +10,8 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Automations;
+using Haven.Application.Automations;
+
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Controls;
@@ -18,15 +19,24 @@ using Haven.Desktop.Events;
 using Haven.Desktop.Services;
 using Haven.Desktop.ViewModels;
 using Haven.Desktop.Views.Pages.Browser;
+using Haven.Desktop.Views.Pages.Catalog;
 using Haven.Desktop.Views.Pages.Chat;
 using Haven.Desktop.Views.Pages.ContainerSettings;
+using Haven.Desktop.Views.Pages.ActionGraph;
 using Haven.Desktop.Views.Pages.Go;
 using Haven.Desktop.Views.Pages.Home;
+using Haven.Desktop.Views.Pages.Plan;
+using Haven.Desktop.Views.Pages.Play;
+using Haven.Desktop.Views.Pages.ProjectPreview;
+using Haven.Desktop.Views.Pages.Settings;
 using Haven.Desktop.Views.Pages.StudioProject;
 using Haven.Desktop.Views.Pages.Tasks;
+using Haven.Desktop.Views.Pages.Automations;
+using Haven.Desktop.Views.Pages.Terminal;
 using Haven.Desktop.Views.Pages.WorkspaceEditor;
 using Haven.Desktop.Views.Shell.TopRail;
 using Haven.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -37,20 +47,45 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly HavenEventBus _bus;
     private readonly IContainerRepository _containers;
     private readonly ICatalogRepository _catalog;
+    private readonly AgentTaskRuntimeService? _agentRuntime;
     private readonly IAutomationRepository _automations;
     private readonly IWorkspaceStateRepository _workspaceState;
     private readonly IWorkspaceToolService _workspaceTools;
     private readonly IProjectIntelligenceService _projectIntelligence;
     private readonly IOllamaClient _ollama;
     private readonly ChatSessionService _sessions;
+    private readonly IConversationSafetyService _conversationSafety;
     private readonly IConversationVersioningService _conversationVersioning;
     private readonly CapabilityPreflightService _preflight;
+    private readonly CapabilityRegistryService _capabilityRegistry;
+    private readonly ICapabilityRepository _capabilityRepository;
+    private readonly IGenUiTemplateRepository _genUiTemplates;
+    private readonly GenerativeUiEventRouter _genUiRouter;
+    private readonly GenUiInstanceStore _genUiInstances;
+    private readonly IGenUiAppRepository _genUiApps;
+    private readonly GenUiAppSessionService _genUiSessions;
+    private readonly CalculatorTemplateRuntime _calculatorTemplate;
+    private readonly StructuredFormTemplateRuntime _structuredFormTemplate;
+    private readonly ChoicePromptTemplateRuntime _choicePromptTemplate;
+    private readonly ChecklistTemplateRuntime _checklistTemplate;
+    private readonly DataGridTemplateRuntime _dataGridTemplate;
+    private readonly CardDeckTemplateRuntime _cardDeckTemplate;
+    private readonly GraphTemplateRuntime _graphTemplate;
+    private readonly TaskListTemplateRuntime _taskListTemplate;
+    private readonly DashboardTemplateRuntime _dashboardTemplate;
+    private readonly AssessmentTemplateRuntime _assessmentTemplate;
+    private readonly WorkflowTemplateRuntime _workflowTemplate;
+    private readonly CustomTemplateRuntime _customTemplate;
     private readonly BrowserSessionService _browser;
     private readonly BrowserDataService _browserData;
-    private readonly WindowsAutomationRegistrationService _registration;
-    private readonly AutomationRunner _automationRunner;
-    private readonly ScheduleCalculator _scheduleCalculator;
+
+    private readonly ScheduledTaskRunner _automationRunner;
+    private readonly ScheduledTaskScheduleCalculator _scheduleCalculator;
     private readonly UserPreferencesService _preferences;
+    private readonly IPrivacyPreferenceStore _privacy;
+    private readonly IModelProviderRegistry _modelProviders;
+    private readonly IProviderConfigurationStore _providerConfigurations;
+    private readonly IProviderSecretStore _providerSecrets;
     private readonly GoSuggestionService _goSuggestions;
     private readonly Dictionary<GoPage, CancellationTokenSource> _goSuggestionRefreshes = [];
     private Flyout? _modelSelectorFlyout;
@@ -61,6 +96,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly IDashboardRepository _dashboard;
     private readonly IDashboardLayoutRepository _dashboardLayout;
     private readonly IVersionedSettingsStore _versionedSettings;
+    private readonly Haven.Application.Play.PlaySessionService _playSessions;
     private readonly IReadOnlyList<IDashboardTileProvider> _dashboardProviders;
     private readonly ICallCoordinator _callCoordinator;
     private readonly IPlannerRepository _planner;
@@ -77,11 +113,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private readonly Dictionary<Guid, ChatPage> _groupChats = [];
     private readonly Dictionary<Guid, ChatGroupPageViewModel> _groupPages = [];
     private readonly Dictionary<string, NewChatPage> _modeWorkspaces = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<CapabilityDefinition> _availableCapabilities = [];
     private HomePage? _homePage;
     private NewDashboardPage? _newDashboardPage;
     private GoPage? _goPage;
     private NewChatPage? _newChatPage;
     private PlanPageViewModel? _planPage;
+    private TerminalPage? _terminalPage;
+    private PlayPage? _playPage;
     private readonly DispatcherTimer _reminderTimer;
     private int _isPollingReminders;
     private object? _currentPage;
@@ -125,14 +164,38 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IProjectIntelligenceService projectIntelligence,
         IProviderModelClient ollama,
         ChatSessionService sessions,
+        IConversationSafetyService conversationSafety,
         IConversationVersioningService conversationVersioning,
         CapabilityPreflightService preflight,
+        CapabilityRegistryService capabilityRegistry,
+        ICapabilityRepository capabilityRepository,
+        IGenUiTemplateRepository genUiTemplates,
+        GenerativeUiEventRouter genUiRouter,
+        GenUiInstanceStore genUiInstances,
+        IGenUiAppRepository genUiApps,
+        GenUiAppSessionService genUiSessions,
+        CalculatorTemplateRuntime calculatorTemplate,
+        StructuredFormTemplateRuntime structuredFormTemplate,
+        ChoicePromptTemplateRuntime choicePromptTemplate,
+        ChecklistTemplateRuntime checklistTemplate,
+        DataGridTemplateRuntime dataGridTemplate,
+        CardDeckTemplateRuntime cardDeckTemplate,
+        GraphTemplateRuntime graphTemplate,
+        TaskListTemplateRuntime taskListTemplate,
+        DashboardTemplateRuntime dashboardTemplate,
+        AssessmentTemplateRuntime assessmentTemplate,
+        WorkflowTemplateRuntime workflowTemplate,
+        CustomTemplateRuntime customTemplate,
         BrowserSessionService browser,
         BrowserDataService browserData,
-        WindowsAutomationRegistrationService registration,
-        AutomationRunner automationRunner,
-        ScheduleCalculator scheduleCalculator,
+
+        ScheduledTaskRunner automationRunner,
+        ScheduledTaskScheduleCalculator scheduleCalculator,
         UserPreferencesService preferences,
+        IPrivacyPreferenceStore privacy,
+        IModelProviderRegistry modelProviders,
+        IProviderConfigurationStore providerConfigurations,
+        IProviderSecretStore providerSecrets,
         ProjectCreationService projectCreator,
         NotificationService notifications,
         ITrainingRepository trainingRepo,
@@ -140,6 +203,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         IDashboardRepository dashboard,
         IDashboardLayoutRepository dashboardLayout,
         IVersionedSettingsStore versionedSettings,
+        Haven.Application.Play.PlaySessionService playSessions,
         IDashboardTileProviderRegistry dashboardProviders,
         ICallCoordinator callCoordinator,
         ISpeechModelManager speechModels,
@@ -149,27 +213,53 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         SurfaceOrchestrationService surfaceOrchestration,
         IModeRegistry modeRegistry,
         IModeUsageRepository modeUsage,
-        IPinRepository pins)
+        IPinRepository pins,
+        AgentTaskRuntimeService? agentRuntime = null)
     {
         _eventBus = bus;
         _bus = bus;
         _conversations = conversations;
         _containers = containers;
         _catalog = catalog;
+        _agentRuntime = agentRuntime;
         _automations = automations;
         _workspaceState = workspaceState;
         _workspaceTools = workspaceTools;
         _projectIntelligence = projectIntelligence;
         _ollama = ollama;
         _sessions = sessions;
+        _conversationSafety = conversationSafety;
         _conversationVersioning = conversationVersioning;
         _preflight = preflight;
+        _capabilityRegistry = capabilityRegistry;
+        _capabilityRepository = capabilityRepository;
+        _genUiTemplates = genUiTemplates;
+        _genUiRouter = genUiRouter;
+        _genUiInstances = genUiInstances;
+        _genUiApps = genUiApps;
+        _genUiSessions = genUiSessions;
+        _calculatorTemplate = calculatorTemplate;
+        _structuredFormTemplate = structuredFormTemplate;
+        _choicePromptTemplate = choicePromptTemplate;
+        _checklistTemplate = checklistTemplate;
+        _dataGridTemplate = dataGridTemplate;
+        _cardDeckTemplate = cardDeckTemplate;
+        _graphTemplate = graphTemplate;
+        _taskListTemplate = taskListTemplate;
+        _dashboardTemplate = dashboardTemplate;
+        _assessmentTemplate = assessmentTemplate;
+        _workflowTemplate = workflowTemplate;
+        _customTemplate = customTemplate;
         _browser = browser;
         _browserData = browserData;
-        _registration = registration;
+
         _automationRunner = automationRunner;
         _scheduleCalculator = scheduleCalculator;
         _preferences = preferences;
+        _privacy = privacy;
+        _modelProviders = modelProviders;
+        _providerConfigurations = providerConfigurations;
+        _providerSecrets = providerSecrets;
         _goSuggestions = new GoSuggestionService(_conversations, _ollama, _preferences);
         _projectCreator = projectCreator;
         _notifications = notifications;
@@ -178,6 +268,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _dashboard = dashboard;
         _dashboardLayout = dashboardLayout;
         _versionedSettings = versionedSettings;
+        _playSessions = playSessions;
         _dashboardProviders = dashboardProviders.Providers;
         _callCoordinator = callCoordinator;
         _ = speechModels; // Retained in the composition signature while the retired Call surface is removed.
@@ -194,7 +285,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
         NavigateChatCommand = new AsyncRelayCommand(() => NavigateModeAsync(HavenMode.Chat, false));
         NavigateStudyCommand = new AsyncRelayCommand(() => SwitchNativeChatModeAsync(HavenMode.Study));
-        NavigateTasksCommand = new AsyncRelayCommand(() => SwitchNativeChatModeAsync(HavenMode.Tasks));
+        NavigateTasksCommand = new AsyncRelayCommand(() =>
+        {
+            OpenTasksDashboard();
+            return Task.CompletedTask;
+        });
         NavigateStudioCommand = new AsyncRelayCommand(() => NavigateModeAsync(HavenMode.Studio, true));
         NavigateBrowserCommand = new RelayCommand(OpenBrowser);
         NavigateTrainingCommand = new RelayCommand(OpenTraining);
@@ -204,9 +299,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         EndLiveCallCommand = new AsyncRelayCommand(() => _callCoordinator.EndAsync(CancellationToken.None));
         NavigatePlanCommand = new RelayCommand(OpenPlan);
         NavigateAgentsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Agents));
-        NavigatePluginsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Plugins));
+        NavigateCapabilitiesCommand = new RelayCommand(OpenCapabilities);
         NavigatePromptsCommand = new RelayCommand(() => OpenCatalog(CatalogPageKind.Prompts));
-        NavigateAutomationsCommand = new RelayCommand(OpenAutomations);
+        NavigateAutomationsCommand = new RelayCommand(OpenAutomationsDashboard);
         NavigateArchiveCommand = new RelayCommand(OpenArchive);
         NavigateActivityLogCommand = new RelayCommand(OpenActivityLog);
         DismissNotificationCommand = new RelayCommand<Guid>(id => _notifications.Dismiss(id));
@@ -223,7 +318,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         });
         NewProjectChatCommand = new AsyncRelayCommand(() => StartProjectChatAsync(string.Empty));
         NavigateProjectHomeCommand = new RelayCommand(OpenActiveProjectHome);
-        ToggleTemporaryCommand = new RelayCommand(() => CurrentChat.ToggleTemporaryCommand.Execute(null));
+        ToggleTemporaryCommand = new AsyncRelayCommand(ToggleTemporaryActiveConversationAsync);
         RefreshModelsCommand = new AsyncRelayCommand(RefreshActiveModelsAsync);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarOpen = !IsSidebarOpen);
         SelectContainerCommand = new AsyncRelayCommand<ContainerItemViewModel>(SelectContainerAsync);
@@ -234,8 +329,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddNewTabCommand = new RelayCommand(AddNewTab);
         NavigateBackCommand = new RelayCommand(NavigateBack, () => SelectedTab?.CanGoBack == true);
         NavigateForwardCommand = new RelayCommand(NavigateForward, () => SelectedTab?.CanGoForward == true);
-        BranchCurrentCommand = new AsyncRelayCommand(() => CurrentChat.BranchCurrentAsync());
-        CompactCurrentCommand = new AsyncRelayCommand(() => CurrentChat.CompactContextAsync());
+        BranchCurrentCommand = new AsyncRelayCommand(BranchActiveConversationAsync);
+        CompactCurrentCommand = new AsyncRelayCommand(CompactActiveConversationAsync);
         ArchiveCurrentCommand = new AsyncRelayCommand(ArchiveActiveConversationAsync);
         TogglePinCurrentCommand = new AsyncRelayCommand(TogglePinCurrentAsync);
         BeginRenameCurrentCommand = new RelayCommand(BeginRenameCurrent);
@@ -247,8 +342,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         ConfigureModelCommand = new RelayCommand(ShowModelSelector);
         CopyLastResponseCommand = new RelayCommand(CopyLastResponse);
         DictateCommand = new RelayCommand(() => DictateRequested?.Invoke(this, EventArgs.Empty));
-        UndoCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.UndoCommand.Execute(null));
-        RedoCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.RedoCommand.Execute(null));
+        UndoCurrentCommand = new AsyncRelayCommand(UndoActiveAsync);
+        RedoCurrentCommand = new AsyncRelayCommand(RedoActiveAsync);
         SaveCurrentCommand = new RelayCommand(() => (CurrentPage as WorkspaceEditorPage)?.SaveCommand.Execute(null));
         BuildBrowserExtensionCommand = new RelayCommand(() =>
         {
@@ -266,10 +361,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         AddOrSelectTab("chat-general", "General chat", _currentChat, false, HavenSurface.Chat);
 
         InitializeComponent();
+        AttachedToVisualTree += (_, _) => TrackWorkspaceWindowGeometry();
         InitialiseNativeChatSidebar();
         DataContext = this;
 
         WireShellControls();
+        SplitDivider.DragCompleted += (_, _) =>
+        {
+            if (IsSplitView) QueueWorkspaceSessionSave();
+        };
+        SplitDivider.KeyUp += (_, args) =>
+        {
+            if (IsSplitView && args.Key is Key.Left or Key.Right) QueueWorkspaceSessionSave();
+        };
+        TopRail.AttachNotifications(_notifications);
         PageContent.Content = _currentPage;
         ApplyShellVisualState();
         RefreshTopRailTabs();
@@ -287,6 +392,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public ObservableCollection<CommandPaletteItemViewModel> CommandItems { get; } = [];
     public ObservableCollection<ToastNotification> Notifications => _notifications.Notifications;
     private IReadOnlyList<CommandPaletteItemViewModel> AllCommandItems { get; set; } = [];
+    private int _launcherSearchGeneration;
     public CompanionDockViewModel CompanionDock => _companionDockVm;
 
     public HavenEventBus EventBus => _eventBus;
@@ -305,7 +411,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (edition == HavenShellEdition.New)
         {
             SidebarControl.IsVisible = false;
-            ShellContextBar.IsVisible = true;
+            ShellContextBar.IsVisible = false;
             StoredChatDropdown.IsVisible = false;
             ContentArea.Background = Brushes.Transparent;
             ContentArea.BorderThickness = new Avalonia.Thickness(0);
@@ -317,7 +423,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             _selectedTab = null;
             _currentPage = null;
             _goPage = CreateGoPage();
-            AddOrSelectTab("go", "Go", _goPage, false, HavenSurface.Home, forceNewTab: true);
+            AddOrSelectTab("go", "Go", _goPage, false, HavenSurface.Go, forceNewTab: true);
         }
         else
         {
@@ -371,6 +477,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         set
         {
             if (ReferenceEquals(_selectedTab, value) || value is null) return;
+            if (ReferenceEquals(_secondaryTab, value))
+            {
+                SwapSplitPanes();
+                return;
+            }
             if (_selectedTab is not null)
             {
                 _selectedTab.IsSelected = false;
@@ -380,6 +491,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             value.IsSelected = true;
             ApplySelectedTab(value);
             RefreshTopRailTabs();
+            QueueWorkspaceSessionSave();
         }
     }
 
@@ -522,6 +634,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         HavenSurface.Browse => "Haven Browse",
         HavenSurface.Plan => "Haven Plan",
         HavenSurface.Training => "Haven Training",
+        HavenSurface.Mesh => "Haven Mesh",
         _ => "Haven"
     };
 
@@ -587,7 +700,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public AsyncRelayCommand EndLiveCallCommand { get; }
     public RelayCommand NavigatePlanCommand { get; }
     public RelayCommand NavigateAgentsCommand { get; }
-    public RelayCommand NavigatePluginsCommand { get; }
+    public RelayCommand NavigateCapabilitiesCommand { get; }
     public RelayCommand NavigatePromptsCommand { get; }
     public RelayCommand NavigateAutomationsCommand { get; }
     public RelayCommand NavigateArchiveCommand { get; }
@@ -601,7 +714,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public AsyncRelayCommand<ContainerItemViewModel> DeleteContainerCommand { get; }
     public AsyncRelayCommand NewProjectChatCommand { get; }
     public RelayCommand NavigateProjectHomeCommand { get; }
-    public RelayCommand ToggleTemporaryCommand { get; }
+    public AsyncRelayCommand ToggleTemporaryCommand { get; }
     public AsyncRelayCommand RefreshModelsCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
     public AsyncRelayCommand<ContainerItemViewModel> SelectContainerCommand { get; }
@@ -625,8 +738,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     public RelayCommand ConfigureModelCommand { get; }
     public RelayCommand CopyLastResponseCommand { get; }
     public RelayCommand DictateCommand { get; }
-    public RelayCommand UndoCurrentCommand { get; }
-    public RelayCommand RedoCurrentCommand { get; }
+    public AsyncRelayCommand UndoCurrentCommand { get; }
+    public AsyncRelayCommand RedoCurrentCommand { get; }
     public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand BuildBrowserExtensionCommand { get; }
     public AsyncRelayCommand<string> SwitchSurfaceCommand { get; }
@@ -643,6 +756,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         StartupStatus = migration.Imported
             ? $"Imported {migration.ConversationCount} legacy conversations \u00b7 local-only"
             : "Local-only \u00b7 SQLite ready";
+    }
+
+    /// <summary>Initialises a secondary shell without starting duplicate application-wide pollers.</summary>
+    public async Task InitializeSecondaryWindowAsync(CancellationToken cancellationToken)
+    {
+        await CurrentChat.InitializeAsync(cancellationToken);
+        await RefreshRecentsAsync(cancellationToken);
+        _companionDockVm.Start();
+        StartupStatus = "Local-only · secondary window";
     }
 
     public void SetStartupError(string message) => StartupStatus = $"Startup problem: {message}";
@@ -694,6 +816,37 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         return Task.CompletedTask;
     }
 
+    private void OpenTerminal(bool forceNewTab = false, string? initialDirectory = null)
+    {
+        var hub = Haven.Desktop.App.Services?.GetService(typeof(TerminalCommandActivityHub)) as TerminalCommandActivityHub;
+        var sessionFactory = Haven.Desktop.App.Services?.GetService(typeof(ITerminalSessionFactory)) as ITerminalSessionFactory;
+        if (hub is null || sessionFactory is null)
+        {
+            _notifications.Show("Terminal unavailable", "The Terminal session runtime is not available.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+            return;
+        }
+
+        var terminalFactory = sessionFactory;
+
+        TerminalPage page;
+        string key;
+        if (forceNewTab)
+        {
+            page = new TerminalPage(terminalFactory, _preferences, hub, initialDirectory);
+            key = "terminal-" + Guid.NewGuid().ToString("N")[..8];
+        }
+        else
+        {
+            _terminalPage ??= new TerminalPage(terminalFactory, _preferences, hub, initialDirectory);
+            page = _terminalPage;
+            key = "terminal";
+        }
+
+        AddOrSelectTab(key, "Terminal", page, forceNewTab, HavenSurface.Terminal, forceNewTab);
+        ApplyShellVisualState();
+        page.FocusCommandLine();
+    }
+
     private async Task OpenDashboardAsync()
     {
         _newDashboardPage ??= CreateNewDashboardPage();
@@ -701,34 +854,44 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         await _newDashboardPage.ActivateAsync(CancellationToken.None);
     }
 
-    private async Task OpenNewChatAsync(string? instruction = null, bool forceNewTab = false)
+    private async Task OpenNewChatAsync(
+        string? instruction = null,
+        bool forceNewTab = false,
+        TaskAttachmentSnapshot? initialAttachments = null)
     {
         if (forceNewTab)
         {
             var page = CreateNewChatPage();
-            await ConfigureAddMenuAsync(page);
+            // Configure the optional Add catalogue after Chat is visible and submission has started.
             var key = "new-chat-" + Guid.NewGuid().ToString("N")[..8];
             AddOrSelectTab(key, "Chat", page, true, HavenSurface.Chat, forceNewTab: true);
             ApplyShellVisualState();
             await RefreshNativeChatSidebarAsync();
+            if (initialAttachments is not null) page.AttachSnapshot(initialAttachments);
             if (!string.IsNullOrWhiteSpace(instruction)) page.Submit(instruction);
             else page.FocusComposer();
+            await ConfigureAddMenuAsync(page);
             return;
         }
 
         if (_newChatPage is null)
         {
             _newChatPage = CreateNewChatPage();
-            await ConfigureAddMenuAsync(_newChatPage);
+            // Add-menu catalogue configuration runs after Chat is visible.
         }
         AddOrSelectTab("new-chat-general", "Chat", _newChatPage, false, HavenSurface.Chat);
         ApplyShellVisualState();
         await RefreshNativeChatSidebarAsync();
 
         if (!string.IsNullOrWhiteSpace(instruction))
+        {
+            if (initialAttachments is not null) _newChatPage.AttachSnapshot(initialAttachments);
             _newChatPage.Submit(instruction);
+        }
         else
             _newChatPage.FocusComposer();
+
+        await ConfigureAddMenuAsync(_newChatPage);
 
     }
 
@@ -739,8 +902,23 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             _conversations,
             _ollama,
             _sessions,
+            _conversationSafety,
             _conversationVersioning,
-            _preferences);
+            _preferences,
+            _genUiRouter,
+            _genUiInstances,
+            _calculatorTemplate,
+            _structuredFormTemplate,
+            _choicePromptTemplate,
+            _checklistTemplate,
+            _dataGridTemplate,
+            _cardDeckTemplate,
+            _graphTemplate,
+            _taskListTemplate,
+            _dashboardTemplate,
+            _assessmentTemplate,
+            _workflowTemplate,
+            _customTemplate);
         page.ModelChanged += OnNewChatModelChanged;
         page.ConversationStateChanged += OnNewChatConversationStateChanged;
         page.AddActionSelected += OnNewChatAddActionSelected;
@@ -748,8 +926,45 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         return page;
     }
 
+    private async Task<NewChatPage> OpenScopedNewChatPageAsync(
+        HavenMode mode,
+        Guid? containerId,
+        string key,
+        string title,
+        HavenSurface surface,
+        Conversation? conversation = null,
+        string? prompt = null)
+    {
+        var page = CreateNewChatPage();
+        if (mode == HavenMode.Tasks)
+            page.ConfigureTaskMode();
+
+        await ConfigureAddMenuAsync(page);
+        if (conversation is null)
+            await page.StartFreshConversationAsync(mode, containerId);
+        else
+            await page.LoadConversationAsync(conversation);
+
+        AddOrSelectTab(key, title, page, true, surface);
+        if (!string.IsNullOrWhiteSpace(prompt))
+            page.Submit(prompt);
+        else
+            page.FocusComposer();
+
+        _nativeChatSidebar?.SetMode(mode);
+        _nativeChatSidebar?.SetActiveConversation(page.ConversationId, containerId);
+        ApplyShellVisualState();
+        return page;
+    }
+
     private async Task OpenModeWorkspaceAsync(ModeDefinition mode, HavenSurface surface, bool forceNewTab)
     {
+        if (IsDocumentWorkspace(mode.Key))
+        {
+            OpenDocumentWorkspace(mode, surface, forceNewTab);
+            return;
+        }
+
         NewChatPage page;
         string key;
         if (forceNewTab)
@@ -784,14 +999,92 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _ = RefreshNativeChatSidebarAsync();
     }
 
+    private void OpenPlay()
+    {
+        _playPage ??= CreatePlayPage();
+        AddOrSelectTab("play", "Play", _playPage, false, HavenSurface.Play);
+        _ = _playPage.ActivateAsync(CancellationToken.None);
+    }
+
+    private PlayPage CreatePlayPage()
+    {
+        var page = new PlayPage(_playSessions, _genUiRouter);
+        page.CreateRequested += async (_, _) => await OpenNewChatAsync("Help me create an interactive Play experience. Ask what I want to play, then design it with Haven interactive UI and deterministic local state where possible.");
+        return page;
+    }
+
     private void OpenPlan()
+    {
+        // The Plan App opens the authoritative planner/calendar workspace in every shell edition.
+        // The native Today/Week projection remains a focused reusable surface, not a replacement for editing.
+        OpenLegacyPlan();
+
+    }
+
+    private NativePlanPage CreateNativePlanPage()
+    {
+        var page = new NativePlanPage(_planner, _containers);
+        page.StudyRequested += OnNativePlanStudyRequested;
+        return page;
+    }
+
+    private void OpenLegacyPlan()
     {
         _planPage ??= new PlanPageViewModel(_planner, _plannerProposals, _calendarProviders, _ollama);
         AddOrSelectTab("plan", "Plan", _planPage, false, HavenSurface.Plan);
     }
 
+    private async Task OpenPlanTaskAsync(Guid taskId)
+    {
+        OpenLegacyPlan();
+        if (_planPage is not null && await _planPage.OpenTaskByIdAsync(taskId)) return;
+        _notifications.Show("Task unavailable", "That Planner task could not be opened.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+    }
+
+    private async void OnNativePlanStudyRequested(object? sender, PlannerStudyLink link)
+    {
+        try
+        {
+            await OpenStudyAssignmentAsync(link);
+        }
+        catch (Exception exception)
+        {
+            _notifications.Show("Study unavailable", $"Haven could not open this Study assignment: {exception.Message}", ToastKind.Warning, TimeSpan.FromSeconds(6));
+        }
+    }
+
+    private async Task OpenStudyAssignmentAsync(PlannerStudyLink link)
+    {
+        var subjects = await _containers.GetByModeAsync(HavenMode.Study, CancellationToken.None);
+        var title = subjects.FirstOrDefault(subject => subject.Id == link.SubjectId)?.Name ?? "Study";
+        var page = CreateNewChatPage();
+        await ConfigureAddMenuAsync(page);
+        await page.StartFreshConversationAsync(HavenMode.Study, link.SubjectId, link.LessonId);
+        var lessonKey = link.LessonId?.ToString("N") ?? "subject";
+        AddOrSelectTab($"study-plan-{link.SubjectId:N}-{lessonKey}", title, page, true, HavenSurface.Study);
+        _nativeChatSidebar?.SetMode(HavenMode.Study);
+        _nativeChatSidebar?.SetActiveConversation(page.ConversationId, link.SubjectId);
+        ApplyShellVisualState();
+        page.FocusComposer();
+    }
+
     private async Task NavigateModeAsync(HavenMode mode, bool showHome)
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            if (mode is HavenMode.Chat or HavenMode.Study)
+            {
+                await SwitchNativeChatModeAsync(mode);
+                return;
+            }
+
+            if (mode == HavenMode.Tasks)
+            {
+                OpenTasksDashboard();
+                return;
+            }
+        }
+
         var page = await GetOrCreateChatAsync(mode);
         CurrentChat = page;
         if (showHome) await OpenModeHomeAsync();
@@ -842,13 +1135,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             AddOrSelectTab("studio-home", "Projects", projects, false, HavenSurface.Studio);
             return;
         }
-        var tasks = new TasksPage(
-            _workspaceState,
-            _automations,
-            CurrentChat.SelectedContainer?.Id,
-            StartOneTimeTaskAsync,
-            InvokeTaskAsync);
-        AddOrSelectTab("tasks-home", "Haven Tasks", tasks, false, HavenSurface.Tasks);
+        OpenTasksDashboard();
     }
 
     private void OpenNewContainer()
@@ -931,6 +1218,18 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task StartGroupChatAsync(ContainerDefinition definition)
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenScopedNewChatPageAsync(
+                HavenMode.Chat,
+                definition.Id,
+                $"group-chat-{definition.Id:N}-{Guid.NewGuid():N}",
+                definition.Name + " chat",
+                HavenSurface.Chat);
+            await RefreshRecentsAsync(CancellationToken.None);
+            return;
+        }
+
         var chat = await GetOrCreateGroupChatAsync(definition);
         CurrentChat = chat;
         chat.NewChat();
@@ -944,6 +1243,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         var definition = (await _containers.GetByModeAsync(HavenMode.Chat, CancellationToken.None))
             .FirstOrDefault(item => item.Id == groupId);
         if (definition is null) return;
+
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenScopedNewChatPageAsync(
+                HavenMode.Chat,
+                groupId,
+                $"conversation-{conversation.Id:N}",
+                conversation.Title,
+                HavenSurface.Chat,
+                conversation);
+            await RefreshRecentsAsync(CancellationToken.None);
+            return;
+        }
+
         var chat = await GetOrCreateGroupChatAsync(definition);
         CurrentChat = chat;
         AddOrSelectTab("group-chat-" + groupId.ToString("N"), conversation.Title, chat, true, HavenSurface.Chat);
@@ -981,7 +1294,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (_projectPages.TryGetValue(definition.Id, out var page)) return page;
         page = new StudioProjectPage(definition, _conversations, _containers, _automations, _workspaceState, _projectIntelligence,
             file => OpenFileAsync(definition, file), StartProjectChatAsync, _modeRegistry, _catalog, _ollama,
-            () => NavigateModeAsync(HavenMode.Studio, true), OpenProjectConversationAsync);
+            () => NavigateModeAsync(HavenMode.Studio, true), OpenProjectConversationAsync,
+            root => { OpenTerminal(true, root); return Task.CompletedTask; });
         _projectPages[definition.Id] = page;
         return page;
     }
@@ -1032,16 +1346,23 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenCatalog(CatalogPageKind kind)
     {
-        var page = new CatalogPageViewModel(kind, _catalog, _ollama, true);
-        var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Plugins => "Plugins", _ => "Instruction Library" };
-        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, page, true);
+        if (kind == CatalogPageKind.Capabilities)
+        {
+            OpenCapabilities();
+            return;
+        }
+        var pageModel = new CatalogPageViewModel(kind, _catalog, _ollama, true);
+        var title = kind switch { CatalogPageKind.Agents => "Agents", CatalogPageKind.Capabilities => "Capabilities", _ => "Instruction Library" };
+        if (kind == CatalogPageKind.Agents)
+        {
+            AddOrSelectTab("catalog-agents", title, new AgentsPage(pageModel, _agentRuntime), true);
+            return;
+        }
+
+        AddOrSelectTab("catalog-" + kind.ToString().ToLowerInvariant(), title, pageModel, true);
     }
 
-    private void OpenAutomations()
-    {
-        AddOrSelectTab("scheduled-actions", "Scheduled Actions",
-            new AutomationsPageViewModel(_automations, _registration, _automationRunner, _scheduleCalculator), true);
-    }
+    private void OpenAutomations() => OpenAutomationsDashboard();
 
     private void OpenArchive() => AddOrSelectTab("archive-" + CurrentMode, "Archive", new ArchivePageViewModel(CurrentMode, _conversations, _containers), true);
 
@@ -1051,6 +1372,30 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (existing is not null) { SelectedTab = existing; return; }
         var page = new ActivityLogPageViewModel(_conversations, id => { });
         AddOrSelectTab("activity-log", "Activity Log", page, true);
+    }
+
+    private void OpenActionGraph() => OpenActionGraphTarget(null, null);
+
+    private void OpenActionGraphTarget(Guid? executionId, Guid? actionId)
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "action-graph");
+        if (existing is not null)
+        {
+            SelectedTab = existing;
+            if (executionId is { } id && existing.Page is ActionGraphPage existingPage) _ = existingPage.OpenAsync(id, actionId);
+            return;
+        }
+        var services = App.Services ?? throw new InvalidOperationException("Haven services are not available.");
+        var page = new ActionGraphPage(
+            services.GetRequiredService<ExecutionTraceService>(),
+            services.GetRequiredService<IActionFeedbackRepository>(),
+            services.GetRequiredService<IRemediationRepository>(),
+            services.GetRequiredService<RemediationCoordinator>(),
+            services.GetService<ExecutionEventHub>(),
+            prompt => _ = OpenNewChatAsync(prompt),
+            OpenApplicationSettings);
+        AddOrSelectTab("action-graph", "Action Graph", page, true, HavenSurface.Tasks);
+        if (executionId is { } requested) _ = page.OpenAsync(requested, actionId);
     }
 
     private void OpenModeLibrary()
@@ -1097,64 +1442,118 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task ShowUniversalSearchAsync()
     {
+        var generation = Interlocked.Increment(ref _launcherSearchGeneration);
+        var immediate = BuildImmediateLauncherItems();
+        TopRail.ShowUniversalSearch(immediate, OpenCommandPalette, OpenApplicationSettings);
+
         try
         {
+            var services = App.Services;
+            var notesRepository = services?.GetService(typeof(INotesRepository)) as INotesRepository;
             var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
             var conversationsTask = _conversations.GetRecentAsync(null, 40, CancellationToken.None);
+            var projectsTask = _containers.GetByModeAsync(HavenMode.Studio, CancellationToken.None);
+            var documentsTask = notesRepository?.ListAsync(CancellationToken.None)
+                ?? Task.FromResult<IReadOnlyList<NotesDocumentSummary>>([]);
             var tasksTask = _planner.GetTasksAsync(new PlannerTaskQuery(IncludeCompleted: false), CancellationToken.None);
-            await Task.WhenAll(appsTask, conversationsTask, tasksTask);
+            await Task.WhenAll(appsTask, conversationsTask, projectsTask, documentsTask, tasksTask);
+            if (generation != _launcherSearchGeneration) return;
 
-            var items = new List<UniversalSearchItem>();
+            var loaded = new List<UniversalSearchItem>();
             foreach (var app in (await appsTask).Where(item => item.IsEnabled && !IsRetiredApp(item)).Take(18))
             {
                 var captured = app;
-                items.Add(new UniversalSearchItem(
+                loaded.Add(new UniversalSearchItem(
                     "Apps", captured.Name, captured.Description, captured.IconKey, "App",
-                    () => _ = LaunchAppAsync(captured, false)));
+                    () => _ = LaunchAppAsync(captured, false), SearchKeywords: captured.Key));
             }
 
             foreach (var conversation in (await conversationsTask).Take(24))
             {
                 var captured = conversation;
-                items.Add(new UniversalSearchItem(
+                loaded.Add(new UniversalSearchItem(
                     "Chats", captured.Title,
-                    $"{captured.UpdatedAt.LocalDateTime:g} · {DisplayMode(captured.Mode)}",
+                    $"{captured.UpdatedAt.LocalDateTime:g} | {DisplayMode(captured.Mode)}",
                     "chat", "Chat", () => _ = OpenConversationDefinitionAsync(captured)));
+            }
+
+            foreach (var project in (await projectsTask).Where(item => !item.IsArchived).OrderByDescending(item => item.UpdatedAt).Take(18))
+            {
+                var captured = project;
+                loaded.Add(new UniversalSearchItem(
+                    "Projects", captured.Name, $"Updated {captured.UpdatedAt.LocalDateTime:g}",
+                    "studio", "Project", () => _ = OpenContainerDefinitionAsync(captured)));
+            }
+
+            foreach (var document in (await documentsTask).OrderByDescending(item => item.UpdatedAt).Take(18))
+            {
+                var captured = document;
+                loaded.Add(new UniversalSearchItem(
+                    "Documents", captured.Title, $"Updated {captured.UpdatedAt.LocalDateTime:g} | {captured.WordCount} words",
+                    "file", "Document", () => _ = OpenLauncherDocumentAsync(captured.Id)));
             }
 
             foreach (var task in (await tasksTask).OrderBy(item => item.DueAt ?? DateTimeOffset.MaxValue).Take(18))
             {
                 var captured = task;
                 var due = captured.DueAt is null ? "No due date" : $"Due {captured.DueAt.Value.LocalDateTime:g}";
-                items.Add(new UniversalSearchItem(
-                    "Tasks", captured.Title, due, "tasks", "Task", OpenPlan));
+                loaded.Add(new UniversalSearchItem(
+                    "Tasks", captured.Title, due, "tasks", "Task", () => _ = OpenPlanTaskAsync(captured.Id)));
             }
 
-            foreach (var tab in OpenTabs)
+            var items = loaded.Concat(BuildImmediateLauncherItems().Where(item => item.Group != "Recommended")).ToList();
+            var recommendedItems = new List<UniversalSearchItem>();
+            foreach (var group in new[] { "Chats", "Projects", "Documents", "Tasks", "Apps", "Tabs" })
             {
-                var captured = tab;
-                items.Add(new UniversalSearchItem(
-                    "Tabs", captured.Title, DisplaySurface(captured.Surface), "window", "Tab",
-                    () => SelectedTab = captured));
+                var recommended = items.FirstOrDefault(item => item.IsEnabled && item.Group == group);
+                if (recommended is not null) recommendedItems.Add(recommended with { Group = "Recommended" });
             }
-
-            foreach (var command in AllCommandItems.Take(30))
-            {
-                var captured = command;
-                items.Add(new UniversalSearchItem(
-                    "Actions", captured.Name, captured.Description, ActionIcon(captured.Name), "Action",
-                    () => Invoke(captured.RunCommand)));
-            }
-
-            foreach (var recommended in items.Where(item => item.Group is "Apps" or "Tasks" or "Chats").Take(4).ToArray())
-                items.Insert(0, recommended with { Group = "Recommended" });
-
-            TopRail.ShowUniversalSearch(items, OpenCommandPalette, OpenApplicationSettings);
+            items.InsertRange(0, recommendedItems.Take(5));
+            TopRail.UpdateUniversalSearchItems(items);
         }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        catch (Exception ex)
         {
-            _notifications.Show("Search unavailable", "Haven could not load the local search index.", ToastKind.Warning, TimeSpan.FromSeconds(5));
+            System.Diagnostics.Debug.WriteLine($"[Launcher search] {ex}");
+            if (generation != _launcherSearchGeneration) return;
+            var items = BuildImmediateLauncherItems();
+            items.Insert(0, new UniversalSearchItem(
+                "Recommended", "Some local results are unavailable",
+                "Apps, chats, projects, documents or tasks could not be refreshed. Existing tabs and commands are still available.",
+                "warning", "Status", () => { }, false, "Local search refresh failed."));
+            TopRail.UpdateUniversalSearchItems(items);
         }
+    }
+
+    private List<UniversalSearchItem> BuildImmediateLauncherItems()
+    {
+        var items = new List<UniversalSearchItem>();
+        foreach (var tab in OpenTabs)
+        {
+            var captured = tab;
+            items.Add(new UniversalSearchItem(
+                "Tabs", captured.Title, DisplaySurface(captured.Surface), "window", "Tab",
+                () => SelectedTab = captured));
+        }
+
+        foreach (var command in AllCommandItems.Take(30))
+        {
+            var captured = command;
+            var enabled = captured.RunCommand.CanExecute(null);
+            items.Add(new UniversalSearchItem(
+                "Commands", captured.Name, captured.Description, ActionIcon(captured.Name), "Command",
+                () => Invoke(captured.RunCommand), enabled,
+                enabled ? null : "Unavailable in the current context or permission state.", captured.Shortcut));
+        }
+
+        foreach (var recommended in items.Where(item => item.IsEnabled).Take(4).Reverse().ToArray())
+            items.Insert(0, recommended with { Group = "Recommended" });
+        return items;
+    }
+
+    private async Task OpenLauncherDocumentAsync(Guid documentId)
+    {
+        if (await NotesExperienceNavigation.OpenDocumentAsync(this, documentId)) return;
+        _notifications.Show("Document unavailable", "That local Write document could not be opened.", ToastKind.Warning, TimeSpan.FromSeconds(5));
     }
 
     private static string DisplayMode(HavenMode mode) => mode switch
@@ -1180,35 +1579,70 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async Task LaunchAppAsync(ModeDefinition app, bool openInNewTab)
     {
-        var key = app.Key.Trim().ToLowerInvariant();
-        if (key == "go")
+        var route = HavenAppRoutePolicy.Resolve(app);
+        if (route.Surface == HavenSurface.Launcher)
         {
-            if (openInNewTab) AddNewTab();
+            await ShowUniversalSearchAsync();
+        }
+        else if (route.Kind == HavenAppRouteKind.Go)
+        {
+            if (openInNewTab) AddFallbackTab();
             await OpenGoAsync();
         }
-        else if (key == "dashboard")
+        else if (route.Kind == HavenAppRouteKind.Dashboard)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             await OpenDashboardAsync();
         }
-        else if (key is "browse" or "browser")
+        else if (route.Kind == HavenAppRouteKind.Browse)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenBrowser();
         }
-        else if (key == "plan")
+        else if (route.Kind == HavenAppRouteKind.Plan)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenPlan();
         }
-        else if (key == "training")
+        else if (route.Kind == HavenAppRouteKind.Training)
         {
-            if (openInNewTab) AddNewTab();
+            if (openInNewTab) AddFallbackTab();
             OpenTraining();
         }
-        else if (TrySurfaceForApp(key, out var appSurface))
+        else if (route.Kind == HavenAppRouteKind.Write)
         {
-            await OpenModeWorkspaceAsync(app, appSurface, openInNewTab);
+            await NotesExperienceNavigation.OpenAsync(this, NotesExperienceKind.Notes, openInNewTab);
+        }
+        else if (route.Kind is HavenAppRouteKind.Imagine or HavenAppRouteKind.Vision)
+        {
+            await OpenCreativeModeWorkspaceAsync(app, route.Surface, openInNewTab);
+        }
+        else if (route.Kind == HavenAppRouteKind.Play)
+        {
+            if (openInNewTab) AddFallbackTab();
+            OpenPlay();
+        }
+        else if (route.Kind == HavenAppRouteKind.Automations)
+        {
+            if (openInNewTab) AddFallbackTab();
+            OpenAutomationsDashboard();
+        }
+        else if (route.Kind == HavenAppRouteKind.Translate)
+        {
+            await OpenTranslateAsync(openInNewTab);
+        }
+        else if (route.Kind == HavenAppRouteKind.Terminal)
+        {
+            OpenTerminal(openInNewTab);
+        }
+        else if (route.Kind == HavenAppRouteKind.Mesh)
+        {
+            if (openInNewTab) AddNewTab();
+            OpenMeshDashboard();
+        }
+        else if (route.Kind == HavenAppRouteKind.ModeWorkspace)
+        {
+            await OpenModeWorkspaceAsync(app, route.Surface, openInNewTab);
         }
         else
         {
@@ -1218,15 +1652,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     await OpenNewChatAsync(forceNewTab: openInNewTab);
                     break;
                 case HavenMode.Study:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Study, false);
                     break;
                 case HavenMode.Tasks:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Tasks, true);
                     break;
                 case HavenMode.Studio:
-                    if (openInNewTab) AddNewTab();
+                    if (openInNewTab) AddFallbackTab();
                     await NavigateModeAsync(HavenMode.Studio, true);
                     break;
             }
@@ -1235,24 +1669,14 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         await _modeUsage.RecordUsageAsync(app.Id, DateOnly.FromDateTime(DateTime.Today), CancellationToken.None);
     }
 
-    private static bool TrySurfaceForApp(string key, out HavenSurface surface)
-    {
-        surface = key switch
-        {
-            "imagine" => HavenSurface.Imagine,
-            "present" => HavenSurface.Present,
-            "data" => HavenSurface.Data,
-            "vision" => HavenSurface.Vision,
-            "play" => HavenSurface.Play,
-            "translate" => HavenSurface.Translate,
-            "launcher" => HavenSurface.Launcher,
-            _ => HavenSurface.Chat
-        };
-        return key is "imagine" or "present" or "data" or "vision" or "play" or "translate" or "launcher";
-    }
-
     private async Task NavigateCurrentChatAsync()
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenNewChatAsync();
+            return;
+        }
+
         OpenCurrentChatTab();
         await CurrentChat.RefreshCatalogAsync(CancellationToken.None);
     }
@@ -1288,6 +1712,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 case HavenSurface.Plan:
                     OpenPlan();
                     break;
+                case HavenSurface.Play:
+                    OpenPlay();
+                    break;
+                case HavenSurface.Automations:
+                    OpenAutomationsDashboard();
+                    break;
+                case HavenSurface.Terminal:
+                    OpenTerminal(false);
+                    break;
                 case HavenSurface.Training:
                     OpenTraining();
                     break;
@@ -1300,10 +1733,23 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 case HavenSurface.Dashboard:
                     await OpenDashboardAsync();
                     break;
+                case HavenSurface.Launcher:
+                    await ShowUniversalSearchAsync();
+                    break;
+                case HavenSurface.Translate:
+                    await OpenTranslateAsync(false);
+                    break;
+                case HavenSurface.Mesh:
+                    OpenMeshDashboard();
+                    break;
                 default:
                     var registered = await _modeRegistry.GetModeByKeyAsync(surfaceName.ToLowerInvariant(), CancellationToken.None);
-                    if (registered is not null && TrySurfaceForApp(registered.Key, out var registeredSurface))
-                        await OpenModeWorkspaceAsync(registered, registeredSurface, false);
+                    if (registered is not null)
+                    {
+                        var route = HavenAppRoutePolicy.Resolve(registered);
+                        if (route.Kind == HavenAppRouteKind.ModeWorkspace)
+                            await OpenModeWorkspaceAsync(registered, route.Surface, false);
+                    }
                     break;
             }
 
@@ -1325,6 +1771,21 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             return;
         }
 
+        if (_edition == HavenShellEdition.New)
+        {
+            if (CurrentMode == HavenMode.Studio && IsProjectOpen)
+            {
+                _ = StartProjectChatAsync(string.Empty);
+                return;
+            }
+
+            var mode = CurrentMode is HavenMode.Chat or HavenMode.Study or HavenMode.Tasks
+                ? CurrentMode
+                : HavenMode.Chat;
+            _ = StartNativeConversationAsync(mode, null);
+            return;
+        }
+
         if (CurrentMode == HavenMode.Studio && IsProjectOpen)
         {
             _ = StartProjectChatAsync(string.Empty);
@@ -1337,30 +1798,65 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void AddNewTab()
     {
+        _ = AddConfiguredNewTabAsync();
+    }
+
+    private async Task AddConfiguredNewTabAsync()
+    {
+        var preferredKey = _preferences.DefaultTabAppKey;
+        if (string.IsNullOrWhiteSpace(preferredKey))
+        {
+            AddFallbackTab();
+            return;
+        }
+        var countBeforeLaunch = OpenTabs.Count;
+        try
+        {
+            var preferred = await _modeRegistry.GetModeByKeyAsync(preferredKey, CancellationToken.None);
+            if (preferred is null || !preferred.IsEnabled)
+            {
+                AddFallbackTab();
+                return;
+            }
+            await LaunchAppAsync(preferred, openInNewTab: true);
+            if (OpenTabs.Count <= countBeforeLaunch) AddFallbackTab();
+        }
+        catch
+        {
+            // Keep the standard new-tab surface and preserve the preference for when the app is available again.
+            if (OpenTabs.Count <= countBeforeLaunch) AddFallbackTab();
+        }
+    }
+
+    private WorkspaceTabViewModel AddFallbackTab()
+    {
         if (_edition == HavenShellEdition.New)
         {
             var go = CreateGoPage();
             var goKey = "go-" + Guid.NewGuid().ToString("N")[..8];
             AddOrSelectTab(goKey, "Go", go, true, HavenSurface.Go, forceNewTab: true);
             go.FocusComposer();
-            return;
+            return SelectedTab!;
         }
 
         var home = CreateHomePage();
         var key = "home-" + Guid.NewGuid().ToString("N")[..8];
         AddOrSelectTab(key, "Home", home, true, HavenSurface.Home, forceNewTab: true);
         _ = home.ActivateAsync(CancellationToken.None);
+        return SelectedTab!;
     }
 
     private GoPage CreateGoPage()
     {
         var page = new GoPage(_bus);
-        page.SubmitRequested += async (_, instruction) => await OpenNewChatAsync(instruction);
+        page.SubmitRequested += async (_, instruction) =>
+            await RouteGoSubmissionAsync(page, instruction);
         page.RefreshSuggestionsRequested += (_, _) =>
             QueueGoSuggestionRefresh(page, "The user asked Haven for another set of useful next actions.", TimeSpan.Zero, true);
         page.Disposed += OnGoPageDisposed;
         page.AddRequested += OnGoAddRequested;
         page.AddCatalogItemSelected += OnGoCatalogItemSelected;
+        page.AppShortcutInvoked += async (_, app) => await LaunchAppAsync(app, false);
         _ = ConfigureAddMenuAsync(page);
         QueueGoSuggestionRefresh(
             page,
@@ -1372,7 +1868,22 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private NewDashboardPage CreateNewDashboardPage()
     {
-        var page = new NewDashboardPage(_bus, _modeRegistry, _modeUsage, _pins, _conversations, _versionedSettings);
+        var page = new NewDashboardPage(
+            _bus, _modeRegistry, _modeUsage, _pins, _conversations, _versionedSettings,
+            _dashboard, _dashboardLayout, _dashboardProviders);
+        page.EnableDashboardAssistant(new DashboardEditPlanner(_ollama, () => _preferences.DefaultModel));
+        page.DashboardActionRequested += async (_, actionKey) =>
+        {
+            switch (actionKey.Trim().ToLowerInvariant())
+            {
+                case "new-chat": await OpenNewChatAsync(); break;
+                case "call": await OpenVoiceSessionFromActionAsync(); break;
+                case "plan": OpenPlan(); break;
+                case "browse": OpenBrowser(); break;
+                case "automations": OpenAutomations(); break;
+                default: await LaunchAppByKeyAsync(actionKey); break;
+            }
+        };
         page.ModeRequested += async (_, mode) => await LaunchAppAsync(mode, false);
         page.ConversationRequested += async (_, conversation) =>
         {
@@ -1380,18 +1891,16 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             if (_newChatPage is not null) await _newChatPage.LoadConversationAsync(conversation);
         };
         page.ManageAppsRequested += async (_, _) => await ShowAppLauncherAsync(false);
-        page.EditWithHavenRequested += async (_, _) =>
-            await OpenNewChatAsync("Help me customise my Haven dashboard around what I use most.");
         return page;
     }
 
     private async Task ConfigureAddMenuAsync(NewChatPage page)
     {
         var agentsTask = _catalog.GetAgentsAsync(CancellationToken.None);
-        var pluginsTask = _catalog.GetPluginsAsync(CancellationToken.None);
+        var capabilitiesTask = _capabilityRegistry.DiscoverAsync(CurrentCapabilityPlatform, CancellationToken.None);
         var instructionsTask = _catalog.GetPromptsAsync(CancellationToken.None);
         var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
-        await Task.WhenAll(agentsTask, pluginsTask, instructionsTask, appsTask);
+        await Task.WhenAll(agentsTask, capabilitiesTask, instructionsTask, appsTask);
 #if ANDROID
         var apps = (await appsTask)
             .Concat(await GetInstalledAndroidAppDefinitionsAsync())
@@ -1399,16 +1908,100 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 #else
         var apps = await appsTask;
 #endif
-        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, apps);
+        _availableCapabilities = await capabilitiesTask;
+        page.SetAddCatalogue(await agentsTask, _availableCapabilities, await instructionsTask, apps);
+        RefreshContextualActions();
+    }
+
+    private void OpenCapabilities()
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "capabilities");
+        if (existing is not null)
+        {
+            SelectedTab = existing;
+            return;
+        }
+
+        AddOrSelectTab(
+            "capabilities",
+            "Capabilities",
+            new CapabilityCatalogPage(_bus, _capabilityRepository, _modeRegistry, _ollama, OpenTemplateLab),
+            true,
+            HavenSurface.Studio);
+    }
+
+    private void OpenGenUiCreationHome()
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-create");
+        if (existing is not null) { SelectedTab = existing; return; }
+        AddOrSelectTab("genui-create", "Create with Generative UI",
+            new GenUiCreationHomePage(_bus, _genUiApps, _genUiSessions, _genUiRouter, _genUiInstances, OpenGenUiGenerationAsync),
+            true, HavenSurface.Studio);
+    }
+
+    private async Task OpenGenUiGenerationAsync(string prompt)
+    {
+        var request = "Create this as a Haven Generative UI app or interactive surface. Build the complete first-turn workflow rather than describing it in text.\n\n" + prompt;
+        await OpenScopedNewChatPageAsync(HavenMode.Studio, null, $"genui-generation-{Guid.NewGuid():N}",
+            "Generative UI", HavenSurface.Studio, prompt: request);
+    }
+
+    private void OpenTemplateLab()
+    {
+        var existing = OpenTabs.FirstOrDefault(item => item.Key == "genui-template-lab");
+        if (existing is not null)
+        {
+            SelectedTab = existing;
+            return;
+        }
+
+        AddOrSelectTab(
+            "genui-template-lab",
+            "Template Preview Lab",
+            new GenUiTemplatePreviewPage(_bus, _genUiTemplates, _genUiRouter, _genUiInstances, _calculatorTemplate),
+            true,
+            HavenSurface.Studio);
+    }
+
+    private Task OpenProjectPreviewAsync(StudioProjectPage project)
+    {
+        if (!project.HasRoot)
+        {
+            _notifications.Show("Project preview", "Connect an existing project folder before opening a live preview.", ToastKind.Warning);
+            return Task.CompletedTask;
+        }
+        var provider = App.Services?.GetServices<IProjectPreviewProvider>().FirstOrDefault(item => item.CanPreview(project.RootPath));
+        if (provider is null)
+        {
+            _notifications.Show("Project preview", "This project does not expose a supported package.json dev/start script or ASP.NET Core web target.", ToastKind.Warning, TimeSpan.FromSeconds(7));
+            return Task.CompletedTask;
+        }
+        var primary = SelectedTab;
+        var normalizedRoot = Path.GetFullPath(project.RootPath).ToLowerInvariant();
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalizedRoot)))[..12].ToLowerInvariant();
+        var existing = OpenTabs.FirstOrDefault(tab => tab.Key == "project-preview-" + hash);
+        if (existing is null)
+        {
+            AddOrSelectTab("project-preview-" + hash, "Live preview", new ProjectPreviewPage(provider, project.RootPath), true, HavenSurface.Studio, forceNewTab: true);
+            existing = SelectedTab;
+        }
+        if (primary is not null && existing is not null)
+        {
+            SelectedTab = primary;
+            OpenInSplitView(existing);
+        }
+        return Task.CompletedTask;
     }
 
     private async Task ConfigureAddMenuAsync(GoPage page)
     {
         var agentsTask = _catalog.GetAgentsAsync(CancellationToken.None);
-        var pluginsTask = _catalog.GetPluginsAsync(CancellationToken.None);
+        var capabilitiesTask = _capabilityRegistry.DiscoverAsync(CurrentCapabilityPlatform, CancellationToken.None);
         var instructionsTask = _catalog.GetPromptsAsync(CancellationToken.None);
         var appsTask = _modeRegistry.GetModesAsync(CancellationToken.None);
-        await Task.WhenAll(agentsTask, pluginsTask, instructionsTask, appsTask);
+        var pinsTask = _pins.GetPinsAsync(CancellationToken.None);
+        var usageTask = _modeUsage.GetRecentUsageAsync(30, CancellationToken.None);
+        await Task.WhenAll(agentsTask, capabilitiesTask, instructionsTask, appsTask, pinsTask, usageTask);
 #if ANDROID
         var apps = (await appsTask)
             .Concat(await GetInstalledAndroidAppDefinitionsAsync())
@@ -1416,8 +2009,26 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 #else
         var apps = await appsTask;
 #endif
-        page.SetAddCatalogue(await agentsTask, await pluginsTask, await instructionsTask, apps);
+        _availableCapabilities = await capabilitiesTask;
+        page.SetAddCatalogue(await agentsTask, _availableCapabilities, await instructionsTask, apps);
+        var installed = apps.Where(app => app.IsEnabled && app.InstallState == ModeInstallState.Installed).ToArray();
+        var pinnedIds = (await pinsTask).OrderBy(pin => pin.SortOrder).Select(pin => pin.ModeId).ToArray();
+        var pinned = pinnedIds.Select(id => installed.FirstOrDefault(app => app.Id == id)).Where(app => app is not null).Cast<ModeDefinition>().ToArray();
+        var suggested = (await usageTask)
+            .Where(usage => !pinnedIds.Contains(usage.ModeId))
+            .GroupBy(usage => usage.ModeId)
+            .OrderByDescending(group => group.Sum(usage => usage.TurnCount + usage.CompletionCount))
+            .Select(group => installed.FirstOrDefault(app => app.Id == group.Key))
+            .Where(app => app is not null)
+            .Cast<ModeDefinition>()
+            .Take(Math.Max(0, 8 - pinned.Length))
+            .ToArray();
+        page.SetAppShortcuts(pinned.Select(app => new GoAppShortcut(app, true)).Concat(suggested.Select(app => new GoAppShortcut(app, false))).ToArray());
+        RefreshContextualActions();
     }
+
+    private static CapabilityPlatform CurrentCapabilityPlatform =>
+        OperatingSystem.IsAndroid() ? CapabilityPlatform.Android : CapabilityPlatform.Windows;
 
     private async void OnNewChatAddActionSelected(object? sender, AddMenu.AddMenuAction action)
     {
@@ -1427,16 +2038,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private async void OnNewChatCatalogItemSelected(object? sender, AddMenuSelection selection)
     {
-        if (selection.Item is not ModeDefinition app)
-            return;
-#if ANDROID
-        if (IsAndroidAppDefinition(app))
-        {
-            await ConnectAndroidAppDefinitionAsync(app);
-            return;
-        }
-#endif
-        await LaunchAppAsync(app, false);
+        // NewChatPage applies the selection before raising this event. Apps are
+        // task context, so selecting one must not navigate away from the thread.
+        await Task.CompletedTask;
     }
 
     private async void OnGoAddRequested(object? sender, AddMenu.AddMenuAction action)
@@ -1450,30 +2054,15 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Title = "Attach files",
             AllowMultiple = true
         });
-        if (files.Count > 0)
-        {
-            // Navigate to chat with the attached files
-            await OpenNewChatAsync();
-            if (_newChatPage is not null) await _newChatPage.AddFileAsync();
-        }
+        if (sender is GoPage page)
+            page.AttachFiles(files.Select(file => file.TryGetLocalPath()).OfType<string>());
     }
 
     private async void OnGoCatalogItemSelected(object? sender, AddMenuSelection selection)
     {
-        if (selection.Item is ModeDefinition app)
-       {
-#if ANDROID
-            if (IsAndroidAppDefinition(app))
-            {
-                await ConnectAndroidAppDefinitionAsync(app);
-                return;
-            }
-#endif
-            await LaunchAppAsync(app, false);
-            return;
-        }
-        await OpenNewChatAsync();
-        _newChatPage?.ApplyAddSelection(selection);
+        // GoPage owns the pending task context and attaches Apps locally before
+        // raising this event. Nothing selected from Add may force navigation.
+        await Task.CompletedTask;
     }
 
     private void QueueGoSuggestionRefresh(GoPage page, string activity, TimeSpan delay, bool showProgress)
@@ -1628,6 +2217,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async Task StartProjectChatAsync(string prompt)
     {
         if (ActiveProject is null) return;
+
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenScopedNewChatPageAsync(
+                HavenMode.Studio,
+                ActiveProject.Id,
+                $"project-chat-{ActiveProject.Id:N}-{Guid.NewGuid():N}",
+                ActiveProject.Name + " chat",
+                HavenSurface.Studio,
+                prompt: prompt);
+            await RefreshRecentsAsync(CancellationToken.None);
+            return;
+        }
+
         var chat = await GetOrCreateProjectChatAsync(ActiveProject);
         CurrentChat = chat;
         chat.NewChat();
@@ -1647,6 +2250,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             .FirstOrDefault(item => item.Id == projectId);
         if (project is null)
         {
+            return;
+        }
+
+        if (_edition == HavenShellEdition.New)
+        {
+            ActivateProject(project);
+            await OpenScopedNewChatPageAsync(
+                HavenMode.Studio,
+                project.Id,
+                $"conversation-{conversation.Id:N}",
+                conversation.Title,
+                HavenSurface.Studio,
+                conversation);
+            await RefreshRecentsAsync(CancellationToken.None);
             return;
         }
 
@@ -1711,8 +2328,18 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void OpenApplicationSettings()
     {
-        AddOrSelectTab("settings-" + CurrentMode, "Settings", new SettingsPageViewModel(_preferences, _ollama,
-            (model, effort) => CurrentChat.ApplyPreferences(model, effort), CurrentMode == HavenMode.Studio), true);
+        AddOrSelectTab(
+            "settings-" + CurrentMode,
+            "Settings",
+            new SettingsHavenPage(
+                _bus,
+                _preferences,
+                _ollama,
+                _privacy,
+                _modelProviders,
+                _providerConfigurations,
+                _providerSecrets),
+            true);
     }
 
     private async Task OpenConversationAsync(RecentConversationViewModel? item)
@@ -1741,6 +2368,20 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 CurrentChat = await GetOrCreateChatAsync(definition.Mode);
             if (definition.Mode == HavenMode.Studio) ClearActiveProject();
         }
+
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenScopedNewChatPageAsync(
+                definition.Mode,
+                definition.ContainerId,
+                $"conversation-{definition.Id:N}",
+                definition.Title,
+                SurfaceForMode(definition.Mode),
+                definition);
+            await RefreshRecentsAsync(CancellationToken.None);
+            return;
+        }
+
         var key = definition.ContainerId is Guid containerId ? "project-chat-" + containerId.ToString("N") : "chat-" + CurrentChat.Mode.ToString().ToLowerInvariant();
         AddOrSelectTab(key, definition.Title, CurrentChat, definition.ContainerId is not null);
         await CurrentChat.LoadConversationAsync(definition.Id, CancellationToken.None);
@@ -1832,6 +2473,52 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (item is null) return;
         await _conversations.UpsertConversationAsync(item with { IsPinned = !item.IsPinned, UpdatedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
         await RefreshRecentsAsync(CancellationToken.None);
+    }
+
+    private async Task ToggleTemporaryActiveConversationAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.ToggleTemporaryAsync();
+            return;
+        }
+
+        if (CurrentChat.ToggleTemporaryCommand.CanExecute(null))
+            CurrentChat.ToggleTemporaryCommand.Execute(null);
+    }
+
+    private Task BranchActiveConversationAsync() =>
+        CurrentPage is NewChatPage newChat
+            ? newChat.BranchLatestAsync()
+            : CurrentChat.BranchCurrentAsync();
+
+    private Task CompactActiveConversationAsync() =>
+        CurrentPage is NewChatPage newChat
+            ? newChat.CompactContextAsync()
+            : CurrentChat.CompactContextAsync();
+
+    private async Task UndoActiveAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.UndoLatestAsync();
+            return;
+        }
+
+        if (CurrentPage is WorkspaceEditorPage editor && editor.UndoCommand.CanExecute(null))
+            editor.UndoCommand.Execute(null);
+    }
+
+    private async Task RedoActiveAsync()
+    {
+        if (CurrentPage is NewChatPage newChat)
+        {
+            await newChat.RedoLatestAsync();
+            return;
+        }
+
+        if (CurrentPage is WorkspaceEditorPage editor && editor.RedoCommand.CanExecute(null))
+            editor.RedoCommand.Execute(null);
     }
 
     private void BeginRenameCurrent()
@@ -1941,6 +2628,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         SelectedTab = tab;
         RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
         RefreshTopRailTabs();
+        QueueWorkspaceSessionSave();
     }
 
     private HavenSurface InferSurface(object page) => page switch
@@ -1971,13 +2659,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     private void CloseTab(WorkspaceTabViewModel? item)
     {
-        if (item is null || !item.IsCloseable || OpenTabs.Count <= 1) return;
-        var index = OpenTabs.IndexOf(item);
-        OpenTabs.Remove(item);
-        item.Dispose();
-        if (ReferenceEquals(SelectedTab, item)) SelectedTab = OpenTabs.ElementAtOrDefault(Math.Clamp(index - 1, 0, Math.Max(0, OpenTabs.Count - 1))) ?? OpenTabs.FirstOrDefault();
-        RaisePropertyChanged(nameof(IsHorizontalTabsVisible));
-        RefreshTopRailTabs();
+        _ = TryCloseTabAsync(item);
     }
 
     private void NavigateBack()
@@ -2005,16 +2687,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             Command("Delete current chat", "Permanently remove the current conversation after confirmation.", string.Empty, RequestDeleteCurrentCommand),
             Command("Pin or unpin chat", "Toggle the chat in the Pinned section.", string.Empty, TogglePinCurrentCommand),
             Command("Copy last response", "Copy the most recent Haven response.", string.Empty, CopyLastResponseCommand),
-            Command("Undo", "Undo the latest editable workspace change.", "Ctrl+Z", UndoCurrentCommand),
-            Command("Redo", "Redo the latest editable workspace change.", "Ctrl+Y", RedoCurrentCommand),
+            Command("Undo", "Undo the latest chat message or editable workspace change.", "Ctrl+Z", UndoCurrentCommand),
+            Command("Redo", "Restore the latest undone chat message or workspace change.", "Ctrl+Y", RedoCurrentCommand),
             Command("Save", "Save the current editable workspace.", "Ctrl+S", SaveCurrentCommand),
             Command("Configure model", "Search models and open advanced generation and safety options.", string.Empty, ConfigureModelCommand),
+            Command("Agents", "Create and manage specialised assistants shared with Chat and Go.", string.Empty, NavigateAgentsCommand),
             Command("Instruction Library", "Browse built-in and custom reusable instructions invoked with >.", string.Empty, NavigatePromptsCommand),
-            Command("Plugins", "Browse functional Haven capabilities invoked with @.", string.Empty, NavigatePluginsCommand),
-            Command("Scheduled Actions", "Create and manage scheduled local jobs.", string.Empty, NavigateAutomationsCommand),
-            Command("Reusable Tasks", "Create, test, and run persistent reusable Tasks.", string.Empty, new RelayCommand(OpenTasksDashboard)),
+            Command("Capabilities", "Browse discoverable, App-owned capabilities and their runtime safety metadata.", string.Empty, NavigateCapabilitiesCommand),
+            Command("Create with Generative UI", "Generate, reopen, pin and import persistent interactive Haven surfaces.", string.Empty, new RelayCommand(OpenGenUiCreationHome)),
+            Command("Template Preview Lab", "Search registered GenUI templates and exercise trusted structured previews.", string.Empty, new RelayCommand(OpenTemplateLab)),
+            Command("Automations", "Create, test, and run reusable, scheduled, recurring, and triggered workflows.", string.Empty, NavigateAutomationsCommand),
             Command("Archive", "Restore archived chats, groups, and projects.", string.Empty, NavigateArchiveCommand),
             Command("Activity Log", "View recent conversations and tool activity across sessions.", string.Empty, NavigateActivityLogCommand),
+            Command("Action Graph", "Inspect the real execution trace in Graph or List form, including failures, recovery and action feedback.", string.Empty, new RelayCommand(OpenActionGraph)),
             Command("Haven Browse", "Open the isolated tabbed browser and side assistant.", string.Empty, NavigateBrowserCommand),
             Command("Haven Training", "Run an autonomous agent session and score the result.", string.Empty, NavigateTrainingCommand),
             Command("App Library", "Discover, pin, and create Haven apps.", string.Empty, NavigateModeLibraryCommand),
@@ -2025,7 +2710,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         ];
         FilterCommands();
         RefreshContextualActions();
-        TopRail?.SetEditActionsHandler(OpenApplicationSettings);
+        TopRail?.SetEditActionsHandler(OpenCapabilities);
     }
 
     private void RefreshContextualActions()
@@ -2051,8 +2736,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             contextual.Add(new("Switch agent", "agent", () => OpenCatalog(CatalogPageKind.Agents),
                 Category: "Recommended", Description: "Choose the active agent for this conversation."));
-            contextual.Add(new("Add plugin", "plugin", () => OpenCatalog(CatalogPageKind.Plugins),
-                Category: "Recommended", Description: "Enable a compatible plugin for this conversation."));
+            AddCapabilityActions(contextual, activeChat);
             if (hasConversation)
             {
                 contextual.Add(new("Branch chat", "branch", () => _ = activeChat.BranchLatestAsync(),
@@ -2071,16 +2755,10 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         {
             contextual.Add(new("Switch agent", "agent", () => OpenCatalog(CatalogPageKind.Agents),
                 Category: "Recommended", Description: "Choose the active agent for this conversation."));
-            contextual.Add(new("Add plugin", "plugin", () => OpenCatalog(CatalogPageKind.Plugins),
-                Category: "Recommended", Description: "Enable a compatible plugin for this conversation."));
             if (hasConversation)
             {
                 contextual.Add(new("Branch chat", "branch", () => _ = CurrentChat.BranchCurrentAsync(),
                     Category: "Chat", Description: "Create an independent branch from the current chat."));
-                contextual.Add(new("Undo last message", "chevron-left", () => Invoke(UndoCurrentCommand),
-                    Category: "Chat", Description: "Undo the most recent editable chat change."));
-                contextual.Add(new("Redo last message", "chevron-right", () => Invoke(RedoCurrentCommand),
-                    Category: "Chat", Description: "Restore the most recently undone chat change."));
             }
             if (CurrentSurface == HavenSurface.Study)
             {
@@ -2118,8 +2796,11 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 new("Refresh project", "refresh", () => Invoke(project.RefreshCommand), Category: "Recommended", Description: "Refresh files, Git state, and project health."),
                 new("Build project", "build", () => Invoke(project.BuildCommand), Category: "Recommended", Description: "Build the active project."),
                 new("Run tests", "test", () => Invoke(project.TestCommand), Category: "Studio", Description: "Run the active project's tests."),
+                new("Live preview", "browse", () => _ = OpenProjectPreviewAsync(project), Category: "Studio", Description: "Open the supported running web preview beside this Project."),
                 new("Open terminal", "commands", () => Invoke(project.OpenTerminalCommand), Category: "Studio", Description: "Open a terminal at the project root."),
-                new("Project chat", "chat", () => Invoke(project.StartChatCommand), Category: "Studio", Description: "Start a chat scoped to this project.")
+                new("Project chat", "chat", () => Invoke(project.StartChatCommand), Category: "Studio", Description: "Start a chat scoped to this project."),
+                new("Create with Generative UI", "sparkles", OpenGenUiCreationHome, Category: "Studio", Description: "Generate or reopen persistent interactive Haven surfaces."),
+                new("Template Preview Lab", "sparkles", OpenTemplateLab, Category: "Studio", Description: "Inspect and exercise trusted structured GenUI templates.")
             ]);
         }
         else if (CurrentSurface == HavenSurface.Plan && _planPage is { } planner)
@@ -2137,18 +2818,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             [
                 new("New task", "plus", StartNewConversation, Category: "Recommended", Description: "Start a new task conversation."),
                 new("New task group", "tasks", OpenNewContainer, Category: "Tasks", Description: "Create a group for related tasks and references."),
-                new("Scheduled actions", "automation", OpenAutomations, Category: "Tasks", Description: "Create or manage scheduled local actions."),
-                new("Reusable tasks", "tasks", OpenTasksDashboard, Category: "Tasks", Description: "Create, test, run, or edit reusable Tasks."),
+                new("Automations", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create or manage reusable, scheduled, recurring, and triggered workflows."),
+                new("Reusable workflows", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create, test, run, or edit reusable workflows."),
                 new("Activity log", "clock", OpenActivityLog, Category: "Tasks", Description: "Review recent task and tool activity.")
             ]);
         }
         else if (CurrentSurface == HavenSurface.Go && _goPage is { } go)
         {
+            AddCapabilityActions(contextual, go);
             contextual.AddRange(
             [
                 new("Focus Go", "search", go.FocusComposer, Category: "Recommended", Description: "Focus the universal Go instruction box."),
                 new("Refresh suggestions", "refresh", () => QueueGoSuggestionRefresh(go, "Refresh the useful next actions for the current Haven state.", TimeSpan.Zero, true), Category: "Recommended", Description: "Generate a fresh set of useful next actions."),
-                new("Add context", "plus", () => _ = ConfigureAddMenuAsync(go), Category: "Tools", Description: "Refresh agents, plugins, instructions and Apps available to Go.")
+                new("Add context", "plus", () => _ = ConfigureAddMenuAsync(go), Category: "Tools", Description: "Refresh Agents, Capabilities, Instructions and Apps available to Go.")
             ]);
         }
         else if (CurrentSurface == HavenSurface.Dashboard && _newDashboardPage is { } dashboard)
@@ -2179,6 +2861,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             ]);
         }
 
+        contextual.Add(new("Action Graph", "commands", OpenActionGraph, Category: "View", Description: "Inspect what Haven actually did for a request in Graph or List form."));
+
         var catalogue = AllCommandItems
             .Where(item => !IsConversationOnlyAction(item.Name) || hasConversation)
             .Select(item => new DynamicActionToolbar.ToolbarAction(
@@ -2191,6 +2875,60 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 Shortcut: item.Shortcut));
         TopRail.SetActions(pinned.Concat(contextual).Concat(catalogue).DistinctBy(item => item.Label).ToArray());
     }
+
+    private void AddCapabilityActions(
+        List<DynamicActionToolbar.ToolbarAction> actions,
+        NewChatPage page)
+    {
+        foreach (var capability in _availableCapabilities.Where(item => item.IsAttachable))
+        {
+            var captured = capability;
+            var attached = page.IsCapabilityAttached(captured.Id);
+            actions.Add(new(
+                attached ? $"Remove {captured.Name}" : captured.Name,
+                captured.IconKey,
+                () =>
+                {
+                    page.ToggleCapability(captured);
+                    RefreshContextualActions();
+                },
+                Category: CapabilityCategory(captured),
+                Description: CapabilityDescription(captured, attached)));
+        }
+    }
+
+    private void AddCapabilityActions(
+        List<DynamicActionToolbar.ToolbarAction> actions,
+        GoPage page)
+    {
+        foreach (var capability in _availableCapabilities.Where(item => item.IsAttachable))
+        {
+            var captured = capability;
+            var attached = page.IsCapabilityAttached(captured.Id);
+            actions.Add(new(
+                attached ? $"Remove {captured.Name}" : captured.Name,
+                captured.IconKey,
+                () =>
+                {
+                    page.ToggleCapability(captured);
+                    RefreshContextualActions();
+                },
+                Category: CapabilityCategory(captured),
+                Description: CapabilityDescription(captured, attached)));
+        }
+    }
+
+    private static string CapabilityCategory(CapabilityDefinition capability) => capability.OwnerAppKey switch
+    {
+        CapabilityRegistryCatalog.GeneralOwner => "General",
+        "browse" => "Browser",
+        "tasks" => "Tasks",
+        "studio" => "Studio",
+        _ => "Tools"
+    };
+
+    private static string CapabilityDescription(CapabilityDefinition capability, bool attached) =>
+        $"{capability.Description} {(attached ? "Attached" : "Attach as relevance")} - {capability.RiskClass} risk - {capability.Availability}. Attachment does not grant permission.";
 
     private void AddModeWorkspaceActions(List<DynamicActionToolbar.ToolbarAction> actions, NewChatPage page)
     {
@@ -2224,8 +2962,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
             actions.AddRange(
             [
                 new("New task group", "tasks", OpenNewContainer, Category: "Tasks", Description: "Create a group for related tasks and references."),
-                new("Scheduled actions", "automation", OpenAutomations, Category: "Tasks", Description: "Create or manage scheduled local actions."),
-                new("Reusable tasks", "tasks", OpenTasksDashboard, Category: "Tasks", Description: "Create, test, run, or edit reusable Tasks."),
+                new("Automations", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create or manage reusable, scheduled, recurring, and triggered workflows."),
+                new("Reusable workflows", "automation", OpenAutomationsDashboard, Category: "Automations", Description: "Create, test, run, or edit reusable workflows."),
                 new("Activity log", "clock", OpenActivityLog, Category: "Tasks", Description: "Review recent task and tool activity.")
             ]);
         }
@@ -2247,7 +2985,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (name.Contains("Browse", StringComparison.OrdinalIgnoreCase)) return "Browser";
         if (name.Contains("Scheduled", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Reusable", StringComparison.OrdinalIgnoreCase)) return "Tasks";
-        if (name.Contains("sidebar", StringComparison.OrdinalIgnoreCase)) return "View";
+        if (name.Contains("sidebar", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Action Graph", StringComparison.OrdinalIgnoreCase)) return "View";
         if (name.Contains("New", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Archive", StringComparison.OrdinalIgnoreCase)
             || name.Contains("Delete", StringComparison.OrdinalIgnoreCase)
@@ -2283,7 +3022,9 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     }
 
     private CommandPaletteItemViewModel Command(string name, string description, string shortcut, System.Windows.Input.ICommand command) =>
-        new(name, description, shortcut, new RelayCommand(() => { IsCommandPaletteOpen = false; if (command.CanExecute(null)) command.Execute(null); }));
+        new(name, description, shortcut, new RelayCommand(
+            () => { IsCommandPaletteOpen = false; if (command.CanExecute(null)) command.Execute(null); },
+            () => command.CanExecute(null)));
 
     private void FilterCommands()
     {
@@ -2344,6 +3085,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         TopRail.TabSelected += OnTopRailTabSelected;
         TopRail.TabCloseRequested += OnTopRailTabCloseRequested;
         TopRail.TabRenameRequested += OnTopRailTabRenameRequested;
+        TopRail.TabCommandRequested += OnTopRailTabCommandRequested;
+        TopRail.NotificationOpenRequested += OnNotificationOpenRequested;
 
         GoChatButton.Click += OnGoChatClicked;
         GoDashboardButton.Click += OnGoDashboardClicked;
@@ -2371,21 +3114,31 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private async void OnTopRailModelRequested(object? sender, EventArgs e) => await ShowModelSelectorAsync();
     private async void OnTopRailSearchRequested(object? sender, EventArgs e) => await ShowUniversalSearchAsync();
 
+    private void OnNotificationOpenRequested(object? sender, HavenNavigationTarget target)
+    {
+        if (target.ExecutionId is { } executionId)
+        {
+            OpenActionGraphTarget(executionId, target.ActionId);
+            return;
+        }
+        if (target.TabId is { } tabId && ResolveTab(tabId.ToString()) is { } tab) SelectedTab = tab;
+    }
+
     private void OnTopRailTabSelected(object? sender, string key)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(key);
         if (tab is not null) SelectedTab = tab;
     }
 
     private void OnTopRailTabCloseRequested(object? sender, string key)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(key);
         CloseTab(tab);
     }
 
     private void OnTopRailTabRenameRequested(object? sender, TabRenameRequestedEventArgs e)
     {
-        var tab = OpenTabs.FirstOrDefault(item => item.Key.Equals(e.Key, StringComparison.OrdinalIgnoreCase));
+        var tab = ResolveTab(e.Key);
         if (tab is null) return;
         tab.Title = e.Title;
         RefreshTopRailTabs();
@@ -2435,7 +3188,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 var modelNames = models.Select(model => model.Name).ToArray();
                 var selectedModelIndex = Array.FindIndex(modelNames, name =>
                     name.Equals(selectedName ?? _preferences.DefaultModel, StringComparison.OrdinalIgnoreCase));
-                var modelPicker = new ComboBox
+                var modelPicker = new HavenSelect
                 {
                     ItemsSource = modelNames,
                     SelectedIndex = selectedModelIndex,
@@ -2485,7 +3238,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                                        && _preferences.CommandPermission == _preferences.BrowserPermission
                                        && _preferences.BrowserPermission == _preferences.ComputerPermission;
                 var permissionOptions = new[] { "Custom", "Ask Every Time", "Risk-Free Only", "Full Access" };
-                var permissionPicker = new ComboBox
+                var permissionPicker = new HavenSelect
                 {
                     ItemsSource = permissionOptions,
                     SelectedIndex = permissionsMatch
@@ -2534,7 +3287,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 var selectedVoice = _globalCallViewModel?.SelectedVoice
                                     ?? voices.FirstOrDefault(item => item.IsDefault)
                                     ?? voices.FirstOrDefault();
-                var voicePicker = new ComboBox
+                var voicePicker = new HavenSelect
                 {
                     ItemsSource = voices.Select(item => item.Name).ToArray(),
                     SelectedIndex = selectedVoice is null ? -1 : voices.ToList().IndexOf(selectedVoice),
@@ -2583,7 +3336,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                 reasoningHeader.Children.Add(reasoningValue);
                 rows.Children.Add(reasoningHeader);
 
-                var reasoning = new Slider
+                var reasoning = new HavenSlider
                 {
                     Minimum = 20,
                     Maximum = 100,
@@ -2616,24 +3369,17 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
                     Margin = new Avalonia.Thickness(8, 0, 8, 4)
                 });
 
-                _modelSelectorFlyout = new Flyout
+                _modelSelectorFlyout = new HavenDropdown
                 {
                     Placement = PlacementMode.BottomEdgeAlignedRight,
-                    FlyoutPresenterTheme = Avalonia.Application.Current?.TryFindResource(
-                        "HavenFloatingFlyoutPresenterTheme", out var presenterTheme) == true
-                            ? presenterTheme as ControlTheme
-                            : null,
-                    Content = new Border
+                    Content = new HavenDropdownCard
                     {
-                        Width = 360,
-                        Padding = new Avalonia.Thickness(12),
-                        Background = Avalonia.Application.Current?.Resources["HavenElevatedBrush"] as IBrush,
-                        BorderBrush = Avalonia.Application.Current?.Resources["HavenLineBrush"] as IBrush,
-                        BorderThickness = new Avalonia.Thickness(1),
-                        CornerRadius = new Avalonia.CornerRadius(22),
+                        Width = 420,
+                        MinWidth = 420,
+                        Padding = new Avalonia.Thickness(18),
                         Child = new ScrollViewer
                         {
-                            MaxHeight = 500,
+                            MaxHeight = 570,
                             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
                             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
                             Content = rows
@@ -2695,12 +3441,19 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     private void RefreshTopRailTabs()
     {
         if (TopRail is null) return;
-        TopRail.SetTabs(OpenTabs.Select(tab => new TopRailTab(
-            tab.Key,
-            tab.Title,
+        var visibleTabs = OpenTabs.Where(tab => !tab.IsGroupCollapsed || ReferenceEquals(tab, SelectedTab) ||
+            (tab.GroupId is { } groupId && ReferenceEquals(tab, OpenTabs.First(item => item.GroupId == groupId))));
+        TopRail.SetTabs(visibleTabs.Select(tab => new TopRailTab(
+            tab.SessionId.ToString(),
+            tab.IsGroupCollapsed && tab.GroupId is { } collapsedGroup
+                ? $"{tab.GroupName} ({OpenTabs.Count(item => item.GroupId == collapsedGroup)})"
+                : tab.Title,
             IconForSurface(tab.Surface),
             ReferenceEquals(tab, SelectedTab),
-            tab.IsCloseable)).ToArray());
+            tab.IsCloseable,
+            tab.GroupId,
+            tab.GroupName,
+            tab.IsGroupCollapsed)).ToArray());
         TopRail.SetNavigationAvailability(
             SelectedTab?.CanGoBack == true,
             SelectedTab?.CanGoForward == true);
@@ -2724,11 +3477,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         if (PageContent is null) return;
         PageContent.Content = CurrentPage;
-        SidebarControl.IsVisible = _edition == HavenShellEdition.Classic && HasFullSidebar;
+        SidebarControl.IsVisible = _edition == HavenShellEdition.Classic && HasFullSidebar && !IsSplitView;
         NativeSidebarHost.IsVisible = _edition == HavenShellEdition.New
                                       && CurrentSurface == HavenSurface.Chat
-                                      && IsSidebarOpen;
-        ShellContextBar.IsVisible = _edition == HavenShellEdition.New;
+                                      && IsSidebarOpen
+                                      && !IsSplitView;
+        ShellContextBar.IsVisible = false;
         StoredChatDropdown.IsVisible = _edition == HavenShellEdition.New
                                        && CurrentPage is NewChatPage newChatPage
                                        && !newChatPage.HasStarted;
@@ -2810,7 +3564,12 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
     {
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
 
-        if (control && e.Key == Key.K)
+        if (control && e.Key == Key.Space)
+        {
+            await ShowUniversalSearchAsync();
+            e.Handled = true;
+        }
+        else if (control && e.Key == Key.K)
         {
             OpenCommandPaletteCommand.Execute(null);
             e.Handled = true;
@@ -2835,6 +3594,8 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
 
     public void Dispose()
     {
+        if (IsDisposed) return;
+        IsDisposed = true;
         _reminderTimer.Stop();
         lock (_goSuggestionRefreshes)
         {
@@ -2850,9 +3611,13 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         _newDashboardPage?.Deactivate();
         _newDashboardPage?.Dispose();
         _newChatPage?.Dispose();
+        _studyAssignmentsSidebar?.Dispose();
         _nativeChatSidebar?.Dispose();
         _planPage?.Dispose();
         _companionDockVm.Dispose();
+        RemoveSplitView();
+        foreach (var tab in OpenTabs.ToArray()) tab.Dispose();
+        OpenTabs.Clear();
         TopRail.Dispose();
     }
 

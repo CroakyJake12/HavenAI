@@ -1,66 +1,46 @@
-/*
- * FILE DOCUMENTATION
- * Where: src/Haven.Infrastructure/CatalogRepository.cs, in the Infrastructure layer, where persistence, providers, Windows integration, and external I/O are implemented.
- * What: This file owns CatalogRepository. Read the type and member comments below as a map of each responsibility.
- * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
- * Why: Platform and persistence details are contained here so higher layers do not acquire external-system coupling.
- * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
- */
-
 using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Infrastructure;
 
-/// <summary>
-/// Represents catalog repository and keeps its related state and behavior together.
-/// </summary>
+/// <summary>Persists Haven's Agent and Prompt catalogues. Capabilities are persisted separately.</summary>
 public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatalogRepository
 {
-    /// <summary>
-    /// Retrieves agents async for the current operation.
-    /// </summary>
-    public async Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken) =>
+        ReadAgentsAsync(includeDisabled: false, cancellationToken);
+
+    public Task<IReadOnlyList<AgentDefinition>> GetAllAgentsAsync(CancellationToken cancellationToken) =>
+        ReadAgentsAsync(includeDisabled: true, cancellationToken);
+
+    private async Task<IReadOnlyList<AgentDefinition>> ReadAgentsAsync(bool includeDisabled, CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM agents WHERE is_enabled=1 ORDER BY is_built_in DESC,name;";
+        command.CommandText = includeDisabled
+            ? "SELECT * FROM agents ORDER BY is_built_in DESC,name;"
+            : "SELECT * FROM agents WHERE is_enabled=1 ORDER BY is_built_in DESC,name;";
         var result = new List<AgentDefinition>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            result.Add(new AgentDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("instructions"),
-                reader.String("icon_key"), reader.String("preferred_model"), reader.NullableString("fallback_model"), reader.String("detection_rules"),
-                reader.String("permissions_json"), reader.Boolean("is_built_in"), reader.Boolean("is_enabled"), reader.DateTimeOffset("updated_at")));
+            result.Add(new AgentDefinition(
+                reader.Guid("id"),
+                reader.String("name"),
+                reader.String("description"),
+                reader.String("instructions"),
+                reader.String("icon_key"),
+                reader.String("preferred_model"),
+                reader.NullableString("fallback_model"),
+                reader.String("detection_rules"),
+                reader.String("permissions_json"),
+                reader.Boolean("is_built_in"),
+                reader.Boolean("is_enabled"),
+                reader.DateTimeOffset("updated_at")));
         }
         return result;
     }
 
-    /// <summary>
-    /// Retrieves plugins async for the current operation.
-    /// </summary>
-    public async Task<IReadOnlyList<PluginDefinition>> GetPluginsAsync(CancellationToken cancellationToken)
-    {
-        await SeedAsync(cancellationToken).ConfigureAwait(false);
-        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM plugins WHERE is_enabled=1 ORDER BY is_built_in DESC,name;";
-        var result = new List<PluginDefinition>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            result.Add(new PluginDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("icon_key"),
-                reader.String("instructions"), reader.String("capabilities_json"), reader.String("conflicts_json"), reader.Boolean("persists"),
-                reader.Boolean("is_built_in"), reader.Boolean("is_enabled"), reader.DateTimeOffset("updated_at"), reader.Boolean("is_agentic"),
-                reader.String("allowed_modes_json"), reader.String("dashboard_tiles_json")));
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Retrieves prompts async for the current operation.
-    /// </summary>
     public async Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken)
     {
         await SeedAsync(cancellationToken).ConfigureAwait(false);
@@ -71,16 +51,22 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            result.Add(new PromptDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("icon_key"),
-                reader.String("instructions"), reader.Boolean("persists"), reader.Boolean("is_built_in"), reader.Boolean("is_enabled"),
-                reader.DateTimeOffset("updated_at"), reader.Boolean("is_agentic"), reader.String("allowed_modes_json")));
+            result.Add(new PromptDefinition(
+                reader.Guid("id"),
+                reader.String("name"),
+                reader.String("description"),
+                reader.String("icon_key"),
+                reader.String("instructions"),
+                reader.Boolean("persists"),
+                reader.Boolean("is_built_in"),
+                reader.Boolean("is_enabled"),
+                reader.DateTimeOffset("updated_at"),
+                reader.Boolean("is_agentic"),
+                reader.String("allowed_modes_json")));
         }
         return result;
     }
 
-    /// <summary>
-    /// Performs upsert agent asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     public async Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -96,28 +82,6 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs upsert plugin asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public async Task UpsertPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
-    {
-        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO plugins(id,name,description,icon_key,instructions,capabilities_json,conflicts_json,persists,is_built_in,is_enabled,updated_at,is_agentic,allowed_modes_json,dashboard_tiles_json)
-            VALUES($id,$name,$description,$iconKey,$instructions,$capabilitiesJson,$conflictsJson,$persists,$isBuiltIn,$isEnabled,$updatedAt,$isAgentic,$allowedModesJson,$dashboardTilesJson)
-            ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,icon_key=excluded.icon_key,
-              instructions=excluded.instructions,capabilities_json=excluded.capabilities_json,conflicts_json=excluded.conflicts_json,
-              persists=excluded.persists,is_enabled=excluded.is_enabled,updated_at=excluded.updated_at,
-              is_agentic=excluded.is_agentic,allowed_modes_json=excluded.allowed_modes_json,dashboard_tiles_json=excluded.dashboard_tiles_json;
-            """;
-        BindPlugin(command, plugin);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Performs upsert prompt asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     public async Task UpsertPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -133,45 +97,26 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs set agent enabled asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("agents", id, enabled, cancellationToken);
-    /// <summary>
-    /// Performs set plugin enabled asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task SetPluginEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("plugins", id, enabled, cancellationToken);
-    /// <summary>
-    /// Performs set prompt enabled asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) => SetEnabledAsync("prompts", id, enabled, cancellationToken);
-    /// <summary>
-    /// Performs delete custom agent asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("agents", id, cancellationToken);
-    /// <summary>
-    /// Performs delete custom plugin asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task DeleteCustomPluginAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("plugins", id, cancellationToken);
-    /// <summary>
-    /// Performs delete custom prompt asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    public Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken) => DeleteCustomAsync("prompts", id, cancellationToken);
+    public Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) =>
+        SetEnabledAsync("agents", id, enabled, cancellationToken);
 
-    /// <summary>
-    /// Performs seed asynchronously so I/O does not block the caller's thread.
-    /// </summary>
+    public Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken) =>
+        SetEnabledAsync("prompts", id, enabled, cancellationToken);
+
+    public Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken) =>
+        DeleteCustomAsync("agents", id, cancellationToken);
+
+    public Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken) =>
+        DeleteCustomAsync("prompts", id, cancellationToken);
+
     private async Task SeedAsync(CancellationToken cancellationToken)
     {
-        foreach (var agent in AgentCatalog.BuiltIns) await UpsertBuiltInAgentAsync(agent, cancellationToken).ConfigureAwait(false);
-        foreach (var plugin in PluginCatalog.BuiltIns) await UpsertBuiltInPluginAsync(plugin, cancellationToken).ConfigureAwait(false);
-        foreach (var prompt in PromptCatalog.BuiltIns) await UpsertBuiltInPromptAsync(prompt, cancellationToken).ConfigureAwait(false);
-        await DisableRetiredBuiltInsAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var agent in AgentCatalog.BuiltIns)
+            await UpsertBuiltInAgentAsync(agent, cancellationToken).ConfigureAwait(false);
+        foreach (var prompt in PromptCatalog.BuiltIns)
+            await UpsertBuiltInPromptAsync(prompt, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs upsert built in agent asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task UpsertBuiltInAgentAsync(AgentDefinition agent, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -186,27 +131,6 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs upsert built in plugin asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task UpsertBuiltInPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken)
-    {
-        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO plugins(id,name,description,icon_key,instructions,capabilities_json,conflicts_json,persists,is_built_in,is_enabled,updated_at,is_agentic,allowed_modes_json,dashboard_tiles_json)
-            VALUES($id,$name,$description,$iconKey,$instructions,$capabilitiesJson,$conflictsJson,$persists,1,1,$updatedAt,$isAgentic,$allowedModesJson,$dashboardTilesJson)
-            ON CONFLICT(id) DO UPDATE SET description=excluded.description,icon_key=excluded.icon_key,instructions=excluded.instructions,
-              capabilities_json=excluded.capabilities_json,conflicts_json=excluded.conflicts_json,persists=excluded.persists,
-              is_agentic=excluded.is_agentic,allowed_modes_json=excluded.allowed_modes_json,dashboard_tiles_json=excluded.dashboard_tiles_json,is_built_in=1,is_enabled=1;
-            """;
-        BindPlugin(command, plugin);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Performs upsert built in prompt asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task UpsertBuiltInPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -222,27 +146,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs disable retired built ins asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private async Task DisableRetiredBuiltInsAsync(CancellationToken cancellationToken)
-    {
-        await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE plugins SET is_enabled=0
-             WHERE is_built_in=1
-               AND name NOT IN ('Agent','Goal','BrowserUse','ComputerUse','WebSearch','DuoMode','Automate','Test');
-            """;
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Performs set enabled asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task SetEnabledAsync(string table, Guid id, bool enabled, CancellationToken cancellationToken)
     {
-        if (table is not ("agents" or "plugins" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
+        if (table is not ("agents" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = $"UPDATE {table} SET is_enabled=$enabled,updated_at=$updatedAt WHERE id=$id;";
@@ -252,12 +158,9 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs delete custom asynchronously so I/O does not block the caller's thread.
-    /// </summary>
     private async Task DeleteCustomAsync(string table, Guid id, CancellationToken cancellationToken)
     {
-        if (table is not ("agents" or "plugins" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
+        if (table is not ("agents" or "prompts")) throw new ArgumentOutOfRangeException(nameof(table));
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = $"DELETE FROM {table} WHERE id=$id AND is_built_in=0;";
@@ -265,9 +168,6 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Performs the bind agent step owned by this component.
-    /// </summary>
     private static void BindAgent(Microsoft.Data.Sqlite.SqliteCommand command, AgentDefinition agent)
     {
         command.Parameters.AddWithValue("$id", agent.Id.ToString());
@@ -284,30 +184,6 @@ public sealed class CatalogRepository(ISqliteConnectionFactory factory) : ICatal
         command.Parameters.AddWithValue("$updatedAt", agent.UpdatedAt.ToString("O"));
     }
 
-    /// <summary>
-    /// Performs the bind plugin step owned by this component.
-    /// </summary>
-    private static void BindPlugin(Microsoft.Data.Sqlite.SqliteCommand command, PluginDefinition plugin)
-    {
-        command.Parameters.AddWithValue("$id", plugin.Id.ToString());
-        command.Parameters.AddWithValue("$name", plugin.Name);
-        command.Parameters.AddWithValue("$description", plugin.Description);
-        command.Parameters.AddWithValue("$iconKey", plugin.IconKey);
-        command.Parameters.AddWithValue("$instructions", plugin.Instructions);
-        command.Parameters.AddWithValue("$capabilitiesJson", plugin.CapabilitiesJson);
-        command.Parameters.AddWithValue("$conflictsJson", plugin.ConflictsJson);
-        command.Parameters.AddWithValue("$persists", plugin.Persists ? 1 : 0);
-        command.Parameters.AddWithValue("$isBuiltIn", plugin.IsBuiltIn ? 1 : 0);
-        command.Parameters.AddWithValue("$isEnabled", plugin.IsEnabled ? 1 : 0);
-        command.Parameters.AddWithValue("$updatedAt", plugin.UpdatedAt.ToString("O"));
-        command.Parameters.AddWithValue("$isAgentic", plugin.IsAgentic ? 1 : 0);
-        command.Parameters.AddWithValue("$allowedModesJson", plugin.AllowedModesJson);
-        command.Parameters.AddWithValue("$dashboardTilesJson", plugin.DashboardTilesJson);
-    }
-
-    /// <summary>
-    /// Performs the bind prompt step owned by this component.
-    /// </summary>
     private static void BindPrompt(Microsoft.Data.Sqlite.SqliteCommand command, PromptDefinition prompt)
     {
         command.Parameters.AddWithValue("$id", prompt.Id.ToString());

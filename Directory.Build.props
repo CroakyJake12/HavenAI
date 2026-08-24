@@ -13,5 +13,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj-*/**;bin-*/**</DefaultItemExcludes>
   </PropertyGroup>
 </Project>

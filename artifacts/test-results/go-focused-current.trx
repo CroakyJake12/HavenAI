@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="01bc1793-8d72-4956-9b90-6d9fa7693be0" name="Jacob@DESKTOP-7CHJ9S6 2026-08-15 08:41:34" runUser="DESKTOP-7CHJ9S6\Jacob" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-15T08:41:34.1206899+01:00" queuing="2026-08-15T08:41:34.1206900+01:00" start="2026-08-15T08:41:32.5445931+01:00" finish="2026-08-15T08:41:34.1270062+01:00" />
+  <TestSettings name="default" id="cf391f75-9a74-459a-9449-3ef8aefc41b1">
+    <Deployment runDeploymentRoot="Jacob_DESKTOP-7CHJ9S6_2026-08-15_08_41_34" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="e27c8a47-3bf4-4f76-8973-f263c50f7eaf" testId="d0427673-2141-5778-9f0f-5903d61d85b9" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0172428" startTime="2026-08-15T08:41:33.9834793+01:00" endTime="2026-08-15T08:41:34.0007632+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e27c8a47-3bf4-4f76-8973-f263c50f7eaf" />
+    <UnitTestResult executionId="9ffc48fd-d3be-4b98-bef5-f5823b0a15fb" testId="8cc10646-f75e-4bb6-6a90-9654b8f2a23a" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0055553" startTime="2026-08-15T08:41:34.0278643+01:00" endTime="2026-08-15T08:41:34.0334559+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9ffc48fd-d3be-4b98-bef5-f5823b0a15fb" />
+    <UnitTestResult executionId="33de0d9a-7497-4149-95b7-eda893badc5f" testId="77f8e135-ffba-53a5-be59-d27933bb92d7" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0147848" startTime="2026-08-15T08:41:34.0076581+01:00" endTime="2026-08-15T08:41:34.0225935+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="33de0d9a-7497-4149-95b7-eda893badc5f">
+      <Output>
+        <ErrorInfo>
+          <Message>System.InvalidOperationException : Cannot set Name : styled element already styled.</Message>
+          <StackTrace>   at Avalonia.StyledElement.set_Name(String value)&#xD;
+   at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.SyncFromInput() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs:line 90&#xD;
+   at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.OnInputInvalidated(Object sender, EventArgs e) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs:line 73&#xD;
+   at Haven.UI.HavenElement.Invalidate() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs:line 54&#xD;
+   at Haven.UI.HavenElement.SetValue[T](HavenProperty`1 property, T value, HavenValueSource source) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs:line 114&#xD;
+   at Haven.UI.Components.Input.set_Text(String value) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Components\Input\Input.cs:line 27&#xD;
+   at Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs:line 98&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="7d1411bb-4a2f-4f57-af87-da68a1597ee6" testId="2f775634-b151-b0ca-e2af-1a79c5c92294" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0144316" startTime="2026-08-15T08:41:33.9375925+01:00" endTime="2026-08-15T08:41:33.9523821+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7d1411bb-4a2f-4f57-af87-da68a1597ee6" />
+    <UnitTestResult executionId="06ecc560-12cc-47cc-a6eb-9520db18335d" testId="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Wide_desktop_layout_keeps_primary_go_surfaces_centered" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0132274" startTime="2026-08-15T08:41:33.9581845+01:00" endTime="2026-08-15T08:41:33.9714534+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="06ecc560-12cc-47cc-a6eb-9520db18335d" />
+    <UnitTestResult executionId="06fe218d-2cf1-4c7c-b714-d9d312fe67c5" testId="5cfecc64-cfdc-2085-af02-f5cc2777c94a" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.2087553" startTime="2026-08-15T08:41:33.6896666+01:00" endTime="2026-08-15T08:41:33.9113395+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="06fe218d-2cf1-4c7c-b714-d9d312fe67c5">
+      <Output>
+        <ErrorInfo>
+          <Message>System.InvalidOperationException : Cannot set Name : styled element already styled.</Message>
+          <StackTrace>   at Avalonia.StyledElement.set_Name(String value)&#xD;
+   at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.SyncFromInput() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs:line 90&#xD;
+   at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.OnInputInvalidated(Object sender, EventArgs e) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs:line 73&#xD;
+   at Haven.UI.HavenElement.Invalidate() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs:line 54&#xD;
+   at Haven.UI.HavenElement.SetValue[T](HavenProperty`1 property, T value, HavenValueSource source) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs:line 114&#xD;
+   at Haven.UI.Components.Input.set_Text(String value) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Components\Input\Input.cs:line 27&#xD;
+   at Haven.Desktop.Views.Pages.Go.GoHavenScene.HideAddMenu() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\Views\Pages\Go\GoHavenScene.cs:line 189&#xD;
+   at Haven.Desktop.Views.Pages.Go.GoHavenScene.OnDismissInvoked(Object sender, EventArgs e) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\Views\Pages\Go\GoHavenScene.cs:line 451&#xD;
+   at Haven.UI.HavenElement.Invoke() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs:line 174&#xD;
+   at Haven.UI.HavenInputRouter.Activate(HavenElement element) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Input\HavenInputRouter.cs:line 108&#xD;
+   at Haven.UI.HavenInputRouter.PointerReleased(HavenPoint point) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Input\HavenInputRouter.cs:line 49&#xD;
+   at Haven.Desktop.Tests.GoPageResponsiveTests.ClickAt(HavenInputRouter router, HavenPoint point) in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs:line 176&#xD;
+   at Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs:line 129&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="d0427673-2141-5778-9f0f-5903d61d85b9">
+      <Execution id="e27c8a47-3bf4-4f76-8973-f263c50f7eaf" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="2f775634-b151-b0ca-e2af-1a79c5c92294">
+      <Execution id="7d1411bb-4a2f-4f57-af87-da68a1597ee6" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="8cc10646-f75e-4bb6-6a90-9654b8f2a23a">
+      <Execution id="9ffc48fd-d3be-4b98-bef5-f5823b0a15fb" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="5cfecc64-cfdc-2085-af02-f5cc2777c94a">
+      <Execution id="06fe218d-2cf1-4c7c-b714-d9d312fe67c5" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Wide_desktop_layout_keeps_primary_go_surfaces_centered" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0">
+      <Execution id="06ecc560-12cc-47cc-a6eb-9520db18335d" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Wide_desktop_layout_keeps_primary_go_surfaces_centered" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="77f8e135-ffba-53a5-be59-d27933bb92d7">
+      <Execution id="33de0d9a-7497-4149-95b7-eda893badc5f" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Haven_scene_suggestion_and_composer_preserve_go_submission_flow" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="d0427673-2141-5778-9f0f-5903d61d85b9" executionId="e27c8a47-3bf4-4f76-8973-f263c50f7eaf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8cc10646-f75e-4bb6-6a90-9654b8f2a23a" executionId="9ffc48fd-d3be-4b98-bef5-f5823b0a15fb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="77f8e135-ffba-53a5-be59-d27933bb92d7" executionId="33de0d9a-7497-4149-95b7-eda893badc5f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2f775634-b151-b0ca-e2af-1a79c5c92294" executionId="7d1411bb-4a2f-4f57-af87-da68a1597ee6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0" executionId="06ecc560-12cc-47cc-a6eb-9520db18335d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5cfecc64-cfdc-2085-af02-f5cc2777c94a" executionId="06fe218d-2cf1-4c7c-b714-d9d312fe67c5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="6" executed="6" passed="4" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.10)&#xD;
+[xUnit.net 00:00:00.13]   Discovering: Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.33]   Discovered:  Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.47]   Starting:    Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:01.00]       System.InvalidOperationException : Cannot set Name : styled element already styled.&#xD;
+[xUnit.net 00:00:01.00]       Stack Trace:&#xD;
+[xUnit.net 00:00:01.00]            at Avalonia.StyledElement.set_Name(String value)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs(90,0): at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.SyncFromInput()&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs(73,0): at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.OnInputInvalidated(Object sender, EventArgs e)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs(54,0): at Haven.UI.HavenElement.Invalidate()&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs(114,0): at Haven.UI.HavenElement.SetValue[T](HavenProperty`1 property, T value, HavenValueSource source)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Components\Input\Input.cs(27,0): at Haven.UI.Components.Input.set_Text(String value)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\Views\Pages\Go\GoHavenScene.cs(189,0): at Haven.Desktop.Views.Pages.Go.GoHavenScene.HideAddMenu()&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\Views\Pages\Go\GoHavenScene.cs(451,0): at Haven.Desktop.Views.Pages.Go.GoHavenScene.OnDismissInvoked(Object sender, EventArgs e)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs(174,0): at Haven.UI.HavenElement.Invoke()&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Input\HavenInputRouter.cs(108,0): at Haven.UI.HavenInputRouter.Activate(HavenElement element)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Input\HavenInputRouter.cs(49,0): at Haven.UI.HavenInputRouter.PointerReleased(HavenPoint point)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs(176,0): at Haven.Desktop.Tests.GoPageResponsiveTests.ClickAt(HavenInputRouter router, HavenPoint point)&#xD;
+[xUnit.net 00:00:01.00]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs(129,0): at Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background()&#xD;
+[xUnit.net 00:00:01.00]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:01.00]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:01.11]       System.InvalidOperationException : Cannot set Name : styled element already styled.&#xD;
+[xUnit.net 00:00:01.11]       Stack Trace:&#xD;
+[xUnit.net 00:00:01.11]            at Avalonia.StyledElement.set_Name(String value)&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs(90,0): at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.SyncFromInput()&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Desktop\HavenUI\Backend\HavenAvaloniaTextInputAdapter.cs(73,0): at Haven.Desktop.HavenUI.Backend.HavenAvaloniaTextInputAdapter.OnInputInvalidated(Object sender, EventArgs e)&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs(54,0): at Haven.UI.HavenElement.Invalidate()&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Scene\HavenElement.cs(114,0): at Haven.UI.HavenElement.SetValue[T](HavenProperty`1 property, T value, HavenValueSource source)&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.UI\Components\Input\Input.cs(27,0): at Haven.UI.Components.Input.set_Text(String value)&#xD;
+[xUnit.net 00:00:01.11]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs(98,0): at Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow()&#xD;
+[xUnit.net 00:00:01.11]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:01.11]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:01.12]   Finished:    Haven.Desktop.Tests (ID = '6af4a94bc17ebdbd1a28f789ec417e791bbca09ef8b01f58bbd623e29235e022')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="DESKTOP-7CHJ9S6" outcome="Error" timestamp="2026-08-15T08:41:33.9157508+01:00">
+        <Text>[xUnit.net 00:00:01.00]     Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="DESKTOP-7CHJ9S6" outcome="Error" timestamp="2026-08-15T08:41:34.0233006+01:00">
+        <Text>[xUnit.net 00:00:01.11]     Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

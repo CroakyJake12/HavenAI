@@ -11,6 +11,7 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.LessonSettingsView">
   <!-- Lesson Settings — configure a Study lesson's name, topic group, and JSON structure -->
   <!-- Section: Keeps the region usable when content exceeds the available window size. -->
@@ -26,36 +27,36 @@
            LESSON NAME + TOPIC GROUP
            Basic identification fields for the lesson
            ============================================================ -->
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="9">
           <TextBlock Text="Lesson name" Classes="muted" FontSize="11" />
-          <TextBox Text="{Binding Name}" />
+          <hui:HavenTextInput Text="{Binding Name}" />
           <TextBlock Text="Topic group" Classes="muted" FontSize="11" Margin="0,5,0,0" />
-          <TextBox Text="{Binding TopicGroup}" PlaceholderText="General" />
+          <hui:HavenTextInput Text="{Binding TopicGroup}" PlaceholderText="General" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- ============================================================
            STRUCTURE — JSON outline editor
            Monospace text box for editing the lesson's structured JSON.
            Contains sections, objectives, and progress metadata.
            ============================================================ -->
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="9">
           <TextBlock Text="STRUCTURE" Classes="eyebrow" />
           <TextBlock Text="JSON outline used to preserve sections, objectives, and progress metadata." Classes="muted" FontSize="11" />
-          <TextBox Text="{Binding StructureJson}"
+          <hui:HavenTextInput Text="{Binding StructureJson}"
                    AcceptsReturn="True"
                    TextWrapping="NoWrap"
                    FontFamily="Cascadia Code, Consolas"
                    MinHeight="190" />
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- Footer: status + Save button -->
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="Save lesson" Classes="accent" Command="{Binding SaveCommand}" />
+        <hui:HavenButton Grid.Column="1" Content="Save lesson" Classes="accent" Command="{Binding SaveCommand}" />
       </Grid>
     </StackPanel>
   </ScrollViewer>

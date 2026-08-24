@@ -1,0 +1,23 @@
+# Built-in Haven classes. Reusable declarations never live in Page files.
+Class Button {
+    FontFamily = Montserrat;
+    FontWeight = 800;
+    MinHeight = 48px;
+    Hover = True;
+}
+Class Text {
+    FontFamily = Montserrat;
+    FontWeight = 600;
+    Hover = False;
+}
+Class Container {
+    Hover = False;
+    Background = Transparent;
+}
+Class Toggle {
+    Hover = True;
+    Radius = 15px;
+}
+Class Slider {
+    Hover = True;
+}

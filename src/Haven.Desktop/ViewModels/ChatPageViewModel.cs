@@ -1,7 +1,7 @@
 /*
  * FILE DOCUMENTATION
  * Where: src/Haven.Desktop/ViewModels/ChatPageViewModel.cs, in the Desktop presentation-model layer, exposing bindable state and commands to Avalonia views.
- * What: This file owns ChatPageViewModel, PreparedAttachment, MessageBubbleViewModel, AgentItemViewModel, PluginItemViewModel, PromptItemViewModel, CatalogVisibility, ContainerItemViewModel, LessonItemViewModel, LessonGroupViewModel, ToolActivityViewModel, InlineQuestionViewModel, AttachmentItemViewModel. Read the type and member comments below as a map of each responsibility.
+ * What: This file owns ChatPageViewModel, PreparedAttachment, MessageBubbleViewModel, AgentItemViewModel, CapabilityItemViewModel, PromptItemViewModel, CatalogVisibility, ContainerItemViewModel, LessonItemViewModel, LessonGroupViewModel, ToolActivityViewModel, InlineQuestionViewModel, AttachmentItemViewModel. Read the type and member comments below as a map of each responsibility.
  * How: Public members form the callable contract; private members hold implementation details; asynchronous members carry cancellation through I/O.
  * Why: Keeping UI state here makes the XAML declarative and keeps behavior testable without recreating the full window.
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
@@ -43,6 +43,8 @@ public sealed class ChatPageViewModel : ObservableObject
     /// Stores catalog locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private readonly ICatalogRepository _catalog;
+    private readonly CapabilityRegistryService? _capabilityRegistry;
+    private IReadOnlyList<ActiveCapability> _registeredCapabilities = [];
     /// <summary>
     /// Stores ollama locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -235,6 +237,7 @@ public sealed class ChatPageViewModel : ObservableObject
         _conversations = conversations;
         _containers = containers;
         _catalog = catalog;
+        _capabilityRegistry = App.Services?.GetService<CapabilityRegistryService>();
         _ollama = ollama;
         _sessions = sessions;
         _preferences = preferences;
@@ -249,8 +252,8 @@ public sealed class ChatPageViewModel : ObservableObject
         StopCommand = new RelayCommand(Stop, () => IsSending);
         NewChatCommand = new RelayCommand(NewChat);
         ToggleTemporaryCommand = new RelayCommand(ToggleTemporary);
-        TogglePluginCommand = new RelayCommand<PluginItemViewModel>(TogglePlugin);
-        SelectPluginCommand = new RelayCommand<PluginItemViewModel>(SelectPlugin);
+        TogglePluginCommand = new RelayCommand<CapabilityItemViewModel>(TogglePlugin);
+        SelectPluginCommand = new RelayCommand<CapabilityItemViewModel>(SelectPlugin);
         OpenPluginPickerCommand = new RelayCommand(OpenPluginPicker);
         TogglePromptCommand = new RelayCommand<PromptItemViewModel>(TogglePrompt);
         SelectPromptCommand = new RelayCommand<PromptItemViewModel>(SelectPrompt);
@@ -486,11 +489,11 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates plugins, the bindable or domain state represented by this property.
     /// </summary>
-    public ObservableCollection<PluginItemViewModel> Plugins { get; } = [];
+    public ObservableCollection<CapabilityItemViewModel> Plugins { get; } = [];
     /// <summary>
     /// Gets or updates plugin suggestions, the bindable or domain state represented by this property.
     /// </summary>
-    public ObservableCollection<PluginItemViewModel> PluginSuggestions { get; } = [];
+    public ObservableCollection<CapabilityItemViewModel> PluginSuggestions { get; } = [];
     /// <summary>
     /// Gets or updates prompts, the bindable or domain state represented by this property.
     /// </summary>
@@ -785,11 +788,11 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Gets or updates toggle plugin command, the bindable or domain state represented by this property.
     /// </summary>
-    public RelayCommand<PluginItemViewModel> TogglePluginCommand { get; }
+    public RelayCommand<CapabilityItemViewModel> TogglePluginCommand { get; }
     /// <summary>
     /// Gets or updates select plugin command, the bindable or domain state represented by this property.
     /// </summary>
-    public RelayCommand<PluginItemViewModel> SelectPluginCommand { get; }
+    public RelayCommand<CapabilityItemViewModel> SelectPluginCommand { get; }
     /// <summary>
     /// Gets or updates open plugin picker command, the bindable or domain state represented by this property.
     /// </summary>
@@ -940,9 +943,13 @@ public sealed class ChatPageViewModel : ObservableObject
         Prompts.Clear();
         foreach (var agent in await _catalog.GetAgentsAsync(cancellationToken)) Agents.Add(new AgentItemViewModel(agent));
         SelectedAgent = Agents.FirstOrDefault(item => item.Name.Equals(selectedAgentName, StringComparison.OrdinalIgnoreCase)) ?? Agents.FirstOrDefault();
-        foreach (var plugin in await _catalog.GetPluginsAsync(cancellationToken))
+        var discoveredCapabilities = _capabilityRegistry is null
+            ? Array.Empty<CapabilityDefinition>()
+            : (await _capabilityRegistry.DiscoverAsync(OperatingSystem.IsAndroid() ? CapabilityPlatform.Android : CapabilityPlatform.Windows, cancellationToken)).ToArray();
+        _registeredCapabilities = discoveredCapabilities.Select(ActiveCapability.FromDefinition).ToArray();
+        foreach (var plugin in discoveredCapabilities)
         {
-            var item = new PluginItemViewModel(plugin, Mode, _preferences.ShowAgenticInChat) { IsActive = activePlugins.Contains(plugin.Name) };
+            var item = new CapabilityItemViewModel(CapabilityPickerDefinition.FromDefinition(plugin), Mode, _preferences.ShowAgenticInChat) { IsActive = activePlugins.Contains(plugin.Name) };
             Plugins.Add(item);
         }
         RefreshPluginAvailability();
@@ -1141,12 +1148,14 @@ public sealed class ChatPageViewModel : ObservableObject
             prepared = await AddGroupResourceImagesAsync(prepared, _sendCancellation.Token);
             if (Messages.Count == 0)
                 _conversation = NewConversation(_conversation.CreatedAt) with { Id = _conversation.Id, Title = BuildTitle(prompt), IsTemporary = IsTemporary };
-            var active = Plugins.Where(x => x.IsActive).Select(x => new ActivePlugin(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
+            var active = _registeredCapabilities
+                .Where(capability => Plugins.Any(item => item.IsActive && item.Name.Equals(capability.Name, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
             var activePrompts = Prompts.Where(x => x.IsActive).Select(x => new ActivePrompt(x.Name, x.IconKey, x.Persists, x.Instructions)).ToArray();
             var model = SelectedModel ?? throw new InvalidOperationException("No compatible local model is selected.");
             var selectedAgent = ResolveAgent(prompt);
-            var agent = IsAgentPluginActive ? selectedAgent?.Name ?? "Default" : "Default";
-            var agentInstructions = IsAgentPluginActive ? selectedAgent?.Instructions ?? string.Empty : string.Empty;
+            var agent = selectedAgent?.Name ?? "Default";
+            var agentInstructions = selectedAgent?.Instructions ?? string.Empty;
             var registeredContext = await BuildRegisteredContextAsync(prompt, _sendCancellation.Token);
             var containerContext = await BuildContainerContextAsync(_sendCancellation.Token);
             var containerInstructions = BuildContainerInstructions();
@@ -1159,7 +1168,8 @@ public sealed class ChatPageViewModel : ObservableObject
                                prepared.Images, _sendCancellation.Token, activePrompts, registeredContext, _preferences.GenerationOptions,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.FilePermission,
                                permissionApproved ? PermissionMode.FullAccess : _preferences.CommandPermission,
-                               permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission))
+                               permissionApproved ? PermissionMode.FullAccess : _preferences.BrowserPermission,
+                               availableCapabilities: _registeredCapabilities))
             {
                 switch (item.Kind)
                 {
@@ -1455,7 +1465,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Performs the toggle plugin step owned by this component.
     /// </summary>
-    private void TogglePlugin(PluginItemViewModel? plugin)
+    private void TogglePlugin(CapabilityItemViewModel? plugin)
     {
         if (plugin is null) return;
         if (!plugin.IsAvailableInMode)
@@ -1527,7 +1537,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// <summary>
     /// Performs the select plugin step owned by this component.
     /// </summary>
-    private void SelectPlugin(PluginItemViewModel? plugin)
+    private void SelectPlugin(CapabilityItemViewModel? plugin)
     {
         if (plugin is null) return;
         if (!plugin.IsActive) TogglePlugin(plugin);
@@ -1638,8 +1648,8 @@ public sealed class ChatPageViewModel : ObservableObject
                 plugin.SetRuntimeAvailability(true, string.Empty);
                 continue;
             }
-            var available = _sessions.CanActivatePlugin(plugin.Name, Mode, SelectedContainer?.RootPath,
-                _preferences.FilePermission, _preferences.CommandPermission, _preferences.BrowserPermission);
+            var available = _registeredCapabilities.Any(capability => capability.Name.Equals(plugin.Name, StringComparison.OrdinalIgnoreCase));
+                
             plugin.SetRuntimeAvailability(available, available ? string.Empty : RuntimePluginReason(plugin.Name));
             if (!available) plugin.IsActive = false;
         }
@@ -1671,7 +1681,7 @@ public sealed class ChatPageViewModel : ObservableObject
     /// </summary>
     private AgentItemViewModel? ResolveAgent(string prompt)
     {
-        if (!IsAgentPluginActive) return null;
+        if (SelectedAgent is null) return Agents.FirstOrDefault(agent => agent.Name == "Default");
         if (!string.Equals(SelectedAgent?.Name, "Auto", StringComparison.OrdinalIgnoreCase)) return SelectedAgent;
         var matched = Agents
             .Where(agent => agent.Name is not "Auto" and not "Default")
@@ -2783,7 +2793,7 @@ public sealed class AgentItemViewModel(AgentDefinition definition)
 /// <summary>
 /// Represents plugin item view model and keeps its related state and behavior together.
 /// </summary>
-public sealed class PluginItemViewModel(PluginDefinition definition, HavenMode mode, bool showAgenticInChat) : ObservableObject
+public sealed class CapabilityItemViewModel(CapabilityPickerDefinition definition, HavenMode mode, bool showAgenticInChat) : ObservableObject
 {
     /// <summary>
     /// Stores is active locally so this component can preserve the dependency, cache, or state between member calls.

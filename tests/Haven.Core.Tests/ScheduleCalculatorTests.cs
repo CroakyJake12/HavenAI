@@ -7,7 +7,7 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
-using Haven.Automations;
+using Haven.Application.Automations;
 using Haven.Core;
 
 namespace Haven.Core.Tests;
@@ -20,7 +20,7 @@ public sealed class ScheduleCalculatorTests
     /// <summary>
     /// Stores calculator locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private readonly ScheduleCalculator _calculator = new(TimeZoneInfo.Utc);
+    private readonly ScheduledTaskScheduleCalculator _calculator = new(TimeZoneInfo.Utc);
 
     /// <summary>
     /// Performs the daily schedule moves to tomorrow after time has passed step owned by this component.

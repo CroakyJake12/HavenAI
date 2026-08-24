@@ -206,7 +206,7 @@ public sealed partial class WorkspaceChromeHost
         Grid.SetColumn(navigation, 1);
         grid.Children.Add(navigation);
 
-        var addTab = new Button
+        var addTab = new HavenButton
         {
             Content = new HavenIcon { IconKey = "plus", Width = 15, Height = 15 },
             VerticalAlignment = VerticalAlignment.Center,
@@ -233,7 +233,7 @@ public sealed partial class WorkspaceChromeHost
         Grid.SetColumn(tabArea, 2);
         grid.Children.Add(tabArea);
 
-        var modelStatus = new Button
+        var modelStatus = new HavenButton
         {
             Content = new StackPanel
             {
@@ -254,7 +254,7 @@ public sealed partial class WorkspaceChromeHost
         Grid.SetColumn(modelStatus, 3);
         grid.Children.Add(modelStatus);
 
-        _actionsButton = new Button
+        _actionsButton = new HavenButton
         {
             Content = new StackPanel
             {
@@ -281,7 +281,7 @@ public sealed partial class WorkspaceChromeHost
         Grid.SetColumn(_actionsButton, 4);
         grid.Children.Add(_actionsButton);
 
-        return new Border
+        return new HavenAdaptiveSurface
         {
             Background = ModernResourceBrush("HavenPanelBrush", Color.FromArgb(245, 38, 45, 61)),
             BorderBrush = ModernResourceBrush("HavenLineBrush", Color.FromArgb(54, 255, 255, 255)),
@@ -348,7 +348,7 @@ public sealed partial class WorkspaceChromeHost
             }
         };
 
-        return new Flyout
+        return new HavenAdaptivePopup
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
             FlyoutPresenterTheme = Avalonia.Application.Current?.Resources["HavenAcrylicFlyoutPresenterTheme"] as ControlTheme,
@@ -592,37 +592,21 @@ public sealed partial class WorkspaceChromeHost
                 title
             }
         };
-        var underline = new Border
+        var button = new HavenTabButton
         {
-            Height = 2,
-            Margin = new Thickness(-2, 2, -2, 0),
-            Background = ModernResourceBrush("HavenAccentBrush", Colors.DodgerBlue),
-            CornerRadius = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsVisible = tab.IsSelected
-        };
-        var content = new StackPanel
-        {
-            Spacing = 0,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Children = { iconAndTitle, underline }
-        };
-
-        var button = new Button
-        {
-            Content = content,
+            Content = iconAndTitle,
+            IsSelected = tab.IsSelected,
             MinWidth = 78,
             MaxWidth = 225,
             MinHeight = 38,
-            Padding = new Thickness(10, 3),
+            Padding = new Thickness(10, 5),
             Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(10),
+            BorderThickness = tab.IsSelected ? new Thickness(0, 0, 0, 3) : new Thickness(0),
+            CornerRadius = new CornerRadius(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center
         };
         button.Classes.Add("workspaceTab");
-        if (tab.IsSelected) button.Classes.Add("active");
         if (tab.IsMarkedForGrouping)
         {
             button.BorderBrush = ModernResourceBrush("HavenAccentBrush", Colors.DodgerBlue);
@@ -663,28 +647,28 @@ public sealed partial class WorkspaceChromeHost
     /// </summary>
     private ContextMenu BuildTabContextMenu(WorkspaceTabViewModel tab)
     {
-        var refresh = new MenuItem { Header = "Refresh tab" };
+        var refresh = new HavenMenuItem { Header = "Refresh tab" };
         refresh.Click += async (_, _) => await RefreshTabAsync(tab);
 
-        var rename = new MenuItem { Header = "Rename tab" };
+        var rename = new HavenMenuItem { Header = "Rename tab" };
         rename.Click += async (_, _) => await RenameTabAsync(tab);
 
         var tabIndex = _modernShell?.OpenTabs.IndexOf(tab) ?? -1;
-        var closeRight = new MenuItem
+        var closeRight = new HavenMenuItem
         {
             Header = "Close all tabs to the right",
             IsEnabled = _modernShell is not null && tabIndex >= 0 && tabIndex < _modernShell.OpenTabs.Count - 1
         };
         closeRight.Click += (_, _) => CloseTabsBeside(tab, closeRight: true);
 
-        var closeLeft = new MenuItem
+        var closeLeft = new HavenMenuItem
         {
             Header = "Close all tabs to the left",
             IsEnabled = tabIndex > 0
         };
         closeLeft.Click += (_, _) => CloseTabsBeside(tab, closeRight: false);
 
-        var close = new MenuItem
+        var close = new HavenMenuItem
         {
             Header = "Close tab",
             IsVisible = _modernShell is { OpenTabs.Count: > 1 } && tab.IsCloseable
@@ -692,12 +676,12 @@ public sealed partial class WorkspaceChromeHost
         close.Click += (_, _) => CloseModernTab(tab);
 
         var markedCount = _modernShell?.OpenTabs.Count(item => item.IsMarkedForGrouping) ?? 0;
-        var groupSelected = new MenuItem { Header = "Group selected tabs...", IsVisible = markedCount >= 2 };
+        var groupSelected = new HavenMenuItem { Header = "Group selected tabs...", IsVisible = markedCount >= 2 };
         groupSelected.Click += async (_, _) => await CreateGroupFromMarkedTabsAsync();
-        var removeFromGroup = new MenuItem { Header = "Remove from group", IsVisible = tab.GroupId is not null };
+        var removeFromGroup = new HavenMenuItem { Header = "Remove from group", IsVisible = tab.GroupId is not null };
         removeFromGroup.Click += (_, _) => RemoveTabFromGroup(tab);
 
-        return new ContextMenu
+        return new HavenContextMenu
         {
             ItemsSource = new object[] { refresh, rename, new Separator(), groupSelected, removeFromGroup, new Separator(), closeRight, closeLeft, new Separator(), close }
         };
@@ -708,7 +692,7 @@ public sealed partial class WorkspaceChromeHost
     {
         var members = _modernShell!.OpenTabs.Where(tab => tab.GroupId == groupId).ToArray();
         var first = members[0];
-        var button = new Button
+        var button = new HavenButton
         {
             Content = $"{(first.IsGroupCollapsed ? "›" : "⌄")}  {first.GroupName}",
             Margin = new Thickness(5, 0, 2, 0),
@@ -723,21 +707,21 @@ public sealed partial class WorkspaceChromeHost
 
     private ContextMenu BuildGroupContextMenu(Guid groupId)
     {
-        var rename = new MenuItem { Header = "Rename group..." };
+        var rename = new HavenMenuItem { Header = "Rename group..." };
         rename.Click += async (_, _) => await RenameGroupAsync(groupId);
-        var refresh = new MenuItem { Header = "Refresh group" };
+        var refresh = new HavenMenuItem { Header = "Refresh group" };
         refresh.Click += async (_, _) =>
         {
             foreach (var tab in _modernShell!.OpenTabs.Where(item => item.GroupId == groupId).ToArray())
                 await RefreshTabAsync(tab);
         };
-        var ungroup = new MenuItem { Header = "Ungroup" };
+        var ungroup = new HavenMenuItem { Header = "Ungroup" };
         ungroup.Click += (_, _) => Ungroup(groupId);
-        var closeGroup = new MenuItem { Header = "Close group" };
+        var closeGroup = new HavenMenuItem { Header = "Close group" };
         closeGroup.Click += (_, _) => CloseGroup(groupId, outside: false);
-        var closeOutside = new MenuItem { Header = "Close tabs outside group" };
+        var closeOutside = new HavenMenuItem { Header = "Close tabs outside group" };
         closeOutside.Click += (_, _) => CloseGroup(groupId, outside: true);
-        return new ContextMenu { ItemsSource = new object[] { rename, refresh, ungroup, new Separator(), closeGroup, closeOutside } };
+        return new HavenContextMenu { ItemsSource = new object[] { rename, refresh, ungroup, new Separator(), closeGroup, closeOutside } };
     }
 
     private async Task CreateGroupFromMarkedTabsAsync()
@@ -770,12 +754,12 @@ public sealed partial class WorkspaceChromeHost
     private async Task<string?> PromptForNameAsync(string title, string label, string initial)
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return null;
-        var input = new TextBox { Text = initial, MinWidth = 320 };
+        var input = new HavenTextInput { Text = initial, MinWidth = 320 };
         string? result = null;
         var dialog = new Window { Title = title, Width = 420, Height = 185, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var save = new Button { Content = "Save" };
+        var save = new HavenButton { Content = "Save" };
         save.Classes.Add("accent");
-        var cancel = new Button { Content = "Cancel" };
+        var cancel = new HavenButton { Content = "Cancel" };
         save.Click += (_, _) => { result = input.Text?.Trim(); dialog.Close(); };
         cancel.Click += (_, _) => dialog.Close();
         dialog.Content = new StackPanel
@@ -850,7 +834,7 @@ public sealed partial class WorkspaceChromeHost
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
 
-        var input = new TextBox { Text = tab.Title, MinWidth = 340 };
+        var input = new HavenTextInput { Text = tab.Title, MinWidth = 340 };
         var accepted = false;
         var dialog = new Window
         {
@@ -861,9 +845,9 @@ public sealed partial class WorkspaceChromeHost
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
 
-        var save = new Button { Content = "Rename" };
+        var save = new HavenButton { Content = "Rename" };
         save.Classes.Add("accent");
-        var cancel = new Button { Content = "Cancel" };
+        var cancel = new HavenButton { Content = "Cancel" };
         save.Click += (_, _) =>
         {
             accepted = true;
@@ -1093,6 +1077,8 @@ public sealed partial class WorkspaceChromeHost
             HavenSurface.Chat => "chat",
             HavenSurface.Study => "study",
             HavenSurface.Tasks => "tasks",
+            HavenSurface.Automations => "automation",
+            HavenSurface.Terminal => "commands",
             HavenSurface.Studio => "studio",
             HavenSurface.Browse => "browse",
             HavenSurface.Plan => "plan",
@@ -1170,7 +1156,7 @@ public sealed partial class WorkspaceChromeHost
                     WithModernColumn(new TextBlock { Text = category, FontWeight = FontWeight.SemiBold }, 1)
                 }
             };
-            var section = new Expander
+            var section = new HavenExpander
             {
                 Header = header,
                 IsExpanded = category is "File" or "Chat" or "Tools",
@@ -1229,7 +1215,7 @@ public sealed partial class WorkspaceChromeHost
             }
         };
 
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,

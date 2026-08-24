@@ -29,6 +29,8 @@ public sealed partial class CallPage : UserControl
     private readonly ICallCoordinator _coordinator;
     private readonly IOllamaClient _ollama;
     private readonly ISpeechModelManager _speechModels;
+    private readonly VoiceProfileCatalog _voiceProfiles;
+    private readonly UserPreferencesService _preferences;
 
     private readonly ObservableCollection<ModelDescriptor> _models = [];
     private readonly ObservableCollection<SpeechModelInfo> _speechModelsList = [];
@@ -44,6 +46,7 @@ public sealed partial class CallPage : UserControl
     private CallAudioDevice? _selectedInputDevice;
     private CallAudioDevice? _selectedOutputDevice;
     private CallVoice? _selectedVoice;
+    private VoiceProfile? _selectedVoiceProfile;
     private CallInputMode _inputMode = CallInputMode.HandsFree;
     private bool _enableSpeechOutput = true;
     private bool _initialized;
@@ -55,12 +58,16 @@ public sealed partial class CallPage : UserControl
         HavenEventBus bus,
         ICallCoordinator coordinator,
         IOllamaClient ollama,
-        ISpeechModelManager speechModels)
+        ISpeechModelManager speechModels,
+        VoiceProfileCatalog voiceProfiles,
+        UserPreferencesService preferences)
     {
         _bus = bus;
         _coordinator = coordinator;
         _ollama = ollama;
         _speechModels = speechModels;
+        _voiceProfiles = voiceProfiles;
+        _preferences = preferences;
 
         InitializeComponent();
         CreateWaveformBars();
@@ -69,6 +76,8 @@ public sealed partial class CallPage : UserControl
         _coordinator.StateChanged += OnStateChanged;
         _coordinator.TranscriptChanged += OnTranscriptChanged;
         _coordinator.AudioLevelChanged += OnAudioLevelChanged;
+        if (_coordinator is IVoiceReactionSource reactionSource)
+            reactionSource.VoiceReactionChanged += OnVoiceReactionChanged;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
@@ -103,6 +112,13 @@ public sealed partial class CallPage : UserControl
             _selectedInputDevice = _inputDevices.FirstOrDefault(d => d.IsDefault) ?? _inputDevices.FirstOrDefault();
             _selectedOutputDevice = _outputDevices.FirstOrDefault(d => d.IsDefault) ?? _outputDevices.FirstOrDefault();
             _selectedVoice = _voices.FirstOrDefault(v => v.IsDefault) ?? _voices.FirstOrDefault();
+            var profiles = _voiceProfiles.GetAll()
+                .Concat(_preferences.CustomVoiceProfiles)
+                .GroupBy(profile => profile.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .OrderBy(profile => profile.Name)
+                .ToArray();
+            _selectedVoiceProfile = profiles.FirstOrDefault(profile => profile.Id == "general") ?? profiles.FirstOrDefault();
 
             ModelCombo.ItemsSource = _models;
             ModelCombo.ItemTemplate = new FuncDataTemplate<ModelDescriptor>((m, _) => new TextBlock { Text = m?.Name });
@@ -119,6 +135,33 @@ public sealed partial class CallPage : UserControl
             {
                 if (InputModeCombo.SelectedItem is CallInputMode mode) _inputMode = mode;
             };
+
+            VoiceProfileCombo.ItemsSource = profiles;
+            VoiceProfileCombo.ItemTemplate = new FuncDataTemplate<VoiceProfile>((profile, _) => new TextBlock { Text = profile?.Name });
+            VoiceProfileCombo.SelectionChanged += (_, _) =>
+            {
+                _selectedVoiceProfile = VoiceProfileCombo.SelectedItem as VoiceProfile;
+                VoiceProfileDescription.Text = _selectedVoiceProfile?.Description ?? string.Empty;
+                UpdateVoiceProfileButtons();
+            };
+            VoiceProfileCombo.SelectedItem = _selectedVoiceProfile;
+
+            NewVoiceProfileButton.Click += (_, _) => BeginVoiceProfileEdit(null);
+            EditVoiceProfileButton.Click += (_, _) =>
+            {
+                if (_selectedVoiceProfile is { IsBuiltIn: false } profile) BeginVoiceProfileEdit(profile);
+            };
+            DeleteVoiceProfileButton.Click += (_, _) =>
+            {
+                if (_selectedVoiceProfile is { IsBuiltIn: false } profile)
+                {
+                    _preferences.RemoveCustomVoiceProfile(profile.Id);
+                    RefreshVoiceProfiles();
+                }
+            };
+            SaveVoiceProfileButton.Click += (_, _) => SaveVoiceProfile();
+            CancelVoiceProfileButton.Click += (_, _) => VoiceProfileEditor.IsVisible = false;
+            UpdateVoiceProfileButtons();
 
             InputDeviceCombo.ItemsSource = _inputDevices;
             InputDeviceCombo.ItemTemplate = new FuncDataTemplate<CallAudioDevice>((d, _) => new TextBlock { Text = d?.Name });
@@ -284,7 +327,7 @@ public sealed partial class CallPage : UserControl
     {
         for (int i = 0; i < 20; i++)
         {
-            var bar = new Border
+            var bar = new HavenAdaptiveSurface
             {
                 CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Color.Parse("#0078D4")),
@@ -314,11 +357,19 @@ public sealed partial class CallPage : UserControl
                 _selectedModel, _inputMode,
                 _selectedInputDevice?.Id, _selectedOutputDevice?.Id,
                 _selectedVoice?.Id, _enableSpeechOutput);
+            options = options with
+            {
+                VoiceProfileId = _selectedVoiceProfile?.Id,
+                VoiceProfile = _selectedVoiceProfile
+            };
             await _coordinator.StartAsync(
                 options,
                 _selectedSpeechModel?.IsInstalled == true ? _selectedSpeechModel : null,
                 CancellationToken.None);
             _isActive = true;
+            VoiceModeStatus.Text = _selectedVoiceProfile?.Name ?? "Voice";
+            VoiceReactionStatus.Text = "Live reactions ready";
+            VoiceReactionPanel.IsVisible = true;
             UpdateControlStates();
             _bus.Fire("Call.Status.Active");
         }
@@ -328,11 +379,67 @@ public sealed partial class CallPage : UserControl
         }
     }
 
+    private void BeginVoiceProfileEdit(VoiceProfile? profile)
+    {
+        VoiceProfileNameBox.Text = profile?.Name ?? string.Empty;
+        VoiceProfileDescriptionBox.Text = profile?.Description ?? string.Empty;
+        VoiceProfileInstructionsBox.Text = profile?.Instructions ?? string.Empty;
+        VoiceProfileEditor.Tag = profile?.Id;
+        VoiceProfileEditor.IsVisible = true;
+    }
+
+    private void SaveVoiceProfile()
+    {
+        var name = VoiceProfileNameBox.Text?.Trim() ?? string.Empty;
+        var instructions = VoiceProfileInstructionsBox.Text?.Trim() ?? string.Empty;
+        if (name.Length == 0 || instructions.Length == 0)
+        {
+            VoiceProfileDescription.Text = "A custom profile needs a name and instructions.";
+            return;
+        }
+        var id = VoiceProfileEditor.Tag as string;
+        if (string.IsNullOrWhiteSpace(id))
+            id = "user.voice." + Guid.NewGuid().ToString("N");
+        _preferences.UpsertCustomVoiceProfile(new VoiceProfile(
+            id,
+            name,
+            VoiceProfileDescriptionBox.Text?.Trim() ?? string.Empty,
+            instructions,
+            IsBuiltIn: false));
+        VoiceProfileEditor.IsVisible = false;
+        RefreshVoiceProfiles(id);
+    }
+
+    private void RefreshVoiceProfiles(string? selectId = null)
+    {
+        var profiles = _voiceProfiles.GetAll()
+            .Concat(_preferences.CustomVoiceProfiles)
+            .GroupBy(profile => profile.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderBy(profile => profile.Name)
+            .ToArray();
+        VoiceProfileCombo.ItemsSource = profiles;
+        _selectedVoiceProfile = profiles.FirstOrDefault(profile => profile.Id.Equals(selectId, StringComparison.OrdinalIgnoreCase))
+            ?? profiles.FirstOrDefault(profile => profile.Id == "general")
+            ?? profiles.FirstOrDefault();
+        VoiceProfileCombo.SelectedItem = _selectedVoiceProfile;
+        VoiceProfileDescription.Text = _selectedVoiceProfile?.Description ?? string.Empty;
+        UpdateVoiceProfileButtons();
+    }
+
+    private void UpdateVoiceProfileButtons()
+    {
+        var isCustom = _selectedVoiceProfile is { IsBuiltIn: false };
+        EditVoiceProfileButton.IsEnabled = isCustom;
+        DeleteVoiceProfileButton.IsEnabled = isCustom;
+    }
+
     private async Task EndCallAsync()
     {
         try { await _coordinator.EndAsync(CancellationToken.None); }
         catch (Exception ex) { TranscriptStatus.Text = $"Call cleanup failed: {ex.Message}"; }
         _isActive = false;
+        VoiceReactionPanel.IsVisible = false;
         _isPaused = false;
         UpdateControlStates();
         _bus.Fire("Call.Status.Ended");
@@ -491,6 +598,14 @@ public sealed partial class CallPage : UserControl
     private void OnAudioLevelChanged(object? sender, CallAudioLevelEventArgs e) =>
         Dispatcher.UIThread.Post(() => UpdateWaveform(e.Level));
 
+    private void OnVoiceReactionChanged(object? sender, VoiceReactionEventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        var source = _coordinator as IVoiceReactionSource;
+        VoiceModeStatus.Text = source?.ActiveVoiceProfile?.Name ?? _selectedVoiceProfile?.Name ?? "Voice";
+        VoiceReactionStatus.Text = e.Reaction.Summary;
+        VoiceReactionPanel.IsVisible = _coordinator.IsActive;
+    });
+
     private void AddTranscriptBubble(TranscriptEntry entry)
     {
         var speaker = entry.Role == MessageRole.User ? "You" : "Haven";
@@ -512,7 +627,7 @@ public sealed partial class CallPage : UserControl
         var statusPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { liveLabel } };
 
         var stack = new StackPanel { Spacing = 6, Children = { headerGrid, bodyText, statusPanel } };
-        var bubble = new Border
+        var bubble = new HavenAdaptiveSurface
         {
             Margin = new Avalonia.Thickness(0, 0, 0, 14), Padding = new Avalonia.Thickness(14),
             Background = new SolidColorBrush(Color.Parse("#33FFFFFF")),

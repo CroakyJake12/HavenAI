@@ -5,9 +5,12 @@ using ScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Views.Shell;
 
@@ -20,14 +23,18 @@ public sealed partial class MainView
     private Border? _mobileHomeFooter;
     private Border? _mobileDrawerScrim;
     private Border? _mobileDrawer;
+    private ScrollViewer? _mobileDrawerScroll;
     private StackPanel? _mobileDrawerContent;
-    private TextBox? _mobileGoInput;
+    private HavenTextInput? _mobileGoInput;
     private double? _mobileSwipeStartY;
 
     public void ApplyMobileLayout()
     {
         if (_mobileLayoutApplied)
+        {
+            RefreshMobileLayout();
             return;
+        }
 
         _mobileLayoutApplied = true;
         if (Content is not Grid root)
@@ -71,7 +78,7 @@ public sealed partial class MainView
         _mobileHomeFooter.ZIndex = 45;
         root.Children.Add(_mobileHomeFooter);
 
-        _mobileDrawerScrim = new Border
+        _mobileDrawerScrim = new HavenOverlay
         {
             IsVisible = false,
             Background = new SolidColorBrush(Color.FromArgb(105, 0, 0, 0))
@@ -86,6 +93,8 @@ public sealed partial class MainView
         Grid.SetRowSpan(_mobileDrawer, 2);
         _mobileDrawer.ZIndex = 100;
         root.Children.Add(_mobileDrawer);
+        SizeChanged += (_, _) => RefreshMobileLayout();
+        RefreshMobileLayout();
 
         OpenTabs.CollectionChanged += OnMobileTabsChanged;
         Notifications.CollectionChanged += OnMobileNotificationsChanged;
@@ -93,26 +102,107 @@ public sealed partial class MainView
         RefreshMobileChrome();
     }
 
+    public void RefreshMobileLayout()
+    {
+        if (!_mobileLayoutApplied)
+            return;
+
+        var width = Bounds.Width;
+        var height = Bounds.Height;
+        var compactWidth = width > 0 && width < 420;
+        var landscape = width > 0 && height > 0 && width > height;
+
+        PageContent.Margin = new Thickness(0, 0, 0, landscape ? 76 : compactWidth ? 84 : 92);
+
+        if (_mobileDrawer is not null)
+        {
+            _mobileDrawer.Margin = new Thickness(compactWidth ? 4 : 8);
+            _mobileDrawer.Padding = compactWidth
+                ? new Thickness(12, 8, 12, 14)
+                : new Thickness(16, 10, 16, 18);
+            _mobileDrawer.MaxWidth = width >= 720 ? 640 : double.PositiveInfinity;
+        }
+
+        if (_mobileDrawerScroll is not null)
+        {
+            var availableHeight = height > 0
+                ? height - (landscape ? 72 : 150)
+                : 610;
+            _mobileDrawerScroll.MaxHeight = Math.Clamp(availableHeight, 220, 610);
+        }
+
+        _mobileHeader?.InvalidateMeasure();
+        _mobileTabs?.InvalidateMeasure();
+        _mobileBottomAffordance?.InvalidateMeasure();
+        _mobileHomeFooter?.InvalidateMeasure();
+        _mobileDrawer?.InvalidateMeasure();
+        InvalidateMeasure();
+    }
+
     private Border BuildMobileHeader()
     {
-        var brand = MobileButton(ModelNameText.Text ?? _preferences.DefaultModel ?? "Model", "haven", ShowModelSelector, 10);
-        var actions = MobileButton("Actions", "commands", ShowMobileActions, 8);
-        var apps = MobileButton("Apps", "apps", () => _ = ShowMobileLauncherAsync(), 8);
-        var notifications = MobileIconButton("notification", ShowMobileNotifications, "Alerts");
+        var logo = new HavenLogoButton
+        {
+            Width = 54,
+            Height = 54,
+            Content = new Image
+            {
+                Source = new Bitmap(AssetLoader.Open(new Uri("avares://Haven/Assets/haven-192.png"))),
+                Width = 48,
+                Height = 48,
+                Stretch = Stretch.Uniform
+            }
+        };
+        logo.Click += (_, _) => _ = OpenHomeAsync();
+
+        var apps = MobileIconButton("rocket", () => _ = ShowMobileLauncherAsync(), "Apps");
+        var actions = MobileIconButton("rapid", ShowMobileActions, "Actions");
+        apps.Classes.Add("accent");
+        actions.Classes.Add("accent");
+        apps.Width = actions.Width = 54;
+        apps.Height = actions.Height = 54;
+        apps.CornerRadius = actions.CornerRadius = new CornerRadius(27);
+
+        var model = new HavenModelPickerButton
+        {
+            Width = 54,
+            Height = 54,
+            MinWidth = 54,
+            Padding = new Thickness(0),
+            CornerRadius = new CornerRadius(27),
+            EffortPercentage = _preferences.DefaultEffort switch
+            {
+                EffortLevel.Low => 20,
+                EffortLevel.Medium => 55,
+                EffortLevel.High => 80,
+                _ => 100
+            },
+            Content = new HavenIcon { IconKey = "cpu", Width = 23, Height = 23, Foreground = Brushes.White }
+        };
+        model.Click += (_, _) => ShowModelSelector();
+
+        var you = MobileIconButton("user", ShowMobileYou, "You: notifications, search, and tabs");
+        you.Classes.Add("accent");
+        you.Width = 54;
+        you.Height = 54;
+        you.CornerRadius = new CornerRadius(27);
+
+        var commands = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { apps, actions, model, you }
+        };
 
         var firstRow = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
-            ColumnSpacing = 6,
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 8,
             Margin = new Thickness(8, 8, 8, 4)
         };
-        firstRow.Children.Add(brand);
-        Grid.SetColumn(actions, 2);
-        Grid.SetColumn(apps, 3);
-        Grid.SetColumn(notifications, 4);
-        firstRow.Children.Add(actions);
-        firstRow.Children.Add(apps);
-        firstRow.Children.Add(notifications);
+        firstRow.Children.Add(logo);
+        Grid.SetColumn(commands, 2);
+        firstRow.Children.Add(commands);
 
         _mobileTabs = new StackPanel
         {
@@ -127,7 +217,7 @@ public sealed partial class MainView
             Content = _mobileTabs
         };
 
-        return new Border
+        return new HavenHeader
         {
             Background = ResourceBrush("HavenElevatedBrush"),
             BorderBrush = ResourceBrush("HavenLineBrush"),
@@ -142,14 +232,10 @@ public sealed partial class MainView
 
     private Border BuildHistoryAffordance()
     {
-        var handle = new Border
+        var handle = new HavenDragHandle
         {
             Width = 62,
-            Height = 5,
-            CornerRadius = new CornerRadius(99),
-            Background = ResourceBrush("HavenMutedBrush"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Opacity = 0.65
+            HorizontalAlignment = HorizontalAlignment.Center
         };
         var newChat = MobileButton("New chat", "plus", () => _ = OpenNewChatAsync(forceNewTab: true), 10);
         var newGroup = MobileButton("New group", "folder", () =>
@@ -181,7 +267,7 @@ public sealed partial class MainView
                 }
             }
         };
-        var border = new Border
+        var border = new HavenMobileSheet
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
@@ -189,9 +275,6 @@ public sealed partial class MainView
             Padding = new Thickness(12, 7),
             MinWidth = 250,
             CornerRadius = new CornerRadius(24),
-            Background = ResourceBrush("HavenElevatedBrush"),
-            BorderBrush = ResourceBrush("HavenAccentBorderBrush"),
-            BorderThickness = new Thickness(1),
             Child = content
         };
         border.PointerPressed += OnMobileAffordancePointerPressed;
@@ -203,22 +286,18 @@ public sealed partial class MainView
     private Border BuildHomeFooter()
     {
         var home = MobileIconButton("home", () => _ = OpenHomeAsync(), "Go");
-        home.Background = ResourceBrush("HavenAccentSoftBrush");
-        home.BorderBrush = ResourceBrush("HavenAccentBorderBrush");
-        home.BorderThickness = new Thickness(1);
+        home.Classes.Add("accent");
 
-        _mobileGoInput = new TextBox
+        _mobileGoInput = new HavenTextInput
         {
             PlaceholderText = "Go — ask Haven",
             MinHeight = 48,
             MinWidth = 0,
-            CornerRadius = new CornerRadius(24),
-            Padding = new Thickness(14, 10),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         _mobileGoInput.KeyDown += OnMobileGoKeyDown;
 
-        var send = MobileIconButton("send", () => _ = SubmitMobileGoAsync(), "Go");
+        var send = MobileIconButton("arrow-up", () => _ = SubmitMobileGoAsync(), "Go");
         send.MinHeight = 44;
         send.MinWidth = 44;
         send.CornerRadius = new CornerRadius(22);
@@ -246,12 +325,9 @@ public sealed partial class MainView
         Grid.SetColumn(chatBar, 1);
         footer.Children.Add(chatBar);
 
-        return new Border
+        return new HavenFooter
         {
             VerticalAlignment = VerticalAlignment.Bottom,
-            Background = ResourceBrush("HavenBackgroundBrush"),
-            BorderBrush = ResourceBrush("HavenAccentBorderBrush"),
-            BorderThickness = new Thickness(0, 1, 0, 0),
             Padding = new Thickness(0, 7, 0, 0),
             Child = footer
         };
@@ -276,31 +352,28 @@ public sealed partial class MainView
         Grid.SetColumn(close, 1);
         header.Children.Add(close);
 
+        _mobileDrawerScroll = new ScrollViewer
+        {
+            MaxHeight = 610,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = content
+        };
         var stack = new StackPanel
         {
             Spacing = 12,
             Children =
             {
-                new Border
+                new HavenDragHandle
                 {
                     Width = 58,
-                    Height = 5,
-                    CornerRadius = new CornerRadius(99),
-                    Background = ResourceBrush("HavenMutedBrush"),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Opacity = 0.65
+                    HorizontalAlignment = HorizontalAlignment.Center
                 },
                 header,
-                new ScrollViewer
-                {
-                    MaxHeight = 610,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                    Content = content
-                }
+                _mobileDrawerScroll
             }
         };
-        var drawer = new Border
+        var drawer = new HavenMobileSheet
         {
             IsVisible = false,
             VerticalAlignment = VerticalAlignment.Bottom,

@@ -1,15 +1,18 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Shell.TopRail.UniversalSearchControl">
-  <StackPanel Width="690" Spacing="9">
-    <Border Background="{DynamicResource HavenElevatedBrush}"
+  <StackPanel Spacing="9">
+    <hui:HavenAdaptiveSurface Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
             CornerRadius="22"
             Padding="5">
       <Grid>
-        <TextBox x:Name="SearchBox"
+        <hui:HavenTextInput x:Name="SearchBox"
+                 AutomationProperties.AutomationId="LauncherSearchBox"
+                 AutomationProperties.Name="Search Haven"
                  PlaceholderText="Search Haven"
                  Padding="43,13,14,13"
                  FontSize="15"
@@ -22,9 +25,9 @@
                             VerticalAlignment="Center"
                             IsHitTestVisible="False"/>
       </Grid>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
-    <Border Background="{DynamicResource HavenElevatedBrush}"
+    <hui:HavenAdaptiveSurface Background="{DynamicResource HavenElevatedBrush}"
             BorderBrush="{DynamicResource HavenLineBrush}"
             BorderThickness="1"
             CornerRadius="24"
@@ -34,10 +37,12 @@
                     VerticalScrollBarVisibility="Auto">
         <StackPanel x:Name="ResultsPanel" Spacing="5"/>
       </ScrollViewer>
-    </Border>
+    </hui:HavenAdaptiveSurface>
 
     <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-      <Button x:Name="ViewAllButton"
+      <hui:HavenButton x:Name="ViewAllButton"
+              AutomationProperties.AutomationId="LauncherCommandsButton"
+              AutomationProperties.Name="All commands"
               Classes="sidebar"
               HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Stretch"
@@ -45,10 +50,12 @@
               CornerRadius="18">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <controls:HavenIcon IconKey="chevron-right" Width="18" Height="18"/>
-          <TextBlock Text="View all" FontWeight="ExtraBold" VerticalAlignment="Center"/>
+          <TextBlock Text="All commands" FontWeight="ExtraBold" VerticalAlignment="Center"/>
         </StackPanel>
-      </Button>
-      <Button x:Name="SearchSettingsButton"
+      </hui:HavenButton>
+      <hui:HavenButton x:Name="SearchSettingsButton"
+              AutomationProperties.AutomationId="SearchSettingsButton"
+              AutomationProperties.Name="Search settings"
               Grid.Column="1"
               Classes="sidebar"
               HorizontalAlignment="Stretch"
@@ -59,7 +66,7 @@
           <controls:HavenIcon IconKey="settings" Width="18" Height="18"/>
           <TextBlock Text="Search settings" FontWeight="ExtraBold" VerticalAlignment="Center"/>
         </StackPanel>
-      </Button>
+      </hui:HavenButton>
     </Grid>
   </StackPanel>
 </UserControl>

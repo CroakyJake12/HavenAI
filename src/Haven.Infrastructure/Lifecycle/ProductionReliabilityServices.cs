@@ -151,21 +151,8 @@ public sealed class ProductionDiagnostics(IAppPaths paths) : IProductionDiagnost
     /// <summary>
     /// Performs the redact step owned by this component.
     /// </summary>
-    internal static string Redact(string? value, int maximumLength = 4_000)
-    {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
-        var sanitized = value.Replace('\0', ' ');
-        sanitized = UrlPattern.Replace(sanitized, match => RedactUrl(match.Value));
-        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(profile))
-            sanitized = sanitized.Replace(profile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
-        sanitized = Regex.Replace(
-            sanitized,
-            "(?i)(api[-_]?key|token|secret|password|authorization|cookie|credential)\\s*[:=]\\s*([^\\s,;]+)",
-            "$1=<redacted>",
-            RegexOptions.CultureInvariant);
-        return sanitized.Length <= maximumLength ? sanitized : sanitized[..maximumLength] + "…";
-    }
+    internal static string Redact(string? value, int maximumLength = 4_000) =>
+        SensitiveTextRedactor.Redact(value, maximumLength);
 
     /// <summary>
     /// Performs the sanitize data step owned by this component.

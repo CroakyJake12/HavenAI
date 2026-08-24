@@ -11,6 +11,7 @@ namespace Haven.Desktop.ViewModels;
 /// </summary>
 public sealed record WorkspaceTabState(
     string Key,
+    string AppKey,
     string Title,
     object Page,
     bool IsCloseable,
@@ -35,19 +36,28 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
     private string _groupName = string.Empty;
     private bool _isGroupCollapsed;
     private bool _isMarkedForGrouping;
+    private string _appKey;
+    private bool _isPinned;
+    private bool _isProtected;
     private readonly Stack<WorkspaceTabState> _backHistory = new();
     private readonly Stack<WorkspaceTabState> _forwardHistory = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private int _disposed;
 
-    public WorkspaceTabViewModel(string key, string title, object page, bool isCloseable, HavenSurface surface)
+    public WorkspaceTabViewModel(string key, string title, object page, bool isCloseable, HavenSurface surface, Guid? sessionId = null, string? appKey = null)
     {
+        SessionId = sessionId ?? Guid.NewGuid();
         _key = key;
+        _appKey = string.IsNullOrWhiteSpace(appKey) ? InferAppKey(key) : appKey;
         _title = title;
         Page = page;
         _isCloseable = isCloseable;
         Surface = surface;
     }
 
+    public Guid SessionId { get; private set; }
     public string Key { get => _key; private set => SetProperty(ref _key, value); }
+    public string AppKey { get => _appKey; private set => SetProperty(ref _appKey, value); }
     public string Title { get => _title; set => SetProperty(ref _title, value); }
     public object Page { get; private set; }
     public bool IsCloseable { get => _isCloseable; private set => SetProperty(ref _isCloseable, value); }
@@ -58,8 +68,11 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
     public string GroupName { get => _groupName; set => SetProperty(ref _groupName, value); }
     public bool IsGroupCollapsed { get => _isGroupCollapsed; set => SetProperty(ref _isGroupCollapsed, value); }
     public bool IsMarkedForGrouping { get => _isMarkedForGrouping; set => SetProperty(ref _isMarkedForGrouping, value); }
+    public bool IsPinned { get => _isPinned; set => SetProperty(ref _isPinned, value); }
+    public bool IsProtected { get => _isProtected; set => SetProperty(ref _isProtected, value); }
     public bool CanGoBack => _backHistory.Count > 0;
     public bool CanGoForward => _forwardHistory.Count > 0;
+    public CancellationToken LifetimeToken => _lifetime.Token;
 
     public void NavigateTo(string key, string title, object page, bool isCloseable, HavenSurface surface)
     {
@@ -73,7 +86,7 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
 
         _backHistory.Push(CaptureState());
         _forwardHistory.Clear();
-        ApplyState(new WorkspaceTabState(key, title, page, isCloseable, surface));
+        ApplyState(new WorkspaceTabState(key, InferAppKey(key), title, page, isCloseable, surface));
         RaiseHistoryChanged();
     }
 
@@ -95,11 +108,12 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    private WorkspaceTabState CaptureState() => new(Key, Title, Page, IsCloseable, Surface);
+    private WorkspaceTabState CaptureState() => new(Key, AppKey, Title, Page, IsCloseable, Surface);
 
     private void ApplyState(WorkspaceTabState state)
     {
         Key = state.Key;
+        AppKey = state.AppKey;
         Title = state.Title;
         Page = state.Page;
         IsCloseable = state.IsCloseable;
@@ -116,6 +130,8 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        _lifetime.Cancel();
         var pages = _backHistory.Select(state => state.Page)
             .Concat(_forwardHistory.Select(state => state.Page))
             .Append(Page)
@@ -125,6 +141,7 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
         _backHistory.Clear();
         _forwardHistory.Clear();
         RaiseHistoryChanged();
+        _lifetime.Dispose();
     }
 
     public void ReplacePage(object page)
@@ -140,6 +157,19 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
         if (Surface == surface) return;
         Surface = surface;
         RaisePropertyChanged(nameof(Surface));
+    }
+
+    internal void RestoreIdentity(Guid sessionId, string appKey)
+    {
+        SessionId = sessionId;
+        AppKey = appKey;
+        RaisePropertyChanged(nameof(SessionId));
+    }
+
+    private static string InferAppKey(string key)
+    {
+        var separator = key.IndexOf('-');
+        return separator <= 0 ? key : key[..separator];
     }
 }
 

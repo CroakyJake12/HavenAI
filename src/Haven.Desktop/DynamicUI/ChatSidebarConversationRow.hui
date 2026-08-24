@@ -1,0 +1,8 @@
+<DynamicUI Name="ChatSidebarConversationRow">
+  <Container Name="RowRoot" Layout="Vertical" Width="100%" Gap="3px" Margin="{{MARGIN}}">
+    <Container Name="Header" Layout="Grid" Columns="1fr 32px" Rows="40px" Width="100%" Gap="4px">
+      <Button Name="Open" Variant="Navigation" IconKey="chat" Content="{{TITLE}}" Column="0" Width="100%" MinHeight="40px" Background="{{BACKGROUND}}" />
+      <Button Name="More" Variant="Icon" IconKey="more" Content="" Column="1" Width="32px" Height="32px" MinHeight="32px" VerticalAlignment="Center" />
+    </Container>
+  </Container>
+</DynamicUI>

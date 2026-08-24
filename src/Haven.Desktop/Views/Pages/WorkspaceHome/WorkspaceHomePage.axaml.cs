@@ -80,7 +80,7 @@ public sealed partial class WorkspaceHomePage : UserControl
             HorizontalAlignment = HorizontalAlignment.Center
         };
 
-        _searchBox = new TextBox
+        _searchBox = new HavenTextInput
         {
             PlaceholderText = "Search projects",
             MinHeight = 42,
@@ -89,11 +89,11 @@ public sealed partial class WorkspaceHomePage : UserControl
         };
         _searchBox.TextChanged += (_, _) => RenderProjects();
 
-        var refreshButton = new Button { Content = "Refresh" };
+        var refreshButton = new HavenButton { Content = "Refresh" };
         refreshButton.Classes.Add("ghost");
         refreshButton.Click += async (_, _) => await RefreshAsync();
 
-        var createButton = new Button
+        var createButton = new HavenButton
         {
             Content = "Create New Project",
             IsVisible = _create is not null,
@@ -118,7 +118,7 @@ public sealed partial class WorkspaceHomePage : UserControl
 
         _sections = new StackPanel { Spacing = 24 };
 
-        _emptyState = new Border
+        _emptyState = new HavenAdaptiveSurface
         {
             IsVisible = false,
             Padding = new Thickness(24),
@@ -282,7 +282,7 @@ public sealed partial class WorkspaceHomePage : UserControl
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
-        var badge = new Border
+        var badge = new HavenAdaptiveSurface
         {
             Padding = new Thickness(8, 3),
             CornerRadius = new CornerRadius(999),
@@ -334,7 +334,7 @@ public sealed partial class WorkspaceHomePage : UserControl
             Opacity = 0.56
         };
 
-        var openButton = new Button
+        var openButton = new HavenButton
         {
             Content = "Open",
             MinWidth = 84
@@ -342,7 +342,7 @@ public sealed partial class WorkspaceHomePage : UserControl
         openButton.Classes.Add("accent");
         openButton.Click += async (_, _) => await _open(item);
 
-        var archiveButton = new Button
+        var archiveButton = new HavenButton
         {
             Content = "Archive"
         };
@@ -365,7 +365,7 @@ public sealed partial class WorkspaceHomePage : UserControl
         stack.Children.Add(updated);
         stack.Children.Add(actions);
 
-        var card = new Border
+        var card = new HavenAdaptiveSurface
         {
             Width = 338,
             MinHeight = 210,

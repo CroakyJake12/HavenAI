@@ -2,9 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media;
 using Haven.Application;
-using Haven.Automations;
+using Haven.Application.Automations;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop.Events;
@@ -33,6 +32,9 @@ public sealed partial class App : Avalonia.Application
             // Avalonia's developer-tools service is process-wide. Headless tests create
             // multiple isolated App instances in one process, so attaching per instance
             // causes cleanup failures after otherwise successful tests.
+
+
+
             if (Interlocked.Exchange(ref _developerToolsAttached, 1) == 0)
                 this.AttachDeveloperTools();
         #endif
@@ -44,7 +46,12 @@ public sealed partial class App : Avalonia.Application
         collection.AddHavenInfrastructure();
         collection.AddHavenPlannerInfrastructure();
         collection.AddHavenDesktopCallServices();
-        collection.AddHavenAutomations();
+#if ANDROID
+        global::Haven.Android.AndroidServiceRegistration.AddHavenAndroidPlatformServices(collection);
+#endif
+        collection.AddHavenMesh();
+        collection.AddSingleton<ScheduledTaskScheduleCalculator>();
+        collection.AddSingleton<ScheduledTaskRunner>();
         collection.AddSingleton<BrowserSessionService>();
         collection.AddSingleton<BrowserDataService>();
         collection.AddSingleton<BrowserNavigationPolicy>();
@@ -62,32 +69,66 @@ public sealed partial class App : Avalonia.Application
         collection.AddSingleton(provider => new SafeModeBrowserAutomationService(
             provider.GetRequiredService<BrowserAutomationService>(),
             provider.GetRequiredService<IProductionDiagnostics>()));
-        collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<SafeModeBrowserAutomationService>());
+        collection.AddSingleton(provider => new BrowserNativeDownloadAutomationService(
+            provider.GetRequiredService<SafeModeBrowserAutomationService>(),
+            provider.GetRequiredService<IBrowserNavigationPolicy>(),
+            provider.GetRequiredService<IBrowserAutomationStore>()));
+        collection.AddSingleton<IBrowserAutomationService>(provider => provider.GetRequiredService<BrowserNativeDownloadAutomationService>());
+        collection.AddSingleton<IBrowserNativeDownloadService>(provider => provider.GetRequiredService<BrowserNativeDownloadAutomationService>());
         collection.AddSingleton<IBrowserToolService>(provider => provider.GetRequiredService<BrowserSessionService>());
         collection.AddSingleton<BrowserCompletionService>();
         collection.AddSingleton<BrowserToolRuntime>();
         collection.AddSingleton<AutomationToolRuntime>();
         collection.AddSingleton<CapabilityPreflightService>();
+        collection.AddSingleton<TerminalCommandActivityHub>();
         collection.AddSingleton<WorkspaceToolRuntime>();
         collection.AddSingleton<ComputerToolRuntime>();
         collection.AddSingleton<ChatSessionService>(provider => new ChatSessionService(
             provider.GetRequiredService<IConversationRepository>(),
             provider.GetRequiredService<ProviderRoutingModelClient>(),
             provider.GetRequiredService<CapabilityPreflightService>(),
+            provider.GetRequiredService<IConversationSafetyService>(),
             provider.GetRequiredService<WorkspaceToolRuntime>(),
             provider.GetRequiredService<ComputerToolRuntime>(),
             provider.GetRequiredService<BrowserToolRuntime>(),
-            provider.GetRequiredService<AutomationToolRuntime>()));
+            provider.GetRequiredService<AutomationToolRuntime>(),
+            mcpTools: provider.GetRequiredService<McpToolRuntime>(),
+            calendarTools: provider.GetRequiredService<CalendarConnectionToolRuntime>(),
+            executionEvents: provider.GetRequiredService<IExecutionEventSink>(),
+            recovery: provider.GetRequiredService<AutonomousRecoveryService>(),
+            remediations: provider.GetRequiredService<RemediationCoordinator>()));
         collection.AddSingleton<UserPreferencesService>();
+        collection.AddSingleton<Services.AvatarStore>();
         collection.AddSingleton<Services.OllamaWakeService>();
         collection.AddSingleton<ProjectCreationService>();
         collection.AddSingleton<NotificationService>();
         collection.AddSingleton<ComputerUseOverlayCoordinator>();
-        collection.AddSingleton<AutomationDeliveryController>();
-        collection.AddSingleton<GenerativeUiThemeRuntime>();
-        collection.AddSingleton<IGenerativeUiRuntime>(provider => provider.GetRequiredService<GenerativeUiThemeRuntime>());
+#if !ANDROID
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceRegistry>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayContextActionCandidateService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayForegroundContextCaptureService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayVisualContextCaptureService>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayChatSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGoSessionFactory>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayGlobalHotkey>();
+        collection.AddSingleton<Haven.Desktop.Overlay.OverlayWorkspaceController>();
+#endif
+        // Legacy automation delivery polling retired; Tasks owns execution state.
+        
+        collection.AddSingleton<FloatingActivityStateStore>();
+        collection.AddSingleton<Haven.Desktop.Views.Pages.Imagine.VisionWorkspaceStateStore>();
+        collection.AddSingleton<AgentTaskRuntimeService>();
+#if ANDROID
+        collection.AddSingleton<IFloatingActivityHost, global::Haven.Android.Compatibility.AndroidFloatingActivityHost>();
+#else
+        collection.AddSingleton<IFloatingActivityHost, DesktopFloatingActivityHost>();
+#endif
+        
         collection.AddSingleton<HavenEventBus>();
-        collection.AddSingleton<MainView>();
+        collection.AddSingleton<Haven.Desktop.ViewModels.ProviderConnectionsViewModel>();
+        collection.AddTransient<MainView>();
+        collection.AddSingleton<WorkspaceSessionCoordinator>();
+        collection.AddSingleton<WorkspaceWindowService>();
         _services = collection.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
@@ -100,87 +141,28 @@ public sealed partial class App : Avalonia.Application
         _productionDiagnostics = _services.GetRequiredService<IProductionDiagnostics>();
         AttachExceptionHooks();
 
+#if !ANDROID
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // The launcher is temporary. Only the chosen Haven window should end the application.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             desktop.Exit += OnDesktopExit;
 
-            // Show launcher picker
             var preferences = _services.GetRequiredService<UserPreferencesService>();
-            var themeStore = _services.GetRequiredService<IGenerativeThemeStore>();
-            // The launcher is always a neutral light surface. The selected version applies
-            // its own base appearance immediately before the main visual tree is built.
-            preferences.ApplyTheme("light", save: false);
-            var picker = new LauncherPicker(preferences, themeStore);
-            var launcherWindow = new Window
-            {
-                Title = "Haven",
-                Width = 700,
-                Height = 640,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Content = picker,
-                Background = new SolidColorBrush(Color.Parse("#F1F8E9")),
-                CanResize = false
-            };
-
-            picker.LaunchRequested += (_, useNewHaven) =>
-            {
-                if (!ReferenceEquals(desktop.MainWindow, launcherWindow)) return;
-                var appearance = useNewHaven
-                    ? GenerativeThemeAppearance.Light
-                    : GenerativeThemeAppearance.Dark;
-                preferences.ApplyTheme(useNewHaven ? "new-haven" : "obsidian", save: false);
-                MainWindow window;
-                if (useNewHaven)
-                {
-                    // New Haven - light theme with new UI
-                    var mainView = _services.GetRequiredService<MainView>();
-                    mainView.ApplyEdition(HavenShellEdition.New);
-                    window = new MainWindow { DataContext = mainView };
-                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
-                        mainView,
-                        preferences.GenerativeUiEnabled,
-                        appearance);
-                }
-                else
-                {
-                    // Classic Haven - dark theme with full feature set
-                    var mainView = _services.GetRequiredService<MainView>();
-                    mainView.ApplyEdition(HavenShellEdition.Classic);
-                    window = new MainWindow { DataContext = mainView };
-                    window.Background = new SolidColorBrush(Color.Parse("#181818"));
-                    window.Opened += async (_, _) => await InitialiseSelectedHaven(
-                        mainView,
-                        preferences.GenerativeUiEnabled,
-                        appearance);
-                }
-
-                desktop.MainWindow = window;
-                window.Closed += (_, _) => desktop.Shutdown();
-                window.Show();
-                launcherWindow.Close();
-            };
-
-            // Closing the launcher without choosing an experience is still an
-            // application exit. Once a main window has been selected the reference
-            // changes first, so closing the temporary launcher cannot stop it.
-            launcherWindow.Closed += (_, _) =>
-            {
-                if (ReferenceEquals(desktop.MainWindow, launcherWindow))
-                    desktop.Shutdown();
-            };
-
-            desktop.MainWindow = launcherWindow;
+            preferences.ApplyAppearance(preferences.Appearance, save: false);
+            var mainView = _services.GetRequiredService<MainView>();
+            mainView.ApplyEdition(HavenStartupExperiencePolicy.Edition);
+            _services.GetRequiredService<WorkspaceSessionCoordinator>().Register(mainView, WorkspaceWindowKind.Main, queueSave: false);
+            var window = new MainWindow(preferences) { DataContext = mainView, PreserveWorkspaceSessionOnClose = true };
+            window.Opened += async (_, _) => await InitialiseHaven(mainView);
+            window.Closed += (_, _) => desktop.Shutdown();
+            desktop.MainWindow = window;
         }
+#endif
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task InitialiseSelectedHaven(
-        MainView shell,
-        bool generativeUiEnabled,
-        GenerativeThemeAppearance appearance)
+    private async Task InitialiseHaven(MainView shell)
     {
         var correlationId = Guid.NewGuid().ToString("N");
         try
@@ -188,14 +170,6 @@ public sealed partial class App : Avalonia.Application
             var services = _services ?? throw new InvalidOperationException("Haven services have not been initialized.");
             var recovery = _startupRecovery ?? services.GetRequiredService<IStartupRecoveryCoordinator>();
             var recoveryState = await recovery.BeginStartupAsync(CancellationToken.None);
-            if (generativeUiEnabled)
-            {
-                await services.GetRequiredService<IGenerativeThemeStore>()
-                    .SetAppearanceAsync(appearance, CancellationToken.None);
-                await services.GetRequiredService<GenerativeUiThemeRuntime>()
-                    .InitializeAsync(CancellationToken.None);
-            }
-
             BrowserAutomationRegistry.Register(
                 services.GetRequiredService<BrowserSessionService>(),
                 services.GetRequiredService<IBrowserAutomationService>());
@@ -206,7 +180,35 @@ public sealed partial class App : Avalonia.Application
             await services.GetRequiredService<ModeSeedService>().SeedBuiltInModesAsync(CancellationToken.None);
             var migration = await services.GetRequiredService<ILegacyStateMigrator>().MigrateIfNeededAsync(CancellationToken.None);
             await shell.InitializeAsync(migration, CancellationToken.None);
-            await services.GetRequiredService<AutomationDeliveryController>().StartAsync(CancellationToken.None);
+            await shell.RestoreWorkspaceSessionAsync(CancellationToken.None);
+
+            if (!recoveryState.IsSafeMode)
+            {
+                try
+                {
+                    await services.GetRequiredService<MeshCoordinator>().InitialiseAsync(CancellationToken.None);
+                }
+                catch (Exception meshException)
+                {
+                    try
+                    {
+                        await (_productionDiagnostics ?? services.GetRequiredService<IProductionDiagnostics>()).WriteAsync(
+                            ReliabilitySeverity.Warning,
+                            "mesh",
+                            "startup-unavailable",
+                            meshException.ToString(),
+                            cancellationToken: CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // Mesh is optional at startup; diagnostics must not turn it into an app-start failure.
+                    }
+                }
+            }
+#if !ANDROID
+            await services.GetRequiredService<Haven.Desktop.Overlay.OverlayWorkspaceController>().InitializeAsync(CancellationToken.None);
+#endif
+            // Scheduled Tasks have no parallel automation delivery loop.
 
             if (recoveryState.IsSafeMode)
             {
@@ -221,7 +223,29 @@ public sealed partial class App : Avalonia.Application
         }
         catch (Exception ex)
         {
-            await LogExceptionAsync("startup-failed", ex, correlationId);
+            try
+            {
+                await LogExceptionAsync("startup-failed", ex, correlationId);
+            }
+            catch
+            {
+                // The diagnostics sink must not hide the primary startup failure.
+            }
+
+            var userMessage = $"Haven could not finish starting. Diagnostic reference: {correlationId}.";
+            shell.SetStartupError(userMessage);
+            try
+            {
+                _services?.GetService<NotificationService>()?.Show(
+                    "Haven startup problem",
+                    userMessage,
+                    ToastKind.Error,
+                    TimeSpan.FromSeconds(30));
+            }
+            catch
+            {
+                // The persistent shell status remains available if toast delivery fails.
+            }
         }
     }
 

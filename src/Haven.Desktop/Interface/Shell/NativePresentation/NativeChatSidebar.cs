@@ -1,61 +1,39 @@
-using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Haven.Application;
 using Haven.Core;
-using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Backend;
 
 namespace Haven.Desktop.Views.Shell.NativePresentation;
 
 /// <summary>
-/// New Haven's repository-backed Chat sidebar. Every visual and interaction is
-/// constructed in code-behind; no binding or Classic sidebar control participates.
+/// Platform host and production coordinator for the Haven-owned Chat sidebar. Avalonia supplies only
+/// the single scene host; visible sidebar controls and runtime rows are Haven.UI/DynamicUI.
 /// </summary>
 internal sealed class NativeChatSidebar : UserControl, IDisposable
 {
-    private static readonly IBrush SurfaceBrush = Solid("#FAFCF8");
-    private static readonly IBrush HoverBrush = Solid("#EDF3ED");
-    private static readonly IBrush ActiveBrush = Solid("#BCEFF3");
-    private static readonly IBrush DividerBrush = Solid("#E1E8E0");
-    private static readonly IBrush MutedBrush = Solid("#5F6862");
-    private static readonly IBrush UnreadBrush = Solid("#F278D1");
-
     private readonly IConversationRepository _conversations;
     private readonly IContainerRepository _containers;
     private readonly Func<Conversation, Task> _openConversation;
     private readonly Func<HavenMode, Guid?, Task> _startChat;
     private readonly Func<ContainerDefinition, Task> _openGroup;
-    private readonly Func<HavenMode, Task> _switchMode;
     private readonly NativeChatUiStateStore _stateStore;
+    private readonly IConversationProductionRepository? _production;
     private readonly CancellationTokenSource _lifetime = new();
-
-    private readonly TextBox _searchBox;
-    private readonly StackPanel _pinnedPanel;
-    private readonly StackPanel _unreadPanel;
-    private readonly StackPanel _groupsPanel;
-    private readonly StackPanel _chatsPanel;
-    private readonly TextBlock _pinnedHeading;
-    private readonly TextBlock _unreadHeading;
-    private readonly TextBlock _groupsHeading;
-    private readonly TextBlock _chatsHeading;
-    private readonly TextBlock _status;
-    private readonly TextBlock _modeLabel;
+    private readonly ChatSidebarHavenScene _scene;
 
     private IReadOnlyList<Conversation> _conversationRows = [];
     private IReadOnlyList<ContainerDefinition> _groupRows = [];
-    private IReadOnlyDictionary<Guid, NativeChatItemState> _states =
-        new Dictionary<Guid, NativeChatItemState>();
+    private IReadOnlyList<MessageAttachment> _fileRows = [];
+    private IReadOnlyDictionary<Guid, NativeChatItemState> _states = new Dictionary<Guid, NativeChatItemState>();
     private Guid? _activeConversationId;
     private Guid? _activeGroupId;
     private HavenMode _currentMode = HavenMode.Chat;
-    private bool _showAllGroups;
+    private string _query = string.Empty;
     private bool _refreshing;
     private bool _refreshPending;
+    private bool _startingChat;
     private bool _disposed;
 
     public NativeChatSidebar(
@@ -64,59 +42,39 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         Func<Conversation, Task> openConversation,
         Func<HavenMode, Guid?, Task> startChat,
         Func<ContainerDefinition, Task> openGroup,
-        Func<HavenMode, Task> switchMode,
-        NativeChatUiStateStore? stateStore = null)
+        NativeChatUiStateStore? stateStore = null,
+        IConversationProductionRepository? production = null)
     {
         _conversations = conversations ?? throw new ArgumentNullException(nameof(conversations));
         _containers = containers ?? throw new ArgumentNullException(nameof(containers));
         _openConversation = openConversation ?? throw new ArgumentNullException(nameof(openConversation));
         _startChat = startChat ?? throw new ArgumentNullException(nameof(startChat));
         _openGroup = openGroup ?? throw new ArgumentNullException(nameof(openGroup));
-        _switchMode = switchMode ?? throw new ArgumentNullException(nameof(switchMode));
         _stateStore = stateStore ?? new NativeChatUiStateStore();
+        _production = production;
 
-        _searchBox = new TextBox
-        {
-            PlaceholderText = "Search",
-            MinHeight = 44,
-            Padding = new Thickness(40, 9, 12, 9),
-            CornerRadius = new CornerRadius(13),
-            Background = Solid("#F3F5F2"),
-            BorderThickness = new Thickness(0),
-            FontWeight = FontWeight.SemiBold
-        };
-        _searchBox.TextChanged += OnSearchChanged;
-        AutomationProperties.SetName(_searchBox, "Search chats and Chat Groups");
+        _scene = new ChatSidebarHavenScene();
+        SceneHost = new HavenSceneControl { Root = _scene.Root };
+        AutomationProperties.SetAutomationId(this, "HavenNativeChatSidebar");
+        AutomationProperties.SetName(this, "Haven-native Chat sidebar");
+        AutomationProperties.SetAutomationId(SceneHost, "HavenNativeChatSidebarScene");
+        Content = SceneHost;
 
-        _pinnedHeading = SectionHeading("Pinned");
-        _unreadHeading = SectionHeading("Unread Notifications");
-        _groupsHeading = SectionHeading("Chat Groups");
-        _chatsHeading = SectionHeading("Chats");
-        _pinnedPanel = SectionPanel();
-        _unreadPanel = SectionPanel();
-        _groupsPanel = SectionPanel();
-        _chatsPanel = SectionPanel();
-        _status = new TextBlock
-        {
-            FontSize = 11,
-            Foreground = MutedBrush,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(4, 6, 4, 0)
-        };
-        _modeLabel = new TextBlock { Text = "Chat", FontWeight = FontWeight.Bold };
-
-        Content = BuildLayout();
-        AttachedToVisualTree += OnAttached;
-        DetachedFromVisualTree += OnDetached;
+        _scene.SearchChanged += OnSearchChanged;
+        _scene.NewChatRequested += OnNewChatRequested;
+        _scene.NewGroupRequested += OnNewGroupRequested;
+        _scene.ConversationActionRequested += OnConversationActionRequested;
+        _scene.GroupActionRequested += OnGroupActionRequested;
+        _scene.FileRequested += OnFileRequested;
+        _ = RefreshAsync();
     }
+
+    internal HavenSceneControl SceneHost { get; }
+    internal ChatSidebarHavenScene Scene => _scene;
 
     public async Task RefreshAsync()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
+        if (_disposed) return;
         if (_refreshing)
         {
             _refreshPending = true;
@@ -129,37 +87,32 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             do
             {
                 _refreshPending = false;
-                var conversationTask = _conversations.GetRecentAsync(
-                    _currentMode,
-                    500,
-                    _lifetime.Token);
+                var conversationTask = _conversations.GetRecentAsync(_currentMode, 500, _lifetime.Token);
                 var groupTask = _containers.GetByModeAsync(_currentMode, _lifetime.Token);
                 var stateTask = _stateStore.GetAllAsync(_lifetime.Token);
-                await Task.WhenAll(conversationTask, groupTask, stateTask);
+                var fileTask = _production is null || _currentMode != HavenMode.Chat
+                    ? Task.FromResult<IReadOnlyList<MessageAttachment>>([])
+                    : _production.GetRecentAttachmentsAsync(100, _lifetime.Token);
+                await Task.WhenAll(conversationTask, groupTask, stateTask, fileTask).ConfigureAwait(false);
 
                 _conversationRows = conversationTask.Result
                     .Where(item => !item.IsArchived && item.Kind != ConversationKind.Call)
                     .ToArray();
                 _groupRows = groupTask.Result.Where(item => !item.IsArchived).ToArray();
+                _fileRows = fileTask.Result;
                 _states = stateTask.Result;
 
-                if (Dispatcher.UIThread.CheckAccess())
-                {
-                    Render();
-                }
-                else
-                {
-                    await Dispatcher.UIThread.InvokeAsync(Render);
-                }
+                if (Dispatcher.UIThread.CheckAccess()) Render();
+                else await Dispatcher.UIThread.InvokeAsync(Render);
             }
             while (_refreshPending && !_disposed);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _status.Text = "Chat history could not be refreshed: " + exception.Message);
+            await Dispatcher.UIThread.InvokeAsync(() => _scene.SetStatus("Chat history could not be refreshed: " + exception.Message));
         }
         finally
         {
@@ -167,170 +120,34 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         }
     }
 
+    internal HavenMode CurrentMode => _currentMode;
+    internal Guid? ActiveGroupId => _activeGroupId;
+    internal event EventHandler<NativeChatSidebarContext>? ContextChanged;
+
     public void SetActiveConversation(Guid? conversationId, Guid? groupId)
     {
         _activeConversationId = conversationId;
         _activeGroupId = groupId;
-        if (!_disposed)
-        {
-            Render();
-        }
+        if (_disposed) return;
+        Render();
+        ContextChanged?.Invoke(this, new NativeChatSidebarContext(_currentMode, _activeGroupId));
     }
 
     public void SetMode(HavenMode mode)
     {
-        if (mode == HavenMode.Studio || _currentMode == mode)
-        {
-            return;
-        }
-
+        if (mode == HavenMode.Studio || _currentMode == mode) return;
         _currentMode = mode;
-        _modeLabel.Text = ModeName(mode);
-        AutomationProperties.SetName(_modeLabel, $"Current mode: {ModeName(mode)}");
-        _groupsHeading.Text = GroupName(mode, plural: true);
-        _chatsHeading.Text = mode == HavenMode.Study ? "Study Chats" : mode == HavenMode.Tasks ? "Task Chats" : "Chats";
-        _searchBox.PlaceholderText = $"Search {ModeName(mode)}";
         _activeConversationId = null;
         _activeGroupId = null;
+        _scene.SetMode(mode);
+        ContextChanged?.Invoke(this, new NativeChatSidebarContext(_currentMode, _activeGroupId));
         _ = RefreshAsync();
-    }
-
-    private Control BuildLayout()
-    {
-        var modeButton = new Button
-        {
-            Padding = new Thickness(10, 7),
-            Background = Solid("#F3F5F2"),
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(999),
-            Content = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 7,
-                Children =
-                {
-                    _modeLabel,
-                    new HavenIcon { IconKey = "chevron-down", Width = 12, Height = 12 }
-                }
-            }
-        };
-        modeButton.Flyout = BuildModeFlyout();
-        AutomationProperties.SetName(modeButton, "Select Chat mode");
-
-        var modeRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = "Mode:",
-                    FontWeight = FontWeight.Bold,
-                    VerticalAlignment = VerticalAlignment.Center
-                },
-                modeButton
-            }
-        };
-
-        var searchHost = new Grid();
-        searchHost.Children.Add(_searchBox);
-        searchHost.Children.Add(new HavenIcon
-        {
-            IconKey = "search",
-            Width = 20,
-            Height = 20,
-            Margin = new Thickness(12, 0, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-            IsHitTestVisible = false,
-            Opacity = 0.72
-        });
-
-        var sections = new StackPanel
-        {
-            Spacing = 7,
-            Children =
-            {
-                _pinnedHeading,
-                _pinnedPanel,
-                _unreadHeading,
-                _unreadPanel,
-                _groupsHeading,
-                _groupsPanel,
-                _chatsHeading,
-                _chatsPanel,
-                _status
-            }
-        };
-
-        var newChat = ActionButton("plus", NewChatLabel(_currentMode));
-        newChat.Click += async (_, _) => await StartChatAsync(null);
-        var newGroup = ActionButton("folder", $"New {GroupName(_currentMode, plural: false)}");
-        newGroup.Click += (_, _) => ShowCreateGroupFlyout(newGroup);
-
-        var footer = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*"),
-            ColumnSpacing = 8,
-            Children = { newChat, WithColumn(newGroup, 1) }
-        };
-
-        var root = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
-            RowSpacing = 12,
-            Children =
-            {
-                modeRow,
-                WithRow(searchHost, 1),
-                WithRow(new ScrollViewer
-                {
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                    Content = sections
-                }, 2),
-                WithRow(footer, 3)
-            }
-        };
-
-        return new Border
-        {
-            Width = 286,
-            Padding = new Thickness(14),
-            Background = SurfaceBrush,
-            BorderBrush = DividerBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(22),
-            Child = root
-        };
-    }
-
-    private Flyout BuildModeFlyout()
-    {
-        var panel = new StackPanel { Width = 210, Spacing = 2, Margin = new Thickness(6) };
-        panel.Children.Add(ModeButton("chat", "Chat", HavenMode.Chat));
-        panel.Children.Add(ModeButton("study", "Study", HavenMode.Study));
-        panel.Children.Add(ModeButton("tasks", "Tasks", HavenMode.Tasks));
-        return new Flyout { Placement = PlacementMode.BottomEdgeAlignedLeft, Content = panel };
-    }
-
-    private Button ModeButton(string icon, string label, HavenMode mode)
-    {
-        var button = NavigationButton(icon, label, false, false);
-        button.Click += async (_, _) => await _switchMode(mode);
-        return button;
     }
 
     private void Render()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        var query = _searchBox.Text?.Trim() ?? string.Empty;
-        bool Matches(string value) => query.Length == 0 || value.Contains(query, StringComparison.OrdinalIgnoreCase);
+        if (_disposed) return;
+        bool Matches(string value) => _query.Length == 0 || value.Contains(_query, StringComparison.OrdinalIgnoreCase);
 
         var groups = _groupRows
             .Where(group => Matches(group.Name))
@@ -343,364 +160,307 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             .ThenBy(chat => chat.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        _pinnedPanel.Children.Clear();
-        foreach (var group in groups.Where(IsGroupPinned))
+        var pinned = new List<ChatSidebarEntry>();
+        pinned.AddRange(groups.Where(IsGroupPinned).Select(GroupEntry));
+        pinned.AddRange(conversations.Where(chat => chat.IsPinned).Select(chat => ConversationEntry(chat, false)));
+
+        var unread = conversations
+            .Where(chat => !chat.IsPinned && IsUnread(chat))
+            .Select(chat => ConversationEntry(chat, false))
+            .ToArray();
+
+        var groupEntries = new List<ChatSidebarEntry>();
+        foreach (var group in groups.Where(group => !IsGroupPinned(group)))
         {
-            _pinnedPanel.Children.Add(BuildGroupRow(group, showChildren: false));
-        }
-        foreach (var chat in conversations.Where(chat => chat.IsPinned))
-        {
-            _pinnedPanel.Children.Add(BuildConversationRow(chat, indent: false));
+            var state = State(group.Id);
+            groupEntries.Add(GroupEntry(group));
+            if (!state.IsExpanded) continue;
+            groupEntries.AddRange(_conversationRows
+                .Where(chat => chat.ContainerId == group.Id && !chat.IsArchived && chat.Kind != ConversationKind.Call)
+                .OrderByDescending(chat => chat.UpdatedAt)
+                .Select(chat => ConversationEntry(chat, true)));
         }
 
-        _unreadPanel.Children.Clear();
-        foreach (var chat in conversations.Where(chat => !chat.IsPinned && IsUnread(chat)))
-        {
-            _unreadPanel.Children.Add(BuildConversationRow(chat, indent: false));
-        }
+        var sourceConversationIds = _conversationRows.Select(chat => chat.Id).ToHashSet();
+        var files = _currentMode == HavenMode.Chat
+            ? _fileRows
+                .Where(file => sourceConversationIds.Contains(file.ConversationId) && Matches(file.OriginalName))
+                .Take(20)
+                .Select(FileEntry)
+                .ToArray()
+            : [];
 
-        _groupsPanel.Children.Clear();
-        var regularGroups = groups.Where(group => !IsGroupPinned(group)).ToArray();
-        var visibleGroups = _showAllGroups ? regularGroups : regularGroups.Take(4).ToArray();
-        foreach (var group in visibleGroups)
-        {
-            _groupsPanel.Children.Add(BuildGroupRow(group, showChildren: true));
-        }
-        if (regularGroups.Length > 4)
-        {
-            var viewAll = TextButton(_showAllGroups ? "Show Less" : "View All");
-            viewAll.Click += (_, _) =>
-            {
-                _showAllGroups = !_showAllGroups;
-                Render();
-            };
-            _groupsPanel.Children.Add(viewAll);
-        }
+        var chats = conversations
+            .Where(chat => chat.ContainerId is null && !chat.IsPinned && !IsUnread(chat))
+            .Select(chat => ConversationEntry(chat, false))
+            .ToArray();
 
-        _chatsPanel.Children.Clear();
-        foreach (var chat in conversations.Where(chat => chat.ContainerId is null && !chat.IsPinned && !IsUnread(chat)))
-        {
-            _chatsPanel.Children.Add(BuildConversationRow(chat, indent: false));
-        }
-
-        SetSectionVisibility(_pinnedHeading, _pinnedPanel);
-        SetSectionVisibility(_unreadHeading, _unreadPanel);
-        _groupsHeading.IsVisible = true;
-        _groupsPanel.IsVisible = true;
-        _chatsHeading.IsVisible = true;
-        _chatsPanel.IsVisible = true;
-        _status.Text = conversations.Length == 0 && groups.Length == 0
+        _scene.SetRows(pinned, unread, groupEntries, files, chats);
+        _scene.SetStatus(conversations.Length == 0 && groups.Length == 0 && files.Length == 0
             ? $"No saved {ModeName(_currentMode)} chats or {GroupName(_currentMode, plural: true)} yet."
-            : string.Empty;
+            : null);
     }
 
-    private Control BuildGroupRow(ContainerDefinition group, bool showChildren)
+    private ChatSidebarEntry ConversationEntry(Conversation chat, bool indented) => new(
+        ChatSidebarEntryKind.Conversation,
+        chat.Id,
+        chat.Title,
+        _activeConversationId == chat.Id,
+        IsUnread(chat),
+        chat.IsPinned,
+        false,
+        indented);
+
+    private ChatSidebarEntry FileEntry(MessageAttachment file) => new(
+        ChatSidebarEntryKind.File,
+        file.Id,
+        file.OriginalName,
+        _activeConversationId == file.ConversationId,
+        false,
+        false);
+
+    private ChatSidebarEntry GroupEntry(ContainerDefinition group)
     {
         var state = State(group.Id);
-        var expanded = showChildren && state.IsExpanded;
-        var groupButton = NavigationButton("folder", group.Name, _activeGroupId == group.Id, IsGroupUnread(group));
-        groupButton.ContextMenu = BuildGroupContextMenu(group, state);
-        groupButton.Click += async (_, _) =>
-        {
-            await _stateStore.MarkReadAsync(group.Id, DateTimeOffset.UtcNow, _lifetime.Token);
-            await _openGroup(group);
-            _activeGroupId = group.Id;
-            await RefreshAsync();
-        };
-
-        if (!showChildren)
-        {
-            return groupButton;
-        }
-
-        var toggle = new Button
-        {
-            Width = 28,
-            Height = 28,
-            Padding = new Thickness(6),
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            Content = new HavenIcon
-            {
-                IconKey = expanded ? "chevron-down" : "chevron-right",
-                Width = 11,
-                Height = 11
-            }
-        };
-        toggle.Click += async (_, _) =>
-        {
-            await _stateStore.SetExpandedAsync(group.Id, !expanded, _lifetime.Token);
-            await RefreshAsync();
-        };
-
-        var header = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-            Children = { toggle, WithColumn(groupButton, 1) }
-        };
-
-        var stack = new StackPanel { Spacing = 3, Children = { header } };
-        if (expanded)
-        {
-            foreach (var chat in _conversationRows
-                         .Where(item => item.ContainerId == group.Id && !item.IsArchived && item.Kind != ConversationKind.Call)
-                         .OrderByDescending(item => item.UpdatedAt))
-            {
-                stack.Children.Add(BuildConversationRow(chat, indent: true));
-            }
-
-            var add = TextButton("+ New chat in " + group.Name);
-            add.Margin = new Thickness(32, 0, 0, 0);
-            add.Click += async (_, _) => await StartChatAsync(group.Id);
-            stack.Children.Add(add);
-        }
-
-        return stack;
+        return new ChatSidebarEntry(
+            ChatSidebarEntryKind.Group,
+            group.Id,
+            group.Name,
+            _activeGroupId == group.Id,
+            IsGroupUnread(group),
+            state.IsPinned,
+            state.IsExpanded);
     }
 
-    private Button BuildConversationRow(Conversation chat, bool indent)
+    private void OnSearchChanged(object? sender, string query)
     {
-        var button = NavigationButton("chat", chat.Title, _activeConversationId == chat.Id, IsUnread(chat));
-        if (indent)
+        _query = query;
+        Render();
+    }
+
+    private async void OnNewChatRequested(object? sender, EventArgs e)
+    {
+        try { await StartChatAsync(null); }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException) { _scene.SetStatus(exception.Message); }
+    }
+
+    private void OnNewGroupRequested(object? sender, EventArgs e) => ShowCreateGroupPrompt();
+
+    private async void OnFileRequested(object? sender, Guid attachmentId)
+    {
+        var file = _fileRows.FirstOrDefault(item => item.Id == attachmentId);
+        if (file is null) return;
+        var chat = _conversationRows.FirstOrDefault(item => item.Id == file.ConversationId);
+        if (chat is null)
         {
-            button.Margin = new Thickness(32, 0, 0, 0);
+            _scene.SetStatus("The chat that owns this file is no longer available.");
+            return;
         }
-        button.ContextMenu = BuildConversationContextMenu(chat);
-        button.Click += async (_, _) =>
+
+        try
         {
             await _stateStore.MarkReadAsync(chat.Id, DateTimeOffset.UtcNow, _lifetime.Token);
             _activeConversationId = chat.Id;
             _activeGroupId = chat.ContainerId;
             await _openConversation(chat);
             await RefreshAsync();
-        };
-        return button;
-    }
-
-    private ContextMenu BuildConversationContextMenu(Conversation chat)
-    {
-        var rename = MenuItem("Rename", () => ShowRenameConversation(chat));
-        var pin = MenuItem(chat.IsPinned ? "Unpin" : "Pin", () => _ = ToggleConversationPinAsync(chat));
-        var read = MenuItem(IsUnread(chat) ? "Mark read" : "Mark unread", () => _ = ToggleConversationReadAsync(chat));
-        var move = new MenuItem { Header = $"Move to {GroupName(_currentMode, plural: false)}" };
-        var moveItems = new List<MenuItem>
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            MenuItem("No group", () => _ = MoveConversationAsync(chat, null))
-        };
-        moveItems.AddRange(_groupRows
-            .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => MenuItem(group.Name, () => _ = MoveConversationAsync(chat, group.Id))));
-        move.ItemsSource = moveItems;
-        var archive = MenuItem("Archive", () => _ = ArchiveConversationAsync(chat));
-        var delete = MenuItem("Delete", () => _ = DeleteConversationAsync(chat));
-        return new ContextMenu { ItemsSource = new object[] { rename, pin, read, move, archive, delete } };
+            _scene.SetStatus(exception.Message);
+        }
     }
 
-    private ContextMenu BuildGroupContextMenu(ContainerDefinition group, NativeChatItemState state)
+    private async void OnConversationActionRequested(object? sender, ChatSidebarConversationRequest request)
     {
-        var rename = MenuItem("Rename", () => ShowRenameGroup(group));
-        var pin = MenuItem(state.IsPinned ? "Unpin" : "Pin", () => _ = ToggleGroupPinAsync(group, state));
-        var expand = MenuItem(state.IsExpanded ? "Collapse" : "Expand", () => _ = ToggleGroupExpandedAsync(group, state));
-        var create = MenuItem("New chat", () => _ = StartChatAsync(group.Id));
-        var archive = MenuItem("Archive", () => _ = ArchiveGroupAsync(group));
-        var delete = MenuItem("Delete and detach chats", () => _ = DeleteGroupAsync(group));
-        return new ContextMenu { ItemsSource = new object[] { rename, pin, expand, create, archive, delete } };
+        var chat = _conversationRows.FirstOrDefault(item => item.Id == request.ConversationId);
+        if (chat is null) return;
+        try
+        {
+            switch (request.Action)
+            {
+                case ChatSidebarConversationAction.Open:
+                    await _stateStore.MarkReadAsync(chat.Id, DateTimeOffset.UtcNow, _lifetime.Token);
+                    _activeConversationId = chat.Id;
+                    _activeGroupId = chat.ContainerId;
+                    await _openConversation(chat);
+                    await RefreshAsync();
+                    break;
+                case ChatSidebarConversationAction.Rename:
+                    _scene.ShowTextPrompt("Rename chat", chat.Title, "Save", async title =>
+                    {
+                        await _conversations.UpsertConversationAsync(chat with { Title = title, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
+                        await RefreshAsync();
+                    });
+                    break;
+                case ChatSidebarConversationAction.TogglePin:
+                    await ToggleConversationPinAsync(chat);
+                    break;
+                case ChatSidebarConversationAction.ToggleRead:
+                    await ToggleConversationReadAsync(chat);
+                    break;
+                case ChatSidebarConversationAction.Move:
+                    ShowMoveChoices(chat);
+                    break;
+                case ChatSidebarConversationAction.Archive:
+                    await ArchiveConversationAsync(chat);
+                    break;
+                case ChatSidebarConversationAction.Delete:
+                    await DeleteConversationAsync(chat);
+                    break;
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus(exception.Message);
+        }
+    }
+
+    private async void OnGroupActionRequested(object? sender, ChatSidebarGroupRequest request)
+    {
+        var group = _groupRows.FirstOrDefault(item => item.Id == request.GroupId);
+        if (group is null) return;
+        var state = State(group.Id);
+        try
+        {
+            switch (request.Action)
+            {
+                case ChatSidebarGroupAction.Open:
+                    await _stateStore.MarkReadAsync(group.Id, DateTimeOffset.UtcNow, _lifetime.Token);
+                    _activeGroupId = group.Id;
+                    await _openGroup(group);
+                    await RefreshAsync();
+                    break;
+                case ChatSidebarGroupAction.Toggle:
+                case ChatSidebarGroupAction.ToggleExpand:
+                    await _stateStore.SetExpandedAsync(group.Id, !state.IsExpanded, _lifetime.Token);
+                    await RefreshAsync();
+                    break;
+                case ChatSidebarGroupAction.Rename:
+                    _scene.ShowTextPrompt($"Rename {GroupName(_currentMode, false)}", group.Name, "Save", async name =>
+                    {
+                        await _containers.UpsertAsync(group with { Name = name, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
+                        await RefreshAsync();
+                    });
+                    break;
+                case ChatSidebarGroupAction.TogglePin:
+                    await _stateStore.SetPinnedAsync(group.Id, !state.IsPinned, _lifetime.Token);
+                    await RefreshAsync();
+                    break;
+                case ChatSidebarGroupAction.NewChat:
+                    await StartChatAsync(group.Id);
+                    break;
+                case ChatSidebarGroupAction.Archive:
+                    await ArchiveGroupAsync(group);
+                    break;
+                case ChatSidebarGroupAction.Delete:
+                    await DeleteGroupAsync(group);
+                    break;
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            _scene.SetStatus(exception.Message);
+        }
+    }
+
+    private void ShowCreateGroupPrompt()
+    {
+        var groupName = GroupName(_currentMode, false);
+        _scene.ShowTextPrompt($"New {groupName}", string.Empty, $"Create {groupName}", async name =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            var group = new ContainerDefinition(Guid.NewGuid(), _currentMode, name, null, string.Empty, string.Empty, now, now);
+            if (_currentMode == HavenMode.Study) await _containers.CreateSubjectAsync(group, _lifetime.Token);
+            else await _containers.UpsertAsync(group, _lifetime.Token);
+            await _stateStore.SetExpandedAsync(group.Id, true, _lifetime.Token);
+            await _openGroup(group);
+            _activeGroupId = group.Id;
+            await RefreshAsync();
+        });
+    }
+
+    private void ShowMoveChoices(Conversation chat)
+    {
+        var choices = new List<(string Label, Action Action)>
+        {
+            ("No group", () => _ = MoveConversationAsync(chat, null))
+        };
+        choices.AddRange(_groupRows
+            .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => (group.Name, (Action)(() => _ = MoveConversationAsync(chat, group.Id)))));
+        _scene.ShowChoices($"Move to {GroupName(_currentMode, false)}", choices);
     }
 
     private async Task StartChatAsync(Guid? groupId)
     {
-        if (groupId is Guid id)
+        if (_startingChat) return;
+        _startingChat = true;
+        _scene.SetNewChatBusy(true);
+        try
         {
-            await _stateStore.SetExpandedAsync(id, true, _lifetime.Token);
+            if (groupId is Guid id) await _stateStore.SetExpandedAsync(id, true, _lifetime.Token);
+            await _startChat(_currentMode, groupId);
+            _activeGroupId = groupId;
+            await RefreshAsync();
         }
-        await _startChat(_currentMode, groupId);
-        _activeConversationId = null;
-        _activeGroupId = groupId;
-        await RefreshAsync();
-    }
-
-    private void ShowCreateGroupFlyout(Control anchor)
-    {
-        var groupName = GroupName(_currentMode, plural: false);
-        var editor = new TextBox { PlaceholderText = groupName + " name", MinWidth = 250 };
-        var create = new Button { Content = "Create " + groupName, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var flyout = new Flyout
+        finally
         {
-            Placement = PlacementMode.TopEdgeAlignedLeft,
-            Content = new StackPanel
-            {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children = { SectionHeading("New " + groupName), editor, create }
-            }
-        };
-        create.Click += async (_, _) =>
-        {
-            var name = editor.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return;
-            }
-            var now = DateTimeOffset.UtcNow;
-            var group = new ContainerDefinition(Guid.NewGuid(), _currentMode, name, null, string.Empty, string.Empty, now, now);
-            if (_currentMode == HavenMode.Study)
-            {
-                await _containers.CreateSubjectAsync(group, _lifetime.Token);
-            }
-            else
-            {
-                await _containers.UpsertAsync(group, _lifetime.Token);
-            }
-            await _stateStore.SetExpandedAsync(group.Id, true, _lifetime.Token);
-            flyout.Hide();
-            await _openGroup(group);
-            _activeGroupId = group.Id;
-            await RefreshAsync();
-        };
-        flyout.ShowAt(anchor);
-        Dispatcher.UIThread.Post(() => editor.Focus(), DispatcherPriority.Background);
-    }
-
-    private void ShowRenameConversation(Conversation chat)
-    {
-        ShowRenameFlyout(chat.Title, async title =>
-        {
-            await _conversations.UpsertConversationAsync(
-                chat with { Title = title, UpdatedAt = DateTimeOffset.UtcNow },
-                _lifetime.Token);
-            await RefreshAsync();
-        });
-    }
-
-    private void ShowRenameGroup(ContainerDefinition group)
-    {
-        ShowRenameFlyout(group.Name, async name =>
-        {
-            await _containers.UpsertAsync(
-                group with { Name = name, UpdatedAt = DateTimeOffset.UtcNow },
-                _lifetime.Token);
-            await RefreshAsync();
-        });
-    }
-
-    private void ShowRenameFlyout(string currentName, Func<string, Task> save)
-    {
-        var editor = new TextBox { Text = currentName, MinWidth = 260 };
-        var apply = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var flyout = new Flyout
-        {
-            Content = new StackPanel
-            {
-                Width = 260,
-                Spacing = 3,
-                Margin = new Thickness(12),
-                Children = { SectionHeading("Rename"), editor, apply }
-            }
-        };
-        apply.Click += async (_, _) =>
-        {
-            var value = editor.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return;
-            }
-            await save(value);
-            flyout.Hide();
-        };
-        flyout.ShowAt(_searchBox);
-        Dispatcher.UIThread.Post(() => editor.Focus(), DispatcherPriority.Background);
+            _startingChat = false;
+            _scene.SetNewChatBusy(false);
+        }
     }
 
     private async Task ToggleConversationPinAsync(Conversation chat)
     {
-        await _conversations.UpsertConversationAsync(
-            chat with { IsPinned = !chat.IsPinned, UpdatedAt = DateTimeOffset.UtcNow },
-            _lifetime.Token);
+        await _conversations.UpsertConversationAsync(chat with { IsPinned = !chat.IsPinned, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
         await RefreshAsync();
     }
 
     private async Task ToggleConversationReadAsync(Conversation chat)
     {
-        if (IsUnread(chat))
-        {
-            await _stateStore.MarkReadAsync(chat.Id, DateTimeOffset.UtcNow, _lifetime.Token);
-        }
-        else
-        {
-            await _stateStore.MarkUnreadAsync(chat.Id, _lifetime.Token);
-        }
+        if (IsUnread(chat)) await _stateStore.MarkReadAsync(chat.Id, DateTimeOffset.UtcNow, _lifetime.Token);
+        else await _stateStore.MarkUnreadAsync(chat.Id, _lifetime.Token);
         await RefreshAsync();
     }
 
     private async Task MoveConversationAsync(Conversation chat, Guid? groupId)
     {
-        await _conversations.UpsertConversationAsync(
-            chat with { ContainerId = groupId, UpdatedAt = DateTimeOffset.UtcNow },
-            _lifetime.Token);
+        await _conversations.UpsertConversationAsync(chat with { ContainerId = groupId, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
         await RefreshAsync();
     }
 
     private async Task ArchiveConversationAsync(Conversation chat)
     {
-        await _conversations.UpsertConversationAsync(
-            chat with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow },
-            _lifetime.Token);
+        await _conversations.UpsertConversationAsync(chat with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
         await RefreshAsync();
     }
 
     private async Task DeleteConversationAsync(Conversation chat)
     {
+        var wasActive = _activeConversationId == chat.Id;
         await _conversations.DeleteConversationAsync(chat.Id, _lifetime.Token);
-        if (_activeConversationId == chat.Id)
-        {
-            await _startChat(_currentMode, null);
-            _activeConversationId = null;
-            _activeGroupId = null;
-        }
-        await RefreshAsync();
-    }
-
-    private async Task ToggleGroupPinAsync(ContainerDefinition group, NativeChatItemState state)
-    {
-        await _stateStore.SetPinnedAsync(group.Id, !state.IsPinned, _lifetime.Token);
-        await RefreshAsync();
-    }
-
-    private async Task ToggleGroupExpandedAsync(ContainerDefinition group, NativeChatItemState state)
-    {
-        await _stateStore.SetExpandedAsync(group.Id, !state.IsExpanded, _lifetime.Token);
-        await RefreshAsync();
+        if (wasActive) await StartChatAsync(null);
+        else await RefreshAsync();
     }
 
     private async Task ArchiveGroupAsync(ContainerDefinition group)
     {
-        await _containers.UpsertAsync(
-            group with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow },
-            _lifetime.Token);
+        await _containers.UpsertAsync(group with { IsArchived = true, UpdatedAt = DateTimeOffset.UtcNow }, _lifetime.Token);
         await RefreshAsync();
     }
 
     private async Task DeleteGroupAsync(ContainerDefinition group)
     {
         await _containers.DeleteAndDetachConversationsAsync(group.Id, _lifetime.Token);
-        if (_activeGroupId == group.Id)
-        {
-            _activeGroupId = null;
-        }
+        if (_activeGroupId == group.Id) _activeGroupId = null;
         await RefreshAsync();
     }
 
-    private NativeChatItemState State(Guid id) =>
-        _states.TryGetValue(id, out var state) ? state : NativeChatItemState.Empty;
-
-    private bool IsUnread(Conversation chat) =>
-        _activeConversationId != chat.Id && State(chat.Id).IsUnread(chat.UpdatedAt);
-
+    private NativeChatItemState State(Guid id) => _states.TryGetValue(id, out var state) ? state : NativeChatItemState.Empty;
+    private bool IsUnread(Conversation chat) => _activeConversationId != chat.Id && State(chat.Id).IsUnread(chat.UpdatedAt);
     private bool IsGroupPinned(ContainerDefinition group) => State(group.Id).IsPinned;
-
-    private bool IsGroupUnread(ContainerDefinition group) =>
-        _activeGroupId != group.Id && State(group.Id).IsUnread(GroupUpdatedAt(group));
+    private bool IsGroupUnread(ContainerDefinition group) => _activeGroupId != group.Id && State(group.Id).IsUnread(GroupUpdatedAt(group));
 
     private DateTimeOffset GroupUpdatedAt(ContainerDefinition group)
     {
@@ -711,86 +471,6 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
             .Max();
         return childUpdate > group.UpdatedAt ? childUpdate : group.UpdatedAt;
     }
-
-    private static Button NavigationButton(string icon, string text, bool active, bool unread)
-    {
-        var iconControl = new HavenIcon
-        {
-            IconKey = icon,
-            Width = 18,
-            Height = 18,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var label = new TextBlock
-        {
-            Text = text,
-            FontWeight = FontWeight.SemiBold,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var unreadDot = new Border
-        {
-            Width = 8,
-            Height = 8,
-            CornerRadius = new CornerRadius(4),
-            Background = UnreadBrush,
-            IsVisible = unread,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var content = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            ColumnSpacing = 9,
-            Children = { iconControl, WithColumn(label, 1), WithColumn(unreadDot, 2) }
-        };
-        var button = new Button
-        {
-            Content = content,
-            MinHeight = 39,
-            Padding = new Thickness(10, 7),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Background = active ? ActiveBrush : Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(11)
-        };
-        button.PointerEntered += (_, _) =>
-        {
-            if (!active) button.Background = HoverBrush;
-        };
-        button.PointerExited += (_, _) =>
-        {
-            if (!active) button.Background = Brushes.Transparent;
-        };
-        AutomationProperties.SetName(button, text + (unread ? ", unread" : string.Empty));
-        return button;
-    }
-
-    private static Button ActionButton(string icon, string text)
-    {
-        var button = NavigationButton(icon, text, false, false);
-        button.Background = Solid("#F3F5F2");
-        return button;
-    }
-
-    private static Button TextButton(string text) => new()
-    {
-        Content = text,
-        Background = Brushes.Transparent,
-        BorderThickness = new Thickness(0),
-        Padding = new Thickness(8, 6),
-        HorizontalAlignment = HorizontalAlignment.Left,
-        HorizontalContentAlignment = HorizontalAlignment.Left,
-        FontWeight = FontWeight.SemiBold
-    };
-
-    private static TextBlock SectionHeading(string text) => new()
-    {
-        Text = text,
-        FontWeight = FontWeight.ExtraBold,
-        FontSize = 20,
-        Margin = new Thickness(10, 5, 10, 8)
-    };
 
     private static string ModeName(HavenMode mode) => mode switch
     {
@@ -806,62 +486,19 @@ internal sealed class NativeChatSidebar : UserControl, IDisposable
         _ => plural ? "Chat Groups" : "Chat Group"
     };
 
-    private static string NewChatLabel(HavenMode mode) => mode switch
-    {
-        HavenMode.Study => "New Study Chat",
-        HavenMode.Tasks => "New Task",
-        _ => "New Chat"
-    };
-
-    private static StackPanel SectionPanel() => new() { Spacing = 3 };
-
-    private static MenuItem MenuItem(string header, Action action)
-    {
-        var item = new MenuItem { Header = header };
-        item.Click += (_, _) => action();
-        return item;
-    }
-
-    private static void SetSectionVisibility(Control heading, Panel panel)
-    {
-        var visible = panel.Children.Count > 0;
-        heading.IsVisible = visible;
-        panel.IsVisible = visible;
-    }
-
-    private void OnSearchChanged(object? sender, TextChangedEventArgs e) => Render();
-
-    private async void OnAttached(object? sender, VisualTreeAttachmentEventArgs e) => await RefreshAsync();
-
-    private void OnDetached(object? sender, VisualTreeAttachmentEventArgs e)
-    {
-    }
-
-    private static IBrush Solid(string color) => new SolidColorBrush(Color.Parse(color));
-
-    private static T WithRow<T>(T control, int row) where T : Control
-    {
-        Grid.SetRow(control, row);
-        return control;
-    }
-
-    private static T WithColumn<T>(T control, int column) where T : Control
-    {
-        Grid.SetColumn(control, column);
-        return control;
-    }
-
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
+        if (_disposed) return;
         _disposed = true;
-        AttachedToVisualTree -= OnAttached;
-        DetachedFromVisualTree -= OnDetached;
-        _searchBox.TextChanged -= OnSearchChanged;
+        _scene.SearchChanged -= OnSearchChanged;
+        _scene.NewChatRequested -= OnNewChatRequested;
+        _scene.NewGroupRequested -= OnNewGroupRequested;
+        _scene.ConversationActionRequested -= OnConversationActionRequested;
+        _scene.GroupActionRequested -= OnGroupActionRequested;
+        _scene.FileRequested -= OnFileRequested;
+        _scene.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
+        SceneHost.Root = null;
     }
 }

@@ -92,7 +92,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         bool interactiveAvailable,
         string expected)
     {
-        var plan = Create(HavenMode.Chat, [Plugin(plugin)], browser: permission, browserHost: hostAvailable,
+        var plan = Create(HavenMode.Chat, [Capability(plugin)], browser: permission, browserHost: hostAvailable,
             browserInteractiveHost: interactiveAvailable);
 
         Assert.Equal(expected, string.Join(',', plan.Definitions
@@ -107,12 +107,12 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     [Fact]
     public void DetachedNativeBrowserKeepsWebSearchButHidesInteractiveBrowserUse()
     {
-        var plan = Create(HavenMode.Chat, [Plugin("WebSearch"), Plugin("BrowserUse")],
+        var plan = Create(HavenMode.Chat, [Capability("WebSearch"), Capability("BrowserUse")],
             browser: PermissionMode.FullAccess, browserHost: true, browserInteractiveHost: false);
 
         Assert.Equal("browser_navigate,browser_read_page", string.Join(',', plan.Definitions.Select(item => item.Name).OrderBy(name => name, StringComparer.Ordinal)));
-        Assert.True(plan.IsPluginAvailable("WebSearch"));
-        Assert.False(plan.IsPluginAvailable("BrowserUse"));
+        Assert.True(plan.IsCapabilityAvailable("web-search"));
+        Assert.False(plan.IsCapabilityAvailable("browser-use"));
     }
 
     /// <summary>
@@ -127,11 +127,11 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         bool windows,
         int expectedCount)
     {
-        var plugins = pluginActive ? new[] { Plugin("ComputerUse") } : [];
-        var plan = Create(HavenMode.Chat, plugins, windows: windows);
+        var capabilities = pluginActive ? new[] { Capability("ComputerUse") } : [];
+        var plan = Create(HavenMode.Chat, capabilities, windows: windows);
 
         Assert.Equal(expectedCount, plan.Definitions.Count(definition => definition.Name == "computer_snapshot"));
-        Assert.Equal(expectedCount == 1, plan.IsPluginAvailable("ComputerUse"));
+        Assert.Equal(expectedCount == 1, plan.IsCapabilityAvailable("computer-device-use"));
     }
 
     /// <summary>
@@ -148,13 +148,13 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         string expected,
         bool pluginAvailable)
     {
-        var plan = Create(mode, [Plugin(plugin)]);
+        var plan = Create(mode, [Capability(plugin)]);
 
         Assert.Equal(expected, string.Join(',', plan.Definitions
             .Where(definition => definition.Name is "automation_create" or "task_create" or "task_list")
             .Select(definition => definition.Name)
             .OrderBy(name => name, StringComparer.Ordinal)));
-        Assert.Equal(pluginAvailable, plan.IsPluginAvailable(plugin));
+        Assert.Equal(pluginAvailable, plan.IsCapabilityAvailable(Capability(plugin).Key));
     }
 
     /// <summary>
@@ -163,7 +163,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     [Fact]
     public void ModelRestrictionKeepsOnlyRuntimeCapabilitiesTheModelSupports()
     {
-        var plan = Create(HavenMode.Studio, [Plugin("BrowserUse"), Plugin("ComputerUse")],
+        var plan = Create(HavenMode.Studio, [Capability("BrowserUse"), Capability("ComputerUse")],
             file: PermissionMode.FullAccess, command: PermissionMode.FullAccess, browser: PermissionMode.FullAccess, windows: true);
         var browserModel = new ModelDescriptor("browser-only", 1, "test", "test", "test",
             new HashSet<ToolCapability> { ToolCapability.Text, ToolCapability.Browser }, DateTimeOffset.UtcNow);
@@ -171,8 +171,8 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         var restricted = plan.RestrictToModel(browserModel);
 
         Assert.All(restricted.Definitions, definition => Assert.StartsWith("browser_", definition.Name));
-        Assert.True(restricted.IsPluginAvailable("BrowserUse"));
-        Assert.False(restricted.IsPluginAvailable("ComputerUse"));
+        Assert.True(restricted.IsCapabilityAvailable("browser-use"));
+        Assert.False(restricted.IsCapabilityAvailable("computer-device-use"));
         Assert.Contains("lacks the required tool capability", restricted.GetUnavailableReason("read_file"));
     }
 
@@ -204,7 +204,7 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
     /// </summary>
     private ToolAvailabilityPlan Create(
         HavenMode mode,
-        IReadOnlyCollection<ActivePlugin>? plugins = null,
+        IReadOnlyCollection<ActiveCapability>? capabilities = null,
         string? workspaceRoot = null,
         PermissionMode file = PermissionMode.Ask,
         PermissionMode command = PermissionMode.Ask,
@@ -214,14 +214,28 @@ public sealed class ToolAvailabilityPlannerTests : IDisposable
         bool browserInteractiveHost = true,
         bool automationHost = true) =>
         _planner.Create(
-            new ToolAvailabilityContext(mode, workspaceRoot ?? _root, plugins ?? [], file, command, browser,
+            new ToolAvailabilityContext(mode, workspaceRoot ?? _root, capabilities ?? [], file, command, browser,
                 windows, browserHost, browserInteractiveHost, automationHost),
             Sources);
 
     /// <summary>
-    /// Performs the plugin step owned by this component.
+    /// Creates a temporary Classic capability for compatibility tests.
     /// </summary>
-    private static ActivePlugin Plugin(string name) => new(name, name, false);
+    private static ActiveCapability Capability(string name)
+    {
+        var key = name switch
+        {
+            "WebSearch" => "web-search",
+            "BrowserUse" => "browser-use",
+            "ComputerUse" => "computer-device-use",
+            "Automate" => "create-automation",
+            "Test" => "run-tests",
+            "DuoMode" => "duo",
+            _ => name
+        };
+        var definition = Assert.Single(CapabilityRegistryCatalog.BuiltIns, item => item.Key == key);
+        return ActiveCapability.FromDefinition(definition);
+    }
 
     /// <summary>
     /// Stores workspace names locally so this component can preserve the dependency, cache, or state between member calls.

@@ -1,0 +1,8 @@
+﻿{
+    "Depth":  0,
+    "ProcessId":  24536,
+    "ParentProcessId":  700,
+    "Name":  "powershell.exe",
+    "ExecutablePath":  "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "CommandLine":  "\"powershell.exe\" -NoProfile -NonInteractive -Command \"$listener = Get-NetTCPConnection -LocalPort 7148 -State Listen -ErrorAction Stop | Select-Object -First 1; $pid0 = $listener.OwningProcess; $rows = @(); $seen = @{}; $pid = $pid0; for ($i=0; $i -lt 6 -and $pid -gt 0 -and -not $seen.ContainsKey($pid); $i++) { $seen[$pid]=$true; $p = Get-CimInstance Win32_Process -Filter \\\"ProcessId=$pid\\\" -ErrorAction Stop; $rows += [pscustomobject]@{Depth=$i; ProcessId=$p.ProcessId; ParentProcessId=$p.ParentProcessId; Name=$p.Name; ExecutablePath=$p.ExecutablePath; CommandLine=$p.CommandLine}; $pid = $p.ParentProcessId }; $rows | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath \u0027.gptremote-process-diagnostic.json\u0027 -Encoding UTF8\""
+}

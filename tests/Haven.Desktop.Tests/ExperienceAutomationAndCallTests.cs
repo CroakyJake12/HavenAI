@@ -10,7 +10,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
-using Haven.Automations;
+using Haven.Application.Automations;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Services;
@@ -55,13 +55,13 @@ public sealed class ExperienceAutomationAndCallTests
     [AvaloniaFact]
     public void PlanAutomationBuilderConstructsOneProductionFlyout()
     {
-        using var control = new PlanAutomationControl();
+        using var control = new PlanScheduledTaskControl();
         var window = new Window { Content = control };
         try
         {
             window.Show();
-            Assert.Equal("Automations", control.Content);
-            Assert.NotNull(control.Flyout);
+            Assert.NotNull(control.Content);
+            Assert.Contains(control.GetVisualDescendants().OfType<Button>(), button => Equals(button.Content, "Scheduled tasks"));
         }
         finally
         {
@@ -75,22 +75,22 @@ public sealed class ExperienceAutomationAndCallTests
     [Fact]
     public void WeeklyScheduleRoundTripsThroughFriendlyDraft()
     {
-        var draft = new AutomationScheduleDraft(
+        var draft = new ScheduledTaskScheduleDraft(
             new DateTimeOffset(2026, 7, 20, 9, 30, 0, TimeSpan.Zero),
             new TimeOnly(17, 45),
             DayOfWeek.Thursday,
             3,
             180);
 
-        var json = AutomationScheduleComposer.Compose(AutomationScheduleKind.Weekly, draft);
-        var parsed = AutomationScheduleComposer.Parse(
+        var json = ScheduledTaskScheduleComposer.Compose(AutomationScheduleKind.Weekly, draft);
+        var parsed = ScheduledTaskScheduleComposer.Parse(
             AutomationScheduleKind.Weekly,
             json,
             DateTimeOffset.UtcNow);
 
         Assert.Equal(DayOfWeek.Thursday, parsed.DayOfWeek);
         Assert.Equal(new TimeOnly(17, 45), parsed.Time);
-        Assert.Contains("Thursday", AutomationScheduleComposer.Describe(AutomationScheduleKind.Weekly, parsed));
+        Assert.Contains("Thursday", ScheduledTaskScheduleComposer.Describe(AutomationScheduleKind.Weekly, parsed));
     }
 
     /// <summary>
@@ -99,10 +99,10 @@ public sealed class ExperienceAutomationAndCallTests
     [Fact]
     public void ConditionScheduleClampsToWorkerSupportedMinimum()
     {
-        var json = AutomationScheduleComposer.Compose(
+        var json = ScheduledTaskScheduleComposer.Compose(
             AutomationScheduleKind.ConditionWatch,
-            new AutomationScheduleDraft(DateTimeOffset.UtcNow, new TimeOnly(8, 0), DayOfWeek.Monday, 1, 5));
-        var parsed = AutomationScheduleComposer.Parse(
+            new ScheduledTaskScheduleDraft(DateTimeOffset.UtcNow, new TimeOnly(8, 0), DayOfWeek.Monday, 1, 5));
+        var parsed = ScheduledTaskScheduleComposer.Parse(
             AutomationScheduleKind.ConditionWatch,
             json,
             DateTimeOffset.UtcNow);
@@ -116,8 +116,8 @@ public sealed class ExperienceAutomationAndCallTests
     [Fact]
     public void ConditionParserAcceptsStructuredEvidenceAndFailsClosedOnFreeText()
     {
-        var met = AutomationConditionParser.Parse("{\"conditionMet\":true,\"report\":\"The release is available.\"}");
-        var malformed = AutomationConditionParser.Parse("It probably happened, but I am not sure.");
+        var met = ScheduledTaskConditionParser.Parse("{\"conditionMet\":true,\"report\":\"The release is available.\"}");
+        var malformed = ScheduledTaskConditionParser.Parse("It probably happened, but I am not sure.");
 
         Assert.True(met.ConditionMet);
         Assert.Contains("release", met.Report, StringComparison.OrdinalIgnoreCase);

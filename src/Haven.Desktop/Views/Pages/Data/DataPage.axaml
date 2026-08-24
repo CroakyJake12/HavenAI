@@ -1,0 +1,7 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:backend="using:Haven.Desktop.HavenUI.Backend"
+             x:Class="Haven.Desktop.Views.Pages.Data.DataPage">
+  <!-- Data visible product UI is Haven.UI; Avalonia is only the rendering/platform host. -->
+  <backend:HavenSceneControl x:Name="Scene" />
+</UserControl>

@@ -1,0 +1,14 @@
+<!--
+  FILE DOCUMENTATION
+  Where: src/Haven.UI/Haven.UI.csproj.
+  What: Platform-neutral Haven-owned UI scene/property/layout/component runtime.
+  Why: Normal Haven UI must not expose or depend on Avalonia control types.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\**\*.hui" />
+    <EmbeddedResource Include="Prefabs\**\*.hui" />
+    <EmbeddedResource Include="DynamicUI\**\*.hui" />
+    <Compile Update="Prefabs\**\*.hui.cs"><DependentUpon>%(Filename)</DependentUpon></Compile>
+  </ItemGroup>
+</Project>

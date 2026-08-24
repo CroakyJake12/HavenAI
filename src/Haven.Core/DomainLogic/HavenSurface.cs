@@ -33,6 +33,12 @@ public enum HavenSurface
     Launcher = 14,
     Go = 15,
     Dashboard = 16,
+    Write = 17,
+    Canvas = 18,
+    Automations = 19,
+    Spaces = 20,
+    Terminal = 21,
+    Mesh = 22,
 
     // UI aliases retained for saved layout JSON written before the rename.
     Teach = Study,

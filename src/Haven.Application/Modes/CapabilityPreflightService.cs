@@ -21,22 +21,22 @@ public sealed class CapabilityPreflightService
     /// </summary>
     public CapabilityPreflightResult Evaluate(
         ModelDescriptor activeModel,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         bool hasImageAttachments,
         IReadOnlyCollection<ModelDescriptor> installedModels)
     {
         var requirements = new List<CapabilityRequirement> { new(ToolCapability.Text, "Chat requires text generation.") };
         if (hasImageAttachments) requirements.Add(new(ToolCapability.Vision, "An image is attached."));
 
-        foreach (var plugin in plugins)
+        foreach (var capability in capabilities)
         {
-            switch (plugin.Name)
+            switch (capability.Key)
             {
-                case "BrowserUse": requirements.Add(new(ToolCapability.Browser, "@BrowserUse is active.")); break;
-                case "ComputerUse": requirements.Add(new(ToolCapability.ComputerUse, "@ComputerUse is active.")); break;
-                case "WebSearch": requirements.Add(new(ToolCapability.WebSearch, "@WebSearch is active.")); break;
-                case "Automate": requirements.Add(new(ToolCapability.Tools, "@Automate creates Scheduled Actions through a tool call.")); break;
-                case "Test": requirements.Add(new(ToolCapability.Tools, "@Test runs targeted workspace tests through a tool call.")); break;
+                case "browser-use": requirements.Add(new(ToolCapability.Browser, "Browser Use was selected for this turn.")); break;
+                case "computer-device-use": requirements.Add(new(ToolCapability.ComputerUse, "Computer / Device Use was selected for this turn.")); break;
+                case "web-search": requirements.Add(new(ToolCapability.WebSearch, "Web Search was selected for this turn.")); break;
+                case "create-automation": requirements.Add(new(ToolCapability.Tools, "Create Automation uses the Tasks tool runtime.")); break;
+                case "run-tests": requirements.Add(new(ToolCapability.Tools, "Run Tests uses the workspace tool runtime.")); break;
             }
         }
 

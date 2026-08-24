@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+             x:Class="Haven.Desktop.Views.Pages.Catalog.GenUiTemplatePreviewPage">
+  <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,*" Margin="26,22" ColumnSpacing="18" RowSpacing="14">
+    <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10">
+      <StackPanel Width="430">
+        <TextBlock Text="Template Preview Lab" Classes="heading" />
+        <TextBlock Text="Search registry metadata, exercise real implementations, and inspect semantic event/result traces."
+                   Classes="muted" Margin="0,4,0,0" />
+      </StackPanel>
+      <hui:HavenButton x:Name="DesktopWidthButton" Content="Desktop" Classes="chrome" VerticalAlignment="Bottom" />
+      <hui:HavenButton x:Name="MobileWidthButton" Content="Mobile" Classes="chrome" VerticalAlignment="Bottom" />
+      <hui:HavenButton x:Name="RefreshButton" Content="Refresh" Classes="chrome" VerticalAlignment="Bottom" />
+    </StackPanel>
+
+    <hui:HavenAdaptiveSurface Grid.Row="1" Classes="card" Padding="12">
+      <Grid RowDefinitions="Auto,*" RowSpacing="10">
+        <hui:HavenTextInput x:Name="SearchBox" PlaceholderText="Search templates" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="TemplateList" Spacing="4" />
+        </ScrollViewer>
+      </Grid>
+    </hui:HavenAdaptiveSurface>
+
+    <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+      <StackPanel>
+        <TextBlock x:Name="SelectedTitle" FontSize="19" FontWeight="ExtraBold" />
+        <TextBlock x:Name="SelectedMeta" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+      </StackPanel>
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <hui:HavenAdaptiveSurface x:Name="ViewportFrame" MinHeight="440" HorizontalAlignment="Left"
+                Padding="12" CornerRadius="20" BorderThickness="1"
+                BorderBrush="{DynamicResource HavenLineBrush}" Background="{DynamicResource HavenBackgroundBrush}">
+          <ContentControl x:Name="PreviewHost" />
+        </hui:HavenAdaptiveSurface>
+      </ScrollViewer>
+      <hui:HavenAdaptiveSurface Grid.Row="2" Classes="card" Padding="10">
+        <StackPanel Spacing="4">
+          <TextBlock Text="EVENT / RESULT TRACE" Classes="eyebrow" />
+          <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="TracePanel" Spacing="3" />
+          </ScrollViewer>
+        </StackPanel>
+      </hui:HavenAdaptiveSurface>
+    </Grid>
+  </Grid>
+</UserControl>

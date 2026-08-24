@@ -5,6 +5,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components.Buttons;
 
 namespace Haven.Desktop.Views.Pages.Archive;
 
@@ -80,8 +81,8 @@ public sealed partial class ArchivePage : UserControl
         var metaText = new TextBlock { Text = $"{kindText} · {updatedText}", Classes = { "muted" } };
         var metaStack = new StackPanel { Children = { titleBlock, metaText } };
 
-        var restoreButton = new Button { Content = "Restore", Classes = { "accent" } };
-        var deleteButton = new Button { Content = "Delete forever", Classes = { "danger" } };
+        var restoreButton = new HavenButton { Content = "Restore", Classes = { "accent" } };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete forever", ActionLabel = "delete forever" };
 
         restoreButton.RegisterWithEvents($"{qName}.Restore", _bus);
         restoreButton.Click += async (_, _) =>
@@ -106,7 +107,7 @@ public sealed partial class ArchivePage : UserControl
         Grid.SetColumn(buttonStack, 1);
         grid.Children.Add(buttonStack);
 
-        var border = new Border { Classes = { "card" }, Child = grid };
+        var border = new HavenAdaptiveSurface { Classes = { "card" }, Child = grid };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
         border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
         return border;
@@ -121,8 +122,8 @@ public sealed partial class ArchivePage : UserControl
         var metaText = new TextBlock { Text = $"Subject · {updatedText}", Classes = { "muted" } };
         var metaStack = new StackPanel { Children = { titleBlock, metaText } };
 
-        var restoreButton = new Button { Content = "Restore", Classes = { "accent" } };
-        var deleteButton = new Button { Content = "Delete forever", Classes = { "danger" } };
+        var restoreButton = new HavenButton { Content = "Restore", Classes = { "accent" } };
+        var deleteButton = new HoldToConfirmButton { Content = "Delete forever", ActionLabel = "delete forever" };
 
         restoreButton.RegisterWithEvents($"{qName}.Restore", _bus);
         restoreButton.Click += async (_, _) =>
@@ -147,7 +148,7 @@ public sealed partial class ArchivePage : UserControl
         Grid.SetColumn(buttonStack, 1);
         grid.Children.Add(buttonStack);
 
-        var border = new Border { Classes = { "card" }, Child = grid };
+        var border = new HavenAdaptiveSurface { Classes = { "card" }, Child = grid };
         border.PointerEntered += (_, _) => _bus.Fire($"{qName}.Hover");
         border.PointerExited += (_, _) => _bus.Fire($"{qName}.Leave");
         return border;

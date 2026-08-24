@@ -77,7 +77,7 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         _banner.Title = "Haven Computer Use controls";
         _banner.Width = 1400;
         _banner.Height = 136;
-        _banner.Content = new Border
+        _banner.Content = new HavenAdaptiveSurface
         {
             Background = new LinearGradientBrush
             {
@@ -105,7 +105,7 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         _status.Width = 250;
         _status.Height = 102;
         _status.IsHitTestVisible = false;
-        _status.Content = new Border
+        _status.Content = new HavenAdaptiveSurface
         {
             Background = new LinearGradientBrush
             {
@@ -222,7 +222,7 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         _detail.Text = state.Action;
         _actionCount.Text = $"Action: {state.ActionNumber}/{state.ActionLimit}";
         _pause.Content = state.IsPaused ? "Resume" : "Pause";
-        PositionOverlays();
+        PositionOverlays(state.CursorX, state.CursorY);
         if (!_banner.IsVisible)
         {
             _banner.Show();
@@ -246,9 +246,15 @@ public sealed class ComputerUseOverlayCoordinator : IDisposable
         }
     }
 
-    private void PositionOverlays()
+    private void PositionOverlays(int? cursorX, int? cursorY)
     {
-        var screen = _banner.Screens.Primary;
+        var screens = _banner.Screens;
+        var screen = cursorX is int x && cursorY is int y
+            ? screens.ScreenFromPoint(new PixelPoint(x, y))
+            : null;
+        screen ??= screens.ScreenFromWindow(_banner);
+        screen ??= screens.ScreenFromPoint(_banner.Position);
+        screen ??= screens.All.FirstOrDefault();
         if (screen is null)
         {
             return;

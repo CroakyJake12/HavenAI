@@ -23,7 +23,7 @@ public sealed partial class MainView
 
         await _newChatPage.StartFreshConversationAsync(mode, chatGroupId, lessonId);
         _nativeChatSidebar?.SetMode(mode);
-        _nativeChatSidebar?.SetActiveConversation(null, chatGroupId);
+        _nativeChatSidebar?.SetActiveConversation(_newChatPage.CurrentConversation.Id, chatGroupId);
         await RefreshNativeChatSidebarAsync();
         ApplyShellVisualState();
     }

@@ -1,0 +1,10 @@
+<DynamicUI Name="ChatToolActivity">
+  <Container Name="ToolRow" Layout="Grid" Columns="88px 1fr Auto" Width="100%" Gap="10px" Padding="10px 12px" Background="Surface" Radius="12px">
+    <Text Name="Status" Content="{{STATUS}}" Column="0" FontSize="11" FontWeight="700" Foreground="TextSecondary" />
+    <Container Name="ToolContent" Layout="Vertical" Column="1" Gap="3px">
+      <Text Name="Title" Content="{{TITLE}}" FontSize="12" FontWeight="700" Foreground="TextPrimary" />
+      <Text Name="Detail" Content="{{DETAIL}}" FontSize="11" FontWeight="500" Foreground="TextSecondary" />
+    </Container>
+    <Text Name="Meta" Content="{{META}}" Column="2" FontSize="11" FontWeight="500" Foreground="TextSecondary" HorizontalAlignment="End" />
+  </Container>
+</DynamicUI>

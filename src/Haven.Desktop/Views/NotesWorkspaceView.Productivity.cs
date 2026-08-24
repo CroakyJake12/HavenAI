@@ -120,13 +120,13 @@ public sealed partial class NotesWorkspaceView
     private Control BuildTemplateAndFileTools(NotesDocument document)
     {
         var templates = NotesTemplateCatalog.Templates.ToArray();
-        var template = new ComboBox
+        var template = new HavenComboBox
         {
             ItemsSource = templates.Select(item => item.Name).ToArray(),
             SelectedIndex = 0
         };
         var state = LoadAdvancedState(document);
-        var pin = new CheckBox { Content = "Pin this document", IsChecked = state.View.IsPinned };
+        var pin = new HavenCheckBox { Content = "Pin this document", IsChecked = state.View.IsPinned };
         pin.IsCheckedChanged += (_, _) => MutateAdvancedState(
             document,
             value => value.View.IsPinned = pin.IsChecked == true,
@@ -171,12 +171,12 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildLocalFindReplace(NotesDocument document)
     {
-        var find = new TextBox { Text = _localFindText, PlaceholderText = "Find in this document" };
-        var replace = new TextBox { Text = _localReplaceText, PlaceholderText = "Replacement" };
-        var regex = new CheckBox { Content = "Regular expression", IsChecked = _localFindRegex };
-        var matchCase = new CheckBox { Content = "Match case", IsChecked = _localFindMatchCase };
-        var wholeWord = new CheckBox { Content = "Whole word", IsChecked = _localFindWholeWord };
-        var scope = new ComboBox
+        var find = new HavenTextInput { Text = _localFindText, PlaceholderText = "Find in this document" };
+        var replace = new HavenTextInput { Text = _localReplaceText, PlaceholderText = "Replacement" };
+        var regex = new HavenCheckBox { Content = "Regular expression", IsChecked = _localFindRegex };
+        var matchCase = new HavenCheckBox { Content = "Match case", IsChecked = _localFindMatchCase };
+        var wholeWord = new HavenCheckBox { Content = "Whole word", IsChecked = _localFindWholeWord };
+        var scope = new HavenComboBox
         {
             ItemsSource = new[] { "Document", "Current section", "Current page", "Selected block" },
             SelectedItem = _localFindScope
@@ -246,7 +246,7 @@ public sealed partial class NotesWorkspaceView
                 new WrapPanel { Children = { regex, matchCase, wholeWord } },
                 Labeled("Scope", scope),
                 actions,
-                new Border
+                new HavenAdaptiveSurface
                 {
                     MaxHeight = 180,
                     Child = new ScrollViewer
@@ -294,7 +294,7 @@ public sealed partial class NotesWorkspaceView
                     FontSize = 9
                 },
                 actions,
-                new Border
+                new HavenAdaptiveSurface
                 {
                     MaxHeight = 220,
                     Child = new ScrollViewer
@@ -324,7 +324,7 @@ public sealed partial class NotesWorkspaceView
         var firstFooter = MetadataBox(variants.FirstPageFooter, "First-page footer");
         var oddHeader = MetadataBox(variants.OddPageHeader, "Odd-page header");
         var evenHeader = MetadataBox(variants.EvenPageHeader, "Even-page header");
-        var restart = new NumericUpDown
+        var restart = new HavenNumericInput
         {
             Minimum = 1,
             Maximum = 1_000_000,
@@ -382,8 +382,8 @@ public sealed partial class NotesWorkspaceView
         {
             "title", "author", "date", "time", "page-count", "word-count", "character-count", "file-name"
         };
-        var name = new ComboBox { ItemsSource = names, SelectedIndex = 0 };
-        var format = new TextBox { PlaceholderText = "Optional .NET date/time format" };
+        var name = new HavenComboBox { ItemsSource = names, SelectedIndex = 0 };
+        var format = new HavenTextInput { PlaceholderText = "Optional .NET date/time format" };
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Add field", () =>
         {
@@ -428,7 +428,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildBookmarkTools(NotesDocument document)
     {
-        var name = new TextBox { PlaceholderText = "Bookmark name" };
+        var name = new HavenTextInput { PlaceholderText = "Bookmark name" };
         var add = ActionButton("Add bookmark", () =>
         {
             if (_page.SelectedBlock is not { } block) return Task.CompletedTask;
@@ -453,7 +453,7 @@ public sealed partial class NotesWorkspaceView
     /// </summary>
     private Control BuildStyleTools(NotesDocument document)
     {
-        var name = new TextBox { PlaceholderText = "New style name" };
+        var name = new HavenTextInput { PlaceholderText = "New style name" };
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("Create from selection", () =>
         {
@@ -491,20 +491,20 @@ public sealed partial class NotesWorkspaceView
     {
         var state = LoadAdvancedState(document);
         var layout = state.PageLayout;
-        var columns = new NumericUpDown { Minimum = 1, Maximum = 12, Value = layout.Columns };
-        var gutter = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)layout.GutterPoints };
-        var spacing = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = (decimal)layout.ColumnSpacingPoints };
-        var watermark = new TextBox { Text = layout.Watermark, PlaceholderText = "Optional watermark" };
-        var pageNumberFormat = new ComboBox
+        var columns = new HavenNumericInput { Minimum = 1, Maximum = 12, Value = layout.Columns };
+        var gutter = new HavenNumericInput { Minimum = 0, Maximum = 1000, Value = (decimal)layout.GutterPoints };
+        var spacing = new HavenNumericInput { Minimum = 0, Maximum = 1000, Value = (decimal)layout.ColumnSpacingPoints };
+        var watermark = new HavenTextInput { Text = layout.Watermark, PlaceholderText = "Optional watermark" };
+        var pageNumberFormat = new HavenComboBox
         {
             ItemsSource = new[] { "1, 2, 3", "i, ii, iii", "I, II, III", "a, b, c", "A, B, C" },
             SelectedItem = layout.PageNumberFormat
         };
-        var mirror = new CheckBox { Content = "Mirror margins", IsChecked = layout.MirrorMargins };
-        var lineNumbers = new CheckBox { Content = "Line numbering", IsChecked = layout.LineNumbering };
-        var hyphenation = new CheckBox { Content = "Automatic hyphenation", IsChecked = layout.Hyphenation };
-        var firstPage = new CheckBox { Content = "Different first page", IsChecked = layout.DifferentFirstPage };
-        var oddEven = new CheckBox { Content = "Different odd and even pages", IsChecked = layout.DifferentOddEvenPages };
+        var mirror = new HavenCheckBox { Content = "Mirror margins", IsChecked = layout.MirrorMargins };
+        var lineNumbers = new HavenCheckBox { Content = "Line numbering", IsChecked = layout.LineNumbering };
+        var hyphenation = new HavenCheckBox { Content = "Automatic hyphenation", IsChecked = layout.Hyphenation };
+        var firstPage = new HavenCheckBox { Content = "Different first page", IsChecked = layout.DifferentFirstPage };
+        var oddEven = new HavenCheckBox { Content = "Different odd and even pages", IsChecked = layout.DifferentOddEvenPages };
         var ready = false;
         void Commit()
         {
@@ -559,11 +559,11 @@ public sealed partial class NotesWorkspaceView
     private Control BuildPrivacyTools(NotesDocument document)
     {
         var state = LoadAdvancedState(document);
-        var ai = new CheckBox { Content = "Enable Notes AI", IsChecked = state.Privacy.AiEnabled };
-        var external = new CheckBox { Content = "Allow explicitly configured external providers", IsChecked = state.Privacy.AllowExternalProviders };
-        var context = new CheckBox { Content = "Allow full-document AI context", IsChecked = state.Privacy.AllowDocumentContext };
-        var workspace = new CheckBox { Content = "Allow selected workspace context", IsChecked = state.Privacy.AllowWorkspaceContext };
-        var web = new CheckBox { Content = "Allow user-approved web research", IsChecked = state.Privacy.AllowWebResearch };
+        var ai = new HavenCheckBox { Content = "Enable Notes AI", IsChecked = state.Privacy.AiEnabled };
+        var external = new HavenCheckBox { Content = "Allow explicitly configured external providers", IsChecked = state.Privacy.AllowExternalProviders };
+        var context = new HavenCheckBox { Content = "Allow full-document AI context", IsChecked = state.Privacy.AllowDocumentContext };
+        var workspace = new HavenCheckBox { Content = "Allow selected workspace context", IsChecked = state.Privacy.AllowWorkspaceContext };
+        var web = new HavenCheckBox { Content = "Allow user-approved web research", IsChecked = state.Privacy.AllowWebResearch };
         var ready = false;
         void Commit()
         {
@@ -639,7 +639,7 @@ public sealed partial class NotesWorkspaceView
             Children =
             {
                 compare,
-                new Border
+                new HavenAdaptiveSurface
                 {
                     MaxHeight = 260,
                     Child = new ScrollViewer
@@ -661,7 +661,7 @@ public sealed partial class NotesWorkspaceView
         _localFindResultsPanel.Children.Clear();
         foreach (var match in _localFindMatches.Take(200))
         {
-            var button = new Button
+            var button = new HavenButton
             {
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Content = new StackPanel
@@ -769,7 +769,7 @@ public sealed partial class NotesWorkspaceView
         foreach (var bookmark in document.Bookmarks)
         {
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 5 };
-            var open = new Button { Content = bookmark.Name, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var open = new HavenButton { Content = bookmark.Name, HorizontalContentAlignment = HorizontalAlignment.Stretch };
             open.Classes.Add("sidebar");
             open.Click += (_, _) => NavigateToBlock(bookmark.BlockId);
             row.Children.Add(open);

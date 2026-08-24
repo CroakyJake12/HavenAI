@@ -352,6 +352,10 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
                     }
                 }
                 break;
+            case NotesBlockKind.Shape:
+                block.VectorShape ??= DocumentVectorShapes.CreateEditableStarter();
+                block.VectorShape.Normalize();
+                break;
             case NotesBlockKind.Flashcard:
                 block.Flashcard ??= new NotesFlashcardData { Front = "Question", Back = "Answer" };
                 block.Flashcard.CardId = block.Flashcard.CardId == Guid.Empty ? Guid.NewGuid() : block.Flashcard.CardId;
@@ -375,7 +379,9 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
     {
         run.Id = Unique(run.Id, usedIds, changes, "text run");
         run.Text ??= string.Empty;
-        run.FontFamily = string.IsNullOrWhiteSpace(run.FontFamily) ? "Inter" : run.FontFamily.Trim();
+        run.FontFamily = string.IsNullOrWhiteSpace(run.FontFamily) || run.FontFamily.Equals("Inter", StringComparison.OrdinalIgnoreCase)
+            ? "Montserrat"
+            : run.FontFamily.Trim();
         run.FontSize = ClampFinite(run.FontSize, 14, 4, 300);
         run.Foreground = ValidColour(run.Foreground) ? run.Foreground : "#FFEEEEEE";
         run.Background = ValidColour(run.Background) ? run.Background : "#00000000";
@@ -393,6 +399,7 @@ public sealed class NotesDocumentMigrator : INotesDocumentMigrator
         value.Y = ClampFinite(value.Y, 0, -1_000_000, 1_000_000);
         value.Rotation = ClampFinite(value.Rotation, 0, -360_000, 360_000);
         value.StyleJson = string.IsNullOrWhiteSpace(value.StyleJson) ? "{}" : value.StyleJson;
+        value.VectorShape?.Normalize();
     }
 
     /// <summary>

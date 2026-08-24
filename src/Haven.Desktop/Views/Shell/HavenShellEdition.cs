@@ -1,8 +1,8 @@
 namespace Haven.Desktop.Views.Shell;
 
 /// <summary>
-/// Selects the independent visual product launched from the Haven picker.
-/// New Haven follows the Phase 1 mockups; Classic preserves the existing shell.
+/// Identifies the current Haven shell and its temporary legacy compatibility path.
+/// Startup always selects New; Classic remains only until migration parity permits deletion.
 /// </summary>
 public enum HavenShellEdition
 {

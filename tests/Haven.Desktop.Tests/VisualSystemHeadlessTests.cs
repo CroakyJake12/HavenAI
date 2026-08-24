@@ -42,12 +42,39 @@ public sealed class VisualSystemHeadlessTests
 
         Assert.Equal(36, button.MinHeight);
         Assert.Equal(new CornerRadius(10), button.CornerRadius);
+        Assert.Equal(FontWeight.Bold, button.FontWeight);
+        Assert.Contains("Montserrat", button.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(new CornerRadius(16), acrylic.CornerRadius);
         Assert.NotEqual(0, acrylic.FallbackColor.A);
 
         var backdrop = acrylic.GetVisualDescendants().OfType<ExperimentalAcrylicBorder>().Single();
         Assert.NotNull(backdrop.Material);
         Assert.Equal(AcrylicBackgroundSource.Digger, backdrop.Material.BackgroundSource);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void HavenChromeUsesBundledMontserratWithThickDefaultWeights()
+    {
+        var label = new TextBlock { Text = "Haven" };
+        var input = new TextBox { Text = "Settings" };
+        var button = new Button { Content = "Open" };
+        var window = new Window
+        {
+            Width = 360,
+            Height = 180,
+            Content = new StackPanel { Children = { label, input, button } }
+        };
+
+        window.Show();
+
+        Assert.Contains("Montserrat", label.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Montserrat", input.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Montserrat", button.FontFamily?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(FontWeight.SemiBold, label.FontWeight);
+        Assert.Equal(FontWeight.SemiBold, input.FontWeight);
+        Assert.Equal(FontWeight.Bold, button.FontWeight);
+
         window.Close();
     }
 
@@ -120,12 +147,44 @@ public sealed class VisualSystemHeadlessTests
     }
 
     /// <summary>
+    /// Planner keeps its view navigation on the canonical Haven tabber and its scheduled-task entry in the header host.
+    /// </summary>
+    [AvaloniaFact]
+    public void PlanViewUsesCanonicalTabberAndScheduledTaskHost()
+    {
+        var view = new PlanView();
+        var window = new Window { Width = 1280, Height = 800, Content = view };
+
+        window.Show();
+        window.UpdateLayout();
+
+        var tabs = Assert.Single(view.GetVisualDescendants().OfType<Haven.Desktop.HavenUI.Components.HavenTabView>());
+        Assert.Equal(9, tabs.Items.Count);
+        Assert.NotNull(view.FindControl<Grid>("ScheduledTaskHost"));
+        var sidebar = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("CollectionSidebar"));
+        var compactPicker = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("CompactCollectionPicker"));
+        var inspector = Assert.IsAssignableFrom<Control>(view.FindControl<Control>("PlannerInspector"));
+        Assert.True(sidebar.IsVisible);
+        Assert.False(compactPicker.IsVisible);
+
+        window.Width = 760;
+        view.Width = 760;
+        window.UpdateLayout();
+
+        Assert.False(sidebar.IsVisible);
+        Assert.True(compactPicker.IsVisible);
+        Assert.True(double.IsNaN(inspector.Width));
+        Assert.Equal(Avalonia.Layout.HorizontalAlignment.Stretch, inspector.HorizontalAlignment);
+        window.Close();
+    }
+
+    /// <summary>
     /// Performs the first class surface views construct under headless avalonia step owned by this component.
     /// </summary>
     [AvaloniaFact]
     public void FirstClassSurfaceViewsConstructUnderHeadlessAvalonia()
     {
-        Control[] pages = [new HomeView(), new CallView(), new PlanView(), new ChatGroupView()];
+        Control[] pages = [new PlanView(), new ChatGroupView(), new ArchiveView(), new ModeLibraryView()];
         var window = new Window { Width = 1280, Height = 800, Content = new StackPanel { Children = { pages[0], pages[1], pages[2], pages[3] } } };
 
         window.Show();

@@ -136,6 +136,10 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// Stores event editor locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
     private PlannerEventEditorViewModel? _eventEditor;
+    private PlannerSidePanel _activeSidePanel;
+    private string? _refreshError;
+    private double _progressPercent;
+    private string _progressLabel = "No tasks yet";
 
     public PlanPageViewModel(
         IPlannerRepository repository,
@@ -156,6 +160,8 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         CompleteTaskCommand = new AsyncRelayCommand<PlannerTaskItemViewModel>(CompleteTaskAsync);
         StartTaskCommand = new AsyncRelayCommand<PlannerTaskItemViewModel>(StartTaskAsync);
         DeleteTaskCommand = new AsyncRelayCommand<PlannerTaskItemViewModel>(DeleteTaskAsync);
+        MoveTaskUpCommand = new AsyncRelayCommand<PlannerTaskItemViewModel>(item => MoveTaskAsync(item, -1));
+        MoveTaskDownCommand = new AsyncRelayCommand<PlannerTaskItemViewModel>(item => MoveTaskAsync(item, 1));
         CreateEventCommand = new AsyncRelayCommand(CreateEventAsync, CanCreateEvent);
         DeleteEventCommand = new AsyncRelayCommand<PlannerEventItemViewModel>(DeleteEventAsync);
         AskAiCommand = new AsyncRelayCommand(AskAiAsync, () => !string.IsNullOrWhiteSpace(AiPrompt));
@@ -179,6 +185,9 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         CloseTaskEditorCommand = new RelayCommand(() => TaskEditor = null);
         EditEventCommand = new RelayCommand<PlannerEventItemViewModel>(OpenEventEditor);
         CloseEventEditorCommand = new RelayCommand(() => EventEditor = null);
+        ShowAiPanelCommand = new RelayCommand(() => ActiveSidePanel = ActiveSidePanel == PlannerSidePanel.Ai ? PlannerSidePanel.None : PlannerSidePanel.Ai);
+        ShowCalendarPanelCommand = new RelayCommand(() => ActiveSidePanel = ActiveSidePanel == PlannerSidePanel.Calendars ? PlannerSidePanel.None : PlannerSidePanel.Calendars);
+        CloseSidePanelCommand = new RelayCommand(() => ActiveSidePanel = PlannerSidePanel.None);
         foreach (var provider in _syncProviders.Providers) Providers.Add(new(provider));
         _calendarSyncTimer = new DispatcherTimer(TimeSpan.FromMinutes(5), DispatcherPriority.Background,
             async (_, _) => await SyncConnectedCalendarsAsync());
@@ -268,6 +277,9 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
             RaisePropertyChanged(nameof(ShowsBoard));
             RaisePropertyChanged(nameof(ShowsCalendarGrid));
             RaisePropertyChanged(nameof(ShowsStandardList));
+            RaisePropertyChanged(nameof(SelectedViewIndex));
+            RaisePropertyChanged(nameof(AllowsTaskReorder));
+            RaisePropertyChanged(nameof(ShowsEmptyState));
             _ = RefreshAsync();
         }
     }
@@ -302,6 +314,29 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// Gets or updates shows standard list, the bindable or domain state represented by this property.
     /// </summary>
     public bool ShowsStandardList => !ShowsBoard && !ShowsCalendarGrid;
+    public int SelectedViewIndex
+    {
+        get => (int)SelectedView;
+        set
+        {
+            if (value >= 0 && value < Views.Count) SelectedView = Views[value].Kind;
+        }
+    }
+    public bool AllowsTaskReorder => SelectedView == PlannerViewKind.List;
+    public double ProgressPercent { get => _progressPercent; private set => SetProperty(ref _progressPercent, value); }
+    public string ProgressLabel { get => _progressLabel; private set => SetProperty(ref _progressLabel, value); }
+    public string? RefreshError
+    {
+        get => _refreshError;
+        private set
+        {
+            if (!SetProperty(ref _refreshError, value)) return;
+            RaisePropertyChanged(nameof(HasRefreshError));
+            RaisePropertyChanged(nameof(ShowsEmptyState));
+        }
+    }
+    public bool HasRefreshError => !string.IsNullOrWhiteSpace(RefreshError);
+    public bool ShowsEmptyState => !IsBusy && !HasRefreshError && ShowsStandardList && Tasks.Count == 0 && Events.Count == 0;
     /// <summary>
     /// Gets or updates status, the bindable or domain state represented by this property.
     /// </summary>
@@ -309,7 +344,14 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// <summary>
     /// Reports whether busy applies to the current state.
     /// </summary>
-    public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set
+        {
+            if (SetProperty(ref _isBusy, value)) RaisePropertyChanged(nameof(ShowsEmptyState));
+        }
+    }
     /// <summary>
     /// Gets or updates new task title, the bindable or domain state represented by this property.
     /// </summary>
@@ -357,7 +399,18 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// <summary>
     /// Gets or updates task editor, the bindable or domain state represented by this property.
     /// </summary>
-    public PlannerTaskEditorViewModel? TaskEditor { get => _taskEditor; private set { if (SetProperty(ref _taskEditor, value)) RaisePropertyChanged(nameof(HasTaskEditor)); } }
+    public PlannerTaskEditorViewModel? TaskEditor
+    {
+        get => _taskEditor;
+        private set
+        {
+            if (!SetProperty(ref _taskEditor, value)) return;
+            RaisePropertyChanged(nameof(HasTaskEditor));
+            RaisePropertyChanged(nameof(ShowsTaskPanel));
+            RaisePropertyChanged(nameof(HasSidePanel));
+            if (value is null && ActiveSidePanel == PlannerSidePanel.Task) ActiveSidePanel = PlannerSidePanel.None;
+        }
+    }
     /// <summary>
     /// Reports whether task editor applies to the current state.
     /// </summary>
@@ -365,11 +418,42 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// <summary>
     /// Gets or updates event editor, the bindable or domain state represented by this property.
     /// </summary>
-    public PlannerEventEditorViewModel? EventEditor { get => _eventEditor; private set { if (SetProperty(ref _eventEditor, value)) RaisePropertyChanged(nameof(HasEventEditor)); } }
+    public PlannerEventEditorViewModel? EventEditor
+    {
+        get => _eventEditor;
+        private set
+        {
+            if (!SetProperty(ref _eventEditor, value)) return;
+            RaisePropertyChanged(nameof(HasEventEditor));
+            RaisePropertyChanged(nameof(ShowsEventPanel));
+            RaisePropertyChanged(nameof(HasSidePanel));
+            if (value is null && ActiveSidePanel == PlannerSidePanel.Event) ActiveSidePanel = PlannerSidePanel.None;
+        }
+    }
     /// <summary>
     /// Reports whether event editor applies to the current state.
     /// </summary>
     public bool HasEventEditor => EventEditor is not null;
+    public PlannerSidePanel ActiveSidePanel
+    {
+        get => _activeSidePanel;
+        private set
+        {
+            if (!SetProperty(ref _activeSidePanel, value)) return;
+            RaisePropertyChanged(nameof(ShowsTaskPanel));
+            RaisePropertyChanged(nameof(ShowsEventPanel));
+            RaisePropertyChanged(nameof(ShowsAiPanel));
+            RaisePropertyChanged(nameof(ShowsCalendarPanel));
+            RaisePropertyChanged(nameof(ShowsCalendarConflicts));
+            RaisePropertyChanged(nameof(HasSidePanel));
+        }
+    }
+    public bool ShowsTaskPanel => ActiveSidePanel == PlannerSidePanel.Task && HasTaskEditor;
+    public bool ShowsEventPanel => ActiveSidePanel == PlannerSidePanel.Event && HasEventEditor;
+    public bool ShowsAiPanel => ActiveSidePanel == PlannerSidePanel.Ai;
+    public bool ShowsCalendarPanel => ActiveSidePanel == PlannerSidePanel.Calendars;
+    public bool ShowsCalendarConflicts => ShowsCalendarPanel && HasConflicts;
+    public bool HasSidePanel => ActiveSidePanel != PlannerSidePanel.None;
     public PlannerChangeProposal? PendingProposal
     {
         get => _pendingProposal;
@@ -379,6 +463,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
             RaisePropertyChanged(nameof(HasPendingProposal));
             RaisePropertyChanged(nameof(PendingProposalSummary));
             ApplyProposalCommand.RaiseCanExecuteChanged();
+            if (value is not null) ActiveSidePanel = PlannerSidePanel.Ai;
         }
     }
     /// <summary>
@@ -430,6 +515,8 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// Gets or updates delete task command, the bindable or domain state represented by this property.
     /// </summary>
     public AsyncRelayCommand<PlannerTaskItemViewModel> DeleteTaskCommand { get; }
+    public AsyncRelayCommand<PlannerTaskItemViewModel> MoveTaskUpCommand { get; }
+    public AsyncRelayCommand<PlannerTaskItemViewModel> MoveTaskDownCommand { get; }
     /// <summary>
     /// Creates event command with the invariants required by its callers.
     /// </summary>
@@ -522,6 +609,9 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// Gets or updates close event editor command, the bindable or domain state represented by this property.
     /// </summary>
     public RelayCommand CloseEventEditorCommand { get; }
+    public RelayCommand ShowAiPanelCommand { get; }
+    public RelayCommand ShowCalendarPanelCommand { get; }
+    public RelayCommand CloseSidePanelCommand { get; }
 
     /// <summary>
     /// Performs refresh asynchronously so I/O does not block the caller's thread.
@@ -563,6 +653,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         try
         {
             IsBusy = true;
+            RefreshError = null;
             await _repository.EnsureDefaultsAsync(cancellationToken);
             var selectedId = SelectedCollection?.Id;
             var selectedCalendarId = SelectedCalendar?.Id;
@@ -590,8 +681,15 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
             var (taskQuery, eventStart, eventEnd) = CreateQuery();
             var tasks = await _repository.GetTasksAsync(taskQuery, cancellationToken);
             var events = await _repository.GetEventsAsync(eventStart, eventEnd, null, cancellationToken);
+            var orderedTasks = SelectedView == PlannerViewKind.List
+                ? tasks.OrderBy(task => task.SortOrder).ThenBy(task => task.DueAt).ThenBy(task => task.CreatedAt).ToArray()
+                : tasks;
             Tasks.Clear();
-            foreach (var task in tasks) Tasks.Add(new(task, Collections.FirstOrDefault(collection => collection.Id == task.CollectionId)?.Name ?? "Planner"));
+            foreach (var task in orderedTasks) Tasks.Add(new(task, Collections.FirstOrDefault(collection => collection.Id == task.CollectionId)?.Name ?? "Planner"));
+            var progressTasks = SelectedCollection is null
+                ? Array.Empty<PlannerTask>()
+                : await _repository.GetTasksAsync(new PlannerTaskQuery(SelectedCollection.Id, IncludeCompleted: true), cancellationToken);
+            UpdateProgress(progressTasks);
             Events.Clear();
             foreach (var plannerEvent in events) Events.Add(new(plannerEvent));
             var conflicts = await _repository.GetUnresolvedConflictsAsync(cancellationToken);
@@ -607,10 +705,15 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
                     account?.StatusMessage ?? provider.Provider.ConfigurationStatus);
             }
             BuildProjections();
+            RaisePropertyChanged(nameof(ShowsEmptyState));
             Status = $"{Tasks.Count} task{(Tasks.Count == 1 ? string.Empty : "s")} · {Events.Count} event{(Events.Count == 1 ? string.Empty : "s")}";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (Exception ex) { Status = $"Planner could not refresh: {ex.Message}"; }
+        catch (Exception ex)
+        {
+            RefreshError = ex.Message;
+            Status = $"Planner could not refresh: {ex.Message}";
+        }
         finally { if (!cancellationToken.IsCancellationRequested) IsBusy = false; }
     }
 
@@ -731,6 +834,28 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
             await RefreshAsync();
         }
         catch (Exception ex) { Status = $"Event could not be rescheduled: {ex.Message}"; }
+    }
+
+    private async Task MoveTaskAsync(PlannerTaskItemViewModel? item, int direction)
+    {
+        if (item is null || !AllowsTaskReorder) return;
+        var index = Tasks.IndexOf(item);
+        var targetIndex = index + direction;
+        if (index < 0 || targetIndex < 0 || targetIndex >= Tasks.Count) return;
+        try
+        {
+            var reordered = Tasks.Select(task => task.Definition).ToList();
+            (reordered[index], reordered[targetIndex]) = (reordered[targetIndex], reordered[index]);
+            var now = DateTimeOffset.UtcNow;
+            var changes = reordered.Select((task, sortOrder) => new PlannerProposedChange(
+                Guid.NewGuid(), PlannerChangeKind.UpdateTask, task.Id,
+                JsonSerializer.Serialize(new { sortOrder }), $"Move {task.Title} to position {sortOrder + 1}")).ToArray();
+            await _repository.ApplyProposalAsync(new PlannerChangeProposal(
+                Guid.NewGuid(), "Reorder Planner tasks", changes, now), CancellationToken.None);
+            await RefreshAsync();
+            Status = "Task order updated.";
+        }
+        catch (Exception ex) { Status = $"Task could not be reordered: {ex.Message}"; }
     }
 
     /// <summary>
@@ -1039,6 +1164,33 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         if (item is null) return;
         EventEditor = null;
         TaskEditor = new PlannerTaskEditorViewModel(item.Definition, _repository, async () => { TaskEditor = null; await RefreshAsync(); });
+        ActiveSidePanel = PlannerSidePanel.Task;
+    }
+
+    public async Task<bool> OpenTaskByIdAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var task = await _repository.GetTaskAsync(taskId, cancellationToken);
+            if (task is null)
+            {
+                Status = "That task no longer exists.";
+                return false;
+            }
+
+            OpenTaskEditor(new PlannerTaskItemViewModel(task, string.Empty));
+            Status = $"Opened {task.Title}.";
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Status = $"Task could not be opened: {ex.Message}";
+            return false;
+        }
     }
 
     /// <summary>
@@ -1055,6 +1207,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
                 0, now, now, parent.Definition.TimeZoneId);
             await _repository.UpsertTaskAsync(task, CancellationToken.None);
             TaskEditor = new PlannerTaskEditorViewModel(task, _repository, async () => { TaskEditor = null; await RefreshAsync(); });
+            ActiveSidePanel = PlannerSidePanel.Task;
             await RefreshAsync();
             Status = "Subtask created. Add its details in the editor.";
         }
@@ -1069,6 +1222,7 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
         if (item is null) return;
         TaskEditor = null;
         EventEditor = new PlannerEventEditorViewModel(item.Definition, _repository, async () => { EventEditor = null; await RefreshAsync(); });
+        ActiveSidePanel = PlannerSidePanel.Event;
     }
 
     /// <summary>
@@ -1089,6 +1243,16 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
     /// <summary>
     /// Builds projections from the currently available inputs.
     /// </summary>
+    private void UpdateProgress(IReadOnlyList<PlannerTask> tasks)
+    {
+        var tracked = tasks.Where(task => task.Status != PlannerTaskStatus.Cancelled).ToArray();
+        var completed = tracked.Count(task => task.Status == PlannerTaskStatus.Completed);
+        ProgressPercent = tracked.Length == 0 ? 0 : completed * 100d / tracked.Length;
+        ProgressLabel = tracked.Length == 0
+            ? "No tasks yet"
+            : $"{completed} of {tracked.Length} complete · {ProgressPercent:0}%";
+    }
+
     private void BuildProjections()
     {
         BoardColumns.Clear();
@@ -1152,6 +1316,15 @@ public sealed class PlanPageViewModel : ObservableObject, IActivatablePage, IDis
 /// <summary>
 /// Represents planner view option and keeps its related state and behavior together.
 /// </summary>
+public enum PlannerSidePanel
+{
+    None = 0,
+    Task = 1,
+    Event = 2,
+    Ai = 3,
+    Calendars = 4
+}
+
 public sealed record PlannerViewOption(PlannerViewKind Kind, string Name);
 
 /// <summary>
@@ -1431,7 +1604,7 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
                 ParentTaskId = SelectedParent?.Id,
                 Title = Title.Trim(),
                 Notes = Notes.Trim(),
-                TagsJson = JsonSerializer.Serialize(tags),
+                TagsJson = PlannerStudyAssignmentTags.ReplaceUserTags(Definition.TagsJson, tags),
                 EstimatedMinutes = estimate,
                 Priority = Priority,
                 Status = completing ? Definition.Status : Status,
@@ -1456,8 +1629,8 @@ public sealed class PlannerTaskEditorViewModel : ObservableObject
     /// </summary>
     private static string ReadTags(string json)
     {
-        try { return string.Join(", ", JsonSerializer.Deserialize<string[]>(json) ?? []); }
-        catch (JsonException) { return string.Empty; }
+        return string.Join(", ", PlannerStudyAssignmentTags.GetUserTags(json));
+
     }
 }
 

@@ -61,9 +61,9 @@ public sealed class RecoverySafeModePolicyTests : IDisposable
         {
             Assert.Contains("safe mode", plan.GetUnavailableReason(name), StringComparison.OrdinalIgnoreCase);
         }
-        Assert.False(plan.IsPluginAvailable("ComputerUse"));
-        Assert.False(plan.IsPluginAvailable("BrowserUse"));
-        Assert.False(plan.IsPluginAvailable("Automate"));
+        Assert.False(plan.IsCapabilityAvailable("computer-device-use"));
+        Assert.False(plan.IsCapabilityAvailable("browser-use"));
+        Assert.False(plan.IsCapabilityAvailable("create-automation"));
     }
 
     /// <summary>

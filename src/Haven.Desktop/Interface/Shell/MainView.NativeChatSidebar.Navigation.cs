@@ -6,6 +6,18 @@ public sealed partial class MainView
 {
     private async Task OpenNativeConversationAsync(Conversation conversation)
     {
+        if (_edition == HavenShellEdition.New)
+        {
+            await OpenScopedNewChatPageAsync(
+                conversation.Mode,
+                conversation.ContainerId,
+                $"conversation-{conversation.Id:N}",
+                conversation.Title,
+                SurfaceForMode(conversation.Mode),
+                conversation);
+            return;
+        }
+
         await OpenNewChatAsync();
         if (_newChatPage is null)
         {

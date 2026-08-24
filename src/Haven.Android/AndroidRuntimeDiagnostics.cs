@@ -248,6 +248,7 @@ internal static class AndroidRuntimeDiagnostics
                 details.SetTextIsSelectable(true);
                 details.TextSize = 12f;
                 details.SetPadding(32, 24, 32, 24);
+                AndroidTypography.Apply(details);
 
                 var scroll = new AndroidScrollView(activity);
                 scroll.AddView(
@@ -293,6 +294,7 @@ internal static class AndroidRuntimeDiagnostics
                 }
 
                 dialog.Show();
+                AndroidTypography.ApplyTree(dialog.Window?.DecorView);
             }
             catch (Exception exception)
             {

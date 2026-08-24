@@ -13,7 +13,9 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Haven.Application;
 using Haven.Core;
-
+using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Tokens;
+using Haven.Desktop.Services;
 namespace Haven.Desktop;
 
 /// <summary>
@@ -81,11 +83,134 @@ public sealed class UserPreferencesService
     public UserPreferencesService(IAppPaths paths)
     {
         _path = Path.Combine(paths.DataDirectory, "preferences.json");
+        var hasExistingPreferences = File.Exists(_path);
         _preferences = Load();
-        // Migrate legacy themes to new Windows 11 system theme
-        if (LegacyThemeIds.Contains(_preferences.ThemeId))
-            _preferences = _preferences with { ThemeId = "system" };
-        ApplyTheme(_preferences.ThemeId, save: false);
+        const int currentAppearanceVersion = 2;
+        var migrated = _preferences.HavenUiAppearanceVersion < currentAppearanceVersion;
+        if (migrated)
+        {
+            var previousTheme = hasExistingPreferences && _preferences.HavenUiAppearanceVersion == 0
+                ? BuiltInThemes.FirstOrDefault(item =>
+                    item.Id.Equals(_preferences.ThemeId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            _preferences = _preferences with
+            {
+                // Version 2 is the from-scratch Haven visual release. Existing
+                // version-1 light-shell preferences migrate once to the deck's
+                // canonical dark presentation; the four-position control remains
+                // available and subsequent user choices are preserved.
+                HavenUiAppearance = previousTheme is not null
+                    ? previousTheme.Light ? HavenUiAppearance.Bright : HavenUiAppearance.SuperDark
+                    : HavenUiAppearance.SuperDark,
+                HavenUiAppearanceVersion = currentAppearanceVersion,
+                ThemeId = "haven-ui"
+            };
+        }
+        else if (LegacyThemeIds.Contains(_preferences.ThemeId))
+        {
+            _preferences = _preferences with { ThemeId = "haven-ui" };
+        }
+
+        ApplyCore(_preferences.HavenUiAppearance, save: migrated);
+    }
+
+    /// <summary>Raised after the canonical HavenUI colour appearance changes.</summary>
+    public event EventHandler? AppearanceChanged;
+
+    /// <summary>
+    /// Applies one of the four canonical HavenUI colour appearances. Geometry,
+    /// typography and navigation remain unchanged.
+    /// </summary>
+    public void ApplyAppearance(HavenUiAppearance appearance, bool save = true)
+    {
+        if (!Enum.IsDefined(appearance))
+            throw new ArgumentOutOfRangeException(nameof(appearance), appearance, "Unknown HavenUI appearance.");
+
+        _preferences = _preferences with
+        {
+            HavenUiAppearance = appearance,
+            HavenUiAppearanceVersion = 2,
+            ThemeId = "haven-ui"
+        };
+
+        ApplyCore(appearance, save);
+    }
+
+    /// <summary>
+    /// Selects one of the five canonical themes. Layout and navigation are
+    /// unchanged; only the theme's visual expression is applied live.
+    /// </summary>
+    public void ApplyThemeChoice(string? themeName, bool save = true)
+    {
+        var theme = HavenThemeCatalog.Parse(themeName);
+        _preferences = _preferences with { HavenUiThemeName = HavenThemeCatalog.Name(theme) };
+        ApplyCore(_preferences.HavenUiAppearance, save);
+    }
+
+    /// <summary>
+    /// Enables or disables global accent override with an optional semantic
+    /// palette name. An unknown palette name disables the override safely.
+    /// </summary>
+    public void ApplyAccentOverride(bool enabled, string? paletteName, bool save = true)
+    {
+        var parsed = AccentColourCatalog.Parse(paletteName);
+        _preferences = _preferences with
+        {
+            OverrideAccentColour = enabled && parsed is not null,
+            AccentColourName = parsed is null ? null : AccentColourCatalog.Name(parsed.Value)
+        };
+        ApplyCore(_preferences.HavenUiAppearance, save);
+    }
+
+    /// <summary>Selects the global UI font family; null or Montserrat restores the bundled default.</summary>
+    public void SetFontPreference(string? familyName, bool save = true)
+    {
+        var name = string.IsNullOrWhiteSpace(familyName) ? null : familyName.Trim();
+        if (name is not null && name.Equals(HavenUiFont.DefaultFamily, StringComparison.OrdinalIgnoreCase)) name = null;
+        _preferences = _preferences with { FontFamilyName = name };
+        ApplyCore(_preferences.HavenUiAppearance, save);
+    }
+
+    /// <summary>Toggles the independent user profile-picture preference. Requires a stored asset to enable.</summary>
+    public void SetUserAvatarEnabled(bool enabled, bool save = true)
+    {
+        _preferences = _preferences with { UserAvatarEnabled = enabled && (AvatarStore.Current?.Has(HavenAvatarKind.User) ?? false) };
+        ApplyCore(_preferences.HavenUiAppearance, save);
+    }
+
+    /// <summary>Toggles the independent Haven profile-picture preference. Requires a stored asset to enable.</summary>
+    public void SetHavenAvatarEnabled(bool enabled, bool save = true)
+    {
+        _preferences = _preferences with { HavenAvatarEnabled = enabled && (AvatarStore.Current?.Has(HavenAvatarKind.Haven) ?? false) };
+        ApplyCore(_preferences.HavenUiAppearance, save);
+    }
+
+    private void ApplyCore(HavenUiAppearance appearance, bool save)
+    {
+        // Publish personalisation into the shared state consulted by every
+        // palette resolution (surfaces, tidal background, generated UI).
+        HavenPersonalisation.Theme = Theme;
+        HavenPersonalisation.OverrideAccent = _preferences.OverrideAccentColour;
+        HavenPersonalisation.Accent = AccentColourCatalog.Parse(_preferences.AccentColourName);
+        HavenPersonalisation.FontFamilyName = _preferences.FontFamilyName;
+        HavenUiFont.SetUserFamily(_preferences.FontFamilyName);
+        HavenPersonalisation.UserAvatarEnabled = _preferences.UserAvatarEnabled;
+        HavenPersonalisation.HavenAvatarEnabled = _preferences.HavenAvatarEnabled;
+
+        var application = Avalonia.Application.Current;
+        if (application is not null)
+        {
+            application.RequestedThemeVariant = appearance is HavenUiAppearance.Dark or HavenUiAppearance.SuperDark
+                ? ThemeVariant.Dark
+                : ThemeVariant.Light;
+            application.Resources["HavenUiAppearance"] = appearance;
+            application.Resources["HavenUiTheme"] = HavenThemeCatalog.Name(Theme);
+            application.Resources["HavenFontFamily"] = HavenUiFont.Resolve(HavenUiFont.DefaultFamily);
+            HavenUiResourceApplier.Apply(SurfacePaletteCatalog.For(HavenSurface.Home, appearance));
+        }
+
+        if (save) Save();
+        AppearanceChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -121,6 +246,22 @@ public sealed class UserPreferencesService
     /// Gets or updates theme id, the bindable or domain state represented by this property.
     /// </summary>
     public string ThemeId => _preferences.ThemeId;
+    /// <summary>Gets the current four-position HavenUI brightness appearance.</summary>
+    public HavenUiAppearance Appearance => _preferences.HavenUiAppearance;
+    /// <summary>Gets the active canonical visual theme; unknown persisted values fall back to Glow.</summary>
+    public HavenUiTheme Theme => HavenThemeCatalog.Parse(_preferences.HavenUiThemeName);
+    /// <summary>Reports whether a semantic accent palette overrides surface accents. Effective: requires a valid palette name.</summary>
+    public bool OverrideAccentColour => _preferences.OverrideAccentColour && AccentColourCatalog.Parse(_preferences.AccentColourName) is not null;
+    /// <summary>Gets the selected accent palette name, or null when unset or unrecognised.</summary>
+    public string? AccentColourSelection => AccentColourCatalog.Parse(_preferences.AccentColourName) is null ? null : _preferences.AccentColourName;
+    /// <summary>Gets the user-selected UI font family name, or null for bundled Montserrat.</summary>
+    public string? FontPreference => _preferences.FontFamilyName;
+    /// <summary>Reports whether the user profile picture should render.</summary>
+    public bool UserAvatarEnabled => _preferences.UserAvatarEnabled;
+    /// <summary>Reports whether the Haven profile picture should render.</summary>
+    public bool HavenAvatarEnabled => _preferences.HavenAvatarEnabled;
+    /// <summary>Gets the installed app key selected for normal new tabs, if any.</summary>
+    public string? DefaultTabAppKey => _preferences.DefaultTabAppKey;
     /// <summary>
     /// Gets or updates default model, the bindable or domain state represented by this property.
     /// </summary>
@@ -165,6 +306,14 @@ public sealed class UserPreferencesService
     public bool AutoWakeOllama => _preferences.AutoWakeOllama;
     /// <summary>Reports whether Generative UI may replace Haven's launcher-selected base theme.</summary>
     public bool GenerativeUiEnabled => _preferences.GenerativeUiEnabled;
+    
+
+    
+
+    /// <summary>Reports whether local models should stay loaded when Haven's main UI is closed.</summary>
+    public bool AlwaysLoaded => _preferences.AlwaysLoaded;
+    /// <summary>Returns user-created Voice Profiles persisted in the local preference store.</summary>
+    public IReadOnlyList<VoiceProfile> CustomVoiceProfiles => _preferences.CustomVoiceProfiles;
     /// <summary>
     /// Gets or updates generation options, the bindable or domain state represented by this property.
     /// </summary>
@@ -196,6 +345,14 @@ public sealed class UserPreferencesService
     /// Performs the apply theme step owned by this component.
     /// </summary>
     public void ApplyTheme(string themeId, bool save = true)
+    {
+        var theme = Themes.FirstOrDefault(item => item.Id.Equals(themeId, StringComparison.OrdinalIgnoreCase));
+        ApplyAppearance(theme?.Light == false ? HavenUiAppearance.Dark : HavenUiAppearance.Bright, save);
+    }
+
+    // Kept temporarily for persisted-theme migration tests. The production
+    // Settings and startup paths no longer call this superseded theme engine.
+    private void ApplyLegacyTheme(string themeId, bool save = true)
     {
         var themes = Themes;
         var theme = themes.FirstOrDefault(item => item.Id.Equals(themeId, StringComparison.OrdinalIgnoreCase)) ?? themes[0];
@@ -233,7 +390,6 @@ public sealed class UserPreferencesService
             Set(application, "HavenButtonHoverBrush", Color.FromArgb(theme.Light ? (byte)230 : (byte)70, text.R, text.G, text.B));
             Set(application, "HavenButtonPressedBrush", Color.FromArgb(theme.Light ? (byte)175 : (byte)32, text.R, text.G, text.B));
             Set(application, "HavenFocusBrush", Color.FromArgb(180, accent.R, accent.G, accent.B));
-            Set(application, "PrimaryBrush", accent);
             Set(application, "SurfaceCardBrush", Color.FromArgb(theme.Light ? (byte)218 : (byte)164, panel2.R, panel2.G, panel2.B));
             Set(application, "TextPrimaryBrush", text);
 
@@ -244,11 +400,19 @@ public sealed class UserPreferencesService
             Set(application, "HavenMuted2Brush", Mix(muted, background, .20));
 
             // Accent colors — semi-transparent soft brushes for Mica layering
-            Set(application, "HavenAccentBrush", accent);
             Set(application, "HavenAccentInkBrush", theme.Light ? Colors.White : Color.Parse("#000000"));
             Set(application, "HavenAccentSoftBrush", Color.FromArgb(40, accent.R, accent.G, accent.B));
-            Set(application, "HavenAccentSecondaryBrush", blue);
             Set(application, "HavenBlueSoftBrush", Color.FromArgb(40, blue.R, blue.G, blue.B));
+
+            // Persisted pre-HavenUI themes are upgraded into the same three
+            // visibly non-flat gradient tiers as current page palettes.
+            HavenUiResourceApplier.ApplyAccentPalette(HavenAccentPalette.FromAnchors(
+                accent,
+                blue,
+                nub,
+                theme.Light ? Colors.White : Color.Parse("#000000"),
+                Color.FromArgb(40, accent.R, accent.G, accent.B),
+                panel));
 
             // Borders — minimal Windows 11 style
             var line = Mix(panel2, text, theme.CardBorder ? .16 : .09);
@@ -310,6 +474,16 @@ public sealed class UserPreferencesService
         Save();
     }
 
+    /// <summary>Persists a registry key without deleting it when that app is temporarily unavailable.</summary>
+    public void SetDefaultTabAppKey(string? appKey)
+    {
+        _preferences = _preferences with
+        {
+            DefaultTabAppKey = string.IsNullOrWhiteSpace(appKey) ? null : appKey.Trim()
+        };
+        Save();
+    }
+
     /// <summary>
     /// Performs the set advanced model options step owned by this component.
     /// </summary>
@@ -352,6 +526,45 @@ public sealed class UserPreferencesService
     {
         _preferences = _preferences with { GenerativeUiEnabled = enabled };
         Save();
+    }
+
+    /// <summary>
+    /// Enables or disables model residency (Always Loaded).
+    /// When enabled, the configured local model stays loaded after Haven's main UI closes.
+    /// </summary>
+
+    
+
+
+    
+
+
+    public void SetAlwaysLoaded(bool alwaysLoaded)
+    {
+        _preferences = _preferences with { AlwaysLoaded = alwaysLoaded };
+        Save();
+    }
+
+    public void UpsertCustomVoiceProfile(VoiceProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var profiles = _preferences.CustomVoiceProfiles
+            .Where(existing => !existing.Id.Equals(profile.Id, StringComparison.OrdinalIgnoreCase))
+            .Append(profile with { IsBuiltIn = false })
+            .ToArray();
+        _preferences = _preferences with { CustomVoiceProfiles = profiles };
+        Save();
+    }
+
+    public bool RemoveCustomVoiceProfile(string id)
+    {
+        var profiles = _preferences.CustomVoiceProfiles
+            .Where(profile => !profile.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (profiles.Length == _preferences.CustomVoiceProfiles.Count) return false;
+        _preferences = _preferences with { CustomVoiceProfiles = profiles };
+        Save();
+        return true;
     }
 
     /// <summary>
@@ -457,10 +670,28 @@ public sealed class UserPreferencesService
         /// Gets or updates theme id, the bindable or domain state represented by this property.
         /// </summary>
         public string ThemeId { get; init; } = "system";
+        /// <summary>Gets the canonical four-position HavenUI appearance.</summary>
+        public HavenUiAppearance HavenUiAppearance { get; init; } = HavenUiAppearance.SuperDark;
+        /// <summary>Distinguishes migrated preference files from theme-only legacy files.</summary>
+        public int HavenUiAppearanceVersion { get; init; }
+        /// <summary>Canonical theme name; unknown values resolve to Glow at read time.</summary>
+        public string HavenUiThemeName { get; init; } = "Glow";
+        /// <summary>Whether a semantic accent palette overrides surface accent hues.</summary>
+        public bool OverrideAccentColour { get; init; }
+        /// <summary>Persisted accent palette name, or null when following surface hues.</summary>
+        public string? AccentColourName { get; init; }
+        /// <summary>User-selected UI font family name, or null for bundled Montserrat.</summary>
+        public string? FontFamilyName { get; init; }
+        /// <summary>Whether the user profile picture renders on identity surfaces. Default off.</summary>
+        public bool UserAvatarEnabled { get; init; }
+        /// <summary>Whether the Haven profile picture renders on identity surfaces. Default off.</summary>
+        public bool HavenAvatarEnabled { get; init; }
         /// <summary>
         /// Gets or updates default model, the bindable or domain state represented by this property.
         /// </summary>
         public string? DefaultModel { get; init; }
+        /// <summary>Installed mode/application registry key used for normal new tabs.</summary>
+        public string? DefaultTabAppKey { get; init; }
         /// <summary>
         /// Gets or updates default effort, the bindable or domain state represented by this property.
         /// </summary>
@@ -504,6 +735,16 @@ public sealed class UserPreferencesService
         /// Disabled is the safe default for existing preference files that predate this setting.
         /// </summary>
         public bool GenerativeUiEnabled { get; init; }
+
+
+
+
+        /// <summary>
+        /// Gets whether local models should remain loaded when Haven's main UI is closed.
+        /// Enables faster reopen and background task continuity at the cost of memory.
+        /// </summary>
+        public bool AlwaysLoaded { get; init; }
+        public IReadOnlyList<VoiceProfile> CustomVoiceProfiles { get; init; } = [];
         /// <summary>
         /// Gets or updates temperature, the bindable or domain state represented by this property.
         /// </summary>

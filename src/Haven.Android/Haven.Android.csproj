@@ -16,11 +16,14 @@
     <AndroidManifest>AndroidManifest.xml</AndroidManifest>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
     <AssemblyName>Haven</AssemblyName>
     <RootNamespace>Haven.Android</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <ImplicitUsings>disable</ImplicitUsings>
-    <NoWarn>$(NoWarn);CA2255</NoWarn>
+    <!-- DI-constructed Avalonia controls intentionally have no public parameterless
+         constructor; they are reached statically from Haven's control graph. -->
+    <NoWarn>$(NoWarn);CA2255;AVLN3001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System" />
@@ -36,7 +39,9 @@
     <ProjectReference Include="../Haven.Application/Haven.Application.csproj" />
     <ProjectReference Include="../Haven.Infrastructure/Haven.Infrastructure.csproj" />
     <ProjectReference Include="../Haven.Browser/Haven.Browser.csproj" />
-    <ProjectReference Include="../Haven.Automations/Haven.Automations.csproj" />
+    <!-- The linked desktop source includes the Avalonia backend/host for platform-neutral Haven.UI. -->
+    <ProjectReference Include="../Haven.UI/Haven.UI.csproj" />
+    <!-- Legacy Haven.Automations project retired; scheduled Tasks live in Haven.Application. -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Android" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -50,7 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Haven.Desktop/**/*.cs"
-             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/obj/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs"
+             Exclude="../Haven.Desktop/bin/**;../Haven.Desktop/bin-*/**;../Haven.Desktop/obj/**;../Haven.Desktop/obj-*/**;../Haven.Desktop/Program.cs;../Haven.Desktop/MainWindow.axaml.cs;../Haven.Desktop/MainWindow.DeveloperTools.cs;../Haven.Desktop/Services/WindowsNaturalSpeechOutputService.cs;../Haven.Desktop/Services/WindowsGraphicsCaptureService.cs;../Haven.Desktop/Services/ComputerUseOverlayCoordinator.cs;../Haven.Desktop/Services/DesktopFloatingActivityHost.cs"
              LinkBase="SharedDesktop" />
     <AvaloniaXaml Include="../Haven.Desktop/App.axaml" Link="App.axaml">
       <Generator>MSBuild:Compile</Generator>
@@ -59,6 +64,12 @@
 
     <AvaloniaResource Include="../Haven.Desktop/Assets/**/*"
                       Link="Assets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../Haven.Desktop/Assets/Fonts/MontserratStatic/Montserrat-Medium.ttf"
+                  Link="fonts/Montserrat-Medium.ttf" />
+    <AndroidAsset Include="../Haven.Desktop/Assets/Fonts/MontserratStatic/Montserrat-SemiBold.ttf"
+                  Link="fonts/Montserrat-SemiBold.ttf" />
+    <AndroidAsset Include="../Haven.Desktop/Assets/Fonts/MontserratStatic/Montserrat-ExtraBold.ttf"
+                  Link="fonts/Montserrat-ExtraBold.ttf" />
     <AvaloniaXaml Include="../Haven.Desktop/Styles/**/*.axaml"
                   Link="Styles/%(RecursiveDir)%(Filename)%(Extension)">
       <Generator>MSBuild:Compile</Generator>
@@ -73,6 +84,11 @@
     <AvaloniaXaml Include="../Haven.Desktop/Views/**/*.axaml"
                   Exclude="../Haven.Desktop/MainWindow.axaml"
                   Link="Views/%(RecursiveDir)%(Filename)%(Extension)">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Include="../Haven.Desktop/Interface/**/*.axaml"
+                  Link="Interface/%(RecursiveDir)%(Filename)%(Extension)">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </AvaloniaXaml>

@@ -16,7 +16,11 @@ namespace Haven.Application;
 /// <summary>
 /// Represents automation tool runtime and keeps its related state and behavior together.
 /// </summary>
-public sealed class AutomationToolRuntime(IAutomationRepository automations, IWorkspaceStateRepository workspaceState)
+public sealed class AutomationToolRuntime(
+    IAutomationRepository automations,
+    IWorkspaceStateRepository workspaceState,
+    IPermissionDecisionEngine permissions,
+    IConversationSafetyService safety)
 {
     /// <summary>
     /// Retrieves definitions for the current operation.
@@ -44,7 +48,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
                     ["description"] = StringProperty("The task outcome."),
                     ["instruction"] = StringProperty("Complete reusable task instructions.")
                 }, "name", "instruction"));
-            result.Add(Definition("task_list", "List enabled reusable Haven Tasks available to this task group or project.", new()));
+            result.Add(Definition("task_list", "List enabled reusable Haven workflows available to this task group or project.", new()));
         }
         return result;
     }
@@ -52,11 +56,28 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Runs execute async while preserving the surrounding cancellation and error-handling contract.
     /// </summary>
-    public async Task<WorkspaceToolResult> ExecuteAsync(OllamaToolCall call, HavenMode mode, Guid? containerId, CancellationToken cancellationToken)
+    public async Task<WorkspaceToolResult> ExecuteAsync(
+        OllamaToolCall call,
+        HavenMode mode,
+        Guid conversationId,
+        Guid? containerId,
+        CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
         try
         {
+            if (call.Name is "automation_create" or "task_create")
+            {
+                await safety.EnsureMayActAsync(conversationId, $"tool.{call.Name}", cancellationToken).ConfigureAwait(false);
+                var decision = permissions.Evaluate(
+                    call.Name == "automation_create" ? "tasks.automation.create" : "tasks.reusable.create",
+                    CapabilityRiskClass.Consequential,
+                    requiresPermission: true,
+                    $"Allow Haven to execute {call.Name}.");
+                if (decision.Kind != PermissionDecisionKind.Allowed)
+                    throw new InvalidOperationException("Explicit scoped approval is required before this action can persist changes.");
+            }
+
             var output = call.Name switch
             {
                 "automation_create" => await CreateAutomationAsync(call, mode, containerId, cancellationToken).ConfigureAwait(false),
@@ -89,7 +110,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
         var next = CalculateInitialRun(kind, schedule.RootElement, now);
         var item = new AutomationDefinition(Guid.NewGuid(), name, mode, instruction, kind, scheduleJson, next, containerId, true, now, now);
         await automations.UpsertAsync(item, cancellationToken).ConfigureAwait(false);
-        return $"Created Scheduled Action '{name}'. Next run: {next?.LocalDateTime:g}. It can be reviewed or paused from Scheduled Actions.";
+        return $"Created Automation '{name}'. Next run: {next?.LocalDateTime:g}. It can be reviewed or paused from Automations.";
     }
 
     /// <summary>
@@ -98,10 +119,10 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     private async Task<string> CreateReusableTaskAsync(OllamaToolCall call, Guid? containerId, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var item = new MacroDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
+        var item = new ReusableTaskDefinition(Guid.NewGuid(), RequiredText(call, "name"), Text(call, "description"), RequiredText(call, "instruction"),
             containerId, true, now, now);
-        await workspaceState.UpsertMacroAsync(item, cancellationToken).ConfigureAwait(false);
-        return $"Created reusable task '{item.Name}'. It will run only when the user chooses it from Haven Tasks.";
+        await workspaceState.UpsertReusableTaskAsync(item, cancellationToken).ConfigureAwait(false);
+        return $"Created reusable workflow '{item.Name}'. It will run only when the user chooses it from Automations.";
     }
 
     /// <summary>
@@ -109,7 +130,7 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// </summary>
     private async Task<string> ListReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken)
     {
-        var items = await workspaceState.GetMacrosAsync(containerId, cancellationToken).ConfigureAwait(false);
+        var items = await workspaceState.GetReusableTasksAsync(containerId, cancellationToken).ConfigureAwait(false);
         return items.Count == 0 ? "No enabled reusable tasks are available." : string.Join('\n', items.Select(item => $"{item.Name}: {item.Description}\nInstruction: {item.Instruction}"));
     }
 
@@ -151,5 +172,5 @@ public sealed class AutomationToolRuntime(IAutomationRepository automations, IWo
     /// <summary>
     /// Performs the label step owned by this component.
     /// </summary>
-    private static string Label(string name) => name switch { "automation_create" => "Created Scheduled Action", "task_create" => "Created reusable task", "task_list" => "Listed reusable tasks", _ => name };
+    private static string Label(string name) => name switch { "automation_create" => "Created Automation", "task_create" => "Created reusable workflow", "task_list" => "Listed reusable workflows", _ => name };
 }

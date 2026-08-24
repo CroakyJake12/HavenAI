@@ -58,6 +58,10 @@ public sealed class NotesBlock
     /// </summary>
     public NotesCanvasData? Canvas { get; set; }
     /// <summary>
+    /// Gets or sets native editable vector geometry for a shape block.
+    /// </summary>
+    public DocumentVectorShape? VectorShape { get; set; }
+    /// <summary>
     /// Gets or sets the flashcard data.
     /// </summary>
     public NotesFlashcardData? Flashcard { get; set; }
@@ -132,7 +136,7 @@ public sealed class NotesTextRun
     /// <summary>
     /// Gets or sets the font family.
     /// </summary>
-    public string FontFamily { get; set; } = "Inter";
+    public string FontFamily { get; set; } = "Montserrat";
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>
@@ -634,4 +638,6 @@ public sealed class NotesCanvasObject
     /// Gets or sets the style JSON.
     /// </summary>
     public string StyleJson { get; set; } = "{}";
+    /// <summary>Native editable vector geometry when this object is a custom shape.</summary>
+    public DocumentVectorShape? VectorShape { get; set; }
 }

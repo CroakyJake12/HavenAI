@@ -9,13 +9,19 @@ namespace Haven.Android;
 
 public sealed partial class HavenLauncherActivity
 {
-    private async void LoadAppsAsync()
+    private int _appLoadGeneration;
+
+    private async void LoadAppsAsync(bool showLoading = false)
     {
-        if (_launcherStatus is not null)
+        var generation = Interlocked.Increment(ref _appLoadGeneration);
+        if (showLoading && _launcherStatus is not null)
             _launcherStatus.Text = "Loading apps…";
         try
         {
             var apps = await Task.Run(QueryApps);
+            if (generation != Volatile.Read(ref _appLoadGeneration))
+                return;
+
             _apps.Clear();
             _apps.AddRange(ApplySavedOrder(apps));
             _page = Math.Clamp(_page, 0, Math.Max(0, PageCount - 1));
@@ -30,6 +36,9 @@ public sealed partial class HavenLauncherActivity
         }
         catch (Exception ex)
         {
+            if (generation != Volatile.Read(ref _appLoadGeneration))
+                return;
+
             if (_launcherStatus is not null)
                 _launcherStatus.Text = "Could not load apps: " + ex.Message;
             Toast.MakeText(this, "Could not load apps", ToastLength.Long)?.Show();
@@ -41,30 +50,12 @@ public sealed partial class HavenLauncherActivity
         if (manager is null)
             return [];
 
-        var intent = new Intent(Intent.ActionMain);
-        intent.AddCategory(Intent.CategoryLauncher);
-
-#pragma warning disable CA1422
-        var results = manager.QueryIntentActivities(intent, PackageInfoFlags.MatchAll);
-#pragma warning restore CA1422
-
-        var apps = results
-            .Where(result => result.ActivityInfo?.PackageName is { Length: > 0 }
-                && result.ActivityInfo?.Name is { Length: > 0 })
-            .Select(result =>
-            {
-                var info = result.ActivityInfo!;
-                var packageName = info.PackageName!;
-                var activityName = info.Name!;
-                var label = result.LoadLabel(manager)?.ToString();
-                return new LauncherApp(
-                    string.IsNullOrWhiteSpace(label) ? packageName : label,
-                    packageName,
-                    activityName,
-                    result.LoadIcon(manager));
-            })
-            .DistinctBy(app => app.Key)
-            .OrderBy(app => app.Label, StringComparer.CurrentCultureIgnoreCase)
+        var apps = AndroidInstalledAppCatalog.Query(manager, loadIcons: true)
+            .Select(app => new LauncherApp(
+                app.Label,
+                app.PackageName,
+                app.ActivityName,
+                app.Icon))
             .ToList();
 
         if (!apps.Any(app => string.Equals(app.PackageName, PackageName, StringComparison.OrdinalIgnoreCase)))
@@ -97,9 +88,12 @@ public sealed partial class HavenLauncherActivity
         if (_grid is null || _pageIndicator is null)
             return;
 
-        var rows = Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8);
-        var columns = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7);
+        var (rows, columns) = ResolveGridShape(
+            Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8),
+            Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7));
         var perPage = rows * columns;
+        var pageCount = Math.Max(1, (int)Math.Ceiling(_apps.Count / (double)perPage));
+        _page = Math.Clamp(_page, 0, pageCount - 1);
         var visible = _apps.Skip(_page * perPage).Take(perPage).ToArray();
 
         _grid.RemoveAllViews();
@@ -108,19 +102,27 @@ public sealed partial class HavenLauncherActivity
             _pageIndicator.Text = "Tap All apps to retry";
             return;
         }
+
         _grid.RowCount = rows;
         _grid.ColumnCount = columns;
 
-        var displayWidth = Resources?.DisplayMetrics?.WidthPixels ?? 1080;
-        var cellWidth = Math.Max(Dp(64), (displayWidth - Dp(24)) / columns);
-        var cellHeight = Math.Max(Dp(78), ((_grid.Height > 0 ? _grid.Height : Dp(540))) / rows);
+        var metrics = Resources?.DisplayMetrics;
+        var gridWidth = _grid.Width > 0
+            ? _grid.Width
+            : Math.Max(Dp(64), (metrics?.WidthPixels ?? Dp(360)) - Dp(24));
+        var gridHeight = _grid.Height > 0
+            ? _grid.Height
+            : Math.Max(Dp(78), (metrics?.HeightPixels ?? Dp(640)) - Dp(180));
+        var cellWidth = Math.Max(Dp(64), gridWidth / columns);
+        var cellHeight = Math.Max(Dp(78), gridHeight / rows);
 
         foreach (var app in visible)
             _grid.AddView(BuildAppTile(app, cellWidth, cellHeight));
 
-        _pageIndicator.Text = PageCount <= 1
+        _pageIndicator.Text = pageCount <= 1
             ? "Swipe up for apps"
-            : $"{_page + 1} / {PageCount}  •  Swipe up for apps";
+            : $"{_page + 1} / {pageCount}  \u2022  Swipe up for apps";
+        AndroidTypography.ApplyTree(_grid);
     }
 
     private View BuildAppTile(LauncherApp app, int width, int height)
@@ -219,8 +221,34 @@ public sealed partial class HavenLauncherActivity
         {
             var rows = Math.Clamp(Preferences.GetInt(RowsKey, 5), 3, 8);
             var columns = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7);
-            return Math.Max(1, (int)Math.Ceiling(_apps.Count / (double)(rows * columns)));
+            var (effectiveRows, effectiveColumns) = ResolveGridShape(rows, columns);
+            return Math.Max(
+                1,
+                (int)Math.Ceiling(_apps.Count / (double)(effectiveRows * effectiveColumns)));
         }
+    }
+
+    private (int Rows, int Columns) ResolveGridShape(int requestedRows, int requestedColumns)
+    {
+        var metrics = Resources?.DisplayMetrics;
+        var availableWidth = _grid?.Width > 0
+            ? _grid.Width
+            : Math.Max(Dp(64), (metrics?.WidthPixels ?? Dp(360)) - Dp(24));
+        var availableHeight = _grid?.Height > 0
+            ? _grid.Height
+            : Math.Max(Dp(78), (metrics?.HeightPixels ?? Dp(640)) - Dp(180));
+
+        var maxColumns = Math.Max(1, availableWidth / Dp(64));
+        var maxRows = Math.Max(1, availableHeight / Dp(78));
+        return (
+            Math.Max(1, Math.Min(requestedRows, maxRows)),
+            Math.Max(1, Math.Min(requestedColumns, maxColumns)));
+    }
+
+    private int ResolveColumnCount(int requestedColumns, int availableWidth)
+    {
+        var maxColumns = Math.Max(1, availableWidth / Dp(64));
+        return Math.Max(1, Math.Min(requestedColumns, maxColumns));
     }
 
     private void ChangePage(int delta)
@@ -243,7 +271,7 @@ public sealed partial class HavenLauncherActivity
                 ViewGroup.LayoutParams.MatchParent)
         };
         shell.SetPadding(Dp(12), Dp(16), Dp(12), Dp(12));
-        shell.SetBackgroundColor(Color.Rgb(24, 18, 38));
+        shell.Background = HavenNativeSurface.Page();
 
         var header = new LinearLayout(this)
         {
@@ -274,6 +302,21 @@ public sealed partial class HavenLauncherActivity
             dialog.Dismiss));
         shell.AddView(header);
 
+        var search = new EditText(this)
+        {
+            Hint = "Search installed apps",
+            TextSize = 15,
+            LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent,
+                Dp(48))
+        };
+        search.SetSingleLine(true);
+        search.SetTextColor(Color.White);
+        search.SetHintTextColor(Color.Argb(180, 235, 225, 255));
+        search.Background = RoundedBackground(Color.Argb(70, 255, 255, 255), Dp(18));
+        search.SetPadding(Dp(16), 0, Dp(16), 0);
+        shell.AddView(search);
+
         var scroll = new ScrollView(this)
         {
             LayoutParameters = new LinearLayout.LayoutParams(
@@ -281,17 +324,48 @@ public sealed partial class HavenLauncherActivity
                 0,
                 1f)
         };
+        var drawerWidth = Math.Max(
+            Dp(64),
+            (Resources?.DisplayMetrics?.WidthPixels ?? Dp(360)) - Dp(24));
         var grid = new GridLayout(this)
         {
-            ColumnCount = Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7)
+            ColumnCount = ResolveColumnCount(
+                Math.Clamp(Preferences.GetInt(ColumnsKey, 4), 3, 7),
+                drawerWidth)
         };
-        var width = (Resources?.DisplayMetrics?.WidthPixels ?? 1080) / grid.ColumnCount;
-        foreach (var app in _apps)
-            grid.AddView(BuildAppTile(app, width, Dp(96)));
+        var width = Math.Max(Dp(64), drawerWidth / grid.ColumnCount);
+        void RenderMatches(string? query)
+        {
+            grid.RemoveAllViews();
+            var normalized = query?.Trim() ?? string.Empty;
+            var matches = string.IsNullOrWhiteSpace(normalized)
+                ? _apps.ToArray()
+                : _apps.Where(app => app.Label.Contains(normalized, StringComparison.CurrentCultureIgnoreCase)
+                    || app.PackageName.Contains(normalized, StringComparison.OrdinalIgnoreCase)).ToArray();
+            foreach (var app in matches)
+                grid.AddView(BuildAppTile(app, width, Dp(96)));
+            if (matches.Length == 0)
+            {
+                var empty = new TextView(this)
+                {
+                    Text = "No installed apps match this search.",
+                    Gravity = GravityFlags.Center,
+                    LayoutParameters = new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MatchParent,
+                        Dp(72))
+                };
+                empty.SetTextColor(Color.Argb(220, 235, 225, 255));
+                grid.AddView(empty);
+            }
+        }
+
+        search.TextChanged += (_, args) => RenderMatches(args.Text?.ToString());
+        RenderMatches(string.Empty);
         scroll.AddView(grid);
         shell.AddView(scroll);
 
         dialog.SetContentView(shell);
+        AndroidTypography.ApplyTree(shell);
         dialog.Show();
         dialog.Window?.SetLayout(
             ViewGroup.LayoutParams.MatchParent,

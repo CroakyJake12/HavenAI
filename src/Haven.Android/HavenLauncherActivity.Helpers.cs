@@ -8,10 +8,8 @@ public sealed partial class HavenLauncherActivity
 {
     private GradientDrawable MagicalBackground(int radius)
     {
-        var background = new GradientDrawable();
-        background.SetColor(Color.Argb(225, 89, 48, 145));
+        var background = HavenNativeAccentPalette.Launcher.Primary.Create(radius);
         background.SetStroke(Dp(1), Color.Argb(210, 213, 165, 255));
-        background.SetCornerRadius(radius);
         return background;
     }
 
@@ -36,10 +34,12 @@ public sealed partial class HavenLauncherActivity
     }
 
     private sealed class SwipeTouchListener(
+        float swipeThresholdPixels,
         Action onSwipeUp,
         Action onSwipeLeft,
         Action onSwipeRight) : Java.Lang.Object, View.IOnTouchListener
     {
+        private readonly float _swipeThresholdPixels = Math.Max(1f, swipeThresholdPixels);
         private float _downX;
         private float _downY;
 
@@ -60,9 +60,9 @@ public sealed partial class HavenLauncherActivity
 
             var deltaX = e.RawX - _downX;
             var deltaY = e.RawY - _downY;
-            if (Math.Abs(deltaY) > Math.Abs(deltaX) && deltaY < -80)
+            if (Math.Abs(deltaY) > Math.Abs(deltaX) && deltaY < -_swipeThresholdPixels)
                 onSwipeUp();
-            else if (Math.Abs(deltaX) > 80)
+            else if (Math.Abs(deltaX) > _swipeThresholdPixels)
             {
                 if (deltaX < 0)
                     onSwipeLeft();

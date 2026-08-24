@@ -1,0 +1,3 @@
+# User-defined Haven.UI transitions and keyframe animations belong here.
+# A user resource may intentionally override a system resource of the same
+# kind. Pages reference resources by name and do not embed declarations.

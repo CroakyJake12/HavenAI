@@ -40,6 +40,10 @@ internal static class ProviderHttp
         if (!configuration.IsEnabled) throw new InvalidOperationException($"{configuration.DisplayName} is disabled in Haven settings.");
         var endpoint = string.IsNullOrWhiteSpace(configuration.Endpoint) ? defaultEndpoint : configuration.Endpoint;
         if (string.IsNullOrWhiteSpace(endpoint)) throw new InvalidOperationException($"{configuration.DisplayName} requires an endpoint.");
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme is not ("http" or "https"))
+            throw new InvalidOperationException($"{configuration.DisplayName} requires an absolute HTTP or HTTPS endpoint.");
+        if (endpointUri.Scheme == "http" && !endpointUri.IsLoopback)
+            throw new InvalidOperationException($"{configuration.DisplayName} must use HTTPS for a non-loopback endpoint.");
         if (!endpoint.EndsWith("/", StringComparison.Ordinal)) endpoint += "/";
         return configuration with { Endpoint = endpoint };
     }
@@ -76,12 +80,14 @@ internal static class ProviderHttp
     /// <summary>
     /// Performs the convert tool schema step owned by this component.
     /// </summary>
-    public static Dictionary<string, object> ConvertToolSchema(OllamaToolDefinition tool) => new()
-    {
-        ["type"] = "object",
-        ["properties"] = tool.Properties,
-        ["required"] = tool.Required
-    };
+    public static object ConvertToolSchema(OllamaToolDefinition tool) => tool.InputSchema is { } raw
+        ? raw
+        : new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["properties"] = tool.Properties,
+            ["required"] = tool.Required
+        };
 
     /// <summary>
     /// Performs the default capabilities step owned by this component.

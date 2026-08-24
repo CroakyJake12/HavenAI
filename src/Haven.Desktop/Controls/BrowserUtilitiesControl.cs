@@ -122,10 +122,10 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     /// </summary>
     private Button UtilityButton(string content, string tooltip, Control panel)
     {
-        var button = new Button { Content = content };
+        var button = new HavenButton { Content = content };
         ToolTip.SetTip(button, tooltip);
         button.Classes.Add("icon");
-        button.Flyout = new Flyout { Placement = PlacementMode.Bottom, Content = panel };
+        button.Flyout = new HavenAdaptivePopup { Placement = PlacementMode.Bottom, Content = panel };
         return button;
     }
 
@@ -134,11 +134,11 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     /// </summary>
     private Control BuildFindPanel()
     {
-        var query = new TextBox { PlaceholderText = "Find on this page", MinWidth = 260 };
+        var query = new HavenTextInput { PlaceholderText = "Find on this page", MinWidth = 260 };
         var status = Muted("Enter text to search the current document.", 10);
-        var previous = new Button { Content = "Previous" };
-        var next = new Button { Content = "Next" };
-        var clear = new Button { Content = "Clear highlight" };
+        var previous = new HavenButton { Content = "Previous" };
+        var next = new HavenButton { Content = "Next" };
+        var clear = new HavenButton { Content = "Clear highlight" };
 
         async Task FindAsync(bool backwards)
         {
@@ -214,7 +214,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     /// </summary>
     private Control BuildZoomPanel()
     {
-        _zoomSlider = new Slider
+        _zoomSlider = new HavenSlider
         {
             Minimum = 50,
             Maximum = 200,
@@ -231,7 +231,7 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
             var value = Math.Clamp((int)Math.Round(args.NewValue / 10d) * 10, 50, 200);
             await ApplyZoomAsync(value, status);
         };
-        var reset = new Button { Content = "Reset to 100%" };
+        var reset = new HavenButton { Content = "Reset to 100%" };
         reset.Click += async (_, _) =>
         {
             _zoomSlider.Value = 100;
@@ -270,8 +270,8 @@ public sealed class BrowserUtilitiesControl : StackPanel, IDisposable
     private Control BuildToolsPanel()
     {
         var status = Muted("Actions apply to the mounted browser document.", 10);
-        var print = new Button { Content = "Print current page" };
-        var developerTools = new Button { Content = "Open developer tools" };
+        var print = new HavenButton { Content = "Print current page" };
+        var developerTools = new HavenButton { Content = "Open developer tools" };
         print.Click += async (_, _) => await RunBrowserActionAsync(
             token => _viewModel!.Browser.PrintAsync(token), "Print dialog opened.", "Print", status);
         developerTools.Click += async (_, _) => await RunBrowserActionAsync(

@@ -1,0 +1,20 @@
+{
+  "cwd": "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Visual Studio\\Haven AI\\Source",
+  "dotnet": "C:\\Program Files\\dotnet\\dotnet.EXE",
+  "DOTNET_ROOT": null,
+  "DOTNET_ROOT_X64": null,
+  "PATH_dotnet_entries": [
+    "C:\\Program Files\\dotnet\\",
+    "C:\\Users\\Jacob\\.dotnet\\tools"
+  ],
+  "version": {
+    "code": 2147516571,
+    "stdout": "",
+    "stderr": "The command could not be loaded, possibly because:\n  * You intended to execute a .NET application:\n      The application '--version' does not exist or is not a managed .dll or .exe.\n  * You intended to execute a .NET SDK command:\n      A compatible .NET SDK was not found.\n\nRequested SDK version: 10.0.301\nglobal.json file: C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Visual Studio\\Haven AI\\Source\\global.json\n\nInstalled SDKs:\nNo .NET SDKs were found.\n\nInstall the [10.0.301] .NET SDK or update [C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\Visual Studio\\Haven AI\\Source\\global.json] to match an installed SDK.\n\nDownload a .NET SDK:\nhttps://aka.ms/dotnet/download\n\nLearn about SDK resolution:\nhttps://aka.ms/dotnet/sdk-not-found\n"
+  },
+  "sdks": {
+    "code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

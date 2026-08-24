@@ -8,6 +8,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Controls;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Components;
 
 namespace Haven.Desktop.Views.Pages.Home;
 
@@ -73,10 +74,19 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
         if (_disposed) return;
         _clock.Start();
         await EnsurePageStateLoadedAsync(cancellationToken);
+        if (_widgetDashboard is not null)
+        {
+            await RefreshWidgetSurfaceAsync(cancellationToken);
+            return;
+        }
         await RefreshAsync(cancellationToken);
     }
 
-    public void Deactivate() => _clock.Stop();
+    public void Deactivate()
+    {
+        _clock.Stop();
+        _widgetRefreshCancellation?.Cancel();
+    }
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -95,6 +105,11 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
 
     private void RenderPage()
     {
+        if (_widgetDashboard is not null)
+        {
+            RenderWidgetPage();
+            return;
+        }
         RebuildPageTabs();
         var page = SelectedPage;
         var modeById = _cachedModes.ToDictionary(mode => mode.Id);
@@ -230,19 +245,13 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
         foreach (var page in _pages.OrderBy(page => page.Order))
         {
             var selected = page.Id.Equals(_selectedPageId, StringComparison.OrdinalIgnoreCase);
-            var button = new Button
+            var button = new HavenTabButton
             {
                 Content = page.Title,
+                IsSelected = selected,
                 MinWidth = 82,
-                Height = 38,
-                Padding = new Thickness(15, 7),
-                CornerRadius = new CornerRadius(14),
-                FontWeight = selected ? FontWeight.ExtraBold : FontWeight.Bold,
-                Background = selected
-                    ? ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFDDF7F5"))
-                    : Brushes.Transparent
+                Height = 38
             };
-            button.Classes.Add("sidebar");
             button.Click += async (_, _) =>
             {
                 if (_disposed || page.Id.Equals(_selectedPageId, StringComparison.OrdinalIgnoreCase)) return;
@@ -257,17 +266,22 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
 
     private void ShowPageEditor(DashboardPageProfile? existing)
     {
+        if (_widgetDashboard is not null)
+        {
+            ShowWidgetPageEditor(existing);
+            return;
+        }
         var isNew = existing is null;
         var source = existing ?? new DashboardPageProfile(
             Guid.NewGuid().ToString("N"), "New page", [], IncludeAllPinned: false, _pages.Count);
         var selectedModes = source.ModeIds.ToHashSet();
-        var titleBox = new TextBox
+        var titleBox = new HavenTextInput
         {
             Text = source.Title,
             PlaceholderText = "Page name",
             MaxLength = 60
         };
-        var includePinned = new CheckBox
+        var includePinned = new HavenCheckBox
         {
             Content = "Follow my globally pinned Apps",
             IsChecked = source.IncludeAllPinned,
@@ -276,7 +290,7 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
         var choices = new StackPanel { Spacing = 3 };
         foreach (var mode in _cachedModes.OrderBy(mode => mode.Name, StringComparer.OrdinalIgnoreCase))
         {
-            var option = new CheckBox
+            var option = new HavenCheckBox
             {
                 Content = mode.Name,
                 IsChecked = selectedModes.Contains(mode.Id),
@@ -298,20 +312,18 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
                 option.IsEnabled = includePinned.IsChecked != true;
         };
 
-        var save = new Button
+        var save = new HavenPrimaryButton
         {
             Content = isNew ? "Create page" : "Save page",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Margin = new Thickness(0, 8, 0, 0)
         };
-        save.Classes.Add("primary");
-        var remove = new Button
+        var remove = new HavenNegativeButton
         {
             Content = "Delete page",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             IsVisible = !isNew && !source.Id.Equals(HomePageId, StringComparison.OrdinalIgnoreCase)
         };
-        remove.Classes.Add("danger");
         var editor = new StackPanel
         {
             Width = 430,
@@ -345,18 +357,11 @@ public sealed partial class NewDashboardPage : UserControl, IDisposable
                 remove
             }
         };
-        var flyout = new Flyout
+        var flyout = new HavenDropdown
         {
             Placement = PlacementMode.BottomEdgeAlignedRight,
-            FlyoutPresenterTheme = Avalonia.Application.Current?.TryFindResource(
-                "HavenFloatingFlyoutPresenterTheme", out var presenterTheme) == true
-                    ? presenterTheme as ControlTheme
-                    : null,
-            Content = new Border
+            Content = new HavenDropdownCard
             {
-                Background = ResourceBrush("HavenElevatedBrush", Colors.White),
-                BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(32, 0, 0, 0)),
-                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(22),
                 Child = editor
             }

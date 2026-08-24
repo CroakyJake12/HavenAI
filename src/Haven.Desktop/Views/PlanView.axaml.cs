@@ -24,12 +24,17 @@ public sealed partial class PlanView : UserControl
     /// <summary>
     /// Stores automation control locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
-    private PlanAutomationControl? _automationControl;
+    private PlanScheduledTaskControl? _automationControl;
 
     public PlanView()
     {
         InitializeComponent();
-        AttachedToVisualTree += (_, _) => InstallAutomationControl();
+        SizeChanged += (_, args) => ApplyResponsiveLayout(args.NewSize.Width);
+        AttachedToVisualTree += (_, _) =>
+        {
+            InstallAutomationControl();
+            ApplyResponsiveLayout(Bounds.Width);
+        };
         DetachedFromVisualTree += (_, _) =>
         {
             _automationControl?.Dispose();
@@ -37,19 +42,32 @@ public sealed partial class PlanView : UserControl
         };
     }
 
+    private void ApplyResponsiveLayout(double width)
+    {
+        if (width <= 0) return;
+        var compact = width < 900;
+        CollectionSidebar.IsVisible = !compact;
+        CompactCollectionPicker.IsVisible = compact;
+        RootGrid.ColumnDefinitions = new ColumnDefinitions(compact ? "0,*" : "220,*");
+        PlannerInspector.Width = compact ? double.NaN : 360;
+        PlannerInspector.HorizontalAlignment = compact ? Avalonia.Layout.HorizontalAlignment.Stretch : Avalonia.Layout.HorizontalAlignment.Right;
+        PlannerInspector.Margin = compact ? new Thickness(12) : new Thickness(0);
+    }
+
     /// <summary>
     /// Performs the install automation control step owned by this component.
     /// </summary>
     private void InstallAutomationControl()
     {
-        if (_automationControl is not null || Content is not Grid root) return;
-        _automationControl = new PlanAutomationControl
+        if (_automationControl is not null) return;
+        var host = this.FindControl<Grid>("ScheduledTaskHost");
+        if (host is null) return;
+        _automationControl = new PlanScheduledTaskControl
         {
-            Margin = new Thickness(0, 22, 22, 0),
+            Margin = new Thickness(0),
             ZIndex = 20
         };
-        Grid.SetColumn(_automationControl, 2);
-        root.Children.Add(_automationControl);
+        host.Children.Add(_automationControl);
     }
 
     /// <summary>

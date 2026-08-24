@@ -39,9 +39,31 @@ public sealed record ModelDescriptor(
 }
 
 /// <summary>
-/// Represents an active plugin.
+/// A capability registered for discovery during one model turn. Registration
+/// makes it discoverable; permission policy and runtime availability still
+/// decide whether any concrete tool may execute.
 /// </summary>
-public sealed record ActivePlugin(string Name, string IconKey, bool Persists, string Instructions = "");
+public sealed record ActiveCapability(
+    string Key,
+    string Name,
+    string IconKey,
+    string Instructions,
+    string ImplementationKey,
+    string OwnerAppKey)
+{
+    public static ActiveCapability FromDefinition(CapabilityDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return new(
+            definition.Key,
+            definition.Name,
+            definition.IconKey,
+            definition.Instructions,
+            definition.ImplementationKey,
+            definition.OwnerAppKey);
+    }
+
+}
 /// <summary>
 /// Represents an active prompt.
 /// </summary>

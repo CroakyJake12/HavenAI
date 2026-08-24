@@ -158,7 +158,7 @@ public sealed class WindowsGraphicsCaptureService : IScreenShareService, IAsyncD
             item.Size);
         var session = framePool.CreateCaptureSession(item);
         var captureCts = new CancellationTokenSource();
-        var source = new ScreenShareSource(Guid.NewGuid().ToString("N"), item.DisplayName, true);
+        var source = new ScreenShareSource(Guid.NewGuid().ToString("N"), item.DisplayName, ScreenShareSourceKind.Unknown);
 
         lock (_sync)
         {

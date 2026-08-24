@@ -20,12 +20,18 @@ public sealed class ChatSessionService(
     IConversationRepository conversations,
     IOllamaClient ollama,
     CapabilityPreflightService preflight,
+    IConversationSafetyService safety,
     WorkspaceToolRuntime workspaceTools,
     ComputerToolRuntime computerTools,
     BrowserToolRuntime? browserTools = null,
     AutomationToolRuntime? automationTools = null,
     ToolAvailabilityPlanner? toolAvailability = null,
-    ChatModelInventoryCache? modelInventory = null)
+    ChatModelInventoryCache? modelInventory = null,
+    McpToolRuntime? mcpTools = null,
+    CalendarConnectionToolRuntime? calendarTools = null,
+    IExecutionEventSink? executionEvents = null,
+    AutonomousRecoveryService? recovery = null,
+    RemediationCoordinator? remediations = null)
 {
     private readonly ChatModelInventoryCache _modelInventory =
         modelInventory ?? new ChatModelInventoryCache(ollama);
@@ -40,28 +46,29 @@ public sealed class ChatSessionService(
     public ToolAvailabilityPlan GetToolAvailability(
         HavenMode mode,
         string? workspaceRoot,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission)
     {
         using var computerPass = computerTools.CreatePass();
-        return CreateAvailabilityPlan(mode, workspaceRoot, plugins, filePermission, commandPermission, browserPermission,
+        return CreateAvailabilityPlan(mode, workspaceRoot, capabilities, filePermission, commandPermission, browserPermission,
             computerPass.Definitions);
     }
 
-    /// <summary>
-    /// Reports whether activate plugin applies to the current state.
-    /// </summary>
-    public bool CanActivatePlugin(
-        string pluginName,
+    public bool CanUseCapability(
+        ActiveCapability capability,
         HavenMode mode,
         string? workspaceRoot,
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission) =>
-        GetToolAvailability(mode, workspaceRoot, [new ActivePlugin(pluginName, pluginName, false)],
-            Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission)).IsPluginAvailable(pluginName);
+        GetToolAvailability(mode, workspaceRoot, [capability],
+            Approvable(filePermission), Approvable(commandPermission), Approvable(browserPermission))
+        .IsCapabilityAvailable(capability.Key);
+
+    /// <summary>Classic-only compatibility boundary pending deletion of its picker.</summary>
+    
 
     /// <summary>
     /// Performs send asynchronously so I/O does not block the caller's thread.
@@ -71,7 +78,7 @@ public sealed class ChatSessionService(
         string prompt,
         ModelDescriptor model,
         EffortLevel effort,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         string agentName,
         string agentInstructions,
         DuoMode duoMode,
@@ -86,8 +93,10 @@ public sealed class ChatSessionService(
         PermissionMode filePermission = PermissionMode.FullAccess,
         PermissionMode commandPermission = PermissionMode.FullAccess,
         PermissionMode browserPermission = PermissionMode.FullAccess,
-        IReadOnlyCollection<ToolCapability>? explicitCapabilities = null)
+        IReadOnlyCollection<ToolCapability>? explicitCapabilities = null,
+        IReadOnlyCollection<ActiveCapability>? availableCapabilities = null)
     {
+        await safety.EnsureMayActAsync(conversation.Id, "chat.send", cancellationToken).ConfigureAwait(false);
         ModelDescriptor etaModel = model;
 
         async Task<string?> EstimateEtaAsync(
@@ -117,10 +126,59 @@ public sealed class ChatSessionService(
             ChatExecutionStage.Preparing,
             EstimateEtaAsync);
 
+        var promptActionId = Guid.NewGuid();
+        executionEvents?.TryPublish(new ExecutionEvent(
+            Guid.NewGuid(), execution.OperationId, promptActionId, null, ExecutionOrigin.Haven,
+            ExecutionActionType.UserPrompt, ExecutionActionStatus.Completed,
+            SummarizePrompt(prompt), null, null, "chat", DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, TabId: null,
+            SafeMetadata: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["conversationId"] = conversation.Id.ToString(),
+                ["mode"] = conversation.Mode.ToString()
+            }));
+
+        var publishedLogCount = 0;
+        Guid parentActionId = promptActionId;
+        Guid? activeActionId = null;
+        ChatExecutionLogEntry? activeEntry = null;
+        DateTimeOffset? activeStartedAt = null;
+
         void PublishExecution(ChatExecutionSnapshot snapshot)
         {
             CurrentExecution = snapshot;
             ExecutionChanged?.Invoke(snapshot);
+            if (executionEvents is null) return;
+            for (; publishedLogCount < snapshot.Log.Count; publishedLogCount++)
+            {
+                var entry = snapshot.Log[publishedLogCount];
+                if (activeActionId is { } previousAction && activeEntry is { } previousEntry && activeStartedAt is { } previousStart)
+                {
+                    executionEvents.TryPublish(new ExecutionEvent(
+                        Guid.NewGuid(), snapshot.OperationId, previousAction, parentActionId, ExecutionOrigin.Haven,
+                        MapActionType(previousEntry.Stage), ExecutionActionStatus.Completed, previousEntry.Summary,
+                        SafeReasoningFor(previousEntry.Stage), previousEntry.Detail, "chat", entry.Timestamp,
+                        previousStart, entry.Timestamp));
+                    parentActionId = previousAction;
+                    activeActionId = null;
+                    activeEntry = null;
+                    activeStartedAt = null;
+                }
+                var actionId = Guid.NewGuid();
+                var terminal = IsTerminal(entry.Stage);
+                executionEvents.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), snapshot.OperationId, actionId, parentActionId, ExecutionOrigin.Haven,
+                    MapActionType(entry.Stage), terminal || !entry.Succeeded ? MapActionStatus(entry) : ExecutionActionStatus.Running, entry.Summary,
+                    SafeReasoningFor(entry.Stage), entry.Detail, "chat", entry.Timestamp,
+                    entry.Timestamp, terminal ? entry.Timestamp : null));
+                if (terminal) parentActionId = actionId;
+                else
+                {
+                    activeActionId = actionId;
+                    activeEntry = entry;
+                    activeStartedAt = entry.Timestamp;
+                }
+            }
         }
 
         execution.Changed += PublishExecution;
@@ -150,7 +208,34 @@ public sealed class ChatSessionService(
                 cancellationToken).ConfigureAwait(false);
         }
 
+        // Haven owns the Generative UI registry, so a capability-status answer
+        // must come from deterministic host state rather than a model's stale
+        // self-description. The trusted directive is live evidence, not a mock.
+        if (GenUiChatDirectiveParser.TryCreateAvailabilityResponse(prompt, out var availabilityResponse))
+        {
+            var availabilityId = Guid.NewGuid();
+            execution.Update(ChatExecutionStage.Generating, "Opening Generative UI");
+            yield return ChatStreamEvent.AssistantStarted(availabilityId, model.Name, agentName);
+            yield return ChatStreamEvent.AssistantDelta(availabilityId, availabilityResponse);
+            var availabilityMessage = new ChatMessage(
+                availabilityId,
+                conversation.Id,
+                MessageRole.Assistant,
+                availabilityResponse,
+                agentName,
+                model.Name,
+                null,
+                DateTimeOffset.UtcNow);
+            if (!conversation.IsTemporary)
+                await conversations.AddMessageAsync(availabilityMessage, cancellationToken).ConfigureAwait(false);
+            execution.Complete();
+            execution.Changed -= PublishExecution;
+            yield return ChatStreamEvent.AssistantCompleted(availabilityMessage);
+            yield break;
+        }
+
         execution.Update(ChatExecutionStage.LoadingModel, "Loading Model");
+        await safety.EnsureMayActAsync(conversation.Id, "chat.model-discovery", cancellationToken).ConfigureAwait(false);
         var installed = await _modelInventory.GetAsync(
             forceRefresh: false,
             cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -161,7 +246,7 @@ public sealed class ChatSessionService(
 
         var selectedCapabilities = explicitCapabilities is { Count: > 0 }
             ? explicitCapabilities.ToHashSet()
-            : CapabilitiesFromActivePlugins(plugins);
+            : ToolCapabilitiesFromRegisteredCapabilities(capabilities);
         var capabilitySelection = ChatCapabilitySelection.Create(
             prompt,
             selectedCapabilities);
@@ -187,23 +272,37 @@ public sealed class ChatSessionService(
         etaModel = turnModel;
 
         using var computerPassCandidate = computerTools.CreatePass();
+        var selectedRegisteredCapabilities = FilterCapabilitiesForTurn(
+                availableCapabilities ?? capabilities,
+                requiredCapabilities)
+            .Concat(capabilities)
+            .DistinctBy(capability => capability.Key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var mcpDefinitions = mcpTools is null
+            ? []
+            : await mcpTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
+        var calendarDefinitions = calendarTools is null
+            ? []
+            : await calendarTools.GetDefinitionsAsync(selectedRegisteredCapabilities, cancellationToken).ConfigureAwait(false);
         var availabilityPlan = CreateAvailabilityPlan(
             conversation.Mode,
             workspaceRoot,
-            plugins,
+            selectedRegisteredCapabilities,
             filePermission,
             commandPermission,
             browserPermission,
-            computerPassCandidate.Definitions);
+            computerPassCandidate.Definitions,
+            mcpDefinitions,
+            calendarDefinitions);
 
         var modelPlan = availabilityPlan.RestrictToModel(turnModel);
-        var modelPlugins = FilterPluginsForTurn(
-            modelPlan.FilterPlugins(plugins),
+        var modelCapabilities = FilterCapabilitiesForTurn(
+            modelPlan.FilterCapabilities(selectedRegisteredCapabilities),
             requiredCapabilities);
 
         var check = preflight.Evaluate(
             turnModel,
-            modelPlugins,
+            modelCapabilities,
             images is { Count: > 0 },
             installed);
 
@@ -260,11 +359,12 @@ public sealed class ChatSessionService(
         }
 
         var system = BuildSystemPrompt(
-            conversation, modelPlugins, prompts ?? [], agentName, agentInstructions, duoMode,
+            conversation, modelCapabilities, prompts ?? [], agentName, agentInstructions, duoMode,
             modelPlan.HasRuntime(ToolRuntimeKind.Workspace) ? workspaceRoot : null,
             projectContext, projectInstructions, registeredContext, computerPass is not null);
         var assistantId = Guid.NewGuid();
         var buffer = new StringBuilder();
+        var toolActivities = new List<ToolActivity>();
         execution.Update(ChatExecutionStage.Thinking, "Thinking");
         yield return ChatStreamEvent.AssistantStarted(assistantId, turnModel.Name, agentName);
 
@@ -277,27 +377,175 @@ public sealed class ChatSessionService(
             WorkspaceToolResult? lastToolResult = null;
             OllamaToolCall? lastToolCall = null;
 
+            async Task<WorkspaceToolResult> ExecuteRuntimeAsync(
+                OllamaToolCall call,
+                ToolRuntimeKind runtime,
+                PermissionMode permission,
+                CancellationToken token)
+            {
+                if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
+                    return await computerPass.ExecuteAsync(call, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
+                    return await browserTools.ExecuteAsync(call, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
+                    return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.Id, conversation.ContainerId, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Mcp && mcpTools is not null)
+                    return await mcpTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Calendar && calendarTools is not null)
+                    return await calendarTools.ExecuteAsync(call, selectedRegisteredCapabilities, permission, token).ConfigureAwait(false);
+                if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
+                    return await workspaceTools.ExecuteAsync(workspaceRoot, call, token, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                return new WorkspaceToolResult(
+                    new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), "Registered runtime is unavailable.", false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                    "Tool error: registered runtime is unavailable.");
+            }
+
             async Task<WorkspaceToolResult> ExecuteToolAsync(OllamaToolCall call)
             {
+                await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.{call.Name}", cancellationToken).ConfigureAwait(false);
+                var toolActionId = Guid.NewGuid();
+                var toolStartedAt = DateTimeOffset.UtcNow;
+                var actionParentId = activeActionId ?? parentActionId;
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolCall, ExecutionActionStatus.Running, StatusForTool(call.Name),
+                    "The registered tool matched the requested operation and current permissions.", DescribeTool(call),
+                    call.Name, toolStartedAt, toolStartedAt));
+
+                WorkspaceToolResult originalResult;
+                ToolRuntimeKind? runtimeKind = null;
                 if (modelPlan.TryGetRuntime(call.Name, out var runtime))
                 {
-                    execution.Update(
-                        StageForTool(call.Name, runtime),
-                        StatusForTool(call.Name),
-                        DescribeTool(call));
-                    if (runtime == ToolRuntimeKind.Computer && computerPass is not null)
-                        return await computerPass.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Browser && browserTools is not null)
-                        return await browserTools.ExecuteAsync(call, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Automation && automationTools is not null)
-                        return await automationTools.ExecuteAsync(call, conversation.Mode, conversation.ContainerId, cancellationToken).ConfigureAwait(false);
-                    if (runtime == ToolRuntimeKind.Workspace && workspaceRoot is not null)
-                        return await workspaceTools.ExecuteAsync(workspaceRoot, call, cancellationToken, conversation.Id, conversation.ContainerId).ConfigureAwait(false);
+                    runtimeKind = runtime;
+                    execution.Update(StageForTool(call.Name, runtime), StatusForTool(call.Name), DescribeTool(call));
+                    originalResult = await ExecuteRuntimeAsync(call, runtime, commandPermission, cancellationToken).ConfigureAwait(false);
                 }
-                var detail = modelPlan.GetUnavailableReason(call.Name);
-                return new WorkspaceToolResult(
-                    new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
-                    "Tool error: " + detail);
+                else
+                {
+                    var detail = modelPlan.GetUnavailableReason(call.Name);
+                    originalResult = new WorkspaceToolResult(
+                        new ToolActivity(Guid.NewGuid(), call.Name.Replace('_', ' '), detail, false, TimeSpan.Zero, DateTimeOffset.UtcNow),
+                        "Tool error: " + detail);
+                }
+
+                var firstEndedAt = DateTimeOffset.UtcNow;
+                var result = originalResult;
+                var descriptor = originalResult.Failure;
+                RecoveryAttempt? plannedRecovery = null;
+                RemediationRequest? remediationRequest = null;
+                Func<RemediationResolution, CancellationToken, Task<RemediationContinuationResult>>? continuation = null;
+                Guid? remediationId = null;
+                WorkspaceToolResult? automaticRetryResult = null;
+                Guid? automaticRetryActionId = null;
+                DateTimeOffset? automaticRetryStartedAt = null;
+                DateTimeOffset? automaticRetryEndedAt = null;
+
+                if (!originalResult.Activity.Succeeded && descriptor is not null && recovery is not null &&
+                    (descriptor.Retryable || descriptor.SuggestedRemediation is not null))
+                {
+                    plannedRecovery = recovery.Plan(
+                        execution.OperationId, toolActionId, $"{descriptor.Code}:{descriptor.ComponentId}",
+                        descriptor.Risk, descriptor.SafeMessage);
+
+                    if (descriptor.Retryable && runtimeKind is { } retryRuntime && plannedRecovery.Stage == RecoveryStage.SafeAutomaticRetry)
+                    {
+                        automaticRetryActionId = Guid.NewGuid();
+                        automaticRetryStartedAt = DateTimeOffset.UtcNow;
+                        await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.retry.{call.Name}", cancellationToken).ConfigureAwait(false);
+                        automaticRetryResult = await ExecuteRuntimeAsync(call, retryRuntime, commandPermission, cancellationToken).ConfigureAwait(false);
+                        automaticRetryEndedAt = DateTimeOffset.UtcNow;
+                        result = automaticRetryResult;
+                    }
+                    else if (descriptor.SuggestedRemediation is { } remediationType && remediations is not null)
+                    {
+                        remediationId = Guid.NewGuid();
+                        var canResume = descriptor.Retryable && runtimeKind is ToolRuntimeKind.Mcp or ToolRuntimeKind.Calendar;
+                        var now = DateTimeOffset.UtcNow;
+                        var requiredInputs = descriptor.RequiredInputs ?? [];
+                        var sensitivity = requiredInputs.Any(input => input.Sensitivity == RemediationSensitivity.Secret)
+                            ? RemediationSensitivity.Secret
+                            : RemediationSensitivity.Normal;
+                        IReadOnlyList<string> allowedActions = remediationType switch
+                        {
+                            RemediationType.SecretInput => ["Save Securely & Retry", "Cancel"],
+                            RemediationType.PermissionRequest => ["Approve & Retry", "Cancel"],
+                            RemediationType.OAuthReconnect => ["Reconnect Account", "Retry", "Cancel"],
+                            RemediationType.ResourceSelection => ["Select Resource", "Cancel"],
+                            _ => descriptor.Retryable ? ["Retry", "Cancel"] : ["Open Settings", "Cancel"]
+                        };
+                        remediationRequest = new RemediationRequest(
+                            remediationId.Value, execution.OperationId, toolActionId, remediationType,
+                            descriptor.ComponentName + " needs attention", descriptor.SafeMessage,
+                            descriptor.ComponentId, descriptor.ComponentName, descriptor.ProviderName, requiredInputs, allowedActions,
+                            sensitivity, descriptor.Retryable, canResume, RecoveryPolicyDefaults.InitialUserInteractionTimeout,
+                            RecoveryPolicyDefaults.MaximumInteractiveWait, RemediationState.Waiting, now, now,
+                            SecretProviderId: descriptor.SecretProviderId, SecretName: descriptor.SecretName);
+
+                        if (canResume && runtimeKind is { } resumableRuntime)
+                        {
+                            continuation = async (resolution, token) =>
+                            {
+                                await safety.EnsureMayActAsync(conversation.Id, $"chat.tool.resume.{call.Name}", token).ConfigureAwait(false);
+                                var retryPermission = resolution.Approved ? PermissionMode.FullAccess : commandPermission;
+                                var retryResult = await ExecuteRuntimeAsync(call, resumableRuntime, retryPermission, token).ConfigureAwait(false);
+                                return new RemediationContinuationResult(
+                                    retryResult.Activity.Succeeded,
+                                    retryResult.Activity.Succeeded ? retryResult.Activity.Detail : "The blocked action was retried but did not complete.",
+                                    retryResult.Activity.Succeeded ? null : retryResult.Activity.Detail);
+                            };
+                        }
+                    }
+                }
+
+                var originalStatus = originalResult.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed;
+                var unavailable = runtimeKind is null;
+                var recovered = automaticRetryResult?.Activity.Succeeded == true;
+                var failure = originalResult.Activity.Succeeded ? null : new ExecutionFailure(
+                    descriptor?.Code ?? (unavailable ? "TOOL_UNAVAILABLE" : "TOOL_EXECUTION_FAILED"),
+                    descriptor?.Kind switch
+                    {
+                        ToolFailureKind.PermissionRequired => "Permission required",
+                        ToolFailureKind.CredentialRequired => "Connection requires attention",
+                        ToolFailureKind.InvalidInput => "Tool input is invalid",
+                        ToolFailureKind.ResourceUnavailable => "Required resource unavailable",
+                        _ => unavailable ? "Tool unavailable" : "Tool execution failed"
+                    },
+                    descriptor?.SafeMessage ?? originalResult.Activity.Detail,
+                    Attempt: plannedRecovery?.Attempt ?? 1, AffectedComponent: descriptor?.ComponentId ?? call.Name, Recovered: recovered);
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, toolActionId, actionParentId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolCall, originalStatus, StatusForTool(call.Name), null, originalResult.Activity.Detail,
+                    descriptor?.ComponentId ?? call.Name, firstEndedAt, toolStartedAt, firstEndedAt, RemediationId: remediationId, Failure: failure));
+                var resultActionId = Guid.NewGuid();
+                executionEvents?.TryPublish(new ExecutionEvent(
+                    Guid.NewGuid(), execution.OperationId, resultActionId, toolActionId, ExecutionOrigin.Haven,
+                    ExecutionActionType.ToolResult, originalStatus, originalResult.Activity.Title + " result", null,
+                    SensitiveTextRedactor.Redact(originalResult.Output, 8_000), descriptor?.ComponentId ?? call.Name, firstEndedAt, toolStartedAt, firstEndedAt,
+                    RemediationId: remediationId, Failure: failure));
+                parentActionId = resultActionId;
+
+                if (automaticRetryResult is not null && automaticRetryActionId is { } retryId &&
+                    automaticRetryStartedAt is { } retryStart && automaticRetryEndedAt is { } retryEnd)
+                {
+                    var retryFailure = automaticRetryResult.Activity.Succeeded ? null : new ExecutionFailure(
+                        automaticRetryResult.Failure?.Code ?? "TOOL_RETRY_FAILED", "Automatic retry failed",
+                        automaticRetryResult.Failure?.SafeMessage ?? automaticRetryResult.Activity.Detail, Attempt: (plannedRecovery?.Attempt ?? 1) + 1,
+                        AffectedComponent: automaticRetryResult.Failure?.ComponentId ?? call.Name);
+                    executionEvents?.TryPublish(new ExecutionEvent(
+                        Guid.NewGuid(), execution.OperationId, retryId, resultActionId, ExecutionOrigin.Haven,
+                        ExecutionActionType.AutomaticRepair,
+                        automaticRetryResult.Activity.Succeeded ? ExecutionActionStatus.Completed : ExecutionActionStatus.Failed,
+                        automaticRetryResult.Activity.Succeeded ? "Safe automatic retry completed" : "Safe automatic retry failed",
+                        "A bounded retry was permitted because the failure was classified as reversible, in-scope, and low risk.",
+                        automaticRetryResult.Activity.Detail, automaticRetryResult.Failure?.ComponentId ?? call.Name, retryEnd, retryStart, retryEnd,
+                        RetryOfActionId: toolActionId, RecoveryOfActionId: toolActionId, Failure: retryFailure));
+                    parentActionId = retryId;
+                }
+
+                if (remediationRequest is not null && remediations is not null)
+                    await remediations.RequestAsync(remediationRequest, continuation, cancellationToken).ConfigureAwait(false);
+
+                return result;
             }
 
             var bootstrapCall = computerPass?.TryCreateBootstrapCall(prompt);
@@ -306,7 +554,8 @@ public sealed class ChatSessionService(
                 callsUsed++;
                 lastToolCall = bootstrapCall;
                 lastToolResult = await ExecuteToolAsync(bootstrapCall).ConfigureAwait(false);
-                yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                toolActivities.Add(lastToolResult.Activity);
+                yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                 var directResult = lastToolResult.Activity.Succeeded
                     ? CompletedActionMessage(bootstrapCall)
                     : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
@@ -321,6 +570,7 @@ public sealed class ChatSessionService(
                 var unsupportedToolSchema = false;
                 try
                 {
+                    await safety.EnsureMayActAsync(conversation.Id, "chat.model-tool-turn", cancellationToken).ConfigureAwait(false);
                     response = await ollama.ChatWithToolsAsync(new OllamaToolRequest(
                         turnModel.Name, turns, toolDefinitions, effort, system, generationOptions), cancellationToken).ConfigureAwait(false);
                 }
@@ -340,7 +590,8 @@ public sealed class ChatSessionService(
                         callsUsed++;
                         lastToolCall = bridged;
                         lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
-                        yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                        toolActivities.Add(lastToolResult.Activity);
+                        yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                         var bridgedResult = lastToolResult.Activity.Succeeded
                             ? CompletedActionMessage(bridged)
                             : $"The tool action could not complete: {lastToolResult.Activity.Detail}";
@@ -369,7 +620,8 @@ public sealed class ChatSessionService(
                             callsUsed++;
                             lastToolCall = bridged;
                             lastToolResult = await ExecuteToolAsync(bridged).ConfigureAwait(false);
-                            yield return ChatStreamEvent.Activity(lastToolResult.Activity);
+                            toolActivities.Add(lastToolResult.Activity);
+                            yield return ChatStreamEvent.Activity(assistantId, lastToolResult.Activity);
                             turns.Add(new OllamaToolTurn("assistant", string.Empty, [bridged]));
                             turns.Add(new OllamaToolTurn("tool", lastToolResult.Output, ToolName: bridged.Name));
                             continue;
@@ -398,7 +650,8 @@ public sealed class ChatSessionService(
                     lastToolCall = call;
                     var result = await ExecuteToolAsync(call).ConfigureAwait(false);
                     lastToolResult = result;
-                    yield return ChatStreamEvent.Activity(result.Activity);
+                    toolActivities.Add(result.Activity);
+                    yield return ChatStreamEvent.Activity(assistantId, result.Activity);
                     turns.Add(new OllamaToolTurn("tool", result.Output, ToolName: call.Name));
                 }
             }
@@ -413,6 +666,8 @@ public sealed class ChatSessionService(
         else
         {
             var firstChunk = true;
+            var thinkingBuffer = new StringBuilder();
+            await safety.EnsureMayActAsync(conversation.Id, "chat.model-stream", cancellationToken).ConfigureAwait(false);
             await foreach (var chunk in ollama.StreamChatAsync(new(turnModel.Name, requestMessages, effort, system, Options: generationOptions), cancellationToken).ConfigureAwait(false))
             {
                 if (firstChunk)
@@ -421,12 +676,25 @@ public sealed class ChatSessionService(
                     firstChunk = false;
                 }
 
-                buffer.Append(chunk);
-                yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+                // Detect thinking tokens (prefixed with \x00T:)
+                await safety.EnsureMayActAsync(conversation.Id, "chat.model-stream-chunk", cancellationToken).ConfigureAwait(false);
+                if (chunk.StartsWith("\x00T:"))
+                {
+                    var thinkingContent = chunk[3..];
+                    thinkingBuffer.Append(thinkingContent);
+                    yield return ChatStreamEvent.ThinkingDelta(assistantId, thinkingContent);
+                }
+                else
+                {
+                    buffer.Append(chunk);
+                    yield return ChatStreamEvent.AssistantDelta(assistantId, chunk);
+                }
             }
         }
 
-        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, null, DateTimeOffset.UtcNow);
+        await safety.EnsureMayActAsync(conversation.Id, "chat.complete", cancellationToken).ConfigureAwait(false);
+        var assistantMetadata = toolActivities.Count == 0 ? null : JsonSerializer.Serialize(new { toolActivities });
+        var assistant = new ChatMessage(assistantId, conversation.Id, MessageRole.Assistant, buffer.ToString(), agentName, turnModel.Name, assistantMetadata, DateTimeOffset.UtcNow);
         if (!conversation.IsTemporary)
             await conversations.AddMessageAsync(assistant, cancellationToken).ConfigureAwait(false);
         execution.Complete();
@@ -434,30 +702,88 @@ public sealed class ChatSessionService(
         yield return ChatStreamEvent.AssistantCompleted(assistant);
     }
 
+    private static string SummarizePrompt(string prompt)
+    {
+        var firstLine = prompt.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "Request";
+        return SensitiveTextRedactor.Redact(firstLine, 240);
+    }
+
+    private static ExecutionActionType MapActionType(ChatExecutionStage stage) => stage switch
+    {
+        ChatExecutionStage.Preparing or ChatExecutionStage.LoadingModel or ChatExecutionStage.LoadingContext => ExecutionActionType.Planning,
+        ChatExecutionStage.SelectingCapabilities or ChatExecutionStage.Thinking => ExecutionActionType.ReasoningSummary,
+        ChatExecutionStage.InspectingCode => ExecutionActionType.ProjectAction,
+        ChatExecutionStage.Searching => ExecutionActionType.Search,
+        ChatExecutionStage.Browsing => ExecutionActionType.ToolCall,
+        ChatExecutionStage.RunningTool or ChatExecutionStage.RunningCommand => ExecutionActionType.ToolCall,
+        ChatExecutionStage.EditingFiles => ExecutionActionType.FileAction,
+        ChatExecutionStage.Testing => ExecutionActionType.ProjectAction,
+        ChatExecutionStage.Generating or ChatExecutionStage.Speaking => ExecutionActionType.ModelExecution,
+        ChatExecutionStage.WaitingForApproval => ExecutionActionType.UserActionRequired,
+        ChatExecutionStage.Recovering => ExecutionActionType.AutomaticRepair,
+        ChatExecutionStage.Completed => ExecutionActionType.FinalResponse,
+        ChatExecutionStage.Failed => ExecutionActionType.Error,
+        ChatExecutionStage.Cancelled => ExecutionActionType.Warning,
+        _ => ExecutionActionType.ModelExecution
+    };
+
+    private static ExecutionActionStatus MapActionStatus(ChatExecutionLogEntry entry) => entry.Stage switch
+    {
+        ChatExecutionStage.Completed => ExecutionActionStatus.Completed,
+        ChatExecutionStage.Failed => ExecutionActionStatus.Failed,
+        ChatExecutionStage.Cancelled => ExecutionActionStatus.Cancelled,
+        ChatExecutionStage.WaitingForApproval => ExecutionActionStatus.UserActionRequired,
+        _ when !entry.Succeeded => ExecutionActionStatus.Failed,
+        _ => ExecutionActionStatus.Running
+    };
+
+    private static bool IsTerminal(ChatExecutionStage stage) => stage is
+        ChatExecutionStage.Completed or ChatExecutionStage.Failed or ChatExecutionStage.Cancelled;
+
+    private static string? SafeReasoningFor(ChatExecutionStage stage) => stage switch
+    {
+        ChatExecutionStage.LoadingModel => "Selecting an available model that supports the requested work.",
+        ChatExecutionStage.LoadingContext => "Loading only the authorised context needed for this response.",
+        ChatExecutionStage.SelectingCapabilities => "Selecting registered capabilities relevant to the request.",
+        ChatExecutionStage.Recovering => "A bounded recovery path is being attempted within the existing permissions.",
+        _ => null
+    };
+
     /// <summary>
     /// Creates availability plan with the invariants required by its callers.
     /// </summary>
-    private static HashSet<ToolCapability> CapabilitiesFromActivePlugins(
-        IReadOnlyCollection<ActivePlugin> plugins)
+    private static HashSet<ToolCapability> ToolCapabilitiesFromRegisteredCapabilities(
+        IReadOnlyCollection<ActiveCapability> capabilities)
     {
         var result = new HashSet<ToolCapability>();
-        foreach (var plugin in plugins)
+        foreach (var capability in capabilities)
         {
-            switch (plugin.Name.ToLowerInvariant())
+            if (ExternalConnectionNaming.IsConnectionCapability(capability.Key))
             {
-                case "websearch":
+                result.Add(ToolCapability.Tools);
+                continue;
+            }
+            switch (capability.Key)
+            {
+                case "web-search":
                     result.Add(ToolCapability.WebSearch);
                     result.Add(ToolCapability.Browser);
                     break;
-                case "browseruse":
+                case "browser-use":
                     result.Add(ToolCapability.Browser);
                     break;
-                case "computeruse":
+                case "computer-device-use":
                     result.Add(ToolCapability.ComputerUse);
                     break;
-                case "automate":
-                case "macro":
-                case "test":
+                case "create-automation":
+                case "run-task":
+                case "edit-task":
+                case "run-command":
+                case "run-script":
+                case "powershell":
+                case "read-file":
+                case "write-file":
+                case "run-tests":
                     result.Add(ToolCapability.Tools);
                     break;
             }
@@ -473,22 +799,26 @@ public sealed class ChatSessionService(
         capabilities.Contains(ToolCapability.WebSearch) ||
         capabilities.Contains(ToolCapability.ComputerUse);
 
-    private static IReadOnlyCollection<ActivePlugin> FilterPluginsForTurn(
-        IReadOnlyCollection<ActivePlugin> plugins,
-        IReadOnlySet<ToolCapability> capabilities)
+    private static IReadOnlyCollection<ActiveCapability> FilterCapabilitiesForTurn(
+        IReadOnlyCollection<ActiveCapability> registeredCapabilities,
+        IReadOnlySet<ToolCapability> required)
     {
-        if (NeedsToolRuntime(capabilities))
-        {
-            return plugins;
-        }
+        if (!NeedsToolRuntime(required)) return [];
 
-        return plugins
-            .Where(plugin => plugin.Name is not (
-                "Automate" or
-                "BrowserUse" or
-                "ComputerUse" or
-                "Test" or
-                "WebSearch"))
+        return registeredCapabilities
+            .Where(capability => ExternalConnectionNaming.IsConnectionCapability(capability.Key)
+                ? required.Contains(ToolCapability.Tools)
+                : capability.Key switch
+            {
+                "web-search" => required.Contains(ToolCapability.WebSearch),
+                "browser-use" => required.Contains(ToolCapability.Browser)
+                                 && !required.Contains(ToolCapability.WebSearch),
+                "computer-device-use" or "open-control-app" => required.Contains(ToolCapability.ComputerUse),
+                "create-automation" or "run-task" or "edit-task" or
+                "run-command" or "run-script" or "powershell" or
+                "read-file" or "write-file" or "run-tests" => required.Contains(ToolCapability.Tools),
+                _ => false
+            })
             .ToArray();
     }
 
@@ -509,7 +839,7 @@ public sealed class ChatSessionService(
                 capabilities.Contains(ToolCapability.WebSearch),
             ToolRuntimeKind.Computer =>
                 capabilities.Contains(ToolCapability.ComputerUse),
-            ToolRuntimeKind.Workspace or ToolRuntimeKind.Automation =>
+            ToolRuntimeKind.Workspace or ToolRuntimeKind.Automation or ToolRuntimeKind.Mcp =>
                 capabilities.Contains(ToolCapability.Tools),
             _ => false
         };
@@ -598,16 +928,18 @@ public sealed class ChatSessionService(
     private ToolAvailabilityPlan CreateAvailabilityPlan(
         HavenMode mode,
         string? workspaceRoot,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         PermissionMode filePermission,
         PermissionMode commandPermission,
         PermissionMode browserPermission,
-        IReadOnlyList<OllamaToolDefinition> computerDefinitions) =>
+        IReadOnlyList<OllamaToolDefinition> computerDefinitions,
+        IReadOnlyList<OllamaToolDefinition>? mcpDefinitions = null,
+        IReadOnlyList<OllamaToolDefinition>? calendarDefinitions = null) =>
         (toolAvailability ?? ToolAvailabilityPlanner.Default).Create(
             new ToolAvailabilityContext(
                 mode,
                 workspaceRoot,
-                plugins,
+                capabilities,
                 filePermission,
                 commandPermission,
                 browserPermission,
@@ -621,7 +953,9 @@ public sealed class ChatSessionService(
                 browserTools?.BackgroundDefinitions ?? [],
                 browserTools?.InteractiveDefinitions ?? [],
                 automationTools?.GetDefinitions(true, false) ?? [],
-                automationTools?.GetDefinitions(false, true) ?? []));
+                automationTools?.GetDefinitions(false, true) ?? [],
+                mcpDefinitions ?? [],
+                calendarDefinitions ?? []));
 
     /// <summary>
     /// Performs the approvable step owned by this component.
@@ -727,7 +1061,7 @@ public sealed class ChatSessionService(
     /// </summary>
     private static string BuildSystemPrompt(
         Conversation conversation,
-        IReadOnlyCollection<ActivePlugin> plugins,
+        IReadOnlyCollection<ActiveCapability> capabilities,
         IReadOnlyCollection<ActivePrompt> prompts,
         string agentName,
         string agentInstructions,
@@ -762,8 +1096,8 @@ public sealed class ChatSessionService(
             builder.Append("\nProject instructions and golden rules:\n").Append(projectInstructions.Trim());
         if (!string.IsNullOrWhiteSpace(registeredContext))
             builder.Append("\nRegistered conversation context and prior compact summaries:\n").Append(registeredContext.Trim());
-        foreach (var plugin in plugins.Where(plugin => !string.IsNullOrWhiteSpace(plugin.Instructions)))
-            builder.Append("\nPlugin @").Append(plugin.Name).Append(":\n").Append(plugin.Instructions.Trim());
+        foreach (var capability in capabilities.Where(capability => !string.IsNullOrWhiteSpace(capability.Instructions)))
+            builder.Append("\nCapability ").Append(capability.Name).Append(":\n").Append(capability.Instructions.Trim());
         foreach (var prompt in prompts.Where(prompt => !string.IsNullOrWhiteSpace(prompt.Instructions)))
             builder.Append("\nPrompt >").Append(prompt.Name).Append(":\n").Append(prompt.Instructions.Trim());
         if (!string.IsNullOrWhiteSpace(workspaceRoot))
@@ -793,6 +1127,7 @@ public sealed record ChatStreamEvent(
     ChatMessage? Message = null,
     Guid? MessageId = null,
     string? Delta = null,
+    string? Thinking = null,
     string? Model = null,
     string? Agent = null,
     CapabilityPreflightResult? PreflightResult = null,
@@ -811,6 +1146,10 @@ public sealed record ChatStreamEvent(
     /// </summary>
     public static ChatStreamEvent AssistantDelta(Guid id, string delta) => new(ChatStreamEventKind.AssistantDelta, MessageId: id, Delta: delta);
     /// <summary>
+    /// Performs the thinking step owned by this component.
+    /// </summary>
+    public static ChatStreamEvent ThinkingDelta(Guid id, string thinking) => new(ChatStreamEventKind.ThinkingDelta, MessageId: id, Thinking: thinking);
+    /// <summary>
     /// Performs the assistant completed step owned by this component.
     /// </summary>
     public static ChatStreamEvent AssistantCompleted(ChatMessage message) => new(ChatStreamEventKind.AssistantCompleted, Message: message);
@@ -821,10 +1160,10 @@ public sealed record ChatStreamEvent(
     /// <summary>
     /// Performs the activity step owned by this component.
     /// </summary>
-    public static ChatStreamEvent Activity(ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, ToolActivity: activity);
+    public static ChatStreamEvent Activity(Guid messageId, ToolActivity activity) => new(ChatStreamEventKind.ToolActivity, MessageId: messageId, ToolActivity: activity);
 }
 
 /// <summary>
 /// Lists the supported chat stream event kind values used to make state explicit and type-safe.
 /// </summary>
-public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ToolActivity, PreflightFailed }
+public enum ChatStreamEventKind { UserMessage, AssistantStarted, AssistantDelta, AssistantCompleted, ThinkingDelta, ToolActivity, PreflightFailed }

@@ -1,0 +1,10 @@
+<DynamicUI Name="ChatUserMessage">
+  <Container Name="MessageRoot" Layout="Horizontal" Width="100%" Gap="10px" Padding="8px 4px">
+    <Image Name="Avatar" Source="{{AVATAR}}" Width="28px" Height="28px" Radius="14px" Visibility="{{AVATARVISIBILITY}}" />
+    <Container Name="MessageBody" Layout="Vertical" Width="100%" Gap="6px">
+      <Text Name="Role" Content="You" FontSize="11" FontWeight="700" Foreground="TextSecondary" />
+      <Markdown Name="Body" Content="{{CONTENT}}" />
+      <Button Name="MessageMenu" Variant="Icon" IconKey="more" Content="" Width="32px" Height="32px" MinHeight="32px" HorizontalAlignment="End" />
+    </Container>
+  </Container>
+</DynamicUI>

@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
+             x:Class="Haven.Desktop.Views.Pages.Settings.HavenAppearanceSettingsView">
+  <hui:HavenAdaptiveSurface Classes="card">
+    <StackPanel Spacing="12">
+      <StackPanel Spacing="3">
+        <TextBlock Text="APPEARANCE" Classes="eyebrow" />
+        <TextBlock Text="HavenUI brightness" Classes="sectionHeading" />
+        <TextBlock Text="Colour changes only. Layout, spacing and controls stay the same."
+                   Classes="muted"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+      <hui:HavenSlider x:Name="AppearanceSlider"
+              Minimum="0"
+              Maximum="3"
+              TickFrequency="1"
+              IsSnapToTickEnabled="True"
+              SmallChange="1"
+              LargeChange="1"
+              AutomationProperties.Name="HavenUI brightness: Super Bright, Bright, Dark, Super Dark" />
+
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="7">
+        <hui:HavenButton x:Name="SuperBrightButton" Content="Super Bright" FontSize="11" />
+        <hui:HavenButton x:Name="BrightButton" Grid.Column="1" Content="Bright" FontSize="11" />
+        <hui:HavenButton x:Name="DarkButton" Grid.Column="2" Content="Dark" FontSize="11" />
+        <hui:HavenButton x:Name="SuperDarkButton" Grid.Column="3" Content="Super Dark" FontSize="11" />
+      </Grid>
+
+      <TextBlock x:Name="AppearanceStatusText"
+                 Classes="muted"
+                 FontWeight="SemiBold"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+  </hui:HavenAdaptiveSurface>
+</UserControl>

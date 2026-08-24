@@ -16,6 +16,7 @@
     <ApplicationIcon>Assets\haven.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+
     <!-- DI-created pages deliberately have no parameterless runtime-loader constructor. -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
@@ -25,11 +26,19 @@
     <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
     <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     <ProjectReference Include="..\Haven.Browser\Haven.Browser.csproj" />
-    <ProjectReference Include="..\Haven.Automations\Haven.Automations.csproj" />
+    <!-- During Phase 2 this desktop project is the Avalonia backend/host for platform-neutral Haven.UI. -->
+    <ProjectReference Include="..\Haven.UI\Haven.UI.csproj" />
+    <!-- Legacy Haven.Automations project retired; scheduled Tasks live in Haven.Application. -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Controls.WebView" />
+    <!-- Wraps Avalonia's existing CoreWebView2 COM handle without importing WebView2's WPF/WinForms assemblies. -->
+    <PackageReference Include="Microsoft.Web.WebView2" GeneratePathProperty="true" ExcludeAssets="all" />
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>$(PkgMicrosoft_Web_WebView2)\lib\net462\Microsoft.Web.WebView2.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
@@ -37,12 +46,11 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-    <AvaloniaResource Include="Styles\**\*.axaml" />
+    <EmbeddedResource Include="Prefabs\**\*.hui" />
+    <EmbeddedResource Include="DynamicUI\**\*.hui" />
+    <Compile Update="Prefabs\**\*.hui.cs"><DependentUpon>%(Filename)</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Update="Views\Pages\Chat\NewChatPage.axaml.cs">
-      <DependentUpon>NewChatPage.axaml</DependentUpon>
-    </Compile>
     <Compile Update="Views\Pages\Go\GoPage.axaml.cs">
       <DependentUpon>GoPage.axaml</DependentUpon>
     </Compile>

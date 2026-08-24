@@ -1,60 +1,24 @@
 using Android.Content;
 using Android.Content.PM;
 using Haven.Core;
+using Haven.Android;
 
 namespace Haven.Desktop.Views.Shell;
 
 public sealed partial class MainView
 {
-    private sealed record AndroidLauncherApp(string Label, string PackageName, string ActivityName);
+    private IReadOnlyList<AndroidInstalledApp>? _installedAndroidApps;
 
-    private IReadOnlyList<AndroidLauncherApp>? _installedAndroidApps;
-
-    private async Task<IReadOnlyList<AndroidLauncherApp>> GetInstalledAndroidAppsAsync()
+    private async Task<IReadOnlyList<AndroidInstalledApp>> GetInstalledAndroidAppsAsync()
     {
         if (_installedAndroidApps is not null)
             return _installedAndroidApps;
 
-        _installedAndroidApps = await Task.Run(QueryInstalledAndroidApps);
+        _installedAndroidApps = await Task.Run(() => AndroidInstalledAppCatalog.Query(
+                excludePackageName: global::Android.App.Application.Context.PackageName)
+            .DistinctBy(app => app.PackageName)
+            .ToArray());
         return _installedAndroidApps;
-    }
-
-    private static IReadOnlyList<AndroidLauncherApp> QueryInstalledAndroidApps()
-    {
-        var context = global::Android.App.Application.Context;
-        var packageManager = context.PackageManager;
-        if (packageManager is null)
-            return [];
-
-        var query = new Intent(Intent.ActionMain);
-        query.AddCategory(Intent.CategoryLauncher);
-
-#pragma warning disable CA1422
-        var activities = packageManager.QueryIntentActivities(query, PackageInfoFlags.MatchAll);
-#pragma warning restore CA1422
-
-        return activities
-            .Where(item => item.ActivityInfo is
-            {
-                PackageName: { Length: > 0 },
-                Name: { Length: > 0 }
-            })
-            .Select(item =>
-            {
-                var info = item.ActivityInfo!;
-                var packageName = info.PackageName!;
-                var activityName = info.Name!;
-                var loadedLabel = item.LoadLabel(packageManager)?.ToString();
-                var label = string.IsNullOrWhiteSpace(loadedLabel) ? packageName : loadedLabel;
-                return new AndroidLauncherApp(label, packageName, activityName);
-            })
-            .Where(item => !string.Equals(
-                item.PackageName,
-                context.PackageName,
-                StringComparison.OrdinalIgnoreCase))
-            .DistinctBy(item => item.PackageName)
-            .OrderBy(item => item.Label, StringComparer.CurrentCultureIgnoreCase)
-            .ToArray();
     }
 
     private async Task<IReadOnlyList<ModeDefinition>> GetInstalledAndroidAppDefinitionsAsync()
@@ -101,7 +65,7 @@ public sealed partial class MainView
             await ConnectAndroidAppToChatAsync(app);
     }
 
-    private Task ConnectAndroidAppToChatAsync(AndroidLauncherApp app)
+    private Task ConnectAndroidAppToChatAsync(AndroidInstalledApp app)
         => OpenNewChatAsync(
             $"Connected Android app: {app.Label} ({app.PackageName}). " +
             "Treat the next instructions as involving this app. Prefer supported Android intents, content providers, " +

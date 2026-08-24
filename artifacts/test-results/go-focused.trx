@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="b87bb424-0d9b-4eb4-bc37-50316da862cc" name="Jacob@DESKTOP-7CHJ9S6 2026-08-14 21:21:59" runUser="DESKTOP-7CHJ9S6\Jacob" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-14T21:21:59.7438300+01:00" queuing="2026-08-14T21:21:59.7438302+01:00" start="2026-08-14T21:21:58.2843999+01:00" finish="2026-08-14T21:21:59.7483524+01:00" />
+  <TestSettings name="default" id="66a40d19-4586-4a8c-a9a0-0bd3177903c9">
+    <Deployment runDeploymentRoot="Jacob_DESKTOP-7CHJ9S6_2026-08-14_21_21_59" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="141976dd-0946-4345-9d98-908ea3c0705b" testId="77f8e135-ffba-53a5-be59-d27933bb92d7" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0156402" startTime="2026-08-14T21:21:59.6303943+01:00" endTime="2026-08-14T21:21:59.6461860+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="141976dd-0946-4345-9d98-908ea3c0705b">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Single() Failure: The collection contained 2 matching items&#xD;
+Expected:      (predicate expression)&#xD;
+Collection:    [Button { Accessibility = HavenAccessibility { AccessibleName = "Show my Recent Chats", Checked = False, Description = "Show my recent chats and help me choose where to c"···, Enabled = True, Focusable = True, ··· }, Bounds = HavenRect { X = 100, Y = 307.38, Width = 393, Height = 64, Right = 493, Bottom = 371.38 }, Children = [], Class = "", Classes = [], ··· }, Button { Accessibility = HavenAccessibility { AccessibleName = "Show my Recent Chats", Checked = False, Description = "Show my recent chats and help me choose where to c"···, Enabled = True, Focusable = True, ··· }, Bounds = HavenRect { X = 0, Y = 0, Width = 0, Height = 0, Right = 0, Bottom = 0 }, Children = [], Class = "", Classes = [], ··· }]&#xD;
+Match indices: 0, 1</Message>
+          <StackTrace>   at Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs:line 93&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="161fffe1-a772-41c7-9573-fb422bc0c02d" testId="8cc10646-f75e-4bb6-6a90-9654b8f2a23a" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0051426" startTime="2026-08-14T21:21:59.6514172+01:00" endTime="2026-08-14T21:21:59.6566022+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="161fffe1-a772-41c7-9573-fb422bc0c02d" />
+    <UnitTestResult executionId="7a606a17-4aa6-42ac-8b08-fae848b5e9e1" testId="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Wide_desktop_layout_keeps_primary_go_surfaces_centered" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0115086" startTime="2026-08-14T21:21:59.5822854+01:00" endTime="2026-08-14T21:21:59.5939470+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7a606a17-4aa6-42ac-8b08-fae848b5e9e1" />
+    <UnitTestResult executionId="39444dec-6b63-4f91-9d91-ecd4c1e27fe8" testId="2f775634-b151-b0ca-e2af-1a79c5c92294" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0124662" startTime="2026-08-14T21:21:59.5573951+01:00" endTime="2026-08-14T21:21:59.5702153+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="39444dec-6b63-4f91-9d91-ecd4c1e27fe8" />
+    <UnitTestResult executionId="2f523571-1c05-42b2-8e64-566637c6e4e3" testId="d0427673-2141-5778-9f0f-5903d61d85b9" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.0217575" startTime="2026-08-14T21:21:59.6005219+01:00" endTime="2026-08-14T21:21:59.6223325+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2f523571-1c05-42b2-8e64-566637c6e4e3" />
+    <UnitTestResult executionId="0f8b8d24-32f3-4197-a11b-0f5fa06408e0" testId="5cfecc64-cfdc-2085-af02-f5cc2777c94a" testName="Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" computerName="DESKTOP-7CHJ9S6" duration="00:00:00.1973930" startTime="2026-08-14T21:21:59.3200249+01:00" endTime="2026-08-14T21:21:59.5310680+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0f8b8d24-32f3-4197-a11b-0f5fa06408e0">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Values differ&#xD;
+Expected: Collapsed&#xD;
+Actual:   Visible</Message>
+          <StackTrace>   at Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background() in C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs:line 130&#xD;
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="d0427673-2141-5778-9f0f-5903d61d85b9">
+      <Execution id="2f523571-1c05-42b2-8e64-566637c6e4e3" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Go_route_uses_one_scene_surface_with_only_native_editable_text_adapters" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="2f775634-b151-b0ca-e2af-1a79c5c92294">
+      <Execution id="39444dec-6b63-4f91-9d91-ecd4c1e27fe8" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Composer_and_primary_prompt_stay_inside_compact_desktop_viewport" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="8cc10646-f75e-4bb6-6a90-9654b8f2a23a">
+      <Execution id="161fffe1-a772-41c7-9573-fb422bc0c02d" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Main_window_centres_and_allows_high_dpi_compact_desktop_layouts" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="5cfecc64-cfdc-2085-af02-f5cc2777c94a">
+      <Execution id="0f8b8d24-32f3-4197-a11b-0f5fa06408e0" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Add_menu_is_haven_owned_and_modal_overlay_closes_from_background" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Wide_desktop_layout_keeps_primary_go_surfaces_centered" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0">
+      <Execution id="7a606a17-4aa6-42ac-8b08-fae848b5e9e1" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Wide_desktop_layout_keeps_primary_go_surfaces_centered" />
+    </UnitTest>
+    <UnitTest name="Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow" storage="c:\users\jacob\onedrive\personal files\development\visual studio\haven ai\source\tests\haven.desktop.tests\bin\x64\release\net10.0-windows10.0.19041.0\haven.desktop.tests.dll" id="77f8e135-ffba-53a5-be59-d27933bb92d7">
+      <Execution id="141976dd-0946-4345-9d98-908ea3c0705b" />
+      <TestMethod codeBase="C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\bin\x64\Release\net10.0-windows10.0.19041.0\Haven.Desktop.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Haven.Desktop.Tests.GoPageResponsiveTests" name="Haven_scene_suggestion_and_composer_preserve_go_submission_flow" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="77f8e135-ffba-53a5-be59-d27933bb92d7" executionId="141976dd-0946-4345-9d98-908ea3c0705b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8cc10646-f75e-4bb6-6a90-9654b8f2a23a" executionId="161fffe1-a772-41c7-9573-fb422bc0c02d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="777fe5ca-6c15-1bb2-f4b2-aa63bd2b47d0" executionId="7a606a17-4aa6-42ac-8b08-fae848b5e9e1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2f775634-b151-b0ca-e2af-1a79c5c92294" executionId="39444dec-6b63-4f91-9d91-ecd4c1e27fe8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d0427673-2141-5778-9f0f-5903d61d85b9" executionId="2f523571-1c05-42b2-8e64-566637c6e4e3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5cfecc64-cfdc-2085-af02-f5cc2777c94a" executionId="0f8b8d24-32f3-4197-a11b-0f5fa06408e0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="6" executed="6" passed="4" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.5+1b188a7b0a (64-bit .NET 10.0.10)&#xD;
+[xUnit.net 00:00:00.12]   Discovering: Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.34]   Discovered:  Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.47]   Starting:    Haven.Desktop.Tests&#xD;
+[xUnit.net 00:00:00.98]       Assert.Equal() Failure: Values differ&#xD;
+[xUnit.net 00:00:00.98]       Expected: Collapsed&#xD;
+[xUnit.net 00:00:00.98]       Actual:   Visible&#xD;
+[xUnit.net 00:00:00.98]       Stack Trace:&#xD;
+[xUnit.net 00:00:00.98]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs(130,0): at Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background()&#xD;
+[xUnit.net 00:00:00.98]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:00.98]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:01.09]       Assert.Single() Failure: The collection contained 2 matching items&#xD;
+[xUnit.net 00:00:01.09]       Expected:      (predicate expression)&#xD;
+[xUnit.net 00:00:01.09]       Collection:    [Button { Accessibility = HavenAccessibility { AccessibleName = "Show my Recent Chats", Checked = False, Description = "Show my recent chats and help me choose where to c"···, Enabled = True, Focusable = True, ··· }, Bounds = HavenRect { X = 100, Y = 307.38, Width = 393, Height = 64, Right = 493, Bottom = 371.38 }, Children = [], Class = "", Classes = [], ··· }, Button { Accessibility = HavenAccessibility { AccessibleName = "Show my Recent Chats", Checked = False, Description = "Show my recent chats and help me choose where to c"···, Enabled = True, Focusable = True, ··· }, Bounds = HavenRect { X = 0, Y = 0, Width = 0, Height = 0, Right = 0, Bottom = 0 }, Children = [], Class = "", Classes = [], ··· }]&#xD;
+[xUnit.net 00:00:01.09]       Match indices: 0, 1&#xD;
+[xUnit.net 00:00:01.09]       Stack Trace:&#xD;
+[xUnit.net 00:00:01.09]         C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\tests\Haven.Desktop.Tests\GoPageResponsiveTests.cs(93,0): at Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow()&#xD;
+[xUnit.net 00:00:01.09]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)&#xD;
+[xUnit.net 00:00:01.09]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:01.11]   Finished:    Haven.Desktop.Tests (ID = '6af4a94bc17ebdbd1a28f789ec417e791bbca09ef8b01f58bbd623e29235e022')&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="DESKTOP-7CHJ9S6" outcome="Error" timestamp="2026-08-14T21:21:59.5348392+01:00">
+        <Text>[xUnit.net 00:00:00.98]     Haven.Desktop.Tests.GoPageResponsiveTests.Add_menu_is_haven_owned_and_modal_overlay_closes_from_background [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="DESKTOP-7CHJ9S6" outcome="Error" timestamp="2026-08-14T21:21:59.6469026+01:00">
+        <Text>[xUnit.net 00:00:01.09]     Haven.Desktop.Tests.GoPageResponsiveTests.Haven_scene_suggestion_and_composer_preserve_go_submission_flow [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

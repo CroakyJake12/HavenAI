@@ -1,0 +1,9 @@
+<DynamicUI Name="PlanCountdown">
+  <Container Name="RowRoot" Layout="Grid" Columns="1fr Auto" Rows="Auto" Width="100%" Gap="12px" Padding="10px 12px" Background="SurfaceRaised" Radius="13px">
+    <Container Name="Details" Column="0" Layout="Vertical" Gap="2px">
+      <Text Name="Title" Content="{{TITLE}}" FontSize="12" FontWeight="700" />
+      <Text Name="Target" Content="{{TARGET}}" FontSize="10" Foreground="TextSecondary" />
+    </Container>
+    <Text Name="Remaining" Content="{{REMAINING}}" Column="1" FontSize="11" FontWeight="700" Foreground="{{STATECOLOR}}" VerticalAlignment="Center" />
+  </Container>
+</DynamicUI>

@@ -48,7 +48,7 @@ public sealed partial class ProjectCreatorPage : UserControl
     {
         foreach (var template in Templates)
         {
-            var button = new Button
+            var button = new HavenButton
             {
                 Classes = { "choice" },
                 Margin = new Avalonia.Thickness(0, 0, 7, 7),

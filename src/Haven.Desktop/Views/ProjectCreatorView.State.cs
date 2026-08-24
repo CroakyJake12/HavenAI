@@ -70,6 +70,7 @@ public sealed partial class ProjectCreatorView
     private void RefreshFromViewModel()
     {
         var viewModel = _viewModel;
+        SyncHavenScene(viewModel);
         _syncing = true;
         try
         {
@@ -193,7 +194,7 @@ public sealed partial class ProjectCreatorView
         foreach (var command in proposal.Commands)
         {
             _proposalCommands.Children.Add(
-                new Border
+                new HavenAdaptiveSurface
                 {
                     Background = Brush("#F5F7F4"),
                     BorderBrush = BorderBrush,

@@ -1,9 +1,12 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Desktop.Controls;
+using Haven.Desktop.Services;
+using Haven.Core;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -30,14 +33,14 @@ public sealed class NotificationCentre : Grid, IDisposable
         IsHitTestVisible = false;
         MinWidth = 400;
 
-        _searchBox = new TextBox { PlaceholderText = "Search notifications", MinWidth = 260 };
+        _searchBox = new HavenTextInput { PlaceholderText = "Search notifications", MinWidth = 260 };
         _searchBox.TextChanged += OnSearchChanged;
 
         _priorityItems = new StackPanel { Spacing = 6 };
         _unreadItems = new StackPanel { Spacing = 6 };
 
-        _prioritySection = BuildSection("Priority", _priorityItems);
-        _unreadSection = BuildSection("Unread", _unreadItems);
+        _prioritySection = BuildSection("Live", _priorityItems);
+        _unreadSection = BuildSection("Recent", _unreadItems);
 
         _emptyState = new TextBlock
         {
@@ -49,7 +52,7 @@ public sealed class NotificationCentre : Grid, IDisposable
             IsVisible = false
         };
 
-        _settingsButton = new Button
+        _settingsButton = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -84,7 +87,7 @@ public sealed class NotificationCentre : Grid, IDisposable
             }
         };
 
-        var closeBtn = new Button
+        var closeBtn = new HavenButton
         {
             Content = new HavenIcon { IconKey = "close", Width = 14, Height = 14 },
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -115,12 +118,12 @@ public sealed class NotificationCentre : Grid, IDisposable
                         Children = { _prioritySection, _unreadSection, _emptyState }
                     }
                 },
-                new Border { Height = 1, Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
+                new HavenAdaptiveSurface { Height = 1, Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
                 _settingsButton
             }
         };
 
-        _panel = new Border
+        _panel = new HavenAdaptiveSurface
         {
             Width = 400,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -145,6 +148,8 @@ public sealed class NotificationCentre : Grid, IDisposable
 
     /// <summary>Raised when the panel's own close button is used.</summary>
     public event EventHandler? CloseRequested;
+    public event EventHandler<Guid>? DismissRequested;
+    public event EventHandler<HavenNavigationTarget>? OpenRequested;
 
     /// <summary>
     /// Returns whether the panel is currently open.
@@ -186,7 +191,7 @@ public sealed class NotificationCentre : Grid, IDisposable
     /// </summary>
     public void AddPriorityNotification(string title, string source, string iconKey = "info")
     {
-        _priorityItems.Children.Add(BuildNotificationItem(title, source, iconKey, isPriority: true));
+        _priorityItems.Children.Add(BuildNotificationItem(Guid.Empty, title, source, iconKey, isPriority: true));
         UpdateEmptyState();
     }
 
@@ -195,7 +200,7 @@ public sealed class NotificationCentre : Grid, IDisposable
     /// </summary>
     public void AddUnreadNotification(string title, string source, string iconKey = "info")
     {
-        _unreadItems.Children.Add(BuildNotificationItem(title, source, iconKey, isPriority: false));
+        _unreadItems.Children.Add(BuildNotificationItem(Guid.Empty, title, source, iconKey, isPriority: false));
         UpdateEmptyState();
     }
 
@@ -206,6 +211,29 @@ public sealed class NotificationCentre : Grid, IDisposable
     {
         _priorityItems.Children.Clear();
         _unreadItems.Children.Clear();
+        UpdateEmptyState();
+    }
+
+    public void SetNotifications(IEnumerable<ToastNotification> notifications)
+    {
+        _priorityItems.Children.Clear();
+        _unreadItems.Children.Clear();
+        foreach (var notification in notifications.OrderByDescending(item => item.CreatedAt))
+        {
+            var priority = notification.IsLive;
+            var icon = notification.Kind switch
+            {
+                ToastKind.Success => "check",
+                ToastKind.Warning => "warning",
+                ToastKind.Error => "warning",
+                _ => "info"
+            };
+            var source = string.IsNullOrWhiteSpace(notification.SourceName)
+                ? notification.Message
+                : notification.SourceName + " · " + notification.Message;
+            var item = BuildNotificationItem(notification.Id, notification.Title, source, icon, priority, notification.Target);
+            (priority ? _priorityItems : _unreadItems).Children.Add(item);
+        }
         UpdateEmptyState();
     }
 
@@ -228,7 +256,7 @@ public sealed class NotificationCentre : Grid, IDisposable
         };
     }
 
-    private Border BuildNotificationItem(string title, string source, string iconKey, bool isPriority)
+    private Border BuildNotificationItem(Guid id, string title, string source, string iconKey, bool isPriority, HavenNavigationTarget? target = null)
     {
         var icon = new HavenIcon
         {
@@ -239,7 +267,7 @@ public sealed class NotificationCentre : Grid, IDisposable
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        var dismissBtn = new Button
+        var dismissBtn = new HavenButton
         {
             Content = new HavenIcon { IconKey = "close", Width = 12, Height = 12 },
             Padding = new Thickness(4),
@@ -277,24 +305,33 @@ public sealed class NotificationCentre : Grid, IDisposable
         Grid.SetColumn(dismissBtn, 2);
         grid.Children.Add(dismissBtn);
 
-        var border = new Border
+        var border = new HavenAdaptiveSurface
         {
             Padding = new Thickness(10, 8),
             CornerRadius = new CornerRadius(10),
-            Background = isPriority
-                ? new SolidColorBrush(Color.FromArgb(30, 255, 180, 50))
-                : new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+            Background = ResourceBrush(isPriority ? "HavenAccentSoftBrush" : "HavenOverlaySurfaceBrush", Colors.Transparent),
+            BorderBrush = ResourceBrush("HavenBorderSubtleBrush", Colors.Transparent),
             BorderThickness = new Thickness(1),
             Child = grid
         };
 
         dismissBtn.Click += (_, _) =>
         {
+            if (id != Guid.Empty)
+                DismissRequested?.Invoke(this, id);
             var parent = border.Parent as Panel;
             parent?.Children.Remove(border);
             UpdateEmptyState();
         };
+        if (target is not null)
+        {
+            border.Cursor = new Cursor(StandardCursorType.Hand);
+            border.PointerPressed += (_, e) =>
+            {
+                OpenRequested?.Invoke(this, target);
+                e.Handled = true;
+            };
+        }
 
         return border;
     }

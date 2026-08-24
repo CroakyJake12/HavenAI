@@ -112,7 +112,7 @@ public static class MainWindowModeNavigationExtensions
         };
         chat.Prompts.Insert(0, prompt);
 
-        var requestedPlugins = ParseNames(mode.PluginsJson);
+        var requestedPlugins = ParseNames(mode.CapabilitiesJson);
         foreach (var plugin in chat.Plugins)
             plugin.IsActive = requestedPlugins.Contains(plugin.Name) && plugin.IsAvailableInMode && plugin.IsRuntimeAvailable;
     }

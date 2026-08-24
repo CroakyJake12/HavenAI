@@ -113,6 +113,7 @@ internal sealed record Migration(int Version, string Sql);
 /// </summary>
 internal static class Migrations
 {
+    public static int LatestVersion => All[^1].Version;
     /// <summary>
     /// Stores all locally so this component can preserve the dependency, cache, or state between member calls.
     /// </summary>
@@ -460,6 +461,427 @@ internal static class Migrations
                 moved_at TEXT NOT NULL
             );
             CREATE INDEX ix_conversation_moves_conversation ON conversation_moves(conversation_id, moved_at DESC);
+        """),
+        new(11, """
+            CREATE TABLE capabilities(
+                id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                owner_app_key TEXT NOT NULL,
+                icon_key TEXT NOT NULL,
+                instructions TEXT NOT NULL,
+                implementation_key TEXT NOT NULL,
+                semantic_actions_json TEXT NOT NULL DEFAULT '[]',
+                platforms INTEGER NOT NULL DEFAULT 0,
+                risk_class INTEGER NOT NULL DEFAULT 0,
+                availability INTEGER NOT NULL DEFAULT 0,
+                dependencies_json TEXT NOT NULL DEFAULT '[]',
+                provider_id TEXT NOT NULL,
+                is_attachable INTEGER NOT NULL DEFAULT 1,
+                is_agent_usable INTEGER NOT NULL DEFAULT 1,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_capabilities_owner_name ON capabilities(owner_app_key,name);
+            CREATE INDEX ix_capabilities_platform_enabled ON capabilities(platforms,is_enabled);
+        """),
+        new(12, """
+            CREATE TABLE genui_templates(
+                id TEXT PRIMARY KEY,
+                key TEXT NOT NULL UNIQUE,
+                version TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                category TEXT NOT NULL,
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                canonical_implementation TEXT NOT NULL,
+                scale INTEGER NOT NULL,
+                recommended_apps_json TEXT NOT NULL DEFAULT '[]',
+                compatible_apps_json TEXT NOT NULL DEFAULT '[]',
+                inputs_json TEXT NOT NULL DEFAULT '[]',
+                outputs_json TEXT NOT NULL DEFAULT '[]',
+                emitted_events_json TEXT NOT NULL DEFAULT '[]',
+                configurable_properties_json TEXT NOT NULL DEFAULT '[]',
+                data_requirements_json TEXT NOT NULL DEFAULT '[]',
+                supported_interactions_json TEXT NOT NULL DEFAULT '[]',
+                havenui_primitives_json TEXT NOT NULL DEFAULT '[]',
+                app_services_json TEXT NOT NULL DEFAULT '[]',
+                capabilities_json TEXT NOT NULL DEFAULT '[]',
+                model_capabilities_json TEXT NOT NULL DEFAULT '[]',
+                requires_network INTEGER NOT NULL DEFAULT 0,
+                supports_offline INTEGER NOT NULL DEFAULT 1,
+                platforms INTEGER NOT NULL,
+                accessibility_summary TEXT NOT NULL,
+                supports_persistence INTEGER NOT NULL DEFAULT 1,
+                supports_thread_scope INTEGER NOT NULL DEFAULT 1,
+                supports_user_apps INTEGER NOT NULL DEFAULT 1,
+                supports_mini_apps INTEGER NOT NULL DEFAULT 0,
+                supports_embedding INTEGER NOT NULL DEFAULT 1,
+                agent_interaction INTEGER NOT NULL,
+                deterministic_without_model INTEGER NOT NULL DEFAULT 0,
+                state_ownership INTEGER NOT NULL,
+                maturity INTEGER NOT NULL DEFAULT 0,
+                is_built_in INTEGER NOT NULL DEFAULT 0,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_genui_templates_category_name ON genui_templates(category,name);
+            CREATE INDEX ix_genui_templates_platform_enabled ON genui_templates(platforms,is_enabled);
+        """),
+        new(13, """
+            CREATE TABLE reusable_tasks(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                instruction TEXT NOT NULL,
+                container_id TEXT NULL REFERENCES containers(id) ON DELETE SET NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO reusable_tasks(id,name,description,instruction,container_id,is_enabled,created_at,updated_at)
+            SELECT id,name,description,instruction,container_id,is_enabled,created_at,updated_at FROM macros;
+            DROP TABLE macros;
+            CREATE INDEX ix_reusable_tasks_container_name ON reusable_tasks(container_id,name);
+        """),
+        new(14, """
+            INSERT OR IGNORE INTO capabilities(
+                id,key,name,description,owner_app_key,icon_key,instructions,implementation_key,
+                semantic_actions_json,platforms,risk_class,availability,dependencies_json,provider_id,
+                is_attachable,is_agent_usable,is_built_in,is_enabled,updated_at)
+            SELECT
+                id,
+                'imported-plugin-' || lower(substr(replace(id,'-',''),1,12)),
+                name,
+                description,
+                'general',
+                icon_key,
+                instructions,
+                'retired-plugin-metadata',
+                '[]',
+                3,
+                0,
+                4,
+                '[]',
+                'legacy-plugin',
+                0,
+                0,
+                0,
+                0,
+                updated_at
+            FROM plugins
+            WHERE is_built_in=0;
+            ALTER TABLE mode_definitions RENAME COLUMN plugins_json TO capabilities_json;
+            DROP TABLE plugins;
+        """),
+        new(15, """
+            ALTER TABLE reusable_tasks ADD COLUMN graph_json TEXT NULL;
+        """),
+        new(16, """
+            CREATE TABLE conversation_safety_flags(
+                conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                event_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                category TEXT NOT NULL,
+                evidence_hash TEXT NOT NULL,
+                confirmed_at TEXT NOT NULL,
+                PRIMARY KEY(conversation_id,event_id)
+            );
+            CREATE INDEX ix_conversation_safety_flags_confirmed
+                ON conversation_safety_flags(conversation_id,confirmed_at);
+
+            CREATE TABLE conversation_safety_state(
+                conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+                confirmed_count INTEGER NOT NULL DEFAULT 0 CHECK(confirmed_count>=0),
+                state INTEGER NOT NULL DEFAULT 0 CHECK(state IN(0,1)),
+                locked_at TEXT NULL,
+                version INTEGER NOT NULL DEFAULT 0 CHECK(version>=0),
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TRIGGER conversation_safety_block_conversation_update
+            BEFORE UPDATE ON conversations
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_message_insert
+            BEFORE INSERT ON messages
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_message_update
+            BEFORE UPDATE ON messages
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_context_insert
+            BEFORE INSERT ON conversation_context
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=NEW.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+            CREATE TRIGGER conversation_safety_block_context_update
+            BEFORE UPDATE ON conversation_context
+            WHEN EXISTS(SELECT 1 FROM conversation_safety_state WHERE conversation_id=OLD.conversation_id AND state=1)
+            BEGIN SELECT RAISE(ABORT,'CONVERSATION_SAFETY_LOCKED'); END;
+        """),
+        new(17, """
+            CREATE TABLE IF NOT EXISTS knowledge_records(
+                id TEXT PRIMARY KEY,
+                category INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                privacy_class INTEGER NOT NULL,
+                confidence REAL NOT NULL,
+                is_pinned INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT NULL,
+                learned_because TEXT NOT NULL,
+                sources_json TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_knowledge_records_category ON knowledge_records(category,updated_at);
+
+            CREATE TABLE IF NOT EXISTS knowledge_record_details(
+                id TEXT PRIMARY KEY REFERENCES knowledge_records(id) ON DELETE CASCADE,
+                freshness INTEGER NOT NULL DEFAULT 0,
+                last_confirmed_at TEXT NULL,
+                scope TEXT NOT NULL DEFAULT 'global',
+                status INTEGER NOT NULL DEFAULT 0,
+                origin INTEGER NOT NULL DEFAULT 0,
+                user_correction TEXT NULL,
+                supersedes_id TEXT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_knowledge_details_status ON knowledge_record_details(status,last_confirmed_at);
+
+            CREATE TABLE IF NOT EXISTS knowledge_rejections(
+                fingerprint TEXT PRIMARY KEY,
+                record_id TEXT NULL,
+                reason TEXT NULL,
+                rejected_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS api_bank_records(
+                id TEXT PRIMARY KEY,
+                application TEXT NOT NULL,
+                api_name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                documentation_url TEXT NOT NULL,
+                actions_json TEXT NOT NULL,
+                authentication TEXT NOT NULL,
+                requires_internet INTEGER NOT NULL,
+                requires_credentials INTEGER NOT NULL,
+                cost_per_request TEXT NULL,
+                alternatives_json TEXT NOT NULL,
+                deprecation TEXT NULL,
+                last_checked_at TEXT NOT NULL,
+                documentation_hash TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_api_bank_name ON api_bank_records(application,api_name);
+
+            CREATE TABLE IF NOT EXISTS api_bank_details(
+                id TEXT PRIMARY KEY REFERENCES api_bank_records(id) ON DELETE CASCADE,
+                inputs_json TEXT NOT NULL DEFAULT '[]',
+                outputs_json TEXT NOT NULL DEFAULT '[]',
+                scopes_json TEXT NOT NULL DEFAULT '[]',
+                rate_limits TEXT NOT NULL DEFAULT '',
+                pricing TEXT NOT NULL DEFAULT '',
+                capability_notes TEXT NOT NULL DEFAULT '',
+                limitations TEXT NOT NULL DEFAULT '',
+                offline_queue_policy TEXT NOT NULL DEFAULT '',
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                source_url TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS background_learning_settings(
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                global_enabled INTEGER NOT NULL DEFAULT 1,
+                mode INTEGER NOT NULL DEFAULT 1,
+                disabled_categories_json TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO background_learning_settings(id,global_enabled,mode,disabled_categories_json,updated_at)
+            VALUES(1,1,1,'[]','2026-08-21T00:00:00+00:00');
+
+            CREATE TABLE IF NOT EXISTS background_learning_tasks(
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                category INTEGER NOT NULL,
+                priority INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                source TEXT NOT NULL,
+                started_at TEXT NULL,
+                last_run_at TEXT NULL,
+                completed_at TEXT NULL,
+                result TEXT NULL,
+                error TEXT NULL,
+                requires_network INTEGER NOT NULL DEFAULT 0,
+                requires_model INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX IF NOT EXISTS ix_background_learning_tasks_status
+                ON background_learning_tasks(status,created_at DESC);
+        """),
+        new(18, """
+            CREATE TABLE genui_apps(instance_id TEXT PRIMARY KEY, app_id TEXT NOT NULL, thread_id TEXT NOT NULL, definition_json TEXT NOT NULL, updated_at TEXT NOT NULL);
+            CREATE INDEX ix_genui_apps_updated ON genui_apps(updated_at DESC);
+            CREATE INDEX ix_genui_apps_thread ON genui_apps(thread_id,updated_at DESC);
+        """),
+        new(19, """
+            ALTER TABLE genui_apps ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+            CREATE INDEX ix_genui_apps_pinned_updated ON genui_apps(is_pinned,updated_at DESC);
+        """),
+        new(20, """
+             CREATE TABLE external_connections(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider_key TEXT NOT NULL,
+                kind INTEGER NOT NULL,
+                preset_key TEXT NOT NULL DEFAULT '',
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                state INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT '',
+                configuration_json TEXT NOT NULL DEFAULT '{}',
+                server_name TEXT NULL,
+                server_version TEXT NULL,
+                protocol_version TEXT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+             CREATE INDEX ix_external_connections_provider ON external_connections(provider_key,is_enabled);
+             CREATE INDEX ix_external_connections_preset ON external_connections(preset_key,is_enabled);
+        """),
+        new(21, """
+             CREATE TABLE agent_runs(
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+                agent_name TEXT NOT NULL,
+                task TEXT NOT NULL,
+                status INTEGER NOT NULL,
+                model_name TEXT NOT NULL DEFAULT '',
+                result TEXT NOT NULL DEFAULT '',
+                error TEXT NOT NULL DEFAULT '',
+                capabilities_json TEXT NOT NULL DEFAULT '[]',
+                activity_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                started_at TEXT NULL,
+                completed_at TEXT NULL,
+                retry_of_run_id TEXT NULL REFERENCES agent_runs(id) ON DELETE SET NULL,
+                resource_reference TEXT NULL,
+                progress_percent INTEGER NOT NULL DEFAULT 0
+            );
+             CREATE INDEX ix_agent_runs_recent ON agent_runs(created_at DESC);
+             CREATE INDEX ix_agent_runs_agent ON agent_runs(agent_id,created_at DESC);
+        """),
+        new(22, """
+            CREATE TABLE execution_events(
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL UNIQUE,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                parent_action_id TEXT NULL,
+                origin INTEGER NOT NULL,
+                action_type INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                component_id TEXT NULL,
+                timestamp TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            CREATE INDEX ix_execution_events_execution_sequence ON execution_events(execution_id,sequence);
+            CREATE INDEX ix_execution_events_history ON execution_events(timestamp DESC,execution_id);
+            CREATE INDEX ix_execution_events_action ON execution_events(execution_id,action_id);
+
+            CREATE TABLE action_feedback(
+                id TEXT PRIMARY KEY,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                rating INTEGER NULL,
+                comment TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(execution_id,action_id)
+            );
+            CREATE INDEX ix_action_feedback_execution ON action_feedback(execution_id,action_id);
+
+            CREATE TABLE remediations(
+                id TEXT PRIMARY KEY,
+                execution_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                state INTEGER NOT NULL,
+                expires_at TEXT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_remediations_waiting ON remediations(state,expires_at);
+
+            CREATE TABLE external_agent_tasks(
+                id TEXT PRIMARY KEY,
+                locator TEXT NOT NULL UNIQUE,
+                owner_user_id TEXT NOT NULL,
+                workspace_id TEXT NULL,
+                project_id TEXT NULL,
+                status INTEGER NOT NULL,
+                claimed_by TEXT NULL,
+                lease_token_hash TEXT NULL,
+                lease_expires_at TEXT NULL,
+                idempotency_key TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT NULL
+            );
+            CREATE INDEX ix_external_tasks_owner_status ON external_agent_tasks(owner_user_id,status,updated_at DESC);
+            CREATE INDEX ix_external_tasks_lease ON external_agent_tasks(status,lease_expires_at);
+
+            CREATE TABLE haven_notifications(
+                id TEXT PRIMARY KEY,
+                kind INTEGER NOT NULL,
+                priority INTEGER NOT NULL,
+                is_live INTEGER NOT NULL,
+                is_read INTEGER NOT NULL,
+                is_dismissed INTEGER NOT NULL,
+                requires_attention INTEGER NOT NULL,
+                coalescing_key TEXT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_haven_notifications_recent ON haven_notifications(is_dismissed,updated_at DESC);
+            CREATE INDEX ix_haven_notifications_attention ON haven_notifications(requires_attention,is_read,is_dismissed);
+
+            CREATE TABLE workspace_session(
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                schema_version INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                saved_at TEXT NOT NULL
+            );
+
+            CREATE TABLE extension_sources(
+                id TEXT PRIMARY KEY,
+                type INTEGER NOT NULL,
+                repository_uri TEXT NOT NULL,
+                is_private INTEGER NOT NULL,
+                is_enabled INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX ix_extension_sources_uri ON extension_sources(repository_uri);
+
+            CREATE TABLE extension_packages(
+                id TEXT PRIMARY KEY,
+                package_id TEXT NOT NULL UNIQUE,
+                source_id TEXT NOT NULL REFERENCES extension_sources(id) ON DELETE RESTRICT,
+                package_type INTEGER NOT NULL,
+                version TEXT NOT NULL,
+                state INTEGER NOT NULL,
+                is_enabled INTEGER NOT NULL,
+                granted_permissions INTEGER NOT NULL,
+                content_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                installed_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX ix_extension_packages_source ON extension_packages(source_id,package_type,is_enabled);
         """)
     ];
 }

@@ -4,6 +4,9 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Haven.Core;
 using Haven.Desktop.Controls;
+using Haven.Desktop.HavenUI.Tokens;
+using Haven.Desktop.Views.Shell;
+using System.Text.Json;
 
 namespace Haven.Desktop.Views.Shell.TopRail;
 
@@ -17,15 +20,17 @@ public sealed partial class AppLauncherControl : UserControl
     private Action<ModeDefinition, bool>? _launch;
     private Action? _manage;
     private bool _openInNewTab;
+    private readonly AppLauncherFinalScene _havenScene;
+    private readonly Haven.Desktop.HavenUI.Backend.HavenSceneControl _havenHost;
 
     public AppLauncherControl()
     {
         InitializeComponent();
-        SearchBox.TextChanged += (_, _) => Rebuild();
-        ManageButton.Click += (_, _) =>
-        {
-            _manage?.Invoke();
-        };
+        _havenScene = new AppLauncherFinalScene();
+        _havenHost = new Haven.Desktop.HavenUI.Backend.HavenSceneControl { Root = _havenScene.Root };
+        Content = _havenHost;
+        _havenScene.AppRequested += app => _launch?.Invoke(app, _openInNewTab);
+        _havenScene.ManageRequested += () => _manage?.Invoke();
     }
 
     public void Configure(
@@ -40,8 +45,13 @@ public sealed partial class AppLauncherControl : UserControl
         _openInNewTab = openInNewTab;
         _launch = launch;
         _manage = manage;
-        Rebuild();
+        _havenScene.Configure(apps, pinnedIds);
     }
+
+    public bool FocusSearch() => _havenHost.FocusElement(_havenScene.Search);
+
+    internal AppLauncherFinalScene HavenScene => _havenScene;
+    internal Haven.Desktop.HavenUI.Backend.HavenSceneControl SceneHost => _havenHost;
 
     private void Rebuild()
     {
@@ -53,19 +63,10 @@ public sealed partial class AppLauncherControl : UserControl
                            || item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                            || item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        var pinned = filtered.Where(item => _pinnedIds.Contains(item.Id)).ToArray();
-        var unpinned = filtered.Where(item => !_pinnedIds.Contains(item.Id)).ToArray();
-        var recommended = unpinned.Take(6).ToArray();
-        var remaining = unpinned.Skip(recommended.Length).ToArray();
-
-        AddSection("Pinned", string.IsNullOrWhiteSpace(query) ? pinned.Take(6).ToArray() : pinned);
-        if (string.IsNullOrWhiteSpace(query) && pinned.Length > 6)
-            AddInlineAction("View all pinned", "pin", () => _manage?.Invoke());
-        AddSection("Recommended", recommended);
-        AddSection("General", remaining.Where(item => CategoryFor(item) == "General").ToArray());
-        AddSection("Productivity", remaining.Where(item => CategoryFor(item) == "Productivity").ToArray());
-        AddSection("Media & creativity", remaining.Where(item => CategoryFor(item) == "Media & creativity").ToArray());
-        AddSection("More", remaining.Where(item => CategoryFor(item) == "More").ToArray());
+        AddSection("General", filtered.Where(item => CategoryFor(item) == "General").ToArray());
+        AddSection("Productivity", filtered.Where(item => CategoryFor(item) == "Productivity").ToArray());
+        AddSection("Media & creativity", filtered.Where(item => CategoryFor(item) == "Media & creativity").ToArray());
+        AddSection("More", filtered.Where(item => CategoryFor(item) == "More").ToArray());
     }
 
     private void AddSection(string title, IReadOnlyList<ModeDefinition> items)
@@ -93,25 +94,35 @@ public sealed partial class AppLauncherControl : UserControl
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
-            var button = BuildAppButton(item);
-            button.Click += (_, _) => _launch?.Invoke(item, _openInNewTab);
-            Grid.SetColumn(button, i % columns);
-            Grid.SetRow(button, i / columns);
-            grid.Children.Add(button);
+            var tile = BuildAppButton(item, () => _launch?.Invoke(item, _openInNewTab));
+            Grid.SetColumn(tile, i % columns);
+            Grid.SetRow(tile, i / columns);
+            grid.Children.Add(tile);
         }
 
         SectionsPanel.Children.Add(grid);
     }
 
-    private static Button BuildAppButton(ModeDefinition item)
+    private static Control BuildAppButton(ModeDefinition item, Action launch)
     {
         var content = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 11 };
-        content.Children.Add(new HavenIcon
+        var surface = HavenAppRoutePolicy.Resolve(item).Surface;
+        var icon = new HavenIcon
         {
             IconKey = item.IconKey,
-            Width = 22,
-            Height = 22,
+            Width = 21,
+            Height = 21,
+            Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
+        };
+        content.Children.Add(new HavenPill
+        {
+            Width = 38,
+            Height = 38,
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(0),
+            Child = icon
         });
         var text = new TextBlock
         {
@@ -123,29 +134,31 @@ public sealed partial class AppLauncherControl : UserControl
         };
         Grid.SetColumn(text, 1);
         content.Children.Add(text);
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Height = 56,
             Margin = new Thickness(2, 0, 2, 8),
             Padding = new Thickness(12, 8),
-            Background = ResourceBrush("HavenPanel2Brush", Color.Parse("#FFF8F8F8")),
-            BorderBrush = ResourceBrush("HavenLineBrush", Color.FromArgb(28, 0, 0, 0)),
+            Background = ResourceBrush("HavenCardSurfaceBrush", Colors.Transparent),
+            BorderBrush = ResourceBrush("HavenBorderSubtleBrush", Colors.Transparent),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(16),
             Content = content
         };
         button.Classes.Add("sidebar");
-        var normalBackground = button.Background;
-        button.PointerEntered += (_, _) => button.Background = ResourceBrush("HavenAccentSoftBrush", Color.Parse("#FFE0F7FA"));
-        button.PointerExited += (_, _) => button.Background = normalBackground;
-        return button;
+        button.Click += (_, _) => launch();
+        return new HavenAccentScope
+        {
+            AccentSurface = surface,
+            Content = button
+        };
     }
 
     private void AddInlineAction(string label, string iconKey, Action action)
     {
-        var button = new Button
+        var button = new HavenButton
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -167,8 +180,21 @@ public sealed partial class AppLauncherControl : UserControl
         SectionsPanel.Children.Add(button);
     }
 
-    private static string CategoryFor(ModeDefinition item)
+    internal static string CategoryFor(ModeDefinition item)
     {
+        try
+        {
+            var tags = JsonSerializer.Deserialize<string[]>(item.TagsJson) ?? [];
+            if (tags.Any(tag => tag.Equals("general", StringComparison.OrdinalIgnoreCase))) return "General";
+            if (tags.Any(tag => tag.Equals("media", StringComparison.OrdinalIgnoreCase)
+                                || tag.Equals("creative", StringComparison.OrdinalIgnoreCase))) return "Media & creativity";
+            if (tags.Any(tag => tag.Equals("productivity", StringComparison.OrdinalIgnoreCase))) return "Productivity";
+        }
+        catch (JsonException)
+        {
+            // User Apps with invalid legacy tags remain launchable in More until migration repairs their metadata.
+        }
+
         var key = item.Key.Trim().ToLowerInvariant();
         if (key is "chat" or "dashboard" or "go" or "launcher") return "General";
         if (key is "imagine" or "present" or "vision" or "play") return "Media & creativity";

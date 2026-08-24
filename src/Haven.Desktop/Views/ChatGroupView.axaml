@@ -1,21 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              x:Class="Haven.Desktop.Views.ChatGroupView">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="32" Spacing="20" MaxWidth="1100" HorizontalAlignment="Center">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
-        <Button x:Name="BackButton" Content="Back" Classes="secondary" VerticalAlignment="Top" />
+        <hui:HavenButton x:Name="BackButton" Content="Back" Classes="secondary" VerticalAlignment="Top" />
         <StackPanel Grid.Column="1">
           <TextBlock Text="Chat Group" Classes="eyebrow" />
           <TextBlock x:Name="NameText" FontSize="28" FontWeight="SemiBold" />
           <TextBlock x:Name="StatusText" Classes="muted" Margin="0,4,0,0" />
         </StackPanel>
-        <Button x:Name="RefreshButton" Grid.Column="2" Content="Refresh" Classes="secondary" />
-        <Button x:Name="SettingsButton" Grid.Column="3" Content="Settings" Classes="secondary" />
-        <Button x:Name="NewChatButton" Grid.Column="4" Content="New chat" Classes="primary" />
+        <hui:HavenButton x:Name="RefreshButton" Grid.Column="2" Content="Refresh" Classes="secondary" />
+        <hui:HavenButton x:Name="SettingsButton" Grid.Column="3" Content="Settings" Classes="secondary" />
+        <hui:HavenButton x:Name="NewChatButton" Grid.Column="4" Content="New chat" Classes="primary" />
       </Grid>
 
-      <Border Classes="card">
+      <hui:HavenAdaptiveSurface Classes="card">
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
             <StackPanel>
@@ -29,19 +30,19 @@
           <ItemsControl x:Name="RecentChatsList">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Button Classes="sidebar" HorizontalAlignment="Stretch">
+                <hui:HavenButton Classes="sidebar" HorizontalAlignment="Stretch">
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="{Binding Title}"/>
                     <TextBlock Grid.Column="1" Text="{Binding UpdatedLabel}" Classes="muted"/>
                   </Grid>
-                </Button>
+                </hui:HavenButton>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
-      <Button x:Name="ArchiveButton" Content="Archive Chat Group" Classes="secondary" HorizontalAlignment="Left" />
+      <hui:HavenButton x:Name="ArchiveButton" Content="Archive Chat Group" Classes="secondary" HorizontalAlignment="Left" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

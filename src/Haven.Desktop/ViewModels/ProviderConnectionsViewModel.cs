@@ -16,7 +16,7 @@ namespace Haven.Desktop.ViewModels;
 /// <summary>
 /// Represents provider connections view model and keeps its related state and behavior together.
 /// </summary>
-public sealed class ProviderConnectionsViewModel : ObservableObject
+public sealed partial class ProviderConnectionsViewModel : ObservableObject
 {
     /// <summary>
     /// Stores providers locally so this component can preserve the dependency, cache, or state between member calls.
@@ -38,11 +38,16 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
     public ProviderConnectionsViewModel(
         IModelProviderRegistry providers,
         IProviderConfigurationStore configurations,
-        IProviderSecretStore secrets)
+        IProviderSecretStore secrets,
+        ICalendarSyncProviderRegistry calendarProviders,
+        IPlannerRepository planner,
+        ExternalConnectionRegistryService? externalConnections = null)
     {
         _providers = providers;
         _configurations = configurations;
         _secrets = secrets;
+        InitializeServiceConnections(calendarProviders, planner);
+        InitializeExternalConnections(externalConnections);
 
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         ConnectCommand = new AsyncRelayCommand<ProviderConnectionItemViewModel>(ConnectAsync);
@@ -121,7 +126,9 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
             foreach (var item in refreshed.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                 Items.Add(item);
 
-            Status = Items.Count == 0 ? "No cloud providers are registered." : $"{Items.Count} cloud providers available.";
+            await RefreshServicesAsync();
+            await RefreshExternalConnectionsAsync();
+            Status = Items.Count == 0 ? "No cloud model providers are registered." : $"{Items.Count} cloud model providers available.";
         }
         catch (Exception ex)
         {
@@ -144,6 +151,8 @@ public sealed class ProviderConnectionsViewModel : ObservableObject
 
             if (!Uri.TryCreate(item.Endpoint.Trim(), UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https"))
                 throw new InvalidOperationException("Enter an absolute HTTP or HTTPS endpoint.");
+            if (endpoint.Scheme == "http" && !endpoint.IsLoopback)
+                throw new InvalidOperationException("Remote provider endpoints must use HTTPS. HTTP is allowed only for loopback services on this device.");
 
             var storedSecret = await _secrets.GetAsync(item.Id, "api-key", CancellationToken.None);
             if (string.IsNullOrWhiteSpace(item.ApiKey) && string.IsNullOrWhiteSpace(storedSecret))

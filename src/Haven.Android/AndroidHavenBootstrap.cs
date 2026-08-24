@@ -2,7 +2,6 @@ using Android.Content;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Haven.Application;
-using Haven.Automations;
 using Haven.Browser;
 using Haven.Core;
 using Haven.Desktop;
@@ -19,11 +18,60 @@ internal static class AndroidHavenBootstrap
     private static bool _applicationStarted;
     private static string? _pendingSurface;
     private static string? _pendingPrompt;
+    private static WeakReference<MainView>? _activeMainView;
+    private static bool _activeMainViewReady;
 
     public static void SetLaunchRequest(Intent? intent)
     {
         _pendingSurface = intent?.GetStringExtra("haven_surface");
         _pendingPrompt = intent?.GetStringExtra("haven_prompt");
+    }
+
+    public static void NotifyConfigurationChanged()
+    {
+        if (!_activeMainViewReady
+            || _activeMainView is null
+            || !_activeMainView.TryGetTarget(out var mainView))
+            return;
+
+        Dispatcher.UIThread.Post(mainView.RefreshMobileLayout);
+    }
+
+    public static void ApplyLaunchRequest(Intent? intent)
+    {
+        var surface = intent?.GetStringExtra("haven_surface");
+        var prompt = intent?.GetStringExtra("haven_prompt");
+        if (string.IsNullOrWhiteSpace(surface) && string.IsNullOrWhiteSpace(prompt))
+            return;
+
+        if (_activeMainViewReady
+            && _activeMainView is not null
+            && _activeMainView.TryGetTarget(out var mainView))
+        {
+            Dispatcher.UIThread.Post(() => _ = ApplyLaunchRequestToMainViewAsync(mainView, surface, prompt));
+            return;
+        }
+
+        _pendingSurface = surface;
+        _pendingPrompt = prompt;
+    }
+
+    private static async Task ApplyLaunchRequestToMainViewAsync(
+        MainView mainView,
+        string? surface,
+        string? prompt)
+    {
+        try
+        {
+            await mainView.ApplyMobileLaunchRequestAsync(surface, prompt);
+        }
+        catch (Exception exception)
+        {
+            AndroidRuntimeDiagnostics.Record(
+                exception,
+                "Applying an Android launcher request to the active Haven surface",
+                showDialog: false);
+        }
     }
 
     private static (string? Surface, string? Prompt) TakeLaunchRequest()
@@ -43,11 +91,15 @@ internal static class AndroidHavenBootstrap
                     "Haven services were not created before Android requested its main view.");
 
             var preferences = services.GetRequiredService<UserPreferencesService>();
-            preferences.ApplyTheme("new-haven", save: false);
+            preferences.ApplyAppearance(preferences.Appearance, save: false);
+            _ = services.GetRequiredService<AndroidNotificationBridge>();
+            _ = services.GetRequiredService<AndroidProjectorDisplayService>();
 
             // Android can recreate an Activity. Create a fresh Avalonia control graph while
             // reusing Haven's application and infrastructure services.
             var mainView = ActivatorUtilities.CreateInstance<MainView>(services);
+            _activeMainView = new WeakReference<MainView>(mainView);
+            _activeMainViewReady = false;
 
             // Keep the uninitialised desktop shell hidden. New Haven creates repository-backed
             // pages, so it must only be applied after the database lifecycle has completed.
@@ -91,8 +143,6 @@ internal static class AndroidHavenBootstrap
                     await lifecycle.StartupAsync(CancellationToken.None);
                     await services.GetRequiredService<ModeSeedService>()
                         .SeedBuiltInModesAsync(CancellationToken.None);
-                    await services.GetRequiredService<AutomationDeliveryController>()
-                        .StartAsync(CancellationToken.None);
 
                     _applicationStarted = true;
                 }
@@ -101,6 +151,10 @@ internal static class AndroidHavenBootstrap
                 // SQLite schema. Activity recreation still receives a fresh MainView instance.
                 mainView.ApplyEdition(HavenShellEdition.New);
                 mainView.ApplyMobileLayout();
+                mainView.AttachProjectorControllerSession(
+                    services.GetRequiredService<IProjectorSessionCoordinator>(),
+                    services.GetRequiredService<AndroidProjectorControllerActionDispatcher>(),
+                    services.GetRequiredService<IProjectorDisplayRegistry>());
 
                 var migration = await services.GetRequiredService<ILegacyStateMigrator>()
                     .MigrateIfNeededAsync(CancellationToken.None);
@@ -112,6 +166,16 @@ internal static class AndroidHavenBootstrap
                     launchRequest.Surface,
                     launchRequest.Prompt);
                 mainView.IsVisible = true;
+                _activeMainViewReady = true;
+
+                var deferredLaunchRequest = TakeLaunchRequest();
+                if (!string.IsNullOrWhiteSpace(deferredLaunchRequest.Surface)
+                    || !string.IsNullOrWhiteSpace(deferredLaunchRequest.Prompt))
+                {
+                    await mainView.ApplyMobileLaunchRequestAsync(
+                        deferredLaunchRequest.Surface,
+                        deferredLaunchRequest.Prompt);
+                }
 
                 if (recoveryState?.IsSafeMode == true)
                 {
@@ -135,6 +199,7 @@ internal static class AndroidHavenBootstrap
         }
         catch (Exception exception)
         {
+            _activeMainViewReady = false;
             mainView.IsVisible = true;
             mainView.SetStartupError(exception.Message);
             AndroidRuntimeDiagnostics.Record(

@@ -19,7 +19,8 @@ namespace Haven.Infrastructure;
 public sealed class ResilientProviderRoutingModelClient(
     ProviderRoutingModelClient primary,
     IModelProviderRegistry providers,
-    IProviderConfigurationStore configurations) : IProviderModelClient
+    IProviderConfigurationStore configurations,
+    IPrivacyPreferenceStore privacy) : IProviderModelClient
 {
     /// <summary>
     /// Reports whether available async applies to the current state.
@@ -116,7 +117,7 @@ public sealed class ResilientProviderRoutingModelClient(
         IReadOnlySet<ToolCapability> required,
         CancellationToken cancellationToken)
     {
-        var descriptors = await providers.GetModelsAsync(cancellationToken).ConfigureAwait(false);
+        var descriptors = await GetEligibleModelsAsync(cancellationToken).ConfigureAwait(false);
         var requested = descriptors.FirstOrDefault(item => item.Matches(requestedModel));
         if (requested is null)
         {
@@ -129,7 +130,8 @@ public sealed class ResilientProviderRoutingModelClient(
         var firstKey = requested?.Key ?? requestedModel;
         var selectedProviderId = requested?.ProviderId ?? ProviderId(requestedModel);
         var selectedConfiguration = await configurations.GetAsync(selectedProviderId, cancellationToken).ConfigureAwait(false);
-        var allowCloud = requested?.IsLocal == false || selectedConfiguration?.AllowCloudFallback == true;
+        var allowCloud = !privacy.Current.LocalOnlyMode
+                         && (requested?.IsLocal == false || selectedConfiguration?.AllowCloudFallback == true);
         var compatible = descriptors.Where(item => required.All(item.Supports) && (allowCloud || item.IsLocal)).ToArray();
         var result = new List<string> { requested?.IsLocal == false ? requested.Key : requested?.Name ?? requestedModel };
 
@@ -155,6 +157,29 @@ public sealed class ResilientProviderRoutingModelClient(
             var key = descriptor.IsLocal ? descriptor.Name : descriptor.Key;
             if (!key.Equals(firstKey, StringComparison.OrdinalIgnoreCase)) result.Add(key);
         }
+    }
+
+    private async Task<IReadOnlyList<ProviderModelDescriptor>> GetEligibleModelsAsync(CancellationToken cancellationToken)
+    {
+        var models = new List<ProviderModelDescriptor>();
+        foreach (var provider in providers.Providers.Where(item => !privacy.Current.LocalOnlyMode || item.IsLocal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                models.AddRange(await provider.GetModelsAsync(cancellationToken).ConfigureAwait(false));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException
+                                             || ex is TaskCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                // An unavailable eligible provider does not prevent fallback to another eligible provider.
+            }
+        }
+
+        return models
+            .GroupBy(model => model.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
     }
 
     /// <summary>

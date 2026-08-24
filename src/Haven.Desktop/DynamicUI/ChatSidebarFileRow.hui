@@ -1,0 +1,5 @@
+<DynamicUI Name="ChatSidebarFileRow">
+  <Container Name="RowRoot" Layout="Grid" Columns="1fr" Rows="38px" Width="100%">
+    <Button Name="Open" Variant="Navigation" IconKey="file" Content="{{TITLE}}" Column="0" Width="100%" MinHeight="38px" Background="{{BACKGROUND}}" />
+  </Container>
+</DynamicUI>

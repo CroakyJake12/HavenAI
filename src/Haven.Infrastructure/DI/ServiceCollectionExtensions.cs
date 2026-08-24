@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHavenInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<PrivacyPreferenceStore>();
+        services.AddSingleton<IPrivacyPreferenceStore>(provider => provider.GetRequiredService<PrivacyPreferenceStore>());
         services.AddSingleton<ProductionDiagnostics>();
         services.AddSingleton<IProductionDiagnostics>(provider => provider.GetRequiredService<ProductionDiagnostics>());
         services.AddSingleton<INotesDocumentValidator, NotesDocumentValidator>();
@@ -34,10 +36,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NotesImportExportService>();
         services.AddSingleton<MigratingNotesImportExportService>();
         services.AddSingleton<INotesImportExportService>(provider => provider.GetRequiredService<MigratingNotesImportExportService>());
+        services.AddSingleton<IPresentRepository, PresentRepository>();
+        services.AddSingleton<IPresentExportService, PresentPptxExportService>();
+        services.AddSingleton<IPresentImportService, PresentPptxImportService>();
+        services.AddSingleton<IDocumentShapeGallery, DocumentShapeGalleryRepository>();
+        services.AddSingleton<IDataWorkbookRepository, DataWorkbookRepository>();
+        services.AddSingleton<IDataWorkbookFormatService, DataXlsxFormatService>();
+        services.AddSingleton<IDataWorkbookQueryService, DataWorkbookQueryService>();
         services.AddSingleton<NotesAttachmentStore>();
         services.AddSingleton<SecureNotesAttachmentStore>();
         services.AddSingleton<INotesAttachmentStore>(provider => provider.GetRequiredService<SecureNotesAttachmentStore>());
         services.AddSingleton<INotesMediaAssetService, NotesMediaAssetService>();
+        services.AddSingleton<IImagineProjectRepository, ImagineProjectRepository>();
+        services.AddSingleton<IImagineSemanticService, ImagineSemanticService>();
+        services.AddSingleton<IImagineAssistantService, ImagineAssistantService>();
         services.AddSingleton<DatabaseMaintenanceService>();
         services.AddSingleton<IDatabaseMaintenance>(provider => provider.GetRequiredService<DatabaseMaintenanceService>());
         services.AddSingleton<DatabaseRestoreService>();
@@ -48,17 +60,25 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStartupRecoveryCoordinator>(provider => provider.GetRequiredService<CleanResetStartupRecoveryCoordinator>());
         services.AddSingleton<IRecoverySafetyProbe, RecoverySafetyProbe>();
         services.AddSingleton<IDiagnosticsBundleService, DiagnosticsBundleService>();
-        services.AddSingleton<IGenerativeThemeValidator, GenerativeThemeValidator>();
-        services.AddSingleton<GenerativeThemeStore>();
-        services.AddSingleton<SafeGenerativeThemeStore>();
-        services.AddSingleton<IGenerativeThemeStore>(provider => provider.GetRequiredService<SafeGenerativeThemeStore>());
-        services.AddSingleton<IGenerativeThemeAiService>(provider => new GenerativeThemeAiService(
-            provider.GetRequiredService<IProviderModelClient>(),
-            provider.GetRequiredService<IGenerativeThemeValidator>(),
-            provider.GetRequiredService<IProductionDiagnostics>()));
         services.AddSingleton<SqliteDatabase>();
         services.AddSingleton<IAppDatabase, ConversationProductionDatabase>();
         services.AddSingleton<ISqliteConnectionFactory>(provider => provider.GetRequiredService<SqliteDatabase>());
+        services.AddSingleton<IExecutionEventRepository, ExecutionEventRepository>();
+        services.AddSingleton<IActionFeedbackRepository, ActionFeedbackRepository>();
+        services.AddSingleton<IRemediationRepository, RemediationRepository>();
+        services.AddSingleton<IExternalAgentTaskRepository, ExternalAgentTaskRepository>();
+        services.AddSingleton<IHavenNotificationRepository, HavenNotificationRepository>();
+        services.AddSingleton<IWorkspaceSessionRepository, WorkspaceSessionRepository>();
+        services.AddSingleton<IExtensionRepository, ExtensionRepository>();
+        services.AddSingleton<ExecutionEventHub>();
+        services.AddSingleton<IExecutionEventSink>(provider => provider.GetRequiredService<ExecutionEventHub>());
+        services.AddSingleton<ExecutionTraceService>();
+        services.AddSingleton<AutonomousRecoveryService>();
+        services.AddSingleton<RemediationContinuationRegistry>();
+        services.AddSingleton<ExternalAgentTaskService>();
+        services.AddSingleton<HavenNotificationService>();
+        services.AddSingleton<ConversationSafetyService>();
+        services.AddSingleton<IConversationSafetyService>(provider => provider.GetRequiredService<ConversationSafetyService>());
         services.AddSingleton<ITextEmbeddingService, LocalHashEmbeddingService>();
         services.AddSingleton<RetrievalIndexService>();
         services.AddSingleton<IRetrievalIndexService>(provider => provider.GetRequiredService<RetrievalIndexService>());
@@ -82,6 +102,37 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRepository, ContainerRepository>();
         services.AddSingleton<IContainerResourceRepository, ContainerResourceRepository>();
         services.AddSingleton<ICatalogRepository, CatalogRepository>();
+        services.AddSingleton<IAgentRunRepository, AgentRunRepository>();
+        services.AddSingleton<ICapabilityRepository, CapabilityRepository>();
+        services.AddSingleton<IExternalConnectionRepository, ExternalConnectionRepository>();
+        services.AddSingleton<IMcpConnectionClient, McpConnectionClient>();
+        services.AddSingleton<ExternalConnectionRegistryService>();
+        services.AddSingleton<McpToolRuntime>();
+        services.AddSingleton<CapabilityRegistryService>();
+        services.AddSingleton<IGenUiTemplateRepository, GenUiTemplateRepository>();
+        services.AddSingleton<IGenUiAppRepository, GenUiAppRepository>();
+        services.AddSingleton<GenUiAppSessionService>();
+        services.AddSingleton<GenUiInstanceStore>();
+        services.AddSingleton<GenUiLiveActivityTracker>();
+        services.AddSingleton<GenUiLocalActionRegistry>();
+        services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiLocalActionRegistry>());
+        services.AddSingleton<GenUiAppEventHandler>();
+        services.AddSingleton<IGenUiEventHandler>(provider => provider.GetRequiredService<GenUiAppEventHandler>());
+        services.AddSingleton<CalculatorTemplateRuntime>();
+        services.AddSingleton<StructuredFormTemplateRuntime>();
+        services.AddSingleton<ChoicePromptTemplateRuntime>();
+        services.AddSingleton<ChecklistTemplateRuntime>();
+        services.AddSingleton<DataGridTemplateRuntime>();
+        services.AddSingleton<CardDeckTemplateRuntime>();
+        services.AddSingleton<GraphTemplateRuntime>();
+        services.AddSingleton<TaskListTemplateRuntime>();
+        services.AddSingleton<DashboardTemplateRuntime>();
+        services.AddSingleton<AssessmentTemplateRuntime>();
+        services.AddSingleton<WorkflowTemplateRuntime>();
+        services.AddSingleton<CustomTemplateRuntime>();
+        services.AddSingleton<BoundedGenUiEventAuditSink>();
+        services.AddSingleton<IGenUiEventAuditSink>(provider => provider.GetRequiredService<BoundedGenUiEventAuditSink>());
+        services.AddSingleton<GenerativeUiEventRouter>();
         services.AddSingleton<IWorkspaceStateRepository, WorkspaceStateRepository>();
         services.AddSingleton<IProjectIntelligenceService, ProjectIntelligenceService>();
         services.AddSingleton<IAutomationRepository, AutomationRepository>();
@@ -97,9 +148,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CallOptimizedOllamaClient>();
         services.AddSingleton<CallCoordinator>();
         services.AddSingleton<ResponsiveCallCoordinator>();
+        services.AddSingleton<VoiceProfileCatalog>();
+        services.AddSingleton<IKnowledgeLibrary, KnowledgeLibraryService>();
+        services.AddSingleton<IApiBank, ApiBankService>();
+        services.AddSingleton<IKnowledgeMaintenanceService, KnowledgeMaintenanceService>();
+        services.AddSingleton<BackgroundLearningScheduler>();
+        services.AddSingleton<IBackgroundLearningScheduler>(provider => provider.GetRequiredService<BackgroundLearningScheduler>());
+        services.AddSingleton<IPermissionDecisionEngine, PermissionDecisionEngine>();
         services.AddSingleton<ICallCoordinator>(provider => provider.GetRequiredService<ResponsiveCallCoordinator>());
         services.AddSingleton<ILegacyStateMigrator, LegacyStateMigrator>();
         services.AddSingleton<IWorkspaceToolService, WorkspaceToolService>();
+        services.AddSingleton<ITerminalSessionFactory, PowerShellTerminalSessionFactory>();
         services.AddSingleton<IWorkspaceTransactionService, WorkspaceTransactionService>();
         services.AddSingleton<ILanguageServerConfigurationStore, LanguageServerConfigurationStore>();
         services.AddSingleton<ILanguageServerClientFactory, LanguageServerClientFactory>();
@@ -107,6 +166,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICodeIntelligenceService, SafeModeCodeIntelligenceService>();
         services.AddSingleton<IComputerUseSessionController, ComputerUseSessionController>();
         services.AddSingleton<IComputerToolService, WindowsComputerToolService>();
+        services.AddSingleton<Haven.Application.Automations.IDeviceActionProvider, Haven.Application.Automations.WindowsComputerDeviceActionProvider>();
+        services.AddSingleton<Haven.Application.Automations.DeviceActionRouter>();
+        services.AddSingleton<Haven.Application.Automations.DeviceAutomationNodeExecutor>();
+        services.AddSingleton<Haven.Application.Automations.BuiltInAutomationActionNodeExecutor>();
+        services.AddSingleton<Haven.Application.Automations.IAutomationGraphAiEditor, Haven.Application.Automations.AutomationGraphAiEditor>();
         services.AddHttpClient<OllamaClient>(client =>
         {
             var endpoint = Environment.GetEnvironmentVariable("OLLAMA_HOST")?.Trim();
@@ -125,6 +189,10 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Haven.ModelProvider.gemini");
         services.AddSingleton<IProviderConfigurationStore, ProviderConfigurationStore>();
         services.AddSingleton<IProviderSecretStore, WindowsProviderSecretStore>();
+        services.AddSingleton<IImagineGenerationService, OpenAiImagineGenerationService>();
+        services.AddSingleton<ImagineGenerationCommand>();
+        services.AddSingleton<RemediationCoordinator>();
+        services.AddSingleton<IProjectPreviewProvider, WebProjectPreviewProvider>();
         services.AddSingleton<IModelProvider>(provider => new OllamaModelProvider(
             provider.GetRequiredService<ILocalOllamaClient>(),
             provider.GetRequiredService<IProviderConfigurationStore>()));
@@ -137,7 +205,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelRouter, ModelRouter>();
         services.AddSingleton<ProviderRoutingModelClient>(provider => new ProviderRoutingModelClient(
             provider.GetRequiredService<ILocalOllamaClient>(),
-            provider.GetRequiredService<IModelProviderRegistry>()));
+            provider.GetRequiredService<IModelProviderRegistry>(),
+            provider.GetRequiredService<IPrivacyPreferenceStore>()));
         services.AddSingleton<ResilientProviderRoutingModelClient>();
         services.AddSingleton<IProviderModelClient>(provider => provider.GetRequiredService<ResilientProviderRoutingModelClient>());
         services.AddSingleton<INotesAiService>(provider => new NotesAiService(
@@ -161,6 +230,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModeManifestValidator>();
         services.AddSingleton<ModeCreationService>();
         services.AddSingleton<FilesystemActionService>();
+        services.AddSingleton<Haven.Application.Automations.BuiltInAutomationActionNodeExecutor>();
         services.AddSingleton<SettingsEncryptionService>();
         services.AddSingleton<SettingsExportService>();
         services.AddSingleton<KeybindingService>();
@@ -168,7 +238,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DiagnosticsService>();
         services.AddSingleton<IConversationPlacementService, ConversationPlacementService>();
         services.AddSingleton<IModePackageValidator, ModePackageValidator>();
+        services.AddSingleton<ExtensionManifestValidator>();
+        services.AddSingleton<IExtensionSourceTransport, GitExtensionSourceTransport>();
+        services.AddSingleton<INativePluginProcessFactory, NativePluginProcessFactory>();
+        services.AddSingleton<NativePluginRuntime>();
+        services.AddSingleton<ExtensionManager>();
         services.AddSingleton<IVersionedSettingsStore, VersionedAtomicSettingsStore>();
+        services.AddSingleton<Haven.Application.Play.PlaySessionService>();
         services.AddSingleton<IApplicationLifecycle, ApplicationLifecycleService>();
         services.AddSingleton<ISingleInstanceService, SingleInstanceService>();
         return services;

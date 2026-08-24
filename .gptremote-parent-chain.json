@@ -1,0 +1,50 @@
+﻿[
+    {
+        "Depth":  0,
+        "ProcessId":  700,
+        "ParentProcessId":  24976,
+        "Name":  "VsBuildAgent.exe",
+        "ExecutablePath":  "C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\GPT Remote\\GPTRemote\\src\\VsBuildAgent\\bin\\Release\\net10.0-windows10.0.19041.0\\VsBuildAgent.exe",
+        "CommandLine":  "\"C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\GPT Remote\\GPTRemote\\src\\VsBuildAgent\\bin\\Release\\net10.0-windows10.0.19041.0\\VsBuildAgent.exe\""
+    },
+    {
+        "Depth":  1,
+        "ProcessId":  24976,
+        "ParentProcessId":  3784,
+        "Name":  "powershell.exe",
+        "ExecutablePath":  "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "CommandLine":  "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"C:\\Users\\Jacob\\OneDrive\\Personal Files\\Development\\GPT Remote\\GPTRemote\\scripts\\start-agent-background.ps1\""
+    },
+    {
+        "Depth":  2,
+        "ProcessId":  3784,
+        "ParentProcessId":  1764,
+        "Name":  "svchost.exe",
+        "ExecutablePath":  null,
+        "CommandLine":  null
+    },
+    {
+        "Depth":  3,
+        "ProcessId":  1764,
+        "ParentProcessId":  1992,
+        "Name":  "services.exe",
+        "ExecutablePath":  null,
+        "CommandLine":  null
+    },
+    {
+        "Depth":  4,
+        "ProcessId":  1992,
+        "ParentProcessId":  1812,
+        "Name":  "wininit.exe",
+        "ExecutablePath":  null,
+        "CommandLine":  null
+    },
+    {
+        "Depth":  5,
+        "ProcessId":  1812,
+        "ParentProcessId":  1992,
+        "Name":  "LsaIso.exe",
+        "ExecutablePath":  null,
+        "CommandLine":  null
+    }
+]

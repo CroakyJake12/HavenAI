@@ -177,6 +177,20 @@ public sealed class BrowserDataServiceTests : IDisposable
         Assert.Single(Directory.EnumerateFiles(_paths.DataDirectory, "browser-data.json.corrupt-*"));
     }
 
+    [Fact]
+    public async Task ToggleBookmarkPersistsAddThenRemove()
+    {
+        using (var data = new BrowserDataService(_paths))
+        {
+            Assert.True(await data.ToggleBookmarkAsync("Toggle me", "https://example.com/toggle", "Keyboard", CancellationToken.None));
+            Assert.Single(data.Bookmarks);
+            Assert.False(await data.ToggleBookmarkAsync("Ignored", "https://example.com/toggle", "Ignored", CancellationToken.None));
+            Assert.Empty(data.Bookmarks);
+        }
+        using var reloaded = new BrowserDataService(_paths);
+        Assert.Empty(reloaded.Bookmarks);
+    }
+
     /// <summary>
     /// Performs the dispose step owned by this component.
     /// </summary>

@@ -1,4 +1,4 @@
-using Haven.Application;
+﻿using Haven.Application;
 using Haven.Core;
 
 namespace Haven.Core.Tests;
@@ -29,15 +29,21 @@ public sealed class ModeIdentityTests
     {
         string[] expectedKeys =
         [
-            "chat", "study", "tasks", "studio", "browse", "plan", "training",
-            "imagine", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard"
+            "chat", "study", "automations", "terminal", "tasks", "studio", "browse", "plan", "training",
+            "imagine", "canvas", "present", "data", "vision", "play", "translate", "launcher", "go", "dashboard", "write", "mesh"
         ];
 
         Assert.Equal(expectedKeys, BuiltInModeSeed.Modes.Select(mode => mode.Key));
         Assert.Equal(BuiltInModeSeed.Modes.Count, BuiltInModeSeed.Modes.Select(mode => mode.Id).Distinct().Count());
         Assert.DoesNotContain(BuiltInModeSeed.Modes, mode => mode.Key is "teach" or "do");
         Assert.Equal(HavenMode.Study, BuiltInModeSeed.Modes.Single(mode => mode.Key == "study").BaseMode);
+        Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "automations").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000003"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "automations").Id);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000020"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "terminal").Id);
         Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000019"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "tasks").Id);
+        Assert.Equal(HavenMode.Tasks, BuiltInModeSeed.Modes.Single(mode => mode.Key == "mesh").BaseMode);
+        Assert.Equal(Guid.Parse("a0000000-0000-0000-0000-000000000021"), BuiltInModeSeed.Modes.Single(mode => mode.Key == "mesh").Id);
         Assert.NotEqual(SurfaceKind.Tasks, SurfaceKind.Go);
     }
 }

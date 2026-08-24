@@ -10,6 +10,7 @@
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Skia;
 using Haven.Desktop;
 
 [assembly: AvaloniaTestApplication(typeof(Haven.Desktop.Tests.TestAppBuilder))]
@@ -24,7 +25,19 @@ public static class TestAppBuilder
     /// <summary>
     /// Builds avalonia app from the currently available inputs.
     /// </summary>
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder
-        .Configure<App>()
-        .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var captureFrames = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("HAVEN_VISUAL_CAPTURE_DIR"));
+        var builder = AppBuilder.Configure<App>();
+        if (captureFrames)
+            builder = builder.UseSkia();
+
+        return builder.UseHeadless(new AvaloniaHeadlessPlatformOptions
+        {
+            // Pixel capture needs the Skia-backed renderer; normal behavioural
+            // tests retain the faster headless drawing implementation.
+            UseHeadlessDrawing = !captureFrames
+        });
+    }
 }

@@ -1,0 +1,82 @@
+# Built-in Haven motion. Transitions morph property changes; Animations run
+# explicit keyframe sequences. Component source files name the resources used.
+Transition ButtonHover {
+    Duration = 180ms;
+    Easing = EaseOut;
+    Properties = Background, Foreground, Glow, Shadow, BorderColor, BorderWidth, Radius, Scale, Opacity;
+}
+Transition ButtonPressed {
+    Duration = 120ms;
+    Easing = EaseOut;
+    Properties = Background, Glow, Scale, Opacity, TranslationX, TranslationY;
+}
+Transition ToggleChange {
+    Duration = 180ms;
+    Easing = EaseOut;
+    Properties = Toggle.Checked, Background, Glow, Scale, Opacity;
+}
+Transition SliderChange {
+    Duration = 120ms;
+    Easing = EaseOut;
+    Properties = Slider.Value, Opacity;
+}
+Transition InputFocus {
+    Duration = 160ms;
+    Easing = EaseOut;
+    Properties = Background, BorderColor, BorderWidth, Glow, Opacity, Scale;
+}
+Transition LayoutMorph {
+    Duration = 240ms;
+    Easing = CubicBezier(0.2, 0.8, 0.2, 1);
+    Properties = Width, Height, MinWidth, MinHeight, Margin, Padding, Gap, Radius, TranslationX, TranslationY, Scale, Opacity;
+}
+
+Animation ButtonRelease {
+    Duration = 170ms;
+    Easing = Spring;
+    0% { Scale = 0.94; Opacity = 0.96; }
+    45% { Scale = 1.045; Opacity = 1; }
+    100% { Scale = 1; Opacity = 1; }
+}
+Animation FadeIn {
+    Duration = 180ms;
+    Easing = EaseOut;
+    0% { Opacity = 0; }
+    100% { Opacity = 1; }
+}
+Animation FadeOut {
+    Duration = 150ms;
+    Easing = EaseIn;
+    0% { Opacity = 1; }
+    100% { Opacity = 0; }
+}
+Animation MenuOpen {
+    Duration = 180ms;
+    Easing = EaseOut;
+    0% { Opacity = 0; Scale = 0.97; TranslationY = -6px; }
+    100% { Opacity = 1; Scale = 1; TranslationY = 0px; }
+}
+Animation MenuClose {
+    Duration = 140ms;
+    Easing = EaseIn;
+    0% { Opacity = 1; Scale = 1; TranslationY = 0px; }
+    100% { Opacity = 0; Scale = 0.98; TranslationY = -4px; }
+}
+Animation FlyoutEnter {
+    Duration = 220ms;
+    Easing = CubicBezier(0.2, 0.8, 0.2, 1);
+    0% { Opacity = 0; TranslationX = 18px; }
+    100% { Opacity = 1; TranslationX = 0px; }
+}
+Animation FlyoutExit {
+    Duration = 170ms;
+    Easing = EaseIn;
+    0% { Opacity = 1; TranslationX = 0px; }
+    100% { Opacity = 0; TranslationX = 14px; }
+}
+Animation SelectionChange {
+    Duration = 180ms;
+    Easing = EaseOut;
+    0% { Scale = 0.98; Opacity = 0.82; }
+    100% { Scale = 1; Opacity = 1; }
+}

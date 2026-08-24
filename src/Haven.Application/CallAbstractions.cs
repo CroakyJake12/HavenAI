@@ -25,9 +25,11 @@ public sealed record CallStartOptions(
     string? SystemPrompt =
         "You are Haven in a private, local live call. Respond promptly, warmly and conversationally. " +
         "Use contractions, varied sentence rhythm, and brief natural acknowledgements so the voice sounds expressive rather than scripted. " +
-        "When a reply genuinely needs thought, begin with one very short cue such as ‘Hmm…’ or ‘Right…’, then move directly into the answer; do not use a cue on every turn. " +
+        "When a reply genuinely needs thought, begin with one very short cue such as â€˜Hmmâ€¦â€™ or â€˜Rightâ€¦â€™, then move directly into the answer; do not use a cue on every turn. " +
         "Prefer short spoken sentences and avoid headings or markdown unless the user requests them. " +
-        "Do not claim to see a shared screen unless an image is attached to the current turn.");
+        "Do not claim to see a shared screen unless an image is attached to the current turn.",
+    string? VoiceProfileId = null,
+    VoiceProfile? VoiceProfile = null);
 
 /// <summary>
 /// Represents call capabilities and keeps its related state and behavior together.
@@ -85,9 +87,18 @@ public sealed record ScreenShareSnapshot(
     DateTimeOffset CapturedAt);
 
 /// <summary>
-/// Represents screen share source and keeps its related state and behavior together.
+/// Identifies whether a capture source is a window, a screen, or could not be classified truthfully.
 /// </summary>
-public sealed record ScreenShareSource(string Id, string Name, bool IsWindow);
+public enum ScreenShareSourceKind
+{
+    Unknown = 0,
+    Window = 1,
+    Screen = 2
+}
+/// <summary>
+/// Represents a user-selected screen-share source and its verified classification when available.
+/// </summary>
+public sealed record ScreenShareSource(string Id, string Name, ScreenShareSourceKind Kind);
 
 /// <summary>
 /// Represents screen share snapshot event args and keeps its related state and behavior together.
@@ -161,6 +172,42 @@ public sealed class CallAudioLevelEventArgs(double level) : EventArgs
     /// Gets or updates level, the bindable or domain state represented by this property.
     /// </summary>
     public double Level { get; } = level;
+}
+
+/// <summary>
+/// Truthful runtime state for Voice microphone capture. This is separate from the broader
+/// call state because a Voice session can remain active in typed-transcript fallback mode.
+/// </summary>
+public enum VoiceInputState
+{
+    Ready = 0,
+    Starting = 1,
+    Listening = 2,
+    Muted = 3,
+    Paused = 4,
+    PermissionDenied = 5,
+    Unavailable = 6,
+    Error = 7
+}
+
+public sealed record VoiceInputStatus(
+    VoiceInputState State,
+    string Message,
+    bool CanRetry = false);
+
+public sealed class VoiceInputStatusChangedEventArgs(VoiceInputStatus status) : EventArgs
+{
+    public VoiceInputStatus Status { get; } = status;
+}
+
+/// <summary>
+/// Optional runtime Voice-input status exposed by coordinators that can report capture
+/// degradation independently from the active conversation/session state.
+/// </summary>
+public interface IVoiceInputStatusSource
+{
+    VoiceInputStatus InputStatus { get; }
+    event EventHandler<VoiceInputStatusChangedEventArgs>? InputStatusChanged;
 }
 
 /// <summary>
@@ -244,6 +291,7 @@ public interface ICallCoordinator : IAsyncDisposable
     bool IsActive { get; }
     bool IsMuted { get; }
     bool IsScreenSharing { get; }
+
 
     event EventHandler<CallStateChangedEventArgs>? StateChanged;
     event EventHandler<CallTranscriptEventArgs>? TranscriptChanged;

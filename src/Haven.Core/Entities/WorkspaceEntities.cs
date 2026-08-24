@@ -3,7 +3,7 @@ namespace Haven.Core;
 /// <summary>
 /// Represents a macro definition.
 /// </summary>
-public sealed record MacroDefinition(
+public sealed record ReusableTaskDefinition(
     Guid Id,
     string Name,
     string Description,
@@ -11,7 +11,8 @@ public sealed record MacroDefinition(
     Guid? ContainerId,
     bool IsEnabled,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? GraphJson = null);
 
 /// <summary>
 /// Represents a workspace version.

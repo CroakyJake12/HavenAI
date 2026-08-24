@@ -11,6 +11,7 @@
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hui="using:Haven.Desktop.HavenUI.Components"
              xmlns:vm="using:Haven.Desktop.ViewModels"
              xmlns:svc="using:Haven.Desktop.Services"
              xmlns:controls="using:Haven.Desktop.Controls"
@@ -38,7 +39,7 @@
 
   <!-- Root padding wrapper -->
   <!-- Section: Creates a visual surface that owns background, outline, padding, clipping, or corner treatment. -->
-  <Border Padding="20">
+  <hui:HavenAdaptiveSurface Padding="20">
     <!-- Main layout: 4 rows — Header, Setup or Progress, History+Report, Status Bar -->
     <!-- Section: Uses a grid here to make row and column placement explicit and stable as content changes. -->
     <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -48,14 +49,14 @@
            Back button + page title. Always visible.
            ============================================================ -->
       <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
-        <Button Command="{Binding ExitTrainingCommand}"
+        <hui:HavenButton Command="{Binding ExitTrainingCommand}"
                 Background="Transparent" Foreground="{DynamicResource HavenTextBrush}"
                 BorderBrush="{DynamicResource HavenLineBrush}" CornerRadius="10" Padding="10,5">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <controls:HavenIcon IconKey="chevron-left" Width="13" Height="13" />
             <TextBlock Text="Back" />
           </StackPanel>
-        </Button>
+        </hui:HavenButton>
         <TextBlock Text="Haven Training" FontSize="20" FontWeight="Bold"
                    VerticalAlignment="Center"/>
       </StackPanel>
@@ -69,19 +70,19 @@
            - Duration (how long the session runs)
            - Start button
            ============================================================ -->
-      <Border Grid.Row="1" Classes="report-panel" IsVisible="{Binding !IsRunning}" Margin="0,0,0,16">
+      <hui:HavenAdaptiveSurface Grid.Row="1" Classes="report-panel" IsVisible="{Binding !IsRunning}" Margin="0,0,0,16">
         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
 
           <!-- Row 0-1: Task prompt — multi-line text input spanning both columns -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Task Instruction" Classes="section-header"/>
-          <TextBox Grid.Row="1" Grid.ColumnSpan="2"
+          <hui:HavenTextInput Grid.Row="1" Grid.ColumnSpan="2"
                    Text="{Binding TaskPrompt}" AcceptsReturn="True" TextWrapping="Wrap"
                    MinHeight="80" Margin="0,0,0,8"/>
 
           <!-- Row 2-3, Col 0: Workspace directory path -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Workspace Directory" Classes="section-header"/>
           <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-            <TextBox Text="{Binding WorkspacePath}" MinWidth="300"/>
+            <hui:HavenTextInput Text="{Binding WorkspacePath}" MinWidth="300"/>
           </StackPanel>
 
           <!-- The universal header owns model selection for every surface. -->
@@ -90,15 +91,15 @@
             <TextBlock Text="Duration (minutes)" Classes="section-header"/>
           </StackPanel>
           <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" Spacing="8">
-            <Border Classes="statusPill" MinWidth="200" Padding="12,8">
+            <hui:HavenAdaptiveSurface Classes="statusPill" MinWidth="200" Padding="12,8">
               <TextBlock Text="{Binding SelectedModel}" FontWeight="SemiBold"/>
-            </Border>
-            <NumericUpDown Value="{Binding DurationMinutes}" Minimum="1" Maximum="480"
+            </hui:HavenAdaptiveSurface>
+            <hui:HavenNumericInput Value="{Binding DurationMinutes}" Minimum="1" Maximum="480"
                           Increment="5" FormatString="F0" MinWidth="120"/>
           </StackPanel>
 
           <!-- Row 4: Sandbox Permissions — controls for tool access during training -->
-          <Border Grid.Row="4" Grid.ColumnSpan="2" Background="{DynamicResource HavenPanel2Brush}"
+          <hui:HavenAdaptiveSurface Grid.Row="4" Grid.ColumnSpan="2" Background="{DynamicResource HavenPanel2Brush}"
                   CornerRadius="8" Padding="12" Margin="0,8,0,0">
             <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
@@ -107,40 +108,40 @@
               <!-- Row 0: File, Command, Browser permission dropdowns -->
               <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Vertical" Spacing="2" Margin="0,0,12,0">
                 <TextBlock Text="File Access" FontSize="11" Opacity="0.6"/>
-                <ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding FilePermission}"
+                <hui:HavenComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding FilePermission}"
                           MinWidth="120"/>
               </StackPanel>
               <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" Spacing="2" Margin="0,0,12,0">
                 <TextBlock Text="Command Access" FontSize="11" Opacity="0.6"/>
-                <ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding CommandPermission}"
+                <hui:HavenComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding CommandPermission}"
                           MinWidth="120"/>
               </StackPanel>
               <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Vertical" Spacing="2">
                 <TextBlock Text="Browser Access" FontSize="11" Opacity="0.6"/>
-                <ComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding BrowserPermission}"
+                <hui:HavenComboBox ItemsSource="{Binding PermissionModes}" SelectedItem="{Binding BrowserPermission}"
                           MinWidth="120"/>
               </StackPanel>
 
               <!-- Row 2: Toggles + snapshot checkbox -->
               <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
-                <CheckBox Content="Desktop tools" IsChecked="{Binding AllowDesktopTools}"/>
-                <CheckBox Content="File system writes" IsChecked="{Binding AllowFileSystemWrites}"/>
+                <hui:HavenCheckBox Content="Desktop tools" IsChecked="{Binding AllowDesktopTools}"/>
+                <hui:HavenCheckBox Content="File system writes" IsChecked="{Binding AllowFileSystemWrites}"/>
               </StackPanel>
               <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
                           Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
-                <CheckBox Content="Workspace snapshot (isolation)" IsChecked="{Binding UseWorkspaceSnapshot}"/>
+                <hui:HavenCheckBox Content="Workspace snapshot (isolation)" IsChecked="{Binding UseWorkspaceSnapshot}"/>
               </StackPanel>
             </Grid>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- Row 5: Start Training button — spans both columns -->
-          <Button Grid.Row="5" Grid.ColumnSpan="2" Content="Start Training"
+          <hui:HavenButton Grid.Row="5" Grid.ColumnSpan="2" Content="Start Training"
                   Command="{Binding StartSessionCommand}"
                   Background="{DynamicResource HavenAccentBrush}" Foreground="White"
                   HorizontalAlignment="Left" Margin="0,12,0,0" Padding="20,8"
                   IsEnabled="{Binding !IsRunning}"/>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- ============================================================
            ROW 1: LIVE PROGRESS PANEL (visible when running)
@@ -148,7 +149,7 @@
            Shows: status message, current attempt number, task/model info,
            stop button, and a live stream of the agent's reasoning text.
            ============================================================ -->
-      <Border Grid.Row="1" Classes="report-panel" IsVisible="{Binding IsRunning}" Margin="0,0,0,12">
+      <hui:HavenAdaptiveSurface Grid.Row="1" Classes="report-panel" IsVisible="{Binding IsRunning}" Margin="0,0,0,12">
         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
 
           <!-- Row 0: Status message (left) + attempt counter (right) -->
@@ -169,7 +170,7 @@
 
           <!-- Row 2: Stop button — cancels the current session -->
           <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
-            <Button Content="Stop" Command="{Binding StopSessionCommand}"
+            <hui:HavenButton Content="Stop" Command="{Binding StopSessionCommand}"
                     Background="#E53935" Foreground="White" Padding="12,6"/>
           </StackPanel>
 
@@ -177,15 +178,15 @@
                Shows the agent's thinking in real-time as it streams from the model.
                Clears when a tool call happens (replaced by the tool activity entry).
                Scrollable, monospaced, max 150px height. Only visible when there's text. -->
-          <Border Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
+          <hui:HavenAdaptiveSurface Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
                   Padding="10" Margin="0,8,0,0" IsVisible="{Binding HasLiveReasoning}">
             <ScrollViewer MaxHeight="150">
               <TextBlock Text="{Binding LiveReasoning}" TextWrapping="Wrap" FontSize="11"
                          FontFamily="Cascadia Code, Consolas" Opacity="0.8"/>
             </ScrollViewer>
-          </Border>
+          </hui:HavenAdaptiveSurface>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
 
       <!-- ============================================================
            ROW 2: TWO-COLUMN LAYOUT — Attempt History | Report + Feedback
@@ -200,13 +201,13 @@
              - Files changed count
              - "Timed Out" badge if the attempt didn't complete
              Clicking an attempt shows its full report in the right column. -->
-        <Border Grid.Column="0" Classes="report-panel" Margin="0,0,8,0">
+        <hui:HavenAdaptiveSurface Grid.Column="0" Classes="report-panel" Margin="0,0,8,0">
           <StackPanel>
             <TextBlock Text="Attempts" Classes="section-header"/>
             <ItemsControl ItemsSource="{Binding AttemptHistory}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="svc:TrainingAttemptResult">
-                  <Button Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
+                  <hui:HavenButton Background="{DynamicResource HavenPanel2Brush}" CornerRadius="6"
                           Padding="10,8" Margin="0,0,0,6" HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Left"
                           Command="{Binding $parent[UserControl].DataContext.SelectAttemptCommand}"
@@ -225,17 +226,17 @@
                       <TextBlock FontSize="11" Opacity="0.6"
                                  Text="{Binding FilesChanged, StringFormat='{}{0} files changed'}"/>
                       <!-- "Timed Out" badge — only shown when the attempt didn't finish -->
-                      <Border Background="{DynamicResource HavenLineBrush}" CornerRadius="4"
+                      <hui:HavenAdaptiveSurface Background="{DynamicResource HavenLineBrush}" CornerRadius="4"
                               Padding="6,3" IsVisible="{Binding !CompletedBeforeTimeout}">
                         <TextBlock Text="Timed Out" FontSize="10" Opacity="0.7"/>
-                      </Border>
+                      </hui:HavenAdaptiveSurface>
                     </StackPanel>
-                  </Button>
+                  </hui:HavenButton>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </Border>
+        </hui:HavenAdaptiveSurface>
 
         <!-- RIGHT COLUMN: Report + Feedback
              Shows the selected attempt's markdown report and feedback input. -->
@@ -243,45 +244,45 @@
 
           <!-- Current attempt report — shown while the session is running
                Displays the live markdown report for the in-progress attempt -->
-          <Border Grid.Row="0" Classes="report-panel" Margin="0,0,0,8"
+          <hui:HavenAdaptiveSurface Grid.Row="0" Classes="report-panel" Margin="0,0,0,8"
                   IsVisible="{Binding IsRunning}">
             <ScrollViewer>
               <SelectableTextBlock Text="{Binding CurrentReport}" TextWrapping="Wrap"
                                    FontFamily="Cascadia Code, Consolas" FontSize="12"/>
             </ScrollViewer>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- Selected historical report — shown when the session is stopped
                Displays the full report for any previously completed attempt
                selected from the history list on the left -->
-          <Border Grid.Row="0" Classes="report-panel" Margin="0,0,0,8"
+          <hui:HavenAdaptiveSurface Grid.Row="0" Classes="report-panel" Margin="0,0,0,8"
                   IsVisible="{Binding !IsRunning}">
             <ScrollViewer>
               <SelectableTextBlock Text="{Binding SelectedAttemptReport}" TextWrapping="Wrap"
                                    FontFamily="Cascadia Code, Consolas" FontSize="12"/>
             </ScrollViewer>
-          </Border>
+          </hui:HavenAdaptiveSurface>
 
           <!-- Feedback Panel — shown after each attempt completes
                User can type feedback about the attempt's quality or skip.
                Auto-times out after 10 seconds of inactivity. -->
-          <Border Grid.Row="1" Classes="report-panel" IsVisible="{Binding IsAwaitingFeedback}">
+          <hui:HavenAdaptiveSurface Grid.Row="1" Classes="report-panel" IsVisible="{Binding IsAwaitingFeedback}">
             <StackPanel Spacing="8">
               <TextBlock Text="Provide feedback for this attempt (or skip):" FontWeight="SemiBold"/>
-              <TextBox Text="{Binding FeedbackText}" AcceptsReturn="True" TextWrapping="Wrap"
+              <hui:HavenTextInput Text="{Binding FeedbackText}" AcceptsReturn="True" TextWrapping="Wrap"
                        MinHeight="60" PlaceholderText="Enter feedback or leave empty to skip..."/>
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Submit Feedback"
+                <hui:HavenButton Content="Submit Feedback"
                         Command="{Binding SubmitFeedbackCommand}"
                         Background="{DynamicResource HavenAccentBrush}" Foreground="White"
                         Padding="14,6"/>
-                <Button Content="Skip"
+                <hui:HavenButton Content="Skip"
                         Command="{Binding SkipFeedbackCommand}"
                         Background="{DynamicResource HavenLineBrush}" Foreground="{DynamicResource HavenTextBrush}"
                         Padding="14,6"/>
               </StackPanel>
             </StackPanel>
-          </Border>
+          </hui:HavenAdaptiveSurface>
         </Grid>
       </Grid>
 
@@ -290,7 +291,7 @@
            Persistent bar showing current status message and total attempts.
            Always visible at the bottom of the page.
            ============================================================ -->
-      <Border Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}"
+      <hui:HavenAdaptiveSurface Grid.Row="3" Background="{DynamicResource HavenPanel2Brush}"
               CornerRadius="8" Padding="12,8">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
@@ -299,7 +300,7 @@
                      Text="{Binding TotalAttempts, StringFormat='{}{0} attempt(s)'}"
                      VerticalAlignment="Center" Opacity="0.5"/>
         </Grid>
-      </Border>
+      </hui:HavenAdaptiveSurface>
     </Grid>
-  </Border>
+  </hui:HavenAdaptiveSurface>
 </UserControl>

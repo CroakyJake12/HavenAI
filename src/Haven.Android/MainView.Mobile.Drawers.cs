@@ -166,9 +166,62 @@ public sealed partial class MainView
         if (_mobileDrawerContent is null)
             return;
 
+        _ = global::Haven.Android.AndroidRuntimePermissions
+            .EnsureNotificationsPermissionAsync(CancellationToken.None);
+
         _mobileDrawerContent.Children.Clear();
         AddDrawerHeading(_mobileDrawerContent, "Notifications");
 
+        if (Notifications.Count == 0)
+        {
+            _mobileDrawerContent.Children.Add(new TextBlock
+            {
+                Text = "You’re all caught up.",
+                Foreground = ResourceBrush("HavenTextSoftBrush"),
+                Margin = new Thickness(4)
+            });
+        }
+
+        foreach (var notification in Notifications)
+        {
+            var row = MobileListButton(notification.Title, notification.Message, "notification");
+            row.Click += (_, _) => _notifications.Dismiss(notification.Id);
+            _mobileDrawerContent.Children.Add(row);
+        }
+
+        OpenMobileDrawer();
+    }
+
+    private void ShowMobileYou()
+    {
+        if (_mobileDrawerContent is null)
+            return;
+
+        _mobileDrawerContent.Children.Clear();
+        AddDrawerHeading(_mobileDrawerContent, "You");
+
+        var search = MobileListButton("Search Haven", "Apps, chats, tasks, tabs and actions", "search");
+        search.Click += (_, _) =>
+        {
+            CloseMobileDrawer();
+            OpenCommandPalette();
+        };
+        _mobileDrawerContent.Children.Add(search);
+
+        AddDrawerHeading(_mobileDrawerContent, "Tabs");
+        foreach (var tab in OpenTabs)
+        {
+            var selected = tab;
+            var row = MobileListButton(tab.Title, ReferenceEquals(tab, SelectedTab) ? "Current tab" : "Open tab", "window");
+            row.Click += (_, _) =>
+            {
+                SelectedTab = selected;
+                CloseMobileDrawer();
+            };
+            _mobileDrawerContent.Children.Add(row);
+        }
+
+        AddDrawerHeading(_mobileDrawerContent, "Notifications");
         if (Notifications.Count == 0)
         {
             _mobileDrawerContent.Children.Add(new TextBlock

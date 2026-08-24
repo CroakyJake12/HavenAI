@@ -112,13 +112,13 @@ public sealed partial class NotesWorkspaceView
     private Control BuildCrossReferenceTools(NotesDocument document)
     {
         var blocks = document.Sections.SelectMany(section => section.Pages).SelectMany(page => page.Blocks).ToArray();
-        var target = new ComboBox { ItemsSource = blocks.Select(BlockLabel).ToArray(), SelectedIndex = blocks.Length > 1 ? 1 : 0 };
-        var kind = new ComboBox
+        var target = new HavenComboBox { ItemsSource = blocks.Select(BlockLabel).ToArray(), SelectedIndex = blocks.Length > 1 ? 1 : 0 };
+        var kind = new HavenComboBox
         {
             ItemsSource = new[] { "Reference", "Equation", "Table", "Figure", "Heading", "Bookmark" },
             SelectedIndex = 0
         };
-        var label = new TextBox { PlaceholderText = "Displayed label" };
+        var label = new HavenTextInput { PlaceholderText = "Displayed label" };
         var add = ActionButton("Add cross-reference", () =>
         {
             if (_page.SelectedBlock is not { } source
@@ -157,13 +157,13 @@ public sealed partial class NotesWorkspaceView
         var selectedBlock = _page.SelectedBlock;
         var equation = selectedBlock?.Equation;
         var templates = NotesEquationTools.Templates.ToArray();
-        var template = new ComboBox
+        var template = new HavenComboBox
         {
             ItemsSource = templates.Select(item => item.Name + " · " + item.Category).ToArray(),
             SelectedIndex = 0,
             IsEnabled = equation is not null
         };
-        var symbolSearch = new TextBox { Text = _equationSymbolQuery, PlaceholderText = "Search symbols or LaTeX commands" };
+        var symbolSearch = new HavenTextInput { Text = _equationSymbolQuery, PlaceholderText = "Search symbols or LaTeX commands" };
         var symbols = new WrapPanel();
         void RebuildSymbols()
         {
@@ -231,8 +231,8 @@ public sealed partial class NotesWorkspaceView
         }, "Save the selected editable equation in this document's library"));
         actions.Children.Add(ActionButton("Export equation", ExportSelectedEquationAsync, "Export selected equation as LaTeX, MathML, SVG or text"));
 
-        var macroName = new TextBox { PlaceholderText = @"Macro name, e.g. \R", IsEnabled = equation is not null };
-        var macroValue = new TextBox { PlaceholderText = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
+        var macroName = new HavenTextInput { PlaceholderText = @"Macro name, e.g. \R", IsEnabled = equation is not null };
+        var macroValue = new HavenTextInput { PlaceholderText = @"Replacement, e.g. \mathbb{R}", IsEnabled = equation is not null };
         var addMacro = ActionButton("Add macro", async () =>
         {
             if (selectedBlock?.Equation is not { } selectedEquation) return;
@@ -304,14 +304,14 @@ public sealed partial class NotesWorkspaceView
 
         var objects = canvas.Objects.ToArray();
         var names = objects.Select(ObjectLabel).ToArray();
-        var selected = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
-        var x = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
-        var y = new NumericUpDown { Minimum = -1_000_000, Maximum = 1_000_000 };
-        var width = new NumericUpDown { Minimum = 8, Maximum = 1_000_000 };
-        var height = new NumericUpDown { Minimum = 8, Maximum = 1_000_000 };
-        var rotation = new NumericUpDown { Minimum = -360_000, Maximum = 360_000 };
-        var locked = new CheckBox { Content = "Locked" };
-        var grid = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = 10 };
+        var selected = new HavenComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
+        var x = new HavenNumericInput { Minimum = -1_000_000, Maximum = 1_000_000 };
+        var y = new HavenNumericInput { Minimum = -1_000_000, Maximum = 1_000_000 };
+        var width = new HavenNumericInput { Minimum = 8, Maximum = 1_000_000 };
+        var height = new HavenNumericInput { Minimum = 8, Maximum = 1_000_000 };
+        var rotation = new HavenNumericInput { Minimum = -360_000, Maximum = 360_000 };
+        var locked = new HavenCheckBox { Content = "Locked" };
+        var grid = new HavenNumericInput { Minimum = 0, Maximum = 1000, Value = 10 };
         var ready = false;
         void LoadSelection()
         {
@@ -346,9 +346,9 @@ public sealed partial class NotesWorkspaceView
             RefreshAll();
         }, "Apply snapped position, size, rotation and lock state");
 
-        var from = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
-        var to = new ComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
-        var connectorLabel = new TextBox { PlaceholderText = "Connector label" };
+        var from = new HavenComboBox { ItemsSource = names, SelectedIndex = names.Length > 0 ? 0 : -1 };
+        var to = new HavenComboBox { ItemsSource = names, SelectedIndex = names.Length > 1 ? 1 : -1 };
+        var connectorLabel = new HavenTextInput { PlaceholderText = "Connector label" };
         var connect = ActionButton("Connect objects", async () =>
         {
             if (selectedBlock is null
@@ -368,7 +368,7 @@ public sealed partial class NotesWorkspaceView
             RefreshAll();
         }, "Create a validator-safe editable connector");
 
-        var bookmarkName = new TextBox { PlaceholderText = "Spatial bookmark name" };
+        var bookmarkName = new HavenTextInput { PlaceholderText = "Spatial bookmark name" };
         var addBookmark = ActionButton("Add canvas bookmark", () =>
         {
             MutateAdvancedState(document, state => state.CanvasBookmarks.Add(new NotesCanvasBookmarkEntry
@@ -440,12 +440,12 @@ public sealed partial class NotesWorkspaceView
         var selectedBlock = _page.SelectedBlock;
         var card = selectedBlock?.Flashcard;
         var state = LoadAdvancedState(document);
-        var dailyTarget = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.DailyTarget };
-        var newLimit = new NumericUpDown { Minimum = 0, Maximum = 10_000, Value = state.Study.NewCardLimit };
-        var sessionLimit = new NumericUpDown { Minimum = 1, Maximum = 10_000, Value = state.Study.MaximumCardsPerSession };
-        var shuffle = new CheckBox { Content = "Shuffle study order", IsChecked = state.Study.Shuffle };
-        var mistakes = new CheckBox { Content = "Review mistakes only", IsChecked = state.Study.ReviewMistakesOnly };
-        var cram = new CheckBox { Content = "Cram mode", IsChecked = state.Study.CramMode };
+        var dailyTarget = new HavenNumericInput { Minimum = 1, Maximum = 10_000, Value = state.Study.DailyTarget };
+        var newLimit = new HavenNumericInput { Minimum = 0, Maximum = 10_000, Value = state.Study.NewCardLimit };
+        var sessionLimit = new HavenNumericInput { Minimum = 1, Maximum = 10_000, Value = state.Study.MaximumCardsPerSession };
+        var shuffle = new HavenCheckBox { Content = "Shuffle study order", IsChecked = state.Study.Shuffle };
+        var mistakes = new HavenCheckBox { Content = "Review mistakes only", IsChecked = state.Study.ReviewMistakesOnly };
+        var cram = new HavenCheckBox { Content = "Cram mode", IsChecked = state.Study.CramMode };
         var ready = false;
         void CommitPreferences()
         {
@@ -497,10 +497,10 @@ public sealed partial class NotesWorkspaceView
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 9
             });
-            var answer = new TextBox { PlaceholderText = "Answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
-            var confidence = new Slider { Minimum = 0, Maximum = 1, Value = 0.5, TickFrequency = 0.1 };
-            var hints = new NumericUpDown { Minimum = 0, Maximum = 100, Value = 0 };
-            var mark = new ComboBox { ItemsSource = new[] { "Correct", "Partly correct", "Incorrect" }, SelectedIndex = 0 };
+            var answer = new HavenTextInput { PlaceholderText = "Answer before revealing", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
+            var confidence = new HavenSlider { Minimum = 0, Maximum = 1, Value = 0.5, TickFrequency = 0.1 };
+            var hints = new HavenNumericInput { Minimum = 0, Maximum = 100, Value = 0 };
+            var mark = new HavenComboBox { ItemsSource = new[] { "Correct", "Partly correct", "Incorrect" }, SelectedIndex = 0 };
             panel.Children.Add(new TextBlock { Text = "SELF-MARKING", Classes = { "eyebrow" }, Margin = new Thickness(0, 6, 0, 0) });
             panel.Children.Add(answer);
             panel.Children.Add(Labeled("Confidence", confidence));

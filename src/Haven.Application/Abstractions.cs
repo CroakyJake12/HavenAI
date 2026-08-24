@@ -70,17 +70,50 @@ public interface IContainerResourceRepository
 public interface ICatalogRepository
 {
     Task<IReadOnlyList<AgentDefinition>> GetAgentsAsync(CancellationToken cancellationToken);
-    Task<IReadOnlyList<PluginDefinition>> GetPluginsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentDefinition>> GetAllAgentsAsync(CancellationToken cancellationToken) => GetAgentsAsync(cancellationToken);
+    
     Task<IReadOnlyList<PromptDefinition>> GetPromptsAsync(CancellationToken cancellationToken);
     Task UpsertAgentAsync(AgentDefinition agent, CancellationToken cancellationToken);
-    Task UpsertPluginAsync(PluginDefinition plugin, CancellationToken cancellationToken);
+    
     Task UpsertPromptAsync(PromptDefinition prompt, CancellationToken cancellationToken);
     Task SetAgentEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
-    Task SetPluginEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
+    
     Task SetPromptEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
     Task DeleteCustomAgentAsync(Guid id, CancellationToken cancellationToken);
-    Task DeleteCustomPluginAsync(Guid id, CancellationToken cancellationToken);
+    
     Task DeleteCustomPromptAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>Persists the authoritative Capability Registry independently of obsolete Plugin records.</summary>
+public interface ICapabilityRepository
+{
+    Task<IReadOnlyList<CapabilityDefinition>> GetCapabilitiesAsync(CancellationToken cancellationToken);
+    Task UpsertCapabilityAsync(CapabilityDefinition capability, CancellationToken cancellationToken);
+    Task SetCapabilityEnabledAsync(Guid id, bool enabled, CancellationToken cancellationToken);
+    Task DeleteCustomCapabilityAsync(Guid id, CancellationToken cancellationToken);
+}
+
+/// <summary>Persists durable Agent run history independently of Chat history.</summary>
+public interface IAgentRunRepository
+{
+    Task UpsertAsync(AgentRun run, CancellationToken cancellationToken);
+    Task<AgentRun?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentRun>> GetRecentAsync(int limit, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentRun>> GetByAgentAsync(Guid agentId, int limit, CancellationToken cancellationToken);
+}
+
+/// <summary>Persists and searches the extensible Generative UI Template Registry.</summary>
+public interface IGenUiTemplateRepository
+{
+    Task<GenUiTemplateDefinition?> GetByKeyAsync(string key, CancellationToken cancellationToken);
+    Task<IReadOnlyList<GenUiTemplateDefinition>> SearchAsync(
+        string query,
+        CapabilityPlatform platform,
+        string? compatibleAppKey,
+        int limit,
+        CancellationToken cancellationToken);
+    Task UpsertAsync(GenUiTemplateDefinition template, CancellationToken cancellationToken);
+    Task DeleteCustomAsync(Guid id, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -88,9 +121,9 @@ public interface ICatalogRepository
 /// </summary>
 public interface IWorkspaceStateRepository
 {
-    Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken);
-    Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken);
-    Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReusableTaskDefinition>> GetReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken);
+    Task UpsertReusableTaskAsync(ReusableTaskDefinition macro, CancellationToken cancellationToken);
+    Task DeleteReusableTaskAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkspaceVersion>> GetVersionsAsync(Guid? containerId, string? relativePath, int limit, CancellationToken cancellationToken);
     Task AddVersionAsync(WorkspaceVersion version, CancellationToken cancellationToken);
     Task<IReadOnlyList<DecisionRecord>> GetDecisionsAsync(Guid containerId, CancellationToken cancellationToken);
@@ -164,6 +197,12 @@ public interface IOllamaClient
 }
 
 /// <summary>
+/// A structured delta from a streaming chat response that can contain
+/// content and/or thinking tokens.
+/// </summary>
+public sealed record ChatDelta(string? Content = null, string? Thinking = null);
+
+/// <summary>
 /// Represents generation options and keeps its related state and behavior together.
 /// </summary>
 public sealed record GenerationOptions(double Temperature = 0.7, int ContextLimit = 32768, int ActionLimit = 24);
@@ -191,7 +230,8 @@ public sealed record OllamaToolDefinition(
     string Name,
     string Description,
     IReadOnlyDictionary<string, object> Properties,
-    IReadOnlyList<string> Required);
+    IReadOnlyList<string> Required,
+    System.Text.Json.JsonElement? InputSchema = null);
 
 /// <summary>
 /// Represents ollama tool call and keeps its related state and behavior together.
@@ -240,10 +280,21 @@ public interface IWorkspaceToolService
 }
 
 /// <summary>
+/// Represents bounded selection and focused-control context captured from the foreground desktop.
+/// </summary>
+public sealed record ComputerSelectionSnapshot(
+    string? SelectedText, string? SourceApplication, string? SourceWindow,
+    double? X, double? Y, double? Width, double? Height,
+    string? AccessibleName, string? AutomationId, string? ControlType,
+    bool? IsEnabled, bool? IsSelected, DateTimeOffset CapturedAt, bool WasTruncated);
+
+/// <summary>
 /// Defines the computer tool service contract so callers depend on a capability rather than one implementation.
 /// </summary>
 public interface IComputerToolService
 {
+    Task<ComputerSelectionSnapshot?> GetSelectionSnapshotAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<ComputerSelectionSnapshot?>(null);
     Task<string> SnapshotAsync(CancellationToken cancellationToken);
     Task<string> ListWindowsAsync(CancellationToken cancellationToken);
     Task<string> LaunchAppAsync(string name, CancellationToken cancellationToken);

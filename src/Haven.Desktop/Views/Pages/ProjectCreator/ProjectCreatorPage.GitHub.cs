@@ -32,11 +32,11 @@ public sealed partial class ProjectCreatorPage
             return;
         }
 
-        var urlBox = new TextBox
+        var urlBox = new HavenTextInput
         {
             PlaceholderText = "https://github.com/owner/repository.git"
         };
-        var destinationBox = new TextBox
+        var destinationBox = new HavenTextInput
         {
             Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
         };
@@ -46,7 +46,7 @@ public sealed partial class ProjectCreatorPage
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
         };
 
-        var browse = new Button { Content = "Browse" };
+        var browse = new HavenButton { Content = "Browse" };
         browse.Click += async (_, _) =>
         {
             var folders = await owner.StorageProvider.OpenFolderPickerAsync(
@@ -71,14 +71,14 @@ public sealed partial class ProjectCreatorPage
         Grid.SetColumn(browse, 1);
         destinationRow.Children.Add(browse);
 
-        var cloneButton = new Button
+        var cloneButton = new HavenButton
         {
             Content = "Clone and connect",
             MinWidth = 150
         };
         cloneButton.Classes.Add("accent");
 
-        var cancelButton = new Button { Content = "Cancel" };
+        var cancelButton = new HavenButton { Content = "Cancel" };
 
         var actions = new StackPanel
         {

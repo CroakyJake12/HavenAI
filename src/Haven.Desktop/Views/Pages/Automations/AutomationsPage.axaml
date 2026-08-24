@@ -1,39 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Haven.Desktop.Controls"
              x:Class="Haven.Desktop.Views.Pages.Automations.AutomationsPage"
              Loaded="OnLoaded">
-
-  <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="32,28">
-
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto">
-      <StackPanel>
-        <TextBlock Text="Scheduled Actions" Classes="heading" />
-        <TextBlock Text="Scheduled local actions with persistent history, leases, and duplicate-run protection." Classes="muted" Margin="0,4,0,0" />
-      </StackPanel>
-      <Button Grid.Column="1" x:Name="RegisterWorkerButton" Content="Register background worker" Margin="0,0,8,0" />
-      <Button Grid.Column="2" x:Name="RefreshButton" Content="Refresh" />
-    </Grid>
-
-    <Border Grid.Row="1" Classes="card" Margin="0,18,0,14">
-      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="1.2*,1.8*,Auto,Auto,2*,Auto" ColumnSpacing="8" RowSpacing="10">
-        <TextBlock Grid.ColumnSpan="6" Text="CREATE SCHEDULED ACTION" Classes="eyebrow" />
-        <TextBox Grid.Row="1" x:Name="NewNameBox" PlaceholderText="Name" />
-        <TextBox Grid.Row="1" Grid.Column="1" x:Name="NewInstructionBox" PlaceholderText="Instruction" />
-        <ComboBox Grid.Row="1" Grid.Column="2" x:Name="ModeCombo" MinWidth="100" />
-        <ComboBox Grid.Row="1" Grid.Column="3" x:Name="ScheduleKindCombo" MinWidth="130" />
-        <TextBox Grid.Row="1" Grid.Column="4" x:Name="ScheduleJsonBox" PlaceholderText="Schedule JSON" FontFamily="Cascadia Code, Consolas" />
-        <Button Grid.Row="1" Grid.Column="5" x:Name="CreateButton" Content="Create" Classes="primary" />
-      </Grid>
-    </Border>
-
-    <Border Grid.Row="2" Classes="card" Margin="0,0,0,14">
-      <TextBlock x:Name="StatusText" Classes="muted" />
-    </Border>
-
-    <ScrollViewer Grid.Row="3">
-      <StackPanel x:Name="ItemsPanel" Spacing="10" />
-    </ScrollViewer>
-  </Grid>
-
+  <Grid x:Name="CodeBehindHost" />
 </UserControl>

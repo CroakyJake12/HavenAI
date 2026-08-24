@@ -3,6 +3,7 @@
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.RECORD_AUDIO" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
   <queries>
     <intent>
@@ -12,9 +13,9 @@
   </queries>
 
   <application
-      android:allowBackup="true"
+      android:allowBackup="false"
       android:label="Haven"
       android:icon="@drawable/haven_icon"
       android:supportsRtl="true"
-      android:usesCleartextTraffic="true" />
+      android:usesCleartextTraffic="false" />
 </manifest>

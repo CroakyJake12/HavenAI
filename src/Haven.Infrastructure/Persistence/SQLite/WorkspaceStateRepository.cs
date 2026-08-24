@@ -18,36 +18,36 @@ namespace Haven.Infrastructure;
 public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) : IWorkspaceStateRepository
 {
     /// <summary>
-    /// Retrieves macros async for the current operation.
+    /// Retrieves reusable_tasks async for the current operation.
     /// </summary>
-    public async Task<IReadOnlyList<MacroDefinition>> GetMacrosAsync(Guid? containerId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ReusableTaskDefinition>> GetReusableTasksAsync(Guid? containerId, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = containerId is null
-            ? "SELECT * FROM macros WHERE is_enabled=1 ORDER BY name;"
-            : "SELECT * FROM macros WHERE is_enabled=1 AND (container_id IS NULL OR container_id=$containerId) ORDER BY name;";
+            ? "SELECT * FROM reusable_tasks WHERE is_enabled=1 ORDER BY name;"
+            : "SELECT * FROM reusable_tasks WHERE is_enabled=1 AND (container_id IS NULL OR container_id=$containerId) ORDER BY name;";
         if (containerId is not null) command.Parameters.AddWithValue("$containerId", containerId.Value.ToString());
-        var result = new List<MacroDefinition>();
+        var result = new List<ReusableTaskDefinition>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            result.Add(new MacroDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("instruction"),
-                reader.NullableGuid("container_id"), reader.Boolean("is_enabled"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at")));
+            result.Add(new ReusableTaskDefinition(reader.Guid("id"), reader.String("name"), reader.String("description"), reader.String("instruction"),
+                reader.NullableGuid("container_id"), reader.Boolean("is_enabled"), reader.DateTimeOffset("created_at"), reader.DateTimeOffset("updated_at"), reader.NullableString("graph_json")));
         return result;
     }
 
     /// <summary>
     /// Performs upsert macro asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    public async Task UpsertMacroAsync(MacroDefinition macro, CancellationToken cancellationToken)
+    public async Task UpsertReusableTaskAsync(ReusableTaskDefinition macro, CancellationToken cancellationToken)
     {
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO macros(id,name,description,instruction,container_id,is_enabled,created_at,updated_at)
-            VALUES($id,$name,$description,$instruction,$containerId,$isEnabled,$createdAt,$updatedAt)
+            INSERT INTO reusable_tasks(id,name,description,instruction,container_id,is_enabled,created_at,updated_at,graph_json)
+            VALUES($id,$name,$description,$instruction,$containerId,$isEnabled,$createdAt,$updatedAt,$graphJson)
             ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,instruction=excluded.instruction,
-              container_id=excluded.container_id,is_enabled=excluded.is_enabled,updated_at=excluded.updated_at;
+              container_id=excluded.container_id,is_enabled=excluded.is_enabled,updated_at=excluded.updated_at,graph_json=excluded.graph_json;
             """;
         command.Parameters.AddWithValue("$id", macro.Id.ToString());
         command.Parameters.AddWithValue("$name", macro.Name);
@@ -57,15 +57,16 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
         command.Parameters.AddWithValue("$isEnabled", macro.IsEnabled ? 1 : 0);
         command.Parameters.AddWithValue("$createdAt", macro.CreatedAt.ToString("O"));
         command.Parameters.AddWithValue("$updatedAt", macro.UpdatedAt.ToString("O"));
+        command.Parameters.AddWithValue("$graphJson", (object?)macro.GraphJson ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Performs delete macro asynchronously so I/O does not block the caller's thread.
     /// </summary>
-    public async Task DeleteMacroAsync(Guid id, CancellationToken cancellationToken)
+    public async Task DeleteReusableTaskAsync(Guid id, CancellationToken cancellationToken)
     {
-        await ExecuteDeleteAsync("macros", id, cancellationToken).ConfigureAwait(false);
+        await ExecuteDeleteAsync("reusable_tasks", id, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -178,7 +179,7 @@ public sealed class WorkspaceStateRepository(ISqliteConnectionFactory factory) :
     /// </summary>
     private async Task ExecuteDeleteAsync(string table, Guid id, CancellationToken cancellationToken)
     {
-        if (table is not ("macros" or "decisions")) throw new ArgumentOutOfRangeException(nameof(table));
+        if (table is not ("reusable_tasks" or "decisions")) throw new ArgumentOutOfRangeException(nameof(table));
         await using var connection = await factory.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = $"DELETE FROM {table} WHERE id=$id;";

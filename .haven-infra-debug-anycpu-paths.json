@@ -1,0 +1,8 @@
+{
+  "Properties": {
+    "Platform": "Any CPU",
+    "PlatformTarget": "x64",
+    "OutputPath": "bin\\Any CPU\\Debug\\net10.0\\",
+    "IntermediateOutputPath": "obj\\Any CPU\\Debug\\net10.0\\"
+  }
+}

@@ -6,7 +6,7 @@
              xmlns:pages="using:Haven.Desktop.Views.Pages.WorkspaceEditor"
              xmlns:studio="using:Haven.Desktop.Views.Pages.StudioProject"
              x:Class="Haven.Desktop.App"
-             RequestedThemeVariant="Light">
+             RequestedThemeVariant="Dark">
 
   <Application.Styles>
     <FluentTheme />
@@ -14,19 +14,15 @@
   </Application.Styles>
 
   <Application.DataTemplates>
-    <DataTemplate DataType="{x:Type vm:ChatPageViewModel}"><views:ChatView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ChatGroupPageViewModel}"><views:ChatGroupView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:HomePageViewModel}"><views:HomeView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:CallPageViewModel}"><views:CallView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PlanPageViewModel}"><views:PlanView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:CatalogPageViewModel}"><views:CatalogView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:AutomationsPageViewModel}"><views:AutomationsView /></DataTemplate>
+
     <DataTemplate DataType="{x:Type vm:TrainingPageViewModel}"><views:TrainingView /></DataTemplate>
-    <DataTemplate DataType="{x:Type vm:SettingsPageViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:LessonSettingsPageViewModel}"><views:LessonSettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:WorkspaceHomePageViewModel}"><views:WorkspaceHomeView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ProjectCreatorPageViewModel}"><views:ProjectCreatorView /></DataTemplate>
-    <DataTemplate DataType="{x:Type studio:StudioProjectPage}"><views:StudioProjectView /></DataTemplate>
+    <DataTemplate DataType="{x:Type studio:StudioProjectPage}"><views:StudioProjectHavenView /></DataTemplate>
     <DataTemplate DataType="{x:Type pages:WorkspaceEditorPage}"><views:WorkspaceEditorView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ArchivePageViewModel}"><views:ArchiveView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ActivityLogPageViewModel}"><views:ActivityLogView /></DataTemplate>

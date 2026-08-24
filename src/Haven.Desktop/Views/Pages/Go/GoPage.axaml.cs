@@ -1,107 +1,253 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Media;
-using Haven.Desktop.Controls;
+using Haven.Core;
 using Haven.Desktop.Events;
+using Haven.Desktop.HavenUI.Backend;
 using Haven.Desktop.Services;
 using Haven.Desktop.Views.Shell.TopRail;
-using Haven.Core;
+using Haven.UI;
 
 namespace Haven.Desktop.Views.Pages.Go;
 
 /// <summary>
-/// New Haven's mockup-defined Go workspace. It owns no legacy chat, plugin,
-/// instruction, agent, or voice controls.
+/// Product adapter for the Haven.UI Go scene. Existing services, navigation,
+/// pending-task state and event contracts remain outside the UI framework.
 /// </summary>
 public sealed partial class GoPage : UserControl, IDisposable
 {
     private readonly HavenEventBus _bus;
-    private readonly Button[] _suggestionButtons;
-    private readonly HavenIcon[] _suggestionIcons;
-    private readonly TextBlock[] _suggestionTexts;
+    private readonly GoHavenScene _route;
+    private readonly TaskAttachmentContext _attachments = new();
+    private readonly List<(HavenElement Element, EventHandler Handler)> _stateSubscriptions = [];
+    private IReadOnlyList<ModeDefinition> _availableApps = [];
     private IReadOnlyList<GoSuggestion> _suggestions = GoSuggestionService.ImmediateDefaults;
+    private readonly List<PromptDefinition> _activeInstructions = [];
+    private AgentDefinition? _activeAgent;
+    private ChatActionMode? _actionModeOverride;
+    private GenerativeUiResponseMode? _visualResponseModeOverride;
     private bool _disposed;
 
     public GoPage(HavenEventBus bus)
     {
         _bus = bus;
         InitializeComponent();
-        _suggestionButtons = [RecentChatsButton, StudyButton, StudioButton, RecapButton];
-        _suggestionIcons = [SuggestionIcon0, SuggestionIcon1, SuggestionIcon2, SuggestionIcon3];
-        _suggestionTexts = [SuggestionText0, SuggestionText1, SuggestionText2, SuggestionText3];
+        _route = new GoHavenScene();
+        Scene.Root = _route.Root;
         WireEvents();
         SetSuggestions(_suggestions);
+        RefreshResponseState();
     }
 
     public event EventHandler<string>? SubmitRequested;
     public event EventHandler? RefreshSuggestionsRequested;
     public event EventHandler<AddMenu.AddMenuAction>? AddRequested;
     public event EventHandler<AddMenuSelection>? AddCatalogItemSelected;
+    public event EventHandler<ModeDefinition>? AppShortcutInvoked;
     public event EventHandler? Disposed;
 
-    public void FocusComposer() => InstructionBox.Focus();
+    internal HavenSceneControl SceneHost => Scene;
+    internal GoHavenScene Route => _route;
+    internal HavenElement SceneRoot => _route.Root;
+    internal IReadOnlyList<GoSuggestion> Suggestions => _suggestions;
+
+    internal void SetAppShortcuts(IReadOnlyList<GoAppShortcut> shortcuts) => _route.SetAppShortcuts(shortcuts);
+
+    public void AttachFiles(IEnumerable<string> paths)
+    {
+        _attachments.AttachFiles(paths);
+        RefreshAttachmentStatus();
+    }
+
+    public void AttachApp(ModeDefinition app)
+    {
+        _attachments.AttachApp(app);
+        RefreshAttachmentStatus();
+    }
+
+    public bool IsCapabilityAttached(Guid capabilityId) => _attachments.IsCapabilityAttached(capabilityId);
+
+    public void ToggleCapability(CapabilityDefinition capability)
+    {
+        if (_attachments.IsCapabilityAttached(capability.Id)) _attachments.RemoveCapability(capability.Id);
+        else AttachCapability(capability);
+        RefreshAttachmentStatus();
+    }
+
+    private void AttachCapability(CapabilityDefinition capability)
+    {
+        var owner = _availableApps.FirstOrDefault(app => app.Key.Equals(capability.OwnerAppKey, StringComparison.OrdinalIgnoreCase));
+        _attachments.AttachCapability(capability, owner);
+    }
+
+    public TaskAttachmentSnapshot TakeAttachments()
+    {
+        var snapshot = _attachments.TakeSnapshot();
+        RefreshAttachmentStatus();
+        return snapshot;
+    }
+
+    internal GoTaskSnapshot TakeTaskSnapshot()
+    {
+        var snapshot = new GoTaskSnapshot(
+            _attachments.TakeSnapshot(),
+            _activeAgent,
+            _activeInstructions.ToArray(),
+            _actionModeOverride,
+            _visualResponseModeOverride);
+        _activeAgent = null;
+        _activeInstructions.Clear();
+        _actionModeOverride = null;
+        _visualResponseModeOverride = null;
+        RefreshAttachmentStatus();
+        RefreshResponseState();
+        return snapshot;
+    }
+
+    internal (string Instruction, GoTaskSnapshot Snapshot) CloneTaskState() =>
+        (_route.Instruction.Text ?? string.Empty, new GoTaskSnapshot(
+            _attachments.Snapshot(), _activeAgent, _activeInstructions.ToArray(),
+            _actionModeOverride, _visualResponseModeOverride));
+
+    public void RestorePendingTask(string instruction, TaskAttachmentSnapshot snapshot) =>
+        RestorePendingTask(instruction, new GoTaskSnapshot(snapshot, null, [], null, null));
+
+    internal void RestorePendingTask(string instruction, GoTaskSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _attachments.AttachSnapshot(snapshot.Attachments);
+        _activeAgent = snapshot.Agent;
+        _activeInstructions.Clear();
+        _activeInstructions.AddRange(snapshot.Instructions);
+        _actionModeOverride = snapshot.ActionMode;
+        _visualResponseModeOverride = snapshot.VisualResponseMode;
+        _route.Instruction.Text = instruction ?? string.Empty;
+        _route.Instruction.PlaceCaretAtEnd();
+        RefreshAttachmentStatus();
+        RefreshResponseState();
+        FocusComposer();
+    }
+
+    public void FocusComposer() => Scene.FocusElement(_route.Instruction);
+
+    internal Task SubmitOverlayInstructionAsync(string instruction)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(instruction)) return Task.CompletedTask;
+        _route.Instruction.Text = instruction.Trim();
+        _route.Instruction.PlaceCaretAtEnd();
+        Submit();
+        return Task.CompletedTask;
+    }
+
+    internal void ApplyTaskSelection(AddMenuSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        switch (selection.Item)
+        {
+            case ModeDefinition app:
+                AttachApp(app);
+                break;
+            case CapabilityDefinition capability:
+                ToggleCapability(capability);
+                break;
+            case AgentDefinition agent:
+                _activeAgent = agent;
+                break;
+            case PromptDefinition instruction:
+                if (_activeInstructions.All(item => item.Id != instruction.Id)) _activeInstructions.Add(instruction);
+                break;
+            case ChatActionMode actionMode:
+                _actionModeOverride = actionMode;
+                break;
+            case GenerativeUiResponseMode visualMode:
+                _visualResponseModeOverride = visualMode;
+                break;
+        }
+        RefreshAttachmentStatus();
+        RefreshResponseState();
+    }
 
     public void SetSuggestions(IReadOnlyList<GoSuggestion> suggestions)
     {
-        if (_disposed || suggestions.Count != _suggestionButtons.Length) return;
+        if (_disposed || suggestions.Count != 4) return;
         _suggestions = suggestions.ToArray();
-        for (var index = 0; index < _suggestions.Count; index++)
-        {
-            var suggestion = _suggestions[index];
-            var brush = new SolidColorBrush(Color.Parse(suggestion.Colour));
-            _suggestionIcons[index].IconKey = suggestion.IconKey;
-            _suggestionIcons[index].Foreground = brush;
-            _suggestionTexts[index].Text = suggestion.Label;
-            _suggestionTexts[index].Foreground = brush;
-            ToolTip.SetTip(_suggestionButtons[index], suggestion.Instruction);
-        }
+        _route.SetSuggestions(_suggestions);
     }
 
     public void SetAddCatalogue(
         IReadOnlyList<AgentDefinition> agents,
-        IReadOnlyList<PluginDefinition> plugins,
+        IReadOnlyList<CapabilityDefinition> capabilities,
         IReadOnlyList<PromptDefinition> instructions,
-        IReadOnlyList<ModeDefinition> apps) =>
-        AddButton.SetCatalogue(agents, plugins, instructions, apps);
+        IReadOnlyList<ModeDefinition> apps)
+    {
+        _availableApps = apps;
+        _route.SetCatalogue(agents, capabilities, instructions, apps);
+    }
 
     public void SetRefreshInProgress(bool inProgress)
     {
-        if (_disposed) return;
-        LoadMoreButton.IsEnabled = !inProgress;
-        LoadMoreButton.Content = new TextBlock
-        {
-            Text = inProgress ? "Finding more…" : "Load more",
-            Foreground = new SolidColorBrush(Color.Parse("#111111")),
-            FontSize = 14,
-            FontWeight = FontWeight.ExtraBold,
-            FontStyle = FontStyle.Italic
-        };
+        if (!_disposed) _route.SetRefreshInProgress(inProgress);
     }
 
     private void WireEvents()
     {
-        Register("Go.Suggestions.RecentChats", RecentChatsButton);
-        Register("Go.Suggestions.Study", StudyButton);
-        Register("Go.Suggestions.Studio", StudioButton);
-        Register("Go.Suggestions.Recap", RecapButton);
-        Register("Go.Suggestions.LoadMore", LoadMoreButton);
-        Register("Go.Composer.Instruction", InstructionBox);
-        Register("Go.Composer.Send", SendButton);
-        Register("Go.Composer.Add", AddButton);
+        Register("Go.Suggestions.RecentChats", _route.SuggestionButtons(0));
+        Register("Go.Suggestions.Study", _route.SuggestionButtons(1));
+        Register("Go.Suggestions.Studio", _route.SuggestionButtons(2));
+        Register("Go.Suggestions.Recap", _route.SuggestionButtons(3));
+        Register("Go.Suggestions.LoadMore", [_route.LoadMoreButton]);
+        Register("Go.Composer.Instruction", [_route.Instruction]);
+        Register("Go.Composer.Send", [_route.SendButton]);
+        Register("Go.Composer.Add", [_route.AddButton]);
 
-        RecentChatsButton.Click += (_, _) => SubmitSuggestion(0);
-        StudyButton.Click += (_, _) => SubmitSuggestion(1);
-        StudioButton.Click += (_, _) => SubmitSuggestion(2);
-        RecapButton.Click += (_, _) => SubmitSuggestion(3);
-        LoadMoreButton.Click += (_, _) =>
+        for (var index = 0; index < 4; index++)
+        {
+            var suggestionIndex = index;
+            foreach (var button in _route.SuggestionButtons(index))
+                button.Invoked += (_, _) => SubmitSuggestion(suggestionIndex);
+        }
+
+        _route.LoadMoreButton.Invoked += (_, _) =>
         {
             _bus.Fire("Go.Suggestions.LoadMore.Click");
             RefreshSuggestionsRequested?.Invoke(this, EventArgs.Empty);
         };
-        SendButton.Click += (_, _) => Submit();
-        InstructionBox.KeyDown += OnInstructionKeyDown;
-        AddButton.ActionSelected += (_, action) => AddRequested?.Invoke(this, action);
-        AddButton.CatalogItemSelected += (_, selection) => AddCatalogItemSelected?.Invoke(this, selection);
+        _route.SendButton.Invoked += (_, _) => Submit();
+        Scene.InputSubmitted += OnInputSubmitted;
+        Scene.PointerPressedOutside += OnPointerPressedOutside;
+
+        _route.AddActionSelected += (_, action) => AddRequested?.Invoke(this, action);
+        _route.AppShortcutInvoked += (_, app) => AppShortcutInvoked?.Invoke(this, app);
+        _route.CatalogItemSelected += (_, selection) =>
+        {
+            ApplyTaskSelection(selection);
+            AddCatalogItemSelected?.Invoke(this, selection);
+        };
+    }
+
+    private void OnInputSubmitted(Haven.UI.Components.Input input)
+    {
+        if (ReferenceEquals(input, _route.Instruction)) Submit();
+    }
+
+    private void OnPointerPressedOutside() => _route.HideAddMenu();
+
+    private void Register(string name, IEnumerable<HavenElement> elements)
+    {
+        _bus.RegisterElement(name, Scene);
+        foreach (var element in elements)
+        {
+            var previous = element.State;
+            EventHandler handler = (_, _) =>
+            {
+                var next = element.State;
+                if (previous.HasFlag(HavenElementState.Hover) != next.HasFlag(HavenElementState.Hover))
+                    _bus.Fire(name + (next.HasFlag(HavenElementState.Hover) ? ".Hover" : ".Leave"));
+                if (previous.HasFlag(HavenElementState.Pressed) != next.HasFlag(HavenElementState.Pressed))
+                    _bus.Fire(name + (next.HasFlag(HavenElementState.Pressed) ? ".Press" : ".Release"));
+                previous = next;
+            };
+            element.Invalidated += handler;
+            _stateSubscriptions.Add((element, handler));
+        }
     }
 
     private void SubmitSuggestion(int index)
@@ -111,33 +257,53 @@ public sealed partial class GoPage : UserControl, IDisposable
         SubmitRequested?.Invoke(this, _suggestions[index].Instruction);
     }
 
-    private void OnInstructionKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter || e.KeyModifiers.HasFlag(KeyModifiers.Shift)) return;
-        e.Handled = true;
-        Submit();
-    }
-
     private void Submit()
     {
-        var instruction = InstructionBox.Text?.Trim();
+        var instruction = _route.Instruction.Text.Trim();
         if (string.IsNullOrWhiteSpace(instruction)) return;
-        InstructionBox.Text = string.Empty;
+        _route.Instruction.Text = string.Empty;
         _bus.Fire("Go.Composer.Send.Click");
         SubmitRequested?.Invoke(this, instruction);
     }
 
-    private void Register(string name, Control control)
+    private void RefreshAttachmentStatus()
     {
-        _bus.RegisterElement(name, control);
-        _bus.WirePointerEvents(name, control);
+        if (_attachments.IsEmpty && _activeInstructions.Count == 0)
+        {
+            _route.SetAttachmentStatus(null);
+            return;
+        }
+
+        var parts = new List<string>();
+        if (_attachments.Apps.Count > 0) parts.Add("Apps: " + string.Join(", ", _attachments.Apps.Select(item => item.Name)));
+        if (_attachments.Capabilities.Count > 0) parts.Add("Capabilities: " + string.Join(", ", _attachments.Capabilities.Select(item => item.Name)));
+        if (_activeInstructions.Count > 0) parts.Add("Instructions: " + string.Join(", ", _activeInstructions.Select(item => item.Name)));
+        if (_attachments.Files.Count > 0) parts.Add("Files: " + string.Join(", ", _attachments.Files.Select(Path.GetFileName)));
+        _route.SetAttachmentStatus(string.Join("  â€¢  ", parts));
     }
+
+    private void RefreshResponseState() =>
+        _route.SetResponseState(
+            _activeAgent?.Name ?? "No Agent (Default)",
+            _actionModeOverride ?? ChatActionMode.AllowBasicActions,
+            _visualResponseModeOverride ?? GenerativeUiResponseMode.Auto);
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        AddButton.Dispose();
+        Scene.InputSubmitted -= OnInputSubmitted;
+        Scene.PointerPressedOutside -= OnPointerPressedOutside;
+        foreach (var (element, handler) in _stateSubscriptions) element.Invalidated -= handler;
+        _stateSubscriptions.Clear();
+        _route.Dispose();
         Disposed?.Invoke(this, EventArgs.Empty);
     }
 }
+
+internal sealed record GoTaskSnapshot(
+    TaskAttachmentSnapshot Attachments,
+    AgentDefinition? Agent,
+    IReadOnlyList<PromptDefinition> Instructions,
+    ChatActionMode? ActionMode,
+    GenerativeUiResponseMode? VisualResponseMode);

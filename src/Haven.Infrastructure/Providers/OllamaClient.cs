@@ -79,10 +79,20 @@ public sealed class OllamaClient(HttpClient httpClient, ProviderUsageCaptureBuff
             var root = document.RootElement;
             if (root.TryGetProperty("error", out var error))
                 throw new InvalidOperationException(error.GetString() ?? "Ollama streaming error.");
-            if (root.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content))
+            if (root.TryGetProperty("message", out var message))
             {
-                var chunk = content.GetString();
-                if (!string.IsNullOrEmpty(chunk)) yield return chunk;
+                // Extract thinking tokens (for models like Qwen3 that support /think)
+                if (message.TryGetProperty("thinking", out var thinking) && thinking.ValueKind == JsonValueKind.String)
+                {
+                    var thinkingChunk = thinking.GetString();
+                    if (!string.IsNullOrEmpty(thinkingChunk)) yield return "\x00T:" + thinkingChunk;
+                }
+                // Extract content tokens
+                if (message.TryGetProperty("content", out var content))
+                {
+                    var chunk = content.GetString();
+                    if (!string.IsNullOrEmpty(chunk)) yield return chunk;
+                }
             }
             if (root.TryGetProperty("done", out var done) && done.GetBoolean())
             {

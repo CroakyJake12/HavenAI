@@ -67,15 +67,15 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         await using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO mode_definitions(id, key, name, description, icon_key, base_mode, surfaces_json,
-                tool_allowlist_json, tool_denylist_json, plugins_json, system_prompt_suffix, source,
+                tool_allowlist_json, tool_denylist_json, capabilities_json, system_prompt_suffix, source,
                 install_state, author, version, tags_json, created_at, updated_at, is_enabled)
             VALUES($id, $key, $name, $description, $iconKey, $baseMode, $surfacesJson,
-                $toolAllowlistJson, $toolDenylistJson, $pluginsJson, $systemPromptSuffix, $source,
+                $toolAllowlistJson, $toolDenylistJson, $capabilitiesJson, $systemPromptSuffix, $source,
                 $installState, $author, $version, $tagsJson, $createdAt, $updatedAt, $isEnabled)
             ON CONFLICT(id) DO UPDATE SET
                 key=$key, name=$name, description=$description, icon_key=$iconKey, base_mode=$baseMode,
                 surfaces_json=$surfacesJson, tool_allowlist_json=$toolAllowlistJson,
-                tool_denylist_json=$toolDenylistJson, plugins_json=$pluginsJson,
+                tool_denylist_json=$toolDenylistJson, capabilities_json=$capabilitiesJson,
                 system_prompt_suffix=$systemPromptSuffix, source=$source, install_state=$installState,
                 author=$author, version=$version, tags_json=$tagsJson, updated_at=$updatedAt,
                 is_enabled=$isEnabled;
@@ -89,7 +89,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         command.Parameters.AddWithValue("$surfacesJson", mode.SurfacesJson);
         command.Parameters.AddWithValue("$toolAllowlistJson", mode.ToolAllowlistJson);
         command.Parameters.AddWithValue("$toolDenylistJson", mode.ToolDenylistJson);
-        command.Parameters.AddWithValue("$pluginsJson", mode.PluginsJson);
+        command.Parameters.AddWithValue("$capabilitiesJson", mode.CapabilitiesJson);
         command.Parameters.AddWithValue("$systemPromptSuffix", mode.SystemPromptSuffix);
         command.Parameters.AddWithValue("$source", (int)mode.Source);
         command.Parameters.AddWithValue("$installState", (int)mode.InstallState);
@@ -226,7 +226,7 @@ public sealed class ModeRegistry(ISqliteConnectionFactory factory) : IModeRegist
         reader.String("surfaces_json"),
         reader.String("tool_allowlist_json"),
         reader.String("tool_denylist_json"),
-        reader.String("plugins_json"),
+        reader.String("capabilities_json"),
         reader.String("system_prompt_suffix"),
         (ModeSource)reader.Int32("source"),
         (ModeInstallState)reader.Int32("install_state"),

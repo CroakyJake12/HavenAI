@@ -1,0 +1,5 @@
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Core\obj-apk3\Debug\net10.0\Haven.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Core\obj-apk3\Debug\net10.0\Haven.Core.AssemblyInfoInputs.cache
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Core\obj-apk3\Debug\net10.0\Haven.Core.AssemblyInfo.cs
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Core\obj-apk3\Debug\net10.0\Haven.Core.csproj.CoreCompileInputs.cache
+C:\Users\Jacob\OneDrive\Personal Files\Development\Visual Studio\Haven AI\Source\src\Haven.Core\obj-apk3\Debug\net10.0\Haven.Core.sourcelink.json
