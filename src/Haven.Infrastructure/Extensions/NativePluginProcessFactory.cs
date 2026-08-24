@@ -16,16 +16,16 @@ internal sealed class NativePluginProcess(InstalledExtensionPackage package) : I
     private bool _started;
     public string PackageId => package.Manifest.PackageId;
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        await ExtensionPackageIntegrity.VerifyInstalledAsync(package, cancellationToken).ConfigureAwait(false);
         foreach (var capability in package.Manifest.Capabilities)
         {
             var path = Resolve(capability.EntryPoint);
             if (!File.Exists(path)) throw new FileNotFoundException($"Plugin entry point '{capability.EntryPoint}' was not found.", path);
         }
         _started = true;
-        return Task.CompletedTask;
     }
 
     public async Task<string> InvokeAsync(string capabilityId, string redactedArgumentsJson, CancellationToken cancellationToken)
@@ -33,6 +33,7 @@ internal sealed class NativePluginProcess(InstalledExtensionPackage package) : I
         if (!_started) throw new InvalidOperationException("Plugin process boundary has not been started.");
         var capability = package.Manifest.Capabilities.FirstOrDefault(item => item.Id.Equals(capabilityId, StringComparison.OrdinalIgnoreCase))
             ?? throw new KeyNotFoundException("Plugin capability was not declared.");
+        await ExtensionPackageIntegrity.VerifyInstalledAsync(package, cancellationToken).ConfigureAwait(false);
         var entryPoint = Resolve(capability.EntryPoint);
         var start = new ProcessStartInfo
         {
