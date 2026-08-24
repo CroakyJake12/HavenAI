@@ -62,7 +62,7 @@ internal sealed partial class CanvasHavenScene : IDisposable
         BoardSurface.Add(UnifiedSurface);
         Workspace.Add(BoardSurface);
 
-        Inspector = NewCard("Canvas.Inspector"); Inspector.SetValue(HavenProperties.Column, 1); Inspector.SetValue(HavenProperties.Width, HavenLength.Px(280)); Inspector.SetValue(HavenProperties.Height, HavenLength.Percent(100)); Inspector.SetValue(HavenProperties.Responsive, true); Inspector.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); BuildInspector(); Workspace.Add(Inspector); Root.Add(Workspace);
+        Inspector = NewCard("Canvas.Inspector"); Inspector.SetValue(HavenProperties.Column, 1); Inspector.SetValue(HavenProperties.Width, HavenLength.Px(280)); Inspector.SetValue(HavenProperties.Height, HavenLength.Percent(100)); Inspector.SetValue(HavenProperties.Responsive, true); Inspector.SetValue(HavenProperties.Overflow, HavenOverflow.Scroll); BuildInspector(); BuildRecoveryControls(); Workspace.Add(Inspector); Root.Add(Workspace);
         StatusText = Caption("Opening local canvases…"); StatusText.Name = "Canvas.Status"; StatusText.SetValue(HavenProperties.Row, 3); Root.Add(StatusText);
 
         TitleInput.Invalidated += OnTitleInvalidated; ObjectTextInput.Invalidated += OnObjectTextInvalidated; XInput.Invalidated += (_, _) => EmitNumber(XInput, ref _x, XChanged); YInput.Invalidated += (_, _) => EmitNumber(YInput, ref _y, YChanged); WidthInput.Invalidated += (_, _) => EmitNumber(WidthInput, ref _width, WidthChanged); HeightInput.Invalidated += (_, _) => EmitNumber(HeightInput, ref _height, HeightChanged); RotationInput.Invalidated += (_, _) => EmitNumber(RotationInput, ref _rotation, RotationChanged);
@@ -99,10 +99,13 @@ internal sealed partial class CanvasHavenScene : IDisposable
         {
             _title = document.Title; TitleInput.Text = document.Title; PositionText.Content = $"Canvas {documentIndex + 1} of {Math.Max(1, documentCount)} · v{document.Version}";
             if (!ReferenceEquals(UnifiedSurface.Controller, controller)) UnifiedSurface.SetController(controller);
-            UnifiedSurface.SetTool(ToUnifiedTool(controller.Tool));
+            var currentSurfaceTool = UnifiedSurface.Tool;
+            if (controller.Tool != CanvasTool.Select || currentSurfaceTool is not (UnifiedCanvasTool.Lasso or UnifiedCanvasTool.LaserPointer or UnifiedCanvasTool.LaserLasso))
+                UnifiedSurface.SetTool(ToUnifiedTool(controller.Tool));
             InfiniteToggle.IsChecked = controller.Board.Infinite; ZoomSlider.Value = controller.Board.Zoom;
             UndoButton.SetValue(HavenProperties.Enabled, canUndo); RedoButton.SetValue(HavenProperties.Enabled, canRedo); SetToolVisual(controller.Tool);
             RefreshSurfaceMetadata(controller);
+            RefreshRecoveryState(controller);
         }
         finally { _suppressChanges = false; }
     }
@@ -165,5 +168,5 @@ internal sealed partial class CanvasHavenScene : IDisposable
     private static HavenButton NewButton(string name, string label) { var button = new HavenButton { Name = name, Content = label, Variant = ButtonVariant.Tertiary }; button.Accessibility.AccessibleName = label; button.SetValue(HavenProperties.MinHeight, HavenLength.Px(38)); return button; }
     private static Input NewInput(string name, string accessibleName, string placeholder) { var input = new Input { Name = name, Placeholder = placeholder }; input.Accessibility.AccessibleName = accessibleName; input.SetValue(HavenProperties.Width, HavenLength.Percent(100)); return input; }
     private static HavenText Caption(string text) { var value = new HavenText(text) { Level = TextLevel.Caption }; value.SetValue(HavenProperties.Foreground, "TextSecondary"); return value; }
-    public void Dispose() { if (_disposed) return; _disposed = true; TitleInput.Invalidated -= OnTitleInvalidated; ObjectTextInput.Invalidated -= OnObjectTextInvalidated; }
+    public void Dispose() { if (_disposed) return; _disposed = true; TitleInput.Invalidated -= OnTitleInvalidated; ObjectTextInput.Invalidated -= OnObjectTextInvalidated; DisposeRecovery(); }
 }

@@ -20,7 +20,7 @@ public readonly record struct CanvasPointerSample(
     double TiltY = 0,
     long TimestampMilliseconds = 0);
 
-public static class CanvasDocumentModel
+public static partial class CanvasDocumentModel
 {
     public const string ExperienceMetadataKey = "haven.experience";
     public const string ExperienceMetadataValue = "canvas";
@@ -281,20 +281,15 @@ public sealed partial class CanvasInteractionController
                     Tool = Tool == CanvasTool.Highlighter ? "highlighter" : "pen",
                     Colour = PenColour,
                     BaseWidth = Tool == CanvasTool.Highlighter ? Math.Max(8, PenWidth * 3) : Math.Max(0.5, PenWidth),
-                    Opacity = Tool == CanvasTool.Highlighter ? 0.32 : 1,
+                    Opacity = Tool == CanvasTool.Highlighter ? Math.Min(Math.Clamp(PenOpacity, 0.05, 1), 0.32) : Math.Clamp(PenOpacity, 0.05, 1),
                     Points = [ToInkPoint(sample, point)]
                 };
                 Board.Strokes.Add(_activeStroke);
                 return true;
 
             case CanvasTool.Eraser:
-            {
-                var stroke = FindStroke(point.X, point.Y, 16 / Math.Max(Board.Zoom, 0.05));
-                if (stroke is null) return false;
-                History.Capture(Board);
-                Board.Strokes.Remove(stroke);
-                return true;
-            }
+                BeginEraseGesture();
+                return EraseAtViewport(sample.ViewportX, sample.ViewportY);
 
             case CanvasTool.Pan:
                 return false;
@@ -332,6 +327,10 @@ public sealed partial class CanvasInteractionController
                 changed = true;
             }
         }
+        else if (Tool == CanvasTool.Eraser)
+        {
+            changed = EraseAtViewport(sample.ViewportX, sample.ViewportY);
+        }
         else if (Tool == CanvasTool.Pan)
         {
             var dx = sample.ViewportX - _lastViewport.ViewportX;
@@ -367,6 +366,7 @@ public sealed partial class CanvasInteractionController
         _activeStroke = null;
         _dragObjectId = null;
         _gestureCaptured = false;
+        if (Tool == CanvasTool.Eraser) EndEraseGesture();
         return changed;
     }
 
@@ -593,7 +593,9 @@ public sealed partial class CanvasInteractionController
     {
         X = point.X,
         Y = point.Y,
-        Pressure = Math.Clamp(Finite(sample.Pressure, 0.5), 0, 1),
+        Pressure = PenEffect.Equals("Uniform", StringComparison.OrdinalIgnoreCase) ? 0.5
+            : PenEffect.Equals("Marker", StringComparison.OrdinalIgnoreCase) ? 0.85
+            : Math.Clamp(Finite(sample.Pressure, 0.5), 0, 1),
         TiltX = Math.Clamp(Finite(sample.TiltX, 0), -90, 90),
         TiltY = Math.Clamp(Finite(sample.TiltY, 0), -90, 90),
         TimestampMilliseconds = Math.Max(0, sample.TimestampMilliseconds - _strokeStartedAt)

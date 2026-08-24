@@ -29,7 +29,7 @@ public sealed partial class MainView
                 services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>(),
                 ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>()),
             "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
-                services.GetRequiredService<INotesImportExportService>()),
+                services.GetRequiredService<INotesImportExportService>(), services.GetRequiredService<UserPreferencesService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
                 services.GetRequiredService<IPresentExportService>(), services.GetRequiredService<IPresentImportService>()),
             "data" => new DataPage(_bus, services.GetRequiredService<IDataWorkbookRepository>(),
