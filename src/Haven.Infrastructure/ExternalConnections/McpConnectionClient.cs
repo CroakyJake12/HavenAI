@@ -112,7 +112,13 @@ public sealed class McpConnectionClient(IProviderSecretStore secrets) : IMcpConn
     private static string BoundedJson<T>(T value, int maxCharacters)
     {
         var json = JsonSerializer.Serialize(value);
-        return json.Length <= maxCharacters ? json : json[..maxCharacters] + "... [truncated by Haven]";
+        if (json.Length <= maxCharacters) return json;
+        return JsonSerializer.Serialize(new
+        {
+            source = "untrusted external MCP JSON",
+            truncated = true,
+            reason = "MCP JSON exceeded Haven's safety size limit."
+        });
     }
 
     private static string Bound(string value, int max) => value.Length <= max ? value : value[..max];
