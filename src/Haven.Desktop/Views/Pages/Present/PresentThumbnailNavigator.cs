@@ -4,7 +4,7 @@ using Haven.UI;
 
 namespace Haven.Desktop.Views.Pages.Present;
 
-internal sealed class PresentThumbnailNavigator : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget
+internal sealed class PresentThumbnailNavigator : HavenElement, IHavenDrawCommandSource, IHavenPointerInputTarget, IHavenScrollInputTarget, IHavenKeyboardInputTarget
 {
     private const double HorizontalPadding = 10;
     private const double VerticalPadding = 8;
@@ -111,6 +111,58 @@ internal sealed class PresentThumbnailNavigator : HavenElement, IHavenDrawComman
         if (Math.Abs(before - _scrollOffset) < .001) return false;
         Invalidate();
         return true;
+    }
+
+    public bool KeyDown(HavenKeyInput input)
+    {
+        if (_document is null || _document.Slides.Count == 0) return false;
+        if (input.PrimaryModifier && input.Key == HavenKey.Up) return RequestKeyboardReorder(-1);
+        if (input.PrimaryModifier && input.Key == HavenKey.Down) return RequestKeyboardReorder(1);
+        return input.Key switch
+        {
+            HavenKey.Up => SelectKeyboardSlide(_selectedIndex - 1),
+            HavenKey.Down => SelectKeyboardSlide(_selectedIndex + 1),
+            HavenKey.Home => SelectKeyboardSlide(0),
+            HavenKey.End => SelectKeyboardSlide(_document.Slides.Count - 1),
+            _ => false
+        };
+    }
+
+    public bool KeyUp(HavenKeyInput input) => input.Key is HavenKey.Up or HavenKey.Down or HavenKey.Home or HavenKey.End;
+
+    private bool SelectKeyboardSlide(int index)
+    {
+        if (_document is null || _document.Slides.Count == 0) return false;
+        var target = Math.Clamp(index, 0, _document.Slides.Count - 1);
+        if (target == _selectedIndex) return true;
+        _selectedIndex = target;
+        EnsureSelectedVisible();
+        UpdateAccessibilityDescription();
+        SlideSelected?.Invoke(target);
+        Invalidate();
+        return true;
+    }
+
+    private bool RequestKeyboardReorder(int delta)
+    {
+        if (_document is null || _document.Slides.Count < 2) return false;
+        var target = Math.Clamp(_selectedIndex + delta, 0, _document.Slides.Count - 1);
+        if (target == _selectedIndex) return true;
+        var from = _selectedIndex;
+        _selectedIndex = target;
+        EnsureSelectedVisible();
+        UpdateAccessibilityDescription();
+        SlideReorderRequested?.Invoke(from, target);
+        Invalidate();
+        return true;
+    }
+
+    private void UpdateAccessibilityDescription()
+    {
+        var count = _document?.Slides.Count ?? 0;
+        Accessibility.Description = count == 0
+            ? "No slides."
+            : $"{count} slides. Slide {_selectedIndex + 1} selected. Use Up and Down to select, or Control plus Up and Down to reorder.";
     }
 
     public void Draw(HavenDrawingContext context, double opacity)

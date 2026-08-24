@@ -269,8 +269,24 @@ public sealed class HavenInputRouter(HavenElement root)
 
     public bool TextInput(string? text)
     {
+        RepairDetachedFocus();
         if (_focused is Input input) return input.InsertText(text);
         return _focused is IHavenTextInputTarget custom && custom.TextInput(text);
+    }
+
+    private void RepairDetachedFocus()
+    {
+        if (_focused is null || root.DescendantsAndSelf().Contains(_focused)) return;
+        var stale = _focused;
+        var stableName = stale.Name;
+        stale.SetState(HavenElementState.Focused, false);
+        _focused = null;
+        if (string.IsNullOrWhiteSpace(stableName)) return;
+        var replacement = root.DescendantsAndSelf().FirstOrDefault(element =>
+            string.Equals(element.Name, stableName, StringComparison.Ordinal)
+            && element.Accessibility.Focusable
+            && IsInteractive(element));
+        if (replacement is not null) Focus(replacement);
     }
 
     public bool PasteText(string? text)

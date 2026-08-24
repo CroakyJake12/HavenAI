@@ -85,9 +85,21 @@ public sealed class WorkspaceTabViewModel : ObservableObject, IDisposable
         }
 
         _backHistory.Push(CaptureState());
-        _forwardHistory.Clear();
+        DisposeAbandonedForwardHistory(page);
         ApplyState(new WorkspaceTabState(key, InferAppKey(key), title, page, isCloseable, surface));
         RaiseHistoryChanged();
+    }
+
+    private void DisposeAbandonedForwardHistory(object nextPage)
+    {
+        if (_forwardHistory.Count == 0) return;
+        var retained = _backHistory.Select(state => state.Page)
+            .Append(Page)
+            .Append(nextPage)
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+        foreach (var abandoned in _forwardHistory.Select(state => state.Page).Distinct(ReferenceEqualityComparer.Instance))
+            if (!retained.Contains(abandoned) && abandoned is IDisposable disposable) disposable.Dispose();
+        _forwardHistory.Clear();
     }
 
     public bool TryGoBack()
