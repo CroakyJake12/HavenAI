@@ -7,9 +7,8 @@
  * Maintenance: Preserve the layer boundary, nullability annotations, cancellation flow, and existing public signatures when changing this file.
  */
 
-using System.Diagnostics;
-using System.ComponentModel;
 using System.Net;
+using System.Net.Sockets;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,7 +26,8 @@ public abstract class OAuthCalendarTransportBase(
     IHttpClientFactory httpClientFactory,
     IPlannerRepository repository,
     ICalendarSyncStore store,
-    ICalendarTokenStore tokenStore) : ICalendarProviderTransport
+    ICalendarTokenStore tokenStore,
+    IOAuthBrowserLauncher browserLauncher) : ICalendarProviderTransport
 {
     /// <summary>
     /// Gets or updates client, the bindable or domain state represented by this property.
@@ -72,30 +72,21 @@ public abstract class OAuthCalendarTransportBase(
         if (!ReferenceEquals(suppliedConfiguration, configuration) && suppliedConfiguration.Provider != Kind)
             throw new ArgumentException("The OAuth configuration does not match this provider.", nameof(suppliedConfiguration));
         if (!configuration.IsConfigured) return new(false, CalendarSyncStatus.NotConfigured, $"{Kind} Calendar is not configured.");
-        if (!OperatingSystem.IsWindows()) return new(false, CalendarSyncStatus.Error, "Calendar sign-in currently requires Windows.");
 
         try
         {
             var verifier = Base64Url(RandomNumberGenerator.GetBytes(48));
             var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
             var state = Base64Url(RandomNumberGenerator.GetBytes(32));
-            using var listener = new HttpListener();
-            var prefix = EnsureListenerPrefix(configuration.RedirectUri);
-            listener.Prefixes.Add(prefix);
-            listener.Start();
-
             var authorization = BuildAuthorizationUri(state, challenge);
-            Process.Start(new ProcessStartInfo(authorization.AbsoluteUri) { UseShellExecute = true });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromMinutes(5));
-            var context = await listener.GetContextAsync().WaitAsync(timeout.Token).ConfigureAwait(false);
-            var query = context.Request.QueryString;
-            await CompleteBrowserResponseAsync(context.Response, query["error"] is null, cancellationToken).ConfigureAwait(false);
-            if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(query["state"] ?? string.Empty)))
+            var query = await ReceiveAuthorizationRedirectAsync(configuration.RedirectUri, authorization, browserLauncher, timeout.Token).ConfigureAwait(false);
+            if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(query.GetValueOrDefault("state") ?? string.Empty)))
                 throw new InvalidOperationException("Calendar sign-in returned an invalid state value.");
-            if (!string.IsNullOrWhiteSpace(query["error"]))
-                throw new InvalidOperationException($"Calendar sign-in was declined: {query["error_description"] ?? query["error"]}");
-            var code = query["code"] ?? throw new InvalidOperationException("Calendar sign-in did not return an authorization code.");
+            if (!string.IsNullOrWhiteSpace(query.GetValueOrDefault("error")))
+                throw new InvalidOperationException("Calendar sign-in was declined.");
+            var code = query.GetValueOrDefault("code") ?? throw new InvalidOperationException("Calendar sign-in did not return an authorization code.");
             var token = await ExchangeCodeAsync(code, verifier, cancellationToken).ConfigureAwait(false);
             var identity = await GetIdentityAsync(token.AccessToken, cancellationToken).ConfigureAwait(false);
             var accounts = await repository.GetCalendarAccountsAsync(cancellationToken).ConfigureAwait(false);
@@ -112,9 +103,9 @@ public abstract class OAuthCalendarTransportBase(
         {
             return new(false, CalendarSyncStatus.Error, "Calendar sign-in timed out.");
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or Win32Exception or HttpListenerException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or SocketException or IOException)
         {
-            return new(false, CalendarSyncStatus.Error, $"{Kind} Calendar sign-in failed: {ex.Message}");
+            return new(false, CalendarSyncStatus.Error, $"{Kind} Calendar sign-in failed.");
         }
     }
 
@@ -160,13 +151,13 @@ public abstract class OAuthCalendarTransportBase(
         catch (OperationCanceledException) { throw; }
         catch (HttpRequestException ex)
         {
-            var result = new CalendarSyncResult(false, CalendarSyncStatus.Offline, 0, 0, 0, 0, $"{Kind} Calendar is offline: {ex.Message}");
+            var result = new CalendarSyncResult(false, CalendarSyncStatus.Offline, 0, 0, 0, 0, $"{Kind} Calendar is offline.");
             await repository.UpsertCalendarAccountAsync(account with { Status = result.Status, StatusMessage = result.Message, UpdatedAt = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
             return result;
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            var result = new CalendarSyncResult(false, CalendarSyncStatus.Error, 0, 0, 0, 0, $"{Kind} Calendar sync failed: {ex.Message}");
+            var result = new CalendarSyncResult(false, CalendarSyncStatus.Error, 0, 0, 0, 0, $"{Kind} Calendar sync failed.");
             await repository.UpsertCalendarAccountAsync(account with { Status = result.Status, StatusMessage = result.Message, UpdatedAt = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
             return result;
         }
@@ -294,28 +285,83 @@ public abstract class OAuthCalendarTransportBase(
         return new(accessToken, refreshToken, DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn)), scope);
     }
 
-    /// <summary>
-    /// Performs complete browser response asynchronously so I/O does not block the caller's thread.
-    /// </summary>
-    private static async Task CompleteBrowserResponseAsync(HttpListenerResponse response, bool success, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyDictionary<string, string?>> ReceiveAuthorizationRedirectAsync(
+        Uri redirectUri,
+        Uri authorizationUri,
+        IOAuthBrowserLauncher browserLauncher,
+        CancellationToken cancellationToken)
     {
-        var html = success
-            ? "<!doctype html><title>Haven Calendar</title><style>body{font:16px system-ui;background:#0b111a;color:#eef7ff;padding:3rem}</style><h1>Calendar connected</h1><p>You can return to Haven.</p>"
-            : "<!doctype html><title>Haven Calendar</title><style>body{font:16px system-ui;background:#0b111a;color:#eef7ff;padding:3rem}</style><h1>Sign-in was not completed</h1><p>You can return to Haven and try again.</p>";
-        var bytes = Encoding.UTF8.GetBytes(html);
-        response.ContentType = "text/html; charset=utf-8";
-        response.ContentLength64 = bytes.Length;
-        await response.OutputStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-        response.Close();
+        if (!redirectUri.IsLoopback)
+            throw new InvalidOperationException("OAuth redirect URI must use a loopback host.");
+
+        var address = redirectUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            ? IPAddress.Loopback
+            : IPAddress.TryParse(redirectUri.Host, out var parsed) && IPAddress.IsLoopback(parsed)
+                ? parsed
+                : throw new InvalidOperationException("OAuth redirect URI must use localhost or a loopback address.");
+
+        using var listener = new TcpListener(address, redirectUri.Port);
+        listener.Server.ExclusiveAddressUse = true;
+        listener.Start(1);
+        await browserLauncher.LaunchAsync(authorizationUri, cancellationToken).ConfigureAwait(false);
+
+        using var client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
+        using var stream = client.GetStream();
+        using var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, leaveOpen: true);
+        var requestLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)
+                          ?? throw new InvalidOperationException("OAuth redirect returned an empty HTTP request.");
+        var parts = requestLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || !parts[0].Equals("GET", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("OAuth redirect returned an unsupported HTTP request.");
+
+        var requestUri = new Uri(new Uri($"http://{redirectUri.Host}:{redirectUri.Port}"), parts[1]);
+        if (!requestUri.AbsolutePath.Equals(redirectUri.AbsolutePath, StringComparison.Ordinal))
+            throw new InvalidOperationException("OAuth redirect returned to an unexpected path.");
+
+        string? header;
+        do
+        {
+            header = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        } while (!string.IsNullOrEmpty(header));
+
+        var query = ParseQuery(requestUri.Query);
+        await WriteLoopbackResponseAsync(stream, query.GetValueOrDefault("error") is null, cancellationToken).ConfigureAwait(false);
+        return query;
     }
 
-    /// <summary>
-    /// Performs the ensure listener prefix step owned by this component.
-    /// </summary>
-    private static string EnsureListenerPrefix(Uri redirect)
+    private static Dictionary<string, string?> ParseQuery(string query)
     {
-        var value = redirect.AbsoluteUri;
-        return value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var part in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            var key = WebUtility.UrlDecode(pair[0]);
+            if (string.IsNullOrWhiteSpace(key)) continue;
+            result[key] = pair.Length == 2 ? WebUtility.UrlDecode(pair[1]) : string.Empty;
+        }
+        return result;
+    }
+
+    private static async Task WriteLoopbackResponseAsync(Stream stream, bool success, CancellationToken cancellationToken)
+    {
+        var html = success
+            ? "<!doctype html><title>Haven</title><meta name='viewport' content='width=device-width'><style>body{font:16px system-ui;background:#0b111a;color:#eef7ff;padding:3rem}</style><h1>Connected to Haven</h1><p>You can return to the app.</p>"
+            : "<!doctype html><title>Haven</title><meta name='viewport' content='width=device-width'><style>body{font:16px system-ui;background:#0b111a;color:#eef7ff;padding:3rem}</style><h1>Sign-in was not completed</h1><p>You can return to Haven and try again.</p>";
+        var body = Encoding.UTF8.GetBytes(html);
+        var crlf = ((char)13).ToString() + (char)10;
+        var headers = Encoding.ASCII.GetBytes(string.Join(crlf,
+        [
+            "HTTP/1.1 200 OK",
+            "Content-Type: text/html; charset=utf-8",
+            $"Content-Length: {body.Length}",
+            "Connection: close",
+            "Cache-Control: no-store",
+            string.Empty,
+            string.Empty
+        ]));
+        await stream.WriteAsync(headers, cancellationToken).ConfigureAwait(false);
+        await stream.WriteAsync(body, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

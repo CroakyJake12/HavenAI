@@ -26,6 +26,10 @@ public static class AndroidServiceRegistration
         services.AddSingleton<IProviderSecretStore, AndroidProviderSecretStore>();
         services.RemoveAll<ICalendarTokenStore>();
         services.AddSingleton<ICalendarTokenStore, AndroidCalendarTokenStore>();
+        services.RemoveAll<IOAuthBrowserLauncher>();
+        services.AddSingleton<IOAuthBrowserLauncher, AndroidOAuthBrowserLauncher>();
+        services.RemoveAll<ICalendarOAuthClientIdProvider>();
+        services.AddSingleton<ICalendarOAuthClientIdProvider, AndroidCalendarOAuthClientIdProvider>();
         services.RemoveAll<IScreenShareService>();
         services.AddSingleton<IScreenShareService, WindowsGraphicsCaptureService>();
         services.AddSingleton<ISpeechInputService, AndroidSpeechInputService>();
