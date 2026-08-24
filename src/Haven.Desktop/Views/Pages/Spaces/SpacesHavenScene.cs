@@ -1,4 +1,5 @@
 using Haven.Application;
+using Haven.Core;
 using Haven.Desktop.Services;
 using Haven.UI;
 using Haven.UI.Components;
@@ -56,10 +57,12 @@ internal sealed class SpacesHavenScene : IDisposable
         GeneratedPreview = Get<Container>("GeneratedPreview");
         FilePermission = Get<Select>("FilePermission");
         Files = Get<Container>("Files");
+        Conversations = Get<Container>("Conversations");
         CreateSpace = Get<HavenButton>("CreateSpace");
         ShowArchived = Get<HavenButton>("ShowArchived");
         Save = Get<HavenButton>("Save");
         Launch = Get<HavenButton>("Launch");
+        NewConversation = Get<HavenButton>("NewConversation");
         Fork = Get<HavenButton>("Fork");
         Archive = Get<HavenButton>("Archive");
         Delete = Get<HavenButton>("Delete");
@@ -80,6 +83,7 @@ internal sealed class SpacesHavenScene : IDisposable
         ShowArchived.Invoked += OnShowArchived;
         Save.Invoked += OnSave;
         Launch.Invoked += OnLaunch;
+        NewConversation.Invoked += (_, _) => { if (_selected is { } space) NewConversationRequested?.Invoke(this, space.Id); };
         Fork.Invoked += OnFork;
         Archive.Invoked += OnArchive;
         Delete.Invoked += OnDelete;
@@ -120,10 +124,12 @@ internal sealed class SpacesHavenScene : IDisposable
     public Container GeneratedPreview { get; }
     public Select FilePermission { get; }
     public Container Files { get; }
+    public Container Conversations { get; }
     public HavenButton CreateSpace { get; }
     public HavenButton ShowArchived { get; }
     public HavenButton Save { get; }
     public HavenButton Launch { get; }
+    public HavenButton NewConversation { get; }
     public HavenButton Fork { get; }
     public HavenButton Archive { get; }
     public HavenButton Delete { get; }
@@ -138,6 +144,8 @@ internal sealed class SpacesHavenScene : IDisposable
     public event EventHandler<Guid>? SpaceSelected;
     public event EventHandler<SpaceEditorDraft>? SaveRequested;
     public event EventHandler<Guid>? LaunchRequested;
+    public event EventHandler<Guid>? ConversationSelected;
+    public event EventHandler<Guid>? NewConversationRequested;
     public event EventHandler<Guid>? ForkRequested;
     public event EventHandler<Guid>? ArchiveRequested;
     public event EventHandler<Guid>? DeleteRequested;
@@ -228,6 +236,8 @@ internal sealed class SpacesHavenScene : IDisposable
         }
     }
 
+    public void SetConversations(IReadOnlyList<Conversation> rows) { foreach (var child in Conversations.Children.ToArray()) Conversations.Remove(child); if (rows.Count == 0) { Conversations.Add(Muted("No chats in this Space yet.")); return; } foreach (var row in rows) { var id = row.Id; var open = new HavenButton { Content = row.Title, IconKey = "chat", Variant = ButtonVariant.Navigation }; open.SetValue(HavenProperties.Width, HavenLength.Percent(100)); open.SetValue(HavenProperties.MinHeight, HavenLength.Px(38)); open.Accessibility.AccessibleName = $"Open chat {row.Title}"; open.Invoked += (_, _) => ConversationSelected?.Invoke(this, id); Conversations.Add(open); } }
+
     public void SetSpace(SpaceDefinition? space)
     {
         _selected = space;
@@ -235,6 +245,8 @@ internal sealed class SpacesHavenScene : IDisposable
         {
             EmptyState.SetValue(HavenProperties.Visibility, HavenVisibility.Visible);
             Editor.SetValue(HavenProperties.Visibility, HavenVisibility.Collapsed);
+            NewConversation.SetValue(HavenProperties.Enabled, false);
+            SetConversations([]);
             return;
         }
 
@@ -257,6 +269,7 @@ internal sealed class SpacesHavenScene : IDisposable
         Archive.Content = space.IsArchived ? "Restore" : "Archive";
         Delete.SetValue(HavenProperties.Enabled, !space.IsBuiltIn);
         Delete.Content = space.IsBuiltIn ? "Built-in Space" : "Delete";
+        NewConversation.SetValue(HavenProperties.Enabled, !space.IsArchived);
         SetEditWithHavenAvailable(_editWithHavenAvailable);
     }
 
@@ -557,6 +570,7 @@ internal sealed class SpacesHavenScene : IDisposable
                       <Button Name="Fork" Column="2" Variant="Tertiary" Content="Fork" MinHeight="36px" />
                       <Button Name="Archive" Column="3" Variant="Tertiary" Content="Archive" MinHeight="36px" />
                     </Container>
+                    <Container Layout="Vertical" Gap="6px" Width="100%"><Text Content="Conversations" Level="H2" /><Button Name="NewConversation" Variant="Tertiary" Content="New chat" MinHeight="36px" /><Container Name="Conversations" Layout="Vertical" Gap="6px" Width="100%" /></Container>
                     <Container Layout="Vertical" Gap="7px" Padding="14px" Background="SurfaceRaised" BorderColor="Border" BorderWidth="1px" Radius="16px">
                       <Text Content="Describe a Space change" Level="H2" />
                       <Text Content="Tell Haven what you want to change. Suggested edits are applied to this draft for review and are not saved automatically." Foreground="TextSecondary" FontSize="11" />

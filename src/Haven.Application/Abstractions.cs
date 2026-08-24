@@ -22,6 +22,10 @@ public interface IConversationRepository
         var rows = await GetRecentAsync(scope.Mode, limit, cancellationToken).ConfigureAwait(false);
         return rows.Where(scope.Matches).Take(limit).ToArray();
     }
+    Task<IReadOnlyList<Conversation>> GetBySpaceAsync(Guid spaceId, int limit, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This conversation store does not support Space membership queries.");
+    Task DetachSpaceAsync(Guid spaceId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This conversation store does not support Space membership mutation.");
     Task<IReadOnlyList<Conversation>> GetArchivedAsync(HavenMode? mode, int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Conversation>>([]);
     Task<Conversation?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(Guid conversationId, CancellationToken cancellationToken);

@@ -41,6 +41,10 @@ public sealed class UsageTrackingConversationRepository(
     /// </summary>
     public Task<IReadOnlyList<Conversation>> GetRecentInScopeAsync(ConversationScope scope, int limit, CancellationToken cancellationToken) =>
         inner.GetRecentInScopeAsync(scope, limit, cancellationToken);
+    public Task<IReadOnlyList<Conversation>> GetBySpaceAsync(Guid spaceId, int limit, CancellationToken cancellationToken) =>
+        inner.GetBySpaceAsync(spaceId, limit, cancellationToken);
+    public Task DetachSpaceAsync(Guid spaceId, CancellationToken cancellationToken) =>
+        inner.DetachSpaceAsync(spaceId, cancellationToken);
 
     /// <summary>
     /// Retrieves archived async for the current operation.
