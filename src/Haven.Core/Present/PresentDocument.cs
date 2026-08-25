@@ -7,12 +7,11 @@ public enum PresentElementKind
     Shape = 2,
     GenUi = 3,
     Media = 4,
-    Group = 5
-}
+    Group = 5,`r`n    Table = 6,`r`n    Chart = 7`r`n}
 
 public sealed class PresentDocument
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public Guid Id { get; set; } = Guid.NewGuid();
