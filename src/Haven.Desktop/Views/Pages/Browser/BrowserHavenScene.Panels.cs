@@ -196,10 +196,26 @@ internal sealed partial class BrowserHavenScene
 
         if (_page.IsAssistantOpen)
         {
+            var assistantOutput = _page.AssistantOutput;
+            if (_page.IsReadAloudActive)
+                assistantOutput = string.IsNullOrWhiteSpace(assistantOutput)
+                    ? _page.ReadAloudSummary
+                    : assistantOutput + "\n" + _page.ReadAloudSummary;
             ConfigureUtility("Ask Haven", _page.AssistantInput, "", true, false,
-                "Ask", "Summarise", true, true, _page.AssistantOutput);
+                "Ask", "Summarise", true, true, assistantOutput);
             _utilityInput1.Placeholder = "Ask about this page";
             _utilityInput1.Multiline = true;
+            AddUtilityRow(_page.IsReadAloudActive ? "Restart page read aloud" : "Read page aloud",
+                _page.IsReadAloudActive ? "Stop reading" : "",
+                () => _page.ReadPageAloudCommand.Execute(null),
+                _page.IsReadAloudActive ? () => _page.StopReadAloudCommand.Execute(null) : null);
+            if (_page.IsReadAloudActive)
+            {
+                AddUtilityRow("Skip back one section", "", () => _page.SkipReadAloudBackCommand.Execute(null), null);
+                AddUtilityRow("Skip forward one section", "", () => _page.SkipReadAloudForwardCommand.Execute(null), null);
+                AddUtilityRow(_page.IsReadAloudPaused ? "Resume reading" : "Pause reading", "",
+                    () => _page.ToggleReadAloudPauseCommand.Execute(null), null);
+            }
             return;
         }
 

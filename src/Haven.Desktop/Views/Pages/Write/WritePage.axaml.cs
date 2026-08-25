@@ -6,6 +6,7 @@ using Haven.Application;
 using Haven.Core;
 using Haven.Desktop.Events;
 using Haven.Desktop.HavenUI.Backend;
+using Haven.Desktop.Services;
 using Haven.UI.Components;
 
 namespace Haven.Desktop.Views.Pages.Write;
@@ -23,6 +24,8 @@ public sealed partial class WritePage : UserControl, IDisposable
     private readonly Guid? _initialDocumentId;
     private readonly INotesAiService? _ai;
     private readonly IOllamaClient? _aiModels;
+    private readonly NotesReadAloudController? _readAloud;
+    private CancellationTokenSource _readAloudSessionCts = new();
     private IReadOnlyList<NotesDocumentSummary> _documents = [];
     private int _documentIndex;
     private int _saveRunning;
@@ -38,7 +41,8 @@ public sealed partial class WritePage : UserControl, IDisposable
         INotesAttachmentStore? attachments = null,
         Guid? initialDocumentId = null,
         INotesAiService? ai = null,
-        IOllamaClient? aiModels = null)
+        IOllamaClient? aiModels = null,
+        NotesReadAloudController? readAloud = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -47,6 +51,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         _initialDocumentId = initialDocumentId;
         _ai = ai;
         _aiModels = aiModels;
+        _readAloud = readAloud;
 
         InitializeComponent();
         _route = new WordWriteHavenScene();
@@ -64,6 +69,17 @@ public sealed partial class WritePage : UserControl, IDisposable
         _route.NextRequested += OnNextRequested;
         _route.DocumentChanged += OnWordDocumentChanged;
         _route.ImageRequested += OnWordImageRequested;
+        _route.ReadAloudRequested += OnReadAloudRequested;
+        _route.ReadAloudStopRequested += OnReadAloudStopRequested;
+        _route.ReadAloudSkipBackRequested += OnReadAloudSkipBackRequested;
+        _route.ReadAloudSkipForwardRequested += OnReadAloudSkipForwardRequested;
+        _route.ReadAloudPauseResumeRequested += OnReadAloudPauseResumeRequested;
+        if (_readAloud is not null)
+        {
+            _readAloud.StatusChanged += OnReadAloudStatusChanged;
+            _readAloud.ProgressChanged += OnReadAloudProgressChanged;
+            _readAloud.IsReadingChanged += OnReadAloudIsReadingChanged;
+        }
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _autosaveTimer.Tick += OnAutosaveTick;
@@ -183,6 +199,8 @@ public sealed partial class WritePage : UserControl, IDisposable
         Avalonia.VisualTreeAttachmentEventArgs e)
     {
         _autosaveTimer.Stop();
+        if (_readAloud is not null && _readAloud.IsActive)
+            await StopReadAloudForContextChangeAsync();
         if (_dirty && Document is not null)
             await SaveAsync("Autosave on leaving Write");
     }
@@ -228,6 +246,147 @@ public sealed partial class WritePage : UserControl, IDisposable
     private async void OnAiRejectRequested(object? sender, EventArgs e)
     {
         if (await SaveAsync("Rejected AI proposal")) { _route.SetStatus("AI proposal rejected. Document content was unchanged."); _bus.Fire("Write.Ai.Rejected"); }
+    }
+
+    private async void OnReadAloudRequested(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        if (_readAloud is null)
+        {
+            _route.SetStatus("Read aloud is unavailable because the local speech service is not registered.");
+            return;
+        }
+
+        if (Document is null)
+        {
+            _route.SetStatus("Open a document before reading it aloud.");
+            return;
+        }
+
+        var plainText = string.Join("\n", NotesTextStatistics.EnumerateText(Document));
+        if (string.IsNullOrWhiteSpace(plainText))
+        {
+            _route.SetStatus("This document has no readable text yet.");
+            return;
+        }
+
+        try
+        {
+            if (_readAloud.IsActive)
+                await _readAloud.StopAsync(CancellationToken.None);
+            await _readAloudSessionCts.CancelAsync();
+            _readAloudSessionCts.Dispose();
+            _readAloudSessionCts = new CancellationTokenSource();
+            await _readAloud.SpeakLongFormAsync(plainText, language: null, _readAloudSessionCts.Token);
+        }
+        catch (ArgumentException ex)
+        {
+            _route.SetStatus(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _route.SetStatus(ex.Message);
+        }
+        catch (OperationCanceledException)
+        {
+            // Page change cancelled this local reading session.
+        }
+    }
+
+    private async void OnReadAloudStopRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _readAloud is null || !_readAloud.IsActive) return;
+        try
+        {
+            await _readAloud.StopAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _route.SetStatus("Couldn't stop read aloud: " + ex.Message);
+        }
+    }
+
+    private async void OnReadAloudSkipBackRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _readAloud is null || !_readAloud.IsReading) return;
+        try
+        {
+            await _readAloud.SkipBackwardAsync(CancellationToken.None);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _route.SetStatus(ex.Message);
+        }
+    }
+
+    private async void OnReadAloudSkipForwardRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _readAloud is null || !_readAloud.IsReading) return;
+        try
+        {
+            await _readAloud.SkipForwardAsync(CancellationToken.None);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _route.SetStatus(ex.Message);
+        }
+    }
+
+    private async void OnReadAloudPauseResumeRequested(object? sender, EventArgs e)
+    {
+        if (_disposed || _readAloud is null || !_readAloud.IsReading) return;
+        try
+        {
+            if (_readAloud.IsPaused)
+                await _readAloud.ResumeAsync(CancellationToken.None);
+            else
+                await _readAloud.PauseAsync(CancellationToken.None);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _route.SetStatus(ex.Message);
+        }
+    }
+
+    private void OnReadAloudStatusChanged(object? sender, NotesReadAloudStatus status) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+            _route.SetStatus(status.Message);
+            RefreshReadAloudRouteState();
+        });
+
+    private void OnReadAloudProgressChanged(double progress) =>
+        Dispatcher.UIThread.Post(() => { if (!_disposed) RefreshReadAloudRouteState(); });
+
+    private void OnReadAloudIsReadingChanged(bool isReading) =>
+        Dispatcher.UIThread.Post(() => { if (!_disposed) RefreshReadAloudRouteState(); });
+
+    private void RefreshReadAloudRouteState()
+    {
+        if (_readAloud is null) return;
+        var count = Math.Max(_readAloud.ChunkCount, _readAloud.IsReading ? 1 : 0);
+        var index = Math.Clamp(_readAloud.CurrentChunkIndex, 0, Math.Max(0, count - 1));
+        var label = !_readAloud.IsReading
+            ? string.Empty
+            : _readAloud.IsPaused
+                ? $"Paused · section {index + 1} of {count}"
+                : $"Reading locally · section {index + 1} of {count}";
+        _route.SetReadAloudState(_readAloud.IsReading, _readAloud.IsPaused, label);
+    }
+
+    private async Task StopReadAloudForContextChangeAsync()
+    {
+        if (_readAloud is null || !_readAloud.IsActive) return;
+        try
+        {
+            await _readAloudSessionCts.CancelAsync();
+            await _readAloud.StopAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _route.SetStatus("Couldn't stop read aloud during the switch: " + ex.Message);
+        }
     }
 
     private async void OnNewRequested(object? sender, EventArgs e) =>
@@ -637,6 +796,7 @@ public sealed partial class WritePage : UserControl, IDisposable
 
     private async Task ShowLibraryAsync(bool saveBeforeSwitch, CancellationToken cancellationToken)
     {
+        await StopReadAloudForContextChangeAsync();
         if (saveBeforeSwitch && Document is not null && _dirty && !await SaveAsync("Autosave before opening document library", cancellationToken)) return;
         await RefreshDocumentsAsync(cancellationToken);
         ShowLibrary();
@@ -684,6 +844,7 @@ public sealed partial class WritePage : UserControl, IDisposable
 
     private async Task CreateDocumentAsync(CancellationToken cancellationToken)
     {
+        await StopReadAloudForContextChangeAsync();
         if (Document is not null && _dirty
             && !await SaveAsync("Autosave before creating document", cancellationToken))
         {
@@ -708,6 +869,7 @@ public sealed partial class WritePage : UserControl, IDisposable
         CancellationToken cancellationToken,
         bool saveBeforeSwitch)
     {
+        await StopReadAloudForContextChangeAsync();
         if (_documents.Count == 0)
             return;
 
@@ -810,6 +972,17 @@ public sealed partial class WritePage : UserControl, IDisposable
         _route.SaveRequested -= OnSaveRequested;
         _route.PreviousRequested -= OnPreviousRequested;
         _route.NextRequested -= OnNextRequested;
+        _route.ReadAloudRequested -= OnReadAloudRequested;
+        _route.ReadAloudStopRequested -= OnReadAloudStopRequested;
+        _route.ReadAloudSkipBackRequested -= OnReadAloudSkipBackRequested;
+        _route.ReadAloudSkipForwardRequested -= OnReadAloudSkipForwardRequested;
+        _route.ReadAloudPauseResumeRequested -= OnReadAloudPauseResumeRequested;
+        if (_readAloud is not null)
+        {
+            _readAloud.StatusChanged -= OnReadAloudStatusChanged;
+            _readAloud.ProgressChanged -= OnReadAloudProgressChanged;
+            _readAloud.IsReadingChanged -= OnReadAloudIsReadingChanged;
+        }
         _route.TitleChanged -= OnTitleChanged;
         _route.BlockTextChanged -= OnBlockTextChanged;
         _route.Dispose();

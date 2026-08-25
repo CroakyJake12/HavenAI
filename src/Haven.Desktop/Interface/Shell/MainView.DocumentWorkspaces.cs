@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Haven.Application;
 using Haven.Core;
+using Haven.Desktop.Services;
 using Haven.Desktop.Views.Pages.Canvas;
 using Haven.Desktop.Views.Pages.Data;
 using Haven.Desktop.Views.Pages.Present;
@@ -27,7 +28,8 @@ public sealed partial class MainView
         {
             "write" => new WritePage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>(), services.GetService<INotesAttachmentStore>(),
-                ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>()),
+                ai: services.GetService<INotesAiService>(), aiModels: services.GetService<IOllamaClient>(),
+                readAloud: services.GetRequiredService<NotesReadAloudController>()),
             "canvas" => new CanvasPage(_bus, services.GetRequiredService<INotesRepository>(),
                 services.GetRequiredService<INotesImportExportService>()),
             "present" => new PresentPage(_bus, services.GetRequiredService<IPresentRepository>(),
