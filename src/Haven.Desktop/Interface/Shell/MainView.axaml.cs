@@ -752,6 +752,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         await RefreshRecentsAsync(cancellationToken);
         await PollPlannerRemindersAsync();
         _reminderTimer.Start();
+        StartAutomationScheduler();
         _companionDockVm.Start();
         StartupStatus = migration.Imported
             ? $"Imported {migration.ConversationCount} legacy conversations \u00b7 local-only"
@@ -3602,6 +3603,7 @@ public sealed partial class MainView : UserControl, INotifyPropertyChanged, IDis
         if (IsDisposed) return;
         IsDisposed = true;
         _reminderTimer.Stop();
+        StopAutomationScheduler();
         lock (_goSuggestionRefreshes)
         {
             foreach (var cancellation in _goSuggestionRefreshes.Values)
