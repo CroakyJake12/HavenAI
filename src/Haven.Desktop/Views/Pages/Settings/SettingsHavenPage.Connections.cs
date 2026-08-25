@@ -17,14 +17,33 @@ public sealed partial class SettingsHavenPage
         _route.TestProviderRequested += TestProviderAsync;
         _route.DisconnectProviderRequested += DisconnectProviderAsync;
         _route.UpdateProviderRequested += UpdateProviderAsync;
+        _route.RefreshMcpConnectionRequested += RefreshMcpConnectionAsync;
+        _route.RemoveMcpConnectionRequested += RemoveMcpConnectionAsync;
+        _route.ConnectSuggestedMcpRequested += ConnectSuggestedMcpAsync;
+        if (_connections is not null)
+            SeedMcpSuggestions();
         _ = RefreshConnectionsAsync();
+    }
+
+    private void SeedMcpSuggestions()
+    {
+        if (_connections is null) return;
+        _route.SetMcpSuggestions(_connections.SuggestedConnections
+            .Select(item => new McpSuggestionSnapshot(
+                item.Key,
+                item.DisplayName,
+                item.Description,
+                item.Endpoint,
+                item.SetupMethod,
+                item.ActionLabel))
+            .ToArray());
     }
 
     private async Task RefreshConnectionsAsync()
     {
         if (_connections is null)
         {
-            _route.SetConnections([], [], "Connection services are unavailable in this session.");
+            _route.SetConnections([], [], [], "External connection services are unavailable in this session.", "Connection services are unavailable in this session.");
             return;
         }
 
@@ -80,6 +99,35 @@ public sealed partial class SettingsHavenPage
         PushConnectionState(provider.Status);
     }
 
+    private async Task RefreshMcpConnectionAsync(Guid id)
+    {
+        if (_connections is null) return;
+        var connection = _connections.ExternalConnections.FirstOrDefault(item => item.Id == id);
+        if (connection is null) return;
+        await _connections.RefreshExternalConnectionCommand.ExecuteAsync(connection);
+        PushConnectionState(connection.Detail);
+    }
+
+    private async Task RemoveMcpConnectionAsync(Guid id)
+    {
+        if (_connections is null) return;
+        var connection = _connections.ExternalConnections.FirstOrDefault(item => item.Id == id);
+        if (connection is null) return;
+        await _connections.RemoveExternalConnectionCommand.ExecuteAsync(connection);
+        PushConnectionState($"{connection.DisplayName} removed.");
+    }
+
+    private async Task ConnectSuggestedMcpAsync(string key, string name, string endpoint)
+    {
+        if (_connections is null) return;
+        var suggestion = _connections.SuggestedConnections.FirstOrDefault(item => string.Equals(item.Key, key, StringComparison.Ordinal));
+        if (suggestion is null) return;
+        if (!string.IsNullOrWhiteSpace(name)) suggestion.ConnectionName = name.Trim();
+        if (!string.IsNullOrWhiteSpace(endpoint)) suggestion.Endpoint = endpoint.Trim();
+        await _connections.ConnectSuggestedConnectionCommand.ExecuteAsync(suggestion);
+        PushConnectionState(suggestion.Status);
+    }
+
     private void PushConnectionState(string? status)
     {
         if (_connections is null) return;
@@ -112,9 +160,26 @@ public sealed partial class SettingsHavenPage
                 item.IsBusy))
             .ToArray();
 
+        var mcpConnections = _connections.ExternalConnections
+            .Select(item => new McpConnectionSnapshot(
+                item.Id,
+                item.DisplayName,
+                item.ProviderLabel,
+                item.TransportLabel,
+                item.ConnectionLabel,
+                item.EnabledLabel,
+                item.Detail,
+                item.ServerLabel,
+                item.ProtocolLabel,
+                item.AuthenticationLabel,
+                item.IsBusy))
+            .ToArray();
+
         _route.SetConnections(
             services,
             providers,
+            mcpConnections,
+            _connections.ExternalConnectionsStatus,
             string.IsNullOrWhiteSpace(status) ? "Connections ready." : status);
     }
 }

@@ -66,7 +66,7 @@ public sealed class SettingsHavenSceneTests
         scene.NavigateTo("integrations");
         var service = new ServiceConnectionSnapshot(CalendarProviderKind.Google, "Google Calendar", "Read and manage calendar events", "Connected", "student@example.com", "Synced just now", "Ready", true, true, false);
         var provider = new ProviderConnectionSnapshot("openai", "OpenAI", "OpenAI-compatible", "https://api.openai.com/v1", "Connected", "Healthy", "GPT models available", true, true, false);
-        scene.SetConnections([service], [provider], "Connection status is up to date.");
+        scene.SetConnections([service], [provider], [], "No MCP connections configured yet.", "Connection status is up to date.");
         var all = scene.Root.DescendantsAndSelf().ToArray();
         var serviceCard = Assert.Single(all, item => item.Name == "Settings.Integrations.Service.Google");
         var providerCard = Assert.Single(all, item => item.Name == "Settings.Integrations.Provider.openai");
@@ -91,7 +91,7 @@ public sealed class SettingsHavenSceneTests
         using var scene = new SettingsHavenScene();
         scene.NavigateTo("integrations");
         var provider = new ProviderConnectionSnapshot("anthropic", "Anthropic", "Anthropic", "https://api.anthropic.com", "Not connected", string.Empty, string.Empty, false, false, false);
-        scene.SetConnections([], [provider], "Provider setup requires secure secret entry.");
+        scene.SetConnections([], [provider], [], "No MCP connections configured yet.", "Provider setup requires secure secret entry.");
         var card = Assert.Single(scene.Root.DescendantsAndSelf(), item => item.Name == "Settings.Integrations.Provider.anthropic");
         var buttons = card.DescendantsAndSelf().OfType<Button>().ToArray();
         Assert.True(Assert.Single(buttons, button => button.Content == "Connect").GetValue(HavenProperties.Enabled));

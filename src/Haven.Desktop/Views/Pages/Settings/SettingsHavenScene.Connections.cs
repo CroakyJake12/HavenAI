@@ -30,12 +30,40 @@ internal sealed record ServiceConnectionSnapshot(
     bool IsConnected,
     bool IsBusy);
 
+internal sealed record McpSuggestionSnapshot(
+    string Key,
+    string DisplayName,
+    string Description,
+    string Endpoint,
+    string SetupMethod,
+    string ActionLabel);
+
+internal sealed record McpConnectionSnapshot(
+    Guid Id,
+    string DisplayName,
+    string ProviderLabel,
+    string TransportLabel,
+    string ConnectionLabel,
+    string EnabledLabel,
+    string Status,
+    string ServerLabel,
+    string ProtocolLabel,
+    string AuthenticationLabel,
+    bool IsBusy);
+
 internal sealed partial class SettingsHavenScene
 {
     private Container _servicesHost = null!;
     private Container _providersHost = null!;
+    private Container _mcpSuggestionsHost = null!;
+    private Container _mcpHost = null!;
     private HavenText _connectionsStatus = null!;
+    private HavenText _mcpStatus = null!;
     private HavenButton _refreshConnectionsButton = null!;
+    private readonly Dictionary<string, Input> _mcpNameInputs = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Input> _mcpEndpointInputs = new(StringComparer.Ordinal);
+    private readonly HashSet<Guid> _pendingMcpRemovalIds = [];
+    private IReadOnlyList<McpConnectionSnapshot> _mcpConnections = [];
 
     public event Func<Task>? RefreshConnectionsRequested;
     public event Func<CalendarProviderKind, Task>? ConnectServiceRequested;
@@ -43,6 +71,9 @@ internal sealed partial class SettingsHavenScene
     public event Func<string, Task>? TestProviderRequested;
     public event Func<string, Task>? DisconnectProviderRequested;
     public event Func<string, string, string, Task>? UpdateProviderRequested;
+    public event Func<Guid, Task>? RefreshMcpConnectionRequested;
+    public event Func<Guid, Task>? RemoveMcpConnectionRequested;
+    public event Func<string, string, string, Task>? ConnectSuggestedMcpRequested;
 
     private Container BuildConnectionsSection()
     {
@@ -90,17 +121,212 @@ internal sealed partial class SettingsHavenScene
         providers.Add(_providersHost);
         section.Add(providers);
 
+        var mcp = Card("Settings.Integrations.Mcp");
+        mcp.Add(Heading("Settings.Integrations.McpHeading", "MCP & external connections", 18));
+        mcp.Add(Muted("Settings.Integrations.McpDescription",
+            "Model Context Protocol servers connect Haven to tools from other apps and services. Remote HTTPS servers sign in with OAuth 2.1 in your browser; local loopback and preset servers connect without OAuth."));
+        _mcpSuggestionsHost = new Container { Name = "Settings.Integrations.Mcp.SuggestionsHost", Layout = HavenLayout.Vertical };
+        _mcpSuggestionsHost.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        _mcpSuggestionsHost.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        mcp.Add(_mcpSuggestionsHost);
+        _mcpStatus = Muted("Settings.Integrations.Mcp.Status", "Loading MCP connections…");
+        mcp.Add(_mcpStatus);
+        _mcpHost = new Container { Name = "Settings.Integrations.Mcp.Host", Layout = HavenLayout.Vertical };
+        _mcpHost.SetValue(HavenProperties.Gap, HavenLength.Px(10));
+        _mcpHost.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        mcp.Add(_mcpHost);
+        section.Add(mcp);
+
         return section;
     }
 
     public void SetConnections(
         IReadOnlyList<ServiceConnectionSnapshot> services,
         IReadOnlyList<ProviderConnectionSnapshot> providers,
+        IReadOnlyList<McpConnectionSnapshot> mcpConnections,
+        string mcpStatus,
         string status)
     {
         _connectionsStatus.Content = status;
         RebuildServices(services);
         RebuildProviders(providers);
+        SetMcpConnections(mcpConnections, mcpStatus);
+    }
+
+    public void SetMcpSuggestions(IReadOnlyList<McpSuggestionSnapshot> suggestions)
+    {
+        foreach (var child in _mcpSuggestionsHost.Children.ToArray())
+            _mcpSuggestionsHost.Remove(child);
+        _mcpNameInputs.Clear();
+        _mcpEndpointInputs.Clear();
+
+        foreach (var suggestion in suggestions)
+        {
+            var card = ConnectionCard($"Settings.Integrations.Mcp.Suggest.{suggestion.Key}");
+            card.Add(Heading(null, suggestion.DisplayName, 16));
+            card.Add(Muted(null, suggestion.Description));
+            card.Add(Muted(null, suggestion.SetupMethod));
+
+            var name = new Input
+            {
+                Name = $"Settings.Integrations.Mcp.Suggest.{suggestion.Key}.Name",
+                Placeholder = "Server name"
+            };
+            name.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+            name.Accessibility.AccessibleName = $"{suggestion.DisplayName} server name";
+            _mcpNameInputs[suggestion.Key] = name;
+            card.Add(name);
+
+            var endpoint = new Input
+            {
+                Name = $"Settings.Integrations.Mcp.Suggest.{suggestion.Key}.Endpoint",
+                Text = suggestion.Endpoint,
+                Placeholder = "https://example.com/mcp"
+            };
+            endpoint.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+            endpoint.Accessibility.AccessibleName = $"{suggestion.DisplayName} endpoint";
+            _mcpEndpointInputs[suggestion.Key] = endpoint;
+            card.Add(endpoint);
+
+            var actions = ActionRow();
+            var connect = new HavenButton
+            {
+                Name = $"Settings.Integrations.Mcp.Suggest.{suggestion.Key}.Connect",
+                Content = suggestion.ActionLabel,
+                Variant = ButtonVariant.Primary
+            };
+            connect.Accessibility.AccessibleName = suggestion.ActionLabel;
+            connect.Invoked += async (_, _) =>
+            {
+                if (ConnectSuggestedMcpRequested is { } handler)
+                    await handler(suggestion.Key, name.Text, endpoint.Text);
+            };
+            actions.Add(connect);
+            card.Add(actions);
+            _mcpSuggestionsHost.Add(card);
+        }
+    }
+
+    public void SetMcpConnections(IReadOnlyList<McpConnectionSnapshot> connections, string status)
+    {
+        _mcpConnections = connections;
+        _pendingMcpRemovalIds.IntersectWith(connections.Select(item => item.Id));
+        _mcpStatus.Content = string.IsNullOrWhiteSpace(status) ? "MCP connection status is unavailable." : status;
+        RebuildMcp();
+    }
+
+    private void RebuildMcp()
+    {
+        foreach (var child in _mcpHost.Children.ToArray())
+            _mcpHost.Remove(child);
+
+        if (_mcpConnections.Count == 0)
+        {
+            _mcpHost.Add(Muted("Settings.Integrations.Mcp.Empty",
+                "No MCP connections are configured yet. Connect a preset above to add one."));
+            return;
+        }
+
+        foreach (var connection in _mcpConnections)
+        {
+            var card = ConnectionCard($"Settings.Integrations.Mcp.{connection.Id}");
+            card.Add(Heading(null, connection.DisplayName, 16));
+            card.Add(Muted(null, $"{connection.ProviderLabel} · {connection.TransportLabel} · {connection.ConnectionLabel} · {connection.EnabledLabel}"));
+            card.Add(Muted(null, connection.ServerLabel));
+            card.Add(Muted(null, connection.ProtocolLabel));
+            card.Add(Muted(null, connection.AuthenticationLabel));
+            if (!string.IsNullOrWhiteSpace(connection.Status))
+                card.Add(Muted(null, connection.Status));
+
+            var actions = ActionRow();
+            var refresh = new HavenButton
+            {
+                Name = $"Settings.Integrations.Mcp.{connection.Id}.Refresh",
+                Content = "Refresh / test",
+                Variant = ButtonVariant.Secondary
+            };
+            refresh.Accessibility.AccessibleName = $"Refresh or test {connection.DisplayName}";
+            refresh.SetValue(HavenProperties.Enabled, !connection.IsBusy);
+            refresh.Invoked += async (_, _) =>
+            {
+                if (RefreshMcpConnectionRequested is { } handler)
+                    await handler(connection.Id);
+            };
+            actions.Add(refresh);
+
+            if (_pendingMcpRemovalIds.Contains(connection.Id))
+                card.Add(BuildMcpRemovalConfirmation(connection));
+            else
+                actions.Add(BuildMcpRemoveButton(connection));
+
+            card.Add(actions);
+            _mcpHost.Add(card);
+        }
+    }
+
+    private HavenButton BuildMcpRemoveButton(McpConnectionSnapshot connection)
+    {
+        var remove = new HavenButton
+        {
+            Name = $"Settings.Integrations.Mcp.{connection.Id}.Remove",
+            Content = "Remove",
+            Variant = ButtonVariant.Danger
+        };
+        remove.Accessibility.AccessibleName = $"Remove {connection.DisplayName}";
+        remove.SetValue(HavenProperties.Enabled, !connection.IsBusy);
+        remove.Invoked += (_, _) =>
+        {
+            _pendingMcpRemovalIds.Add(connection.Id);
+            RebuildMcp();
+        };
+        return remove;
+    }
+
+    private Container BuildMcpRemovalConfirmation(McpConnectionSnapshot connection)
+    {
+        var confirmation = new Container { Name = $"Settings.Integrations.Mcp.{connection.Id}.Confirm", Layout = HavenLayout.Vertical };
+        confirmation.SetValue(HavenProperties.Background, "Surface");
+        confirmation.SetValue(HavenProperties.BorderColor, "Danger");
+        confirmation.SetValue(HavenProperties.BorderWidth, HavenLength.Px(1));
+        confirmation.SetValue(HavenProperties.Radius, HavenCornerRadius.Uniform(HavenLength.Px(14)));
+        confirmation.SetValue(HavenProperties.Padding, HavenThickness.Parse("13px"));
+        confirmation.SetValue(HavenProperties.Gap, HavenLength.Px(6));
+        confirmation.SetValue(HavenProperties.Width, HavenLength.Percent(100));
+        confirmation.Add(Muted($"Settings.Integrations.Mcp.{connection.Id}.RemoveWarning",
+            $"Removing {connection.DisplayName} disconnects its tools from Haven and cannot be undone from this page."));
+        var confirmActions = ActionRow();
+
+        var confirm = new HavenButton
+        {
+            Name = $"Settings.Integrations.Mcp.{connection.Id}.ConfirmRemove",
+            Content = "Confirm removal",
+            Variant = ButtonVariant.Danger
+        };
+        confirm.Accessibility.AccessibleName = $"Confirm removing {connection.DisplayName}";
+        confirm.SetValue(HavenProperties.Enabled, !connection.IsBusy);
+        confirm.Invoked += async (_, _) =>
+        {
+            if (RemoveMcpConnectionRequested is { } handler)
+                await handler(connection.Id);
+        };
+        confirmActions.Add(confirm);
+
+        var cancel = new HavenButton
+        {
+            Name = $"Settings.Integrations.Mcp.{connection.Id}.CancelRemove",
+            Content = "Cancel",
+            Variant = ButtonVariant.Ghost
+        };
+        cancel.Accessibility.AccessibleName = $"Cancel removing {connection.DisplayName}";
+        cancel.Invoked += (_, _) =>
+        {
+            _pendingMcpRemovalIds.Remove(connection.Id);
+            RebuildMcp();
+        };
+        confirmActions.Add(cancel);
+
+        confirmation.Add(confirmActions);
+        return confirmation;
     }
 
     private void RebuildServices(IReadOnlyList<ServiceConnectionSnapshot> services)

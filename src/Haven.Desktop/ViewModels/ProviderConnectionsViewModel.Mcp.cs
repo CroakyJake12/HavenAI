@@ -119,7 +119,13 @@ public sealed class ExternalConnectionItemViewModel : ObservableObject
         ConnectionLabel = connection.State switch { ExternalConnectionState.Ready => "Connected", ExternalConnectionState.Offline => "Offline", ExternalConnectionState.Disabled => "Disabled", _ => "Needs attention" };
         Detail = connection.Status; ServerLabel = string.IsNullOrWhiteSpace(connection.ServerName) ? "Server identity not available" : $"{connection.ServerName} {connection.ServerVersion}".Trim();
         ProtocolLabel = string.IsNullOrWhiteSpace(connection.ProtocolVersion) ? "Protocol negotiated on connect" : "MCP " + connection.ProtocolVersion;
-        AuthenticationLabel = DescribeAuthentication(connection);
+        McpConnectionConfiguration? configuration = null;
+        var unreadableConfiguration = false;
+        try { configuration = JsonSerializer.Deserialize<McpConnectionConfiguration>(connection.ConfigurationJson); }
+        catch (JsonException) { unreadableConfiguration = true; }
+        TransportLabel = DescribeTransport(configuration, unreadableConfiguration);
+        AuthenticationLabel = DescribeAuthentication(connection, configuration, unreadableConfiguration);
+        EnabledLabel = connection.IsEnabled ? "Enabled" : "Disabled";
     }
     public Guid Id { get; }
     public string DisplayName { get; }
@@ -128,21 +134,25 @@ public sealed class ExternalConnectionItemViewModel : ObservableObject
     public string Detail { get; }
     public string ServerLabel { get; }
     public string ProtocolLabel { get; }
+    public string TransportLabel { get; }
     public string AuthenticationLabel { get; }
+    public string EnabledLabel { get; }
     public string PluginLabel => ExternalConnectionNaming.PluginName(DisplayName);
     public bool IsBusy { get => _isBusy; set { if (SetProperty(ref _isBusy, value)) RaisePropertyChanged(nameof(CanAct)); } }
     public bool CanAct => !IsBusy;
 
-    private static string DescribeAuthentication(ExternalConnection connection)
+    private static string DescribeTransport(McpConnectionConfiguration? configuration, bool unreadableConfiguration)
+    {
+        if (unreadableConfiguration) return "Transport: configuration needs attention";
+        return configuration?.Transport == McpTransportKind.Stdio ? "Transport: Stdio command" : "Transport: Streamable HTTP";
+    }
+
+    private static string DescribeAuthentication(ExternalConnection connection, McpConnectionConfiguration? configuration, bool unreadableConfiguration)
     {
         if (connection.PresetKey.Equals("uefn", StringComparison.OrdinalIgnoreCase)) return "Authentication: none - local UEFN preset";
-        try
-        {
-            var configuration = JsonSerializer.Deserialize<McpConnectionConfiguration>(connection.ConfigurationJson);
-            return configuration?.UseOAuth == true
-                ? "Authentication: OAuth 2.1 browser sign-in - tokens stored in Windows Credential Manager"
-                : "Authentication: none - local connection";
-        }
-        catch (JsonException) { return "Authentication: configuration needs attention"; }
+        if (unreadableConfiguration) return "Authentication: configuration needs attention";
+        return configuration?.UseOAuth == true
+            ? "Authentication: OAuth 2.1 browser sign-in - tokens stored in Windows Credential Manager"
+            : "Authentication: none - local connection";
     }
 }
