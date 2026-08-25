@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:backend="using:Haven.Desktop.HavenUI.Backend"
+             x:Class="Haven.Desktop.Views.Pages.Maps.MapsPage">
+
+  <!-- Platform adapter only. The visible Maps product surface is Haven.UI; the scene host is
+       constructed in code-behind so the tile cache image resolver can be supplied as an explicit
+       host capability (the same pattern BrowserPage uses for its native resolvers). -->
+
+</UserControl>
